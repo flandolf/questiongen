@@ -4,12 +4,12 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Bug } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function SettingsView() {
-  const { apiKey, setApiKey, model, setModel, clearApiKey, showApiKey, setShowApiKey } = useAppContext();
+  const { apiKey, setApiKey, model, setModel, clearApiKey, showApiKey, setShowApiKey, debugMode, setDebugMode } = useAppContext();
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
   const [showCustomModelInput, setShowCustomModelInput] = useState(false);
@@ -35,7 +35,7 @@ export function SettingsView() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto flex flex-col gap-4">
+    <div className="p-3 sm:p-4 lg:p-5 max-w-4xl mx-auto flex flex-col gap-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-2">Manage your OpenRouter API key and model preferences.</p>
@@ -142,6 +142,24 @@ export function SettingsView() {
         </CardHeader>
         <CardContent>
           <ModeToggle />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Debug Mode</CardTitle>
+          <CardDescription>
+            Reveal the raw LLM generation payload from the problem card for debugging and prompt inspection.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {debugMode ? "Debug mode is enabled." : "Debug mode is disabled."}
+          </p>
+          <Button type="button" variant={debugMode ? "default" : "outline"} className="gap-2" onClick={() => setDebugMode(!debugMode)}>
+            <Bug className="h-4 w-4" />
+            {debugMode ? "Disable Debug Mode" : "Enable Debug Mode"}
+          </Button>
         </CardContent>
       </Card>
     </div>

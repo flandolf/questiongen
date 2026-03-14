@@ -66,10 +66,25 @@ export type GeneratedQuestion = {
   promptMarkdown: string;
   maxMarks: number;
   techAllowed?: boolean;
+  distinctnessScore?: number;
+  multiStepDepth?: number;
+};
+
+export type GenerationTelemetry = {
+  difficulty: string;
+  totalAttempts: number;
+  repairAttempts: number;
+  constrainedRegenerationUsed: boolean;
+  repairPath: string[];
+  durationMs: number;
+  distinctnessAvg?: number;
+  multiStepDepthAvg?: number;
 };
 
 export type GenerateQuestionsResponse = {
   questions: GeneratedQuestion[];
+  rawModelOutput?: string;
+  telemetry?: GenerationTelemetry;
 };
 
 export type MarkAnswerResponse = {
@@ -103,6 +118,7 @@ export type QuestionHistoryEntry = {
   uploadedAnswerImage?: StudentAnswerImage;
   workedSolutionMarkdown: string;
   markResponse: MarkAnswerResponse;
+  generationTelemetry?: GenerationTelemetry;
 };
 
 export type BackendError = {
@@ -120,6 +136,7 @@ export const TOPICS: Topic[] = [
 export const API_KEY_STORAGE_KEY = "questiongen.openrouterApiKey";
 export const QUESTION_HISTORY_STORAGE_KEY = "questiongen.history";
 export const MC_HISTORY_STORAGE_KEY = "questiongen.mcHistory";
+export const DEBUG_MODE_STORAGE_KEY = "questiongen.debugMode";
 
 export type QuestionMode = "written" | "multiple-choice";
 
@@ -137,10 +154,14 @@ export type McQuestion = {
   correctAnswer: string;
   explanationMarkdown: string;
   techAllowed?: boolean;
+  distinctnessScore?: number;
+  multiStepDepth?: number;
 };
 
 export type GenerateMcQuestionsResponse = {
   questions: McQuestion[];
+  rawModelOutput?: string;
+  telemetry?: GenerationTelemetry;
 };
 
 export type McHistoryEntry = {
@@ -150,4 +171,5 @@ export type McHistoryEntry = {
   question: McQuestion;
   selectedAnswer: string;
   correct: boolean;
+  generationTelemetry?: GenerationTelemetry;
 };

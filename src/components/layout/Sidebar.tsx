@@ -4,36 +4,43 @@ import { cn } from "../../lib/utils";
 
 export function Sidebar() {
   const links = [
-    { to: "/", label: "Generator", icon: <Sparkles className="w-5 h-5" /> },
-    { to: "/history", label: "History", icon: <History className="w-5 h-5" /> },
-    { to: "/analytics", label: "Analytics", icon: <ChartColumnIncreasing className="w-5 h-5" /> },
-    { to: "/settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
+    { to: "/", label: "Generator", icon: Sparkles },
+    { to: "/history", label: "History", icon: History },
+    { to: "/analytics", label: "Analytics", icon: ChartColumnIncreasing },
+    { to: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
-    <aside className="app-sidebar w-64 h-screen flex flex-col pt-6 font-medium">
-      <div className="px-6 mb-8">
+    <aside className="app-sidebar flex flex-col font-medium">
+      <div className="app-sidebar__header px-3 mb-6 sm:px-4">
         <div className="app-sidebar__brand">
-        <h1 className="text-xl font-bold tracking-tight">QuestionGen</h1>
-        <div className="text-xs text-muted-foreground mt-1">VCE Study Studio</div>
+          <div className="app-sidebar__brand-mark" aria-hidden="true">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="app-sidebar__brand-copy">
+            <h1 className="text-lg font-bold tracking-tight">QuestionGen</h1>
+            <div className="app-sidebar__brand-tag text-xs text-muted-foreground mt-1">VCE Study Studio</div>
+          </div>
         </div>
       </div>
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="app-sidebar__nav flex-1 px-2 space-y-1 sm:px-3">
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
+            aria-label={link.label}
+            title={link.label}
             className={({ isActive }) =>
               cn(
-                "app-sidebar__link flex items-center gap-3 px-3 py-2 rounded-md",
+                "app-sidebar__link flex items-center gap-3 rounded-xl px-3 py-3",
                 isActive
                   ? "app-sidebar__link--active"
                   : "text-muted-foreground"
               )
             }
           >
-            {link.icon}
-            {link.label}
+            <link.icon className="h-5 w-5 shrink-0" />
+            <span className="app-sidebar__link-label">{link.label}</span>
           </NavLink>
         ))}
       </nav>

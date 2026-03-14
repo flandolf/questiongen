@@ -13,6 +13,13 @@ type AnalyticsRow = {
   percentCorrect: number;
 };
 
+type QualityRow = {
+  difficulty: string;
+  sampleCount: number;
+  distinctnessAvg: number;
+  multiStepDepthAvg: number;
+};
+
 const UNSPECIFIED_SUBTOPIC = "Unspecified";
 
 function normalizeSubtopic(subtopic?: string) {
@@ -87,8 +94,58 @@ export function AnalyticsView() {
     };
   }, [analyticsRows]);
 
+  const qualityRows = useMemo<QualityRow[]>(() => {
+    const byDifficulty = new Map<string, { count: number; distinctnessTotal: number; depthTotal: number }>();
+
+    for (const entry of questionHistory) {
+      const distinctness = entry.question.distinctnessScore;
+      const depth = entry.question.multiStepDepth;
+      if (distinctness === undefined || depth === undefined) {
+        continue;
+      }
+
+      const difficulty = entry.generationTelemetry?.difficulty ?? "Unknown";
+      const bucket = byDifficulty.get(difficulty) ?? { count: 0, distinctnessTotal: 0, depthTotal: 0 };
+      bucket.count += 1;
+      bucket.distinctnessTotal += distinctness;
+      bucket.depthTotal += depth;
+      byDifficulty.set(difficulty, bucket);
+    }
+
+    return Array.from(byDifficulty.entries())
+      .map(([difficulty, bucket]) => ({
+        difficulty,
+        sampleCount: bucket.count,
+        distinctnessAvg: bucket.distinctnessTotal / bucket.count,
+        multiStepDepthAvg: bucket.depthTotal / bucket.count,
+      }))
+      .sort((a, b) => a.difficulty.localeCompare(b.difficulty));
+  }, [questionHistory]);
+
+  const qualityOverall = useMemo(() => {
+    if (qualityRows.length === 0) {
+      return null;
+    }
+
+    const totals = qualityRows.reduce(
+      (acc, row) => {
+        acc.count += row.sampleCount;
+        acc.distinctness += row.distinctnessAvg * row.sampleCount;
+        acc.depth += row.multiStepDepthAvg * row.sampleCount;
+        return acc;
+      },
+      { count: 0, distinctness: 0, depth: 0 },
+    );
+
+    return {
+      sampleCount: totals.count,
+      distinctnessAvg: totals.distinctness / totals.count,
+      multiStepDepthAvg: totals.depth / totals.count,
+    };
+  }, [qualityRows]);
+
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto h-full flex flex-col gap-4">
+    <div className="p-3 sm:p-4 lg:p-5 max-w-4xl mx-auto h-full flex flex-col gap-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground mt-2">Accuracy by topic and subtopic.</p>
@@ -107,6 +164,39 @@ export function AnalyticsView() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Generation Quality</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {qualityOverall ? (
+            <>
+              <div className="rounded-md border p-3">
+                <div className="text-sm font-medium">Overall</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Distinctness {qualityOverall.distinctnessAvg.toFixed(2)} • Multi-step depth {qualityOverall.multiStepDepthAvg.toFixed(2)} • {qualityOverall.sampleCount} samples
+                </div>
+              </div>
+              <div className="space-y-2">
+                {qualityRows.map((row) => (
+                  <div key={row.difficulty} className="rounded-md border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm font-medium">{row.difficulty}</div>
+                      <div className="text-xs text-muted-foreground">{row.sampleCount} samples</div>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Distinctness {row.distinctnessAvg.toFixed(2)} • Multi-step depth {row.multiStepDepthAvg.toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No quality telemetry yet. Generate and complete written questions first.</p>
+          )}
         </CardContent>
       </Card>
 

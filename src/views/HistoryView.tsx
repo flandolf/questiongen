@@ -30,7 +30,7 @@ export function HistoryView() {
 
   if (combined.length === 0) {
     return (
-      <div className="p-4 md:p-6 h-full flex flex-col items-center justify-center text-center">
+      <div className="p-3 sm:p-4 lg:p-5 h-full flex flex-col items-center justify-center text-center">
         <h2 className="text-2xl font-bold mb-2">No History Yet</h2>
         <p className="text-muted-foreground mb-6">Complete a question to see it here.</p>
       </div>
@@ -38,7 +38,7 @@ export function HistoryView() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto h-full flex flex-col gap-4">
+    <div className="p-3 sm:p-4 lg:p-5 max-w-4xl mx-auto h-full flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">History</h1>

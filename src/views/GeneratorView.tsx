@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug } from "lucide-react";
 import { useAppContext } from "../AppContext";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { Button } from "../components/ui/button";
@@ -24,6 +24,7 @@ import {
   PhysicalEducationSubtopic,
   GenerateQuestionsResponse,
   GenerateMcQuestionsResponse,
+  GenerationTelemetry,
   McHistoryEntry,
   QuestionHistoryEntry,
   Difficulty
@@ -33,6 +34,11 @@ import { fileToDataUrl, normalizeMarkResponse, readBackendError } from "../lib/a
 export function GeneratorView() {
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
+  const [showMcRawOutput, setShowMcRawOutput] = useState(false);
+  const [writtenGenerationTelemetry, setWrittenGenerationTelemetry] = useState<GenerationTelemetry | null>(null);
+  const [mcGenerationTelemetry, setMcGenerationTelemetry] = useState<GenerationTelemetry | null>(null);
+  const [renderFallbackByQuestionId, setRenderFallbackByQuestionId] = useState<Record<string, boolean>>({});
 
   const {
     apiKey, model, errorMessage, setErrorMessage,
@@ -41,6 +47,7 @@ export function GeneratorView() {
     chemistrySubtopics, setChemistrySubtopics,
     physicalEducationSubtopics, setPhysicalEducationSubtopics,
     questionCount, setQuestionCount, maxMarksPerQuestion, setMaxMarksPerQuestion,
+    debugMode, writtenRawModelOutput, setWrittenRawModelOutput, mcRawModelOutput, setMcRawModelOutput,
     questionMode, setQuestionMode,
     questions, setQuestions, activeQuestionIndex, setActiveQuestionIndex,
     answersByQuestionId, setAnswersByQuestionId, imagesByQuestionId, setImagesByQuestionId,
@@ -54,11 +61,14 @@ export function GeneratorView() {
   const activeQuestionAnswer = activeQuestion ? (answersByQuestionId[activeQuestion.id] ?? "") : "";
   const activeQuestionImage = activeQuestion ? imagesByQuestionId[activeQuestion.id] : undefined;
   const activeFeedback = activeQuestion ? feedbackByQuestionId[activeQuestion.id] : undefined;
+  const activeQuestionFallbackUsed = activeQuestion ? Boolean(renderFallbackByQuestionId[activeQuestion.id]) : false;
 
   const activeMcQuestion = mcQuestions[activeMcQuestionIndex];
   const activeMcAnswer = activeMcQuestion ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? "") : "";
 
   const showSetup = questionMode === "written" ? questions.length === 0 : mcQuestions.length === 0;
+  const canShowWrittenRawOutput = debugMode && writtenRawModelOutput.trim().length > 0;
+  const canShowMcRawOutput = debugMode && mcRawModelOutput.trim().length > 0;
   
   const completedCount = useMemo(
     () => questions.filter((q) => feedbackByQuestionId[q.id]).length,
@@ -171,10 +181,14 @@ export function GeneratorView() {
       });
 
       setQuestions(response.questions);
+      setWrittenRawModelOutput(response.rawModelOutput ?? "");
+      setWrittenGenerationTelemetry(response.telemetry ?? null);
+      setShowWrittenRawOutput(false);
       setActiveQuestionIndex(0);
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
+      setRenderFallbackByQuestionId({});
     } catch (error) {
       resetStopwatch();
       setErrorMessage(readBackendError(error));
@@ -210,6 +224,7 @@ export function GeneratorView() {
         uploadedAnswerImage: activeQuestionImage,
         workedSolutionMarkdown: response.workedSolutionMarkdown,
         markResponse: response,
+        generationTelemetry: writtenGenerationTelemetry ?? undefined,
       };
 
       setQuestionHistory((prev) => [historyEntry, ...prev].slice(0, 200));
@@ -230,6 +245,9 @@ export function GeneratorView() {
         request: { topics: selectedTopics, difficulty, questionCount, model, apiKey, techMode, subtopics: getSelectedSubtopics() },
       });
       setMcQuestions(response.questions);
+      setMcRawModelOutput(response.rawModelOutput ?? "");
+      setMcGenerationTelemetry(response.telemetry ?? null);
+      setShowMcRawOutput(false);
       setActiveMcQuestionIndex(0);
       setMcAnswersByQuestionId({});
     } catch (error) {
@@ -251,6 +269,7 @@ export function GeneratorView() {
       question: activeMcQuestion,
       selectedAnswer: selectedLabel,
       correct,
+      generationTelemetry: mcGenerationTelemetry ?? undefined,
     };
     setMcHistory((prev) => [entry, ...prev].slice(0, 200));
   }
@@ -258,13 +277,30 @@ export function GeneratorView() {
   function handleStartOver() {
     resetStopwatch();
     setQuestions([]);
+    setWrittenRawModelOutput("");
+    setWrittenGenerationTelemetry(null);
+    setShowWrittenRawOutput(false);
     setActiveQuestionIndex(0);
     setAnswersByQuestionId({});
     setImagesByQuestionId({});
     setFeedbackByQuestionId({});
+    setRenderFallbackByQuestionId({});
     setMcQuestions([]);
+    setMcRawModelOutput("");
+    setMcGenerationTelemetry(null);
+    setShowMcRawOutput(false);
     setActiveMcQuestionIndex(0);
     setMcAnswersByQuestionId({});
+  }
+
+  function handlePromptFallbackChange(isFallback: boolean) {
+    if (!activeQuestion) return;
+    setRenderFallbackByQuestionId((prev) => {
+      if (prev[activeQuestion.id] === isFallback) {
+        return prev;
+      }
+      return { ...prev, [activeQuestion.id]: isFallback };
+    });
   }
 
   async function handleDropDropzone(acceptedFiles: File[]) {
@@ -300,7 +336,7 @@ export function GeneratorView() {
   };
 
   return (
-    <div className="min-h-full p-4 md:p-8 max-w-6xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className="min-h-full p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500">
       {errorMessage && (
         <div className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm">
           <XCircle className="w-5 h-5 shrink-0" />
@@ -535,6 +571,11 @@ export function GeneratorView() {
                     {activeQuestion.techAllowed ? "Tech-Active (CAS allowed)" : "Tech-Free (No calculator)"}
                   </Badge>
                 )}
+                {activeQuestionFallbackUsed && (
+                  <Badge variant="outline" className="border-amber-500/60 bg-amber-100/60 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
+                    LaTeX Recovery Applied
+                  </Badge>
+                )}
                 {stopwatchStartedAt !== null && (
                   <Badge variant="outline" className="inline-flex items-center gap-1.5 font-mono bg-muted/50">
                     <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
@@ -564,10 +605,29 @@ export function GeneratorView() {
             <div className="flex flex-col space-y-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
+                    {canShowWrittenRawOutput && (
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowWrittenRawOutput((prev) => !prev)}>
+                        <Bug className="h-4 w-4" />
+                        {showWrittenRawOutput ? "Hide Raw Output" : "Show Raw Output"}
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent className="prose prose-slate dark:prose-invert max-w-none">
-                   <MarkdownMath content={activeQuestion.promptMarkdown} />
+                <CardContent className="space-y-4">
+                  <div className="prose prose-slate dark:prose-invert max-w-none">
+                    <MarkdownMath content={activeQuestion.promptMarkdown} onFallbackChange={handlePromptFallbackChange} />
+                  </div>
+                  {showWrittenRawOutput && canShowWrittenRawOutput && (
+                    <div className="space-y-2">
+                      <Separator />
+                      <div>
+                        <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
+                        <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-5 whitespace-pre-wrap wrap-break-word">{writtenRawModelOutput}</pre>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -736,10 +796,29 @@ export function GeneratorView() {
             <div className="flex flex-col space-y-2">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
+                    {canShowMcRawOutput && (
+                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowMcRawOutput((prev) => !prev)}>
+                        <Bug className="h-4 w-4" />
+                        {showMcRawOutput ? "Hide Raw Output" : "Show Raw Output"}
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent className="prose prose-slate dark:prose-invert max-w-none text-lg">
-                  <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                <CardContent className="space-y-4">
+                  <div className="prose prose-slate dark:prose-invert max-w-none text-lg">
+                    <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                  </div>
+                  {showMcRawOutput && canShowMcRawOutput && (
+                    <div className="space-y-2">
+                      <Separator />
+                      <div>
+                        <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
+                        <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-5 whitespace-pre-wrap wrap-break-word">{mcRawModelOutput}</pre>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

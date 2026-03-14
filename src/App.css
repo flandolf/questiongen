@@ -215,6 +215,84 @@
     gap: 1rem;
   }
 
+  .app-layout {
+    min-height: 100dvh;
+    height: 100dvh;
+  }
+
+  .app-main {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .app-sidebar {
+    width: 12rem;
+    flex-shrink: 0;
+    min-height: 100%;
+    padding: 1.35rem 0 1rem;
+    border-right: 1px solid color-mix(in oklab, var(--color-border) 78%, transparent);
+    background: color-mix(in oklab, var(--color-sidebar) 92%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .app-sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.9rem 0.95rem;
+    border-radius: var(--radius-xl);
+    background: color-mix(in oklab, var(--color-sidebar) 88%, var(--color-background));
+    border: 1px solid color-mix(in oklab, var(--color-border) 76%, transparent);
+  }
+
+  .app-sidebar__brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--color-primary) 78%, var(--color-sidebar));
+    color: var(--color-primary-foreground);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-primary) 24%, transparent);
+  }
+
+  .app-sidebar__brand-copy {
+    min-width: 0;
+  }
+
+  .app-sidebar__brand-tag {
+    white-space: nowrap;
+  }
+
+  .app-sidebar__nav {
+    display: grid;
+    align-content: start;
+    gap: 0.35rem;
+  }
+
+  .app-sidebar__link {
+    min-height: 3rem;
+    font-weight: 600;
+    transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+  }
+
+  .app-sidebar__link:hover {
+    transform: translateX(1px);
+  }
+
+  .app-sidebar__link--active {
+    background: color-mix(in oklab, var(--color-primary) 16%, transparent);
+    color: var(--color-foreground);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-primary) 22%, transparent);
+  }
+
+  .app-sidebar__link-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .hero {
     padding: 1.5rem;
     border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
@@ -588,6 +666,55 @@
     width: min(1024px, 100% - 1rem);
     padding-top: 1rem;
   }
+}
+
+@media (max-width: 1100px) {
+  .app-sidebar {
+    width: 10.5rem;
+  }
+
+  .app-sidebar__brand {
+    padding-inline: 0.8rem;
+  }
+}
+
+.platform-android .app-layout {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.platform-android .app-sidebar {
+  width: 4.85rem;
+  padding-top: 0.9rem;
+  padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+}
+
+.platform-android .app-sidebar__header {
+  margin-bottom: 1rem;
+}
+
+.platform-android .app-sidebar__brand {
+  justify-content: center;
+  padding: 0.8rem 0;
+}
+
+.platform-android .app-sidebar__brand-copy,
+.platform-android .app-sidebar__link-label,
+.platform-android .app-sidebar__brand-tag {
+  display: none;
+}
+
+.platform-android .app-sidebar__nav {
+  justify-items: center;
+}
+
+.platform-android .app-sidebar__link {
+  width: 100%;
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.platform-android .app-main {
+  padding-right: max(0.4rem, env(safe-area-inset-right, 0px));
 }
 
 @keyframes spin {

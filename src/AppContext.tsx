@@ -16,6 +16,7 @@ import {
   API_KEY_STORAGE_KEY,
   QUESTION_HISTORY_STORAGE_KEY,
   MC_HISTORY_STORAGE_KEY,
+  DEBUG_MODE_STORAGE_KEY,
 } from "./types";
 
 interface AppContextState {
@@ -41,6 +42,8 @@ interface AppContextState {
   setMaxMarksPerQuestion: (marks: number) => void;
   model: string;
   setModel: (model: string) => void;
+  debugMode: boolean;
+  setDebugMode: (enabled: boolean) => void;
 
   questionMode: QuestionMode;
   setQuestionMode: (mode: QuestionMode) => void;
@@ -66,6 +69,10 @@ interface AppContextState {
   setMcAnswersByQuestionId: (answers: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   mcHistory: McHistoryEntry[];
   setMcHistory: (history: McHistoryEntry[] | ((prev: McHistoryEntry[]) => McHistoryEntry[])) => void;
+  writtenRawModelOutput: string;
+  setWrittenRawModelOutput: (output: string) => void;
+  mcRawModelOutput: string;
+  setMcRawModelOutput: (output: string) => void;
 
   isGenerating: boolean;
   setIsGenerating: (is: boolean) => void;
@@ -99,6 +106,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [questionCount, setQuestionCount] = useState(3);
   const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(10);
   const [model, setModel] = useState("openrouter/healer-alpha");
+  const [debugMode, setDebugMode] = useState(false);
 
   const [questionMode, setQuestionMode] = useState<QuestionMode>("written");
 
@@ -113,6 +121,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeMcQuestionIndex, setActiveMcQuestionIndex] = useState(0);
   const [mcAnswersByQuestionId, setMcAnswersByQuestionId] = useState<Record<string, string>>({});
   const [mcHistory, setMcHistory] = useState<McHistoryEntry[]>([]);
+  const [writtenRawModelOutput, setWrittenRawModelOutput] = useState("");
+  const [mcRawModelOutput, setMcRawModelOutput] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
@@ -123,6 +133,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (persisted) {
       setApiKey(persisted);
     }
+
+    setDebugMode(window.localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === "true");
 
     const persistedHistory = window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY);
     if (!persistedHistory) {
@@ -157,6 +169,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     window.localStorage.removeItem(API_KEY_STORAGE_KEY);
   }, [apiKey]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DEBUG_MODE_STORAGE_KEY, String(debugMode));
+  }, [debugMode]);
 
   useEffect(() => {
     window.localStorage.setItem(QUESTION_HISTORY_STORAGE_KEY, JSON.stringify(questionHistory));
@@ -196,6 +212,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         questionCount, setQuestionCount,
         maxMarksPerQuestion, setMaxMarksPerQuestion,
         model, setModel,
+        debugMode, setDebugMode,
         questionMode, setQuestionMode,
         questions, setQuestions,
         activeQuestionIndex, setActiveQuestionIndex,
@@ -207,6 +224,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activeMcQuestionIndex, setActiveMcQuestionIndex,
         mcAnswersByQuestionId, setMcAnswersByQuestionId,
         mcHistory, setMcHistory,
+        writtenRawModelOutput, setWrittenRawModelOutput,
+        mcRawModelOutput, setMcRawModelOutput,
         isGenerating, setIsGenerating,
         isMarking, setIsMarking,
         errorMessage, setErrorMessage,

@@ -71,7 +71,30 @@ export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): M
 }
 
 export function normalizeMathDelimiters(content: string): string {
-  return normalizeBareLatexSegments(normalizePseudoMathDelimiters(normalizeLatexFunctionSpacing(content)));
+  return transformOutsideCode(content, (segment) =>
+    normalizeBareLatexSegments(normalizePseudoMathDelimiters(normalizeLatexFunctionSpacing(segment))),
+  );
+}
+
+function transformOutsideCode(content: string, transform: (segment: string) => string): string {
+  return content
+    .split(/(```[\s\S]*?```)/g)
+    .map((fencedOrPlainChunk) => {
+      if (fencedOrPlainChunk.startsWith("```")) {
+        return fencedOrPlainChunk;
+      }
+
+      return fencedOrPlainChunk
+        .split(/(`[^`\n]*`)/g)
+        .map((inlineCodeOrPlain) => {
+          if (inlineCodeOrPlain.startsWith("`") && inlineCodeOrPlain.endsWith("`")) {
+            return inlineCodeOrPlain;
+          }
+          return transform(inlineCodeOrPlain);
+        })
+        .join("");
+    })
+    .join("");
 }
 
 function normalizeLatexFunctionSpacing(content: string): string {
