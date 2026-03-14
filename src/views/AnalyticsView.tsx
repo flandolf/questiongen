@@ -88,7 +88,7 @@ export function AnalyticsView() {
   }, [analyticsRows]);
 
   return (
-    <div className="p-8 max-w-4xl mx-auto h-full flex flex-col gap-6">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto h-full flex flex-col gap-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground mt-2">Accuracy by topic and subtopic.</p>

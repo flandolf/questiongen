@@ -4,6 +4,7 @@ import {
   Difficulty,
   TechMode,
   MathMethodsSubtopic,
+  ChemistrySubtopic,
   PhysicalEducationSubtopic,
   GeneratedQuestion,
   MarkAnswerResponse,
@@ -30,6 +31,8 @@ interface AppContextState {
   setTechMode: (mode: TechMode) => void;
   mathMethodsSubtopics: MathMethodsSubtopic[];
   setMathMethodsSubtopics: (subtopics: MathMethodsSubtopic[] | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[])) => void;
+  chemistrySubtopics: ChemistrySubtopic[];
+  setChemistrySubtopics: (subtopics: ChemistrySubtopic[] | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])) => void;
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   setPhysicalEducationSubtopics: (subtopics: PhysicalEducationSubtopic[] | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])) => void;
   questionCount: number;
@@ -91,6 +94,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const [techMode, setTechMode] = useState<TechMode>("mix");
   const [mathMethodsSubtopics, setMathMethodsSubtopics] = useState<MathMethodsSubtopic[]>([]);
+  const [chemistrySubtopics, setChemistrySubtopics] = useState<ChemistrySubtopic[]>([]);
   const [physicalEducationSubtopics, setPhysicalEducationSubtopics] = useState<PhysicalEducationSubtopic[]>([]);
   const [questionCount, setQuestionCount] = useState(3);
   const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(10);
@@ -187,6 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         difficulty, setDifficulty,
         techMode, setTechMode,
         mathMethodsSubtopics, setMathMethodsSubtopics,
+        chemistrySubtopics, setChemistrySubtopics,
         physicalEducationSubtopics, setPhysicalEducationSubtopics,
         questionCount, setQuestionCount,
         maxMarksPerQuestion, setMaxMarksPerQuestion,

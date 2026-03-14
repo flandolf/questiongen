@@ -6,11 +6,22 @@ import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
 import { Eye, EyeOff } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function SettingsView() {
   const { apiKey, setApiKey, model, setModel, clearApiKey, showApiKey, setShowApiKey } = useAppContext();
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
+  const [showCustomModelInput, setShowCustomModelInput] = useState(false);
+  const [customModelId, setCustomModelId] = useState("");
+
+  const models = [
+    { id: "openrouter/hunter-alpha", name: "Hunter Alpha" },
+    { id: "openrouter/healer-alpha", name: "Healer Alpha" },
+    { id: "openrouter/aurora-alpha", name: "Aurora Alpha" },
+    { id: "openrouter/free", name: "Free" },
+    { id: "custom", name: "Custom..." },
+  ]
 
   // Sync back to context when leaving or saving. Let's just update on save button for explicit action.
   useEffect(() => {
@@ -24,7 +35,7 @@ export function SettingsView() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto flex flex-col space-y-4">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto flex flex-col gap-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-2">Manage your OpenRouter API key and model preferences.</p>
@@ -77,12 +88,44 @@ export function SettingsView() {
         <CardContent>
           <div className="space-y-2">
             <Label htmlFor="model-id">Model ID</Label>
-            <Input
-              id="model-id"
-              value={localModel}
-              onChange={(e) => setLocalModel(e.target.value)}
-              placeholder="e.g. openrouter/auto"
-            />
+            <Select value={localModel} onValueChange={(value) => {
+              if (value === "custom") {
+                setShowCustomModelInput(true);
+              } else {
+                setShowCustomModelInput(false);
+                setLocalModel(value);
+              }
+            }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+
+            </Select>
+            {showCustomModelInput && (
+              <div className="mt-2 space-y-2">
+                <Label htmlFor="custom-model-id">Custom Model ID</Label>
+                <Input
+                  id="custom-model-id"
+                  type="text"
+                  value={customModelId}
+                  onChange={(e) => setCustomModelId(e.target.value)}
+                  placeholder="e.g. openrouter/my-custom-model"
+                />
+                <Button className="mt-2" onClick={() => {
+                  setLocalModel(customModelId);
+                  setShowCustomModelInput(false);
+                }}>
+                  Use Custom Model
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
         <CardFooter>
