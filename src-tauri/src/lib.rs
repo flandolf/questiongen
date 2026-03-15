@@ -1,28 +1,22 @@
 use base64::{Engine as _, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MAX_TOKENS: u16 = 2400;
-const GENERATION_REPAIR_RETRIES: usize = 2;
+const OPENROUTER_MAX_TOKENS: u16 = 1400;
+const GENERATION_REPAIR_RETRIES: usize = 1;
 const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
-const MATH_METHODS_EXAM_FILES: [&str; 2] = ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"];
 const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
-const PHYSICAL_EDUCATION_EXAM_FILES: [&str; 1] = ["2025-PhysicalEducation.pdf"];
+const APP_STATE_FILE_NAME: &str = "app-state.json";
+const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematical Methods exam style: concise VCAA-style command verbs, realistic mark allocations, algebraic fluency, and prompts that reward method choice over template recall.";
+const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning.";
 const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
 const MC_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"mc1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"options\":[{\"label\":\"A\",\"text\":\"...\"},{\"label\":\"B\",\"text\":\"...\"},{\"label\":\"C\",\"text\":\"...\"},{\"label\":\"D\",\"text\":\"...\"}],\"correctAnswer\":\"A\",\"explanationMarkdown\":\"...\",\"techAllowed\":false}]}";
-const EMBEDDED_MATH_METHODS_1: &[u8] =
-    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../exams/2025-MathMethods1.pdf"));
-const EMBEDDED_MATH_METHODS_2: &[u8] =
-    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../exams/2025-MathMethods2.pdf"));
-const EMBEDDED_PHYSICAL_EDUCATION: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../exams/2025-PhysicalEducation.pdf"
-));
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +53,7 @@ struct GeneratedQuestion {
 #[serde(rename_all = "camelCase")]
 struct GenerateQuestionsResponse {
     questions: Vec<GeneratedQuestion>,
+    #[serde(default)]
     raw_model_output: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     telemetry: Option<GenerationTelemetry>,
@@ -77,6 +72,15 @@ struct GenerationTelemetry {
     distinctness_avg: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     multi_step_depth_avg: Option<f32>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct GenerationStatusEvent {
+    mode: &'static str,
+    stage: &'static str,
+    message: String,
+    attempt: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,6 +170,109 @@ impl AppError {
 
 type CommandResult<T> = Result<T, AppError>;
 
+fn emit_generation_status(
+    app: &tauri::AppHandle,
+    mode: &'static str,
+    stage: &'static str,
+    message: impl Into<String>,
+    attempt: usize,
+) {
+    let _ = app.emit(
+        "generation-status",
+        GenerationStatusEvent {
+            mode,
+            stage,
+            message: message.into(),
+            attempt,
+        },
+    );
+}
+
+#[tauri::command]
+fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
+    let path = persisted_state_path(&app)?;
+    if !path.exists() {
+        return Ok(serde_json::json!({}));
+    }
+
+    let content = fs::read_to_string(&path).map_err(|err| {
+        AppError::new(
+            "PERSISTENCE_READ_ERROR",
+            format!("Could not read persisted app state: {err}"),
+        )
+    })?;
+
+    if content.trim().is_empty() {
+        return Ok(serde_json::json!({}));
+    }
+
+    serde_json::from_str(&content).map_err(|err| {
+        AppError::new(
+            "PERSISTENCE_PARSE_ERROR",
+            format!("Persisted app state is invalid JSON: {err}"),
+        )
+    })
+}
+
+#[tauri::command]
+fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> CommandResult<()> {
+    if !state.is_object() {
+        return Err(AppError::new(
+            "PERSISTENCE_VALIDATION_ERROR",
+            "Persisted app state must be a JSON object.",
+        ));
+    }
+
+    let path = persisted_state_path(&app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|err| {
+            AppError::new(
+                "PERSISTENCE_DIR_ERROR",
+                format!("Could not create app data directory: {err}"),
+            )
+        })?;
+    }
+
+    let payload = serde_json::to_string_pretty(&state).map_err(|err| {
+        AppError::new(
+            "PERSISTENCE_SERIALIZE_ERROR",
+            format!("Could not serialize app state: {err}"),
+        )
+    })?;
+
+    let temp_path = path.with_extension("tmp");
+    fs::write(&temp_path, payload).map_err(|err| {
+        AppError::new(
+            "PERSISTENCE_WRITE_ERROR",
+            format!("Could not write temporary app state file: {err}"),
+        )
+    })?;
+
+    if path.exists() {
+        let _ = fs::remove_file(&path);
+    }
+
+    fs::rename(&temp_path, &path).map_err(|err| {
+        AppError::new(
+            "PERSISTENCE_RENAME_ERROR",
+            format!("Could not finalize app state file: {err}"),
+        )
+    })?;
+
+    Ok(())
+}
+
+fn persisted_state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
+    let app_dir = app.path().app_data_dir().map_err(|err| {
+        AppError::new(
+            "PERSISTENCE_PATH_ERROR",
+            format!("Could not resolve app data directory: {err}"),
+        )
+    })?;
+
+    Ok(app_dir.join(APP_STATE_FILE_NAME))
+}
+
 #[tauri::command]
 async fn generate_questions(
     app: tauri::AppHandle,
@@ -173,18 +280,25 @@ async fn generate_questions(
 ) -> CommandResult<GenerateQuestionsResponse> {
     validate_generate_request(&request)?;
     let generation_started = Instant::now();
+    emit_generation_status(
+        &app,
+        "written",
+        "preparing",
+        "Preparing generation request.",
+        1,
+    );
 
     let system_prompt = "You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
     let math_methods_reference_note = if includes_mathematical_methods(&request.topics) {
-        " Use the attached Mathematical Methods exam PDFs only as reference material for authentic wording, structure, and realistic mark allocations. Create original questions and do not reproduce or closely paraphrase the source exams."
+        MATHEMATICAL_METHODS_REFERENCE_GUIDANCE
     } else {
         ""
     };
     let physical_education_reference_note = if includes_physical_education(&request.topics) {
-        " For Physical Education, restrict content to Unit 3/4 only. Use the attached 2025 Physical Education exam PDF only as reference material for authentic wording, structure, and realistic mark allocations. Create original questions and do not reproduce or closely paraphrase the source exam."
+        PHYSICAL_EDUCATION_REFERENCE_GUIDANCE
     } else {
         ""
     };
@@ -214,6 +328,13 @@ async fn generate_questions(
     let (base_user_content, plugins) =
         build_generation_user_content(&app, &request.topics, &user_prompt)?;
 
+    emit_generation_status(
+        &app,
+        "written",
+        "generating",
+        "Requesting a new written question set.",
+        1,
+    );
     let mut content = call_openrouter_with_plugins(
         &request.api_key,
         &request.model,
@@ -231,6 +352,13 @@ async fn generate_questions(
     let mut total_attempts = 1usize;
 
     for attempt in 0..=GENERATION_REPAIR_RETRIES {
+        emit_generation_status(
+            &app,
+            "written",
+            "validating",
+            "Validating the model response.",
+            total_attempts,
+        );
         match parse_written_response_candidate(&content, &request, selected_subtopics) {
             Ok(candidate) => {
                 parsed = Some(candidate);
@@ -244,6 +372,13 @@ async fn generate_questions(
                 repair_attempts += 1;
                 repair_path.push("json-repair".to_string());
                 total_attempts += 1;
+                emit_generation_status(
+                    &app,
+                    "written",
+                    "repairing",
+                    format!("Repairing invalid model output (pass {}).", repair_attempts),
+                    total_attempts,
+                );
                 content = request_json_repair(
                     &request.api_key,
                     &request.model,
@@ -260,6 +395,13 @@ async fn generate_questions(
         constrained_regeneration_used = true;
         total_attempts += 1;
         repair_path.push("schema-constrained-regeneration".to_string());
+        emit_generation_status(
+            &app,
+            "written",
+            "regenerating",
+            "Retrying with a stricter regeneration prompt.",
+            total_attempts,
+        );
         content = request_schema_constrained_regeneration(
             &request.api_key,
             &request.model,
@@ -278,6 +420,13 @@ async fn generate_questions(
     }
 
     let mut parsed = parsed.ok_or_else(|| {
+        emit_generation_status(
+            &app,
+            "written",
+            "failed",
+            format!("Generation failed after {} attempt(s).", total_attempts),
+            total_attempts,
+        );
         AppError::new(
             "MODEL_PARSE_ERROR",
             format!(
@@ -313,6 +462,14 @@ async fn generate_questions(
         distinctness_avg: quality_summary.distinctness_avg,
         multi_step_depth_avg: quality_summary.multi_step_depth_avg,
     };
+
+    emit_generation_status(
+        &app,
+        "written",
+        "completed",
+        format!("Written set ready in {} ms.", telemetry.duration_ms),
+        total_attempts,
+    );
 
     Ok(GenerateQuestionsResponse {
         questions: parsed.questions,
@@ -597,46 +754,28 @@ fn build_mark_answer_user_content(
 }
 
 fn build_generation_user_content(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
     topics: &[String],
     prompt: &str,
 ) -> CommandResult<(serde_json::Value, Option<serde_json::Value>)> {
-    let exam_paths = resolve_reference_exam_paths(app, topics)?;
-
-    if exam_paths.is_empty() {
-        return Ok((serde_json::Value::String(prompt.to_string()), None));
+    let mut compact_reference = String::new();
+    if includes_mathematical_methods(topics) {
+        compact_reference.push_str("\n\nReference guidance:\n-");
+        compact_reference.push_str(MATHEMATICAL_METHODS_REFERENCE_GUIDANCE.trim());
     }
-
-    let mut content_parts = vec![serde_json::json!({
-        "type": "text",
-        "text": prompt,
-    })];
-
-    for exam_path in exam_paths {
-        let filename = exam_path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .ok_or_else(|| AppError::new("IO_ERROR", "Encountered an invalid exam PDF filename."))?;
-
-        content_parts.push(serde_json::json!({
-            "type": "file",
-            "file": {
-                "filename": filename,
-                "file_data": encode_pdf_file_to_data_url(&exam_path)?,
-            }
-        }));
-    }
-
-    let plugins = serde_json::json!([
-        {
-            "id": "file-parser",
-            "pdf": {
-                "engine": "pdf-text"
-            }
+    if includes_physical_education(topics) {
+        if compact_reference.is_empty() {
+            compact_reference.push_str("\n\nReference guidance:\n-");
+        } else {
+            compact_reference.push_str("\n-");
         }
-    ]);
+        compact_reference.push_str(PHYSICAL_EDUCATION_REFERENCE_GUIDANCE.trim());
+    }
 
-    Ok((serde_json::Value::Array(content_parts), Some(plugins)))
+    Ok((
+        serde_json::Value::String(format!("{prompt}{compact_reference}")),
+        None,
+    ))
 }
 
 fn encode_image_file_to_data_url(image_path: &str) -> CommandResult<String> {
@@ -657,120 +796,6 @@ fn encode_image_file_to_data_url(image_path: &str) -> CommandResult<String> {
     let encoded = general_purpose::STANDARD.encode(bytes);
 
     Ok(format!("data:{mime};base64,{encoded}"))
-}
-
-fn encode_pdf_file_to_data_url(pdf_path: &Path) -> CommandResult<String> {
-    let file_name = pdf_path.file_name().and_then(|name| name.to_str());
-
-    let bytes = if pdf_path.exists() {
-        std::fs::read(pdf_path)
-            .map_err(|err| AppError::new("IO_ERROR", format!("Failed to read exam PDF: {err}")))?
-    } else if let Some(name) = file_name {
-        embedded_exam_pdf_bytes(name)
-            .ok_or_else(|| AppError::new("IO_ERROR", format!("Exam PDF not found: {}", pdf_path.display())))?
-            .to_vec()
-    } else {
-        return Err(AppError::new(
-            "IO_ERROR",
-            format!("Exam PDF not found: {}", pdf_path.display()),
-        ));
-    };
-
-    let encoded = general_purpose::STANDARD.encode(bytes);
-
-    Ok(format!("data:application/pdf;base64,{encoded}"))
-}
-
-fn embedded_exam_pdf_bytes(filename: &str) -> Option<&'static [u8]> {
-    match filename {
-        "2025-MathMethods1.pdf" => Some(EMBEDDED_MATH_METHODS_1),
-        "2025-MathMethods2.pdf" => Some(EMBEDDED_MATH_METHODS_2),
-        "2025-PhysicalEducation.pdf" => Some(EMBEDDED_PHYSICAL_EDUCATION),
-        _ => None,
-    }
-}
-
-fn resolve_reference_exam_paths(
-    app: &tauri::AppHandle,
-    topics: &[String],
-) -> CommandResult<Vec<std::path::PathBuf>> {
-    let mut required_files: Vec<&str> = Vec::new();
-    if includes_mathematical_methods(topics) {
-        required_files.extend(MATH_METHODS_EXAM_FILES);
-    }
-    if includes_physical_education(topics) {
-        required_files.extend(PHYSICAL_EDUCATION_EXAM_FILES);
-    }
-
-    if required_files.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let resource_dir = app.path().resource_dir().ok();
-    let current_dir = std::env::current_dir().ok();
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    let app_data_dir = app.path().app_data_dir().ok();
-    let app_local_data_dir = app.path().app_local_data_dir().ok();
-
-    let mut resolved_paths = Vec::with_capacity(required_files.len());
-
-    for filename in required_files {
-        let candidate_paths = [
-            current_dir.as_ref().map(|dir| dir.join("exams").join(filename)),
-            Some(manifest_dir.join("exams").join(filename)),
-            resource_dir.as_ref().map(|dir| dir.join("exams").join(filename)),
-            resource_dir.as_ref().map(|dir| dir.join(filename)),
-            // Android bundles resources under assets/_up_/..., which are extracted under resource/data dirs.
-            resource_dir
-                .as_ref()
-                .map(|dir| dir.join("_up_").join("exams").join(filename)),
-            resource_dir
-                .as_ref()
-                .map(|dir| dir.join("_up_").join(filename)),
-            app_data_dir
-                .as_ref()
-                .map(|dir| dir.join("_up_").join("exams").join(filename)),
-            app_data_dir
-                .as_ref()
-                .map(|dir| dir.join("exams").join(filename)),
-            app_local_data_dir
-                .as_ref()
-                .map(|dir| dir.join("_up_").join("exams").join(filename)),
-            app_local_data_dir
-                .as_ref()
-                .map(|dir| dir.join("exams").join(filename)),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-
-        let resolved = candidate_paths.iter().find(|path| path.is_file());
-
-        let Some(resolved) = resolved else {
-            if embedded_exam_pdf_bytes(filename).is_some() {
-                // Use a synthetic path; encode_pdf_file_to_data_url will load embedded bytes by filename.
-                resolved_paths.push(std::path::PathBuf::from(filename));
-                continue;
-            }
-
-            let attempted = candidate_paths
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>()
-                .join("\n- ");
-
-            return Err(AppError::new(
-                "IO_ERROR",
-                format!(
-                    "Could not locate required reference exam PDF: {filename}. Attempted paths:\n- {attempted}"
-                ),
-            ));
-        };
-
-        resolved_paths.push(resolved.clone());
-    }
-
-    Ok(resolved_paths)
 }
 
 fn includes_mathematical_methods(topics: &[String]) -> bool {
@@ -840,6 +865,7 @@ struct McQuestion {
 #[serde(rename_all = "camelCase")]
 struct GenerateMcQuestionsResponse {
     questions: Vec<McQuestion>,
+    #[serde(default)]
     raw_model_output: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     telemetry: Option<GenerationTelemetry>,
@@ -851,6 +877,13 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     let generation_started = Instant::now();
+    emit_generation_status(
+        &app,
+        "multiple-choice",
+        "preparing",
+        "Preparing generation request.",
+        1,
+    );
     if request.topics.is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
     }
@@ -869,12 +902,12 @@ async fn generate_mc_questions(
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
     let math_methods_reference_note = if includes_mathematical_methods(&request.topics) {
-        " Use the attached Mathematical Methods exam PDFs only as reference material for authentic wording, structure, and difficulty calibration. Create original questions and do not reproduce or closely paraphrase the source exams."
+        MATHEMATICAL_METHODS_REFERENCE_GUIDANCE
     } else {
         ""
     };
     let physical_education_reference_note = if includes_physical_education(&request.topics) {
-        " For Physical Education, restrict content to Unit 3/4 only. Use the attached 2025 Physical Education exam PDF only as reference material for authentic wording, structure, and difficulty calibration. Create original questions and do not reproduce or closely paraphrase the source exam."
+        PHYSICAL_EDUCATION_REFERENCE_GUIDANCE
     } else {
         ""
     };
@@ -903,6 +936,13 @@ async fn generate_mc_questions(
     let (base_user_content, plugins) =
         build_generation_user_content(&app, &request.topics, &user_prompt)?;
 
+    emit_generation_status(
+        &app,
+        "multiple-choice",
+        "generating",
+        "Requesting a new multiple-choice set.",
+        1,
+    );
     let mut content = call_openrouter_with_plugins(
         &request.api_key,
         &request.model,
@@ -920,6 +960,13 @@ async fn generate_mc_questions(
     let mut total_attempts = 1usize;
 
     for attempt in 0..=GENERATION_REPAIR_RETRIES {
+        emit_generation_status(
+            &app,
+            "multiple-choice",
+            "validating",
+            "Validating the model response.",
+            total_attempts,
+        );
         match parse_mc_response_candidate(&content, &request, selected_subtopics) {
             Ok(candidate) => {
                 parsed = Some(candidate);
@@ -933,6 +980,13 @@ async fn generate_mc_questions(
                 repair_attempts += 1;
                 repair_path.push("json-repair".to_string());
                 total_attempts += 1;
+                emit_generation_status(
+                    &app,
+                    "multiple-choice",
+                    "repairing",
+                    format!("Repairing invalid model output (pass {}).", repair_attempts),
+                    total_attempts,
+                );
                 content = request_json_repair(
                     &request.api_key,
                     &request.model,
@@ -949,6 +1003,13 @@ async fn generate_mc_questions(
         constrained_regeneration_used = true;
         total_attempts += 1;
         repair_path.push("schema-constrained-regeneration".to_string());
+        emit_generation_status(
+            &app,
+            "multiple-choice",
+            "regenerating",
+            "Retrying with a stricter regeneration prompt.",
+            total_attempts,
+        );
         content = request_schema_constrained_regeneration(
             &request.api_key,
             &request.model,
@@ -967,6 +1028,13 @@ async fn generate_mc_questions(
     }
 
     let mut parsed = parsed.ok_or_else(|| {
+        emit_generation_status(
+            &app,
+            "multiple-choice",
+            "failed",
+            format!("Generation failed after {} attempt(s).", total_attempts),
+            total_attempts,
+        );
         AppError::new(
             "MODEL_PARSE_ERROR",
             format!(
@@ -1003,6 +1071,14 @@ async fn generate_mc_questions(
         multi_step_depth_avg: quality_summary.multi_step_depth_avg,
     };
 
+    emit_generation_status(
+        &app,
+        "multiple-choice",
+        "completed",
+        format!("Multiple-choice set ready in {} ms.", telemetry.duration_ms),
+        total_attempts,
+    );
+
     Ok(GenerateMcQuestionsResponse {
         questions: parsed.questions,
         raw_model_output: content,
@@ -1038,7 +1114,12 @@ fn parse_written_response_candidate(
     let payload = parse_json_object(content)
         .ok_or_else(|| "No valid JSON object found in model output.".to_string())?;
 
-    let mut candidate: GenerateQuestionsResponse = serde_json::from_str(&payload)
+    let value: serde_json::Value = serde_json::from_str(&payload)
+        .map_err(|err| format!("Response JSON was invalid: {err}"))?;
+    let normalized = normalize_questions_envelope(value)
+        .map_err(|issue| format!("Response JSON did not match schema: {issue}"))?;
+
+    let mut candidate: GenerateQuestionsResponse = serde_json::from_value(normalized)
         .map_err(|err| format!("Response JSON did not match schema: {err}"))?;
 
     normalize_written_questions(
@@ -1065,7 +1146,12 @@ fn parse_mc_response_candidate(
     let payload = parse_json_object(content)
         .ok_or_else(|| "No valid JSON object found in model output.".to_string())?;
 
-    let mut candidate: GenerateMcQuestionsResponse = serde_json::from_str(&payload)
+    let value: serde_json::Value = serde_json::from_str(&payload)
+        .map_err(|err| format!("Response JSON was invalid: {err}"))?;
+    let normalized = normalize_questions_envelope(value)
+        .map_err(|issue| format!("Response JSON did not match schema: {issue}"))?;
+
+    let mut candidate: GenerateMcQuestionsResponse = serde_json::from_value(normalized)
         .map_err(|err| format!("Response JSON did not match schema: {err}"))?;
 
     normalize_mc_questions(&mut candidate.questions, selected_subtopics);
@@ -1315,7 +1401,7 @@ fn validate_written_questions(
     questions: &[GeneratedQuestion],
     expected_count: usize,
     expected_max_marks: u8,
-    selected_subtopics: Option<&Vec<String>>,
+    _selected_subtopics: Option<&Vec<String>>,
 ) -> Result<(), String> {
     if questions.is_empty() {
         return Err("The model returned no questions.".to_string());
@@ -1347,16 +1433,6 @@ fn validate_written_questions(
                 question.id, question.max_marks, expected_max_marks
             ));
         }
-        if let Some(allowed_subtopics) = selected_subtopics {
-            if let Some(subtopic) = question.subtopic.as_ref() {
-                if !allowed_subtopics
-                    .iter()
-                    .any(|allowed| allowed.eq_ignore_ascii_case(subtopic))
-                {
-                    return Err(format!("Question {} has invalid subtopic.", question.id));
-                }
-            }
-        }
     }
 
     Ok(())
@@ -1365,7 +1441,7 @@ fn validate_written_questions(
 fn validate_mc_questions(
     questions: &[McQuestion],
     expected_count: usize,
-    selected_subtopics: Option<&Vec<String>>,
+    _selected_subtopics: Option<&Vec<String>>,
 ) -> Result<(), String> {
     if questions.is_empty() {
         return Err("The model returned no questions.".to_string());
@@ -1410,16 +1486,6 @@ fn validate_mc_questions(
             return Err(format!("Question {} has invalid correctAnswer.", question.id));
         }
 
-        if let Some(allowed_subtopics) = selected_subtopics {
-            if let Some(subtopic) = question.subtopic.as_ref() {
-                if !allowed_subtopics
-                    .iter()
-                    .any(|allowed| allowed.eq_ignore_ascii_case(subtopic))
-                {
-                    return Err(format!("Question {} has invalid subtopic.", question.id));
-                }
-            }
-        }
     }
 
     Ok(())
@@ -1443,6 +1509,52 @@ async fn request_json_repair(
         serde_json::Value::String(prompt),
     )
     .await
+}
+
+fn normalize_questions_envelope(value: serde_json::Value) -> Result<serde_json::Value, String> {
+    if value.is_array() {
+        return Ok(serde_json::json!({ "questions": value }));
+    }
+
+    let serde_json::Value::Object(mut map) = value else {
+        return Err("Top-level JSON must be an object or array of questions.".to_string());
+    };
+
+    if map
+        .get("questions")
+        .map(serde_json::Value::is_array)
+        .unwrap_or(false)
+    {
+        return Ok(serde_json::Value::Object(map));
+    }
+
+    for key in [
+        "question",
+        "items",
+        "mcQuestions",
+        "multipleChoiceQuestions",
+        "generatedQuestions",
+    ] {
+        if let Some(array) = map.remove(key).filter(serde_json::Value::is_array) {
+            map.insert("questions".to_string(), array);
+            return Ok(serde_json::Value::Object(map));
+        }
+    }
+
+    for key in ["data", "result", "output", "payload"] {
+        if let Some(serde_json::Value::Object(nested)) = map.get(key) {
+            if let Some(array) = nested.get("questions").filter(|value| value.is_array()) {
+                map.insert("questions".to_string(), array.clone());
+                return Ok(serde_json::Value::Object(map));
+            }
+        }
+    }
+
+    let keys = map.keys().cloned().collect::<Vec<_>>().join(", ");
+    Err(format!(
+        "Missing required top-level questions array. Found keys: [{}].",
+        keys
+    ))
 }
 
 fn decode_literal_newlines(value: &str) -> String {
@@ -1482,6 +1594,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            load_persisted_state,
+            save_persisted_state,
             generate_questions,
             mark_answer,
             analyze_image,
@@ -1561,5 +1675,115 @@ mod tests {
 
         let result = validate_mc_questions(&questions, 1, None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_written_questions_allows_non_identical_subtopic() {
+        let questions = vec![GeneratedQuestion {
+            id: "q1".to_string(),
+            topic: "Mathematical Methods".to_string(),
+            subtopic: Some("Functions and Graphs".to_string()),
+            prompt_markdown: "Find the derivative.".to_string(),
+            max_marks: 4,
+            tech_allowed: false,
+            distinctness_score: None,
+            multi_step_depth: None,
+        }];
+
+        let allowed = vec!["functions".to_string()];
+        let result = validate_written_questions(&questions, 1, 4, Some(&allowed));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_mc_questions_allows_non_identical_subtopic() {
+        let questions = vec![McQuestion {
+            id: "mc1".to_string(),
+            topic: "Chemistry".to_string(),
+            subtopic: Some("Redox Reactions".to_string()),
+            prompt_markdown: "Which option is correct?".to_string(),
+            options: vec![
+                McOption {
+                    label: "A".to_string(),
+                    text: "Option 1".to_string(),
+                },
+                McOption {
+                    label: "B".to_string(),
+                    text: "Option 2".to_string(),
+                },
+                McOption {
+                    label: "C".to_string(),
+                    text: "Option 3".to_string(),
+                },
+                McOption {
+                    label: "D".to_string(),
+                    text: "Option 4".to_string(),
+                },
+            ],
+            correct_answer: "A".to_string(),
+            explanation_markdown: "Because...".to_string(),
+            tech_allowed: false,
+            distinctness_score: None,
+            multi_step_depth: None,
+        }];
+
+        let allowed = vec!["redox".to_string()];
+        let result = validate_mc_questions(&questions, 1, Some(&allowed));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn normalize_questions_envelope_accepts_top_level_array() {
+        let value = serde_json::json!([
+            {
+                "id": "mc1",
+                "topic": "Chemistry",
+                "promptMarkdown": "Question",
+                "options": [
+                    { "label": "A", "text": "A1" },
+                    { "label": "B", "text": "B1" },
+                    { "label": "C", "text": "C1" },
+                    { "label": "D", "text": "D1" }
+                ],
+                "correctAnswer": "A",
+                "explanationMarkdown": "Because"
+            }
+        ]);
+
+        let normalized = normalize_questions_envelope(value).unwrap();
+        assert!(normalized.get("questions").is_some());
+        assert_eq!(
+            normalized
+                .get("questions")
+                .and_then(|v| v.as_array())
+                .map(Vec::len),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn normalize_questions_envelope_accepts_nested_data_questions() {
+        let value = serde_json::json!({
+            "data": {
+                "questions": [
+                    {
+                        "id": "q1",
+                        "topic": "Mathematical Methods",
+                        "promptMarkdown": "Find x",
+                        "maxMarks": 2
+                    }
+                ]
+            }
+        });
+
+        let normalized = normalize_questions_envelope(value).unwrap();
+        assert!(normalized.get("questions").is_some());
+        assert_eq!(
+            normalized
+                .get("questions")
+                .and_then(|v| v.as_array())
+                .map(Vec::len),
+            Some(1)
+        );
     }
 }

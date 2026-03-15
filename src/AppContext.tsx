@@ -1,25 +1,31 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Topic,
-  Difficulty,
-  TechMode,
-  MathMethodsSubtopic,
   ChemistrySubtopic,
-  PhysicalEducationSubtopic,
+  Difficulty,
   GeneratedQuestion,
+  GenerationTelemetry,
+  HISTORY_ENTRY_LIMIT,
   MarkAnswerResponse,
-  QuestionHistoryEntry,
-  StudentAnswerImage,
-  QuestionMode,
-  McQuestion,
+  MathMethodsSubtopic,
   McHistoryEntry,
-  API_KEY_STORAGE_KEY,
-  QUESTION_HISTORY_STORAGE_KEY,
-  MC_HISTORY_STORAGE_KEY,
-  DEBUG_MODE_STORAGE_KEY,
+  McQuestion,
+  PersistedAppState,
+  PersistedGeneratorPreferences,
+  PersistedMcSession,
+  PersistedWrittenSession,
+  PhysicalEducationSubtopic,
+  QuestionHistoryEntry,
+  QuestionMode,
+  SAVED_SET_LIMIT,
+  SavedQuestionSet,
+  StudentAnswerImage,
+  TechMode,
+  Topic,
 } from "./types";
+import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
 
 interface AppContextState {
+  isHydrated: boolean;
   apiKey: string;
   setApiKey: (key: string) => void;
   showApiKey: boolean;
@@ -73,6 +79,18 @@ interface AppContextState {
   setWrittenRawModelOutput: (output: string) => void;
   mcRawModelOutput: string;
   setMcRawModelOutput: (output: string) => void;
+  writtenGenerationTelemetry: GenerationTelemetry | null;
+  setWrittenGenerationTelemetry: (telemetry: GenerationTelemetry | null) => void;
+  mcGenerationTelemetry: GenerationTelemetry | null;
+  setMcGenerationTelemetry: (telemetry: GenerationTelemetry | null) => void;
+  activeWrittenSavedSetId: string | null;
+  setActiveWrittenSavedSetId: (id: string | null) => void;
+  activeMcSavedSetId: string | null;
+  setActiveMcSavedSetId: (id: string | null) => void;
+  savedSets: SavedQuestionSet[];
+  saveCurrentSet: () => string | null;
+  loadSavedSet: (savedSetId: string) => void;
+  deleteSavedSet: (savedSetId: string) => void;
 
   isGenerating: boolean;
   setIsGenerating: (is: boolean) => void;
@@ -86,150 +104,428 @@ interface AppContextState {
 
 const AppContext = createContext<AppContextState | undefined>(undefined);
 
-function normalizeMarkResponse(entry: MarkAnswerResponse, _maxMarks: number): MarkAnswerResponse {
-  // Normalize missing optional fields
-  return {
-    ...entry,
-    vcaaMarkingScheme: entry.vcaaMarkingScheme || [],
-  };
+function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
+  const leadTopic = topics[0] ?? "Mixed Topics";
+  const extraCount = Math.max(0, topics.length - 1);
+  const modeLabel = mode === "written" ? "Written" : "Multiple Choice";
+  if (extraCount === 0) {
+    return `${leadTopic} ${modeLabel}`;
+  }
+  return `${leadTopic} +${extraCount} ${modeLabel}`;
+}
+
+function applyHistoryLimit<T>(entries: T[]) {
+  return entries.slice(0, HISTORY_ENTRY_LIMIT);
+}
+
+function applySavedSetLimit(entries: SavedQuestionSet[]) {
+  return entries.slice(0, SAVED_SET_LIMIT);
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [apiKey, setApiKey] = useState("");
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [apiKey, setApiKey] = useState(EMPTY_PERSISTED_APP_STATE.settings.apiKey);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [selectedTopics, setSelectedTopics] = useState<Topic[]>([]);
-  const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
-  const [techMode, setTechMode] = useState<TechMode>("mix");
-  const [mathMethodsSubtopics, setMathMethodsSubtopics] = useState<MathMethodsSubtopic[]>([]);
-  const [chemistrySubtopics, setChemistrySubtopics] = useState<ChemistrySubtopic[]>([]);
-  const [physicalEducationSubtopics, setPhysicalEducationSubtopics] = useState<PhysicalEducationSubtopic[]>([]);
-  const [questionCount, setQuestionCount] = useState(3);
-  const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(10);
-  const [model, setModel] = useState("openrouter/healer-alpha");
-  const [debugMode, setDebugMode] = useState(false);
+  const [selectedTopics, setSelectedTopics] = useState<Topic[]>(EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics);
+  const [difficulty, setDifficulty] = useState<Difficulty>(EMPTY_PERSISTED_APP_STATE.preferences.difficulty);
+  const [techMode, setTechMode] = useState<TechMode>(EMPTY_PERSISTED_APP_STATE.preferences.techMode);
+  const [mathMethodsSubtopics, setMathMethodsSubtopics] = useState<MathMethodsSubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics);
+  const [chemistrySubtopics, setChemistrySubtopics] = useState<ChemistrySubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics);
+  const [physicalEducationSubtopics, setPhysicalEducationSubtopics] = useState<PhysicalEducationSubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics);
+  const [questionCount, setQuestionCount] = useState(EMPTY_PERSISTED_APP_STATE.preferences.questionCount);
+  const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion);
+  const [model, setModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.model);
+  const [debugMode, setDebugMode] = useState(EMPTY_PERSISTED_APP_STATE.settings.debugMode);
 
-  const [questionMode, setQuestionMode] = useState<QuestionMode>("written");
+  const [questionMode, setQuestionMode] = useState<QuestionMode>(EMPTY_PERSISTED_APP_STATE.preferences.questionMode);
 
-  const [questions, setQuestions] = useState<GeneratedQuestion[]>([]);
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
-  const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, string>>({});
-  const [imagesByQuestionId, setImagesByQuestionId] = useState<Record<string, StudentAnswerImage | undefined>>({});
-  const [feedbackByQuestionId, setFeedbackByQuestionId] = useState<Record<string, MarkAnswerResponse>>({});
-  const [questionHistory, setQuestionHistory] = useState<QuestionHistoryEntry[]>([]);
+  const [questions, setQuestions] = useState<GeneratedQuestion[]>(EMPTY_PERSISTED_APP_STATE.writtenSession.questions);
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex);
+  const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, string>>(EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId);
+  const [imagesByQuestionId, setImagesByQuestionId] = useState<Record<string, StudentAnswerImage | undefined>>(EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId);
+  const [feedbackByQuestionId, setFeedbackByQuestionId] = useState<Record<string, MarkAnswerResponse>>(EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId);
+  const [questionHistory, setQuestionHistory] = useState<QuestionHistoryEntry[]>(EMPTY_PERSISTED_APP_STATE.questionHistory);
+  const [writtenRawModelOutput, setWrittenRawModelOutput] = useState(EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput);
+  const [writtenGenerationTelemetry, setWrittenGenerationTelemetry] = useState<GenerationTelemetry | null>(EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null);
+  const [activeWrittenSavedSetId, setActiveWrittenSavedSetId] = useState<string | null>(EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null);
 
-  const [mcQuestions, setMcQuestions] = useState<McQuestion[]>([]);
-  const [activeMcQuestionIndex, setActiveMcQuestionIndex] = useState(0);
-  const [mcAnswersByQuestionId, setMcAnswersByQuestionId] = useState<Record<string, string>>({});
-  const [mcHistory, setMcHistory] = useState<McHistoryEntry[]>([]);
-  const [writtenRawModelOutput, setWrittenRawModelOutput] = useState("");
-  const [mcRawModelOutput, setMcRawModelOutput] = useState("");
+  const [mcQuestions, setMcQuestions] = useState<McQuestion[]>(EMPTY_PERSISTED_APP_STATE.mcSession.questions);
+  const [activeMcQuestionIndex, setActiveMcQuestionIndex] = useState(EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex);
+  const [mcAnswersByQuestionId, setMcAnswersByQuestionId] = useState<Record<string, string>>(EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId);
+  const [mcHistory, setMcHistory] = useState<McHistoryEntry[]>(EMPTY_PERSISTED_APP_STATE.mcHistory);
+  const [mcRawModelOutput, setMcRawModelOutput] = useState(EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput);
+  const [mcGenerationTelemetry, setMcGenerationTelemetry] = useState<GenerationTelemetry | null>(EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null);
+  const [activeMcSavedSetId, setActiveMcSavedSetId] = useState<string | null>(EMPTY_PERSISTED_APP_STATE.mcSession.savedSetId ?? null);
 
+  const [savedSets, setSavedSets] = useState<SavedQuestionSet[]>(EMPTY_PERSISTED_APP_STATE.savedSets);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hydrateCompleteRef = useRef(false);
 
   useEffect(() => {
-    const persisted = window.localStorage.getItem(API_KEY_STORAGE_KEY);
-    if (persisted) {
-      setApiKey(persisted);
-    }
+    let cancelled = false;
 
-    setDebugMode(window.localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === "true");
+    void (async () => {
+      try {
+        const persisted = await loadPersistedAppState();
+        if (cancelled) {
+          return;
+        }
 
-    const persistedHistory = window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY);
-    if (!persistedHistory) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(persistedHistory) as QuestionHistoryEntry[];
-      if (Array.isArray(parsed)) {
-        const normalized = parsed.map((entry) => {
-          const questionMax = Number(entry?.question?.maxMarks) || 10;
-          return {
-            ...entry,
-            question: {
-              ...entry.question,
-              maxMarks: questionMax,
-            },
-            markResponse: normalizeMarkResponse(entry.markResponse, questionMax),
-          };
-        });
-        setQuestionHistory(normalized);
+        applyPersistedState(persisted);
+      } catch {
+        if (!cancelled) {
+          setErrorMessage("Could not load saved app data.");
+        }
+      } finally {
+        if (!cancelled) {
+          hydrateCompleteRef.current = true;
+          setIsHydrated(true);
+        }
       }
-    } catch {
-      window.localStorage.removeItem(QUESTION_HISTORY_STORAGE_KEY);
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const persistedSnapshot = useMemo<PersistedAppState>(() => {
+    const preferencesSnapshot: PersistedGeneratorPreferences = {
+      selectedTopics,
+      difficulty,
+      techMode,
+      mathMethodsSubtopics,
+      chemistrySubtopics,
+      physicalEducationSubtopics,
+      questionCount,
+      maxMarksPerQuestion,
+      questionMode,
+    };
+
+    const writtenSession: PersistedWrittenSession = {
+      questions,
+      activeQuestionIndex,
+      answersByQuestionId,
+      imagesByQuestionId,
+      feedbackByQuestionId,
+      rawModelOutput: writtenRawModelOutput,
+      generationTelemetry: writtenGenerationTelemetry,
+      savedSetId: activeWrittenSavedSetId,
+    };
+
+    const multipleChoiceSession: PersistedMcSession = {
+      questions: mcQuestions,
+      activeQuestionIndex: activeMcQuestionIndex,
+      answersByQuestionId: mcAnswersByQuestionId,
+      rawModelOutput: mcRawModelOutput,
+      generationTelemetry: mcGenerationTelemetry,
+      savedSetId: activeMcSavedSetId,
+    };
+
+    return {
+      version: EMPTY_PERSISTED_APP_STATE.version,
+      settings: {
+        apiKey,
+        model,
+        debugMode,
+      },
+      preferences: preferencesSnapshot,
+      writtenSession,
+      mcSession: multipleChoiceSession,
+      questionHistory: applyHistoryLimit(questionHistory),
+      mcHistory: applyHistoryLimit(mcHistory),
+      savedSets: applySavedSetLimit(savedSets),
+    };
+  }, [
+    activeMcQuestionIndex,
+    activeMcSavedSetId,
+    activeQuestionIndex,
+    activeWrittenSavedSetId,
+    answersByQuestionId,
+    apiKey,
+    chemistrySubtopics,
+    debugMode,
+    difficulty,
+    feedbackByQuestionId,
+    imagesByQuestionId,
+    mathMethodsSubtopics,
+    maxMarksPerQuestion,
+    mcAnswersByQuestionId,
+    mcGenerationTelemetry,
+    mcHistory,
+    mcQuestions,
+    mcRawModelOutput,
+    model,
+    physicalEducationSubtopics,
+    questionCount,
+    questionHistory,
+    questionMode,
+    questions,
+    savedSets,
+    selectedTopics,
+    techMode,
+    writtenGenerationTelemetry,
+    writtenRawModelOutput,
+  ]);
+
   useEffect(() => {
-    if (apiKey.trim().length > 0) {
-      window.localStorage.setItem(API_KEY_STORAGE_KEY, apiKey.trim());
+    if (!hydrateCompleteRef.current) {
       return;
     }
-    window.localStorage.removeItem(API_KEY_STORAGE_KEY);
-  }, [apiKey]);
 
-  useEffect(() => {
-    window.localStorage.setItem(DEBUG_MODE_STORAGE_KEY, String(debugMode));
-  }, [debugMode]);
+    const timeoutId = window.setTimeout(() => {
+      void savePersistedAppState(persistedSnapshot).catch(() => {
+        setErrorMessage((current) => current ?? "Could not save app data.");
+      });
+    }, 250);
 
-  useEffect(() => {
-    window.localStorage.setItem(QUESTION_HISTORY_STORAGE_KEY, JSON.stringify(questionHistory));
-  }, [questionHistory]);
+    return () => window.clearTimeout(timeoutId);
+  }, [persistedSnapshot]);
 
-  useEffect(() => {
-    const persisted = window.localStorage.getItem(MC_HISTORY_STORAGE_KEY);
-    if (!persisted) return;
-    try {
-      const parsed = JSON.parse(persisted) as McHistoryEntry[];
-      if (Array.isArray(parsed)) setMcHistory(parsed);
-    } catch {
-      window.localStorage.removeItem(MC_HISTORY_STORAGE_KEY);
+  function applyPersistedState(state: PersistedAppState) {
+    setApiKey(state.settings.apiKey);
+    setModel(state.settings.model);
+    setDebugMode(state.settings.debugMode);
+    setSelectedTopics(state.preferences.selectedTopics);
+    setDifficulty(state.preferences.difficulty);
+    setTechMode(state.preferences.techMode);
+    setMathMethodsSubtopics(state.preferences.mathMethodsSubtopics);
+    setChemistrySubtopics(state.preferences.chemistrySubtopics);
+    setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
+    setQuestionCount(state.preferences.questionCount);
+    setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
+    setQuestionMode(state.preferences.questionMode);
+
+    setQuestions(state.writtenSession.questions);
+    setActiveQuestionIndex(state.writtenSession.activeQuestionIndex);
+    setAnswersByQuestionId(state.writtenSession.answersByQuestionId);
+    setImagesByQuestionId(state.writtenSession.imagesByQuestionId);
+    setFeedbackByQuestionId(state.writtenSession.feedbackByQuestionId);
+    setWrittenRawModelOutput(state.writtenSession.rawModelOutput);
+    setWrittenGenerationTelemetry(state.writtenSession.generationTelemetry ?? null);
+    setActiveWrittenSavedSetId(state.writtenSession.savedSetId ?? null);
+
+    setMcQuestions(state.mcSession.questions);
+    setActiveMcQuestionIndex(state.mcSession.activeQuestionIndex);
+    setMcAnswersByQuestionId(state.mcSession.answersByQuestionId);
+    setMcRawModelOutput(state.mcSession.rawModelOutput);
+    setMcGenerationTelemetry(state.mcSession.generationTelemetry ?? null);
+    setActiveMcSavedSetId(state.mcSession.savedSetId ?? null);
+
+    setQuestionHistory(state.questionHistory);
+    setMcHistory(state.mcHistory);
+    setSavedSets(state.savedSets);
+  }
+
+  function saveCurrentSet() {
+    const now = new Date().toISOString();
+    const preferencesSnapshot: PersistedGeneratorPreferences = {
+      selectedTopics,
+      difficulty,
+      techMode,
+      mathMethodsSubtopics,
+      chemistrySubtopics,
+      physicalEducationSubtopics,
+      questionCount,
+      maxMarksPerQuestion,
+      questionMode,
+    };
+
+    if (questionMode === "written") {
+      if (questions.length === 0) {
+        return null;
+      }
+
+      const savedSetId = activeWrittenSavedSetId ?? `saved-written-${Date.now()}`;
+      const existing = savedSets.find((entry) => entry.id === savedSetId);
+      const nextEntry: SavedQuestionSet = {
+        id: savedSetId,
+        title: buildSavedSetTitle("written", selectedTopics),
+        questionMode: "written",
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+        preferences: preferencesSnapshot,
+        writtenSession: {
+          questions,
+          activeQuestionIndex,
+          answersByQuestionId,
+          imagesByQuestionId,
+          feedbackByQuestionId,
+          rawModelOutput: writtenRawModelOutput,
+          generationTelemetry: writtenGenerationTelemetry,
+          savedSetId,
+        },
+      };
+
+      setSavedSets((prev) => {
+        const remaining = prev.filter((entry) => entry.id !== savedSetId);
+        return applySavedSetLimit([nextEntry, ...remaining]);
+      });
+      setActiveWrittenSavedSetId(savedSetId);
+      return savedSetId;
     }
-  }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem(MC_HISTORY_STORAGE_KEY, JSON.stringify(mcHistory));
-  }, [mcHistory]);
+    if (mcQuestions.length === 0) {
+      return null;
+    }
+
+    const savedSetId = activeMcSavedSetId ?? `saved-mc-${Date.now()}`;
+    const existing = savedSets.find((entry) => entry.id === savedSetId);
+    const nextEntry: SavedQuestionSet = {
+      id: savedSetId,
+      title: buildSavedSetTitle("multiple-choice", selectedTopics),
+      questionMode: "multiple-choice",
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      preferences: preferencesSnapshot,
+      mcSession: {
+        questions: mcQuestions,
+        activeQuestionIndex: activeMcQuestionIndex,
+        answersByQuestionId: mcAnswersByQuestionId,
+        rawModelOutput: mcRawModelOutput,
+        generationTelemetry: mcGenerationTelemetry,
+        savedSetId,
+      },
+    };
+
+    setSavedSets((prev) => {
+      const remaining = prev.filter((entry) => entry.id !== savedSetId);
+      return applySavedSetLimit([nextEntry, ...remaining]);
+    });
+    setActiveMcSavedSetId(savedSetId);
+    return savedSetId;
+  }
+
+  function loadSavedSet(savedSetId: string) {
+    const entry = savedSets.find((candidate) => candidate.id === savedSetId);
+    if (!entry) {
+      return;
+    }
+
+    setSelectedTopics(entry.preferences.selectedTopics);
+    setDifficulty(entry.preferences.difficulty);
+    setTechMode(entry.preferences.techMode);
+    setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
+    setChemistrySubtopics(entry.preferences.chemistrySubtopics);
+    setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
+    setQuestionCount(entry.preferences.questionCount);
+    setMaxMarksPerQuestion(entry.preferences.maxMarksPerQuestion);
+    setQuestionMode(entry.questionMode);
+
+    if (entry.questionMode === "written" && entry.writtenSession) {
+      setQuestions(entry.writtenSession.questions);
+      setActiveQuestionIndex(entry.writtenSession.activeQuestionIndex);
+      setAnswersByQuestionId(entry.writtenSession.answersByQuestionId);
+      setImagesByQuestionId(entry.writtenSession.imagesByQuestionId);
+      setFeedbackByQuestionId(entry.writtenSession.feedbackByQuestionId);
+      setWrittenRawModelOutput(entry.writtenSession.rawModelOutput);
+      setWrittenGenerationTelemetry(entry.writtenSession.generationTelemetry ?? null);
+      setActiveWrittenSavedSetId(entry.id);
+    }
+
+    if (entry.questionMode === "multiple-choice" && entry.mcSession) {
+      setMcQuestions(entry.mcSession.questions);
+      setActiveMcQuestionIndex(entry.mcSession.activeQuestionIndex);
+      setMcAnswersByQuestionId(entry.mcSession.answersByQuestionId);
+      setMcRawModelOutput(entry.mcSession.rawModelOutput);
+      setMcGenerationTelemetry(entry.mcSession.generationTelemetry ?? null);
+      setActiveMcSavedSetId(entry.id);
+    }
+  }
+
+  function deleteSavedSet(savedSetId: string) {
+    setSavedSets((prev) => prev.filter((entry) => entry.id !== savedSetId));
+    if (activeWrittenSavedSetId === savedSetId) {
+      setActiveWrittenSavedSetId(null);
+    }
+    if (activeMcSavedSetId === savedSetId) {
+      setActiveMcSavedSetId(null);
+    }
+  }
 
   function clearApiKey() {
     setApiKey("");
-    window.localStorage.removeItem(API_KEY_STORAGE_KEY);
   }
 
   return (
     <AppContext.Provider
       value={{
-        apiKey, setApiKey,
-        showApiKey, setShowApiKey,
-        selectedTopics, setSelectedTopics,
-        difficulty, setDifficulty,
-        techMode, setTechMode,
-        mathMethodsSubtopics, setMathMethodsSubtopics,
-        chemistrySubtopics, setChemistrySubtopics,
-        physicalEducationSubtopics, setPhysicalEducationSubtopics,
-        questionCount, setQuestionCount,
-        maxMarksPerQuestion, setMaxMarksPerQuestion,
-        model, setModel,
-        debugMode, setDebugMode,
-        questionMode, setQuestionMode,
-        questions, setQuestions,
-        activeQuestionIndex, setActiveQuestionIndex,
-        answersByQuestionId, setAnswersByQuestionId,
-        imagesByQuestionId, setImagesByQuestionId,
-        feedbackByQuestionId, setFeedbackByQuestionId,
-        questionHistory, setQuestionHistory,
-        mcQuestions, setMcQuestions,
-        activeMcQuestionIndex, setActiveMcQuestionIndex,
-        mcAnswersByQuestionId, setMcAnswersByQuestionId,
-        mcHistory, setMcHistory,
-        writtenRawModelOutput, setWrittenRawModelOutput,
-        mcRawModelOutput, setMcRawModelOutput,
-        isGenerating, setIsGenerating,
-        isMarking, setIsMarking,
-        errorMessage, setErrorMessage,
-        clearApiKey
+        isHydrated,
+        apiKey,
+        setApiKey,
+        showApiKey,
+        setShowApiKey,
+        selectedTopics,
+        setSelectedTopics,
+        difficulty,
+        setDifficulty,
+        techMode,
+        setTechMode,
+        mathMethodsSubtopics,
+        setMathMethodsSubtopics,
+        chemistrySubtopics,
+        setChemistrySubtopics,
+        physicalEducationSubtopics,
+        setPhysicalEducationSubtopics,
+        questionCount,
+        setQuestionCount,
+        maxMarksPerQuestion,
+        setMaxMarksPerQuestion,
+        model,
+        setModel,
+        debugMode,
+        setDebugMode,
+        questionMode,
+        setQuestionMode,
+        questions,
+        setQuestions,
+        activeQuestionIndex,
+        setActiveQuestionIndex,
+        answersByQuestionId,
+        setAnswersByQuestionId,
+        imagesByQuestionId,
+        setImagesByQuestionId,
+        feedbackByQuestionId,
+        setFeedbackByQuestionId,
+        questionHistory,
+        setQuestionHistory: (history) => {
+          setQuestionHistory((prev) => applyHistoryLimit(typeof history === "function" ? history(prev) : history));
+        },
+        mcQuestions,
+        setMcQuestions,
+        activeMcQuestionIndex,
+        setActiveMcQuestionIndex,
+        mcAnswersByQuestionId,
+        setMcAnswersByQuestionId,
+        mcHistory,
+        setMcHistory: (history) => {
+          setMcHistory((prev) => applyHistoryLimit(typeof history === "function" ? history(prev) : history));
+        },
+        writtenRawModelOutput,
+        setWrittenRawModelOutput,
+        mcRawModelOutput,
+        setMcRawModelOutput,
+        writtenGenerationTelemetry,
+        setWrittenGenerationTelemetry,
+        mcGenerationTelemetry,
+        setMcGenerationTelemetry,
+        activeWrittenSavedSetId,
+        setActiveWrittenSavedSetId,
+        activeMcSavedSetId,
+        setActiveMcSavedSetId,
+        savedSets,
+        saveCurrentSet,
+        loadSavedSet,
+        deleteSavedSet,
+        isGenerating,
+        setIsGenerating,
+        isMarking,
+        setIsMarking,
+        errorMessage,
+        setErrorMessage,
+        clearApiKey,
       }}
     >
       {children}

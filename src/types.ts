@@ -33,22 +33,22 @@ export const PHYSICAL_EDUCATION_SUBTOPICS = [
 export type PhysicalEducationSubtopic = typeof PHYSICAL_EDUCATION_SUBTOPICS[number];
 
 export const CHEMISTRY_SUBTOPICS = [
-  "Periodic table organisation by structure and trends (electronegativity, ionisation energy, reactivity); some elements are critical or endangered.",
-  "Lewis structures and VSEPR predict covalent molecular shape, polarity, and intermolecular forces (dispersion, dipole–dipole, hydrogen bonding).",
-  "Metals form conductive, malleable metallic lattices; the reactivity series is determined via reactions with water, acids, and oxygen.",
-  "Ionic compounds form by electron transfer; precipitation reactions and solubility tables identify ions in solution.",
-  "Chromatography separates mixture components and identifies them using Rf values.",
-  "Mole calculations include molar mass, percentage composition, and empirical/molecular formulas.",
-  "Organic compounds are classified (alkanes, alkenes, alcohols, carboxylic acids, haloalkanes) and named using IUPAC rules.",
-  "Polymers form via addition or condensation polymerisation; plastics include fossil-based and bioplastics with recycling considerations.",
-  "Sustainability in chemistry involves green chemistry, sustainable development goals, and circular economy principles.",
-  "Water’s properties (high specific heat capacity, lower ice density, high latent heat) arise from hydrogen bonding.",
-  "Brønsted–Lowry acid–base theory covers strong/weak acids and bases, neutralisation, pH, and applications like ocean acidification.",
-  "Redox reactions involve electron transfer; half-equations describe displacement and corrosion using the reactivity series.",
-  "Solution concentration units (mol L⁻¹, g L⁻¹, ppm, %) and solubility predictions use tables and graphs.",
-  "Volumetric analysis (acid–base titration) determines solution concentration using standard solutions and indicators.",
-  "The ideal gas equation relates gas quantities; CO₂, CH₄, and H₂O are major greenhouse gases.",
-  "Salts in water or soil are analysed using electrical conductivity, stoichiometry, and colorimetry/UV–Vis spectroscopy."
+  "Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements",
+  "Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces",
+  "Metallic Bonding: Metallic Lattices and the Reactivity Series",
+  "Ionic Chemistry: Ionic Bonding, Precipitation Reactions, and Solubility Tables",
+  "Chemical Quantities: Moles, Molar Mass, Percentage Composition, and Empirical/Molecular Formulas",
+  "Separation Techniques: Chromatography and Rf Value Identification",
+  "Organic Classification: Alkanes, Alkenes, Alcohols, Carboxylic Acids, Haloalkanes, and IUPAC Naming",
+  "Polymer Chemistry: Addition and Condensation Polymerisation, Plastics, and Recycling",
+  "Sustainability: Green Chemistry, Circular Economy, and Sustainable Development",
+  "Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water",
+  "Acid–Base Chemistry: Brønsted–Lowry Theory, pH, Neutralisation, and Applications",
+  "Redox Chemistry: Electron Transfer, Half-Equations, Displacement, and Corrosion",
+  "Solutions: Concentration Units and Solubility Relationships",
+  "Volumetric Analysis: Acid–Base Titration, Standard Solutions, and Indicators",
+  "Gas Chemistry: Ideal Gas Equation and Greenhouse Gases",
+  "Analytical Techniques: Electrical Conductivity, Stoichiometry, and Colorimetry/UV–Vis Spectroscopy"
 ] as const;
 
 export type ChemistrySubtopic = typeof CHEMISTRY_SUBTOPICS[number];
@@ -79,6 +79,22 @@ export type GenerationTelemetry = {
   durationMs: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+};
+
+export type GenerationStatusStage =
+  | "preparing"
+  | "generating"
+  | "validating"
+  | "repairing"
+  | "regenerating"
+  | "completed"
+  | "failed";
+
+export type GenerationStatusEvent = {
+  mode: QuestionMode;
+  stage: GenerationStatusStage;
+  message: string;
+  attempt: number;
 };
 
 export type GenerateQuestionsResponse = {
@@ -137,6 +153,10 @@ export const API_KEY_STORAGE_KEY = "questiongen.openrouterApiKey";
 export const QUESTION_HISTORY_STORAGE_KEY = "questiongen.history";
 export const MC_HISTORY_STORAGE_KEY = "questiongen.mcHistory";
 export const DEBUG_MODE_STORAGE_KEY = "questiongen.debugMode";
+export const APP_STATE_STORAGE_KEY = "questiongen.appState";
+export const HISTORY_ENTRY_LIMIT = 200;
+export const SAVED_SET_LIMIT = 100;
+export const PERSISTED_APP_STATE_VERSION = 1;
 
 export type QuestionMode = "written" | "multiple-choice";
 
@@ -172,4 +192,64 @@ export type McHistoryEntry = {
   selectedAnswer: string;
   correct: boolean;
   generationTelemetry?: GenerationTelemetry;
+};
+
+export type PersistedSettings = {
+  apiKey: string;
+  model: string;
+  debugMode: boolean;
+};
+
+export type PersistedGeneratorPreferences = {
+  selectedTopics: Topic[];
+  difficulty: Difficulty;
+  techMode: TechMode;
+  mathMethodsSubtopics: MathMethodsSubtopic[];
+  chemistrySubtopics: ChemistrySubtopic[];
+  physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  questionCount: number;
+  maxMarksPerQuestion: number;
+  questionMode: QuestionMode;
+};
+
+export type PersistedWrittenSession = {
+  questions: GeneratedQuestion[];
+  activeQuestionIndex: number;
+  answersByQuestionId: Record<string, string>;
+  imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
+  feedbackByQuestionId: Record<string, MarkAnswerResponse>;
+  rawModelOutput: string;
+  generationTelemetry?: GenerationTelemetry | null;
+  savedSetId?: string | null;
+};
+
+export type PersistedMcSession = {
+  questions: McQuestion[];
+  activeQuestionIndex: number;
+  answersByQuestionId: Record<string, string>;
+  rawModelOutput: string;
+  generationTelemetry?: GenerationTelemetry | null;
+  savedSetId?: string | null;
+};
+
+export type SavedQuestionSet = {
+  id: string;
+  title: string;
+  questionMode: QuestionMode;
+  createdAt: string;
+  updatedAt: string;
+  preferences: PersistedGeneratorPreferences;
+  writtenSession?: PersistedWrittenSession;
+  mcSession?: PersistedMcSession;
+};
+
+export type PersistedAppState = {
+  version: number;
+  settings: PersistedSettings;
+  preferences: PersistedGeneratorPreferences;
+  writtenSession: PersistedWrittenSession;
+  mcSession: PersistedMcSession;
+  questionHistory: QuestionHistoryEntry[];
+  mcHistory: McHistoryEntry[];
+  savedSets: SavedQuestionSet[];
 };

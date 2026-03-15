@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
+import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark } from "lucide-react";
 import { useAppContext } from "../AppContext";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { Button } from "../components/ui/button";
@@ -24,21 +25,36 @@ import {
   PhysicalEducationSubtopic,
   GenerateQuestionsResponse,
   GenerateMcQuestionsResponse,
-  GenerationTelemetry,
+  GenerationStatusEvent,
+  McOption,
   McHistoryEntry,
   QuestionHistoryEntry,
   Difficulty
 } from "../types";
 import { fileToDataUrl, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
 
+function formatDurationMs(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${durationMs}ms`;
+  }
+
+  const seconds = durationMs / 1000;
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
 export function GeneratorView() {
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
-  const [writtenGenerationTelemetry, setWrittenGenerationTelemetry] = useState<GenerationTelemetry | null>(null);
-  const [mcGenerationTelemetry, setMcGenerationTelemetry] = useState<GenerationTelemetry | null>(null);
   const [renderFallbackByQuestionId, setRenderFallbackByQuestionId] = useState<Record<string, boolean>>({});
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatusEvent | null>(null);
 
   const {
     apiKey, model, errorMessage, setErrorMessage,
@@ -48,12 +64,15 @@ export function GeneratorView() {
     physicalEducationSubtopics, setPhysicalEducationSubtopics,
     questionCount, setQuestionCount, maxMarksPerQuestion, setMaxMarksPerQuestion,
     debugMode, writtenRawModelOutput, setWrittenRawModelOutput, mcRawModelOutput, setMcRawModelOutput,
+    writtenGenerationTelemetry, setWrittenGenerationTelemetry, mcGenerationTelemetry, setMcGenerationTelemetry,
     questionMode, setQuestionMode,
     questions, setQuestions, activeQuestionIndex, setActiveQuestionIndex,
     answersByQuestionId, setAnswersByQuestionId, imagesByQuestionId, setImagesByQuestionId,
     feedbackByQuestionId, setFeedbackByQuestionId, setQuestionHistory,
     mcQuestions, setMcQuestions, activeMcQuestionIndex, setActiveMcQuestionIndex,
     mcAnswersByQuestionId, setMcAnswersByQuestionId, setMcHistory,
+    activeWrittenSavedSetId, setActiveWrittenSavedSetId, activeMcSavedSetId, setActiveMcSavedSetId,
+    saveCurrentSet,
     isGenerating, setIsGenerating, isMarking, setIsMarking
   } = useAppContext();
 
@@ -71,12 +90,12 @@ export function GeneratorView() {
   const canShowMcRawOutput = debugMode && mcRawModelOutput.trim().length > 0;
   
   const completedCount = useMemo(
-    () => questions.filter((q) => feedbackByQuestionId[q.id]).length,
+    () => questions.filter((q: { id: string | number; }) => feedbackByQuestionId[q.id]).length,
     [feedbackByQuestionId, questions],
   );
 
   const mcCompletedCount = useMemo(
-    () => mcQuestions.filter((q) => mcAnswersByQuestionId[q.id]).length,
+    () => mcQuestions.filter((q: { id: string | number; }) => mcAnswersByQuestionId[q.id]).length,
     [mcAnswersByQuestionId, mcQuestions],
   );
 
@@ -122,6 +141,22 @@ export function GeneratorView() {
     return () => window.clearInterval(timerId);
   }, [stopwatchStartedAt]);
 
+  useEffect(() => {
+    let unlisten: undefined | (() => void);
+
+    void listen<GenerationStatusEvent>("generation-status", (event) => {
+      setGenerationStatus(event.payload);
+    }).then((dispose) => {
+      unlisten = dispose;
+    });
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
+
   function startStopwatch() {
     setStopwatchStartedAt(Date.now());
     setElapsedSeconds(0);
@@ -133,19 +168,19 @@ export function GeneratorView() {
   }
 
   function toggleTopic(topic: Topic) {
-    setSelectedTopics((prev) => prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]);
+    setSelectedTopics((prev) => prev.includes(topic) ? prev.filter((t: Topic) => t !== topic) : [...prev, topic]);
   }
 
   function toggleSubtopic(sub: MathMethodsSubtopic) {
-    setMathMethodsSubtopics((prev) => prev.includes(sub) ? prev.filter((s) => s !== sub) : [...prev, sub]);
+    setMathMethodsSubtopics((prev: MathMethodsSubtopic[]) => prev.includes(sub) ? prev.filter((s: MathMethodsSubtopic) => s !== sub) : [...prev, sub]);
   }
 
   function toggleChemistrySubtopic(sub: ChemistrySubtopic) {
-    setChemistrySubtopics((prev) => prev.includes(sub) ? prev.filter((s) => s !== sub) : [...prev, sub]);
+    setChemistrySubtopics((prev: ChemistrySubtopic[]) => prev.includes(sub) ? prev.filter((s: ChemistrySubtopic) => s !== sub) : [...prev, sub]);
   }
 
   function togglePhysicalEducationSubtopic(sub: PhysicalEducationSubtopic) {
-    setPhysicalEducationSubtopics((prev) => prev.includes(sub) ? prev.filter((s) => s !== sub) : [...prev, sub]);
+    setPhysicalEducationSubtopics((prev: PhysicalEducationSubtopic[]) => prev.includes(sub) ? prev.filter((s: PhysicalEducationSubtopic) => s !== sub) : [...prev, sub]);
   }
 
   function getSelectedSubtopics() {
@@ -164,6 +199,12 @@ export function GeneratorView() {
     if (!canGenerate) return;
     startStopwatch();
     setErrorMessage(null);
+    setGenerationStatus({
+      mode: "written",
+      stage: "preparing",
+      message: "Preparing generation request.",
+      attempt: 1,
+    });
     setIsGenerating(true);
 
     try {
@@ -185,12 +226,19 @@ export function GeneratorView() {
       setWrittenGenerationTelemetry(response.telemetry ?? null);
       setShowWrittenRawOutput(false);
       setActiveQuestionIndex(0);
+      setActiveWrittenSavedSetId(null);
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
       setRenderFallbackByQuestionId({});
     } catch (error) {
       resetStopwatch();
+      setGenerationStatus({
+        mode: "written",
+        stage: "failed",
+        message: "Generation failed.",
+        attempt: generationStatus?.attempt ?? 1,
+      });
       setErrorMessage(readBackendError(error));
     } finally {
       setIsGenerating(false);
@@ -214,7 +262,7 @@ export function GeneratorView() {
       });
 
       const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
-      setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: response }));
+      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
 
       const historyEntry: QuestionHistoryEntry = {
         id: `${activeQuestion.id}-${Date.now()}`,
@@ -227,7 +275,7 @@ export function GeneratorView() {
         generationTelemetry: writtenGenerationTelemetry ?? undefined,
       };
 
-      setQuestionHistory((prev) => [historyEntry, ...prev].slice(0, 200));
+      setQuestionHistory((prev: any) => [historyEntry, ...prev].slice(0, 200));
     } catch (error) {
       setErrorMessage(readBackendError(error));
     } finally {
@@ -239,6 +287,12 @@ export function GeneratorView() {
     if (!canGenerateMc) return;
     startStopwatch();
     setErrorMessage(null);
+    setGenerationStatus({
+      mode: "multiple-choice",
+      stage: "preparing",
+      message: "Preparing generation request.",
+      attempt: 1,
+    });
     setIsGenerating(true);
     try {
       const response = await invoke<GenerateMcQuestionsResponse>("generate_mc_questions", {
@@ -249,9 +303,16 @@ export function GeneratorView() {
       setMcGenerationTelemetry(response.telemetry ?? null);
       setShowMcRawOutput(false);
       setActiveMcQuestionIndex(0);
+      setActiveMcSavedSetId(null);
       setMcAnswersByQuestionId({});
     } catch (error) {
       resetStopwatch();
+      setGenerationStatus({
+        mode: "multiple-choice",
+        stage: "failed",
+        message: "Generation failed.",
+        attempt: generationStatus?.attempt ?? 1,
+      });
       setErrorMessage(readBackendError(error));
     } finally {
       setIsGenerating(false);
@@ -260,7 +321,7 @@ export function GeneratorView() {
 
   function handleMcAnswer(selectedLabel: string) {
     if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
-    setMcAnswersByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
+    setMcAnswersByQuestionId((prev: any) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
     const correct = selectedLabel === activeMcQuestion.correctAnswer;
     const entry: McHistoryEntry = {
       type: "multiple-choice",
@@ -271,7 +332,7 @@ export function GeneratorView() {
       correct,
       generationTelemetry: mcGenerationTelemetry ?? undefined,
     };
-    setMcHistory((prev) => [entry, ...prev].slice(0, 200));
+    setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
   }
 
   function handleStartOver() {
@@ -281,6 +342,7 @@ export function GeneratorView() {
     setWrittenGenerationTelemetry(null);
     setShowWrittenRawOutput(false);
     setActiveQuestionIndex(0);
+    setActiveWrittenSavedSetId(null);
     setAnswersByQuestionId({});
     setImagesByQuestionId({});
     setFeedbackByQuestionId({});
@@ -290,6 +352,7 @@ export function GeneratorView() {
     setMcGenerationTelemetry(null);
     setShowMcRawOutput(false);
     setActiveMcQuestionIndex(0);
+    setActiveMcSavedSetId(null);
     setMcAnswersByQuestionId({});
   }
 
@@ -309,7 +372,7 @@ export function GeneratorView() {
     try {
       const dataUrl = await fileToDataUrl(file);
       setErrorMessage(null);
-      setImagesByQuestionId((prev) => ({
+      setImagesByQuestionId((prev: any) => ({
         ...prev,
         [activeQuestion.id]: { name: file.name, dataUrl },
       }));
@@ -543,8 +606,20 @@ export function GeneratorView() {
               )}
             </Button>
             {isGenerating && stopwatchStartedAt !== null && (
-              <div className="flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground animate-pulse">
-                <Clock3 className="w-4 h-4" /> Time Elapsed: {formattedElapsedTime}
+              <div className="w-full rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span>{generationStatus?.message ?? "Generating questions..."}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline" className="bg-background/70">{generationStatus?.stage ?? "generating"}</Badge>
+                    <Badge variant="outline" className="bg-background/70">Attempt {generationStatus?.attempt ?? 1}</Badge>
+                    <span className="inline-flex items-center gap-1.5 font-medium">
+                      <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </CardFooter>
@@ -581,11 +656,30 @@ export function GeneratorView() {
                     <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
                   </Badge>
                 )}
+                {writtenGenerationTelemetry && (
+                  <Badge variant="outline" className="bg-muted/50">
+                    Generated in {formatDurationMs(writtenGenerationTelemetry.durationMs)}
+                  </Badge>
+                )}
+                {writtenGenerationTelemetry && writtenGenerationTelemetry.totalAttempts > 1 && (
+                  <Badge variant="outline" className="border-amber-500/60 bg-amber-100/60 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
+                    {writtenGenerationTelemetry.totalAttempts} attempts • {writtenGenerationTelemetry.repairAttempts} repair pass{writtenGenerationTelemetry.repairAttempts === 1 ? "" : "es"}
+                  </Badge>
+                )}
+                {writtenGenerationTelemetry?.constrainedRegenerationUsed && (
+                  <Badge variant="outline" className="border-red-500/60 bg-red-100/60 text-red-900 dark:border-red-500/60 dark:bg-red-900/40 dark:text-red-200">
+                    Full regeneration fallback used
+                  </Badge>
+                )}
               </div>
             </div>
 
             <div className="flex flex-col items-end gap-3 w-full md:w-auto">
               <div className="flex items-center gap-2 w-full justify-end">
+                <Button variant={activeWrittenSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="gap-2 shadow-sm">
+                  <Bookmark className="w-4 h-4" />
+                  <span className="hidden md:inline">{activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
+                </Button>
                 <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
                 <Separator orientation="vertical" className="h-6 hidden md:block" />
                 <Button variant="outline" size="sm" onClick={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))} disabled={activeQuestionIndex === 0} className="shadow-sm">
@@ -646,7 +740,7 @@ export function GeneratorView() {
                              placeholder="Compose your response here..."
                              className="min-h-[200px] resize-y text-base p-4 focus-visible:ring-primary/30"
                              value={activeQuestionAnswer}
-                             onChange={(e) => setAnswersByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
+                             onChange={(e) => setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
                              disabled={isMarking}
                            />
                         </div>
@@ -657,7 +751,7 @@ export function GeneratorView() {
                             <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm bg-muted/30 p-2">
                                <img src={activeQuestionImage.dataUrl} alt="Uploaded text" className="w-full h-auto max-h-80 object-contain rounded-lg" />
                                <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                                  <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: undefined }))}>
+                                  <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
                                     <Trash2 className="w-4 h-4 mr-2" /> Remove Image
                                   </Button>
                                </div>
@@ -727,7 +821,7 @@ export function GeneratorView() {
                       <div className="space-y-4">
                          <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Check className="w-5 h-5 text-green-500" /> Marking Scheme</Label>
                          <div className="space-y-3 mt-2">
-                           {activeFeedback.vcaaMarkingScheme.map((item, idx) => {
+                           {activeFeedback.vcaaMarkingScheme.map((item: { achievedMarks: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; maxMarks: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; criterion: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }, idx: Key | null | undefined) => {
                              const isFullMarks = item.achievedMarks === item.maxMarks;
                              return (
                                <div key={idx} className={`p-4 rounded-xl border text-sm flex justify-between gap-6 transition-colors ${isFullMarks ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" : "bg-card"}`}>
@@ -772,11 +866,30 @@ export function GeneratorView() {
                     <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
                   </Badge>
                 )}
+                {mcGenerationTelemetry && (
+                  <Badge variant="outline" className="bg-muted/50">
+                    Generated in {formatDurationMs(mcGenerationTelemetry.durationMs)}
+                  </Badge>
+                )}
+                {mcGenerationTelemetry && mcGenerationTelemetry.totalAttempts > 1 && (
+                  <Badge variant="outline" className="border-amber-500/60 bg-amber-100/60 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
+                    {mcGenerationTelemetry.totalAttempts} attempts • {mcGenerationTelemetry.repairAttempts} repair pass{mcGenerationTelemetry.repairAttempts === 1 ? "" : "es"}
+                  </Badge>
+                )}
+                {mcGenerationTelemetry?.constrainedRegenerationUsed && (
+                  <Badge variant="outline" className="border-red-500/60 bg-red-100/60 text-red-900 dark:border-red-500/60 dark:bg-red-900/40 dark:text-red-200">
+                    Full regeneration fallback used
+                  </Badge>
+                )}
               </div>
             </div>
 
             <div className="flex flex-col items-end gap-3 w-full md:w-auto">
               <div className="flex items-center gap-2 w-full justify-end">
+                <Button variant={activeMcSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="gap-2 shadow-sm">
+                  <Bookmark className="w-4 h-4" />
+                  <span className="hidden md:inline">{activeMcSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
+                </Button>
                 <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
                 <Separator orientation="vertical" className="h-6 hidden md:block" />
                 <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))} disabled={activeMcQuestionIndex === 0} className="shadow-sm">
@@ -828,7 +941,7 @@ export function GeneratorView() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-col gap-3">
-                    {activeMcQuestion.options.map((opt) => {
+                    {activeMcQuestion.options.map((opt: McOption) => {
                       const answered = Boolean(activeMcAnswer);
                       const isChosen = activeMcAnswer === opt.label;
                       const isCorrect = opt.label === activeMcQuestion.correctAnswer;

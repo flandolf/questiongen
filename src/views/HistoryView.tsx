@@ -22,7 +22,8 @@ export function HistoryView() {
   }, [questionHistory, mcHistory]);
 
   function handleClear() {
-    if (window.confirm("Are you sure you want to clear your history?")) {
+    const totalCount = questionHistory.length + mcHistory.length;
+    if (window.confirm(`Clear ${totalCount} history entries? Saved sets will be kept.`)) {
       setQuestionHistory([]);
       setMcHistory([]);
     }
