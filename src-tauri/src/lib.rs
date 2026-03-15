@@ -12,9 +12,11 @@ const OPENROUTER_MAX_TOKENS: u16 = 1400;
 const GENERATION_REPAIR_RETRIES: usize = 1;
 const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
 const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
+const CHEMISTRY_TOPIC: &str = "Chemistry";
 const APP_STATE_FILE_NAME: &str = "app-state.json";
 const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematical Methods exam style: concise VCAA-style command verbs, realistic mark allocations, algebraic fluency, and prompts that reward method choice over template recall.";
 const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning.";
+const CHEMICAL_FORMULA_LATEX_GUIDANCE: &str = " For Chemistry content, always render every chemical formula and ionic species in LaTeX math delimiters, e.g. $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$.";
 const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
 const MC_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"mc1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"options\":[{\"label\":\"A\",\"text\":\"...\"},{\"label\":\"B\",\"text\":\"...\"},{\"label\":\"C\",\"text\":\"...\"},{\"label\":\"D\",\"text\":\"...\"}],\"correctAnswer\":\"A\",\"explanationMarkdown\":\"...\",\"techAllowed\":false}]}";
 
@@ -29,6 +31,9 @@ struct GenerateQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    avoid_similar_questions: Option<bool>,
+    prior_question_prompts: Option<Vec<String>>,
+    use_structured_output: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,6 +74,8 @@ struct GenerationTelemetry {
     repair_path: Vec<String>,
     duration_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    structured_output_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     distinctness_avg: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     multi_step_depth_avg: Option<f32>,
@@ -91,6 +98,7 @@ struct MarkAnswerRequest {
     student_answer_image_data_url: Option<String>,
     model: String,
     api_key: String,
+    use_structured_output: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -150,6 +158,12 @@ struct OpenRouterChoice {
 #[derive(Debug, Deserialize)]
 struct OpenRouterMessage {
     content: String,
+}
+
+#[derive(Debug)]
+struct OpenRouterCallResult {
+    content: String,
+    structured_output_unsupported_fallback: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -288,7 +302,7 @@ async fn generate_questions(
         1,
     );
 
-    let system_prompt = "You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters.";
+    let system_prompt = "You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
@@ -302,6 +316,11 @@ async fn generate_questions(
     } else {
         ""
     };
+    let chemistry_formula_note = if includes_chemistry(&request.topics) {
+        CHEMICAL_FORMULA_LATEX_GUIDANCE
+    } else {
+        ""
+    };
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
     let tech_note = match tech_mode {
         "tech-free" => " All questions must be tech-free (no CAS calculator). Set \"techAllowed\": false for every question.",
@@ -312,8 +331,12 @@ async fn generate_questions(
         Some(subs) => format!(" Focus on the following subtopics: {}.", subs.join(", ")),
         None => String::new(),
     };
+    let similarity_guardrail_note = build_similarity_guardrail_note(
+        request.avoid_similar_questions.unwrap_or(false),
+        request.prior_question_prompts.as_deref(),
+    );
     let user_prompt = format!(
-        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must be worth exactly {max_marks} marks.{subtopics_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must be worth exactly {max_marks} marks.{subtopics_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
@@ -323,10 +346,17 @@ async fn generate_questions(
         tech_note = tech_note,
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,
+        chemistry_formula_note = chemistry_formula_note,
+        similarity_guardrail_note = similarity_guardrail_note,
         json_contract = WRITTEN_QUESTION_JSON_CONTRACT,
     );
     let (base_user_content, plugins) =
         build_generation_user_content(&app, &request.topics, &user_prompt)?;
+    let response_format = if request.use_structured_output.unwrap_or(false) {
+        Some(written_questions_response_format())
+    } else {
+        None
+    };
 
     emit_generation_status(
         &app,
@@ -335,14 +365,17 @@ async fn generate_questions(
         "Requesting a new written question set.",
         1,
     );
-    let mut content = call_openrouter_with_plugins(
+    let first_call = call_openrouter_with_plugins(
         &request.api_key,
         &request.model,
         &system_prompt,
         base_user_content.clone(),
         plugins.clone(),
+        response_format.clone(),
     )
     .await?;
+    let mut structured_output_unsupported = first_call.structured_output_unsupported_fallback;
+    let mut content = first_call.content;
 
     let mut parse_issue = String::new();
     let mut parsed: Option<GenerateQuestionsResponse> = None;
@@ -379,14 +412,18 @@ async fn generate_questions(
                     format!("Repairing invalid model output (pass {}).", repair_attempts),
                     total_attempts,
                 );
-                content = request_json_repair(
+                let repaired = request_json_repair(
                     &request.api_key,
                     &request.model,
                     WRITTEN_QUESTION_JSON_CONTRACT,
                     &content,
                     &parse_issue,
+                    response_format.as_ref(),
                 )
                 .await?;
+                structured_output_unsupported =
+                    structured_output_unsupported || repaired.structured_output_unsupported_fallback;
+                content = repaired.content;
             }
         }
     }
@@ -402,7 +439,7 @@ async fn generate_questions(
             "Retrying with a stricter regeneration prompt.",
             total_attempts,
         );
-        content = request_schema_constrained_regeneration(
+        let regenerated = request_schema_constrained_regeneration(
             &request.api_key,
             &request.model,
             &user_prompt,
@@ -410,8 +447,12 @@ async fn generate_questions(
             &parse_issue,
             &base_user_content,
             plugins.as_ref(),
+            response_format.as_ref(),
         )
         .await?;
+        structured_output_unsupported =
+            structured_output_unsupported || regenerated.structured_output_unsupported_fallback;
+        content = regenerated.content;
 
         match parse_written_response_candidate(&content, &request, selected_subtopics) {
             Ok(candidate) => parsed = Some(candidate),
@@ -459,6 +500,18 @@ async fn generate_questions(
         constrained_regeneration_used,
         repair_path,
         duration_ms: generation_started.elapsed().as_millis() as u64,
+        structured_output_status: Some(
+            if request.use_structured_output.unwrap_or(false) {
+                if structured_output_unsupported {
+                    "not-supported-fallback"
+                } else {
+                    "used"
+                }
+            } else {
+                "not-requested"
+            }
+            .to_string(),
+        ),
         distinctness_avg: quality_summary.distinctness_avg,
         multi_step_depth_avg: quality_summary.multi_step_depth_avg,
     };
@@ -482,18 +535,38 @@ async fn generate_questions(
 async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
     validate_mark_request(&request)?;
 
-    let system_prompt = "You are a strict but constructive VCE marker. Assess student answers fairly and explain clearly. Always render mathematics using markdown LaTeX delimiters: $...$ inline and $$...$$ display. Never use plain ( ... ) or [ ... ] as math delimiters.";
+    let system_prompt = "You are a strict but constructive VCE marker. Assess student answers fairly and explain clearly. Always render mathematics using markdown LaTeX delimiters: $...$ inline and $$...$$ display. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
+    let chemistry_formula_note = if is_chemistry_topic(&request.question.topic) {
+        " For Chemistry content, every chemical formula and ionic species in your response must be LaTeX-formatted (for example $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$)."
+    } else {
+        ""
+    };
     let user_prompt_text = format!(
-        "Question topic: {topic}\nQuestion:\n{question}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nUse VCAA-style criterion marking. Build a criterion-by-criterion marking scheme, award marks out of {max_marks}, and compare the student response against the worked solution. Return ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks. Use markdown and LaTeX where relevant.",
+        "Question topic: {topic}\nQuestion:\n{question}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nUse VCAA-style criterion marking. Build a criterion-by-criterion marking scheme, award marks out of {max_marks}, and compare the student response against the worked solution. Return ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks. Use markdown and LaTeX where relevant.{chemistry_formula_note}",
         topic = request.question.topic,
         question = request.question.prompt_markdown,
         answer = request.student_answer,
-        max_marks = request.question.max_marks
+        max_marks = request.question.max_marks,
+        chemistry_formula_note = chemistry_formula_note,
     );
 
     let user_content = build_mark_answer_user_content(&user_prompt_text, request.student_answer_image_data_url.as_deref())?;
 
-    let content = call_openrouter(&request.api_key, &request.model, system_prompt, user_content).await?;
+    let response_format = if request.use_structured_output.unwrap_or(false) {
+        Some(mark_answer_response_format())
+    } else {
+        None
+    };
+
+    let content = call_openrouter(
+        &request.api_key,
+        &request.model,
+        system_prompt,
+        user_content,
+        response_format.as_ref(),
+    )
+    .await?
+    .content;
     let payload = parse_json_object(&content).ok_or_else(|| {
         AppError::new(
             "MODEL_PARSE_ERROR",
@@ -589,8 +662,10 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         &request.model,
         "You are a helpful visual reasoning assistant.",
         user_content,
+        None,
     )
-    .await?;
+    .await?
+    .content;
 
     Ok(AnalyzeImageResponse { output_text })
 }
@@ -658,13 +733,165 @@ fn validate_mark_request(request: &MarkAnswerRequest) -> CommandResult<()> {
     Ok(())
 }
 
+fn written_questions_response_format() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "written_questions_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["questions"],
+                "properties": {
+                    "questions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["id", "topic", "promptMarkdown", "maxMarks"],
+                            "properties": {
+                                "id": { "type": "string" },
+                                "topic": { "type": "string" },
+                                "subtopic": { "type": "string" },
+                                "promptMarkdown": { "type": "string" },
+                                "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
+                                "techAllowed": { "type": "boolean" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn mc_questions_response_format() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "mc_questions_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["questions"],
+                "properties": {
+                    "questions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["id", "topic", "promptMarkdown", "options", "correctAnswer", "explanationMarkdown"],
+                            "properties": {
+                                "id": { "type": "string" },
+                                "topic": { "type": "string" },
+                                "subtopic": { "type": "string" },
+                                "promptMarkdown": { "type": "string" },
+                                "options": {
+                                    "type": "array",
+                                    "minItems": 4,
+                                    "maxItems": 4,
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["label", "text"],
+                                        "properties": {
+                                            "label": { "type": "string" },
+                                            "text": { "type": "string" }
+                                        }
+                                    }
+                                },
+                                "correctAnswer": { "type": "string", "enum": ["A", "B", "C", "D"] },
+                                "explanationMarkdown": { "type": "string" },
+                                "techAllowed": { "type": "boolean" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn mark_answer_response_format() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "mark_answer_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "verdict",
+                    "achievedMarks",
+                    "maxMarks",
+                    "scoreOutOf10",
+                    "vcaaMarkingScheme",
+                    "comparisonToSolutionMarkdown",
+                    "feedbackMarkdown",
+                    "workedSolutionMarkdown"
+                ],
+                "properties": {
+                    "verdict": { "type": "string" },
+                    "achievedMarks": { "type": "integer", "minimum": 0 },
+                    "maxMarks": { "type": "integer", "minimum": 1 },
+                    "scoreOutOf10": { "type": "integer", "minimum": 0, "maximum": 10 },
+                    "vcaaMarkingScheme": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["criterion", "achievedMarks", "maxMarks", "rationale"],
+                            "properties": {
+                                "criterion": { "type": "string" },
+                                "achievedMarks": { "type": "integer", "minimum": 0 },
+                                "maxMarks": { "type": "integer", "minimum": 0 },
+                                "rationale": { "type": "string" }
+                            }
+                        }
+                    },
+                    "comparisonToSolutionMarkdown": { "type": "string" },
+                    "feedbackMarkdown": { "type": "string" },
+                    "workedSolutionMarkdown": { "type": "string" }
+                }
+            }
+        }
+    })
+}
+
+fn is_structured_output_unsupported_response(status: reqwest::StatusCode, body: &str) -> bool {
+    if status != reqwest::StatusCode::BAD_REQUEST
+        && status != reqwest::StatusCode::UNPROCESSABLE_ENTITY
+    {
+        return false;
+    }
+
+    let normalized = body.to_ascii_lowercase();
+    (normalized.contains("response_format") || normalized.contains("json_schema") || normalized.contains("structured"))
+        && (normalized.contains("not support")
+            || normalized.contains("unsupported")
+            || normalized.contains("not available")
+            || normalized.contains("invalid"))
+}
+
 async fn call_openrouter(
     api_key: &str,
     model: &str,
     system_prompt: &str,
     user_content: serde_json::Value,
-) -> CommandResult<String> {
-    call_openrouter_with_plugins(api_key, model, system_prompt, user_content, None).await
+    response_format: Option<&serde_json::Value>,
+) -> CommandResult<OpenRouterCallResult> {
+    call_openrouter_with_plugins(
+        api_key,
+        model,
+        system_prompt,
+        user_content,
+        None,
+        response_format.cloned(),
+    )
+    .await
 }
 
 async fn call_openrouter_with_plugins(
@@ -673,7 +900,8 @@ async fn call_openrouter_with_plugins(
     system_prompt: &str,
     user_content: serde_json::Value,
     plugins: Option<serde_json::Value>,
-) -> CommandResult<String> {
+    response_format: Option<serde_json::Value>,
+) -> CommandResult<OpenRouterCallResult> {
     let client = reqwest::Client::new();
 
     let mut request_body = serde_json::json!({
@@ -690,6 +918,10 @@ async fn call_openrouter_with_plugins(
         request_body["plugins"] = plugins;
     }
 
+    if let Some(response_format) = response_format.clone() {
+        request_body["response_format"] = response_format;
+    }
+
     let response = client
         .post(OPENROUTER_CHAT_URL)
         .header(AUTHORIZATION, format!("Bearer {api_key}"))
@@ -702,6 +934,51 @@ async fn call_openrouter_with_plugins(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+
+        if response_format.is_some() && is_structured_output_unsupported_response(status, &body) {
+            let mut fallback_request_body = request_body.clone();
+            if let serde_json::Value::Object(ref mut map) = fallback_request_body {
+                map.remove("response_format");
+            }
+
+            let fallback_response = client
+                .post(OPENROUTER_CHAT_URL)
+                .header(AUTHORIZATION, format!("Bearer {api_key}"))
+                .header(CONTENT_TYPE, "application/json")
+                .json(&fallback_request_body)
+                .send()
+                .await
+                .map_err(|err| AppError::new("NETWORK_ERROR", format!("Request failed: {err}")))?;
+
+            if !fallback_response.status().is_success() {
+                let fallback_status = fallback_response.status();
+                let fallback_body = fallback_response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
+                return Err(AppError::new(
+                    "OPENROUTER_ERROR",
+                    format!("OpenRouter request failed ({fallback_status}): {fallback_body}"),
+                ));
+            }
+
+            let parsed: OpenRouterResponse = fallback_response
+                .json()
+                .await
+                .map_err(|err| AppError::new("NETWORK_ERROR", format!("Invalid API response: {err}")))?;
+
+            let content = parsed
+                .choices
+                .first()
+                .map(|c| c.message.content.clone())
+                .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
+
+            return Ok(OpenRouterCallResult {
+                content,
+                structured_output_unsupported_fallback: true,
+            });
+        }
+
         return Err(AppError::new(
             "OPENROUTER_ERROR",
             format!("OpenRouter request failed ({status}): {body}"),
@@ -719,7 +996,10 @@ async fn call_openrouter_with_plugins(
         .map(|c| c.message.content.clone())
         .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
 
-    Ok(content)
+    Ok(OpenRouterCallResult {
+        content,
+        structured_output_unsupported_fallback: false,
+    })
 }
 
 fn build_mark_answer_user_content(
@@ -810,6 +1090,16 @@ fn includes_physical_education(topics: &[String]) -> bool {
         .any(|topic| topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC))
 }
 
+fn includes_chemistry(topics: &[String]) -> bool {
+    topics
+        .iter()
+        .any(|topic| topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC))
+}
+
+fn is_chemistry_topic(topic: &str) -> bool {
+    topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC)
+}
+
 fn infer_image_mime(path: &Path) -> Option<&'static str> {
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
     match extension.as_str() {
@@ -833,6 +1123,9 @@ struct GenerateMcQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    avoid_similar_questions: Option<bool>,
+    prior_question_prompts: Option<Vec<String>>,
+    use_structured_output: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -897,7 +1190,7 @@ async fn generate_mc_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model is required."));
     }
 
-    let system_prompt = "You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters.";
+    let system_prompt = "You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
@@ -911,6 +1204,11 @@ async fn generate_mc_questions(
     } else {
         ""
     };
+    let chemistry_formula_note = if includes_chemistry(&request.topics) {
+        CHEMICAL_FORMULA_LATEX_GUIDANCE
+    } else {
+        ""
+    };
     let tech_mode_mc = request.tech_mode.as_deref().unwrap_or("mix");
     let tech_note_mc = match tech_mode_mc {
         "tech-free" => " All questions must be tech-free (no CAS calculator). Set \"techAllowed\": false for every question.",
@@ -921,8 +1219,12 @@ async fn generate_mc_questions(
         Some(subs) => format!(" Focus on the following subtopics: {}.", subs.join(", ")),
         None => String::new(),
     };
+    let similarity_guardrail_note = build_similarity_guardrail_note(
+        request.avoid_similar_questions.unwrap_or(false),
+        request.prior_question_prompts.as_deref(),
+    );
     let user_prompt = format!(
-        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
@@ -931,10 +1233,17 @@ async fn generate_mc_questions(
         tech_note = tech_note_mc,
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,
+        chemistry_formula_note = chemistry_formula_note,
+        similarity_guardrail_note = similarity_guardrail_note,
         json_contract = MC_QUESTION_JSON_CONTRACT,
     );
     let (base_user_content, plugins) =
         build_generation_user_content(&app, &request.topics, &user_prompt)?;
+    let response_format = if request.use_structured_output.unwrap_or(false) {
+        Some(mc_questions_response_format())
+    } else {
+        None
+    };
 
     emit_generation_status(
         &app,
@@ -943,14 +1252,17 @@ async fn generate_mc_questions(
         "Requesting a new multiple-choice set.",
         1,
     );
-    let mut content = call_openrouter_with_plugins(
+    let first_call = call_openrouter_with_plugins(
         &request.api_key,
         &request.model,
         system_prompt,
         base_user_content.clone(),
         plugins.clone(),
+        response_format.clone(),
     )
     .await?;
+    let mut structured_output_unsupported = first_call.structured_output_unsupported_fallback;
+    let mut content = first_call.content;
 
     let mut parse_issue = String::new();
     let mut parsed: Option<GenerateMcQuestionsResponse> = None;
@@ -987,14 +1299,18 @@ async fn generate_mc_questions(
                     format!("Repairing invalid model output (pass {}).", repair_attempts),
                     total_attempts,
                 );
-                content = request_json_repair(
+                let repaired = request_json_repair(
                     &request.api_key,
                     &request.model,
                     MC_QUESTION_JSON_CONTRACT,
                     &content,
                     &parse_issue,
+                    response_format.as_ref(),
                 )
                 .await?;
+                structured_output_unsupported =
+                    structured_output_unsupported || repaired.structured_output_unsupported_fallback;
+                content = repaired.content;
             }
         }
     }
@@ -1010,7 +1326,7 @@ async fn generate_mc_questions(
             "Retrying with a stricter regeneration prompt.",
             total_attempts,
         );
-        content = request_schema_constrained_regeneration(
+        let regenerated = request_schema_constrained_regeneration(
             &request.api_key,
             &request.model,
             &user_prompt,
@@ -1018,8 +1334,12 @@ async fn generate_mc_questions(
             &parse_issue,
             &base_user_content,
             plugins.as_ref(),
+            response_format.as_ref(),
         )
         .await?;
+        structured_output_unsupported =
+            structured_output_unsupported || regenerated.structured_output_unsupported_fallback;
+        content = regenerated.content;
 
         match parse_mc_response_candidate(&content, &request, selected_subtopics) {
             Ok(candidate) => parsed = Some(candidate),
@@ -1067,6 +1387,18 @@ async fn generate_mc_questions(
         constrained_regeneration_used,
         repair_path,
         duration_ms: generation_started.elapsed().as_millis() as u64,
+        structured_output_status: Some(
+            if request.use_structured_output.unwrap_or(false) {
+                if structured_output_unsupported {
+                    "not-supported-fallback"
+                } else {
+                    "used"
+                }
+            } else {
+                "not-requested"
+            }
+            .to_string(),
+        ),
         distinctness_avg: quality_summary.distinctness_avg,
         multi_step_depth_avg: quality_summary.multi_step_depth_avg,
     };
@@ -1168,7 +1500,8 @@ async fn request_schema_constrained_regeneration(
     previous_issue: &str,
     base_user_content: &serde_json::Value,
     plugins: Option<&serde_json::Value>,
-) -> CommandResult<String> {
+    response_format: Option<&serde_json::Value>,
+) -> CommandResult<OpenRouterCallResult> {
     let strict_prefix = format!(
         "Schema-constrained regeneration requested because prior repair failed.\nPrevious issue: {previous_issue}\n\nOutput requirements:\n- Return valid JSON only\n- No markdown fences\n- No commentary\n- Must match schema exactly: {json_contract}\n\nOriginal generation prompt:\n{original_prompt}"
     );
@@ -1193,6 +1526,7 @@ async fn request_schema_constrained_regeneration(
         "You are a strict schema-constrained generator. Return only valid JSON matching the required schema exactly.",
         user_content,
         plugins.cloned(),
+        response_format.cloned(),
     )
     .await
 }
@@ -1329,6 +1663,45 @@ fn average_score(values: &[f32]) -> Option<f32> {
         return None;
     }
     Some(round_score(values.iter().sum::<f32>() / values.len() as f32))
+}
+
+fn build_similarity_guardrail_note(enabled: bool, prior_prompts: Option<&[String]>) -> String {
+    if !enabled {
+        return String::new();
+    }
+
+    let mut sanitized = prior_prompts
+        .unwrap_or(&[])
+        .iter()
+        .map(|prompt| prompt.trim())
+        .filter(|prompt| !prompt.is_empty())
+        .map(|prompt| prompt.replace('\n', " "))
+        .map(|prompt| prompt.replace('\r', " "))
+        .map(|prompt| {
+            if prompt.len() > 260 {
+                format!("{}...", &prompt[..260])
+            } else {
+                prompt
+            }
+        })
+        .collect::<Vec<_>>();
+
+    sanitized.truncate(6);
+
+    if sanitized.is_empty() {
+        return "\n\nSimilarity guardrail:\n- Avoid generating prompts that are too similar to the user's recently completed same-topic questions.\n- Vary both context and required solving method from recent attempts.".to_string();
+    }
+
+    let examples = sanitized
+        .iter()
+        .enumerate()
+        .map(|(idx, prompt)| format!("{}. {}", idx + 1, prompt))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!(
+        "\n\nSimilarity guardrail:\n- Avoid generating prompts that are too similar to these recently completed same-topic questions:\n{examples}\n- Do not reuse their core scenario, numeric framing, or primary solving path.\n- Keep level and syllabus alignment, but change context and reasoning structure."
+    )
 }
 
 fn round_score(value: f32) -> f32 {
@@ -1497,7 +1870,8 @@ async fn request_json_repair(
     json_contract: &str,
     raw_output: &str,
     parse_issue: &str,
-) -> CommandResult<String> {
+    response_format: Option<&serde_json::Value>,
+) -> CommandResult<OpenRouterCallResult> {
     let prompt = format!(
         "Repair the model output into valid JSON that follows the required schema exactly.\n\nIssue detected: {parse_issue}\n\nRules:\n- Output JSON only\n- No markdown fences\n- No extra keys beyond schema\n- Preserve original educational intent\n\nRequired schema:\n{json_contract}\n\nModel output to repair:\n{raw_output}",
     );
@@ -1507,6 +1881,7 @@ async fn request_json_repair(
         model,
         "You are a strict JSON repair engine. Return only valid JSON that matches the required schema.",
         serde_json::Value::String(prompt),
+        response_format,
     )
     .await
 }
@@ -1558,7 +1933,41 @@ fn normalize_questions_envelope(value: serde_json::Value) -> Result<serde_json::
 }
 
 fn decode_literal_newlines(value: &str) -> String {
-    value.replace("\\r\\n", "\n").replace("\\n", "\n")
+    let mut decoded = String::with_capacity(value.len());
+    let chars: Vec<char> = value.chars().collect();
+    let mut index = 0;
+
+    while index < chars.len() {
+        if chars[index] == '\\' {
+            if index + 3 < chars.len()
+                && chars[index + 1] == 'r'
+                && chars[index + 2] == '\\'
+                && chars[index + 3] == 'n'
+            {
+                decoded.push('\n');
+                index += 4;
+                continue;
+            }
+
+            if index + 1 < chars.len() && chars[index + 1] == 'n' {
+                let next_after_n = chars.get(index + 2).copied();
+                // Preserve common LaTeX commands such as \neq, \nabla, etc.
+                if next_after_n.is_some_and(|ch| ch.is_ascii_lowercase()) {
+                    decoded.push('\\');
+                    decoded.push('n');
+                } else {
+                    decoded.push('\n');
+                }
+                index += 2;
+                continue;
+            }
+        }
+
+        decoded.push(chars[index]);
+        index += 1;
+    }
+
+    decoded
 }
 
 fn parse_json_object(content: &str) -> Option<String> {

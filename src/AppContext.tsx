@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import {
   ChemistrySubtopic,
   Difficulty,
   GeneratedQuestion,
+  GenerationStatusEvent,
   GenerationTelemetry,
   HISTORY_ENTRY_LIMIT,
   MarkAnswerResponse,
@@ -36,6 +38,8 @@ interface AppContextState {
   setDifficulty: (level: Difficulty) => void;
   techMode: TechMode;
   setTechMode: (mode: TechMode) => void;
+  avoidSimilarQuestions: boolean;
+  setAvoidSimilarQuestions: (enabled: boolean) => void;
   mathMethodsSubtopics: MathMethodsSubtopic[];
   setMathMethodsSubtopics: (subtopics: MathMethodsSubtopic[] | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[])) => void;
   chemistrySubtopics: ChemistrySubtopic[];
@@ -50,6 +54,8 @@ interface AppContextState {
   setModel: (model: string) => void;
   debugMode: boolean;
   setDebugMode: (enabled: boolean) => void;
+  useStructuredOutput: boolean;
+  setUseStructuredOutput: (enabled: boolean) => void;
 
   questionMode: QuestionMode;
   setQuestionMode: (mode: QuestionMode) => void;
@@ -58,6 +64,8 @@ interface AppContextState {
   setQuestions: (questions: GeneratedQuestion[]) => void;
   activeQuestionIndex: number;
   setActiveQuestionIndex: (idx: number) => void;
+  writtenQuestionPresentedAtById: Record<string, number>;
+  setWrittenQuestionPresentedAtById: (presentedAt: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)) => void;
   answersByQuestionId: Record<string, string>;
   setAnswersByQuestionId: (answers: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
@@ -71,6 +79,8 @@ interface AppContextState {
   setMcQuestions: (questions: McQuestion[]) => void;
   activeMcQuestionIndex: number;
   setActiveMcQuestionIndex: (idx: number) => void;
+  mcQuestionPresentedAtById: Record<string, number>;
+  setMcQuestionPresentedAtById: (presentedAt: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)) => void;
   mcAnswersByQuestionId: Record<string, string>;
   setMcAnswersByQuestionId: (answers: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   mcHistory: McHistoryEntry[];
@@ -94,6 +104,10 @@ interface AppContextState {
 
   isGenerating: boolean;
   setIsGenerating: (is: boolean) => void;
+  generationStatus: GenerationStatusEvent | null;
+  setGenerationStatus: (status: GenerationStatusEvent | null) => void;
+  generationStartedAt: number | null;
+  setGenerationStartedAt: (startedAt: number | null) => void;
   isMarking: boolean;
   setIsMarking: (is: boolean) => void;
   errorMessage: string | null;
@@ -129,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedTopics, setSelectedTopics] = useState<Topic[]>(EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics);
   const [difficulty, setDifficulty] = useState<Difficulty>(EMPTY_PERSISTED_APP_STATE.preferences.difficulty);
   const [techMode, setTechMode] = useState<TechMode>(EMPTY_PERSISTED_APP_STATE.preferences.techMode);
+  const [avoidSimilarQuestions, setAvoidSimilarQuestions] = useState(EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions);
   const [mathMethodsSubtopics, setMathMethodsSubtopics] = useState<MathMethodsSubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics);
   const [chemistrySubtopics, setChemistrySubtopics] = useState<ChemistrySubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics);
   const [physicalEducationSubtopics, setPhysicalEducationSubtopics] = useState<PhysicalEducationSubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics);
@@ -136,11 +151,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion);
   const [model, setModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.model);
   const [debugMode, setDebugMode] = useState(EMPTY_PERSISTED_APP_STATE.settings.debugMode);
+  const [useStructuredOutput, setUseStructuredOutput] = useState(EMPTY_PERSISTED_APP_STATE.settings.useStructuredOutput);
 
   const [questionMode, setQuestionMode] = useState<QuestionMode>(EMPTY_PERSISTED_APP_STATE.preferences.questionMode);
 
   const [questions, setQuestions] = useState<GeneratedQuestion[]>(EMPTY_PERSISTED_APP_STATE.writtenSession.questions);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex);
+  const [writtenQuestionPresentedAtById, setWrittenQuestionPresentedAtById] = useState<Record<string, number>>(EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId);
   const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, string>>(EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId);
   const [imagesByQuestionId, setImagesByQuestionId] = useState<Record<string, StudentAnswerImage | undefined>>(EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId);
   const [feedbackByQuestionId, setFeedbackByQuestionId] = useState<Record<string, MarkAnswerResponse>>(EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId);
@@ -151,6 +168,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [mcQuestions, setMcQuestions] = useState<McQuestion[]>(EMPTY_PERSISTED_APP_STATE.mcSession.questions);
   const [activeMcQuestionIndex, setActiveMcQuestionIndex] = useState(EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex);
+  const [mcQuestionPresentedAtById, setMcQuestionPresentedAtById] = useState<Record<string, number>>(EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId);
   const [mcAnswersByQuestionId, setMcAnswersByQuestionId] = useState<Record<string, string>>(EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId);
   const [mcHistory, setMcHistory] = useState<McHistoryEntry[]>(EMPTY_PERSISTED_APP_STATE.mcHistory);
   const [mcRawModelOutput, setMcRawModelOutput] = useState(EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput);
@@ -159,6 +177,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [savedSets, setSavedSets] = useState<SavedQuestionSet[]>(EMPTY_PERSISTED_APP_STATE.savedSets);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatusEvent | null>(null);
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
   const [isMarking, setIsMarking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hydrateCompleteRef = useRef(false);
@@ -191,11 +211,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    let unlisten: undefined | (() => void);
+
+    void listen<GenerationStatusEvent>("generation-status", (event) => {
+      setGenerationStatus(event.payload);
+    }).then((dispose) => {
+      unlisten = dispose;
+    });
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
+
   const persistedSnapshot = useMemo<PersistedAppState>(() => {
     const preferencesSnapshot: PersistedGeneratorPreferences = {
       selectedTopics,
       difficulty,
       techMode,
+      avoidSimilarQuestions,
       mathMethodsSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
@@ -207,6 +244,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const writtenSession: PersistedWrittenSession = {
       questions,
       activeQuestionIndex,
+      presentedAtByQuestionId: writtenQuestionPresentedAtById,
       answersByQuestionId,
       imagesByQuestionId,
       feedbackByQuestionId,
@@ -218,6 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const multipleChoiceSession: PersistedMcSession = {
       questions: mcQuestions,
       activeQuestionIndex: activeMcQuestionIndex,
+      presentedAtByQuestionId: mcQuestionPresentedAtById,
       answersByQuestionId: mcAnswersByQuestionId,
       rawModelOutput: mcRawModelOutput,
       generationTelemetry: mcGenerationTelemetry,
@@ -230,6 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         apiKey,
         model,
         debugMode,
+        useStructuredOutput,
       },
       preferences: preferencesSnapshot,
       writtenSession,
@@ -252,12 +292,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     imagesByQuestionId,
     mathMethodsSubtopics,
     maxMarksPerQuestion,
+    avoidSimilarQuestions,
     mcAnswersByQuestionId,
     mcGenerationTelemetry,
     mcHistory,
+    mcQuestionPresentedAtById,
     mcQuestions,
     mcRawModelOutput,
     model,
+    useStructuredOutput,
     physicalEducationSubtopics,
     questionCount,
     questionHistory,
@@ -266,6 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     savedSets,
     selectedTopics,
     techMode,
+    writtenQuestionPresentedAtById,
     writtenGenerationTelemetry,
     writtenRawModelOutput,
   ]);
@@ -288,9 +332,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setApiKey(state.settings.apiKey);
     setModel(state.settings.model);
     setDebugMode(state.settings.debugMode);
+    setUseStructuredOutput(state.settings.useStructuredOutput);
     setSelectedTopics(state.preferences.selectedTopics);
     setDifficulty(state.preferences.difficulty);
     setTechMode(state.preferences.techMode);
+    setAvoidSimilarQuestions(state.preferences.avoidSimilarQuestions);
     setMathMethodsSubtopics(state.preferences.mathMethodsSubtopics);
     setChemistrySubtopics(state.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
@@ -300,6 +346,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setQuestions(state.writtenSession.questions);
     setActiveQuestionIndex(state.writtenSession.activeQuestionIndex);
+    setWrittenQuestionPresentedAtById(state.writtenSession.presentedAtByQuestionId);
     setAnswersByQuestionId(state.writtenSession.answersByQuestionId);
     setImagesByQuestionId(state.writtenSession.imagesByQuestionId);
     setFeedbackByQuestionId(state.writtenSession.feedbackByQuestionId);
@@ -309,6 +356,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setMcQuestions(state.mcSession.questions);
     setActiveMcQuestionIndex(state.mcSession.activeQuestionIndex);
+    setMcQuestionPresentedAtById(state.mcSession.presentedAtByQuestionId);
     setMcAnswersByQuestionId(state.mcSession.answersByQuestionId);
     setMcRawModelOutput(state.mcSession.rawModelOutput);
     setMcGenerationTelemetry(state.mcSession.generationTelemetry ?? null);
@@ -325,6 +373,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       selectedTopics,
       difficulty,
       techMode,
+      avoidSimilarQuestions,
       mathMethodsSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
@@ -350,6 +399,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         writtenSession: {
           questions,
           activeQuestionIndex,
+          presentedAtByQuestionId: writtenQuestionPresentedAtById,
           answersByQuestionId,
           imagesByQuestionId,
           feedbackByQuestionId,
@@ -383,6 +433,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       mcSession: {
         questions: mcQuestions,
         activeQuestionIndex: activeMcQuestionIndex,
+          presentedAtByQuestionId: mcQuestionPresentedAtById,
         answersByQuestionId: mcAnswersByQuestionId,
         rawModelOutput: mcRawModelOutput,
         generationTelemetry: mcGenerationTelemetry,
@@ -407,6 +458,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSelectedTopics(entry.preferences.selectedTopics);
     setDifficulty(entry.preferences.difficulty);
     setTechMode(entry.preferences.techMode);
+    setAvoidSimilarQuestions(entry.preferences.avoidSimilarQuestions);
     setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
     setChemistrySubtopics(entry.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
@@ -417,6 +469,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (entry.questionMode === "written" && entry.writtenSession) {
       setQuestions(entry.writtenSession.questions);
       setActiveQuestionIndex(entry.writtenSession.activeQuestionIndex);
+      setWrittenQuestionPresentedAtById(entry.writtenSession.presentedAtByQuestionId);
       setAnswersByQuestionId(entry.writtenSession.answersByQuestionId);
       setImagesByQuestionId(entry.writtenSession.imagesByQuestionId);
       setFeedbackByQuestionId(entry.writtenSession.feedbackByQuestionId);
@@ -428,6 +481,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (entry.questionMode === "multiple-choice" && entry.mcSession) {
       setMcQuestions(entry.mcSession.questions);
       setActiveMcQuestionIndex(entry.mcSession.activeQuestionIndex);
+      setMcQuestionPresentedAtById(entry.mcSession.presentedAtByQuestionId);
       setMcAnswersByQuestionId(entry.mcSession.answersByQuestionId);
       setMcRawModelOutput(entry.mcSession.rawModelOutput);
       setMcGenerationTelemetry(entry.mcSession.generationTelemetry ?? null);
@@ -463,6 +517,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setDifficulty,
         techMode,
         setTechMode,
+        avoidSimilarQuestions,
+        setAvoidSimilarQuestions,
         mathMethodsSubtopics,
         setMathMethodsSubtopics,
         chemistrySubtopics,
@@ -477,12 +533,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setModel,
         debugMode,
         setDebugMode,
+        useStructuredOutput,
+        setUseStructuredOutput,
         questionMode,
         setQuestionMode,
         questions,
         setQuestions,
         activeQuestionIndex,
         setActiveQuestionIndex,
+        writtenQuestionPresentedAtById,
+        setWrittenQuestionPresentedAtById,
         answersByQuestionId,
         setAnswersByQuestionId,
         imagesByQuestionId,
@@ -497,6 +557,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setMcQuestions,
         activeMcQuestionIndex,
         setActiveMcQuestionIndex,
+        mcQuestionPresentedAtById,
+        setMcQuestionPresentedAtById,
         mcAnswersByQuestionId,
         setMcAnswersByQuestionId,
         mcHistory,
@@ -521,6 +583,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteSavedSet,
         isGenerating,
         setIsGenerating,
+        generationStatus,
+        setGenerationStatus,
+        generationStartedAt,
+        setGenerationStartedAt,
         isMarking,
         setIsMarking,
         errorMessage,

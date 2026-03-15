@@ -1,10 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
+  AnswerAnalytics,
   API_KEY_STORAGE_KEY,
   APP_STATE_STORAGE_KEY,
   CHEMISTRY_SUBTOPICS,
   DEBUG_MODE_STORAGE_KEY,
   HISTORY_ENTRY_LIMIT,
+  McAnswerAnalytics,
   MC_HISTORY_STORAGE_KEY,
   MATH_METHODS_SUBTOPICS,
   McHistoryEntry,
@@ -24,6 +26,7 @@ import {
   SavedQuestionSet,
   StudentAnswerImage,
   TOPICS,
+  WrittenAnswerAnalytics,
 } from "../types";
 import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
@@ -31,12 +34,14 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: "",
   model: "openrouter/healer-alpha",
   debugMode: false,
+  useStructuredOutput: false,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   selectedTopics: [],
   difficulty: "Medium",
   techMode: "mix",
+  avoidSimilarQuestions: false,
   mathMethodsSubtopics: [],
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
@@ -48,6 +53,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
   questions: [],
   activeQuestionIndex: 0,
+  presentedAtByQuestionId: {},
   answersByQuestionId: {},
   imagesByQuestionId: {},
   feedbackByQuestionId: {},
@@ -59,6 +65,7 @@ const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
 const DEFAULT_MC_SESSION: PersistedMcSession = {
   questions: [],
   activeQuestionIndex: 0,
+  presentedAtByQuestionId: {},
   answersByQuestionId: {},
   rawModelOutput: "",
   generationTelemetry: null,
@@ -162,6 +169,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
     apiKey: asString(data.apiKey),
     model: asString(data.model) || DEFAULT_SETTINGS.model,
     debugMode: Boolean(data.debugMode),
+    useStructuredOutput: Boolean(data.useStructuredOutput),
   };
 }
 
@@ -171,6 +179,7 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     selectedTopics: filterStringLiterals(data.selectedTopics, TOPICS),
     difficulty: isDifficulty(data.difficulty) ? data.difficulty : DEFAULT_PREFERENCES.difficulty,
     techMode: isTechMode(data.techMode) ? data.techMode : DEFAULT_PREFERENCES.techMode,
+    avoidSimilarQuestions: Boolean(data.avoidSimilarQuestions),
     mathMethodsSubtopics: filterStringLiterals(data.mathMethodsSubtopics, MATH_METHODS_SUBTOPICS),
     chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
@@ -188,6 +197,7 @@ function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
   return {
     questions,
     activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
+    presentedAtByQuestionId: normalizeNumberRecord(data.presentedAtByQuestionId),
     answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
     imagesByQuestionId: normalizeImageRecord(data.imagesByQuestionId),
     feedbackByQuestionId,
@@ -204,6 +214,7 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
   return {
     questions,
     activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
+    presentedAtByQuestionId: normalizeNumberRecord(data.presentedAtByQuestionId),
     answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
@@ -279,6 +290,7 @@ function normalizeQuestionHistoryEntry(raw: unknown): QuestionHistoryEntry | nul
     workedSolutionMarkdown: asString(data.workedSolutionMarkdown),
     markResponse: normalizeMarkResponse(data.markResponse, question.maxMarks),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
+    analytics: normalizeWrittenAnswerAnalytics(data.analytics) ?? undefined,
   };
 }
 
@@ -311,6 +323,7 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
     selectedAnswer: asString(data.selectedAnswer),
     correct: Boolean(data.correct),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
+    analytics: normalizeMcAnswerAnalytics(data.analytics) ?? undefined,
   };
 }
 
@@ -434,6 +447,19 @@ function normalizeStringRecord(raw: unknown): Record<string, string> {
   }, {});
 }
 
+function normalizeNumberRecord(raw: unknown): Record<string, number> {
+  if (!isRecord(raw)) {
+    return {};
+  }
+
+  return Object.entries(raw).reduce<Record<string, number>>((acc, [key, value]) => {
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+}
+
 function normalizeImageRecord(raw: unknown): Record<string, StudentAnswerImage | undefined> {
   if (!isRecord(raw)) {
     return {};
@@ -481,9 +507,55 @@ function normalizeGenerationTelemetry(raw: unknown) {
     constrainedRegenerationUsed: Boolean(data.constrainedRegenerationUsed),
     repairPath: Array.isArray(data.repairPath) ? data.repairPath.filter((item): item is string => typeof item === "string") : [],
     durationMs: clampWholeNumber(data.durationMs, 0, 0, Number.MAX_SAFE_INTEGER),
+    structuredOutputStatus: isStructuredOutputStatus(data.structuredOutputStatus) ? data.structuredOutputStatus : undefined,
     distinctnessAvg: asFiniteNumber(data.distinctnessAvg),
     multiStepDepthAvg: asFiniteNumber(data.multiStepDepthAvg),
   };
+}
+
+function normalizeWrittenAnswerAnalytics(raw: unknown): WrittenAnswerAnalytics | null {
+  const base = normalizeAnswerAnalytics(raw);
+  const data = isRecord(raw) ? raw : null;
+  if (!base || !data) {
+    return null;
+  }
+
+  return {
+    ...base,
+    attemptKind: isWrittenAttemptKind(data.attemptKind) ? data.attemptKind : "initial",
+    markingLatencyMs: asFiniteNumber(data.markingLatencyMs),
+  };
+}
+
+function normalizeMcAnswerAnalytics(raw: unknown): McAnswerAnalytics | null {
+  return normalizeAnswerAnalytics(raw);
+}
+
+function normalizeAnswerAnalytics(raw: unknown): AnswerAnalytics | null {
+  const data = isRecord(raw) ? raw : null;
+  if (!data) {
+    return null;
+  }
+
+  const attemptSequence = clampWholeNumber(data.attemptSequence, 1, 1, 999);
+  const answerCharacterCount = clampWholeNumber(data.answerCharacterCount, 0, 0, 1_000_000);
+  const answerWordCount = clampWholeNumber(data.answerWordCount, 0, 0, 200_000);
+
+  return {
+    attemptSequence,
+    answerCharacterCount,
+    answerWordCount,
+    usedImageUpload: Boolean(data.usedImageUpload),
+    responseLatencyMs: asFiniteNumber(data.responseLatencyMs),
+  };
+}
+
+function isWrittenAttemptKind(raw: unknown): raw is WrittenAnswerAnalytics["attemptKind"] {
+  return raw === "initial" || raw === "appeal" || raw === "override";
+}
+
+function isStructuredOutputStatus(raw: unknown): raw is "used" | "not-supported-fallback" | "not-requested" {
+  return raw === "used" || raw === "not-supported-fallback" || raw === "not-requested";
 }
 
 function clampIndex(raw: unknown, length: number): number {

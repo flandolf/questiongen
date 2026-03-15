@@ -77,6 +77,7 @@ export type GenerationTelemetry = {
   constrainedRegenerationUsed: boolean;
   repairPath: string[];
   durationMs: number;
+  structuredOutputStatus?: "used" | "not-supported-fallback" | "not-requested";
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
 };
@@ -126,6 +127,23 @@ export type StudentAnswerImage = {
   dataUrl: string;
 };
 
+export type WrittenAttemptKind = "initial" | "appeal" | "override";
+
+export type AnswerAnalytics = {
+  attemptSequence: number;
+  answerCharacterCount: number;
+  answerWordCount: number;
+  usedImageUpload: boolean;
+  responseLatencyMs?: number;
+};
+
+export type WrittenAnswerAnalytics = AnswerAnalytics & {
+  attemptKind: WrittenAttemptKind;
+  markingLatencyMs?: number;
+};
+
+export type McAnswerAnalytics = AnswerAnalytics;
+
 export type QuestionHistoryEntry = {
   id: string;
   createdAt: string;
@@ -135,6 +153,7 @@ export type QuestionHistoryEntry = {
   workedSolutionMarkdown: string;
   markResponse: MarkAnswerResponse;
   generationTelemetry?: GenerationTelemetry;
+  analytics?: WrittenAnswerAnalytics;
 };
 
 export type BackendError = {
@@ -192,18 +211,21 @@ export type McHistoryEntry = {
   selectedAnswer: string;
   correct: boolean;
   generationTelemetry?: GenerationTelemetry;
+  analytics?: McAnswerAnalytics;
 };
 
 export type PersistedSettings = {
   apiKey: string;
   model: string;
   debugMode: boolean;
+  useStructuredOutput: boolean;
 };
 
 export type PersistedGeneratorPreferences = {
   selectedTopics: Topic[];
   difficulty: Difficulty;
   techMode: TechMode;
+  avoidSimilarQuestions: boolean;
   mathMethodsSubtopics: MathMethodsSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
@@ -215,6 +237,7 @@ export type PersistedGeneratorPreferences = {
 export type PersistedWrittenSession = {
   questions: GeneratedQuestion[];
   activeQuestionIndex: number;
+  presentedAtByQuestionId: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
   feedbackByQuestionId: Record<string, MarkAnswerResponse>;
@@ -226,6 +249,7 @@ export type PersistedWrittenSession = {
 export type PersistedMcSession = {
   questions: McQuestion[];
   activeQuestionIndex: number;
+  presentedAtByQuestionId: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;

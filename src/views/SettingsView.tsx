@@ -4,12 +4,24 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
-import { Eye, EyeOff, Bug } from "lucide-react";
+import { Eye, EyeOff, Bug, Braces } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function SettingsView() {
-  const { apiKey, setApiKey, model, setModel, clearApiKey, showApiKey, setShowApiKey, debugMode, setDebugMode } = useAppContext();
+  const {
+    apiKey,
+    setApiKey,
+    model,
+    setModel,
+    clearApiKey,
+    showApiKey,
+    setShowApiKey,
+    debugMode,
+    setDebugMode,
+    useStructuredOutput,
+    setUseStructuredOutput,
+  } = useAppContext();
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
   const [showCustomModelInput, setShowCustomModelInput] = useState(false);
@@ -159,6 +171,31 @@ export function SettingsView() {
           <Button type="button" variant={debugMode ? "default" : "outline"} className="gap-2" onClick={() => setDebugMode(!debugMode)}>
             <Bug className="h-4 w-4" />
             {debugMode ? "Disable Debug Mode" : "Enable Debug Mode"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Structured Output</CardTitle>
+          <CardDescription>
+            Request OpenRouter JSON schema-constrained responses when supported by the selected model.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {useStructuredOutput
+              ? "Structured output is enabled. If the model rejects it, the app automatically retries without it."
+              : "Structured output is disabled."}
+          </p>
+          <Button
+            type="button"
+            variant={useStructuredOutput ? "default" : "outline"}
+            className="gap-2"
+            onClick={() => setUseStructuredOutput(!useStructuredOutput)}
+          >
+            <Braces className="h-4 w-4" />
+            {useStructuredOutput ? "Disable Structured Output" : "Enable Structured Output"}
           </Button>
         </CardContent>
       </Card>

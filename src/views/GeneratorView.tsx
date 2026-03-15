@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark } from "lucide-react";
 import { useAppContext } from "../AppContext";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "../components/ui/card";
 import { Dropzone } from "../components/ui/dropzone";
+import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Textarea } from "../components/ui/textarea";
@@ -25,13 +25,22 @@ import {
   PhysicalEducationSubtopic,
   GenerateQuestionsResponse,
   GenerateMcQuestionsResponse,
-  GenerationStatusEvent,
   McOption,
   McHistoryEntry,
   QuestionHistoryEntry,
-  Difficulty
+  Difficulty,
+  WrittenAttemptKind
 } from "../types";
 import { fileToDataUrl, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
+
+function countWords(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return 0;
+  }
+
+  return trimmed.split(/\s+/).length;
+}
 
 function formatDurationMs(durationMs: number) {
   if (durationMs < 1000) {
@@ -48,32 +57,58 @@ function formatDurationMs(durationMs: number) {
   return `${minutes}m ${remainingSeconds}s`;
 }
 
+function renderStructuredOutputBadge(status?: "used" | "not-supported-fallback" | "not-requested") {
+  if (status === "used") {
+    return (
+      <Badge variant="outline" className="border-emerald-500/60 bg-emerald-100/70 text-emerald-900 dark:border-emerald-500/60 dark:bg-emerald-900/40 dark:text-emerald-200">
+        Structured JSON used
+      </Badge>
+    );
+  }
+
+  if (status === "not-supported-fallback") {
+    return (
+      <Badge variant="outline" className="border-amber-500/60 bg-amber-100/70 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
+        Structured JSON not supported, fell back
+      </Badge>
+    );
+  }
+
+  return null;
+}
+
 export function GeneratorView() {
-  const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
+  const [customFocusArea, setCustomFocusArea] = useState("");
   const [renderFallbackByQuestionId, setRenderFallbackByQuestionId] = useState<Record<string, boolean>>({});
-  const [generationStatus, setGenerationStatus] = useState<GenerationStatusEvent | null>(null);
+  const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
+  const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
 
   const {
     apiKey, model, errorMessage, setErrorMessage,
     selectedTopics, setSelectedTopics, difficulty, setDifficulty,
+    avoidSimilarQuestions, setAvoidSimilarQuestions,
     techMode, setTechMode, mathMethodsSubtopics, setMathMethodsSubtopics,
     chemistrySubtopics, setChemistrySubtopics,
     physicalEducationSubtopics, setPhysicalEducationSubtopics,
     questionCount, setQuestionCount, maxMarksPerQuestion, setMaxMarksPerQuestion,
     debugMode, writtenRawModelOutput, setWrittenRawModelOutput, mcRawModelOutput, setMcRawModelOutput,
+    useStructuredOutput,
     writtenGenerationTelemetry, setWrittenGenerationTelemetry, mcGenerationTelemetry, setMcGenerationTelemetry,
     questionMode, setQuestionMode,
     questions, setQuestions, activeQuestionIndex, setActiveQuestionIndex,
+    writtenQuestionPresentedAtById, setWrittenQuestionPresentedAtById,
     answersByQuestionId, setAnswersByQuestionId, imagesByQuestionId, setImagesByQuestionId,
-    feedbackByQuestionId, setFeedbackByQuestionId, setQuestionHistory,
+    feedbackByQuestionId, setFeedbackByQuestionId, questionHistory, setQuestionHistory,
     mcQuestions, setMcQuestions, activeMcQuestionIndex, setActiveMcQuestionIndex,
-    mcAnswersByQuestionId, setMcAnswersByQuestionId, setMcHistory,
+    mcQuestionPresentedAtById, setMcQuestionPresentedAtById,
+    mcAnswersByQuestionId, setMcAnswersByQuestionId, mcHistory, setMcHistory,
     activeWrittenSavedSetId, setActiveWrittenSavedSetId, activeMcSavedSetId, setActiveMcSavedSetId,
     saveCurrentSet,
-    isGenerating, setIsGenerating, isMarking, setIsMarking
+    isGenerating, setIsGenerating, generationStatus, setGenerationStatus, generationStartedAt, setGenerationStartedAt, isMarking, setIsMarking
   } = useAppContext();
 
   const activeQuestion = questions[activeQuestionIndex];
@@ -81,6 +116,10 @@ export function GeneratorView() {
   const activeQuestionImage = activeQuestion ? imagesByQuestionId[activeQuestion.id] : undefined;
   const activeFeedback = activeQuestion ? feedbackByQuestionId[activeQuestion.id] : undefined;
   const activeQuestionFallbackUsed = activeQuestion ? Boolean(renderFallbackByQuestionId[activeQuestion.id]) : false;
+  const activeMarkAppeal = activeQuestion ? (markAppealByQuestionId[activeQuestion.id] ?? "") : "";
+  const activeOverrideInput = activeQuestion
+    ? (markOverrideInputByQuestionId[activeQuestion.id] ?? (activeFeedback ? String(activeFeedback.achievedMarks) : ""))
+    : "";
 
   const activeMcQuestion = mcQuestions[activeMcQuestionIndex];
   const activeMcAnswer = activeMcQuestion ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? "") : "";
@@ -125,6 +164,54 @@ export function GeneratorView() {
     !isMarking &&
     !activeFeedback;
 
+  const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && completedCount === questions.length;
+  const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && mcCompletedCount === mcQuestions.length;
+  const isSetComplete = isWrittenSetComplete || isMcSetComplete;
+  const isAtLastWrittenQuestion = activeQuestionIndex === questions.length - 1;
+  const isAtLastMcQuestion = activeMcQuestionIndex === mcQuestions.length - 1;
+  const canAdvanceWritten = questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
+  const canAdvanceMc = mcQuestions.length > 0 && (!isAtLastMcQuestion || isMcSetComplete);
+
+  const completionSetKey = useMemo(() => {
+    if (questionMode === "written") {
+      return questions.map((question) => question.id).join("|");
+    }
+    return mcQuestions.map((question) => question.id).join("|");
+  }, [questionMode, questions, mcQuestions]);
+
+  const writtenAccuracyPercent = useMemo(() => {
+    if (!isWrittenSetComplete) {
+      return null;
+    }
+
+    const totalAvailable = questions.reduce((sum, question) => sum + question.maxMarks, 0);
+    if (totalAvailable === 0) {
+      return 0;
+    }
+
+    const totalAchieved = questions.reduce((sum, question) => {
+      const feedback = feedbackByQuestionId[question.id];
+      return sum + (feedback?.achievedMarks ?? 0);
+    }, 0);
+
+    return (totalAchieved / totalAvailable) * 100;
+  }, [feedbackByQuestionId, isWrittenSetComplete, questions]);
+
+  const mcAccuracyPercent = useMemo(() => {
+    if (!isMcSetComplete || mcQuestions.length === 0) {
+      return null;
+    }
+
+    const correctCount = mcQuestions.reduce((sum, question) => {
+      const selected = mcAnswersByQuestionId[question.id];
+      return sum + (selected === question.correctAnswer ? 1 : 0);
+    }, 0);
+
+    return (correctCount / mcQuestions.length) * 100;
+  }, [isMcSetComplete, mcAnswersByQuestionId, mcQuestions]);
+
+  const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
+
   const formattedElapsedTime = useMemo(() => {
     const hours = Math.floor(elapsedSeconds / 3600);
     const minutes = Math.floor((elapsedSeconds % 3600) / 60);
@@ -134,37 +221,141 @@ export function GeneratorView() {
   }, [elapsedSeconds]);
 
   useEffect(() => {
-    if (stopwatchStartedAt === null) return;
-    const updateElapsed = () => setElapsedSeconds(Math.floor((Date.now() - stopwatchStartedAt) / 1000));
+    if (generationStartedAt === null) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const updateElapsed = () => setElapsedSeconds(Math.floor((Date.now() - generationStartedAt) / 1000));
     updateElapsed();
     const timerId = window.setInterval(updateElapsed, 1000);
     return () => window.clearInterval(timerId);
-  }, [stopwatchStartedAt]);
+  }, [generationStartedAt]);
 
   useEffect(() => {
-    let unlisten: undefined | (() => void);
+    setShowCompletionScreen(false);
+  }, [completionSetKey]);
 
-    void listen<GenerationStatusEvent>("generation-status", (event) => {
-      setGenerationStatus(event.payload);
-    }).then((dispose) => {
-      unlisten = dispose;
-    });
+  useEffect(() => {
+    if (!activeQuestion) {
+      return;
+    }
 
-    return () => {
-      if (unlisten) {
-        unlisten();
+    setWrittenQuestionPresentedAtById((prev) => {
+      if (prev[activeQuestion.id] !== undefined) {
+        return prev;
       }
-    };
-  }, []);
+
+      return { ...prev, [activeQuestion.id]: Date.now() };
+    });
+  }, [activeQuestion, setWrittenQuestionPresentedAtById]);
+
+  useEffect(() => {
+    if (!activeMcQuestion) {
+      return;
+    }
+
+    setMcQuestionPresentedAtById((prev) => {
+      if (prev[activeMcQuestion.id] !== undefined) {
+        return prev;
+      }
+
+      return { ...prev, [activeMcQuestion.id]: Date.now() };
+    });
+  }, [activeMcQuestion, setMcQuestionPresentedAtById]);
 
   function startStopwatch() {
-    setStopwatchStartedAt(Date.now());
+    setGenerationStartedAt(Date.now());
     setElapsedSeconds(0);
   }
 
   function resetStopwatch() {
-    setStopwatchStartedAt(null);
+    setGenerationStartedAt(null);
     setElapsedSeconds(0);
+  }
+
+  function handleNextWrittenQuestion() {
+    if (!canAdvanceWritten) {
+      return;
+    }
+
+    if (isAtLastWrittenQuestion) {
+      setShowCompletionScreen(true);
+      return;
+    }
+
+    setActiveQuestionIndex(Math.min(questions.length - 1, activeQuestionIndex + 1));
+  }
+
+  function handleNextMcQuestion() {
+    if (!canAdvanceMc) {
+      return;
+    }
+
+    if (isAtLastMcQuestion) {
+      setShowCompletionScreen(true);
+      return;
+    }
+
+    setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1));
+  }
+
+  function removeRecordKey<T>(record: Record<string, T>, key: string) {
+    const next = { ...record };
+    delete next[key];
+    return next;
+  }
+
+  function handleCancelWrittenQuestion() {
+    if (!activeQuestion) {
+      return;
+    }
+
+    const shouldCancel = window.confirm(
+      "Cancel this question? It will be removed from your current set.",
+    );
+    if (!shouldCancel) {
+      return;
+    }
+
+    const questionId = activeQuestion.id;
+    const nextQuestions = questions.filter((question) => question.id !== questionId);
+
+    setQuestions(nextQuestions);
+    setActiveWrittenSavedSetId(null);
+    setShowCompletionScreen(false);
+    setActiveQuestionIndex(Math.min(activeQuestionIndex, Math.max(0, nextQuestions.length - 1)));
+    setWrittenQuestionPresentedAtById((prev) => removeRecordKey(prev, questionId));
+    setAnswersByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setImagesByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setFeedbackByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setRenderFallbackByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setMarkAppealByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setMarkOverrideInputByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setErrorMessage(null);
+  }
+
+  function handleCancelMcQuestion() {
+    if (!activeMcQuestion) {
+      return;
+    }
+
+    const shouldCancel = window.confirm(
+      "Cancel this question? It will be removed from your current set.",
+    );
+    if (!shouldCancel) {
+      return;
+    }
+
+    const questionId = activeMcQuestion.id;
+    const nextQuestions = mcQuestions.filter((question) => question.id !== questionId);
+
+    setMcQuestions(nextQuestions);
+    setActiveMcSavedSetId(null);
+    setShowCompletionScreen(false);
+    setActiveMcQuestionIndex(Math.min(activeMcQuestionIndex, Math.max(0, nextQuestions.length - 1)));
+    setMcQuestionPresentedAtById((prev) => removeRecordKey(prev, questionId));
+    setMcAnswersByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setErrorMessage(null);
   }
 
   function toggleTopic(topic: Topic) {
@@ -184,15 +375,103 @@ export function GeneratorView() {
   }
 
   function getSelectedSubtopics() {
-    return [
+    const selectedSubtopics: string[] = [
       ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
       ...(selectedTopics.includes("Chemistry") ? chemistrySubtopics : []),
       ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
     ];
+
+    const customFocus = customFocusArea.trim();
+    if (customFocus.length > 0) {
+      selectedSubtopics.push(customFocus);
+    }
+
+    return Array.from(new Set(selectedSubtopics));
   }
 
   function isMathTopic(topic?: string) {
     return topic === "Mathematical Methods" || topic === "Specialist Mathematics";
+  }
+
+  function getWrittenAttemptSequence(questionId: string) {
+    return questionHistory.filter((entry) => entry.question.id === questionId).length + 1;
+  }
+
+  function getMcAttemptSequence(questionId: string) {
+    return mcHistory.filter((entry) => entry.question.id === questionId).length + 1;
+  }
+
+  function appendWrittenHistoryEntry(
+    question: typeof activeQuestion,
+    response: ReturnType<typeof normalizeMarkResponse>,
+    options?: {
+      uploadedAnswerOverride?: string;
+      attemptKind?: WrittenAttemptKind;
+      markingLatencyMs?: number;
+    },
+  ) {
+    if (!question) {
+      return;
+    }
+
+    const uploadedAnswer = options?.uploadedAnswerOverride ?? (answersByQuestionId[question.id] ?? "");
+    const createdAt = new Date().toISOString();
+    const createdAtMs = Date.parse(createdAt);
+    const questionStartedAt = writtenQuestionPresentedAtById[question.id];
+
+    const historyEntry: QuestionHistoryEntry = {
+      id: `${question.id}-${Date.now()}`,
+      createdAt,
+      question,
+      uploadedAnswer,
+      uploadedAnswerImage: imagesByQuestionId[question.id],
+      workedSolutionMarkdown: response.workedSolutionMarkdown,
+      markResponse: response,
+      generationTelemetry: writtenGenerationTelemetry ?? undefined,
+      analytics: {
+        attemptKind: options?.attemptKind ?? "initial",
+        attemptSequence: getWrittenAttemptSequence(question.id),
+        answerCharacterCount: uploadedAnswer.length,
+        answerWordCount: countWords(uploadedAnswer),
+        usedImageUpload: Boolean(imagesByQuestionId[question.id]),
+        responseLatencyMs: Number.isFinite(questionStartedAt)
+          ? Math.max(0, createdAtMs - questionStartedAt)
+          : undefined,
+        markingLatencyMs: options?.markingLatencyMs,
+      },
+    };
+
+    setQuestionHistory((prev: any) => [historyEntry, ...prev].slice(0, 200));
+  }
+
+  function getRecentSameTopicQuestionPrompts(mode: "written" | "multiple-choice") {
+    const selectedTopicSet = new Set(selectedTopics);
+    const seen = new Set<string>();
+    const prompts: string[] = [];
+    const maxPromptCount = 6;
+
+    if (mode === "written") {
+      for (const entry of questionHistory) {
+        if (!selectedTopicSet.has(entry.question.topic as Topic)) continue;
+        const prompt = entry.question.promptMarkdown.trim();
+        if (!prompt || seen.has(prompt)) continue;
+        seen.add(prompt);
+        prompts.push(prompt);
+        if (prompts.length >= maxPromptCount) break;
+      }
+      return prompts;
+    }
+
+    for (const entry of mcHistory) {
+      if (!selectedTopicSet.has(entry.question.topic as Topic)) continue;
+      const prompt = entry.question.promptMarkdown.trim();
+      if (!prompt || seen.has(prompt)) continue;
+      seen.add(prompt);
+      prompts.push(prompt);
+      if (prompts.length >= maxPromptCount) break;
+    }
+
+    return prompts;
   }
 
   async function handleGenerateQuestions() {
@@ -217,7 +496,10 @@ export function GeneratorView() {
           model,
           apiKey,
           techMode,
+          useStructuredOutput,
           subtopics: getSelectedSubtopics(),
+          avoidSimilarQuestions,
+          priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
         },
       });
 
@@ -227,6 +509,7 @@ export function GeneratorView() {
       setShowWrittenRawOutput(false);
       setActiveQuestionIndex(0);
       setActiveWrittenSavedSetId(null);
+      setWrittenQuestionPresentedAtById({});
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
@@ -251,6 +534,7 @@ export function GeneratorView() {
     setIsMarking(true);
 
     try {
+      const markStartedAt = Date.now();
       const rawResponse = await invoke<unknown>("mark_answer", {
         request: {
           question: activeQuestion,
@@ -258,29 +542,121 @@ export function GeneratorView() {
           studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
           model,
           apiKey,
+          useStructuredOutput,
         },
       });
 
+      const markingLatencyMs = Date.now() - markStartedAt;
       const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
       setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
-
-      const historyEntry: QuestionHistoryEntry = {
-        id: `${activeQuestion.id}-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        question: activeQuestion,
-        uploadedAnswer: activeQuestionAnswer,
-        uploadedAnswerImage: activeQuestionImage,
-        workedSolutionMarkdown: response.workedSolutionMarkdown,
-        markResponse: response,
-        generationTelemetry: writtenGenerationTelemetry ?? undefined,
-      };
-
-      setQuestionHistory((prev: any) => [historyEntry, ...prev].slice(0, 200));
+      setMarkOverrideInputByQuestionId((prev) => ({
+        ...prev,
+        [activeQuestion.id]: String(response.achievedMarks),
+      }));
+      appendWrittenHistoryEntry(activeQuestion, response, {
+        uploadedAnswerOverride: activeQuestionAnswer,
+        attemptKind: "initial",
+        markingLatencyMs,
+      });
     } catch (error) {
       setErrorMessage(readBackendError(error));
     } finally {
       setIsMarking(false);
     }
+  }
+
+  async function handleArgueForMark() {
+    if (!activeQuestion || !activeFeedback) return;
+
+    const appealText = activeMarkAppeal.trim();
+    if (appealText.length === 0) {
+      setErrorMessage("Enter your argument before requesting a re-mark.");
+      return;
+    }
+
+    if (apiKey.trim().length === 0 || model.trim().length === 0) {
+      setErrorMessage("Configure API key and model before requesting a re-mark.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsMarking(true);
+
+    try {
+      const markStartedAt = Date.now();
+      const arguedAnswer = [
+        activeQuestionAnswer,
+        `Additional marking argument from student:\n${appealText}`,
+      ]
+        .filter((part) => part.trim().length > 0)
+        .join("\n\n");
+
+      const rawResponse = await invoke<unknown>("mark_answer", {
+        request: {
+          question: activeQuestion,
+          studentAnswer: arguedAnswer,
+          studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
+          model,
+          apiKey,
+          useStructuredOutput,
+        },
+      });
+
+      const markingLatencyMs = Date.now() - markStartedAt;
+      const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
+      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
+      setMarkOverrideInputByQuestionId((prev) => ({
+        ...prev,
+        [activeQuestion.id]: String(response.achievedMarks),
+      }));
+      appendWrittenHistoryEntry(activeQuestion, response, {
+        uploadedAnswerOverride: activeQuestionAnswer,
+        attemptKind: "appeal",
+        markingLatencyMs,
+      });
+    } catch (error) {
+      setErrorMessage(readBackendError(error));
+    } finally {
+      setIsMarking(false);
+    }
+  }
+
+  function handleOverrideMark() {
+    if (!activeQuestion || !activeFeedback) {
+      return;
+    }
+
+    const parsed = Number(activeOverrideInput);
+    if (!Number.isFinite(parsed)) {
+      setErrorMessage("Enter a whole number to override the mark.");
+      return;
+    }
+
+    const rounded = Math.round(parsed);
+    const clampedMarks = Math.max(0, Math.min(activeFeedback.maxMarks, rounded));
+
+    const updatedResponse = {
+      ...activeFeedback,
+      achievedMarks: clampedMarks,
+      scoreOutOf10: Math.round((clampedMarks / activeFeedback.maxMarks) * 10),
+      verdict:
+        clampedMarks === activeFeedback.maxMarks
+          ? "Correct"
+          : clampedMarks === 0
+            ? "Incorrect"
+            : "Overridden",
+    };
+
+    setErrorMessage(null);
+    setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: updatedResponse }));
+    setMarkOverrideInputByQuestionId((prev) => ({
+      ...prev,
+      [activeQuestion.id]: String(clampedMarks),
+    }));
+    appendWrittenHistoryEntry(activeQuestion, updatedResponse, {
+      uploadedAnswerOverride: activeQuestionAnswer,
+      attemptKind: "override",
+    });
   }
 
   async function handleGenerateMcQuestions() {
@@ -296,7 +672,18 @@ export function GeneratorView() {
     setIsGenerating(true);
     try {
       const response = await invoke<GenerateMcQuestionsResponse>("generate_mc_questions", {
-        request: { topics: selectedTopics, difficulty, questionCount, model, apiKey, techMode, subtopics: getSelectedSubtopics() },
+        request: {
+          topics: selectedTopics,
+          difficulty,
+          questionCount,
+          model,
+          apiKey,
+          techMode,
+          useStructuredOutput,
+          subtopics: getSelectedSubtopics(),
+          avoidSimilarQuestions,
+          priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
+        },
       });
       setMcQuestions(response.questions);
       setMcRawModelOutput(response.rawModelOutput ?? "");
@@ -304,6 +691,7 @@ export function GeneratorView() {
       setShowMcRawOutput(false);
       setActiveMcQuestionIndex(0);
       setActiveMcSavedSetId(null);
+      setMcQuestionPresentedAtById({});
       setMcAnswersByQuestionId({});
     } catch (error) {
       resetStopwatch();
@@ -323,14 +711,26 @@ export function GeneratorView() {
     if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
     setMcAnswersByQuestionId((prev: any) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
     const correct = selectedLabel === activeMcQuestion.correctAnswer;
+    const createdAt = new Date().toISOString();
+    const createdAtMs = Date.parse(createdAt);
+    const questionStartedAt = mcQuestionPresentedAtById[activeMcQuestion.id];
     const entry: McHistoryEntry = {
       type: "multiple-choice",
       id: `${activeMcQuestion.id}-${Date.now()}`,
-      createdAt: new Date().toISOString(),
+      createdAt,
       question: activeMcQuestion,
       selectedAnswer: selectedLabel,
       correct,
       generationTelemetry: mcGenerationTelemetry ?? undefined,
+      analytics: {
+        attemptSequence: getMcAttemptSequence(activeMcQuestion.id),
+        answerCharacterCount: 0,
+        answerWordCount: 0,
+        usedImageUpload: false,
+        responseLatencyMs: Number.isFinite(questionStartedAt)
+          ? Math.max(0, createdAtMs - questionStartedAt)
+          : undefined,
+      },
     };
     setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
   }
@@ -343,16 +743,20 @@ export function GeneratorView() {
     setShowWrittenRawOutput(false);
     setActiveQuestionIndex(0);
     setActiveWrittenSavedSetId(null);
+    setWrittenQuestionPresentedAtById({});
     setAnswersByQuestionId({});
     setImagesByQuestionId({});
     setFeedbackByQuestionId({});
     setRenderFallbackByQuestionId({});
+    setMarkAppealByQuestionId({});
+    setMarkOverrideInputByQuestionId({});
     setMcQuestions([]);
     setMcRawModelOutput("");
     setMcGenerationTelemetry(null);
     setShowMcRawOutput(false);
     setActiveMcQuestionIndex(0);
     setActiveMcSavedSetId(null);
+    setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({});
   }
 
@@ -386,7 +790,7 @@ export function GeneratorView() {
   const renderProgressBar = (_current: number, total: number, completed: number) => {
     const progressPercent = total > 0 ? (completed / total) * 100 : 0;
     return (
-      <div className="flex flex-col gap-2 w-full max-w-sm">
+      <div className="flex flex-col gap-2 w-full">
         <div className="flex justify-between text-sm font-medium">
           <span className="text-muted-foreground">Progress</span>
           <span>{completed} / {total}</span>
@@ -581,6 +985,38 @@ export function GeneratorView() {
                   <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-1" />
                 </div>
               )}
+
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-sm font-semibold">Variation Guardrail</Label>
+                <Button
+                  type="button"
+                  variant={avoidSimilarQuestions ? "default" : "outline"}
+                  className="h-auto w-full justify-start py-2.5 text-left whitespace-normal"
+                  onClick={() => setAvoidSimilarQuestions(!avoidSimilarQuestions)}
+                >
+                  <div className="min-w-0 flex flex-col items-start gap-0.5">
+                    <span className="w-full wrap-break-word">
+                      {avoidSimilarQuestions ? "Avoid Similar Questions: On" : "Avoid Similar Questions: Off"}
+                    </span>
+                    <span className="w-full wrap-break-word text-xs font-normal opacity-80">
+                      When enabled, generation includes your recent same-topic prompts (if available) and asks the model to avoid repeating them.
+                    </span>
+                  </div>
+                </Button>
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-sm font-semibold">Custom Focus Area (Optional)</Label>
+                <Input
+                  value={customFocusArea}
+                  onChange={(e) => setCustomFocusArea(e.target.value)}
+                  maxLength={160}
+                  placeholder="e.g. projectile motion with optimization constraints"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add a custom topic or skill focus to guide generation. This is appended to the selected subtopics sent to the model.
+                </p>
+              </div>
             </div>
 
             {!apiKey && (
@@ -605,7 +1041,7 @@ export function GeneratorView() {
                 <><Sparkles className="w-4 h-4 mr-2" /> Generate Revision Set</>
               )}
             </Button>
-            {isGenerating && stopwatchStartedAt !== null && (
+            {isGenerating && generationStartedAt !== null && (
               <div className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 text-xs font-medium text-foreground">
@@ -626,6 +1062,56 @@ export function GeneratorView() {
         </Card>
 
 
+  ) : showCompletionScreen && isSetComplete ? (
+        <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden animate-in fade-in duration-500">
+          <CardHeader className="border-b bg-muted/20 p-5 md:p-6">
+            <div className="flex flex-col gap-2">
+              <CardTitle className="text-2xl font-extrabold flex items-center gap-2">
+                <CheckCircle2 className="w-6 h-6 text-green-500" /> Session Complete
+              </CardTitle>
+              <CardDescription>
+                Nice work. You have finished this {questionMode === "written" ? "written-response" : "multiple-choice"} set.
+              </CardDescription>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-5 md:p-6 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Accuracy</div>
+                <div className="mt-1 text-3xl font-extrabold">{(completionAccuracyPercent ?? 0).toFixed(1)}%</div>
+              </div>
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Time</div>
+                <div className="mt-1 text-3xl font-extrabold">{formattedElapsedTime}</div>
+              </div>
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Difficulty</div>
+                <div className="mt-1 text-3xl font-extrabold">{difficulty}</div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Badge variant="secondary">{questionMode === "written" ? "Written Answer" : "Multiple Choice"}</Badge>
+              <Badge variant="outline">{questionMode === "written" ? `${completedCount}/${questions.length}` : `${mcCompletedCount}/${mcQuestions.length}`} completed</Badge>
+            </div>
+          </CardContent>
+
+          <CardFooter className="bg-muted/20 p-4 md:p-5 border-t flex flex-wrap gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCompletionScreen(false);
+              }}
+            >
+              Review Questions
+            </Button>
+            <Button variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
+              {questionMode === "written" ? (activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later") : (activeMcSavedSetId ? "Update Saved Set" : "Save for Later")}
+            </Button>
+            <Button onClick={handleStartOver}>Start New Set</Button>
+          </CardFooter>
+        </Card>
       ) : questionMode === "written" ? (
         // ── Written Question View ──
         <div className="flex min-h-full flex-col gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
@@ -652,7 +1138,7 @@ export function GeneratorView() {
                     LaTeX Recovery Applied
                   </Badge>
                 )}
-                {stopwatchStartedAt !== null && (
+                {generationStartedAt !== null && (
                   <Badge variant="outline" className="inline-flex items-center gap-1.5 font-mono bg-muted/50">
                     <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
                   </Badge>
@@ -672,6 +1158,7 @@ export function GeneratorView() {
                     Full regeneration fallback used
                   </Badge>
                 )}
+                {renderStructuredOutputBadge(writtenGenerationTelemetry?.structuredOutputStatus)}
               </div>
             </div>
 
@@ -681,13 +1168,17 @@ export function GeneratorView() {
                   <Bookmark className="w-4 h-4" />
                   <span className="hidden md:inline">{activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
                 </Button>
+                <Button variant="destructive" size="sm" onClick={handleCancelWrittenQuestion} disabled={questions.length === 0} className="shadow-sm">
+                  <Trash2 className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">Cancel Question</span>
+                </Button>
                 <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
                 <Separator orientation="vertical" className="h-6 hidden md:block" />
                 <Button variant="outline" size="sm" onClick={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))} disabled={activeQuestionIndex === 0} className="shadow-sm">
                   <ArrowLeft className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Previous</span>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setActiveQuestionIndex(Math.min(questions.length - 1, activeQuestionIndex + 1))} disabled={activeQuestionIndex === questions.length - 1} className="shadow-sm">
-                  <span className="hidden md:inline">Next</span> <ArrowRight className="w-4 h-4 md:ml-2" />
+                <Button variant="outline" size="sm" onClick={handleNextWrittenQuestion} disabled={!canAdvanceWritten} className="shadow-sm">
+                  <span className="hidden md:inline">{isAtLastWrittenQuestion ? "View Summary" : "Next"}</span> <ArrowRight className="w-4 h-4 md:ml-2" />
                 </Button>
               </div>
               <div className="hidden md:block w-full">
@@ -812,6 +1303,60 @@ export function GeneratorView() {
                          </div>
                       </div>
 
+                      <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Argue for Mark</Label>
+                          <Textarea
+                            placeholder="Explain why your response deserves additional marks..."
+                            className="min-h-[96px]"
+                            value={activeMarkAppeal}
+                            onChange={(e) =>
+                              setMarkAppealByQuestionId((prev) => ({
+                                ...prev,
+                                [activeQuestion.id]: e.target.value,
+                              }))
+                            }
+                            disabled={isMarking}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleArgueForMark}
+                            disabled={isMarking || activeMarkAppeal.trim().length === 0}
+                          >
+                            {isMarking ? (
+                              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Re-marking...</>
+                            ) : (
+                              <>Argue for Mark</>
+                            )}
+                          </Button>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Override Mark</Label>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={activeFeedback.maxMarks}
+                              step={1}
+                              className="sm:max-w-28"
+                              value={activeOverrideInput}
+                              onChange={(e) =>
+                                setMarkOverrideInputByQuestionId((prev) => ({
+                                  ...prev,
+                                  [activeQuestion.id]: e.target.value,
+                                }))
+                              }
+                            />
+                            <span className="text-sm text-muted-foreground">out of {activeFeedback.maxMarks}</span>
+                            <Button type="button" onClick={handleOverrideMark}>Apply Override</Button>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-4">
                          <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-500" /> AI Feedback</Label>
                          <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
@@ -864,7 +1409,7 @@ export function GeneratorView() {
                     {activeMcQuestion.techAllowed ? "Tech-Active (CAS allowed)" : "Tech-Free (No calculator)"}
                   </Badge>
                 )}
-                {stopwatchStartedAt !== null && (
+                {generationStartedAt !== null && (
                   <Badge variant="outline" className="inline-flex items-center gap-1.5 font-mono bg-muted/50">
                     <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
                   </Badge>
@@ -884,6 +1429,7 @@ export function GeneratorView() {
                     Full regeneration fallback used
                   </Badge>
                 )}
+                {renderStructuredOutputBadge(mcGenerationTelemetry?.structuredOutputStatus)}
               </div>
             </div>
 
@@ -893,13 +1439,17 @@ export function GeneratorView() {
                   <Bookmark className="w-4 h-4" />
                   <span className="hidden md:inline">{activeMcSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
                 </Button>
+                <Button variant="destructive" size="sm" onClick={handleCancelMcQuestion} disabled={mcQuestions.length === 0} className="shadow-sm">
+                  <Trash2 className="w-4 h-4 md:mr-2" />
+                  <span className="hidden md:inline">Cancel Question</span>
+                </Button>
                 <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
                 <Separator orientation="vertical" className="h-6 hidden md:block" />
                 <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))} disabled={activeMcQuestionIndex === 0} className="shadow-sm">
                   <ArrowLeft className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Previous</span>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1))} disabled={activeMcQuestionIndex === mcQuestions.length - 1} className="shadow-sm">
-                  <span className="hidden md:inline">Next</span> <ArrowRight className="w-4 h-4 md:ml-2" />
+                <Button variant="outline" size="sm" onClick={handleNextMcQuestion} disabled={!canAdvanceMc} className="shadow-sm">
+                  <span className="hidden md:inline">{isAtLastMcQuestion ? "View Summary" : "Next"}</span> <ArrowRight className="w-4 h-4 md:ml-2" />
                 </Button>
               </div>
               <div className="hidden md:block w-full">

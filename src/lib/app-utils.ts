@@ -72,7 +72,9 @@ export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): M
 
 export function normalizeMathDelimiters(content: string): string {
   return transformOutsideCode(content, (segment) =>
-    normalizeBareLatexSegments(normalizePseudoMathDelimiters(normalizeLatexFunctionSpacing(segment))),
+    normalizeBareLatexSegments(
+      escapeBarePercentInMath(normalizePseudoMathDelimiters(normalizeLatexFunctionSpacing(segment))),
+    ),
   );
 }
 
@@ -119,6 +121,35 @@ function normalizeBareLatexSegments(content: string): string {
     /(^|[\s:;,.!?])([A-Za-z][A-Za-z0-9']*(?:\([^()\n]*\))?(?:\s*[=<>+\-]\s*|\s*=\s*)\\[A-Za-z][^\n]*?)(?=([.;,!?](?:\s|$)|$))/gm,
     (_match, prefix: string, expression: string) => `${prefix}$${expression.trim()}$`,
   );
+}
+
+function escapeBarePercentInMath(content: string): string {
+  return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
+    const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
+    const inner = mathSegment.slice(delimiter.length, -delimiter.length);
+    return `${delimiter}${escapeUnescapedPercent(inner)}${delimiter}`;
+  });
+}
+
+function escapeUnescapedPercent(content: string): string {
+  let result = "";
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+    if (char !== "%") {
+      result += char;
+      continue;
+    }
+
+    let backslashCount = 0;
+    for (let j = i - 1; j >= 0 && content[j] === "\\"; j -= 1) {
+      backslashCount += 1;
+    }
+
+    result += backslashCount % 2 === 0 ? "\\%" : "%";
+  }
+
+  return result;
 }
 
 export function fileToDataUrl(file: File): Promise<string> {
