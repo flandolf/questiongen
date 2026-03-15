@@ -17,6 +17,22 @@ export const MATH_METHODS_SUBTOPICS = [
 
 export type MathMethodsSubtopic = typeof MATH_METHODS_SUBTOPICS[number];
 
+export const SPECIALIST_MATH_SUBTOPICS = [
+  "Additional Algebra and Number Systems",
+  "Sequences and Series",
+  "Reciprocals and Rational Functions",
+  "Combinatorics and Matrices",
+  "Trigonometric Functions and Identities",
+  "Proof",
+  "Modulus",
+  "Algorithms and Graph Theory",
+  "Graphing relations",
+  "Complex numbers",
+  "Transformations and Vectors in the plane",
+] as const;
+
+export type SpecialistMathSubtopic = typeof SPECIALIST_MATH_SUBTOPICS[number];
+
 export const PHYSICAL_EDUCATION_SUBTOPICS = [
   "Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling",
   "Coaching and Feedback: Theories of Acquisition and Psychological Strategies",
@@ -31,6 +47,28 @@ export const PHYSICAL_EDUCATION_SUBTOPICS = [
 ] as const;
 
 export type PhysicalEducationSubtopic = typeof PHYSICAL_EDUCATION_SUBTOPICS[number];
+
+export const VCE_COMMAND_TERMS = [
+  "Identify",
+  "Describe",
+  "Explain",
+  "Compare",
+  "Analyse",
+  "Discuss",
+  "Evaluate",
+  "Justify",
+] as const;
+
+export type VceCommandTerm = typeof VCE_COMMAND_TERMS[number];
+
+export const VCE_COMMAND_TERMS_LOWER_THAN_EVALUATE: VceCommandTerm[] = [
+  "Identify",
+  "Describe",
+  "Explain",
+  "Compare",
+  "Analyse",
+  "Discuss",
+];
 
 export const CHEMISTRY_SUBTOPICS = [
   "Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements",
@@ -128,6 +166,7 @@ export type StudentAnswerImage = {
 };
 
 export type WrittenAttemptKind = "initial" | "appeal" | "override";
+export type McAttemptKind = "initial" | "appeal" | "override";
 
 export type AnswerAnalytics = {
   attemptSequence: number;
@@ -142,7 +181,9 @@ export type WrittenAnswerAnalytics = AnswerAnalytics & {
   markingLatencyMs?: number;
 };
 
-export type McAnswerAnalytics = AnswerAnalytics;
+export type McAnswerAnalytics = AnswerAnalytics & {
+  attemptKind?: McAttemptKind;
+};
 
 export type QuestionHistoryEntry = {
   id: string;
@@ -175,7 +216,7 @@ export const DEBUG_MODE_STORAGE_KEY = "questiongen.debugMode";
 export const APP_STATE_STORAGE_KEY = "questiongen.appState";
 export const HISTORY_ENTRY_LIMIT = 200;
 export const SAVED_SET_LIMIT = 100;
-export const PERSISTED_APP_STATE_VERSION = 1;
+export const PERSISTED_APP_STATE_VERSION = 2;
 
 export type QuestionMode = "written" | "multiple-choice";
 
@@ -210,6 +251,8 @@ export type McHistoryEntry = {
   question: McQuestion;
   selectedAnswer: string;
   correct: boolean;
+  awardedMarks?: number;
+  maxMarks?: number;
   generationTelemetry?: GenerationTelemetry;
   analytics?: McAnswerAnalytics;
 };
@@ -227,10 +270,11 @@ export type PersistedGeneratorPreferences = {
   techMode: TechMode;
   avoidSimilarQuestions: boolean;
   mathMethodsSubtopics: MathMethodsSubtopic[];
+  specialistMathSubtopics: SpecialistMathSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
-  maxMarksPerQuestion: number;
+  prioritizedCommandTerms: VceCommandTerm[];
   questionMode: QuestionMode;
 };
 

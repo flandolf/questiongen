@@ -15,10 +15,80 @@ const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
 const CHEMISTRY_TOPIC: &str = "Chemistry";
 const APP_STATE_FILE_NAME: &str = "app-state.json";
 const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematical Methods exam style: concise VCAA-style command verbs, realistic mark allocations, algebraic fluency, and prompts that reward method choice over template recall.";
-const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning.";
+const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning. For biomechanics, avoid focus on pure physics calculations and instead emphasize application of concepts to novel contexts, as in VCE calculations are not examined.";
 const CHEMICAL_FORMULA_LATEX_GUIDANCE: &str = " For Chemistry content, always render every chemical formula and ionic species in LaTeX math delimiters, e.g. $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$.";
 const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
 const MC_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"mc1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"options\":[{\"label\":\"A\",\"text\":\"...\"},{\"label\":\"B\",\"text\":\"...\"},{\"label\":\"C\",\"text\":\"...\"},{\"label\":\"D\",\"text\":\"...\"}],\"correctAnswer\":\"A\",\"explanationMarkdown\":\"...\",\"techAllowed\":false}]}";
+const MARK_ANSWER_JSON_CONTRACT: &str = "{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":10,\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}";
+const MC_EXPLANATION_MAX_WORDS: usize = 90;
+
+#[derive(Debug, Clone, Copy)]
+struct CommandTermProfile {
+    key: &'static str,
+    display: &'static str,
+    min_marks: u8,
+    max_marks: u8,
+    below_evaluate: bool,
+}
+
+const COMMAND_TERM_PROFILES: [CommandTermProfile; 8] = [
+    CommandTermProfile {
+        key: "identify",
+        display: "Identify",
+        min_marks: 1,
+        max_marks: 2,
+        below_evaluate: true,
+    },
+    CommandTermProfile {
+        key: "describe",
+        display: "Describe",
+        min_marks: 2,
+        max_marks: 3,
+        below_evaluate: true,
+    },
+    CommandTermProfile {
+        key: "explain",
+        display: "Explain",
+        min_marks: 3,
+        max_marks: 5,
+        below_evaluate: true,
+    },
+    CommandTermProfile {
+        key: "compare",
+        display: "Compare",
+        min_marks: 3,
+        max_marks: 5,
+        below_evaluate: true,
+    },
+    CommandTermProfile {
+        key: "analyse",
+        display: "Analyse",
+        min_marks: 4,
+        max_marks: 6,
+        below_evaluate: true,
+    },
+    CommandTermProfile {
+        key: "discuss",
+        display: "Discuss",
+        min_marks: 5,
+        max_marks: 7,
+        below_evaluate: true,
+    },
+    CommandTermProfile {
+        key: "evaluate",
+        display: "Evaluate",
+        min_marks: 6,
+        max_marks: 8,
+        below_evaluate: false,
+    },
+    CommandTermProfile {
+        key: "justify",
+        display: "Justify",
+        min_marks: 5,
+        max_marks: 7,
+        below_evaluate: false,
+    },
+];
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,10 +96,10 @@ struct GenerateQuestionsRequest {
     topics: Vec<String>,
     difficulty: String,
     question_count: usize,
-    max_marks_per_question: u8,
     model: String,
     api_key: String,
     tech_mode: Option<String>,
+    prioritized_command_terms: Option<Vec<String>>,
     subtopics: Option<Vec<String>>,
     custom_focus_area: Option<String>,
     avoid_similar_questions: Option<bool>,
@@ -263,9 +333,7 @@ fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> Comm
         )
     })?;
 
-    if path.exists() {
-        let _ = fs::remove_file(&path);
-    }
+    remove_existing_state_file(&path)?;
 
     fs::rename(&temp_path, &path).map_err(|err| {
         AppError::new(
@@ -288,6 +356,19 @@ fn persisted_state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
     Ok(app_dir.join(APP_STATE_FILE_NAME))
 }
 
+fn remove_existing_state_file(path: &Path) -> CommandResult<()> {
+    fs::remove_file(path).or_else(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            Ok(())
+        } else {
+            Err(AppError::new(
+                "PERSISTENCE_REPLACE_ERROR",
+                format!("Could not replace existing app state file: {err}"),
+            ))
+        }
+    })
+}
+
 #[tauri::command]
 async fn generate_questions(
     app: tauri::AppHandle,
@@ -306,6 +387,8 @@ async fn generate_questions(
     let system_prompt = "You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
+    let prioritized_command_terms =
+        normalize_prioritized_command_terms(request.prioritized_command_terms.as_deref());
     let custom_focus_area = request
         .custom_focus_area
         .as_deref()
@@ -347,12 +430,14 @@ async fn generate_questions(
         request.avoid_similar_questions.unwrap_or(false),
         request.prior_question_prompts.as_deref(),
     );
+    let command_term_guidance_note =
+        build_command_term_guidance_note(&prioritized_command_terms, &request.topics);
     let user_prompt = format!(
-        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must be worth exactly {max_marks} marks.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and 30.{command_term_guidance_note}{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
-        max_marks = request.max_marks_per_question,
+        command_term_guidance_note = command_term_guidance_note,
         difficulty_rules = difficulty_rules,
         subtopics_note = subtopics_note,
         custom_focus_note = custom_focus_note,
@@ -405,7 +490,12 @@ async fn generate_questions(
             "Validating the model response.",
             total_attempts,
         );
-        match parse_written_response_candidate(&content, &request, selected_subtopics) {
+        match parse_written_response_candidate(
+            &content,
+            &request,
+            selected_subtopics,
+            &prioritized_command_terms,
+        ) {
             Ok(candidate) => {
                 parsed = Some(candidate);
                 break;
@@ -467,7 +557,12 @@ async fn generate_questions(
             structured_output_unsupported || regenerated.structured_output_unsupported_fallback;
         content = regenerated.content;
 
-        match parse_written_response_candidate(&content, &request, selected_subtopics) {
+        match parse_written_response_candidate(
+            &content,
+            &request,
+            selected_subtopics,
+            &prioritized_command_terms,
+        ) {
             Ok(candidate) => parsed = Some(candidate),
             Err(issue) => parse_issue = issue,
         }
@@ -571,7 +666,7 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         None
     };
 
-    let content = call_openrouter(
+    let mut content = call_openrouter(
         &request.api_key,
         &request.model,
         system_prompt,
@@ -580,19 +675,65 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     )
     .await?
     .content;
-    let payload = parse_json_object(&content).ok_or_else(|| {
+    let mut payload = parse_json_object(&content);
+    if payload.is_none() {
+        let repaired = request_json_repair(
+            &request.api_key,
+            &request.model,
+            MARK_ANSWER_JSON_CONTRACT,
+            &content,
+            "No valid JSON object found in marking response.",
+            response_format.as_ref(),
+        )
+        .await?;
+        content = repaired.content;
+        payload = parse_json_object(&content);
+    }
+
+    let payload = payload.ok_or_else(|| {
         AppError::new(
             "MODEL_PARSE_ERROR",
-            "Could not parse the marking response. Try submitting again.",
+            format_marking_parse_error(
+                "Could not parse the marking response. Try submitting again.",
+                &content,
+            ),
         )
     })?;
 
-    let mut parsed: MarkAnswerResponse = serde_json::from_str(&payload).map_err(|_| {
-        AppError::new(
-            "MODEL_PARSE_ERROR",
-            "OpenRouter returned an unexpected marking format.",
-        )
-    })?;
+    let mut parsed: MarkAnswerResponse = match serde_json::from_str(&payload) {
+        Ok(parsed) => parsed,
+        Err(parse_error) => {
+            let repaired = request_json_repair(
+                &request.api_key,
+                &request.model,
+                MARK_ANSWER_JSON_CONTRACT,
+                &content,
+                &format!("Marking JSON did not match schema: {parse_error}"),
+                response_format.as_ref(),
+            )
+            .await?;
+            content = repaired.content;
+            let repaired_payload = parse_json_object(&content).ok_or_else(|| {
+                AppError::new(
+                    "MODEL_PARSE_ERROR",
+                    format_marking_parse_error(
+                        "Could not parse repaired marking response.",
+                        &content,
+                    ),
+                )
+            })?;
+
+            serde_json::from_str(&repaired_payload).map_err(|_| {
+                AppError::new(
+                    "MODEL_PARSE_ERROR",
+                    format_marking_parse_error(
+                        "OpenRouter returned an unexpected marking format.",
+                        &content,
+                    ),
+                )
+            })?
+        }
+    };
 
     if parsed.max_marks == 0 {
         parsed.max_marks = request.question.max_marks;
@@ -692,13 +833,6 @@ fn validate_generate_request(request: &GenerateQuestionsRequest) -> CommandResul
         return Err(AppError::new(
             "VALIDATION_ERROR",
             "Question count must be between 1 and 20.",
-        ));
-    }
-
-    if request.max_marks_per_question == 0 || request.max_marks_per_question > 30 {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "Max marks per question must be between 1 and 30.",
         ));
     }
 
@@ -887,6 +1021,22 @@ fn is_structured_output_unsupported_response(status: reqwest::StatusCode, body: 
             || normalized.contains("unsupported")
             || normalized.contains("not available")
             || normalized.contains("invalid"))
+}
+
+fn format_marking_parse_error(prefix: &str, content: &str) -> String {
+    let sanitized = content.trim();
+    if sanitized.is_empty() {
+        return prefix.to_string();
+    }
+
+    const MAX_LEN: usize = 1200;
+    let mut truncated = sanitized.to_string();
+    if truncated.chars().count() > MAX_LEN {
+        truncated = truncated.chars().take(MAX_LEN).collect::<String>();
+        truncated.push_str("\n... [truncated]");
+    }
+
+    format!("{prefix}\n\nRaw model response:\n{truncated}")
 }
 
 async fn call_openrouter(
@@ -1204,7 +1354,7 @@ async fn generate_mc_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model is required."));
     }
 
-    let system_prompt = "You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
+    let system_prompt = "You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters. Never reveal chain-of-thought, internal deliberation, or self-corrections; provide only concise final explanations.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let custom_focus_area = request
@@ -1249,7 +1399,7 @@ async fn generate_mc_questions(
         request.prior_question_prompts.as_deref(),
     );
     let user_prompt = format!(
-        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.\n- explanationMarkdown must be concise: 1-3 short sentences, maximum 90 words.\n- explanationMarkdown must give only the final rationale: why the correct option is right and briefly why common distractors fail.\n- explanationMarkdown must not include chain-of-thought, self-talk, retries, uncertainty narration, or any rewriting/fixing of the question/options.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
@@ -1458,6 +1608,86 @@ fn difficulty_guidance(level: &str) -> &'static str {
     }
 }
 
+fn normalize_prioritized_command_terms(
+    raw_terms: Option<&[String]>,
+) -> Vec<&'static CommandTermProfile> {
+    raw_terms
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(|term| find_command_term_profile(term.trim()))
+        .fold(Vec::new(), |mut acc, profile| {
+            if !acc.iter().any(|item| item.key == profile.key) {
+                acc.push(profile);
+            }
+            acc
+        })
+}
+
+fn find_command_term_profile(value: &str) -> Option<&'static CommandTermProfile> {
+    let normalized = value.to_ascii_lowercase();
+    COMMAND_TERM_PROFILES
+        .iter()
+        .find(|profile| profile.key == normalized)
+}
+
+fn infer_prompt_command_term(prompt: &str) -> Option<&'static CommandTermProfile> {
+    let leading_token = prompt
+        .split_whitespace()
+        .next()
+        .map(|token| {
+            token
+                .trim_matches(|ch: char| !ch.is_ascii_alphabetic())
+                .to_ascii_lowercase()
+        })
+        .unwrap_or_default();
+
+    COMMAND_TERM_PROFILES
+        .iter()
+        .find(|profile| profile.key == leading_token)
+}
+
+fn build_command_term_guidance_note(
+    prioritized_terms: &[&'static CommandTermProfile],
+    topics: &[String],
+) -> String {
+    let has_non_math_topic = topics.iter().any(|topic| !is_math_topic(topic));
+    if !has_non_math_topic {
+        return "\n- Do not use command-term prioritisation for Mathematics topics.".to_string();
+    }
+
+    let selected_terms = if prioritized_terms.is_empty() {
+        "Evaluate".to_string()
+    } else {
+        prioritized_terms
+            .iter()
+            .map(|term| term.display)
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+
+    let lower_than_evaluate_terms = COMMAND_TERM_PROFILES
+        .iter()
+        .filter(|term| term.below_evaluate)
+        .map(|term| term.display)
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    if prioritized_terms.len() == 1 {
+        let term = prioritized_terms[0].display;
+        return format!(
+            "\n- For non-Mathematics topics, every prompt MUST start with exactly this command term: {term}. Do not use any other command term.\n- The prompt context must match what {term} requires a student to do in order to answer successfully.\n- Questions using these command terms should usually carry fewer marks than Evaluate: {lower_than_evaluate_terms}."
+        );
+    }
+
+    format!(
+        "\n- For non-Mathematics topics, start each prompt with one of these command terms and prioritise them across the set: {selected_terms}.\n- The prompt context must match what the chosen command term requires a student to do in order to answer successfully.\n- Questions using these command terms should usually carry fewer marks than Evaluate: {lower_than_evaluate_terms}."
+    )
+}
+
+fn is_math_topic(topic: &str) -> bool {
+    topic == "Mathematical Methods" || topic == "Specialist Mathematics"
+}
+
 #[derive(Default)]
 struct BatchQualitySummary {
     distinctness_avg: Option<f32>,
@@ -1468,6 +1698,7 @@ fn parse_written_response_candidate(
     content: &str,
     request: &GenerateQuestionsRequest,
     selected_subtopics: Option<&Vec<String>>,
+    prioritized_command_terms: &[&'static CommandTermProfile],
 ) -> Result<GenerateQuestionsResponse, String> {
     let payload = parse_json_object(content)
         .ok_or_else(|| "No valid JSON object found in model output.".to_string())?;
@@ -1482,15 +1713,15 @@ fn parse_written_response_candidate(
 
     normalize_written_questions(
         &mut candidate.questions,
-        request.max_marks_per_question,
         selected_subtopics,
+        prioritized_command_terms,
     );
 
     validate_written_questions(
         &candidate.questions,
         request.question_count,
-        request.max_marks_per_question,
         selected_subtopics,
+        prioritized_command_terms,
     )?;
 
     Ok(candidate)
@@ -1736,12 +1967,20 @@ fn round_score(value: f32) -> f32 {
 
 fn normalize_written_questions(
     questions: &mut [GeneratedQuestion],
-    fallback_max_marks: u8,
     selected_subtopics: Option<&Vec<String>>,
+    prioritized_command_terms: &[&'static CommandTermProfile],
 ) {
     for question in questions {
-        if question.max_marks == 0 {
-            question.max_marks = fallback_max_marks;
+        let mut normalized_marks = if question.max_marks == 0 {
+            default_question_max_marks()
+        } else {
+            question.max_marks
+        };
+
+        if let Some(profile) = infer_prompt_command_term(&question.prompt_markdown) {
+            normalized_marks = normalized_marks.clamp(profile.min_marks, profile.max_marks);
+        } else if let Some(profile) = prioritized_command_terms.first().copied() {
+            normalized_marks = normalized_marks.clamp(profile.min_marks, profile.max_marks);
         }
 
         if question
@@ -1758,6 +1997,7 @@ fn normalize_written_questions(
         question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown).trim().to_string();
         question.topic = question.topic.trim().to_string();
         question.id = question.id.trim().to_string();
+        question.max_marks = normalized_marks.clamp(1, 30);
         question.subtopic = question
             .subtopic
             .as_ref()
@@ -1799,8 +2039,8 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
 fn validate_written_questions(
     questions: &[GeneratedQuestion],
     expected_count: usize,
-    expected_max_marks: u8,
     _selected_subtopics: Option<&Vec<String>>,
+    prioritized_command_terms: &[&'static CommandTermProfile],
 ) -> Result<(), String> {
     if questions.is_empty() {
         return Err("The model returned no questions.".to_string());
@@ -1826,11 +2066,16 @@ fn validate_written_questions(
         if question.max_marks == 0 || question.max_marks > 30 {
             return Err(format!("Question {} has invalid maxMarks.", question.id));
         }
-        if question.max_marks != expected_max_marks {
-            return Err(format!(
-                "Question {} has maxMarks {}, expected {}.",
-                question.id, question.max_marks, expected_max_marks
-            ));
+
+        if prioritized_command_terms.len() == 1 && !is_math_topic(&question.topic) {
+            let required_term = prioritized_command_terms[0];
+            let used_term = infer_prompt_command_term(&question.prompt_markdown);
+            if used_term.map(|term| term.key) != Some(required_term.key) {
+                return Err(format!(
+                    "Question {} must begin with command term '{}' for non-Mathematics topics.",
+                    question.id, required_term.display
+                ));
+            }
         }
     }
 
@@ -1865,6 +2110,41 @@ fn validate_mc_questions(
         }
         if question.explanation_markdown.is_empty() {
             return Err(format!("Question {} has empty explanationMarkdown.", question.id));
+        }
+        let explanation_word_count = question
+            .explanation_markdown
+            .split_whitespace()
+            .count();
+        if explanation_word_count > MC_EXPLANATION_MAX_WORDS {
+            return Err(format!(
+                "Question {} explanationMarkdown is too long ({} words; max {}).",
+                question.id, explanation_word_count, MC_EXPLANATION_MAX_WORDS
+            ));
+        }
+
+        let explanation_lower = question.explanation_markdown.to_lowercase();
+        let disallowed_meta_reasoning_markers = [
+            "let's",
+            "let us",
+            "i will",
+            "i'll",
+            "wait,",
+            "not in options",
+            "error in options",
+            "to make it work",
+            "change the question",
+            "adjust the question",
+            "revised prompt",
+            "i'll update",
+        ];
+        if disallowed_meta_reasoning_markers
+            .iter()
+            .any(|marker| explanation_lower.contains(marker))
+        {
+            return Err(format!(
+                "Question {} explanationMarkdown contains disallowed self-talk or prompt-rewrite meta reasoning.",
+                question.id
+            ));
         }
 
         if question.options.len() != 4 {
@@ -2072,7 +2352,7 @@ mod tests {
             multi_step_depth: None,
         }];
 
-        let result = validate_written_questions(&questions, 2, 4, None);
+        let result = validate_written_questions(&questions, 2, None);
         assert!(result.is_err());
     }
 
@@ -2126,7 +2406,7 @@ mod tests {
         }];
 
         let allowed = vec!["functions".to_string()];
-        let result = validate_written_questions(&questions, 1, 4, Some(&allowed));
+        let result = validate_written_questions(&questions, 1, Some(&allowed));
         assert!(result.is_ok());
     }
 

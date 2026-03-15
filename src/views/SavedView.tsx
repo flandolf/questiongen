@@ -1,15 +1,16 @@
 import { Bookmark, BookOpen, Clock3, FolderOpen, Trash2, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAppContext } from "../AppContext";
+import { useSavedSets } from "../AppContext";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
-import { formatDate } from "../lib/app-utils";
+import { confirmAction, formatDate } from "../lib/app-utils";
+import { EmptyState } from "../components/EmptyState";
 
 export function SavedView() {
   const navigate = useNavigate();
-  const { savedSets, loadSavedSet, deleteSavedSet } = useAppContext();
+  const { savedSets, loadSavedSet, deleteSavedSet } = useSavedSets();
 
   function handleOpen(savedSetId: string) {
     loadSavedSet(savedSetId);
@@ -17,7 +18,7 @@ export function SavedView() {
   }
 
   function handleDelete(savedSetId: string, title: string) {
-    if (!window.confirm(`Delete saved set \"${title}\"? This will not remove history entries.`)) {
+    if (!confirmAction(`Delete saved set \"${title}\"? This will not remove history entries.`)) {
       return;
     }
     deleteSavedSet(savedSetId);
@@ -25,20 +26,16 @@ export function SavedView() {
 
   if (savedSets.length === 0) {
     return (
-      <div className="p-3 sm:p-4 lg:p-5 h-full flex flex-col items-center justify-center text-center gap-3">
-        <div className="rounded-full bg-primary/10 p-4 text-primary">
-          <Bookmark className="h-8 w-8" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold mb-2">No Saved Sets Yet</h2>
-          <p className="text-muted-foreground">Save a generated question set from the generator to reopen it later.</p>
-        </div>
-      </div>
+      <EmptyState
+        title="No Saved Sets Yet"
+        description="Save a generated question set from the generator to reopen it later."
+        icon={Bookmark}
+      />
     );
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-5 max-w-5xl mx-auto h-full flex flex-col gap-4">
+    <div className="min-w-full p-4.5 h-full flex flex-col gap-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Saved Sets</h1>
         <p className="text-muted-foreground mt-2">Reopen saved written and multiple-choice sets with your progress intact.</p>

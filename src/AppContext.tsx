@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   ChemistrySubtopic,
@@ -20,11 +20,17 @@ import {
   QuestionMode,
   SAVED_SET_LIMIT,
   SavedQuestionSet,
+  SpecialistMathSubtopic,
   StudentAnswerImage,
   TechMode,
   Topic,
+  VceCommandTerm,
 } from "./types";
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
+import { useSettingsState } from "./context/modules/useSettingsState";
+import { usePreferencesState } from "./context/modules/usePreferencesState";
+import { useWrittenSessionState } from "./context/modules/useWrittenSessionState";
+import { useMultipleChoiceSessionState } from "./context/modules/useMultipleChoiceSessionState";
 
 interface AppContextState {
   isHydrated: boolean;
@@ -42,14 +48,16 @@ interface AppContextState {
   setAvoidSimilarQuestions: (enabled: boolean) => void;
   mathMethodsSubtopics: MathMethodsSubtopic[];
   setMathMethodsSubtopics: (subtopics: MathMethodsSubtopic[] | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[])) => void;
+  specialistMathSubtopics: SpecialistMathSubtopic[];
+  setSpecialistMathSubtopics: (subtopics: SpecialistMathSubtopic[] | ((prev: SpecialistMathSubtopic[]) => SpecialistMathSubtopic[])) => void;
   chemistrySubtopics: ChemistrySubtopic[];
   setChemistrySubtopics: (subtopics: ChemistrySubtopic[] | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])) => void;
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   setPhysicalEducationSubtopics: (subtopics: PhysicalEducationSubtopic[] | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])) => void;
   questionCount: number;
   setQuestionCount: (count: number) => void;
-  maxMarksPerQuestion: number;
-  setMaxMarksPerQuestion: (marks: number) => void;
+  prioritizedCommandTerms: VceCommandTerm[];
+  setPrioritizedCommandTerms: (terms: VceCommandTerm[] | ((prev: VceCommandTerm[]) => VceCommandTerm[])) => void;
   model: string;
   setModel: (model: string) => void;
   debugMode: boolean;
@@ -118,6 +126,8 @@ interface AppContextState {
 
 const AppContext = createContext<AppContextState | undefined>(undefined);
 
+type ArrayStateUpdate<T> = T[] | ((prev: T[]) => T[]);
+
 function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
   const leadTopic = topics[0] ?? "Mixed Topics";
   const extraCount = Math.max(0, topics.length - 1);
@@ -136,44 +146,91 @@ function applySavedSetLimit(entries: SavedQuestionSet[]) {
   return entries.slice(0, SAVED_SET_LIMIT);
 }
 
+function resolveArrayStateUpdate<T>(update: ArrayStateUpdate<T>, previous: T[]) {
+  return typeof update === "function" ? update(previous) : update;
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
-  const [apiKey, setApiKey] = useState(EMPTY_PERSISTED_APP_STATE.settings.apiKey);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [selectedTopics, setSelectedTopics] = useState<Topic[]>(EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics);
-  const [difficulty, setDifficulty] = useState<Difficulty>(EMPTY_PERSISTED_APP_STATE.preferences.difficulty);
-  const [techMode, setTechMode] = useState<TechMode>(EMPTY_PERSISTED_APP_STATE.preferences.techMode);
-  const [avoidSimilarQuestions, setAvoidSimilarQuestions] = useState(EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions);
-  const [mathMethodsSubtopics, setMathMethodsSubtopics] = useState<MathMethodsSubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics);
-  const [chemistrySubtopics, setChemistrySubtopics] = useState<ChemistrySubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics);
-  const [physicalEducationSubtopics, setPhysicalEducationSubtopics] = useState<PhysicalEducationSubtopic[]>(EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics);
-  const [questionCount, setQuestionCount] = useState(EMPTY_PERSISTED_APP_STATE.preferences.questionCount);
-  const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion);
-  const [model, setModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.model);
-  const [debugMode, setDebugMode] = useState(EMPTY_PERSISTED_APP_STATE.settings.debugMode);
-  const [useStructuredOutput, setUseStructuredOutput] = useState(EMPTY_PERSISTED_APP_STATE.settings.useStructuredOutput);
+  const {
+    apiKey,
+    setApiKey,
+    showApiKey,
+    setShowApiKey,
+    model,
+    setModel,
+    debugMode,
+    setDebugMode,
+    useStructuredOutput,
+    setUseStructuredOutput,
+  } = useSettingsState();
 
-  const [questionMode, setQuestionMode] = useState<QuestionMode>(EMPTY_PERSISTED_APP_STATE.preferences.questionMode);
+  const {
+    selectedTopics,
+    setSelectedTopics,
+    difficulty,
+    setDifficulty,
+    techMode,
+    setTechMode,
+    avoidSimilarQuestions,
+    setAvoidSimilarQuestions,
+    mathMethodsSubtopics,
+    setMathMethodsSubtopics,
+    specialistMathSubtopics,
+    setSpecialistMathSubtopics,
+    chemistrySubtopics,
+    setChemistrySubtopics,
+    physicalEducationSubtopics,
+    setPhysicalEducationSubtopics,
+    questionCount,
+    setQuestionCount,
+    prioritizedCommandTerms,
+    setPrioritizedCommandTerms,
+    questionMode,
+    setQuestionMode,
+  } = usePreferencesState();
 
-  const [questions, setQuestions] = useState<GeneratedQuestion[]>(EMPTY_PERSISTED_APP_STATE.writtenSession.questions);
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState(EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex);
-  const [writtenQuestionPresentedAtById, setWrittenQuestionPresentedAtById] = useState<Record<string, number>>(EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId);
-  const [answersByQuestionId, setAnswersByQuestionId] = useState<Record<string, string>>(EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId);
-  const [imagesByQuestionId, setImagesByQuestionId] = useState<Record<string, StudentAnswerImage | undefined>>(EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId);
-  const [feedbackByQuestionId, setFeedbackByQuestionId] = useState<Record<string, MarkAnswerResponse>>(EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId);
-  const [questionHistory, setQuestionHistory] = useState<QuestionHistoryEntry[]>(EMPTY_PERSISTED_APP_STATE.questionHistory);
-  const [writtenRawModelOutput, setWrittenRawModelOutput] = useState(EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput);
-  const [writtenGenerationTelemetry, setWrittenGenerationTelemetry] = useState<GenerationTelemetry | null>(EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null);
-  const [activeWrittenSavedSetId, setActiveWrittenSavedSetId] = useState<string | null>(EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null);
+  const {
+    questions,
+    setQuestions,
+    activeQuestionIndex,
+    setActiveQuestionIndex,
+    writtenQuestionPresentedAtById,
+    setWrittenQuestionPresentedAtById,
+    answersByQuestionId,
+    setAnswersByQuestionId,
+    imagesByQuestionId,
+    setImagesByQuestionId,
+    feedbackByQuestionId,
+    setFeedbackByQuestionId,
+    questionHistory,
+    setQuestionHistory,
+    writtenRawModelOutput,
+    setWrittenRawModelOutput,
+    writtenGenerationTelemetry,
+    setWrittenGenerationTelemetry,
+    activeWrittenSavedSetId,
+    setActiveWrittenSavedSetId,
+  } = useWrittenSessionState();
 
-  const [mcQuestions, setMcQuestions] = useState<McQuestion[]>(EMPTY_PERSISTED_APP_STATE.mcSession.questions);
-  const [activeMcQuestionIndex, setActiveMcQuestionIndex] = useState(EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex);
-  const [mcQuestionPresentedAtById, setMcQuestionPresentedAtById] = useState<Record<string, number>>(EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId);
-  const [mcAnswersByQuestionId, setMcAnswersByQuestionId] = useState<Record<string, string>>(EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId);
-  const [mcHistory, setMcHistory] = useState<McHistoryEntry[]>(EMPTY_PERSISTED_APP_STATE.mcHistory);
-  const [mcRawModelOutput, setMcRawModelOutput] = useState(EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput);
-  const [mcGenerationTelemetry, setMcGenerationTelemetry] = useState<GenerationTelemetry | null>(EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null);
-  const [activeMcSavedSetId, setActiveMcSavedSetId] = useState<string | null>(EMPTY_PERSISTED_APP_STATE.mcSession.savedSetId ?? null);
+  const {
+    mcQuestions,
+    setMcQuestions,
+    activeMcQuestionIndex,
+    setActiveMcQuestionIndex,
+    mcQuestionPresentedAtById,
+    setMcQuestionPresentedAtById,
+    mcAnswersByQuestionId,
+    setMcAnswersByQuestionId,
+    mcHistory,
+    setMcHistory,
+    mcRawModelOutput,
+    setMcRawModelOutput,
+    mcGenerationTelemetry,
+    setMcGenerationTelemetry,
+    activeMcSavedSetId,
+    setActiveMcSavedSetId,
+  } = useMultipleChoiceSessionState();
 
   const [savedSets, setSavedSets] = useState<SavedQuestionSet[]>(EMPTY_PERSISTED_APP_STATE.savedSets);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -182,6 +239,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isMarking, setIsMarking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const hydrateCompleteRef = useRef(false);
+
+  const preferencesSnapshot = useMemo<PersistedGeneratorPreferences>(() => {
+    return {
+      selectedTopics,
+      difficulty,
+      techMode,
+      avoidSimilarQuestions,
+      mathMethodsSubtopics,
+      specialistMathSubtopics,
+      chemistrySubtopics,
+      physicalEducationSubtopics,
+      questionCount,
+      prioritizedCommandTerms,
+      questionMode,
+    };
+  }, [
+    selectedTopics,
+    difficulty,
+    techMode,
+    avoidSimilarQuestions,
+    mathMethodsSubtopics,
+    specialistMathSubtopics,
+    chemistrySubtopics,
+    physicalEducationSubtopics,
+    questionCount,
+    prioritizedCommandTerms,
+    questionMode,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -228,19 +313,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistedSnapshot = useMemo<PersistedAppState>(() => {
-    const preferencesSnapshot: PersistedGeneratorPreferences = {
-      selectedTopics,
-      difficulty,
-      techMode,
-      avoidSimilarQuestions,
-      mathMethodsSubtopics,
-      chemistrySubtopics,
-      physicalEducationSubtopics,
-      questionCount,
-      maxMarksPerQuestion,
-      questionMode,
-    };
-
     const writtenSession: PersistedWrittenSession = {
       questions,
       activeQuestionIndex,
@@ -285,14 +357,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     activeWrittenSavedSetId,
     answersByQuestionId,
     apiKey,
-    chemistrySubtopics,
     debugMode,
-    difficulty,
     feedbackByQuestionId,
     imagesByQuestionId,
-    mathMethodsSubtopics,
-    maxMarksPerQuestion,
-    avoidSimilarQuestions,
     mcAnswersByQuestionId,
     mcGenerationTelemetry,
     mcHistory,
@@ -300,15 +367,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     mcQuestions,
     mcRawModelOutput,
     model,
+    preferencesSnapshot,
     useStructuredOutput,
-    physicalEducationSubtopics,
-    questionCount,
     questionHistory,
-    questionMode,
     questions,
     savedSets,
-    selectedTopics,
-    techMode,
     writtenQuestionPresentedAtById,
     writtenGenerationTelemetry,
     writtenRawModelOutput,
@@ -338,10 +401,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTechMode(state.preferences.techMode);
     setAvoidSimilarQuestions(state.preferences.avoidSimilarQuestions);
     setMathMethodsSubtopics(state.preferences.mathMethodsSubtopics);
+    setSpecialistMathSubtopics(state.preferences.specialistMathSubtopics);
     setChemistrySubtopics(state.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
     setQuestionCount(state.preferences.questionCount);
-    setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
+    setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
 
     setQuestions(state.writtenSession.questions);
@@ -369,18 +433,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   function saveCurrentSet() {
     const now = new Date().toISOString();
-    const preferencesSnapshot: PersistedGeneratorPreferences = {
-      selectedTopics,
-      difficulty,
-      techMode,
-      avoidSimilarQuestions,
-      mathMethodsSubtopics,
-      chemistrySubtopics,
-      physicalEducationSubtopics,
-      questionCount,
-      maxMarksPerQuestion,
-      questionMode,
-    };
 
     if (questionMode === "written") {
       if (questions.length === 0) {
@@ -462,8 +514,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
     setChemistrySubtopics(entry.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
+    setSpecialistMathSubtopics(entry.preferences.specialistMathSubtopics);
     setQuestionCount(entry.preferences.questionCount);
-    setMaxMarksPerQuestion(entry.preferences.maxMarksPerQuestion);
+    setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
     setQuestionMode(entry.questionMode);
 
     if (entry.questionMode === "written" && entry.writtenSession) {
@@ -488,6 +541,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setActiveMcSavedSetId(entry.id);
     }
   }
+
+  const setQuestionHistoryWithLimit = useCallback((history: ArrayStateUpdate<QuestionHistoryEntry>) => {
+    setQuestionHistory((prev) => applyHistoryLimit(resolveArrayStateUpdate(history, prev)));
+  }, []);
+
+  const setMcHistoryWithLimit = useCallback((history: ArrayStateUpdate<McHistoryEntry>) => {
+    setMcHistory((prev) => applyHistoryLimit(resolveArrayStateUpdate(history, prev)));
+  }, []);
 
   function deleteSavedSet(savedSetId: string) {
     setSavedSets((prev) => prev.filter((entry) => entry.id !== savedSetId));
@@ -521,14 +582,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAvoidSimilarQuestions,
         mathMethodsSubtopics,
         setMathMethodsSubtopics,
+        specialistMathSubtopics,
+        setSpecialistMathSubtopics,
         chemistrySubtopics,
         setChemistrySubtopics,
         physicalEducationSubtopics,
         setPhysicalEducationSubtopics,
         questionCount,
         setQuestionCount,
-        maxMarksPerQuestion,
-        setMaxMarksPerQuestion,
+        prioritizedCommandTerms,
+        setPrioritizedCommandTerms,
         model,
         setModel,
         debugMode,
@@ -550,9 +613,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         feedbackByQuestionId,
         setFeedbackByQuestionId,
         questionHistory,
-        setQuestionHistory: (history) => {
-          setQuestionHistory((prev) => applyHistoryLimit(typeof history === "function" ? history(prev) : history));
-        },
+        setQuestionHistory: setQuestionHistoryWithLimit,
         mcQuestions,
         setMcQuestions,
         activeMcQuestionIndex,
@@ -562,9 +623,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         mcAnswersByQuestionId,
         setMcAnswersByQuestionId,
         mcHistory,
-        setMcHistory: (history) => {
-          setMcHistory((prev) => applyHistoryLimit(typeof history === "function" ? history(prev) : history));
-        },
+        setMcHistory: setMcHistoryWithLimit,
         writtenRawModelOutput,
         setWrittenRawModelOutput,
         mcRawModelOutput,
@@ -605,4 +664,190 @@ export function useAppContext() {
     throw new Error("useAppContext must be used within an AppProvider");
   }
   return context;
+}
+
+export function useAppPreferences() {
+  const {
+    selectedTopics,
+    setSelectedTopics,
+    difficulty,
+    setDifficulty,
+    techMode,
+    setTechMode,
+    avoidSimilarQuestions,
+    setAvoidSimilarQuestions,
+    mathMethodsSubtopics,
+    setMathMethodsSubtopics,
+    specialistMathSubtopics,
+    setSpecialistMathSubtopics,
+    chemistrySubtopics,
+    setChemistrySubtopics,
+    physicalEducationSubtopics,
+    setPhysicalEducationSubtopics,
+    questionCount,
+    setQuestionCount,
+    prioritizedCommandTerms,
+    setPrioritizedCommandTerms,
+    questionMode,
+    setQuestionMode,
+  } = useAppContext();
+
+  return {
+    selectedTopics,
+    setSelectedTopics,
+    difficulty,
+    setDifficulty,
+    techMode,
+    setTechMode,
+    avoidSimilarQuestions,
+    setAvoidSimilarQuestions,
+    mathMethodsSubtopics,
+    setMathMethodsSubtopics,
+    specialistMathSubtopics,
+    setSpecialistMathSubtopics,
+    chemistrySubtopics,
+    setChemistrySubtopics,
+    physicalEducationSubtopics,
+    setPhysicalEducationSubtopics,
+    questionCount,
+    setQuestionCount,
+    prioritizedCommandTerms,
+    setPrioritizedCommandTerms,
+    questionMode,
+    setQuestionMode,
+  };
+}
+
+export function useAppSettings() {
+  const {
+    apiKey,
+    setApiKey,
+    showApiKey,
+    setShowApiKey,
+    model,
+    setModel,
+    debugMode,
+    setDebugMode,
+    useStructuredOutput,
+    setUseStructuredOutput,
+    clearApiKey,
+  } = useAppContext();
+
+  return {
+    apiKey,
+    setApiKey,
+    showApiKey,
+    setShowApiKey,
+    model,
+    setModel,
+    debugMode,
+    setDebugMode,
+    useStructuredOutput,
+    setUseStructuredOutput,
+    clearApiKey,
+  };
+}
+
+export function useWrittenSession() {
+  const {
+    questions,
+    setQuestions,
+    activeQuestionIndex,
+    setActiveQuestionIndex,
+    writtenQuestionPresentedAtById,
+    setWrittenQuestionPresentedAtById,
+    answersByQuestionId,
+    setAnswersByQuestionId,
+    imagesByQuestionId,
+    setImagesByQuestionId,
+    feedbackByQuestionId,
+    setFeedbackByQuestionId,
+    questionHistory,
+    setQuestionHistory,
+    writtenRawModelOutput,
+    setWrittenRawModelOutput,
+    writtenGenerationTelemetry,
+    setWrittenGenerationTelemetry,
+    activeWrittenSavedSetId,
+    setActiveWrittenSavedSetId,
+  } = useAppContext();
+
+  return {
+    questions,
+    setQuestions,
+    activeQuestionIndex,
+    setActiveQuestionIndex,
+    writtenQuestionPresentedAtById,
+    setWrittenQuestionPresentedAtById,
+    answersByQuestionId,
+    setAnswersByQuestionId,
+    imagesByQuestionId,
+    setImagesByQuestionId,
+    feedbackByQuestionId,
+    setFeedbackByQuestionId,
+    questionHistory,
+    setQuestionHistory,
+    writtenRawModelOutput,
+    setWrittenRawModelOutput,
+    writtenGenerationTelemetry,
+    setWrittenGenerationTelemetry,
+    activeWrittenSavedSetId,
+    setActiveWrittenSavedSetId,
+  };
+}
+
+export function useMultipleChoiceSession() {
+  const {
+    mcQuestions,
+    setMcQuestions,
+    activeMcQuestionIndex,
+    setActiveMcQuestionIndex,
+    mcQuestionPresentedAtById,
+    setMcQuestionPresentedAtById,
+    mcAnswersByQuestionId,
+    setMcAnswersByQuestionId,
+    mcHistory,
+    setMcHistory,
+    mcRawModelOutput,
+    setMcRawModelOutput,
+    mcGenerationTelemetry,
+    setMcGenerationTelemetry,
+    activeMcSavedSetId,
+    setActiveMcSavedSetId,
+  } = useAppContext();
+
+  return {
+    mcQuestions,
+    setMcQuestions,
+    activeMcQuestionIndex,
+    setActiveMcQuestionIndex,
+    mcQuestionPresentedAtById,
+    setMcQuestionPresentedAtById,
+    mcAnswersByQuestionId,
+    setMcAnswersByQuestionId,
+    mcHistory,
+    setMcHistory,
+    mcRawModelOutput,
+    setMcRawModelOutput,
+    mcGenerationTelemetry,
+    setMcGenerationTelemetry,
+    activeMcSavedSetId,
+    setActiveMcSavedSetId,
+  };
+}
+
+export function useSavedSets() {
+  const {
+    savedSets,
+    saveCurrentSet,
+    loadSavedSet,
+    deleteSavedSet,
+  } = useAppContext();
+
+  return {
+    savedSets,
+    saveCurrentSet,
+    loadSavedSet,
+    deleteSavedSet,
+  };
 }

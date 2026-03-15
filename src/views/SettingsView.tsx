@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAppContext } from "../AppContext";
+import { useAppSettings } from "../AppContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -21,7 +21,7 @@ export function SettingsView() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
-  } = useAppContext();
+  } = useAppSettings();
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
   const [showCustomModelInput, setShowCustomModelInput] = useState(false);
@@ -47,7 +47,7 @@ export function SettingsView() {
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-5 max-w-4xl mx-auto flex flex-col gap-4">
+    <div className="min-w-full p-4.5 mx-auto flex flex-col gap-4">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-2">Manage your OpenRouter API key and model preferences.</p>

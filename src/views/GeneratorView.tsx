@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark } from "lucide-react";
-import { useAppContext } from "../AppContext";
+import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark, Info } from "lucide-react";
+import {
+  useAppContext,
+  useAppPreferences,
+  useAppSettings,
+  useMultipleChoiceSession,
+  useWrittenSession,
+} from "../AppContext";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "../components/ui/card";
@@ -13,9 +19,10 @@ import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Slider } from "../components/ui/slider";
-import { 
-  TOPICS, 
-  Topic, 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
+import {
+  TOPICS,
+  Topic,
   TechMode,
   MATH_METHODS_SUBTOPICS,
   MathMethodsSubtopic,
@@ -27,11 +34,17 @@ import {
   GenerateMcQuestionsResponse,
   McOption,
   McHistoryEntry,
+  McAttemptKind,
   QuestionHistoryEntry,
   Difficulty,
-  WrittenAttemptKind
+  WrittenAttemptKind,
+  SpecialistMathSubtopic,
+  SPECIALIST_MATH_SUBTOPICS,
+  VCE_COMMAND_TERMS,
+  VCE_COMMAND_TERMS_LOWER_THAN_EVALUATE,
+  VceCommandTerm,
 } from "../types";
-import { fileToDataUrl, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
+import { confirmAction, fileToDataUrl, formatDurationMs, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
 
 function countWords(value: string) {
   const trimmed = value.trim();
@@ -40,41 +53,6 @@ function countWords(value: string) {
   }
 
   return trimmed.split(/\s+/).length;
-}
-
-function formatDurationMs(durationMs: number) {
-  if (durationMs < 1000) {
-    return `${durationMs}ms`;
-  }
-
-  const seconds = durationMs / 1000;
-  if (seconds < 60) {
-    return `${seconds.toFixed(1)}s`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  return `${minutes}m ${remainingSeconds}s`;
-}
-
-function renderStructuredOutputBadge(status?: "used" | "not-supported-fallback" | "not-requested") {
-  if (status === "used") {
-    return (
-      <Badge variant="outline" className="border-emerald-500/60 bg-emerald-100/70 text-emerald-900 dark:border-emerald-500/60 dark:bg-emerald-900/40 dark:text-emerald-200">
-        Structured JSON used
-      </Badge>
-    );
-  }
-
-  if (status === "not-supported-fallback") {
-    return (
-      <Badge variant="outline" className="border-amber-500/60 bg-amber-100/70 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
-        Structured JSON not supported, fell back
-      </Badge>
-    );
-  }
-
-  return null;
 }
 
 export function GeneratorView() {
@@ -86,29 +64,92 @@ export function GeneratorView() {
   const [renderFallbackByQuestionId, setRenderFallbackByQuestionId] = useState<Record<string, boolean>>({});
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
+  const [mcMarkAppealByQuestionId, setMcMarkAppealByQuestionId] = useState<Record<string, string>>({});
+  const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
+  const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<Record<string, number>>({});
 
   const {
-    apiKey, model, errorMessage, setErrorMessage,
-    selectedTopics, setSelectedTopics, difficulty, setDifficulty,
-    avoidSimilarQuestions, setAvoidSimilarQuestions,
-    techMode, setTechMode, mathMethodsSubtopics, setMathMethodsSubtopics,
-    chemistrySubtopics, setChemistrySubtopics,
-    physicalEducationSubtopics, setPhysicalEducationSubtopics,
-    questionCount, setQuestionCount, maxMarksPerQuestion, setMaxMarksPerQuestion,
-    debugMode, writtenRawModelOutput, setWrittenRawModelOutput, mcRawModelOutput, setMcRawModelOutput,
+    apiKey,
+    model,
+    debugMode,
     useStructuredOutput,
-    writtenGenerationTelemetry, setWrittenGenerationTelemetry, mcGenerationTelemetry, setMcGenerationTelemetry,
-    questionMode, setQuestionMode,
-    questions, setQuestions, activeQuestionIndex, setActiveQuestionIndex,
-    writtenQuestionPresentedAtById, setWrittenQuestionPresentedAtById,
-    answersByQuestionId, setAnswersByQuestionId, imagesByQuestionId, setImagesByQuestionId,
-    feedbackByQuestionId, setFeedbackByQuestionId, questionHistory, setQuestionHistory,
-    mcQuestions, setMcQuestions, activeMcQuestionIndex, setActiveMcQuestionIndex,
-    mcQuestionPresentedAtById, setMcQuestionPresentedAtById,
-    mcAnswersByQuestionId, setMcAnswersByQuestionId, mcHistory, setMcHistory,
-    activeWrittenSavedSetId, setActiveWrittenSavedSetId, activeMcSavedSetId, setActiveMcSavedSetId,
+  } = useAppSettings();
+  const {
+    selectedTopics,
+    setSelectedTopics,
+    difficulty,
+    setDifficulty,
+    avoidSimilarQuestions,
+    setAvoidSimilarQuestions,
+    techMode,
+    setTechMode,
+    mathMethodsSubtopics,
+    setMathMethodsSubtopics,
+    specialistMathSubtopics,
+    setSpecialistMathSubtopics,
+    chemistrySubtopics,
+    setChemistrySubtopics,
+    physicalEducationSubtopics,
+    setPhysicalEducationSubtopics,
+    questionCount,
+    setQuestionCount,
+    prioritizedCommandTerms,
+    setPrioritizedCommandTerms,
+    questionMode,
+    setQuestionMode,
+  } = useAppPreferences();
+  const {
+    questions,
+    setQuestions,
+    activeQuestionIndex,
+    setActiveQuestionIndex,
+    writtenQuestionPresentedAtById,
+    setWrittenQuestionPresentedAtById,
+    answersByQuestionId,
+    setAnswersByQuestionId,
+    imagesByQuestionId,
+    setImagesByQuestionId,
+    feedbackByQuestionId,
+    setFeedbackByQuestionId,
+    questionHistory,
+    setQuestionHistory,
+    writtenRawModelOutput,
+    setWrittenRawModelOutput,
+    writtenGenerationTelemetry,
+    setWrittenGenerationTelemetry,
+    activeWrittenSavedSetId,
+    setActiveWrittenSavedSetId,
+  } = useWrittenSession();
+  const {
+    mcQuestions,
+    setMcQuestions,
+    activeMcQuestionIndex,
+    setActiveMcQuestionIndex,
+    mcQuestionPresentedAtById,
+    setMcQuestionPresentedAtById,
+    mcAnswersByQuestionId,
+    setMcAnswersByQuestionId,
+    mcHistory,
+    setMcHistory,
+    mcRawModelOutput,
+    setMcRawModelOutput,
+    mcGenerationTelemetry,
+    setMcGenerationTelemetry,
+    activeMcSavedSetId,
+    setActiveMcSavedSetId,
+  } = useMultipleChoiceSession();
+  const {
     saveCurrentSet,
-    isGenerating, setIsGenerating, generationStatus, setGenerationStatus, generationStartedAt, setGenerationStartedAt, isMarking, setIsMarking
+    isGenerating,
+    setIsGenerating,
+    generationStatus,
+    setGenerationStatus,
+    generationStartedAt,
+    setGenerationStartedAt,
+    isMarking,
+    setIsMarking,
+    errorMessage,
+    setErrorMessage,
   } = useAppContext();
 
   const activeQuestion = questions[activeQuestionIndex];
@@ -123,11 +164,18 @@ export function GeneratorView() {
 
   const activeMcQuestion = mcQuestions[activeMcQuestionIndex];
   const activeMcAnswer = activeMcQuestion ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? "") : "";
+  const activeMcMarkAppeal = activeMcQuestion ? (mcMarkAppealByQuestionId[activeMcQuestion.id] ?? "") : "";
+  const activeMcAwardedMarks = activeMcQuestion
+    ? mcAwardedMarksByQuestionId[activeMcQuestion.id]
+    : undefined;
+  const activeMcOverrideInput = activeMcQuestion
+    ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ?? (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ""))
+    : "";
 
   const showSetup = questionMode === "written" ? questions.length === 0 : mcQuestions.length === 0;
   const canShowWrittenRawOutput = debugMode && writtenRawModelOutput.trim().length > 0;
   const canShowMcRawOutput = debugMode && mcRawModelOutput.trim().length > 0;
-  
+
   const completedCount = useMemo(
     () => questions.filter((q: { id: string | number; }) => feedbackByQuestionId[q.id]).length,
     [feedbackByQuestionId, questions],
@@ -138,14 +186,21 @@ export function GeneratorView() {
     [mcAnswersByQuestionId, mcQuestions],
   );
 
+  function getMcAwardedMarks(questionId: string, selectedAnswer: string, correctAnswer: string) {
+    const overridden = mcAwardedMarksByQuestionId[questionId];
+    if (typeof overridden === "number" && Number.isFinite(overridden)) {
+      return Math.max(0, Math.min(1, overridden));
+    }
+
+    return selectedAnswer === correctAnswer ? 1 : 0;
+  }
+
   const canGenerate =
     selectedTopics.length > 0 &&
     apiKey.trim().length > 0 &&
     model.trim().length > 0 &&
     questionCount >= 1 &&
     questionCount <= 20 &&
-    maxMarksPerQuestion >= 1 &&
-    maxMarksPerQuestion <= 30 &&
     !isGenerating;
 
   const canGenerateMc =
@@ -202,13 +257,17 @@ export function GeneratorView() {
       return null;
     }
 
-    const correctCount = mcQuestions.reduce((sum, question) => {
+    const achievedMarks = mcQuestions.reduce((sum, question) => {
       const selected = mcAnswersByQuestionId[question.id];
-      return sum + (selected === question.correctAnswer ? 1 : 0);
+      if (!selected) {
+        return sum;
+      }
+
+      return sum + getMcAwardedMarks(question.id, selected, question.correctAnswer);
     }, 0);
 
-    return (correctCount / mcQuestions.length) * 100;
-  }, [isMcSetComplete, mcAnswersByQuestionId, mcQuestions]);
+    return (achievedMarks / mcQuestions.length) * 100;
+  }, [isMcSetComplete, mcAnswersByQuestionId, mcQuestions, mcAwardedMarksByQuestionId]);
 
   const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
 
@@ -228,7 +287,16 @@ export function GeneratorView() {
     const updateElapsed = () => setElapsedSeconds(Math.floor((Date.now() - generationStartedAt) / 1000));
     updateElapsed();
     const timerId = window.setInterval(updateElapsed, 1000);
-    return () => window.clearInterval(timerId);
+    // On Android the interval is throttled/paused when the app is backgrounded.
+    // Recalculate from the anchor timestamp whenever the app comes back to the foreground.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") updateElapsed();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(timerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [generationStartedAt]);
 
   useEffect(() => {
@@ -310,7 +378,7 @@ export function GeneratorView() {
       return;
     }
 
-    const shouldCancel = window.confirm(
+    const shouldCancel = confirmAction(
       "Cancel this question? It will be removed from your current set.",
     );
     if (!shouldCancel) {
@@ -339,7 +407,7 @@ export function GeneratorView() {
       return;
     }
 
-    const shouldCancel = window.confirm(
+    const shouldCancel = confirmAction(
       "Cancel this question? It will be removed from your current set.",
     );
     if (!shouldCancel) {
@@ -355,6 +423,9 @@ export function GeneratorView() {
     setActiveMcQuestionIndex(Math.min(activeMcQuestionIndex, Math.max(0, nextQuestions.length - 1)));
     setMcQuestionPresentedAtById((prev) => removeRecordKey(prev, questionId));
     setMcAnswersByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setMcMarkAppealByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setMcMarkOverrideInputByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setMcAwardedMarksByQuestionId((prev) => removeRecordKey(prev, questionId));
     setErrorMessage(null);
   }
 
@@ -362,8 +433,12 @@ export function GeneratorView() {
     setSelectedTopics((prev) => prev.includes(topic) ? prev.filter((t: Topic) => t !== topic) : [...prev, topic]);
   }
 
-  function toggleSubtopic(sub: MathMethodsSubtopic) {
+  function toggleMathMethodsSubtopic(sub: MathMethodsSubtopic) {
     setMathMethodsSubtopics((prev: MathMethodsSubtopic[]) => prev.includes(sub) ? prev.filter((s: MathMethodsSubtopic) => s !== sub) : [...prev, sub]);
+  }
+
+  function toggleSpecialistMathSubtopic(sub: SpecialistMathSubtopic) {
+    setSpecialistMathSubtopics((prev: SpecialistMathSubtopic[]) => prev.includes(sub) ? prev.filter((s: SpecialistMathSubtopic) => s !== sub) : [...prev, sub]);
   }
 
   function toggleChemistrySubtopic(sub: ChemistrySubtopic) {
@@ -377,6 +452,7 @@ export function GeneratorView() {
   function getSelectedSubtopics() {
     const selectedSubtopics: string[] = [
       ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
+      ...(selectedTopics.includes("Specialist Mathematics") ? specialistMathSubtopics : []),
       ...(selectedTopics.includes("Chemistry") ? chemistrySubtopics : []),
       ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
     ];
@@ -393,12 +469,58 @@ export function GeneratorView() {
     return topic === "Mathematical Methods" || topic === "Specialist Mathematics";
   }
 
+  function togglePrioritizedCommandTerm(term: VceCommandTerm) {
+    setPrioritizedCommandTerms((prev) =>
+      prev.includes(term)
+        ? prev.filter((item: VceCommandTerm) => item !== term)
+        : [...prev, term],
+    );
+  }
+
   function getWrittenAttemptSequence(questionId: string) {
     return questionHistory.filter((entry) => entry.question.id === questionId).length + 1;
   }
 
   function getMcAttemptSequence(questionId: string) {
     return mcHistory.filter((entry) => entry.question.id === questionId).length + 1;
+  }
+
+  function appendMcHistoryEntry(
+    question: typeof activeMcQuestion,
+    selectedAnswer: string,
+    awardedMarks: number,
+    attemptKind: McAttemptKind,
+  ) {
+    if (!question) {
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const createdAtMs = Date.parse(createdAt);
+    const questionStartedAt = mcQuestionPresentedAtById[question.id];
+    const entry: McHistoryEntry = {
+      type: "multiple-choice",
+      id: `${question.id}-${Date.now()}`,
+      createdAt,
+      question,
+      selectedAnswer,
+      correct: awardedMarks >= 1,
+      awardedMarks,
+      maxMarks: 1,
+      generationTelemetry: mcGenerationTelemetry ?? undefined,
+      analytics: {
+        attemptKind,
+        attemptSequence: getMcAttemptSequence(question.id),
+        answerCharacterCount: 0,
+        answerWordCount: 0,
+        usedImageUpload: false,
+        responseLatencyMs: Number.isFinite(questionStartedAt)
+          ? Math.max(0, createdAtMs - questionStartedAt)
+          : undefined,
+      },
+    };
+
+    setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
   }
 
   function appendWrittenHistoryEntry(
@@ -477,6 +599,7 @@ export function GeneratorView() {
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
     const customFocus = getCustomFocusArea();
+    const hasAnyNonMathTopic = selectedTopics.some((topic) => !isMathTopic(topic));
     startStopwatch();
     setErrorMessage(null);
     setGenerationStatus({
@@ -493,7 +616,7 @@ export function GeneratorView() {
           topics: selectedTopics,
           difficulty,
           questionCount,
-          maxMarksPerQuestion,
+          prioritizedCommandTerms: hasAnyNonMathTopic ? prioritizedCommandTerms : [],
           model,
           apiKey,
           techMode,
@@ -697,6 +820,9 @@ export function GeneratorView() {
       setActiveMcSavedSetId(null);
       setMcQuestionPresentedAtById({});
       setMcAnswersByQuestionId({});
+      setMcMarkAppealByQuestionId({});
+      setMcMarkOverrideInputByQuestionId({});
+      setMcAwardedMarksByQuestionId({});
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({
@@ -711,32 +837,120 @@ export function GeneratorView() {
     }
   }
 
+  const hasAnyMathTopic = selectedTopics.some((topic) => isMathTopic(topic));
+  const hasAnyNonMathTopic = selectedTopics.some((topic) => !isMathTopic(topic));
+  const commandTermsDisabled = !hasAnyNonMathTopic;
+
   function handleMcAnswer(selectedLabel: string) {
     if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
+
+    const awardedMarks = selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
     setMcAnswersByQuestionId((prev: any) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
-    const correct = selectedLabel === activeMcQuestion.correctAnswer;
-    const createdAt = new Date().toISOString();
-    const createdAtMs = Date.parse(createdAt);
-    const questionStartedAt = mcQuestionPresentedAtById[activeMcQuestion.id];
-    const entry: McHistoryEntry = {
-      type: "multiple-choice",
-      id: `${activeMcQuestion.id}-${Date.now()}`,
-      createdAt,
-      question: activeMcQuestion,
-      selectedAnswer: selectedLabel,
-      correct,
-      generationTelemetry: mcGenerationTelemetry ?? undefined,
-      analytics: {
-        attemptSequence: getMcAttemptSequence(activeMcQuestion.id),
-        answerCharacterCount: 0,
-        answerWordCount: 0,
-        usedImageUpload: false,
-        responseLatencyMs: Number.isFinite(questionStartedAt)
-          ? Math.max(0, createdAtMs - questionStartedAt)
-          : undefined,
-      },
-    };
-    setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
+    setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: awardedMarks }));
+    setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: String(awardedMarks) }));
+    appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial");
+  }
+
+  function buildMcMarkingPrompt(question: typeof activeMcQuestion) {
+    if (!question) {
+      return "";
+    }
+
+    const optionsText = question.options
+      .map((option: McOption) => `${option.label}. ${option.text}`)
+      .join("\n");
+
+    return `${question.promptMarkdown}\n\nOptions:\n${optionsText}`;
+  }
+
+  async function handleArgueForMcMark() {
+    if (!activeMcQuestion || !activeMcAnswer) {
+      return;
+    }
+
+    const appealText = activeMcMarkAppeal.trim();
+    if (appealText.length === 0) {
+      setErrorMessage("Enter your argument before requesting a re-mark.");
+      return;
+    }
+
+    if (apiKey.trim().length === 0 || model.trim().length === 0) {
+      setErrorMessage("Configure API key and model before requesting a re-mark.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsMarking(true);
+
+    try {
+      const selectedOptionText = activeMcQuestion.options.find((option: McOption) => option.label === activeMcAnswer)?.text ?? "";
+      const arguedAnswer = [
+        `Student selected option ${activeMcAnswer}: ${selectedOptionText}`,
+        `Student argument for marks:\n${appealText}`,
+      ]
+        .filter((part) => part.trim().length > 0)
+        .join("\n\n");
+
+      const rawResponse = await invoke<unknown>("mark_answer", {
+        request: {
+          question: {
+            id: activeMcQuestion.id,
+            topic: activeMcQuestion.topic,
+            subtopic: activeMcQuestion.subtopic,
+            promptMarkdown: buildMcMarkingPrompt(activeMcQuestion),
+            maxMarks: 1,
+            techAllowed: Boolean(activeMcQuestion.techAllowed),
+          },
+          studentAnswer: arguedAnswer,
+          model,
+          apiKey,
+          useStructuredOutput,
+        },
+      });
+
+      const response = normalizeMarkResponse(rawResponse, 1);
+      const awardedMarks = Math.max(0, Math.min(1, response.achievedMarks));
+
+      setMcAwardedMarksByQuestionId((prev) => ({
+        ...prev,
+        [activeMcQuestion.id]: awardedMarks,
+      }));
+      setMcMarkOverrideInputByQuestionId((prev) => ({
+        ...prev,
+        [activeMcQuestion.id]: String(awardedMarks),
+      }));
+      appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, awardedMarks, "appeal");
+    } catch (error) {
+      setErrorMessage(readBackendError(error));
+    } finally {
+      setIsMarking(false);
+    }
+  }
+
+  function handleOverrideMcMark() {
+    if (!activeMcQuestion || !activeMcAnswer) {
+      return;
+    }
+
+    const parsed = Number(activeMcOverrideInput);
+    if (!Number.isFinite(parsed)) {
+      setErrorMessage("Enter a whole number to override the mark.");
+      return;
+    }
+
+    const rounded = Math.round(parsed);
+    const clampedMarks = Math.max(0, Math.min(1, rounded));
+
+    setErrorMessage(null);
+    setMcAwardedMarksByQuestionId((prev) => ({
+      ...prev,
+      [activeMcQuestion.id]: clampedMarks,
+    }));
+    setMcMarkOverrideInputByQuestionId((prev) => ({
+      ...prev,
+      [activeMcQuestion.id]: String(clampedMarks),
+    }));
+    appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, clampedMarks, "override");
   }
 
   function handleStartOver() {
@@ -762,6 +976,9 @@ export function GeneratorView() {
     setActiveMcSavedSetId(null);
     setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({});
+    setMcMarkAppealByQuestionId({});
+    setMcMarkOverrideInputByQuestionId({});
+    setMcAwardedMarksByQuestionId({});
   }
 
   function handlePromptFallbackChange(isFallback: boolean) {
@@ -866,7 +1083,7 @@ export function GeneratorView() {
             </div>
 
             {/* Subtopic Drill-downs */}
-            {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education")) && (
+            {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education")) && (
               <div className="bg-muted/30 p-4 rounded-xl border space-y-2">
                 {selectedTopics.includes("Mathematical Methods") && (
                   <div className="space-y-2">
@@ -880,7 +1097,27 @@ export function GeneratorView() {
                           key={sub}
                           variant={mathMethodsSubtopics.includes(sub) ? "default" : "outline"}
                           className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => toggleSubtopic(sub)}
+                          onClick={() => toggleMathMethodsSubtopic(sub)}
+                        >
+                          {sub}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedTopics.includes("Specialist Mathematics") && (
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-sm font-semibold">Specialist Mathematics Focus Areas</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Leave all unselected to test across the entire curriculum.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SPECIALIST_MATH_SUBTOPICS.map((sub) => (
+                        <Badge
+                          key={sub}
+                          variant={specialistMathSubtopics.includes(sub) ? "default" : "outline"}
+                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${specialistMathSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          onClick={() => toggleSpecialistMathSubtopic(sub)}
                         >
                           {sub}
                         </Badge>
@@ -983,10 +1220,39 @@ export function GeneratorView() {
               {questionMode === "written" && (
                 <div className="space-y-1.5 pt-1 md:col-span-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-sm font-semibold">Max Marks per Question</Label>
-                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{maxMarksPerQuestion} Marks</Badge>
+                    <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{prioritizedCommandTerms.length} Selected</Badge>
                   </div>
-                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-1" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {VCE_COMMAND_TERMS.map((term) => {
+                      const isSelected = prioritizedCommandTerms.includes(term);
+                      return (
+                        <Badge
+                          key={term}
+                          variant={isSelected ? "default" : "outline"}
+                          className={`px-3 py-1.5 text-xs transition-colors ${commandTermsDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
+                          onClick={() => {
+                            if (!commandTermsDisabled) {
+                              togglePrioritizedCommandTerm(term);
+                            }
+                          }}
+                        >
+                          {term}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The model is instructed to focus on what each command term means and what a student must do to answer successfully.
+                    {commandTermsDisabled
+                      ? " Command-term prioritisation is currently disabled because only Mathematics topics are selected."
+                      : hasAnyMathTopic
+                        ? " Command-term prioritisation applies to non-Mathematics questions only."
+                        : ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Lower-mark demand than Evaluate: {VCE_COMMAND_TERMS_LOWER_THAN_EVALUATE.join(", ")}
+                  </p>
                 </div>
               )}
 
@@ -1029,7 +1295,7 @@ export function GeneratorView() {
                 <span><strong>API Key Missing:</strong> Go to Settings to configure your OpenRouter API Key before generating questions.</span>
               </div>
             )}
-            
+
           </CardContent>
 
           <CardFooter className="bg-muted/20 p-4 md:p-5 border-t flex flex-col gap-3">
@@ -1066,7 +1332,7 @@ export function GeneratorView() {
         </Card>
 
 
-  ) : showCompletionScreen && isSetComplete ? (
+      ) : showCompletionScreen && isSetComplete ? (
         <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden animate-in fade-in duration-500">
           <CardHeader className="border-b bg-muted/20 p-5 md:p-6">
             <div className="flex flex-col gap-2">
@@ -1119,75 +1385,150 @@ export function GeneratorView() {
       ) : questionMode === "written" ? (
         // ── Written Question View ──
         <div className="flex min-h-full flex-col gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
-          
-          {/* Sticky Header Panel */}
-          <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b pb-4 pt-2 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-extrabold tracking-tight bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Question {activeQuestionIndex + 1}
-                </h2>
-                <span className="text-xl text-muted-foreground font-medium">of {questions.length}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">{activeQuestion?.topic}</Badge>
-                <Badge variant="outline" className="font-semibold">{activeQuestion?.maxMarks} Marks</Badge>
+
+          <div className="sticky px-4.5 top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-3 pt-2 backdrop-blur-xl">
+
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <div className="flex items-baseline gap-1.5 shrink-0">
+                  <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                    Question {activeQuestionIndex + 1}
+                  </h2>
+                  <span className="text-sm text-muted-foreground font-medium">/ {questions.length}</span>
+                </div>
+
+                <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
+                  {activeQuestion?.topic}
+                </Badge>
+                <Badge variant="outline" className="shrink-0 font-semibold">
+                  {activeQuestion?.maxMarks} marks
+                </Badge>
                 {activeQuestion && isMathTopic(activeQuestion.topic) && activeQuestion.techAllowed !== undefined && (
-                  <Badge variant={activeQuestion.techAllowed ? "default" : "destructive"} className="shadow-sm">
-                    {activeQuestion.techAllowed ? "Tech-Active (CAS allowed)" : "Tech-Free (No calculator)"}
+                  <Badge
+                    variant={activeQuestion.techAllowed ? "default" : "destructive"}
+                    className="shrink-0"
+                  >
+                    {activeQuestion.techAllowed ? "Tech-active" : "Tech-free"}
                   </Badge>
                 )}
-                {activeQuestionFallbackUsed && (
-                  <Badge variant="outline" className="border-amber-500/60 bg-amber-100/60 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
-                    LaTeX Recovery Applied
-                  </Badge>
-                )}
-                {generationStartedAt !== null && (
-                  <Badge variant="outline" className="inline-flex items-center gap-1.5 font-mono bg-muted/50">
-                    <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
-                  </Badge>
-                )}
-                {writtenGenerationTelemetry && (
-                  <Badge variant="outline" className="bg-muted/50">
-                    Generated in {formatDurationMs(writtenGenerationTelemetry.durationMs)}
-                  </Badge>
-                )}
-                {writtenGenerationTelemetry && writtenGenerationTelemetry.totalAttempts > 1 && (
-                  <Badge variant="outline" className="border-amber-500/60 bg-amber-100/60 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
-                    {writtenGenerationTelemetry.totalAttempts} attempts • {writtenGenerationTelemetry.repairAttempts} repair pass{writtenGenerationTelemetry.repairAttempts === 1 ? "" : "es"}
-                  </Badge>
-                )}
-                {writtenGenerationTelemetry?.constrainedRegenerationUsed && (
-                  <Badge variant="outline" className="border-red-500/60 bg-red-100/60 text-red-900 dark:border-red-500/60 dark:bg-red-900/40 dark:text-red-200">
-                    Full regeneration fallback used
-                  </Badge>
-                )}
-                {renderStructuredOutputBadge(writtenGenerationTelemetry?.structuredOutputStatus)}
               </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                      aria-label="Question details"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-3">
+                    <div className="flex flex-col gap-2 text-xs">
+                      <div className="font-semibold text-background">Question details</div>
+                      {generationStartedAt !== null && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>Timer</span>
+                          <span className="font-mono text-background">{formattedElapsedTime}</span>
+                        </div>
+                      )}
+                      {writtenGenerationTelemetry && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>Generation time</span>
+                          <span className="text-background">{formatDurationMs(writtenGenerationTelemetry.durationMs)}</span>
+                        </div>
+                      )}
+                      {writtenGenerationTelemetry && (writtenGenerationTelemetry.totalAttempts ?? 0) > 1 && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>Attempts</span>
+                          <span className="text-right text-background">
+                            {(writtenGenerationTelemetry.totalAttempts ?? 0)} total, {(writtenGenerationTelemetry.repairAttempts ?? 0)} repair
+                          </span>
+                        </div>
+                      )}
+                      {activeQuestionFallbackUsed && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>LaTeX</span>
+                          <span className="text-amber-300">Recovery applied</span>
+                        </div>
+                      )}
+                      {writtenGenerationTelemetry?.constrainedRegenerationUsed && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>Fallback</span>
+                          <span className="text-red-300">Full regeneration used</span>
+                        </div>
+                      )}
+                      {writtenGenerationTelemetry?.structuredOutputStatus === "used" && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>Structured output</span>
+                          <span className="text-emerald-300">JSON used</span>
+                        </div>
+                      )}
+                      {writtenGenerationTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
+                        <div className="flex items-center justify-between gap-3 text-background/80">
+                          <span>Structured output</span>
+                          <span className="text-amber-300">Fallback used</span>
+                        </div>
+                      )}
+                      {generationStartedAt === null && !writtenGenerationTelemetry && !activeQuestionFallbackUsed && (
+                        <div className="text-background/80">No extra generation diagnostics.</div>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button
+                variant={activeWrittenSavedSetId ? "default" : "outline"}
+                size="sm"
+                onClick={saveCurrentSet}
+                className="h-8 gap-1.5"
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleCancelWrittenQuestion}
+                disabled={questions.length === 0}
+                className="h-8"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleStartOver}
+                className="h-8 text-muted-foreground hover:text-foreground"
+              >
+                Exit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))}
+                disabled={activeQuestionIndex === 0}
+                className="h-8"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Prev</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextWrittenQuestion}
+                disabled={!canAdvanceWritten}
+                className="h-8"
+              >
+                <span className="hidden sm:inline">{isAtLastWrittenQuestion ? "Summary" : "Next"}</span>
+                <ArrowRight className="w-3.5 h-3.5 sm:ml-1.5" />
+              </Button>
             </div>
 
-            <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-              <div className="flex items-center gap-2 w-full justify-end">
-                <Button variant={activeWrittenSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="gap-2 shadow-sm">
-                  <Bookmark className="w-4 h-4" />
-                  <span className="hidden md:inline">{activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
-                </Button>
-                <Button variant="destructive" size="sm" onClick={handleCancelWrittenQuestion} disabled={questions.length === 0} className="shadow-sm">
-                  <Trash2 className="w-4 h-4 md:mr-2" />
-                  <span className="hidden md:inline">Cancel Question</span>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
-                <Separator orientation="vertical" className="h-6 hidden md:block" />
-                <Button variant="outline" size="sm" onClick={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))} disabled={activeQuestionIndex === 0} className="shadow-sm">
-                  <ArrowLeft className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Previous</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleNextWrittenQuestion} disabled={!canAdvanceWritten} className="shadow-sm">
-                  <span className="hidden md:inline">{isAtLastWrittenQuestion ? "View Summary" : "Next"}</span> <ArrowRight className="w-4 h-4 md:ml-2" />
-                </Button>
-              </div>
-              <div className="hidden md:block w-full">
-                {renderProgressBar(activeQuestionIndex + 1, questions.length, completedCount)}
-              </div>
+            <div className="w-full">
+              {renderProgressBar(activeQuestionIndex + 1, questions.length, completedCount)}
             </div>
           </div>
 
@@ -1229,82 +1570,82 @@ export function GeneratorView() {
                 </CardHeader>
                 <CardContent className="space-y-2 flex-1 flex flex-col">
                   {!activeFeedback ? (
-                     <div className="flex-1 flex flex-col gap-6">
-                        <div className="space-y-3 flex-1">
-                           <Label className="text-base font-semibold">Type your answer</Label>
-                           <Textarea
-                             placeholder="Compose your response here..."
-                             className="min-h-[200px] resize-y text-base p-4 focus-visible:ring-primary/30"
-                             value={activeQuestionAnswer}
-                             onChange={(e) => setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
-                             disabled={isMarking}
-                           />
-                        </div>
+                    <div className="flex-1 flex flex-col gap-6">
+                      <div className="space-y-3 flex-1">
+                        <Label className="text-base font-semibold">Type your answer</Label>
+                        <Textarea
+                          placeholder="Compose your response here..."
+                          className="min-h-[200px] resize-y text-base p-4 focus-visible:ring-primary/30"
+                          value={activeQuestionAnswer}
+                          onChange={(e) => setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
+                          disabled={isMarking}
+                        />
+                      </div>
 
-                        <div className="space-y-3">
-                          <Label className="text-base font-semibold">Or upload working (Image)</Label>
-                          {activeQuestionImage ? (
-                            <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm bg-muted/30 p-2">
-                               <img src={activeQuestionImage.dataUrl} alt="Uploaded text" className="w-full h-auto max-h-80 object-contain rounded-lg" />
-                               <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                                  <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
-                                    <Trash2 className="w-4 h-4 mr-2" /> Remove Image
-                                  </Button>
-                               </div>
+                      <div className="space-y-3">
+                        <Label className="text-base font-semibold">Or upload working (Image)</Label>
+                        {activeQuestionImage ? (
+                          <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm bg-muted/30 p-2">
+                            <img src={activeQuestionImage.dataUrl} alt="Uploaded text" className="w-full h-auto max-h-80 object-contain rounded-lg" />
+                            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                              <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
+                                <Trash2 className="w-4 h-4 mr-2" /> Remove Image
+                              </Button>
                             </div>
-                          ) : (
-                            <div className="border-2 border-dashed border-border rounded-xl hover:bg-muted/30 transition-colors">
-                              <Dropzone onDrop={handleDropDropzone} />
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed border-border rounded-xl hover:bg-muted/30 transition-colors">
+                            <Dropzone onDrop={handleDropDropzone} />
+                          </div>
+                        )}
+                      </div>
 
-                        <Button 
-                          size="lg"
-                          className="w-full mt-auto h-14 text-base font-bold shadow-md transition-all hover:shadow-primary/20" 
-                          onClick={handleSubmitForMarking}
-                          disabled={!canSubmitAnswer || isMarking}
-                        >
-                          {isMarking ? <><Loader2 className="w-5 h-5 mr-3 animate-spin" /> Evaluating Answer...</> : <><CheckCircle2 className="w-5 h-5 mr-2" /> Submit for Marking</>}
-                        </Button>
-                     </div>
+                      <Button
+                        size="lg"
+                        className="w-full mt-auto h-14 text-base font-bold shadow-md transition-all hover:shadow-primary/20"
+                        onClick={handleSubmitForMarking}
+                        disabled={!canSubmitAnswer || isMarking}
+                      >
+                        {isMarking ? <><Loader2 className="w-5 h-5 mr-3 animate-spin" /> Evaluating Answer...</> : <><CheckCircle2 className="w-5 h-5 mr-2" /> Submit for Marking</>}
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-2 animate-in slide-in-from-right-4 duration-500">
                       <div className="space-y-4">
-                         <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Submitted Answer</Label>
-                         {activeQuestionAnswer.trim().length > 0 ? (
-                           <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
-                             <MarkdownMath content={activeQuestionAnswer} />
-                           </div>
-                         ) : (
-                           <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
-                             No typed answer was submitted.
-                           </div>
-                         )}
+                        <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Submitted Answer</Label>
+                        {activeQuestionAnswer.trim().length > 0 ? (
+                          <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
+                            <MarkdownMath content={activeQuestionAnswer} />
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                            No typed answer was submitted.
+                          </div>
+                        )}
 
-                         {activeQuestionImage && (
-                           <div className="space-y-3">
-                             <Label className="text-base font-semibold">Uploaded working</Label>
-                             <div className="rounded-xl border border-border/50 bg-muted/20 p-3 shadow-sm">
-                               <img src={activeQuestionImage.dataUrl} alt="Submitted working" className="w-full h-auto max-h-96 object-contain rounded-lg" />
-                             </div>
-                           </div>
-                         )}
+                        {activeQuestionImage && (
+                          <div className="space-y-3">
+                            <Label className="text-base font-semibold">Uploaded working</Label>
+                            <div className="rounded-xl border border-border/50 bg-muted/20 p-3 shadow-sm">
+                              <img src={activeQuestionImage.dataUrl} alt="Submitted working" className="w-full h-auto max-h-96 object-contain rounded-lg" />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Score Banner */}
                       <div className="bg-linear-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 rounded-2xl flex justify-between items-center shadow-sm relative overflow-hidden">
-                         <div className="absolute -right-4 -top-4 opacity-5 pointer-events-none">
-                            <Target className="w-32 h-32" />
-                         </div>
-                         <div className="relative z-10">
-                            <div className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Total Score</div>
-                            <div className="text-5xl font-extrabold text-foreground">{activeFeedback.scoreOutOf10}<span className="ml-1 text-2xl text-muted-foreground font-medium">/ 10</span></div>
-                         </div>
-                         <div className="text-right relative z-10 bg-background/80 backdrop-blur px-4 py-2 rounded-xl border">
-                           <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Marks Awarded</div>
-                           <div className="text-2xl font-bold">{activeFeedback.achievedMarks} <span className="text-base text-muted-foreground font-normal">/ {activeFeedback.maxMarks}</span></div>
-                         </div>
+                        <div className="absolute -right-4 -top-4 opacity-5 pointer-events-none">
+                          <Target className="w-32 h-32" />
+                        </div>
+                        <div className="relative z-10">
+                          <div className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Total Score</div>
+                          <div className="text-5xl font-extrabold text-foreground">{activeFeedback.scoreOutOf10}<span className="ml-1 text-2xl text-muted-foreground font-medium">/ 10</span></div>
+                        </div>
+                        <div className="text-right relative z-10 bg-background/80 backdrop-blur px-4 py-2 rounded-xl border">
+                          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Marks Awarded</div>
+                          <div className="text-2xl font-bold">{activeFeedback.achievedMarks} <span className="text-base text-muted-foreground font-normal">/ {activeFeedback.maxMarks}</span></div>
+                        </div>
                       </div>
 
                       <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-4">
@@ -1362,29 +1703,35 @@ export function GeneratorView() {
                       </div>
 
                       <div className="space-y-4">
-                         <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-500" /> AI Feedback</Label>
-                         <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
-                           <MarkdownMath content={activeFeedback.feedbackMarkdown} />
-                         </div>
+                        <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-500" /> AI Feedback</Label>
+                        <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
+                          <MarkdownMath content={activeFeedback.feedbackMarkdown} />
+                        </div>
                       </div>
 
                       <div className="space-y-4">
-                         <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Check className="w-5 h-5 text-green-500" /> Marking Scheme</Label>
-                         <div className="space-y-3 mt-2">
-                           {activeFeedback.vcaaMarkingScheme.map((item, idx) => {
-                             const isFullMarks = item.achievedMarks === item.maxMarks;
-                             return (
-                               <div key={idx} className={`p-4 rounded-xl border text-sm flex justify-between gap-6 transition-colors ${isFullMarks ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" : "bg-card"}`}>
-                                 <div className="leading-relaxed flex-1">
-                                   <MarkdownMath content={item.criterion} />
-                                 </div>
-                                 <span className={`font-bold whitespace-nowrap px-3 py-1 rounded-md h-fit ${isFullMarks ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" : "bg-muted"}`}>
-                                   {item.achievedMarks} / {item.maxMarks}
-                                 </span>
-                               </div>
-                             );
-                           })}
-                         </div>
+                        <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Check className="w-5 h-5 text-green-500" /> Marking Scheme</Label>
+                        <div className="space-y-3 mt-2">
+                          {activeFeedback.vcaaMarkingScheme.map((item: { criterion: string; achievedMarks: number; maxMarks: number; rationale: string }, idx: number) => {
+                            const isFullMarks = item.achievedMarks === item.maxMarks;
+                            return (
+                              <div key={idx} className={`p-4 rounded-xl border text-sm flex justify-between gap-6 transition-colors ${isFullMarks ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" : "bg-card"}`}>
+                                <div className="leading-relaxed flex-1 space-y-2">
+                                  <MarkdownMath content={item.criterion} />
+                                  {item.rationale.trim().length > 0 && (
+                                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rationale</p>
+                                      <MarkdownMath content={item.rationale} />
+                                    </div>
+                                  )}
+                                </div>
+                                <span className={`font-bold whitespace-nowrap px-3 py-1 rounded-md h-fit ${isFullMarks ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" : "bg-muted"}`}>
+                                  {item.achievedMarks} / {item.maxMarks}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1396,69 +1743,111 @@ export function GeneratorView() {
       ) : (
         // ── Multiple Choice Question View ──
         <div className="flex flex-col h-full gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
-          
-          <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b pb-4 pt-2 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-extrabold tracking-tight bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Question {activeMcQuestionIndex + 1}
-                </h2>
-                <span className="text-xl text-muted-foreground font-medium">of {mcQuestions.length}</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">{activeMcQuestion?.topic}</Badge>
-                <Badge variant="outline" className="font-semibold bg-muted/50">Multiple Choice</Badge>
-                {activeMcQuestion && isMathTopic(activeMcQuestion.topic) && activeMcQuestion.techAllowed !== undefined && (
-                  <Badge variant={activeMcQuestion.techAllowed ? "default" : "destructive"} className="shadow-sm">
-                    {activeMcQuestion.techAllowed ? "Tech-Active (CAS allowed)" : "Tech-Free (No calculator)"}
-                  </Badge>
-                )}
-                {generationStartedAt !== null && (
-                  <Badge variant="outline" className="inline-flex items-center gap-1.5 font-mono bg-muted/50">
-                    <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
-                  </Badge>
-                )}
-                {mcGenerationTelemetry && (
-                  <Badge variant="outline" className="bg-muted/50">
-                    Generated in {formatDurationMs(mcGenerationTelemetry.durationMs)}
-                  </Badge>
-                )}
-                {mcGenerationTelemetry && mcGenerationTelemetry.totalAttempts > 1 && (
-                  <Badge variant="outline" className="border-amber-500/60 bg-amber-100/60 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/40 dark:text-amber-200">
-                    {mcGenerationTelemetry.totalAttempts} attempts • {mcGenerationTelemetry.repairAttempts} repair pass{mcGenerationTelemetry.repairAttempts === 1 ? "" : "es"}
-                  </Badge>
-                )}
-                {mcGenerationTelemetry?.constrainedRegenerationUsed && (
-                  <Badge variant="outline" className="border-red-500/60 bg-red-100/60 text-red-900 dark:border-red-500/60 dark:bg-red-900/40 dark:text-red-200">
-                    Full regeneration fallback used
-                  </Badge>
-                )}
-                {renderStructuredOutputBadge(mcGenerationTelemetry?.structuredOutputStatus)}
+
+          <div className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-4 pt-2 backdrop-blur-xl">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex flex-wrap items-center gap-3">
+                  <h2 className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent sm:text-3xl">
+                    Question {activeMcQuestionIndex + 1}
+                  </h2>
+                  <span className="text-base font-medium text-muted-foreground sm:text-xl">of {mcQuestions.length}</span>
+                </div>
+                <div className="flex flex-row justify-between ">
+                  <div className="mt-1 flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 text-xs sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">{activeMcQuestion?.topic}</Badge>
+                    <Badge variant="outline" className="shrink-0 bg-muted/50 font-semibold">Multiple Choice</Badge>
+                    {activeMcQuestion && isMathTopic(activeMcQuestion.topic) && activeMcQuestion.techAllowed !== undefined && (
+                      <Badge variant={activeMcQuestion.techAllowed ? "default" : "destructive"} className="shrink-0 shadow-sm">
+                        <span className="sm:hidden">{activeMcQuestion.techAllowed ? "Tech-Active" : "Tech-Free"}</span>
+                        <span className="hidden sm:inline">{activeMcQuestion.techAllowed ? "Tech-Active (CAS allowed)" : "Tech-Free (No calculator)"}</span>
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-row gap-x-1.5">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                            aria-label="Question details"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="end" sideOffset={8}>
+                          <div className="flex flex-col gap-2 text-xs">
+                            <div className="font-semibold text-background">Question details</div>
+                            {generationStartedAt !== null && (
+                              <div className="flex items-center justify-between gap-3 text-background/80">
+                                <span>Timer</span>
+                                <span className="font-mono text-background">{formattedElapsedTime}</span>
+                              </div>
+                            )}
+                            {mcGenerationTelemetry && (
+                              <div className="flex items-center justify-between gap-3 text-background/80">
+                                <span>Generation time</span>
+                                <span className="text-background">{formatDurationMs(mcGenerationTelemetry.durationMs)}</span>
+                              </div>
+                            )}
+                            {mcGenerationTelemetry && mcGenerationTelemetry.totalAttempts > 1 && (
+                              <div className="flex items-center justify-between gap-3 text-background/80">
+                                <span>Attempts</span>
+                                <span className="text-right text-background">
+                                  {mcGenerationTelemetry.totalAttempts} total, {mcGenerationTelemetry.repairAttempts} repair
+                                </span>
+                              </div>
+                            )}
+                            {mcGenerationTelemetry?.constrainedRegenerationUsed && (
+                              <div className="flex items-center justify-between gap-3 text-background/80">
+                                <span>Fallback</span>
+                                <span className="text-red-300">Full regeneration used</span>
+                              </div>
+                            )}
+                            {mcGenerationTelemetry?.structuredOutputStatus === "used" && (
+                              <div className="flex items-center justify-between gap-3 text-background/80">
+                                <span>Structured output</span>
+                                <span className="text-emerald-300">JSON used</span>
+                              </div>
+                            )}
+                            {mcGenerationTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
+                              <div className="flex items-center justify-between gap-3 text-background/80">
+                                <span>Structured output</span>
+                                <span className="text-amber-300">Fallback used</span>
+                              </div>
+                            )}
+                            {generationStartedAt === null && !mcGenerationTelemetry && (
+                              <div className="text-background/80">No extra generation diagnostics.</div>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button variant={activeMcSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="gap-2 shadow-sm">
+                      <Bookmark className="w-4 h-4" />
+                      <span className="hidden xl:inline">{activeMcSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleCancelMcQuestion} disabled={mcQuestions.length === 0} className="shadow-sm">
+                      <Trash2 className="w-4 h-4 xl:mr-2" />
+                      <span className="hidden xl:inline">Cancel Question</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
+                    <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))} disabled={activeMcQuestionIndex === 0} className="shadow-sm">
+                      <ArrowLeft className="w-4 h-4 xl:mr-2" /> <span className="hidden xl:inline">Previous</span>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleNextMcQuestion} disabled={!canAdvanceMc} className="shadow-sm">
+                      <span className="hidden xl:inline">{isAtLastMcQuestion ? "View Summary" : "Next"}</span> <ArrowRight className="w-4 h-4 xl:ml-2" />
+                    </Button>
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-              <div className="flex items-center gap-2 w-full justify-end">
-                <Button variant={activeMcSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="gap-2 shadow-sm">
-                  <Bookmark className="w-4 h-4" />
-                  <span className="hidden md:inline">{activeMcSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
-                </Button>
-                <Button variant="destructive" size="sm" onClick={handleCancelMcQuestion} disabled={mcQuestions.length === 0} className="shadow-sm">
-                  <Trash2 className="w-4 h-4 md:mr-2" />
-                  <span className="hidden md:inline">Cancel Question</span>
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
-                <Separator orientation="vertical" className="h-6 hidden md:block" />
-                <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))} disabled={activeMcQuestionIndex === 0} className="shadow-sm">
-                  <ArrowLeft className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Previous</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleNextMcQuestion} disabled={!canAdvanceMc} className="shadow-sm">
-                  <span className="hidden md:inline">{isAtLastMcQuestion ? "View Summary" : "Next"}</span> <ArrowRight className="w-4 h-4 md:ml-2" />
-                </Button>
-              </div>
-              <div className="hidden md:block w-full">
-                {renderProgressBar(activeMcQuestionIndex + 1, mcQuestions.length, mcCompletedCount)}
-              </div>
+            <div className="w-full">
+              {renderProgressBar(activeMcQuestionIndex + 1, mcQuestions.length, mcCompletedCount)}
             </div>
           </div>
 
@@ -1502,9 +1891,9 @@ export function GeneratorView() {
                       const answered = Boolean(activeMcAnswer);
                       const isChosen = activeMcAnswer === opt.label;
                       const isCorrect = opt.label === activeMcQuestion.correctAnswer;
-                      
+
                       let dynamicClasses = "border-2 bg-card hover:border-primary/50 hover:bg-muted/50";
-                      
+
                       if (answered) {
                         if (isCorrect) {
                           dynamicClasses = "border-green-500 bg-green-50 dark:bg-green-950/40 shadow-sm ring-1 ring-green-500/20";
@@ -1534,22 +1923,84 @@ export function GeneratorView() {
                   </div>
 
                   {activeMcAnswer && (
-                    <div className={`mt-6 p-6 rounded-2xl border-2 flex gap-4 items-start animate-in zoom-in-95 duration-300 ${
-                      activeMcAnswer === activeMcQuestion.correctAnswer
+                    <div className="mt-6 space-y-4 animate-in zoom-in-95 duration-300">
+                      <div className={`p-6 rounded-2xl border-2 flex gap-4 items-start ${activeMcAnswer === activeMcQuestion.correctAnswer
                         ? "bg-green-50/80 dark:bg-green-950/30 border-green-200 dark:border-green-900/50 text-green-900 dark:text-green-100"
                         : "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-900 dark:text-red-100"
-                    }`}>
-                      {activeMcAnswer === activeMcQuestion.correctAnswer
-                        ? <CheckCircle2 className="w-8 h-8 shrink-0 text-green-600 dark:text-green-400" />
-                        : <XCircle className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" />}
-                      <div className="flex-1">
-                        <p className="font-extrabold text-lg mb-2 flex items-center gap-2">
-                          {activeMcAnswer === activeMcQuestion.correctAnswer
-                            ? "Excellent! That is correct."
-                            : `Incorrect. The correct answer is ${activeMcQuestion.correctAnswer}.`}
-                        </p>
-                        <div className="prose prose-sm dark:prose-invert max-w-none opacity-90">
-                          <MarkdownMath content={activeMcQuestion.explanationMarkdown} />
+                        }`}>
+                        {activeMcAnswer === activeMcQuestion.correctAnswer
+                          ? <CheckCircle2 className="w-8 h-8 shrink-0 text-green-600 dark:text-green-400" />
+                          : <XCircle className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" />}
+                        <div className="flex-1">
+                          <p className="font-extrabold text-lg mb-2 flex items-center gap-2">
+                            {activeMcAnswer === activeMcQuestion.correctAnswer
+                              ? "Excellent! That is correct."
+                              : `Incorrect. The correct answer is ${activeMcQuestion.correctAnswer}.`}
+                          </p>
+                          <div className="prose prose-sm dark:prose-invert max-w-none opacity-90">
+                            <MarkdownMath content={activeMcQuestion.explanationMarkdown} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-4">
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                          <div className="text-sm font-semibold">Awarded mark</div>
+                          <div className="text-lg font-bold">
+                            {(activeMcAwardedMarks ?? (activeMcAnswer === activeMcQuestion.correctAnswer ? 1 : 0)).toFixed(0)} / 1
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Argue for Mark</Label>
+                          <Textarea
+                            placeholder="Explain why this answer should still receive a mark..."
+                            className="min-h-[96px]"
+                            value={activeMcMarkAppeal}
+                            onChange={(e) =>
+                              setMcMarkAppealByQuestionId((prev) => ({
+                                ...prev,
+                                [activeMcQuestion.id]: e.target.value,
+                              }))
+                            }
+                            disabled={isMarking}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleArgueForMcMark}
+                            disabled={isMarking || activeMcMarkAppeal.trim().length === 0}
+                          >
+                            {isMarking ? (
+                              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Re-marking...</>
+                            ) : (
+                              <>Argue for Mark</>
+                            )}
+                          </Button>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Override Mark</Label>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={1}
+                              step={1}
+                              className="sm:max-w-28"
+                              value={activeMcOverrideInput}
+                              onChange={(e) =>
+                                setMcMarkOverrideInputByQuestionId((prev) => ({
+                                  ...prev,
+                                  [activeMcQuestion.id]: e.target.value,
+                                }))
+                              }
+                            />
+                            <span className="text-sm text-muted-foreground">out of 1</span>
+                            <Button type="button" onClick={handleOverrideMcMark}>Apply Override</Button>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -33,6 +33,29 @@ export function formatDate(isoString: string): string {
   return date.toLocaleString();
 }
 
+export function formatPercent(value: number, fractionDigits = 1): string {
+  return `${value.toFixed(fractionDigits)}%`;
+}
+
+export function formatDurationMs(value?: number): string {
+  if (value === undefined || value <= 0) {
+    return "n/a";
+  }
+
+  if (value < 1000) {
+    return `${Math.round(value)}ms`;
+  }
+
+  const seconds = value / 1000;
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
 export function clampWholeNumber(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
@@ -178,4 +201,36 @@ export function readBackendError(error: unknown): string {
     }
   }
   return "Unknown error. Please try again.";
+}
+
+export function confirmAction(message: string): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  // Native confirm dialogs can be unavailable or return unreliable values in Tauri WebViews.
+  // In that runtime, prefer non-blocking behavior so destructive actions still execute.
+  if (isTauriRuntime()) {
+    return true;
+  }
+
+  try {
+    if (typeof window.confirm === "function") {
+      return window.confirm(message);
+    }
+  } catch {
+    // Some embedded runtimes do not support native confirm dialogs.
+  }
+
+  return true;
+}
+
+function isTauriRuntime(): boolean {
+  const runtimeWindow = window as Window & {
+    __TAURI__?: unknown;
+    __TAURI_INTERNALS__?: unknown;
+  };
+
+  return typeof runtimeWindow.__TAURI__ !== "undefined"
+    || typeof runtimeWindow.__TAURI_INTERNALS__ !== "undefined";
 }

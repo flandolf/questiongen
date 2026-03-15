@@ -13,7 +13,6 @@ export function Sidebar() {
 
   return (
     <aside className="app-sidebar flex flex-col font-medium">
-      <Sparkles className="mx-auto mb-4 text-primary" size={32} />
       <nav className="app-sidebar__nav flex-1 px-2 space-y-1 sm:px-3">
         {links.map((link) => (
           <NavLink

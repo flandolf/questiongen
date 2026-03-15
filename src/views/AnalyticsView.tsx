@@ -12,7 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { Clock3, Gauge, Target, TrendingUp, WandSparkles } from "lucide-react";
-import { useAppContext } from "../AppContext";
+import { useMultipleChoiceSession, useWrittenSession } from "../AppContext";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import {
@@ -24,6 +24,8 @@ import {
   ChartTooltipContent,
 } from "../components/ui/chart";
 import { McHistoryEntry, QuestionHistoryEntry } from "../types";
+import { EmptyState } from "../components/EmptyState";
+import { formatDurationMs, formatPercent } from "../lib/app-utils";
 
 type AnalyticsBucket = { total: number; correct: number };
 
@@ -154,29 +156,6 @@ function average(total: number, count: number) {
   return total / count;
 }
 
-function formatPercent(value: number) {
-  return `${value.toFixed(1)}%`;
-}
-
-function formatDuration(value?: number) {
-  if (value === undefined || value <= 0) {
-    return "n/a";
-  }
-
-  if (value < 1000) {
-    return `${Math.round(value)}ms`;
-  }
-
-  const seconds = value / 1000;
-  if (seconds < 60) {
-    return `${seconds.toFixed(1)}s`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  return `${minutes}m ${remainingSeconds}s`;
-}
-
 function scoreBucketLabel(scorePercent: number) {
   if (scorePercent >= 100) return "100";
   if (scorePercent >= 75) return "75-99";
@@ -215,7 +194,8 @@ function KpiCard({ title, value, detail, icon: Icon }: KpiCardProps) {
 }
 
 export function AnalyticsView() {
-  const { questionHistory, mcHistory } = useAppContext();
+  const { questionHistory } = useWrittenSession();
+  const { mcHistory } = useMultipleChoiceSession();
   const [topicFilter, setTopicFilter] = useState<string>(ALL_TOPICS);
 
   const writtenAttempts = useMemo<AttemptRow[]>(() => {
@@ -243,20 +223,26 @@ export function AnalyticsView() {
   const mcAttempts = useMemo<AttemptRow[]>(() => {
     return [...mcHistory]
       .reverse()
-      .map((entry: McHistoryEntry) => ({
-        id: entry.id,
-        mode: "multiple-choice" as const,
-        createdAt: entry.createdAt,
-        topic: entry.question.topic,
-        subtopic: normalizeSubtopic(entry.question.subtopic),
-        isCorrect: entry.correct,
-        scorePercent: entry.correct ? 100 : 0,
-        responseLatencyMs: entry.analytics?.responseLatencyMs,
-        answerWordCount: entry.analytics?.answerWordCount,
-        answerCharacterCount: entry.analytics?.answerCharacterCount,
-        generationDurationMs: entry.generationTelemetry?.durationMs,
-        difficulty: entry.generationTelemetry?.difficulty,
-      }))
+      .map((entry: McHistoryEntry) => {
+        const maxMarks = entry.maxMarks ?? 1;
+        const achievedMarks = entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
+
+        return {
+          id: entry.id,
+          mode: "multiple-choice" as const,
+          createdAt: entry.createdAt,
+          topic: entry.question.topic,
+          subtopic: normalizeSubtopic(entry.question.subtopic),
+          isCorrect: achievedMarks >= maxMarks,
+          scorePercent: percent(achievedMarks, maxMarks),
+          responseLatencyMs: entry.analytics?.responseLatencyMs,
+          attemptKind: entry.analytics?.attemptKind,
+          answerWordCount: entry.analytics?.answerWordCount,
+          answerCharacterCount: entry.analytics?.answerCharacterCount,
+          generationDurationMs: entry.generationTelemetry?.durationMs,
+          difficulty: entry.generationTelemetry?.difficulty,
+        };
+      })
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   }, [mcHistory]);
 
@@ -692,7 +678,7 @@ export function AnalyticsView() {
   const hasAnyAttempts = allAttempts.length > 0;
 
   return (
-    <div className="mx-auto min-h-full max-w-7xl space-y-5 px-3 pb-8 pt-3 sm:px-4 lg:px-5">
+    <div className="min-h-full min-w-full space-y-5 p-4.5">
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="bg-background/70">Detailed analytics</Badge>
@@ -710,12 +696,12 @@ export function AnalyticsView() {
 
       {!hasAnyAttempts ? (
         <Card className="border border-dashed border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle>No analytics yet</CardTitle>
-            <CardDescription>
-              Complete some written or multiple-choice questions and this page will build trend lines, topic breakdowns, and generation diagnostics automatically.
-            </CardDescription>
-          </CardHeader>
+          <EmptyState
+            compact
+            title="No analytics yet"
+            description="Complete some written or multiple-choice questions and this page will build trend lines, topic breakdowns, and generation diagnostics automatically."
+            className="h-auto py-8"
+          />
         </Card>
       ) : (
         <>
@@ -740,13 +726,13 @@ export function AnalyticsView() {
             />
             <KpiCard
               title="Marking Latency"
-              value={formatDuration(summary.averageMarkingLatencyMs)}
+              value={formatDurationMs(summary.averageMarkingLatencyMs)}
               detail="Average AI marking turnaround"
               icon={Clock3}
             />
             <KpiCard
               title="Generation Latency"
-              value={formatDuration(summary.averageGenerationLatencyMs)}
+              value={formatDurationMs(summary.averageGenerationLatencyMs)}
               detail="Average question generation time"
               icon={WandSparkles}
             />
@@ -1127,7 +1113,7 @@ export function AnalyticsView() {
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                       <span>{attempt.answerWordCount ?? 0} words</span>
                       <span>{attempt.answerCharacterCount ?? 0} chars</span>
-                      <span>Marked in {formatDuration(attempt.markingLatencyMs)}</span>
+                      <span>Marked in {formatDurationMs(attempt.markingLatencyMs)}</span>
                     </div>
                   </div>
                 ))

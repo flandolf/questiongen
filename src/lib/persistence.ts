@@ -26,7 +26,9 @@ import {
   SavedQuestionSet,
   StudentAnswerImage,
   TOPICS,
+  VCE_COMMAND_TERMS,
   WrittenAnswerAnalytics,
+  SPECIALIST_MATH_SUBTOPICS,
 } from "../types";
 import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
@@ -43,10 +45,11 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   techMode: "mix",
   avoidSimilarQuestions: false,
   mathMethodsSubtopics: [],
+  specialistMathSubtopics: [],
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
   questionCount: 3,
-  maxMarksPerQuestion: 10,
+  prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
 };
 
@@ -175,16 +178,25 @@ function normalizeSettings(raw: unknown): PersistedSettings {
 
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
+  const prioritizedCommandTerms = filterStringLiterals(
+    data.prioritizedCommandTerms,
+    VCE_COMMAND_TERMS,
+  );
+
   return {
     selectedTopics: filterStringLiterals(data.selectedTopics, TOPICS),
     difficulty: isDifficulty(data.difficulty) ? data.difficulty : DEFAULT_PREFERENCES.difficulty,
     techMode: isTechMode(data.techMode) ? data.techMode : DEFAULT_PREFERENCES.techMode,
     avoidSimilarQuestions: Boolean(data.avoidSimilarQuestions),
     mathMethodsSubtopics: filterStringLiterals(data.mathMethodsSubtopics, MATH_METHODS_SUBTOPICS),
+    specialistMathSubtopics: filterStringLiterals(data.specialistMathSubtopics, SPECIALIST_MATH_SUBTOPICS),
     chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
-    maxMarksPerQuestion: clampWholeNumber(data.maxMarksPerQuestion, DEFAULT_PREFERENCES.maxMarksPerQuestion, 1, 30),
+    prioritizedCommandTerms:
+      prioritizedCommandTerms.length > 0
+        ? prioritizedCommandTerms
+        : DEFAULT_PREFERENCES.prioritizedCommandTerms,
     questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
   };
 }

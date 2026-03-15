@@ -649,7 +649,10 @@
 }
 
 .platform-android .app-layout {
+  min-height: var(--android-app-height, 100dvh);
+  height: var(--android-app-height, 100dvh);
   padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  overflow: hidden;
 }
 
 .platform-android .app-sidebar {
@@ -684,7 +687,11 @@
 }
 
 .platform-android .app-main {
+  min-height: 0;
+  height: 100%;
   padding-right: max(0.4rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
 }
 
 @keyframes spin {

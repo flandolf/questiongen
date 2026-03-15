@@ -1,19 +1,21 @@
 import { useMemo } from "react";
-import { useAppContext } from "../AppContext";
+import { useMultipleChoiceSession, useWrittenSession } from "../AppContext";
 import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { MarkdownMath } from "../components/MarkdownMath";
-import { formatDate } from "../lib/app-utils";
+import { confirmAction, formatDate } from "../lib/app-utils";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Separator } from "../components/ui/separator";
 import { Badge } from "../components/ui/badge";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { McHistoryEntry, QuestionHistoryEntry } from "../types";
+import { EmptyState } from "../components/EmptyState";
 
 type AnyEntry = ({ kind: "written" } & QuestionHistoryEntry) | ({ kind: "mc" } & McHistoryEntry);
 
 export function HistoryView() {
-  const { questionHistory, setQuestionHistory, mcHistory, setMcHistory } = useAppContext();
+  const { questionHistory, setQuestionHistory } = useWrittenSession();
+  const { mcHistory, setMcHistory } = useMultipleChoiceSession();
 
   const combined = useMemo<AnyEntry[]>(() => {
     const written = questionHistory.map((e) => ({ kind: "written" as const, ...e }));
@@ -23,7 +25,7 @@ export function HistoryView() {
 
   function handleClear() {
     const totalCount = questionHistory.length + mcHistory.length;
-    if (window.confirm(`Clear ${totalCount} history entries? Saved sets will be kept.`)) {
+    if (confirmAction(`Clear ${totalCount} history entries? Saved sets will be kept.`)) {
       setQuestionHistory([]);
       setMcHistory([]);
     }
@@ -31,15 +33,15 @@ export function HistoryView() {
 
   if (combined.length === 0) {
     return (
-      <div className="p-3 sm:p-4 lg:p-5 h-full flex flex-col items-center justify-center text-center">
-        <h2 className="text-2xl font-bold mb-2">No History Yet</h2>
-        <p className="text-muted-foreground mb-6">Complete a question to see it here.</p>
-      </div>
+      <EmptyState
+        title="No History Yet"
+        description="Complete a question to see it here."
+      />
     );
   }
 
   return (
-    <div className="p-3 sm:p-4 lg:p-5 max-w-4xl mx-auto h-full flex flex-col gap-4">
+    <div className="p-4.5 min-w-full mx-auto h-full flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">History</h1>
@@ -62,9 +64,9 @@ export function HistoryView() {
                     <p className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</p>
                   </div>
                   <div>
-                    {item.correct
-                      ? <span className="inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 font-medium px-2.5 py-1 rounded-full text-sm"><CheckCircle2 className="w-3.5 h-3.5" /> Correct</span>
-                      : <span className="inline-flex items-center gap-1.5 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-medium px-2.5 py-1 rounded-full text-sm"><XCircle className="w-3.5 h-3.5" /> Incorrect</span>}
+                    {(item.awardedMarks ?? (item.correct ? 1 : 0)) >= (item.maxMarks ?? 1)
+                      ? <span className="inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 font-medium px-2.5 py-1 rounded-full text-sm"><CheckCircle2 className="w-3.5 h-3.5" /> {(item.awardedMarks ?? (item.correct ? 1 : 0)).toFixed(0)}/{item.maxMarks ?? 1}</span>
+                      : <span className="inline-flex items-center gap-1.5 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-medium px-2.5 py-1 rounded-full text-sm"><XCircle className="w-3.5 h-3.5" /> {(item.awardedMarks ?? (item.correct ? 1 : 0)).toFixed(0)}/{item.maxMarks ?? 1}</span>}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -134,8 +136,14 @@ export function HistoryView() {
                     <div className="space-y-2">
                       {item.markResponse.vcaaMarkingScheme.map((criterion, idx) => (
                         <div key={idx} className="flex flex-col sm:flex-row gap-2 justify-between border-b pb-2 last:border-0 last:pb-0">
-                          <div className="flex-1">
+                          <div className="flex-1 space-y-2">
                             <MarkdownMath content={criterion.criterion} />
+                            {criterion.rationale.trim().length > 0 && (
+                              <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rationale</p>
+                                <MarkdownMath content={criterion.rationale} />
+                              </div>
+                            )}
                           </div>
                           <span className="font-medium whitespace-nowrap">
                             {criterion.achievedMarks} / {criterion.maxMarks}
