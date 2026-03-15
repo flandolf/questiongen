@@ -656,7 +656,7 @@
 }
 
 .platform-android .app-sidebar {
-  width: 4.85rem;
+  width: 3.4rem;
   padding-top: 0.9rem;
   padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
 }
@@ -678,10 +678,12 @@
 
 .platform-android .app-sidebar__nav {
   justify-items: center;
+  padding-inline: 0.35rem;
 }
 
 .platform-android .app-sidebar__link {
-  width: 100%;
+  width: 2.5rem;
+  min-height: 2.5rem;
   justify-content: center;
   padding-inline: 0;
 }
@@ -692,6 +694,28 @@
   padding-right: max(0.4rem, env(safe-area-inset-right, 0px));
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   overscroll-behavior: contain;
+}
+
+.app-sidebar--icons {
+  width: 3.4rem;
+  padding-top: 0.9rem;
+  padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+}
+
+.app-sidebar--icons .app-sidebar__link-label {
+  display: none;
+}
+
+.app-sidebar--icons .app-sidebar__nav {
+  justify-items: center;
+  padding-inline: 0.35rem;
+}
+
+.app-sidebar--icons .app-sidebar__link {
+  width: 2.5rem;
+  min-height: 2.5rem;
+  justify-content: center;
+  padding-inline: 0;
 }
 
 @keyframes spin {

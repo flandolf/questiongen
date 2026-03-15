@@ -3,6 +3,7 @@ import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark } from "lu
 import { cn } from "../../lib/utils";
 
 export function Sidebar() {
+  const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
   const links = [
     { to: "/", label: "Generator", icon: Sparkles },
     { to: "/history", label: "History", icon: History },
@@ -12,7 +13,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="app-sidebar flex flex-col font-medium">
+    <aside className={cn("app-sidebar flex flex-col font-medium", isAndroid && "app-sidebar--icons") }>
       <nav className="app-sidebar__nav flex-1 px-2 space-y-1 sm:px-3">
         {links.map((link) => (
           <NavLink
@@ -30,7 +31,7 @@ export function Sidebar() {
             }
           >
             <link.icon className="h-5 w-5 shrink-0" />
-            <span className="app-sidebar__link-label">{link.label}</span>
+            {!isAndroid && <span className="app-sidebar__link-label">{link.label}</span>}
           </NavLink>
         ))}
       </nav>
