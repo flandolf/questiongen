@@ -31,6 +31,7 @@ struct GenerateQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    custom_focus_area: Option<String>,
     avoid_similar_questions: Option<bool>,
     prior_question_prompts: Option<Vec<String>>,
     use_structured_output: Option<bool>,
@@ -305,6 +306,11 @@ async fn generate_questions(
     let system_prompt = "You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
+    let custom_focus_area = request
+        .custom_focus_area
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
     let math_methods_reference_note = if includes_mathematical_methods(&request.topics) {
         MATHEMATICAL_METHODS_REFERENCE_GUIDANCE
@@ -331,18 +337,25 @@ async fn generate_questions(
         Some(subs) => format!(" Focus on the following subtopics: {}.", subs.join(", ")),
         None => String::new(),
     };
+    let custom_focus_note = match custom_focus_area {
+        Some(value) => format!(
+            " Custom focus area: \"{value}\". Prioritize this focus strongly across the set and align each question context to it where syllabus-valid."
+        ),
+        None => String::new(),
+    };
     let similarity_guardrail_note = build_similarity_guardrail_note(
         request.avoid_similar_questions.unwrap_or(false),
         request.prior_question_prompts.as_deref(),
     );
     let user_prompt = format!(
-        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must be worth exactly {max_marks} marks.{subtopics_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must be worth exactly {max_marks} marks.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
         max_marks = request.max_marks_per_question,
         difficulty_rules = difficulty_rules,
         subtopics_note = subtopics_note,
+        custom_focus_note = custom_focus_note,
         tech_note = tech_note,
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,
@@ -1123,6 +1136,7 @@ struct GenerateMcQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    custom_focus_area: Option<String>,
     avoid_similar_questions: Option<bool>,
     prior_question_prompts: Option<Vec<String>>,
     use_structured_output: Option<bool>,
@@ -1193,6 +1207,11 @@ async fn generate_mc_questions(
     let system_prompt = "You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
+    let custom_focus_area = request
+        .custom_focus_area
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
     let math_methods_reference_note = if includes_mathematical_methods(&request.topics) {
         MATHEMATICAL_METHODS_REFERENCE_GUIDANCE
@@ -1219,17 +1238,24 @@ async fn generate_mc_questions(
         Some(subs) => format!(" Focus on the following subtopics: {}.", subs.join(", ")),
         None => String::new(),
     };
+    let custom_focus_note_mc = match custom_focus_area {
+        Some(value) => format!(
+            " Custom focus area: \"{value}\". Prioritize this focus strongly across the set and align each question context to it where syllabus-valid."
+        ),
+        None => String::new(),
+    };
     let similarity_guardrail_note = build_similarity_guardrail_note(
         request.avoid_similar_questions.unwrap_or(false),
         request.prior_question_prompts.as_deref(),
     );
     let user_prompt = format!(
-        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
         difficulty_rules = difficulty_rules,
         subtopics_note = subtopics_note_mc,
+        custom_focus_note = custom_focus_note_mc,
         tech_note = tech_note_mc,
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,

@@ -381,12 +381,12 @@ export function GeneratorView() {
       ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
     ];
 
-    const customFocus = customFocusArea.trim();
-    if (customFocus.length > 0) {
-      selectedSubtopics.push(customFocus);
-    }
-
     return Array.from(new Set(selectedSubtopics));
+  }
+
+  function getCustomFocusArea() {
+    const customFocus = customFocusArea.trim();
+    return customFocus.length > 0 ? customFocus : undefined;
   }
 
   function isMathTopic(topic?: string) {
@@ -476,6 +476,7 @@ export function GeneratorView() {
 
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
+    const customFocus = getCustomFocusArea();
     startStopwatch();
     setErrorMessage(null);
     setGenerationStatus({
@@ -498,6 +499,7 @@ export function GeneratorView() {
           techMode,
           useStructuredOutput,
           subtopics: getSelectedSubtopics(),
+          customFocusArea: customFocus,
           avoidSimilarQuestions,
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
         },
@@ -661,6 +663,7 @@ export function GeneratorView() {
 
   async function handleGenerateMcQuestions() {
     if (!canGenerateMc) return;
+    const customFocus = getCustomFocusArea();
     startStopwatch();
     setErrorMessage(null);
     setGenerationStatus({
@@ -681,6 +684,7 @@ export function GeneratorView() {
           techMode,
           useStructuredOutput,
           subtopics: getSelectedSubtopics(),
+          customFocusArea: customFocus,
           avoidSimilarQuestions,
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
         },
