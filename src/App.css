@@ -232,7 +232,6 @@
     min-height: 100%;
     padding: 1.35rem 0 1rem;
     border-right: 1px solid color-mix(in oklab, var(--color-border) 78%, transparent);
-    background: color-mix(in oklab, var(--color-sidebar) 92%, transparent);
     backdrop-filter: blur(18px);
   }
 

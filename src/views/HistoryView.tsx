@@ -134,7 +134,9 @@ export function HistoryView() {
                     <div className="space-y-2">
                       {item.markResponse.vcaaMarkingScheme.map((criterion, idx) => (
                         <div key={idx} className="flex flex-col sm:flex-row gap-2 justify-between border-b pb-2 last:border-0 last:pb-0">
-                          <span className="flex-1">{criterion.criterion}</span>
+                          <div className="flex-1">
+                            <MarkdownMath content={criterion.criterion} />
+                          </div>
                           <span className="font-medium whitespace-nowrap">
                             {criterion.achievedMarks} / {criterion.maxMarks}
                           </span>

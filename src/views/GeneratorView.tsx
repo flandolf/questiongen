@@ -1,4 +1,4 @@
-import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark } from "lucide-react";
@@ -399,7 +399,7 @@ export function GeneratorView() {
   };
 
   return (
-    <div className="min-h-full p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className="min-h-full w-full p-3 sm:p-4 lg:p-6 flex flex-col gap-6 animate-in fade-in duration-500">
       {errorMessage && (
         <div className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm">
           <XCircle className="w-5 h-5 shrink-0" />
@@ -409,14 +409,14 @@ export function GeneratorView() {
 
       {showSetup ? (
         <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
-          <div className="bg-linear-to-r from-primary/10 via-transparent to-transparent p-6 md:p-8 border-b">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="px-5 pb-3 border-b">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-3xl font-extrabold flex items-center gap-2">
-                  <Sparkles className="w-6 h-6 text-primary" />
+                <CardTitle className="text-2xl font-extrabold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
                   Practice Generator
                 </CardTitle>
-                <CardDescription className="text-base mt-2">Configure your custom VCE revision session</CardDescription>
+                <CardDescription className="text-sm mt-1">Configure your custom VCE revision session</CardDescription>
               </div>
               <div className="bg-background/80 p-1 rounded-xl shadow-sm border inline-flex">
                 <Button
@@ -439,13 +439,13 @@ export function GeneratorView() {
             </div>
           </div>
 
-          <CardContent className="p-6 md:p-8 space-y-10">
+          <CardContent className="p-4 md:p-5 space-y-5">
             {/* Subject Selection */}
-            <div className="space-y-4">
-              <Label className="text-lg font-semibold flex items-center gap-2">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold flex items-center gap-2">
                 Select Subjects
               </Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                 {TOPICS.map((topic) => {
                   const isSelected = selectedTopics.includes(topic);
                   return (
@@ -459,19 +459,19 @@ export function GeneratorView() {
 
             {/* Subtopic Drill-downs */}
             {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education")) && (
-              <div className="bg-muted/30 p-6 rounded-2xl border space-y-2">
+              <div className="bg-muted/30 p-4 rounded-xl border space-y-2">
                 {selectedTopics.includes("Mathematical Methods") && (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div>
-                      <Label className="text-base font-semibold">Mathematical Methods Focus Areas</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Leave all unselected to test across the entire curriculum.</p>
+                      <Label className="text-sm font-semibold">Mathematical Methods Focus Areas</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Leave all unselected to test across the entire curriculum.</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {MATH_METHODS_SUBTOPICS.map((sub) => (
                         <Badge
                           key={sub}
                           variant={mathMethodsSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-4 text-sm transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => toggleSubtopic(sub)}
                         >
                           {sub}
@@ -482,17 +482,17 @@ export function GeneratorView() {
                 )}
 
                 {selectedTopics.includes("Chemistry") && (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div>
-                      <Label className="text-base font-semibold">Chemistry Focus Areas</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Select one or more Chemistry study points, or leave all unselected to span the full course.</p>
+                      <Label className="text-sm font-semibold">Chemistry Focus Areas</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Select one or more Chemistry study points, or leave all unselected to span the full course.</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {CHEMISTRY_SUBTOPICS.map((sub) => (
                         <Badge
                           key={sub}
                           variant={chemistrySubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-4 text-sm transition-colors ${chemistrySubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${chemistrySubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => toggleChemistrySubtopic(sub)}
                         >
                           {sub}
@@ -503,17 +503,17 @@ export function GeneratorView() {
                 )}
 
                 {selectedTopics.includes("Physical Education") && (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div>
-                      <Label className="text-base font-semibold">Physical Education Unit 3/4 Focus Areas</Label>
-                      <p className="text-sm text-muted-foreground mt-1">Based on the 2025 Study Design.</p>
+                      <Label className="text-sm font-semibold">Physical Education Unit 3/4 Focus Areas</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Based on the 2025 Study Design.</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {PHYSICAL_EDUCATION_SUBTOPICS.map((sub) => (
                         <Badge
                           key={sub}
                           variant={physicalEducationSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-4 text-sm transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => togglePhysicalEducationSubtopic(sub)}
                         >
                           {sub}
@@ -526,10 +526,10 @@ export function GeneratorView() {
             )}
 
             {/* Configuration Parameters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
               {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics")) && (
-                <div className="space-y-2 md:col-span-2">
-                  <Label className="text-base font-semibold flex items-center gap-2">
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
                     <Settings2 className="w-4 h-4" /> Calculator Mode
                   </Label>
                   <div className="grid grid-cols-3 gap-2 w-full md:w-2/3 lg:w-1/2">
@@ -539,7 +539,7 @@ export function GeneratorView() {
                         <Button
                           key={mode}
                           variant={isActive ? "default" : "outline"}
-                          className={`w-full transition-all ${isActive ? "shadow-md ring-2 ring-primary/20 ring-offset-1" : ""}`}
+                          className={`w-full h-9 text-sm transition-all ${isActive ? "shadow-md ring-2 ring-primary/20 ring-offset-1" : ""}`}
                           onClick={() => setTechMode(mode)}
                         >
                           {mode === "tech-free" ? "Tech-Free" : mode === "tech-active" ? "Tech-Active" : "Mixed"}
@@ -550,10 +550,10 @@ export function GeneratorView() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Difficulty</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Difficulty</Label>
                 <Select value={difficulty} onValueChange={(val) => setDifficulty(val as Difficulty)}>
-                  <SelectTrigger className="h-12 bg-background border-2">
+                  <SelectTrigger className="h-10 bg-background border-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -564,59 +564,59 @@ export function GeneratorView() {
                 </Select>
               </div>
 
-              <div className="space-y-2 pt-1">
+              <div className="space-y-1.5 pt-1">
                 <div className="flex justify-between items-center">
-                  <Label className="text-base font-semibold">Question Count</Label>
-                  <Badge variant="secondary" className="px-3 py-1 text-sm">{questionCount}</Badge>
+                  <Label className="text-sm font-semibold">Question Count</Label>
+                  <Badge variant="secondary" className="px-2 py-0.5 text-xs">{questionCount}</Badge>
                 </div>
-                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-2" />
+                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-1" />
               </div>
 
               {questionMode === "written" && (
-                <div className="space-y-2 pt-1 md:col-span-2">
+                <div className="space-y-1.5 pt-1 md:col-span-2">
                   <div className="flex justify-between items-center">
-                    <Label className="text-base font-semibold">Max Marks per Question</Label>
-                    <Badge variant="secondary" className="px-3 py-1 text-sm">{maxMarksPerQuestion} Marks</Badge>
+                    <Label className="text-sm font-semibold">Max Marks per Question</Label>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{maxMarksPerQuestion} Marks</Badge>
                   </div>
-                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-2" />
+                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-1" />
                 </div>
               )}
             </div>
 
             {!apiKey && (
-              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 p-4 rounded-xl text-sm flex items-center gap-3">
-                <Settings2 className="w-5 h-5 shrink-0" />
+              <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 p-3 rounded-lg text-xs flex items-center gap-2">
+                <Settings2 className="w-4 h-4 shrink-0" />
                 <span><strong>API Key Missing:</strong> Go to Settings to configure your OpenRouter API Key before generating questions.</span>
               </div>
             )}
             
           </CardContent>
 
-          <CardFooter className="bg-muted/20 p-6 md:p-8 border-t flex flex-col gap-4">
+          <CardFooter className="bg-muted/20 p-4 md:p-5 border-t flex flex-col gap-3">
             <Button
               size="lg"
-              className={`w-full h-14 text-lg font-bold transition-all duration-300 ${isGenerating ? 'opacity-90' : 'hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/25 bg-linear-to-r from-primary to-primary/90'}`}
+              className={`w-full h-12 text-base font-bold transition-all duration-300 ${isGenerating ? 'opacity-90' : 'hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/25 bg-linear-to-r from-primary to-primary/90'}`}
               onClick={questionMode === "written" ? handleGenerateQuestions : handleGenerateMcQuestions}
               disabled={questionMode === "written" ? !canGenerate : !canGenerateMc}
             >
               {isGenerating ? (
-                <><Loader2 className="w-6 h-6 mr-3 animate-spin" /> Crafting Questions...</>
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Crafting Questions...</>
               ) : (
-                <><Sparkles className="w-5 h-5 mr-2" /> Generate Revision Set</>
+                <><Sparkles className="w-4 h-4 mr-2" /> Generate Revision Set</>
               )}
             </Button>
             {isGenerating && stopwatchStartedAt !== null && (
-              <div className="w-full rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <div className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                     <span>{generationStatus?.message ?? "Generating questions..."}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="bg-background/70">{generationStatus?.stage ?? "generating"}</Badge>
-                    <Badge variant="outline" className="bg-background/70">Attempt {generationStatus?.attempt ?? 1}</Badge>
-                    <span className="inline-flex items-center gap-1.5 font-medium">
-                      <Clock3 className="w-3.5 h-3.5" /> {formattedElapsedTime}
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <Badge variant="outline" className="bg-background/70 px-1.5 py-0">{generationStatus?.stage ?? "generating"}</Badge>
+                    <Badge variant="outline" className="bg-background/70 px-1.5 py-0">Attempt {generationStatus?.attempt ?? 1}</Badge>
+                    <span className="inline-flex items-center gap-1 font-medium text-xs">
+                      <Clock3 className="w-3 h-3" /> {formattedElapsedTime}
                     </span>
                   </div>
                 </div>
@@ -624,6 +624,7 @@ export function GeneratorView() {
             )}
           </CardFooter>
         </Card>
+
 
       ) : questionMode === "written" ? (
         // ── Written Question View ──
@@ -821,11 +822,13 @@ export function GeneratorView() {
                       <div className="space-y-4">
                          <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Check className="w-5 h-5 text-green-500" /> Marking Scheme</Label>
                          <div className="space-y-3 mt-2">
-                           {activeFeedback.vcaaMarkingScheme.map((item: { achievedMarks: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; maxMarks: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; criterion: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }, idx: Key | null | undefined) => {
+                           {activeFeedback.vcaaMarkingScheme.map((item, idx) => {
                              const isFullMarks = item.achievedMarks === item.maxMarks;
                              return (
                                <div key={idx} className={`p-4 rounded-xl border text-sm flex justify-between gap-6 transition-colors ${isFullMarks ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" : "bg-card"}`}>
-                                 <span className="leading-relaxed">{item.criterion}</span>
+                                 <div className="leading-relaxed flex-1">
+                                   <MarkdownMath content={item.criterion} />
+                                 </div>
                                  <span className={`font-bold whitespace-nowrap px-3 py-1 rounded-md h-fit ${isFullMarks ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" : "bg-muted"}`}>
                                    {item.achievedMarks} / {item.maxMarks}
                                  </span>
