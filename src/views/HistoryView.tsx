@@ -22,47 +22,11 @@ function ExpandableCardSection({
   isExpanded: boolean;
   children: React.ReactNode;
 }) {
-  const ANIMATION_MS = 300;
-  const [isMounted, setIsMounted] = useState(isExpanded);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    let frameId = 0;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    if (isExpanded) {
-      setIsMounted(true);
-      frameId = requestAnimationFrame(() => {
-        setIsVisible(true);
-      });
-    } else {
-      setIsVisible(false);
-      timeoutId = setTimeout(() => {
-        setIsMounted(false);
-      }, ANIMATION_MS);
-    }
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [isExpanded]);
-
-  if (!isMounted) {
+  if (!isExpanded) {
     return null;
   }
 
-  return (
-    <div
-      className={`grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-300 ease-out will-change-[transform,opacity] ${isVisible
-          ? "grid-rows-[1fr] opacity-100 translate-y-0"
-          : "grid-rows-[0fr] opacity-0 -translate-y-2 pointer-events-none"
-        }`}
-      aria-hidden={!isVisible}
-    >
-      <div className="min-h-0 overflow-hidden pt-1">{children}</div>
-    </div>
-  );
+  return <div className="pt-2">{children}</div>;
 }
 
 const HistoryEntryCard = memo(function HistoryEntryCard({
@@ -103,8 +67,8 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
               {isExpanded ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
             </Button>
           </div>
-          <ExpandableCardSection isExpanded={isExpanded}>
-            <div className="space-y-4">
+            <ExpandableCardSection isExpanded={isExpanded}>
+              <div className="space-y-4">
               <div className="bg-muted/50 p-4 rounded-md">
                 <MarkdownMath content={item.question.promptMarkdown} />
               </div>
@@ -112,7 +76,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
                 {item.question.options.map((opt) => {
                   const isChosen = item.selectedAnswer === opt.label;
                   const isCorrect = opt.label === item.question.correctAnswer;
-                  let cls = "p-3 rounded-lg border flex gap-2 items-center text-sm";
+                  let cls = "p-3 rounded-lg border flex gap-2 items-start text-sm";
                   if (isCorrect) cls += " border-green-500 bg-green-50 dark:bg-green-950/40";
                   else if (isChosen) cls += " border-red-500 bg-red-50 dark:bg-red-950/40";
                   return (
@@ -137,10 +101,11 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0.5">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="space-y-1">
           <CardTitle>{item.question.topic}</CardTitle>
-          <Label>{item.question.subtopic}</Label>
+
+        <Label>{item.question.subtopic}</Label>
           <p className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</p>
         </div>
         <div className="text-right">
@@ -223,7 +188,7 @@ export function HistoryView() {
   }, [questionHistory, mcHistory]);
 
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
-  const [expandedEntryKey, setExpandedEntryKey] = useState<string | null>(null);
+  const [expandedEntryKeys, setExpandedEntryKeys] = useState<Set<string>>(() => new Set());
 
   const subjectCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -263,14 +228,16 @@ export function HistoryView() {
   }
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
-    setExpandedEntryKey((current) => (current === entryKey ? null : entryKey));
-    requestAnimationFrame(() => {
-      listVirtualizer.measure();
+    setExpandedEntryKeys((current) => {
+      const next = new Set(current);
+      if (next.has(entryKey)) {
+        next.delete(entryKey);
+      } else {
+        next.add(entryKey);
+      }
+      return next;
     });
-    setTimeout(() => {
-      listVirtualizer.measure();
-    }, 320);
-  }, [listVirtualizer]);
+  }, []);
 
   useEffect(() => {
     listVirtualizer.measure();
@@ -282,7 +249,7 @@ export function HistoryView() {
       setQuestionHistory([]);
       setMcHistory([]);
       setSubjectFilter(null);
-      setExpandedEntryKey(null);
+      setExpandedEntryKeys(new Set());
     }
   }
 
@@ -361,7 +328,7 @@ export function HistoryView() {
               >
                 <HistoryEntryCard
                   item={item}
-                  isExpanded={expandedEntryKey === entryKey}
+                  isExpanded={expandedEntryKeys.has(entryKey)}
                   onToggle={() => toggleEntryExpanded(entryKey)}
                 />
               </div>
