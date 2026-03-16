@@ -392,7 +392,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void savePersistedAppState(persistedSnapshot).catch(() => {
         setErrorMessage((current) => current ?? "Could not save app data.");
       });
-    }, 250);
+    }, 500);
 
     return () => window.clearTimeout(timeoutId);
   }, [persistedSnapshot]);

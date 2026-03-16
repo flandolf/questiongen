@@ -25,6 +25,7 @@ import {
 } from "../components/ui/chart";
 import { McHistoryEntry, QuestionHistoryEntry } from "../types";
 import { EmptyState } from "../components/EmptyState";
+import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDurationMs, formatPercent } from "../lib/app-utils";
 
 type AnalyticsBucket = { total: number; correct: number };
@@ -100,6 +101,7 @@ const UNSPECIFIED_SUBTOPIC = "Unspecified";
 const ALL_TOPICS = "All topics";
 const LOW_SAMPLE_THRESHOLD = 3;
 const RECENT_WRITTEN_CRITERIA_WINDOW = 20;
+const CARD_FIXED_HEIGHT = "h-[30rem]";
 
 const trendChartConfig = {
   overallAccuracy: { label: "Overall", color: "var(--color-chart-1)" },
@@ -199,9 +201,7 @@ export function AnalyticsView() {
   const [topicFilter, setTopicFilter] = useState<string>(ALL_TOPICS);
 
   const writtenAttempts = useMemo<AttemptRow[]>(() => {
-    return [...questionHistory]
-      .reverse()
-      .map((entry: QuestionHistoryEntry) => ({
+    return questionHistory.map((entry: QuestionHistoryEntry) => ({
         id: entry.id,
         mode: "written" as const,
         createdAt: entry.createdAt,
@@ -216,14 +216,11 @@ export function AnalyticsView() {
         answerCharacterCount: entry.analytics?.answerCharacterCount,
         generationDurationMs: entry.generationTelemetry?.durationMs,
         difficulty: entry.generationTelemetry?.difficulty,
-      }))
-      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+      }));
   }, [questionHistory]);
 
   const mcAttempts = useMemo<AttemptRow[]>(() => {
-    return [...mcHistory]
-      .reverse()
-      .map((entry: McHistoryEntry) => {
+    return mcHistory.map((entry: McHistoryEntry) => {
         const maxMarks = entry.maxMarks ?? 1;
         const achievedMarks = entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
 
@@ -242,8 +239,7 @@ export function AnalyticsView() {
           generationDurationMs: entry.generationTelemetry?.durationMs,
           difficulty: entry.generationTelemetry?.difficulty,
         };
-      })
-      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+      });
   }, [mcHistory]);
 
   const allAttempts = useMemo(() => {
@@ -254,33 +250,61 @@ export function AnalyticsView() {
 
   const summary = useMemo(() => {
     const totalAttempts = allAttempts.length;
-    const totalCorrect = allAttempts.filter((attempt) => attempt.isCorrect).length;
-    const writtenAverageScore = average(
-      writtenAttempts.reduce((sum, attempt) => sum + attempt.scorePercent, 0),
-      writtenAttempts.length,
-    );
-    const averageMarkingLatencyMs = average(
-      writtenAttempts.reduce((sum, attempt) => sum + (attempt.markingLatencyMs ?? 0), 0),
-      writtenAttempts.filter((attempt) => attempt.markingLatencyMs !== undefined).length,
-    );
-    const averageGenerationLatencyMs = average(
-      allAttempts.reduce((sum, attempt) => sum + (attempt.generationDurationMs ?? 0), 0),
-      allAttempts.filter((attempt) => attempt.generationDurationMs !== undefined).length,
-    );
-    const appealCount = writtenAttempts.filter((attempt) => attempt.attemptKind === "appeal").length;
-    const overrideCount = writtenAttempts.filter((attempt) => attempt.attemptKind === "override").length;
+    let totalCorrect = 0;
+    let generationLatencyTotal = 0;
+    let generationLatencyCount = 0;
+
+    for (const attempt of allAttempts) {
+      if (attempt.isCorrect) {
+        totalCorrect += 1;
+      }
+      if (attempt.generationDurationMs !== undefined) {
+        generationLatencyTotal += attempt.generationDurationMs;
+        generationLatencyCount += 1;
+      }
+    }
+
+    let writtenScoreTotal = 0;
+    let writtenCorrect = 0;
+    let markingLatencyTotal = 0;
+    let markingLatencyCount = 0;
+    let appealCount = 0;
+    let overrideCount = 0;
+
+    for (const attempt of writtenAttempts) {
+      writtenScoreTotal += attempt.scorePercent;
+      if (attempt.isCorrect) {
+        writtenCorrect += 1;
+      }
+      if (attempt.markingLatencyMs !== undefined) {
+        markingLatencyTotal += attempt.markingLatencyMs;
+        markingLatencyCount += 1;
+      }
+      if (attempt.attemptKind === "appeal") {
+        appealCount += 1;
+      } else if (attempt.attemptKind === "override") {
+        overrideCount += 1;
+      }
+    }
+
+    let mcCorrect = 0;
+    for (const attempt of mcAttempts) {
+      if (attempt.isCorrect) {
+        mcCorrect += 1;
+      }
+    }
 
     return {
       totalAttempts,
       totalCorrect,
       overallAccuracy: percent(totalCorrect, totalAttempts),
       writtenAttempts: writtenAttempts.length,
-      writtenCorrect: writtenAttempts.filter((attempt) => attempt.isCorrect).length,
-      writtenAverageScore,
+      writtenCorrect,
+      writtenAverageScore: average(writtenScoreTotal, writtenAttempts.length),
       mcAttempts: mcAttempts.length,
-      mcCorrect: mcAttempts.filter((attempt) => attempt.isCorrect).length,
-      averageMarkingLatencyMs,
-      averageGenerationLatencyMs,
+      mcCorrect,
+      averageMarkingLatencyMs: average(markingLatencyTotal, markingLatencyCount),
+      averageGenerationLatencyMs: average(generationLatencyTotal, generationLatencyCount),
       appealCount,
       overrideCount,
     };
@@ -745,14 +769,14 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Accuracy Trend</CardTitle>
                 <CardDescription>
                   Cumulative accuracy across all attempts, with written and multiple-choice separated.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 <ChartContainer config={trendChartConfig} className="h-80 w-full">
                   <LineChart data={trendData} margin={{ left: 8, right: 12, top: 12, bottom: 0 }}>
                     <CartesianGrid vertical={false} />
@@ -768,14 +792,14 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Topic Performance</CardTitle>
                 <CardDescription>
                   Accuracy by topic. Filter below to inspect the weakest subtopics.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="flex-1 overflow-y-auto space-y-4">
                 <ChartContainer config={topicChartConfig} className="h-80 w-full">
                   <BarChart data={topicPerformance} layout="vertical" margin={{ left: 16, right: 8, top: 8, bottom: 8 }}>
                     <CartesianGrid horizontal={false} />
@@ -809,7 +833,7 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Subtopic Drilldown</CardTitle>
                 <CardDescription>
@@ -818,7 +842,7 @@ export function AnalyticsView() {
                     : `Lowest-performing subtopics inside ${topicFilter}.`}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {displayedSubtopics.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No subtopic data yet.</p>
                 ) : (
@@ -845,14 +869,14 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Actionable Flags</CardTitle>
                 <CardDescription>
                   Weak areas that deserve attention now.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {displayedSubtopics.slice(0, 5).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No flagged areas yet.</p>
                 ) : (
@@ -875,12 +899,12 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <Card className="border border-border/70 bg-card/90 shadow-sm flex flex-col h-full">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm flex flex-col ${CARD_FIXED_HEIGHT}`}>
               <CardHeader>
                 <CardTitle>Written Analytics</CardTitle>
                 <CardDescription>Score distribution for marked written responses.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 pb-0"> {/* flex-1 allows this to grow */}
+              <CardContent className="flex-1 overflow-y-auto pb-0"> {/* flex-1 allows this to grow */}
                 {writtenAttempts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No written attempts yet.</p>
                 ) : (
@@ -914,14 +938,14 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Criterion Weak Points</CardTitle>
                 <CardDescription>
                   Marks most often dropped across the last {Math.min(questionHistory.length, RECENT_WRITTEN_CRITERIA_WINDOW)} written marking passes.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {recentCriterionWeakPoints.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Criterion-level trends will appear after written answers are marked.</p>
                 ) : (
@@ -929,7 +953,9 @@ export function AnalyticsView() {
                     <div key={row.criterion} className="rounded-xl border border-border/70 bg-background/60 p-3">
                       <div className="flex flex-col items-start justify-between gap-2">
                         <div>
-                          <div className="text-sm font-semibold">{row.criterion}</div>
+                          <div className="text-sm font-semibold">
+                            <MarkdownMath content={row.criterion} />
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {row.topicSummary || "Mixed topics"}
                           </div>
@@ -954,12 +980,12 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Answer Effort vs Score</CardTitle>
                 <CardDescription>Average written score by answer length bucket.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {writtenEffortDistribution.every((item) => item.attempts === 0) ? (
                   <p className="text-sm text-muted-foreground">Answer-length tracking will populate as new written attempts are marked.</p>
                 ) : (
@@ -976,12 +1002,12 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Written Interventions</CardTitle>
                 <CardDescription>Initial marks vs appeals and manual overrides.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {writtenAttemptTypeData.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No written intervention data yet.</p>
                 ) : (
@@ -1002,12 +1028,12 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1fr_1.1fr]">
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Multiple-Choice Analytics</CardTitle>
                 <CardDescription>Accuracy by topic for multiple-choice answers.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {mcTopicAccuracy.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No MC attempts yet.</p>
                 ) : (
@@ -1024,12 +1050,12 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>MC Response Speed</CardTitle>
                 <CardDescription>Average time to answer each topic when response timing is available.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {mcResponseLatency.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Response timing will appear for new MC attempts.</p>
                 ) : (
@@ -1048,12 +1074,12 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Generation Diagnostics</CardTitle>
                 <CardDescription>Average generation time and repair pressure by difficulty.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {qualityRows.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No generation telemetry yet.</p>
                 ) : (
@@ -1072,12 +1098,12 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
               <CardHeader>
                 <CardTitle>Difficulty Notes</CardTitle>
                 <CardDescription>Generation quality, depth, and accuracy rolled up by difficulty.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {qualityRows.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No diagnostic notes yet.</p>
                 ) : (
@@ -1104,12 +1130,12 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <Card className="border border-border/70 bg-card/90 shadow-sm">
+          <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
             <CardHeader>
               <CardTitle>Lowest-Scoring Written Attempts</CardTitle>
               <CardDescription>Useful for spotting recurring failure patterns and intervention-heavy questions.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="flex-1 overflow-y-auto space-y-3">
               {lowestScoringWritten.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No written attempts yet.</p>
               ) : (

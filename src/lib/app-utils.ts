@@ -1,4 +1,8 @@
 import { MarkAnswerResponse, BackendError } from "../types"
+
+const NORMALIZED_MATH_CACHE_MAX_ENTRIES = 200;
+const normalizedMathCache = new Map<string, string>();
+
 export function formatDate(isoString: string): string {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) {
@@ -70,13 +74,28 @@ export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): M
 }
 
 export function normalizeMathDelimiters(content: string): string {
-  return transformOutsideCode(content, (segment) =>
+  const cached = normalizedMathCache.get(content);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const normalized = transformOutsideCode(content, (segment) =>
     escapeBarePercentInMath(
       normalizeEscapedLatexCommandsInMath(
         normalizePseudoMathDelimiters(segment),
       ),
     ),
   );
+
+  if (normalizedMathCache.size >= NORMALIZED_MATH_CACHE_MAX_ENTRIES) {
+    const firstKey = normalizedMathCache.keys().next().value;
+    if (firstKey !== undefined) {
+      normalizedMathCache.delete(firstKey);
+    }
+  }
+
+  normalizedMathCache.set(content, normalized);
+  return normalized;
 }
 
 function transformOutsideCode(content: string, transform: (segment: string) => string): string {

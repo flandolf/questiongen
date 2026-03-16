@@ -55,7 +55,7 @@ function countWords(value: string) {
 }
 
 export function GeneratorView() {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
@@ -65,6 +65,7 @@ export function GeneratorView() {
   const [mcMarkAppealByQuestionId, setMcMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<Record<string, number>>({});
+  const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
 
   const {
     apiKey,
@@ -274,6 +275,10 @@ export function GeneratorView() {
 
   const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
 
+  const elapsedSeconds = generationStartedAt === null
+    ? 0
+    : Math.max(0, Math.floor(((sessionFinishedAt ?? Date.now()) - generationStartedAt) / 1000));
+
   const formattedElapsedTime = useMemo(() => {
     const hours = Math.floor(elapsedSeconds / 3600);
     const minutes = Math.floor((elapsedSeconds % 3600) / 60);
@@ -281,26 +286,6 @@ export function GeneratorView() {
     if (hours > 0) return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }, [elapsedSeconds]);
-
-  useEffect(() => {
-    if (generationStartedAt === null) {
-      setElapsedSeconds(0);
-      return;
-    }
-    const updateElapsed = () => setElapsedSeconds(Math.floor((Date.now() - generationStartedAt) / 1000));
-    updateElapsed();
-    const timerId = window.setInterval(updateElapsed, 1000);
-    // On Android the interval is throttled/paused when the app is backgrounded.
-    // Recalculate from the anchor timestamp whenever the app comes back to the foreground.
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") updateElapsed();
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.clearInterval(timerId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [generationStartedAt]);
 
   useEffect(() => {
     setShowCompletionScreen(false);
@@ -380,12 +365,12 @@ export function GeneratorView() {
 
   function startStopwatch() {
     setGenerationStartedAt(Date.now());
-    setElapsedSeconds(0);
+    setSessionFinishedAt(null);
   }
 
   function resetStopwatch() {
     setGenerationStartedAt(null);
-    setElapsedSeconds(0);
+    setSessionFinishedAt(null);
   }
 
   function handleNextWrittenQuestion() {
@@ -394,6 +379,7 @@ export function GeneratorView() {
     }
 
     if (isAtLastWrittenQuestion) {
+      setSessionFinishedAt(Date.now());
       setShowCompletionScreen(true);
       return;
     }
@@ -407,6 +393,7 @@ export function GeneratorView() {
     }
 
     if (isAtLastMcQuestion) {
+      setSessionFinishedAt(Date.now());
       setShowCompletionScreen(true);
       return;
     }
@@ -445,6 +432,7 @@ export function GeneratorView() {
     setFeedbackByQuestionId((prev) => removeRecordKey(prev, questionId));
     setMarkAppealByQuestionId((prev) => removeRecordKey(prev, questionId));
     setMarkOverrideInputByQuestionId((prev) => removeRecordKey(prev, questionId));
+    setWrittenResponseEnteredAtById((prev) => removeRecordKey(prev, questionId));
     setErrorMessage(null);
   }
 
@@ -553,14 +541,15 @@ export function GeneratorView() {
     selectedAnswer: string,
     awardedMarks: number,
     attemptKind: McAttemptKind,
+    responseEnteredAtMs?: number,
   ) {
     if (!question) {
       return;
     }
 
     const createdAt = new Date().toISOString();
-    const createdAtMs = Date.parse(createdAt);
     const questionStartedAt = mcQuestionPresentedAtById[question.id];
+    const responseEnteredAt = responseEnteredAtMs ?? Date.now();
     const entry: McHistoryEntry = {
       type: "multiple-choice",
       id: `${question.id}-${Date.now()}`,
@@ -577,8 +566,8 @@ export function GeneratorView() {
         answerCharacterCount: 0,
         answerWordCount: 0,
         usedImageUpload: false,
-        responseLatencyMs: Number.isFinite(questionStartedAt)
-          ? Math.max(0, createdAtMs - questionStartedAt)
+        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseEnteredAt)
+          ? Math.max(0, responseEnteredAt - questionStartedAt)
           : undefined,
       },
     };
@@ -593,6 +582,7 @@ export function GeneratorView() {
       uploadedAnswerOverride?: string;
       attemptKind?: WrittenAttemptKind;
       markingLatencyMs?: number;
+      responseEnteredAtMs?: number;
     },
   ) {
     if (!question) {
@@ -601,8 +591,8 @@ export function GeneratorView() {
 
     const uploadedAnswer = options?.uploadedAnswerOverride ?? (answersByQuestionId[question.id] ?? "");
     const createdAt = new Date().toISOString();
-    const createdAtMs = Date.parse(createdAt);
     const questionStartedAt = writtenQuestionPresentedAtById[question.id];
+    const responseEnteredAt = options?.responseEnteredAtMs ?? writtenResponseEnteredAtById[question.id] ?? Date.now();
 
     const historyEntry: QuestionHistoryEntry = {
       id: `${question.id}-${Date.now()}`,
@@ -619,8 +609,8 @@ export function GeneratorView() {
         answerCharacterCount: uploadedAnswer.length,
         answerWordCount: countWords(uploadedAnswer),
         usedImageUpload: Boolean(imagesByQuestionId[question.id]),
-        responseLatencyMs: Number.isFinite(questionStartedAt)
-          ? Math.max(0, createdAtMs - questionStartedAt)
+        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseEnteredAt)
+          ? Math.max(0, responseEnteredAt - questionStartedAt)
           : undefined,
         markingLatencyMs: options?.markingLatencyMs,
       },
@@ -700,6 +690,7 @@ export function GeneratorView() {
       setActiveQuestionIndex(0);
       setActiveWrittenSavedSetId(null);
       setWrittenQuestionPresentedAtById({});
+      setWrittenResponseEnteredAtById({});
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
@@ -723,6 +714,7 @@ export function GeneratorView() {
     setIsMarking(true);
 
     try {
+      const responseEnteredAtMs = writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
       const markStartedAt = Date.now();
       const rawResponse = await invoke<unknown>("mark_answer", {
         request: {
@@ -746,6 +738,7 @@ export function GeneratorView() {
         uploadedAnswerOverride: activeQuestionAnswer,
         attemptKind: "initial",
         markingLatencyMs,
+        responseEnteredAtMs,
       });
     } catch (error) {
       setErrorMessage(readBackendError(error));
@@ -772,6 +765,7 @@ export function GeneratorView() {
     setIsMarking(true);
 
     try {
+      const responseEnteredAtMs = Date.now();
       const markStartedAt = Date.now();
       const arguedAnswer = [
         activeQuestionAnswer,
@@ -802,6 +796,7 @@ export function GeneratorView() {
         uploadedAnswerOverride: activeQuestionAnswer,
         attemptKind: "appeal",
         markingLatencyMs,
+        responseEnteredAtMs,
       });
     } catch (error) {
       setErrorMessage(readBackendError(error));
@@ -845,6 +840,7 @@ export function GeneratorView() {
     appendWrittenHistoryEntry(activeQuestion, updatedResponse, {
       uploadedAnswerOverride: activeQuestionAnswer,
       attemptKind: "override",
+      responseEnteredAtMs: Date.now(),
     });
   }
 
@@ -908,11 +904,12 @@ export function GeneratorView() {
   function handleMcAnswer(selectedLabel: string) {
     if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
 
+    const responseEnteredAtMs = Date.now();
     const awardedMarks = selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
     setMcAnswersByQuestionId((prev: any) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
     setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: awardedMarks }));
     setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: String(awardedMarks) }));
-    appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial");
+    appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial", responseEnteredAtMs);
   }
 
   function buildMcMarkingPrompt(question: typeof activeMcQuestion) {
@@ -947,6 +944,7 @@ export function GeneratorView() {
     setIsMarking(true);
 
     try {
+      const responseEnteredAtMs = Date.now();
       const selectedOptionText = activeMcQuestion.options.find((option: McOption) => option.label === activeMcAnswer)?.text ?? "";
       const arguedAnswer = [
         `Student selected option ${activeMcAnswer}: ${selectedOptionText}`,
@@ -983,7 +981,7 @@ export function GeneratorView() {
         ...prev,
         [activeMcQuestion.id]: String(awardedMarks),
       }));
-      appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, awardedMarks, "appeal");
+      appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, awardedMarks, "appeal", responseEnteredAtMs);
     } catch (error) {
       setErrorMessage(readBackendError(error));
     } finally {
@@ -1014,7 +1012,7 @@ export function GeneratorView() {
       ...prev,
       [activeMcQuestion.id]: String(clampedMarks),
     }));
-    appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, clampedMarks, "override");
+    appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, clampedMarks, "override", Date.now());
   }
 
   function handleStartOver() {
@@ -1042,6 +1040,7 @@ export function GeneratorView() {
     setAnswersByQuestionId({});
     setImagesByQuestionId({});
     setFeedbackByQuestionId({});
+    setWrittenResponseEnteredAtById({});
     setMarkAppealByQuestionId({});
     setMarkOverrideInputByQuestionId({});
     setMcQuestions([]);
@@ -1066,6 +1065,13 @@ export function GeneratorView() {
         ...prev,
         [activeQuestion.id]: { name: file.name, dataUrl },
       }));
+      setWrittenResponseEnteredAtById((prev) => {
+        if (prev[activeQuestion.id] !== undefined) {
+          return prev;
+        }
+
+        return { ...prev, [activeQuestion.id]: Date.now() };
+      });
     } catch {
       setErrorMessage("Could not read image file. Try a different file.");
     }
@@ -1667,7 +1673,20 @@ export function GeneratorView() {
                           placeholder="Compose your response here..."
                           className="min-h-[200px] resize-y text-base p-4 focus-visible:ring-primary/30"
                           value={activeQuestionAnswer}
-                          onChange={(e) => setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: nextValue }));
+                            if (nextValue.trim().length === 0) {
+                              return;
+                            }
+                            setWrittenResponseEnteredAtById((prev) => {
+                              if (prev[activeQuestion.id] !== undefined) {
+                                return prev;
+                              }
+
+                              return { ...prev, [activeQuestion.id]: Date.now() };
+                            });
+                          }}
                           disabled={isMarking}
                         />
                       </div>

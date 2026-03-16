@@ -95,14 +95,13 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
 }
 
 export async function savePersistedAppState(state: PersistedAppState): Promise<void> {
-  const normalized = normalizePersistedAppState(state);
   if (isTauriRuntime()) {
-    await invoke("save_persisted_state", { state: normalized });
+    await invoke("save_persisted_state", { state });
     clearLegacyLocalStorage();
     return;
   }
 
-  window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(normalized));
+  window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
 }
 
 export function normalizePersistedAppState(raw: unknown): PersistedAppState {

@@ -328,7 +328,7 @@ fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> Comm
         })?;
     }
 
-    let payload = serde_json::to_string_pretty(&state).map_err(|err| {
+    let payload = serde_json::to_string(&state).map_err(|err| {
         AppError::new(
             "PERSISTENCE_SERIALIZE_ERROR",
             format!("Could not serialize app state: {err}"),
