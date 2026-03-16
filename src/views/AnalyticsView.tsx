@@ -181,7 +181,7 @@ function KpiCard({ title, value, detail, icon: Icon }: KpiCardProps) {
     <Card size="sm" className="border border-border/70 bg-card/90 shadow-sm">
       <CardContent className="flex items-start justify-between gap-3 pt-3">
         <div className="space-y-1">
-          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{title}</div>
+          <div className="text-xs font-semibold uppercase text-muted-foreground">{title}</div>
           <div className="text-2xl font-semibold tracking-tight">{value}</div>
           <div className="text-xs text-muted-foreground">{detail}</div>
         </div>
@@ -875,22 +875,39 @@ export function AnalyticsView() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <Card className="border border-border/70 bg-card/90 shadow-sm">
+            <Card className="border border-border/70 bg-card/90 shadow-sm flex flex-col h-full">
               <CardHeader>
                 <CardTitle>Written Analytics</CardTitle>
                 <CardDescription>Score distribution for marked written responses.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 pb-0"> {/* flex-1 allows this to grow */}
                 {writtenAttempts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No written attempts yet.</p>
                 ) : (
-                  <ChartContainer config={marksChartConfig} className="h-72 w-full">
-                    <BarChart data={writtenMarksDistribution} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                      <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
+                  /* Using aspect-auto and h-full to force vertical expansion */
+                  <ChartContainer
+                    config={marksChartConfig}
+                    className="aspect-auto h-[400px] w-full"
+                  >
+                    <BarChart
+                      data={writtenMarksDistribution}
+                      margin={{ left: 0, right: 0, top: 10, bottom: 20 }}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                      />
+                      <YAxis hide />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="attempts" fill="var(--color-attempts)" radius={8} />
+                      <Bar
+                        dataKey="attempts"
+                        fill="var(--color-attempts)"
+                        radius={[6, 6, 0, 0]}
+                        barSize={60} // Manually set bar width if they look too skinny
+                      />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -910,14 +927,14 @@ export function AnalyticsView() {
                 ) : (
                   recentCriterionWeakPoints.map((row) => (
                     <div key={row.criterion} className="rounded-xl border border-border/70 bg-background/60 p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex flex-col items-start justify-between gap-2">
                         <div>
                           <div className="text-sm font-semibold">{row.criterion}</div>
                           <div className="text-xs text-muted-foreground">
                             {row.topicSummary || "Mixed topics"}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="flex flex-row justify-center items-center gap-1 text-right">
                           <div className="text-sm font-semibold">{formatPercent(row.successPercent)}</div>
                           <div className="text-xs text-muted-foreground">
                             {row.achievedMarks}/{row.availableMarks} marks kept
@@ -936,7 +953,7 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1fr_0.95fr]">
+          <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
             <Card className="border border-border/70 bg-card/90 shadow-sm">
               <CardHeader>
                 <CardTitle>Answer Effort vs Score</CardTitle>

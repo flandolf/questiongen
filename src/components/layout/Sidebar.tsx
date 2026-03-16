@@ -14,7 +14,7 @@ export function Sidebar() {
 
   return (
     <aside className={cn("app-sidebar flex flex-col font-medium", isAndroid && "app-sidebar--icons") }>
-      <nav className="app-sidebar__nav flex-1 px-2 space-y-1 sm:px-3">
+      <nav className="app-sidebar__nav flex-1 space-y-1 sm:px-3">
         {links.map((link) => (
           <NavLink
             key={link.to}

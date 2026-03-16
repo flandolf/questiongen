@@ -18,6 +18,14 @@ const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematic
 const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning. For biomechanics, avoid focus on pure physics calculations and instead emphasize application of concepts to novel contexts, as in VCE calculations are not examined.";
 const CHEMICAL_FORMULA_LATEX_GUIDANCE: &str = " For Chemistry content, always render every chemical formula and ionic species in LaTeX math delimiters, e.g. $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$.";
 const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
+const LATEX_FORMATTING_RULES: &str = " LaTeX rules (mandatory, no exceptions): \
+(1) Every mathematical expression — including single variables ($x$), isolated numbers used in algebra ($3$), exponents ($n$), and inequalities — must be wrapped in delimiters. \
+(2) Inline math: $...$ — use within a sentence, e.g. the gradient is $\\frac{dy}{dx}$. \
+(3) Display/block math: $$...$$ — use for standalone equations on their own line, e.g. $$\\int_0^\\pi \\sin x\\,dx = 2$$. \
+(4) NEVER use \\(...\\) or \\[...\\] as math delimiters. \
+(5) Every subscript ($x_1$), superscript ($x^2$), fraction ($\\frac{a}{b}$), radical ($\\sqrt{x}$), Greek letter ($\\alpha$, $\\beta$, $\\theta$), vector ($\\vec{v}$), and operator ($\\times$, $\\pm$, $\\leq$) must be inside delimiters. \
+(6) Multi-line or matrix expressions must use display math: $$\\begin{pmatrix}a & b \\\\ c & d\\end{pmatrix}$$. \
+(7) Chemistry: every chemical formula and ionic species must be in math delimiters: $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$.";
 const MC_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"mc1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"options\":[{\"label\":\"A\",\"text\":\"...\"},{\"label\":\"B\",\"text\":\"...\"},{\"label\":\"C\",\"text\":\"...\"},{\"label\":\"D\",\"text\":\"...\"}],\"correctAnswer\":\"A\",\"explanationMarkdown\":\"...\",\"techAllowed\":false}]}";
 const MARK_ANSWER_JSON_CONTRACT: &str = "{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":10,\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}";
 const MC_EXPLANATION_MAX_WORDS: usize = 90;
@@ -105,6 +113,7 @@ struct GenerateQuestionsRequest {
     avoid_similar_questions: Option<bool>,
     prior_question_prompts: Option<Vec<String>>,
     use_structured_output: Option<bool>,
+    max_marks_per_question: Option<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -169,7 +178,8 @@ struct MarkAnswerRequest {
     student_answer_image_data_url: Option<String>,
     model: String,
     api_key: String,
-    use_structured_output: Option<bool>,
+    #[serde(rename = "useStructuredOutput")]
+    _use_structured_output: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -384,7 +394,8 @@ async fn generate_questions(
         1,
     );
 
-    let system_prompt = "You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
+    let system_prompt_owned = format!("You are an expert VCE exam writer. Produce diverse, exam-style questions and include LaTeX in markdown when mathematics is involved.{LATEX_FORMATTING_RULES}");
+    let system_prompt: &str = &system_prompt_owned;
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let prioritized_command_terms =
@@ -432,8 +443,27 @@ async fn generate_questions(
     );
     let command_term_guidance_note =
         build_command_term_guidance_note(&prioritized_command_terms, &request.topics);
+    let is_extreme = request.difficulty.eq_ignore_ascii_case("extreme");
+    let is_essential_skills = request
+        .difficulty
+        .eq_ignore_ascii_case("essential skills");
+    let has_math_topic = request.topics.iter().any(|t| {
+        let t = t.trim();
+        t.eq_ignore_ascii_case("Mathematical Methods") || t.eq_ignore_ascii_case("Specialist Mathematics")
+    });
+    let essential_skills_math_note = if is_essential_skills && has_math_topic {
+        " For mathematics questions at Essential Skills level: prioritise straightforward, single-skill items with minimal analysis, direct substitution, or direct equation solving (for example, solving a basic trigonometric equation on a stated interval). Avoid multi-part proofs, deep modelling, or chained synthesis tasks."
+    } else {
+        ""
+    };
+    let extreme_math_note = if is_extreme && has_math_topic {
+        " For mathematics questions at Extreme level: heavily favour multi-part analytical and proof-style questions requiring rigorous algebraic manipulation, chain reasoning across two or more concepts, and derivation or justification of results from first principles. Avoid purely computational or template-substitution tasks."
+    } else {
+        ""
+    };
+    let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
     let user_prompt = format!(
-        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and 30.{command_term_guidance_note}{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and {max_marks_cap}.{command_term_guidance_note}{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
@@ -445,7 +475,10 @@ async fn generate_questions(
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,
         chemistry_formula_note = chemistry_formula_note,
+        essential_skills_math_note = essential_skills_math_note,
+        extreme_math_note = extreme_math_note,
         similarity_guardrail_note = similarity_guardrail_note,
+        max_marks_cap = max_marks_cap,
         json_contract = WRITTEN_QUESTION_JSON_CONTRACT,
     );
     let (base_user_content, plugins) =
@@ -643,28 +676,28 @@ async fn generate_questions(
 async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
     validate_mark_request(&request)?;
 
-    let system_prompt = "You are a strict but constructive VCE marker. Assess student answers fairly and explain clearly. Always render mathematics using markdown LaTeX delimiters: $...$ inline and $$...$$ display. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters.";
+    let system_prompt_owned = format!("You are a strict but constructive VCE marker. Assess student answers fairly and explain clearly.{LATEX_FORMATTING_RULES}");
+    let system_prompt: &str = &system_prompt_owned;
+    let normalized_student_answer = normalize_student_answer_for_marking(&request.student_answer);
     let chemistry_formula_note = if is_chemistry_topic(&request.question.topic) {
         " For Chemistry content, every chemical formula and ionic species in your response must be LaTeX-formatted (for example $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$)."
     } else {
         ""
     };
     let user_prompt_text = format!(
-        "Question topic: {topic}\nQuestion:\n{question}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nUse VCAA-style criterion marking. Build a criterion-by-criterion marking scheme, award marks out of {max_marks}, and compare the student response against the worked solution. Return ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks. Use markdown and LaTeX where relevant.{chemistry_formula_note}",
+        "Question topic: {topic}\nQuestion:\n{question}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nUse VCAA-style criterion marking. Mark only what is explicitly stated in the student's response and do not infer unstated working. Build a criterion-by-criterion marking scheme, award marks out of {max_marks}, and compare the student response against the worked solution.\n\nConciseness rules:\n- comparisonToSolutionMarkdown: maximum 120 words.\n- feedbackMarkdown: maximum 120 words.\n- workedSolutionMarkdown: maximum 180 words.\n- Each rationale in vcaaMarkingScheme: maximum 45 words.\n\nReturn ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks. Use markdown and LaTeX where relevant.{chemistry_formula_note}",
         topic = request.question.topic,
         question = request.question.prompt_markdown,
-        answer = request.student_answer,
+        answer = normalized_student_answer,
         max_marks = request.question.max_marks,
         chemistry_formula_note = chemistry_formula_note,
     );
 
     let user_content = build_mark_answer_user_content(&user_prompt_text, request.student_answer_image_data_url.as_deref())?;
 
-    let response_format = if request.use_structured_output.unwrap_or(false) {
-        Some(mark_answer_response_format())
-    } else {
-        None
-    };
+    // Marking is latency-sensitive and JSON parsing failures require expensive retry calls,
+    // so always request schema-constrained output and let backend fallback handle unsupported models.
+    let response_format = Some(mark_answer_response_format());
 
     let mut content = call_openrouter(
         &request.api_key,
@@ -735,13 +768,14 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         }
     };
 
-    if parsed.max_marks == 0 {
-        parsed.max_marks = request.question.max_marks;
-    }
-
-    if parsed.max_marks == 0 {
-        parsed.max_marks = 10;
-    }
+    // Always use the authoritative question max marks; the model sometimes
+    // returns maxMarks:10 (copied from the example in the prompt) regardless
+    // of the actual question value.
+    parsed.max_marks = if request.question.max_marks > 0 {
+        request.question.max_marks
+    } else {
+        10
+    };
 
     if parsed.achieved_marks > parsed.max_marks {
         parsed.achieved_marks = parsed.max_marks;
@@ -775,6 +809,30 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     }
 
     Ok(parsed)
+}
+
+fn normalize_student_answer_for_marking(answer: &str) -> String {
+    const MAX_MARKING_ANSWER_CHARS: usize = 12_000;
+
+    let normalized = answer
+        .replace("\r\n", "\n")
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string();
+
+    if normalized.chars().count() <= MAX_MARKING_ANSWER_CHARS {
+        return normalized;
+    }
+
+    let mut truncated = normalized
+        .chars()
+        .take(MAX_MARKING_ANSWER_CHARS)
+        .collect::<String>();
+    truncated.push_str("\n\n[Truncated by app for marking due to excessive length.]\n");
+    truncated
 }
 
 #[tauri::command]
@@ -1354,7 +1412,8 @@ async fn generate_mc_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model is required."));
     }
 
-    let system_prompt = "You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Use ONLY $...$ for inline math and $$...$$ for display math. Never use plain ( ... ) or [ ... ] as math delimiters. Always write chemical formulas and ions in LaTeX math delimiters. Never reveal chain-of-thought, internal deliberation, or self-corrections; provide only concise final explanations.";
+    let system_prompt_owned = format!("You are an expert VCE exam writer. Create challenging, exam-style multiple choice questions. Never reveal chain-of-thought, internal deliberation, or self-corrections; provide only concise final explanations.{LATEX_FORMATTING_RULES}");
+    let system_prompt: &str = &system_prompt_owned;
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let custom_focus_area = request
@@ -1363,6 +1422,24 @@ async fn generate_mc_questions(
         .map(str::trim)
         .filter(|value| !value.is_empty());
     let difficulty_rules = difficulty_guidance(&request.difficulty);
+    let is_essential_skills_mc = request
+        .difficulty
+        .eq_ignore_ascii_case("essential skills");
+    let is_extreme_mc = request.difficulty.eq_ignore_ascii_case("extreme");
+    let has_math_topic_mc = request.topics.iter().any(|t| {
+        let t = t.trim();
+        t.eq_ignore_ascii_case("Mathematical Methods") || t.eq_ignore_ascii_case("Specialist Mathematics")
+    });
+    let essential_skills_math_note_mc = if is_essential_skills_mc && has_math_topic_mc {
+        " For mathematics questions at Essential Skills level: use direct one-step or short two-step skills checks with minimal analysis, such as straightforward substitution or solving standard equations on a stated interval. Avoid proof-heavy, modelling-heavy, or highly non-routine tasks."
+    } else {
+        ""
+    };
+    let extreme_math_note_mc = if is_extreme_mc && has_math_topic_mc {
+        " For mathematics questions at Extreme level: favour deep analytical reasoning, require students to interpret or construct non-trivial mathematical arguments, and use unfamiliar problem contexts that cannot be solved by template recall."
+    } else {
+        ""
+    };
     let math_methods_reference_note = if includes_mathematical_methods(&request.topics) {
         MATHEMATICAL_METHODS_REFERENCE_GUIDANCE
     } else {
@@ -1399,7 +1476,7 @@ async fn generate_mc_questions(
         request.prior_question_prompts.as_deref(),
     );
     let user_prompt = format!(
-        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.\n- explanationMarkdown must be concise: 1-3 short sentences, maximum 90 words.\n- explanationMarkdown must give only the final rationale: why the correct option is right and briefly why common distractors fail.\n- explanationMarkdown must not include chain-of-thought, self-talk, retries, uncertainty narration, or any rewriting/fixing of the question/options.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.\n- explanationMarkdown must be concise: 1-3 short sentences, maximum 90 words.\n- explanationMarkdown must give only the final rationale: why the correct option is right and briefly why common distractors fail.\n- explanationMarkdown must not include chain-of-thought, self-talk, retries, uncertainty narration, or any rewriting/fixing of the question/options.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
@@ -1410,6 +1487,8 @@ async fn generate_mc_questions(
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,
         chemistry_formula_note = chemistry_formula_note,
+        essential_skills_math_note = essential_skills_math_note_mc,
+        extreme_math_note = extreme_math_note_mc,
         similarity_guardrail_note = similarity_guardrail_note,
         json_contract = MC_QUESTION_JSON_CONTRACT,
     );
@@ -1599,12 +1678,16 @@ fn default_question_max_marks() -> u8 {
 }
 
 fn difficulty_guidance(level: &str) -> &'static str {
-    if level.eq_ignore_ascii_case("easy") {
+    if level.eq_ignore_ascii_case("essential skills") {
+        "- Target essential syllabus skills only: direct recall, direct substitution, and straightforward procedure execution.\n- Keep cognitive load low: minimal analysis, minimal context decoding, and no hidden method-switching.\n- Prefer one-step to short two-step tasks using familiar phrasing and standard forms."
+    } else if level.eq_ignore_ascii_case("easy") {
         "- Target foundational understanding and direct application.\n- Use familiar contexts with minimal distractor complexity.\n- Keep reasoning steps short and explicit."
     } else if level.eq_ignore_ascii_case("medium") {
         "- Require multi-step reasoning with at least two linked concepts.\n- Include non-routine context shifts that require method choice.\n- Use realistic exam pressure through concise but information-dense prompts."
-    } else {
+    } else if level.eq_ignore_ascii_case("hard") {
         "- Build discriminator-level questions requiring synthesis across multiple concepts.\n- Include unfamiliar or edge-case contexts that punish rote methods.\n- Require method selection, justification, and error-resistant reasoning chains."
+    } else {
+        "- Go significantly beyond VCE exam difficulty; target olympiad or early university level.\n- Every question must require deep conceptual insight, multi-stage derivation, or cross-domain synthesis.\n- Unfamiliar problem framings only; absolutely no template-recall or routine algorithm application.\n- Maximise cognitive load: embed multiple constraints, require students to construct novel sub-results mid-solution."
     }
 }
 
@@ -2352,7 +2435,7 @@ mod tests {
             multi_step_depth: None,
         }];
 
-        let result = validate_written_questions(&questions, 2, None);
+        let result = validate_written_questions(&questions, 2, None, &[]);
         assert!(result.is_err());
     }
 
@@ -2406,7 +2489,7 @@ mod tests {
         }];
 
         let allowed = vec!["functions".to_string()];
-        let result = validate_written_questions(&questions, 1, Some(&allowed));
+        let result = validate_written_questions(&questions, 1, Some(&allowed), &[]);
         assert!(result.is_ok());
     }
 

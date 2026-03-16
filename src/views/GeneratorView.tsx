@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark, Info } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark, Info, Album, BookCheck, Calculator, Pen } from "lucide-react";
 import {
   useAppContext,
   useAppPreferences,
@@ -17,7 +17,6 @@ import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Slider } from "../components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import {
@@ -61,7 +60,6 @@ export function GeneratorView() {
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState("");
-  const [renderFallbackByQuestionId, setRenderFallbackByQuestionId] = useState<Record<string, boolean>>({});
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
   const [mcMarkAppealByQuestionId, setMcMarkAppealByQuestionId] = useState<Record<string, string>>({});
@@ -93,6 +91,8 @@ export function GeneratorView() {
     setPhysicalEducationSubtopics,
     questionCount,
     setQuestionCount,
+    maxMarksPerQuestion,
+    setMaxMarksPerQuestion,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
@@ -156,7 +156,6 @@ export function GeneratorView() {
   const activeQuestionAnswer = activeQuestion ? (answersByQuestionId[activeQuestion.id] ?? "") : "";
   const activeQuestionImage = activeQuestion ? imagesByQuestionId[activeQuestion.id] : undefined;
   const activeFeedback = activeQuestion ? feedbackByQuestionId[activeQuestion.id] : undefined;
-  const activeQuestionFallbackUsed = activeQuestion ? Boolean(renderFallbackByQuestionId[activeQuestion.id]) : false;
   const activeMarkAppeal = activeQuestion ? (markAppealByQuestionId[activeQuestion.id] ?? "") : "";
   const activeOverrideInput = activeQuestion
     ? (markOverrideInputByQuestionId[activeQuestion.id] ?? (activeFeedback ? String(activeFeedback.achievedMarks) : ""))
@@ -185,6 +184,10 @@ export function GeneratorView() {
     () => mcQuestions.filter((q: { id: string | number; }) => mcAnswersByQuestionId[q.id]).length,
     [mcAnswersByQuestionId, mcQuestions],
   );
+
+  const lastWrittenCompletedCountRef = useRef(completedCount);
+  const lastMcCompletedCountRef = useRef(mcCompletedCount);
+
 
   function getMcAwardedMarks(questionId: string, selectedAnswer: string, correctAnswer: string) {
     const overridden = mcAwardedMarksByQuestionId[questionId];
@@ -304,6 +307,50 @@ export function GeneratorView() {
   }, [completionSetKey]);
 
   useEffect(() => {
+    const previous = lastWrittenCompletedCountRef.current;
+    const hasNewCompletion = completedCount > previous;
+
+    if (
+      questionMode === "written" &&
+      activeWrittenSavedSetId &&
+      questions.length > 0 &&
+      hasNewCompletion
+    ) {
+      saveCurrentSet();
+    }
+
+    lastWrittenCompletedCountRef.current = completedCount;
+  }, [
+    activeWrittenSavedSetId,
+    completedCount,
+    questionMode,
+    questions.length,
+    saveCurrentSet,
+  ]);
+
+  useEffect(() => {
+    const previous = lastMcCompletedCountRef.current;
+    const hasNewCompletion = mcCompletedCount > previous;
+
+    if (
+      questionMode === "multiple-choice" &&
+      activeMcSavedSetId &&
+      mcQuestions.length > 0 &&
+      hasNewCompletion
+    ) {
+      saveCurrentSet();
+    }
+
+    lastMcCompletedCountRef.current = mcCompletedCount;
+  }, [
+    activeMcSavedSetId,
+    mcCompletedCount,
+    mcQuestions.length,
+    questionMode,
+    saveCurrentSet,
+  ]);
+
+  useEffect(() => {
     if (!activeQuestion) {
       return;
     }
@@ -396,7 +443,6 @@ export function GeneratorView() {
     setAnswersByQuestionId((prev) => removeRecordKey(prev, questionId));
     setImagesByQuestionId((prev) => removeRecordKey(prev, questionId));
     setFeedbackByQuestionId((prev) => removeRecordKey(prev, questionId));
-    setRenderFallbackByQuestionId((prev) => removeRecordKey(prev, questionId));
     setMarkAppealByQuestionId((prev) => removeRecordKey(prev, questionId));
     setMarkOverrideInputByQuestionId((prev) => removeRecordKey(prev, questionId));
     setErrorMessage(null);
@@ -467,6 +513,23 @@ export function GeneratorView() {
 
   function isMathTopic(topic?: string) {
     return topic === "Mathematical Methods" || topic === "Specialist Mathematics";
+  }
+
+  function getDifficultyBadgeClasses(level: Difficulty) {
+    switch (level) {
+      case "Essential Skills":
+        return "border-green-300 bg-green-50 text-green-800 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-200";
+      case "Easy":
+        return "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200";
+      case "Medium":
+        return "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200";
+      case "Hard":
+        return "border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-200";
+      case "Extreme":
+        return "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200";
+      default:
+        return "";
+    }
   }
 
   function togglePrioritizedCommandTerm(term: VceCommandTerm) {
@@ -599,7 +662,8 @@ export function GeneratorView() {
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
     const customFocus = getCustomFocusArea();
-    const hasAnyNonMathTopic = selectedTopics.some((topic) => !isMathTopic(topic));
+    const hasPeTopicLocal = selectedTopics.includes("Physical Education");
+    const hasAnyMathTopicLocal = selectedTopics.some((topic) => isMathTopic(topic));
     startStopwatch();
     setErrorMessage(null);
     setGenerationStatus({
@@ -616,7 +680,8 @@ export function GeneratorView() {
           topics: selectedTopics,
           difficulty,
           questionCount,
-          prioritizedCommandTerms: hasAnyNonMathTopic ? prioritizedCommandTerms : [],
+          maxMarksPerQuestion: hasAnyMathTopicLocal ? maxMarksPerQuestion : undefined,
+          prioritizedCommandTerms: hasPeTopicLocal ? prioritizedCommandTerms : [],
           model,
           apiKey,
           techMode,
@@ -638,7 +703,6 @@ export function GeneratorView() {
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
-      setRenderFallbackByQuestionId({});
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({
@@ -838,8 +902,8 @@ export function GeneratorView() {
   }
 
   const hasAnyMathTopic = selectedTopics.some((topic) => isMathTopic(topic));
-  const hasAnyNonMathTopic = selectedTopics.some((topic) => !isMathTopic(topic));
-  const commandTermsDisabled = !hasAnyNonMathTopic;
+  const hasPeTopic = selectedTopics.includes("Physical Education");
+  const commandTermsDisabled = !hasPeTopic;
 
   function handleMcAnswer(selectedLabel: string) {
     if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
@@ -954,6 +1018,19 @@ export function GeneratorView() {
   }
 
   function handleStartOver() {
+    const shouldAutoSaveWritten =
+      questionMode === "written" &&
+      questions.length > 0 &&
+      !activeWrittenSavedSetId;
+    const shouldAutoSaveMc =
+      questionMode === "multiple-choice" &&
+      mcQuestions.length > 0 &&
+      !activeMcSavedSetId;
+
+    if (shouldAutoSaveWritten || shouldAutoSaveMc) {
+      saveCurrentSet();
+    }
+
     resetStopwatch();
     setQuestions([]);
     setWrittenRawModelOutput("");
@@ -965,7 +1042,6 @@ export function GeneratorView() {
     setAnswersByQuestionId({});
     setImagesByQuestionId({});
     setFeedbackByQuestionId({});
-    setRenderFallbackByQuestionId({});
     setMarkAppealByQuestionId({});
     setMarkOverrideInputByQuestionId({});
     setMcQuestions([]);
@@ -980,17 +1056,6 @@ export function GeneratorView() {
     setMcMarkOverrideInputByQuestionId({});
     setMcAwardedMarksByQuestionId({});
   }
-
-  function handlePromptFallbackChange(isFallback: boolean) {
-    if (!activeQuestion) return;
-    setRenderFallbackByQuestionId((prev) => {
-      if (prev[activeQuestion.id] === isFallback) {
-        return prev;
-      }
-      return { ...prev, [activeQuestion.id]: isFallback };
-    });
-  }
-
   async function handleDropDropzone(acceptedFiles: File[]) {
     if (!activeQuestion || acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
@@ -1096,7 +1161,7 @@ export function GeneratorView() {
                         <Badge
                           key={sub}
                           variant={mathMethodsSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer p-3 text-xs transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => toggleMathMethodsSubtopic(sub)}
                         >
                           {sub}
@@ -1116,7 +1181,7 @@ export function GeneratorView() {
                         <Badge
                           key={sub}
                           variant={specialistMathSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${specialistMathSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer p-3 text-xs transition-colors ${specialistMathSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => toggleSpecialistMathSubtopic(sub)}
                         >
                           {sub}
@@ -1137,7 +1202,7 @@ export function GeneratorView() {
                         <Badge
                           key={sub}
                           variant={chemistrySubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${chemistrySubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer p-3 text-xs transition-colors ${chemistrySubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => toggleChemistrySubtopic(sub)}
                         >
                           {sub}
@@ -1158,7 +1223,7 @@ export function GeneratorView() {
                         <Badge
                           key={sub}
                           variant={physicalEducationSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer px-3 py-1.5 text-xs transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          className={`cursor-pointer p-3 text-xs transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => togglePhysicalEducationSubtopic(sub)}
                         >
                           {sub}
@@ -1171,7 +1236,7 @@ export function GeneratorView() {
             )}
 
             {/* Configuration Parameters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+            <div className="flex flex-col gap-y-3">
               {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics")) && (
                 <div className="space-y-1.5 md:col-span-2">
                   <Label className="text-sm font-semibold flex items-center gap-2">
@@ -1187,6 +1252,8 @@ export function GeneratorView() {
                           className={`w-full h-9 text-sm transition-all ${isActive ? "shadow-md ring-2 ring-primary/20 ring-offset-1" : ""}`}
                           onClick={() => setTechMode(mode)}
                         >
+                          {mode === "tech-free" && <Pen className="w-4 h-4 mr-1" />}
+                          {mode === "tech-active" && <Calculator className="w-4 h-4 mr-1" />}
                           {mode === "tech-free" ? "Tech-Free" : mode === "tech-active" ? "Tech-Active" : "Mixed"}
                         </Button>
                       )
@@ -1195,18 +1262,42 @@ export function GeneratorView() {
                 </div>
               )}
 
+              <div className="space-y-1.5 md:col-span-2">
+                <div className="flex items-center gap-2">
+                  <BookCheck className="w-4 h-4" />
+                  <Label className="text-sm font-semibold">Custom Focus Area (Optional)</Label>
+                </div>
+                <Input
+                  value={customFocusArea}
+                  onChange={(e) => setCustomFocusArea(e.target.value)}
+                  maxLength={160}
+                  placeholder="e.g. projectile motion with optimization constraints"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add a custom topic or skill focus to guide generation. This is appended to the selected subtopics sent to the model.
+                </p>
+              </div>
+
               <div className="space-y-1.5">
-                <Label className="text-sm font-semibold">Difficulty</Label>
-                <Select value={difficulty} onValueChange={(val) => setDifficulty(val as Difficulty)}>
-                  <SelectTrigger className="h-10 bg-background border-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Easy">Easy (Foundation)</SelectItem>
-                    <SelectItem value="Medium">Medium (Standard VCE)</SelectItem>
-                    <SelectItem value="Hard">Hard (Discriminator)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Album className="w-4 h-4" />
+                  <Label className="text-sm font-semibold">Difficulty</Label>
+                </div>
+                <div className="pl-px flex w-full flex-nowrap items-start gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] py-1">
+                  {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((level) => {
+                    const isSelected = difficulty === level;
+                    return (
+                      <Button
+                        key={level}
+                        variant={isSelected ? "default" : "outline"}
+                        className={`h-9 shrink-0 whitespace-nowrap px-3 text-sm transition-all ${isSelected ? "shadow-md ring-2 ring-primary/20 ring-offset-1" : ""}`}
+                        onClick={() => setDifficulty(level)}
+                      >
+                        {level}
+                      </Button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="space-y-1.5 pt-1">
@@ -1217,7 +1308,18 @@ export function GeneratorView() {
                 <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-1" />
               </div>
 
-              {questionMode === "written" && (
+              {questionMode === "written" && hasAnyMathTopic && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-semibold">Max Marks per Question</Label>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{maxMarksPerQuestion}</Badge>
+                  </div>
+                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-1" />
+                  <p className="text-xs text-muted-foreground">Caps the mark value for each generated maths question.</p>
+                </div>
+              )}
+
+              {questionMode === "written" && hasPeTopic && (
                 <div className="space-y-1.5 pt-1 md:col-span-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
@@ -1275,18 +1377,6 @@ export function GeneratorView() {
                 </Button>
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-sm font-semibold">Custom Focus Area (Optional)</Label>
-                <Input
-                  value={customFocusArea}
-                  onChange={(e) => setCustomFocusArea(e.target.value)}
-                  maxLength={160}
-                  placeholder="e.g. projectile motion with optimization constraints"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Add a custom topic or skill focus to guide generation. This is appended to the selected subtopics sent to the model.
-                </p>
-              </div>
             </div>
 
             {!apiKey && (
@@ -1298,7 +1388,7 @@ export function GeneratorView() {
 
           </CardContent>
 
-          <CardFooter className="bg-muted/20 p-4 md:p-5 border-t flex flex-col gap-3">
+          <CardFooter className="bg-muted/20 border-t flex flex-col gap-3">
             <Button
               size="lg"
               className={`w-full h-12 text-base font-bold transition-all duration-300 ${isGenerating ? 'opacity-90' : 'hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/25 bg-linear-to-r from-primary to-primary/90'}`}
@@ -1389,7 +1479,7 @@ export function GeneratorView() {
           <div className="sticky px-4.5 top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-3 pt-2 backdrop-blur-xl">
 
             <div className="flex flex-wrap items-center justify-end gap-1.5">
-                            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <div className="flex items-baseline gap-1.5 shrink-0">
                   <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
                     Question {activeQuestionIndex + 1}
@@ -1399,6 +1489,9 @@ export function GeneratorView() {
 
                 <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
                   {activeQuestion?.topic}
+                </Badge>
+                <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>
+                  Difficulty: {difficulty}
                 </Badge>
                 <Badge variant="outline" className="shrink-0 font-semibold">
                   {activeQuestion?.maxMarks} marks
@@ -1447,18 +1540,15 @@ export function GeneratorView() {
                           </span>
                         </div>
                       )}
-                      {activeQuestionFallbackUsed && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>LaTeX</span>
-                          <span className="text-amber-300">Recovery applied</span>
-                        </div>
-                      )}
-                      {writtenGenerationTelemetry?.constrainedRegenerationUsed && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Fallback</span>
-                          <span className="text-red-300">Full regeneration used</span>
-                        </div>
-                      )}
+                      {Boolean(
+                        (writtenGenerationTelemetry as { constrainedRegenerationUsed?: boolean } | null)
+                          ?.constrainedRegenerationUsed,
+                      ) && (
+                          <div className="flex items-center justify-between gap-3 text-background/80">
+                            <span>Fallback</span>
+                            <span className="text-red-300">Full regeneration used</span>
+                          </div>
+                        )}
                       {writtenGenerationTelemetry?.structuredOutputStatus === "used" && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
                           <span>Structured output</span>
@@ -1471,7 +1561,7 @@ export function GeneratorView() {
                           <span className="text-amber-300">Fallback used</span>
                         </div>
                       )}
-                      {generationStartedAt === null && !writtenGenerationTelemetry && !activeQuestionFallbackUsed && (
+                      {generationStartedAt === null && !writtenGenerationTelemetry && (
                         <div className="text-background/80">No extra generation diagnostics.</div>
                       )}
                     </div>
@@ -1548,7 +1638,7 @@ export function GeneratorView() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="prose prose-slate dark:prose-invert max-w-none">
-                    <MarkdownMath content={activeQuestion.promptMarkdown} onFallbackChange={handlePromptFallbackChange} />
+                    <MarkdownMath content={activeQuestion.promptMarkdown} />
                   </div>
                   {showWrittenRawOutput && canShowWrittenRawOutput && (
                     <div className="space-y-2">
@@ -1648,7 +1738,7 @@ export function GeneratorView() {
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-4">
+                      <div className="p-3.5 rounded-2xl border border-border/60 bg-muted/20 space-y-4">
                         <div className="space-y-2">
                           <Label className="text-sm font-semibold">Argue for Mark</Label>
                           <Textarea
@@ -1756,11 +1846,10 @@ export function GeneratorView() {
                 <div className="flex flex-row justify-between ">
                   <div className="mt-1 flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 text-xs sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">{activeMcQuestion?.topic}</Badge>
-                    <Badge variant="outline" className="shrink-0 bg-muted/50 font-semibold">Multiple Choice</Badge>
+                    <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>Difficulty: {difficulty}</Badge>
                     {activeMcQuestion && isMathTopic(activeMcQuestion.topic) && activeMcQuestion.techAllowed !== undefined && (
                       <Badge variant={activeMcQuestion.techAllowed ? "default" : "destructive"} className="shrink-0 shadow-sm">
-                        <span className="sm:hidden">{activeMcQuestion.techAllowed ? "Tech-Active" : "Tech-Free"}</span>
-                        <span className="hidden sm:inline">{activeMcQuestion.techAllowed ? "Tech-Active (CAS allowed)" : "Tech-Free (No calculator)"}</span>
+                        <span className="hidden sm:inline">{activeMcQuestion.techAllowed ? "CAS allowed" : "No calculator"}</span>
                       </Badge>
                     )}
                   </div>
@@ -1874,7 +1963,7 @@ export function GeneratorView() {
                       <Separator />
                       <div>
                         <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
-                        <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-5 whitespace-pre-wrap wrap-break-word">{mcRawModelOutput}</pre>
+                        <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-sm leading-5 whitespace-pre-wrap wrap-break-word">{mcRawModelOutput}</pre>
                       </div>
                     </div>
                   )}
@@ -1885,7 +1974,7 @@ export function GeneratorView() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl"><Target className="w-5 h-5 text-primary" /> Select an Answer</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-2">
                   <div className="flex flex-col gap-3">
                     {activeMcQuestion.options.map((opt: McOption) => {
                       const answered = Boolean(activeMcAnswer);
@@ -1908,7 +1997,7 @@ export function GeneratorView() {
                         <button
                           key={opt.label}
                           disabled={answered}
-                          className={`w-full text-left p-5 rounded-2xl flex gap-4 items-center transition-all duration-200 ${dynamicClasses} ${!answered ? "cursor-pointer transform hover:-translate-y-0.5" : "cursor-default"}`}
+                          className={`w-full text-left p-3.5 rounded-2xl flex gap-4 items-center transition-all duration-200 ${dynamicClasses} ${!answered ? "cursor-pointer transform hover:-translate-y-0.5" : "cursor-default"}`}
                           onClick={() => handleMcAnswer(opt.label)}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${answered && isCorrect ? 'bg-green-500 text-white' : answered && isChosen ? 'bg-red-500 text-white' : 'bg-muted text-foreground'}`}>
@@ -1942,12 +2031,12 @@ export function GeneratorView() {
                           </div>
                         </div>
                       </div>
-
-                      <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-4">
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                          <div className="text-sm font-semibold">Awarded mark</div>
-                          <div className="text-lg font-bold">
-                            {(activeMcAwardedMarks ?? (activeMcAnswer === activeMcQuestion.correctAnswer ? 1 : 0)).toFixed(0)} / 1
+                        {activeMcAnswer !== activeMcQuestion.correctAnswer && (
+                          <div className="p-3.5 rounded-2xl border border-border/60 bg-muted/20 space-y-4">
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                            <div className="text-sm font-semibold">Awarded mark</div>
+                            <div className="text-lg font-bold">
+                              {(activeMcAwardedMarks ?? (activeMcAnswer === activeMcQuestion.correctAnswer ? 1 : 0)).toFixed(0)} / 1
                           </div>
                         </div>
 
@@ -2002,7 +2091,7 @@ export function GeneratorView() {
                             <Button type="button" onClick={handleOverrideMcMark}>Apply Override</Button>
                           </div>
                         </div>
-                      </div>
+                      </div>)}
                     </div>
                   )}
                 </CardContent>

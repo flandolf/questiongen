@@ -1,30 +1,4 @@
 import { MarkAnswerResponse, BackendError } from "../types"
-
-const LATEX_FUNCTIONS = [
-  "arcsinh",
-  "arccosh",
-  "arctanh",
-  "arcsin",
-  "arccos",
-  "arctan",
-  "cosec",
-  "sinh",
-  "cosh",
-  "tanh",
-  "asin",
-  "acos",
-  "atan",
-  "sin",
-  "cos",
-  "tan",
-  "csc",
-  "sec",
-  "cot",
-  "ln",
-  "log",
-  "exp",
-].join("|");
-
 export function formatDate(isoString: string): string {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) {
@@ -66,9 +40,11 @@ export function clampWholeNumber(value: unknown, fallback: number, min: number, 
 }
 
 export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): MarkAnswerResponse {
-  const fallbackMax = questionMaxMarks > 0 ? questionMaxMarks : 10;
   const data = (raw ?? {}) as Partial<MarkAnswerResponse>;
-  const maxMarks = clampWholeNumber(data.maxMarks, fallbackMax, 1, 30);
+  // Always use the authoritative question max marks; the model sometimes
+  // returns maxMarks:10 (copied from the example in the prompt) regardless
+  // of the actual question value.
+  const maxMarks = questionMaxMarks > 0 ? questionMaxMarks : clampWholeNumber(data.maxMarks, 10, 1, 30);
   const achievedMarks = clampWholeNumber(data.achievedMarks, 0, 0, maxMarks);
   const scoreOutOf10 = clampWholeNumber(data.scoreOutOf10, Math.round((achievedMarks / maxMarks) * 10), 0, 10);
   const vcaaMarkingScheme = Array.isArray(data.vcaaMarkingScheme)
@@ -95,8 +71,10 @@ export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): M
 
 export function normalizeMathDelimiters(content: string): string {
   return transformOutsideCode(content, (segment) =>
-    normalizeBareLatexSegments(
-      escapeBarePercentInMath(normalizePseudoMathDelimiters(normalizeLatexFunctionSpacing(segment))),
+    escapeBarePercentInMath(
+      normalizeEscapedLatexCommandsInMath(
+        normalizePseudoMathDelimiters(segment),
+      ),
     ),
   );
 }
@@ -122,28 +100,11 @@ function transformOutsideCode(content: string, transform: (segment: string) => s
     .join("");
 }
 
-function normalizeLatexFunctionSpacing(content: string): string {
-  const functionPattern = new RegExp(`\\\\(${LATEX_FUNCTIONS})(?=[A-Za-z0-9(])`, "g");
-  return content.replace(functionPattern, (_match, fn: string) => `\\${fn} `);
-}
-
 function normalizePseudoMathDelimiters(content: string): string {
   return content
     .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression: string) => `$$${expression.trim()}$$`)
     .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression: string) => `$${expression.trim()}$`)
-    .replace(/(^|[\s:;,.!?])\[\s*([^\[\]\n]*[=^\\][^\[\]\n]*)\s*\](?=($|[\s:;,.!?]))/gm, (_match, prefix: string, expression: string) => {
-      return `${prefix}$$${expression.trim()}$$`;
-    })
-    .replace(/(^|[\s:;,.!?])\(\s*([^()\n]*[=^\\][^()\n]*)\s*\)(?=($|[\s:;,.!?]))/gm, (_match, prefix: string, expression: string) => {
-      return `${prefix}$${expression.trim()}$`;
-    });
-}
-
-function normalizeBareLatexSegments(content: string): string {
-  return content.replace(
-    /(^|[\s:;,.!?])([A-Za-z][A-Za-z0-9']*(?:\([^()\n]*\))?(?:\s*[=<>+\-]\s*|\s*=\s*)\\[A-Za-z][^\n]*?)(?=([.;,!?](?:\s|$)|$))/gm,
-    (_match, prefix: string, expression: string) => `${prefix}$${expression.trim()}$`,
-  );
+  ;
 }
 
 function escapeBarePercentInMath(content: string): string {
@@ -151,6 +112,16 @@ function escapeBarePercentInMath(content: string): string {
     const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
     const inner = mathSegment.slice(delimiter.length, -delimiter.length);
     return `${delimiter}${escapeUnescapedPercent(inner)}${delimiter}`;
+  });
+}
+
+function normalizeEscapedLatexCommandsInMath(content: string): string {
+  return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
+    const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
+    const inner = mathSegment.slice(delimiter.length, -delimiter.length);
+    // Model responses sometimes include JSON-escaped LaTeX commands (e.g. \\sin).
+    const normalizedInner = inner.replace(/\\\\([A-Za-z]+)/g, "\\$1");
+    return `${delimiter}${normalizedInner}${delimiter}`;
   });
 }
 

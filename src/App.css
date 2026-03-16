@@ -226,9 +226,6 @@
   }
 
   .app-sidebar {
-    width: 14vw;
-    flex: 0 0 14vw;
-    flex-shrink: 0;
     min-height: 100%;
     padding: 1.35rem 0 1rem;
     border-right: 1px solid color-mix(in oklab, var(--color-border) 78%, transparent);
@@ -243,7 +240,7 @@
 
   .app-sidebar__link {
     min-height: 3rem;
-    font-weight: 600;
+    font-weight: 500;
     transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
   }
 

@@ -40,6 +40,9 @@ export function usePreferencesState() {
   const [questionCount, setQuestionCount] = useState(
     EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   );
+  const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(
+    EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion,
+  );
   const [prioritizedCommandTerms, setPrioritizedCommandTerms] = useState<VceCommandTerm[]>(
     EMPTY_PERSISTED_APP_STATE.preferences.prioritizedCommandTerms,
   );
@@ -66,6 +69,8 @@ export function usePreferencesState() {
     setPhysicalEducationSubtopics,
     questionCount,
     setQuestionCount,
+    maxMarksPerQuestion,
+    setMaxMarksPerQuestion,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,

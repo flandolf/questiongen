@@ -1,4 +1,4 @@
-export type Difficulty = "Easy" | "Medium" | "Hard";
+export type Difficulty = "Essential Skills" | "Easy" | "Medium" | "Hard" | "Extreme";
 
 export type TechMode = "tech-free" | "tech-active" | "mix";
 
@@ -274,6 +274,7 @@ export type PersistedGeneratorPreferences = {
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
+  maxMarksPerQuestion: number;
   prioritizedCommandTerms: VceCommandTerm[];
   questionMode: QuestionMode;
 };

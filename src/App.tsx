@@ -1,4 +1,5 @@
 import { HashRouter, Routes, Route } from "react-router-dom";
+import { MathJaxContext } from "better-react-mathjax";
 import { AppProvider } from "./AppContext";
 import { useAppContext } from "./AppContext";
 import { Layout } from "./components/layout/Layout";
@@ -39,8 +40,18 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppRoutes />
-    </AppProvider>
+    <MathJaxContext
+      version={3}
+      config={{
+        tex: {
+          inlineMath: [["$", "$"]],
+          displayMath: [["$$", "$$"]],
+        },
+      }}
+    >
+      <AppProvider>
+        <AppRoutes />
+      </AppProvider>
+    </MathJaxContext>
   );
 }

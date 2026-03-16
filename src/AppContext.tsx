@@ -56,6 +56,8 @@ interface AppContextState {
   setPhysicalEducationSubtopics: (subtopics: PhysicalEducationSubtopic[] | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])) => void;
   questionCount: number;
   setQuestionCount: (count: number) => void;
+  maxMarksPerQuestion: number;
+  setMaxMarksPerQuestion: (marks: number) => void;
   prioritizedCommandTerms: VceCommandTerm[];
   setPrioritizedCommandTerms: (terms: VceCommandTerm[] | ((prev: VceCommandTerm[]) => VceCommandTerm[])) => void;
   model: string;
@@ -184,6 +186,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPhysicalEducationSubtopics,
     questionCount,
     setQuestionCount,
+    maxMarksPerQuestion,
+    setMaxMarksPerQuestion,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
@@ -251,6 +255,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       chemistrySubtopics,
       physicalEducationSubtopics,
       questionCount,
+      maxMarksPerQuestion,
       prioritizedCommandTerms,
       questionMode,
     };
@@ -264,6 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     chemistrySubtopics,
     physicalEducationSubtopics,
     questionCount,
+    maxMarksPerQuestion,
     prioritizedCommandTerms,
     questionMode,
   ]);
@@ -405,6 +411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChemistrySubtopics(state.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
     setQuestionCount(state.preferences.questionCount);
+    setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
     setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
 
@@ -590,6 +597,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPhysicalEducationSubtopics,
         questionCount,
         setQuestionCount,
+        maxMarksPerQuestion,
+        setMaxMarksPerQuestion,
         prioritizedCommandTerms,
         setPrioritizedCommandTerms,
         model,
@@ -686,6 +695,8 @@ export function useAppPreferences() {
     setPhysicalEducationSubtopics,
     questionCount,
     setQuestionCount,
+    maxMarksPerQuestion,
+    setMaxMarksPerQuestion,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
@@ -711,6 +722,8 @@ export function useAppPreferences() {
     setPhysicalEducationSubtopics,
     questionCount,
     setQuestionCount,
+    maxMarksPerQuestion,
+    setMaxMarksPerQuestion,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,

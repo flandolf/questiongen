@@ -49,6 +49,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
   questionCount: 3,
+  maxMarksPerQuestion: 10,
   prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
 };
@@ -193,6 +194,7 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
+    maxMarksPerQuestion: clampWholeNumber(data.maxMarksPerQuestion, DEFAULT_PREFERENCES.maxMarksPerQuestion, 1, 30),
     prioritizedCommandTerms:
       prioritizedCommandTerms.length > 0
         ? prioritizedCommandTerms
@@ -622,7 +624,7 @@ function asFiniteNumber(value: unknown): number | undefined {
 }
 
 function isDifficulty(value: unknown): value is PersistedGeneratorPreferences["difficulty"] {
-  return value === "Easy" || value === "Medium" || value === "Hard";
+  return value === "Essential Skills" || value === "Easy" || value === "Medium" || value === "Hard" || value === "Extreme";
 }
 
 function isTechMode(value: unknown): value is PersistedGeneratorPreferences["techMode"] {
