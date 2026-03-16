@@ -72,7 +72,7 @@ const generationChartConfig = {
 function KpiCard({ title, value, detail, icon: Icon }: KpiCardProps) {
   return (
     <Card size="sm" className="border border-border/50 bg-card/90 shadow-sm transition-all hover:shadow-md">
-      <CardContent className="flex items-start justify-between gap-3 pt-4">
+      <CardContent className="flex items-start justify-between gap-3 pt-1">
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{title}</div>
           <div className="text-3xl font-bold tracking-tight">{value}</div>
@@ -261,7 +261,7 @@ export function AnalyticsView() {
                       <div key={row.key} className="rounded-xl border border-border/50 bg-background/50 p-4 transition-colors hover:bg-background/80">
                         <div className="flex flex-col items-start">
                           <div>
-                            <div className="font-semibold truncate">{row.subtopic}</div>
+                            <div className="font-semibold truncate overflow-auto">{row.subtopic}</div>
                             <div className="text-xs text-muted-foreground">{row.topic}</div>
                           </div>
                           <div>
