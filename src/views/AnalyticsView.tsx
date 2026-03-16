@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChevronRight, Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles } from "lucide-react";
+import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import {
@@ -493,11 +493,11 @@ export function AnalyticsView() {
                 <CardTitle className="text-xl">Generation Diagnostics</CardTitle>
                 <CardDescription>Average generation time and repair pressure by difficulty.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto">
+              <CardContent className="flex-1 overflow-y-auto pb-0 flex flex-col">
                 {qualityRows.length === 0 ? (
-                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No generation telemetry yet.</div>
+                  <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">No generation telemetry yet.</div>
                 ) : (
-                  <ChartContainer config={generationChartConfig} className="h-80 w-full mt-4">
+                  <ChartContainer config={generationChartConfig} className="flex-1 w-full min-h-[250px] mt-4">
                     <BarChart data={qualityRows} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
                       <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="difficulty" tickLine={false} axisLine={false} />
