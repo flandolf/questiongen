@@ -259,10 +259,10 @@ export function AnalyticsView() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     {displayedSubtopics.slice(0, 8).map((row) => (
                       <div key={row.key} className="rounded-xl border border-border/50 bg-background/50 p-4 transition-colors hover:bg-background/80">
-                        <div className="flex flex-col items-start">
-                          <div>
-                            <div className="font-semibold truncate overflow-auto">{row.subtopic}</div>
-                            <div className="text-xs text-muted-foreground">{row.topic}</div>
+                        <div className="flex flex-col items-start gap-2">
+                          <div className="w-full">
+                            <div className="font-semibold leading-tight wrap-break-word">{row.subtopic}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{row.topic}</div>
                           </div>
                           <div>
                             <div className="font-bold text-primary">{formatPercent(row.accuracy)}</div>
@@ -296,9 +296,9 @@ export function AnalyticsView() {
                 ) : (
                   displayedSubtopics.slice(0, 5).map((row) => (
                     <div key={row.key} className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 relative overflow-hidden">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold text-destructive/90">{row.subtopic}</div>
-                        <Badge variant={row.attempts < LOW_SAMPLE_THRESHOLD ? "outline" : "secondary"} className="bg-background/80">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-destructive/90 leading-tight wrap-break-word">{row.subtopic}</div>
+                        <Badge variant={row.attempts < LOW_SAMPLE_THRESHOLD ? "outline" : "secondary"} className="bg-background/80 shrink-0">
                           {row.attempts < LOW_SAMPLE_THRESHOLD ? "Caution: Low sample" : "Established Trend"}
                         </Badge>
                       </div>
@@ -596,7 +596,7 @@ export function AnalyticsView() {
                           <h3 className="line-clamp-2 font-bold leading-tight text-foreground group-hover:text-destructive transition-colors">
                             {attempt.topic}
                           </h3>
-                          <p className="truncate text-xs text-muted-foreground">{attempt.subtopic}</p>
+                          <p className="line-clamp-2 wrap-break-word text-xs text-muted-foreground">{attempt.subtopic}</p>
                         </div>
                         <div className="flex flex-col items-end">
                           <span className="text-2xl font-black tracking-tight text-destructive">
