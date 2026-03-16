@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   ChemistrySubtopic,
@@ -308,6 +308,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const settingsSnapshot = useMemo(() => ({
+    apiKey,
+    model,
+    debugMode,
+    useStructuredOutput,
+  }), [apiKey, model, debugMode, useStructuredOutput]);
+
+  const writtenSessionSnapshot = useMemo<PersistedWrittenSession>(() => ({
+    questions,
+    activeQuestionIndex,
+    presentedAtByQuestionId: writtenQuestionPresentedAtById,
+    answersByQuestionId,
+    imagesByQuestionId,
+    feedbackByQuestionId,
+    rawModelOutput: writtenRawModelOutput,
+    generationTelemetry: writtenGenerationTelemetry,
+    savedSetId: activeWrittenSavedSetId,
+  }), [
+    questions,
+    activeQuestionIndex,
+    writtenQuestionPresentedAtById,
+    answersByQuestionId,
+    imagesByQuestionId,
+    feedbackByQuestionId,
+    writtenRawModelOutput,
+    writtenGenerationTelemetry,
+    activeWrittenSavedSetId,
+  ]);
+
+  const mcSessionSnapshot = useMemo<PersistedMcSession>(() => ({
+    questions: mcQuestions,
+    activeQuestionIndex: activeMcQuestionIndex,
+    presentedAtByQuestionId: mcQuestionPresentedAtById,
+    answersByQuestionId: mcAnswersByQuestionId,
+    rawModelOutput: mcRawModelOutput,
+    generationTelemetry: mcGenerationTelemetry,
+    savedSetId: activeMcSavedSetId,
+  }), [
+    mcQuestions,
+    activeMcQuestionIndex,
+    mcQuestionPresentedAtById,
+    mcAnswersByQuestionId,
+    mcRawModelOutput,
+    mcGenerationTelemetry,
+    activeMcSavedSetId,
+  ]);
+
+  const historySnapshot = useMemo(() => ({
+    questionHistory: applyHistoryLimit(questionHistory),
+    mcHistory: applyHistoryLimit(mcHistory),
+  }), [questionHistory, mcHistory]);
+
+  const savedSetsSnapshot = useMemo(() => applySavedSetLimit(savedSets), [savedSets]);
+
   useEffect(() => {
     let unlisten: undefined | (() => void);
 
@@ -324,69 +378,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const persistedSnapshot = useMemo<PersistedAppState>(() => {
-    const writtenSession: PersistedWrittenSession = {
-      questions,
-      activeQuestionIndex,
-      presentedAtByQuestionId: writtenQuestionPresentedAtById,
-      answersByQuestionId,
-      imagesByQuestionId,
-      feedbackByQuestionId,
-      rawModelOutput: writtenRawModelOutput,
-      generationTelemetry: writtenGenerationTelemetry,
-      savedSetId: activeWrittenSavedSetId,
-    };
-
-    const multipleChoiceSession: PersistedMcSession = {
-      questions: mcQuestions,
-      activeQuestionIndex: activeMcQuestionIndex,
-      presentedAtByQuestionId: mcQuestionPresentedAtById,
-      answersByQuestionId: mcAnswersByQuestionId,
-      rawModelOutput: mcRawModelOutput,
-      generationTelemetry: mcGenerationTelemetry,
-      savedSetId: activeMcSavedSetId,
-    };
-
-    return {
-      version: EMPTY_PERSISTED_APP_STATE.version,
-      settings: {
-        apiKey,
-        model,
-        debugMode,
-        useStructuredOutput,
-      },
-      preferences: preferencesSnapshot,
-      writtenSession,
-      mcSession: multipleChoiceSession,
-      questionHistory: applyHistoryLimit(questionHistory),
-      mcHistory: applyHistoryLimit(mcHistory),
-      savedSets: applySavedSetLimit(savedSets),
-    };
-  }, [
-    activeMcQuestionIndex,
-    activeMcSavedSetId,
-    activeQuestionIndex,
-    activeWrittenSavedSetId,
-    answersByQuestionId,
-    apiKey,
-    debugMode,
-    feedbackByQuestionId,
-    imagesByQuestionId,
-    mcAnswersByQuestionId,
-    mcGenerationTelemetry,
-    mcHistory,
-    mcQuestionPresentedAtById,
-    mcQuestions,
-    mcRawModelOutput,
-    model,
+  const persistedSnapshot = useMemo<PersistedAppState>(() => ({
+    version: EMPTY_PERSISTED_APP_STATE.version,
+    settings: settingsSnapshot,
+    preferences: preferencesSnapshot,
+    writtenSession: writtenSessionSnapshot,
+    mcSession: mcSessionSnapshot,
+    questionHistory: historySnapshot.questionHistory,
+    mcHistory: historySnapshot.mcHistory,
+    savedSets: savedSetsSnapshot,
+  }), [
+    settingsSnapshot,
     preferencesSnapshot,
-    useStructuredOutput,
-    questionHistory,
-    questions,
-    savedSets,
-    writtenQuestionPresentedAtById,
-    writtenGenerationTelemetry,
-    writtenRawModelOutput,
+    writtenSessionSnapshot,
+    mcSessionSnapshot,
+    historySnapshot,
+    savedSetsSnapshot,
   ]);
 
   useEffect(() => {
@@ -521,40 +528,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setSelectedTopics(entry.preferences.selectedTopics);
-    setDifficulty(entry.preferences.difficulty);
-    setTechMode(entry.preferences.techMode);
-    setAvoidSimilarQuestions(entry.preferences.avoidSimilarQuestions);
-    setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
-    setChemistrySubtopics(entry.preferences.chemistrySubtopics);
-    setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
-    setSpecialistMathSubtopics(entry.preferences.specialistMathSubtopics);
-    setQuestionCount(entry.preferences.questionCount);
-    setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
-    setQuestionMode(entry.questionMode);
-    setSubtopicInstructions(entry.preferences.subtopicInstructions);
+    startTransition(() => {
+      setSelectedTopics(entry.preferences.selectedTopics);
+      setDifficulty(entry.preferences.difficulty);
+      setTechMode(entry.preferences.techMode);
+      setAvoidSimilarQuestions(entry.preferences.avoidSimilarQuestions);
+      setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
+      setChemistrySubtopics(entry.preferences.chemistrySubtopics);
+      setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
+      setSpecialistMathSubtopics(entry.preferences.specialistMathSubtopics);
+      setQuestionCount(entry.preferences.questionCount);
+      setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
+      setQuestionMode(entry.questionMode);
+      setSubtopicInstructions(entry.preferences.subtopicInstructions);
 
-    if (entry.questionMode === "written" && entry.writtenSession) {
-      setQuestions(entry.writtenSession.questions);
-      setActiveQuestionIndex(entry.writtenSession.activeQuestionIndex);
-      setWrittenQuestionPresentedAtById(entry.writtenSession.presentedAtByQuestionId);
-      setAnswersByQuestionId(entry.writtenSession.answersByQuestionId);
-      setImagesByQuestionId(entry.writtenSession.imagesByQuestionId);
-      setFeedbackByQuestionId(entry.writtenSession.feedbackByQuestionId);
-      setWrittenRawModelOutput(entry.writtenSession.rawModelOutput);
-      setWrittenGenerationTelemetry(entry.writtenSession.generationTelemetry ?? null);
-      setActiveWrittenSavedSetId(entry.id);
-    }
+      if (entry.questionMode === "written" && entry.writtenSession) {
+        setQuestions(entry.writtenSession.questions);
+        setActiveQuestionIndex(entry.writtenSession.activeQuestionIndex);
+        setWrittenQuestionPresentedAtById(entry.writtenSession.presentedAtByQuestionId);
+        setAnswersByQuestionId(entry.writtenSession.answersByQuestionId);
+        setImagesByQuestionId(entry.writtenSession.imagesByQuestionId);
+        setFeedbackByQuestionId(entry.writtenSession.feedbackByQuestionId);
+        setWrittenRawModelOutput(entry.writtenSession.rawModelOutput);
+        setWrittenGenerationTelemetry(entry.writtenSession.generationTelemetry ?? null);
+        setActiveWrittenSavedSetId(entry.id);
+      }
 
-    if (entry.questionMode === "multiple-choice" && entry.mcSession) {
-      setMcQuestions(entry.mcSession.questions);
-      setActiveMcQuestionIndex(entry.mcSession.activeQuestionIndex);
-      setMcQuestionPresentedAtById(entry.mcSession.presentedAtByQuestionId);
-      setMcAnswersByQuestionId(entry.mcSession.answersByQuestionId);
-      setMcRawModelOutput(entry.mcSession.rawModelOutput);
-      setMcGenerationTelemetry(entry.mcSession.generationTelemetry ?? null);
-      setActiveMcSavedSetId(entry.id);
-    }
+      if (entry.questionMode === "multiple-choice" && entry.mcSession) {
+        setMcQuestions(entry.mcSession.questions);
+        setActiveMcQuestionIndex(entry.mcSession.activeQuestionIndex);
+        setMcQuestionPresentedAtById(entry.mcSession.presentedAtByQuestionId);
+        setMcAnswersByQuestionId(entry.mcSession.answersByQuestionId);
+        setMcRawModelOutput(entry.mcSession.rawModelOutput);
+        setMcGenerationTelemetry(entry.mcSession.generationTelemetry ?? null);
+        setActiveMcSavedSetId(entry.id);
+      }
+    });
   }
 
   const setQuestionHistoryWithLimit = useCallback((history: ArrayStateUpdate<QuestionHistoryEntry>) => {

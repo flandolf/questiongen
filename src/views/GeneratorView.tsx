@@ -287,6 +287,7 @@ export function GeneratorView() {
     return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }, [elapsedSeconds]);
 
+
   useEffect(() => {
     setShowCompletionScreen(false);
   }, [completionSetKey]);
@@ -1096,20 +1097,29 @@ export function GeneratorView() {
 
   // --- Render Helpers ---
 
-  const renderProgressBar = (_current: number, total: number, completed: number) => {
-    const progressPercent = total > 0 ? (completed / total) * 100 : 0;
+  function renderProgressBar(current: number, total: number, completed: number) {
+    if (total === 0) return null;
+    const percent = Math.min(100, Math.round((current / total) * 100));
+    const completedPercent = Math.min(100, Math.round((completed / total) * 100));
     return (
-      <div className="flex flex-col gap-2 w-full">
-        <div className="flex justify-between text-sm font-medium">
-          <span className="text-muted-foreground">Progress</span>
-          <span>{completed} / {total}</span>
+      <div className="w-full flex flex-col gap-1">
+        <div className="flex justify-between items-center text-xs font-medium mb-1">
+          <span>Question {current} of {total}</span>
+          <span className="text-muted-foreground">Completed: {completed} / {total}</span>
         </div>
-        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all duration-500 ease-in-out" style={{ width: `${progressPercent}%` }} />
+        <div className="relative w-full h-3 bg-muted/40 rounded-full overflow-hidden">
+          <div
+            className="absolute left-0 top-0 h-full bg-green-400/70 dark:bg-green-600/70 transition-all"
+            style={{ width: `${completedPercent}%` }}
+          />
+          <div
+            className="absolute left-0 top-0 h-full bg-primary/80 transition-all"
+            style={{ width: `${percent}%` }}
+          />
         </div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="min-h-full w-full p-3 sm:p-4 lg:p-6 flex flex-col gap-6 animate-in fade-in duration-500">
