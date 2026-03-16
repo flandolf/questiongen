@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -11,8 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Clock3, Gauge, Target, TrendingUp, WandSparkles } from "lucide-react";
-import { useMultipleChoiceSession, useWrittenSession } from "../AppContext";
+import { ChevronRight, Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import {
@@ -23,72 +21,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "../components/ui/chart";
-import { McHistoryEntry, QuestionHistoryEntry } from "../types";
 import { EmptyState } from "../components/EmptyState";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDurationMs, formatPercent } from "../lib/app-utils";
-
-type AnalyticsBucket = { total: number; correct: number };
-
-type AttemptRow = {
-  id: string;
-  mode: "written" | "multiple-choice";
-  createdAt: string;
-  topic: string;
-  subtopic: string;
-  isCorrect: boolean;
-  scorePercent: number;
-  responseLatencyMs?: number;
-  markingLatencyMs?: number;
-  attemptKind?: string;
-  answerWordCount?: number;
-  answerCharacterCount?: number;
-  generationDurationMs?: number;
-  difficulty?: string;
-};
-
-type TopicPerformanceRow = {
-  topic: string;
-  attempts: number;
-  correct: number;
-  accuracy: number;
-  writtenAttempts: number;
-  mcAttempts: number;
-};
-
-type SubtopicPerformanceRow = {
-  key: string;
-  topic: string;
-  subtopic: string;
-  attempts: number;
-  correct: number;
-  accuracy: number;
-  writtenAttempts: number;
-  mcAttempts: number;
-};
-
-type QualityRow = {
-  difficulty: string;
-  sampleCount: number;
-  accuracy: number;
-  avgDurationSeconds: number;
-  avgRepairAttempts: number;
-  avgGenerationAttempts: number;
-  distinctnessAvg?: number;
-  multiStepDepthAvg?: number;
-};
-
-type CriterionWeakPointRow = {
-  criterion: string;
-  attempts: number;
-  achievedMarks: number;
-  lostMarks: number;
-  availableMarks: number;
-  successPercent: number;
-  lostPercent: number;
-  topicSummary: string;
-  lastSeenAt: string;
-};
+import { useAnalyticsData, ALL_TOPICS, LOW_SAMPLE_THRESHOLD, RECENT_WRITTEN_CRITERIA_WINDOW } from "./useAnalyticsData";
 
 type KpiCardProps = {
   title: string;
@@ -97,11 +33,7 @@ type KpiCardProps = {
   icon: typeof Target;
 };
 
-const UNSPECIFIED_SUBTOPIC = "Unspecified";
-const ALL_TOPICS = "All topics";
-const LOW_SAMPLE_THRESHOLD = 3;
-const RECENT_WRITTEN_CRITERIA_WINDOW = 20;
-const CARD_FIXED_HEIGHT = "h-[30rem]";
+const CARD_FIXED_HEIGHT = "min-h-[26rem]";
 
 const trendChartConfig = {
   overallAccuracy: { label: "Overall", color: "var(--color-chart-1)" },
@@ -137,58 +69,17 @@ const generationChartConfig = {
   avgRepairAttempts: { label: "Repair attempts", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
 
-function normalizeSubtopic(subtopic?: string) {
-  const cleaned = subtopic?.trim();
-  return cleaned && cleaned.length > 0 ? cleaned : UNSPECIFIED_SUBTOPIC;
-}
-
-function percent(value: number, total: number) {
-  if (total <= 0) {
-    return 0;
-  }
-
-  return (value / total) * 100;
-}
-
-function average(total: number, count: number) {
-  if (count <= 0) {
-    return 0;
-  }
-
-  return total / count;
-}
-
-function scoreBucketLabel(scorePercent: number) {
-  if (scorePercent >= 100) return "100";
-  if (scorePercent >= 75) return "75-99";
-  if (scorePercent >= 50) return "50-74";
-  if (scorePercent >= 25) return "25-49";
-  return "0-24";
-}
-
-function wordBucketLabel(wordCount: number) {
-  if (wordCount >= 150) return "150+";
-  if (wordCount >= 75) return "75-149";
-  if (wordCount >= 25) return "25-74";
-  return "0-24";
-}
-
-function normalizeCriterionLabel(value: string) {
-  const cleaned = value.trim().replace(/\s+/g, " ");
-  return cleaned.length > 0 ? cleaned : "Unnamed criterion";
-}
-
 function KpiCard({ title, value, detail, icon: Icon }: KpiCardProps) {
   return (
-    <Card size="sm" className="border border-border/70 bg-card/90 shadow-sm">
-      <CardContent className="flex items-start justify-between gap-3 pt-3">
-        <div className="space-y-1">
-          <div className="text-xs font-semibold uppercase text-muted-foreground">{title}</div>
-          <div className="text-2xl font-semibold tracking-tight">{value}</div>
-          <div className="text-xs text-muted-foreground">{detail}</div>
+    <Card size="sm" className="border border-border/50 bg-card/90 shadow-sm transition-all hover:shadow-md">
+      <CardContent className="flex items-start justify-between gap-3 pt-4">
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">{title}</div>
+          <div className="text-3xl font-bold tracking-tight">{value}</div>
+          <div className="text-sm text-muted-foreground">{detail}</div>
         </div>
-        <div className="rounded-full border border-border/70 bg-muted/50 p-2 text-muted-foreground">
-          <Icon className="h-4 w-4" />
+        <div className="rounded-full border-2 border-primary/20 bg-primary/10 p-3 text-primary">
+          <Icon className="h-5 w-5" />
         </div>
       </CardContent>
     </Card>
@@ -196,540 +87,59 @@ function KpiCard({ title, value, detail, icon: Icon }: KpiCardProps) {
 }
 
 export function AnalyticsView() {
-  const { questionHistory } = useWrittenSession();
-  const { mcHistory } = useMultipleChoiceSession();
-  const [topicFilter, setTopicFilter] = useState<string>(ALL_TOPICS);
-
-  const writtenAttempts = useMemo<AttemptRow[]>(() => {
-    return questionHistory.map((entry: QuestionHistoryEntry) => ({
-        id: entry.id,
-        mode: "written" as const,
-        createdAt: entry.createdAt,
-        topic: entry.question.topic,
-        subtopic: normalizeSubtopic(entry.question.subtopic),
-        isCorrect: entry.markResponse.verdict.toLowerCase() === "correct",
-        scorePercent: percent(entry.markResponse.achievedMarks, entry.markResponse.maxMarks),
-        responseLatencyMs: entry.analytics?.responseLatencyMs,
-        markingLatencyMs: entry.analytics?.markingLatencyMs,
-        attemptKind: entry.analytics?.attemptKind,
-        answerWordCount: entry.analytics?.answerWordCount,
-        answerCharacterCount: entry.analytics?.answerCharacterCount,
-        generationDurationMs: entry.generationTelemetry?.durationMs,
-        difficulty: entry.generationTelemetry?.difficulty,
-      }));
-  }, [questionHistory]);
-
-  const mcAttempts = useMemo<AttemptRow[]>(() => {
-    return mcHistory.map((entry: McHistoryEntry) => {
-        const maxMarks = entry.maxMarks ?? 1;
-        const achievedMarks = entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
-
-        return {
-          id: entry.id,
-          mode: "multiple-choice" as const,
-          createdAt: entry.createdAt,
-          topic: entry.question.topic,
-          subtopic: normalizeSubtopic(entry.question.subtopic),
-          isCorrect: achievedMarks >= maxMarks,
-          scorePercent: percent(achievedMarks, maxMarks),
-          responseLatencyMs: entry.analytics?.responseLatencyMs,
-          attemptKind: entry.analytics?.attemptKind,
-          answerWordCount: entry.analytics?.answerWordCount,
-          answerCharacterCount: entry.analytics?.answerCharacterCount,
-          generationDurationMs: entry.generationTelemetry?.durationMs,
-          difficulty: entry.generationTelemetry?.difficulty,
-        };
-      });
-  }, [mcHistory]);
-
-  const allAttempts = useMemo(() => {
-    return [...writtenAttempts, ...mcAttempts].sort(
-      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
-    );
-  }, [mcAttempts, writtenAttempts]);
-
-  const summary = useMemo(() => {
-    const totalAttempts = allAttempts.length;
-    let totalCorrect = 0;
-    let generationLatencyTotal = 0;
-    let generationLatencyCount = 0;
-
-    for (const attempt of allAttempts) {
-      if (attempt.isCorrect) {
-        totalCorrect += 1;
-      }
-      if (attempt.generationDurationMs !== undefined) {
-        generationLatencyTotal += attempt.generationDurationMs;
-        generationLatencyCount += 1;
-      }
-    }
-
-    let writtenScoreTotal = 0;
-    let writtenCorrect = 0;
-    let markingLatencyTotal = 0;
-    let markingLatencyCount = 0;
-    let appealCount = 0;
-    let overrideCount = 0;
-
-    for (const attempt of writtenAttempts) {
-      writtenScoreTotal += attempt.scorePercent;
-      if (attempt.isCorrect) {
-        writtenCorrect += 1;
-      }
-      if (attempt.markingLatencyMs !== undefined) {
-        markingLatencyTotal += attempt.markingLatencyMs;
-        markingLatencyCount += 1;
-      }
-      if (attempt.attemptKind === "appeal") {
-        appealCount += 1;
-      } else if (attempt.attemptKind === "override") {
-        overrideCount += 1;
-      }
-    }
-
-    let mcCorrect = 0;
-    for (const attempt of mcAttempts) {
-      if (attempt.isCorrect) {
-        mcCorrect += 1;
-      }
-    }
-
-    return {
-      totalAttempts,
-      totalCorrect,
-      overallAccuracy: percent(totalCorrect, totalAttempts),
-      writtenAttempts: writtenAttempts.length,
-      writtenCorrect,
-      writtenAverageScore: average(writtenScoreTotal, writtenAttempts.length),
-      mcAttempts: mcAttempts.length,
-      mcCorrect,
-      averageMarkingLatencyMs: average(markingLatencyTotal, markingLatencyCount),
-      averageGenerationLatencyMs: average(generationLatencyTotal, generationLatencyCount),
-      appealCount,
-      overrideCount,
-    };
-  }, [allAttempts, mcAttempts, writtenAttempts]);
-
-  const trendData = useMemo(() => {
-    let overallCorrect = 0;
-    let overallTotal = 0;
-    let writtenCorrect = 0;
-    let writtenTotal = 0;
-    let mcCorrect = 0;
-    let mcTotal = 0;
-
-    return allAttempts.map((attempt, index) => {
-      overallTotal += 1;
-      if (attempt.isCorrect) {
-        overallCorrect += 1;
-      }
-
-      if (attempt.mode === "written") {
-        writtenTotal += 1;
-        if (attempt.isCorrect) {
-          writtenCorrect += 1;
-        }
-      } else {
-        mcTotal += 1;
-        if (attempt.isCorrect) {
-          mcCorrect += 1;
-        }
-      }
-
-      return {
-        label: `#${index + 1}`,
-        overallAccuracy: percent(overallCorrect, overallTotal),
-        writtenAccuracy: writtenTotal > 0 ? percent(writtenCorrect, writtenTotal) : null,
-        mcAccuracy: mcTotal > 0 ? percent(mcCorrect, mcTotal) : null,
-      };
-    });
-  }, [allAttempts]);
-
-  const topicPerformance = useMemo<TopicPerformanceRow[]>(() => {
-    const bucketByTopic = new Map<string, TopicPerformanceRow>();
-
-    for (const attempt of allAttempts) {
-      const existing = bucketByTopic.get(attempt.topic) ?? {
-        topic: attempt.topic,
-        attempts: 0,
-        correct: 0,
-        accuracy: 0,
-        writtenAttempts: 0,
-        mcAttempts: 0,
-      };
-
-      existing.attempts += 1;
-      existing.correct += attempt.isCorrect ? 1 : 0;
-      existing.writtenAttempts += attempt.mode === "written" ? 1 : 0;
-      existing.mcAttempts += attempt.mode === "multiple-choice" ? 1 : 0;
-      existing.accuracy = percent(existing.correct, existing.attempts);
-      bucketByTopic.set(attempt.topic, existing);
-    }
-
-    return Array.from(bucketByTopic.values()).sort((a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts);
-  }, [allAttempts]);
-
-  const subtopicPerformance = useMemo<SubtopicPerformanceRow[]>(() => {
-    const bucketByTopicSubtopic = new Map<string, AnalyticsBucket & { topic: string; subtopic: string; writtenAttempts: number; mcAttempts: number }>();
-
-    for (const attempt of allAttempts) {
-      const key = `${attempt.topic}::${attempt.subtopic}`;
-      const bucket = bucketByTopicSubtopic.get(key) ?? {
-        topic: attempt.topic,
-        subtopic: attempt.subtopic,
-        total: 0,
-        correct: 0,
-        writtenAttempts: 0,
-        mcAttempts: 0,
-      };
-
-      bucket.total += 1;
-      bucket.correct += attempt.isCorrect ? 1 : 0;
-      bucket.writtenAttempts += attempt.mode === "written" ? 1 : 0;
-      bucket.mcAttempts += attempt.mode === "multiple-choice" ? 1 : 0;
-      bucketByTopicSubtopic.set(key, bucket);
-    }
-
-    return Array.from(bucketByTopicSubtopic.entries())
-      .map(([key, bucket]) => ({
-        key,
-        topic: bucket.topic,
-        subtopic: bucket.subtopic,
-        attempts: bucket.total,
-        correct: bucket.correct,
-        accuracy: percent(bucket.correct, bucket.total),
-        writtenAttempts: bucket.writtenAttempts,
-        mcAttempts: bucket.mcAttempts,
-      }))
-      .sort((a, b) => a.accuracy - b.accuracy || b.attempts - a.attempts);
-  }, [allAttempts]);
-
-  const displayedSubtopics = useMemo(() => {
-    if (topicFilter === ALL_TOPICS) {
-      return subtopicPerformance;
-    }
-
-    return subtopicPerformance.filter((row) => row.topic === topicFilter);
-  }, [subtopicPerformance, topicFilter]);
-
-  const writtenMarksDistribution = useMemo(() => {
-    const labels = ["0-24", "25-49", "50-74", "75-99", "100"];
-    const buckets = new Map(labels.map((label) => [label, 0]));
-
-    for (const attempt of writtenAttempts) {
-      const bucket = scoreBucketLabel(attempt.scorePercent);
-      buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
-    }
-
-    return labels.map((label) => ({ label, attempts: buckets.get(label) ?? 0 }));
-  }, [writtenAttempts]);
-
-  const writtenEffortDistribution = useMemo(() => {
-    const labels = ["0-24", "25-74", "75-149", "150+"];
-    const buckets = new Map(labels.map((label) => [label, { attempts: 0, totalScorePercent: 0 }]));
-
-    for (const attempt of writtenAttempts) {
-      if ((attempt.answerWordCount ?? 0) <= 0) {
-        continue;
-      }
-
-      const label = wordBucketLabel(attempt.answerWordCount ?? 0);
-      const bucket = buckets.get(label);
-      if (!bucket) {
-        continue;
-      }
-
-      bucket.attempts += 1;
-      bucket.totalScorePercent += attempt.scorePercent;
-    }
-
-    return labels.map((label) => {
-      const bucket = buckets.get(label) ?? { attempts: 0, totalScorePercent: 0 };
-      return {
-        label,
-        attempts: bucket.attempts,
-        avgScorePercent: average(bucket.totalScorePercent, bucket.attempts),
-      };
-    });
-  }, [writtenAttempts]);
-
-  const writtenAttemptTypeData = useMemo(() => {
-    const counts = new Map<string, number>([
-      ["initial", 0],
-      ["appeal", 0],
-      ["override", 0],
-    ]);
-
-    for (const attempt of writtenAttempts) {
-      const key = attempt.attemptKind ?? "initial";
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-
-    return [
-      { name: "initial", label: "Initial", value: counts.get("initial") ?? 0, fill: "var(--color-initial)" },
-      { name: "appeal", label: "Appeal", value: counts.get("appeal") ?? 0, fill: "var(--color-appeal)" },
-      { name: "override", label: "Override", value: counts.get("override") ?? 0, fill: "var(--color-override)" },
-    ].filter((item) => item.value > 0);
-  }, [writtenAttempts]);
-
-  const recentCriterionWeakPoints = useMemo<CriterionWeakPointRow[]>(() => {
-    const recentEntries = [...questionHistory]
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-      .slice(0, RECENT_WRITTEN_CRITERIA_WINDOW);
-
-    const bucketByCriterion = new Map<
-      string,
-      {
-        attempts: number;
-        achievedMarks: number;
-        lostMarks: number;
-        availableMarks: number;
-        topics: Map<string, number>;
-        lastSeenAt: string;
-      }
-    >();
-
-    for (const entry of recentEntries) {
-      for (const criterion of entry.markResponse.vcaaMarkingScheme) {
-        if (criterion.maxMarks <= 0) {
-          continue;
-        }
-
-        const key = normalizeCriterionLabel(criterion.criterion);
-        const bucket = bucketByCriterion.get(key) ?? {
-          attempts: 0,
-          achievedMarks: 0,
-          lostMarks: 0,
-          availableMarks: 0,
-          topics: new Map<string, number>(),
-          lastSeenAt: entry.createdAt,
-        };
-
-        bucket.attempts += 1;
-        bucket.achievedMarks += criterion.achievedMarks;
-        bucket.availableMarks += criterion.maxMarks;
-        bucket.lostMarks += Math.max(0, criterion.maxMarks - criterion.achievedMarks);
-        bucket.topics.set(entry.question.topic, (bucket.topics.get(entry.question.topic) ?? 0) + 1);
-
-        if (Date.parse(entry.createdAt) > Date.parse(bucket.lastSeenAt)) {
-          bucket.lastSeenAt = entry.createdAt;
-        }
-
-        bucketByCriterion.set(key, bucket);
-      }
-    }
-
-    return Array.from(bucketByCriterion.entries())
-      .map(([criterion, bucket]) => {
-        const topicSummary = Array.from(bucket.topics.entries())
-          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-          .slice(0, 2)
-          .map(([topic, count]) => `${topic} x${count}`)
-          .join(" • ");
-
-        return {
-          criterion,
-          attempts: bucket.attempts,
-          achievedMarks: bucket.achievedMarks,
-          lostMarks: bucket.lostMarks,
-          availableMarks: bucket.availableMarks,
-          successPercent: percent(bucket.achievedMarks, bucket.availableMarks),
-          lostPercent: percent(bucket.lostMarks, bucket.availableMarks),
-          topicSummary,
-          lastSeenAt: bucket.lastSeenAt,
-        };
-      })
-      .sort((a, b) => b.lostPercent - a.lostPercent || b.lostMarks - a.lostMarks || b.attempts - a.attempts)
-      .slice(0, 6);
-  }, [questionHistory]);
-
-  const mcTopicAccuracy = useMemo(() => {
-    const bucketByTopic = new Map<string, AnalyticsBucket>();
-
-    for (const attempt of mcAttempts) {
-      const bucket = bucketByTopic.get(attempt.topic) ?? { total: 0, correct: 0 };
-      bucket.total += 1;
-      bucket.correct += attempt.isCorrect ? 1 : 0;
-      bucketByTopic.set(attempt.topic, bucket);
-    }
-
-    return Array.from(bucketByTopic.entries())
-      .map(([topic, bucket]) => ({
-        topic,
-        attempts: bucket.total,
-        accuracy: percent(bucket.correct, bucket.total),
-      }))
-      .sort((a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts);
-  }, [mcAttempts]);
-
-  const mcResponseLatency = useMemo(() => {
-    const bucketByTopic = new Map<string, { attempts: number; totalMs: number }>();
-
-    for (const attempt of mcAttempts) {
-      if (attempt.responseLatencyMs === undefined) {
-        continue;
-      }
-
-      const bucket = bucketByTopic.get(attempt.topic) ?? { attempts: 0, totalMs: 0 };
-      bucket.attempts += 1;
-      bucket.totalMs += attempt.responseLatencyMs;
-      bucketByTopic.set(attempt.topic, bucket);
-    }
-
-    return Array.from(bucketByTopic.entries())
-      .map(([topic, bucket]) => ({
-        topic,
-        avgResponseSeconds: average(bucket.totalMs, bucket.attempts) / 1000,
-      }))
-      .sort((a, b) => b.avgResponseSeconds - a.avgResponseSeconds);
-  }, [mcAttempts]);
-
-  const qualityRows = useMemo<QualityRow[]>(() => {
-    const bucketByDifficulty = new Map<
-      string,
-      {
-        sampleCount: number;
-        correct: number;
-        durationTotal: number;
-        durationCount: number;
-        repairTotal: number;
-        attemptsTotal: number;
-        distinctnessTotal: number;
-        distinctnessCount: number;
-        depthTotal: number;
-        depthCount: number;
-      }
-    >();
-
-    for (const entry of questionHistory) {
-      const difficulty = entry.generationTelemetry?.difficulty ?? "Unknown";
-      const bucket = bucketByDifficulty.get(difficulty) ?? {
-        sampleCount: 0,
-        correct: 0,
-        durationTotal: 0,
-        durationCount: 0,
-        repairTotal: 0,
-        attemptsTotal: 0,
-        distinctnessTotal: 0,
-        distinctnessCount: 0,
-        depthTotal: 0,
-        depthCount: 0,
-      };
-
-      bucket.sampleCount += 1;
-      bucket.correct += entry.markResponse.verdict.toLowerCase() === "correct" ? 1 : 0;
-
-      if (entry.generationTelemetry?.durationMs !== undefined) {
-        bucket.durationTotal += entry.generationTelemetry.durationMs;
-        bucket.durationCount += 1;
-      }
-
-      bucket.repairTotal += entry.generationTelemetry?.repairAttempts ?? 0;
-      bucket.attemptsTotal += entry.generationTelemetry?.totalAttempts ?? 0;
-
-      if (entry.question.distinctnessScore !== undefined) {
-        bucket.distinctnessTotal += entry.question.distinctnessScore;
-        bucket.distinctnessCount += 1;
-      }
-
-      if (entry.question.multiStepDepth !== undefined) {
-        bucket.depthTotal += entry.question.multiStepDepth;
-        bucket.depthCount += 1;
-      }
-
-      bucketByDifficulty.set(difficulty, bucket);
-    }
-
-    for (const entry of mcHistory) {
-      const difficulty = entry.generationTelemetry?.difficulty ?? "Unknown";
-      const bucket = bucketByDifficulty.get(difficulty) ?? {
-        sampleCount: 0,
-        correct: 0,
-        durationTotal: 0,
-        durationCount: 0,
-        repairTotal: 0,
-        attemptsTotal: 0,
-        distinctnessTotal: 0,
-        distinctnessCount: 0,
-        depthTotal: 0,
-        depthCount: 0,
-      };
-
-      bucket.sampleCount += 1;
-      bucket.correct += entry.correct ? 1 : 0;
-
-      if (entry.generationTelemetry?.durationMs !== undefined) {
-        bucket.durationTotal += entry.generationTelemetry.durationMs;
-        bucket.durationCount += 1;
-      }
-
-      bucket.repairTotal += entry.generationTelemetry?.repairAttempts ?? 0;
-      bucket.attemptsTotal += entry.generationTelemetry?.totalAttempts ?? 0;
-
-      if (entry.question.distinctnessScore !== undefined) {
-        bucket.distinctnessTotal += entry.question.distinctnessScore;
-        bucket.distinctnessCount += 1;
-      }
-
-      if (entry.question.multiStepDepth !== undefined) {
-        bucket.depthTotal += entry.question.multiStepDepth;
-        bucket.depthCount += 1;
-      }
-
-      bucketByDifficulty.set(difficulty, bucket);
-    }
-
-    return Array.from(bucketByDifficulty.entries())
-      .map(([difficulty, bucket]) => ({
-        difficulty,
-        sampleCount: bucket.sampleCount,
-        accuracy: percent(bucket.correct, bucket.sampleCount),
-        avgDurationSeconds: average(bucket.durationTotal, bucket.durationCount) / 1000,
-        avgRepairAttempts: average(bucket.repairTotal, bucket.sampleCount),
-        avgGenerationAttempts: average(bucket.attemptsTotal, bucket.sampleCount),
-        distinctnessAvg: bucket.distinctnessCount > 0 ? average(bucket.distinctnessTotal, bucket.distinctnessCount) : undefined,
-        multiStepDepthAvg: bucket.depthCount > 0 ? average(bucket.depthTotal, bucket.depthCount) : undefined,
-      }))
-      .sort((a, b) => a.difficulty.localeCompare(b.difficulty));
-  }, [mcHistory, questionHistory]);
-
-  const lowestScoringWritten = useMemo(() => {
-    return [...writtenAttempts]
-      .sort((a, b) => a.scorePercent - b.scorePercent || Date.parse(b.createdAt) - Date.parse(a.createdAt))
-      .slice(0, 5);
-  }, [writtenAttempts]);
+  const {
+    allAttempts,
+    writtenAttempts,
+    topicFilter,
+    setTopicFilter,
+    summary,
+    trendData,
+    topicPerformance,
+    displayedSubtopics,
+    writtenMarksDistribution,
+    writtenEffortDistribution,
+    writtenAttemptTypeData,
+    recentCriterionWeakPoints,
+    mcTopicAccuracy,
+    mcResponseLatency,
+    qualityRows,
+    lowestScoringWritten,
+    questionHistoryLength
+  } = useAnalyticsData();
 
   const hasAnyAttempts = allAttempts.length > 0;
 
   return (
-    <div className="min-h-full min-w-full space-y-5 p-4.5">
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="bg-background/70">Detailed analytics</Badge>
-          {allAttempts.length > 0 ? (
-            <Badge variant="outline" className="bg-background/70">
-              {allAttempts.length} tracked attempts
+    <div className="min-h-full min-w-full space-y-6 p-6">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors">Detailed Analytics</Badge>
+          {hasAnyAttempts ? (
+            <Badge variant="outline" className="bg-background/80">
+              {allAttempts.length} Tracked Attempts
             </Badge>
           ) : null}
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-          Track accuracy trends, written-score distribution, multiple-choice behaviour, and generation quality in one place.
-        </p>
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2">Analytics Workspace</h1>
+          <p className="max-w-3xl text-base text-muted-foreground">
+            Track accuracy trends, written-score distribution, multiple-choice behaviour, and generation quality in one place.
+          </p>
+        </div>
       </div>
 
       {!hasAnyAttempts ? (
-        <Card className="border border-dashed border-border/70 bg-card/80">
+        <Card className="border border-dashed border-border/70 bg-card/50">
           <EmptyState
             compact
             title="No analytics yet"
             description="Complete some written or multiple-choice questions and this page will build trend lines, topic breakdowns, and generation diagnostics automatically."
-            className="h-auto py-8"
+            className="h-auto py-12"
           />
         </Card>
       ) : (
-        <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <KpiCard
               title="Overall Accuracy"
               value={formatPercent(summary.overallAccuracy)}
@@ -739,25 +149,25 @@ export function AnalyticsView() {
             <KpiCard
               title="Written Average"
               value={formatPercent(summary.writtenAverageScore)}
-              detail={`${summary.writtenAttempts} written attempts tracked`}
+              detail={`${summary.writtenAttempts} written attempts`}
               icon={TrendingUp}
             />
             <KpiCard
               title="MC Accuracy"
-              value={formatPercent(percent(summary.mcCorrect, summary.mcAttempts))}
-              detail={`${summary.mcCorrect}/${summary.mcAttempts} multiple-choice correct`}
+              value={formatPercent(summary.mcAttempts ? (summary.mcCorrect / summary.mcAttempts * 100) : 0)}
+              detail={`${summary.mcCorrect}/${summary.mcAttempts} multiple-choice`}
               icon={Gauge}
             />
             <KpiCard
               title="Marking Latency"
               value={formatDurationMs(summary.averageMarkingLatencyMs)}
-              detail="Average AI marking turnaround"
+              detail="Avg AI marking turnaround"
               icon={Clock3}
             />
             <KpiCard
               title="Generation Latency"
               value={formatDurationMs(summary.averageGenerationLatencyMs)}
-              detail="Average question generation time"
+              detail="Avg generation time"
               icon={WandSparkles}
             />
             <KpiCard
@@ -768,51 +178,51 @@ export function AnalyticsView() {
             />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
-              <CardHeader>
-                <CardTitle>Accuracy Trend</CardTitle>
+          <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">Accuracy Trend</CardTitle>
                 <CardDescription>
-                  Cumulative accuracy across all attempts, with written and multiple-choice separated.
+                  Cumulative accuracy across all attempts, separated by mode.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
-                <ChartContainer config={trendChartConfig} className="h-80 w-full">
-                  <LineChart data={trendData} margin={{ left: 8, right: 12, top: 12, bottom: 0 }}>
-                    <CartesianGrid vertical={false} />
+                <ChartContainer config={trendChartConfig} className="h-80 w-full mt-4">
+                  <LineChart data={trendData} margin={{ left: 0, right: 12, top: 12, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
                     <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={2.5} dot={false} />
-                    <Line type="monotone" dataKey="writtenAccuracy" stroke="var(--color-writtenAccuracy)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="mcAccuracy" stroke="var(--color-mcAccuracy)" strokeWidth={2} dot={false} />
+                    <ChartLegend content={<ChartLegendContent />} className="pt-4" />
+                    <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={3} dot={false} />
+                    <Line type="monotone" dataKey="writtenAccuracy" stroke="var(--color-writtenAccuracy)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="monotone" dataKey="mcAccuracy" stroke="var(--color-mcAccuracy)" strokeWidth={2} strokeDasharray="3 3" dot={false} />
                   </LineChart>
                 </ChartContainer>
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
-              <CardHeader>
-                <CardTitle>Topic Performance</CardTitle>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">Topic Performance</CardTitle>
                 <CardDescription>
-                  Accuracy by topic. Filter below to inspect the weakest subtopics.
+                  Accuracy by topic. Filter below to inspect specific subtopics.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto space-y-4">
-                <ChartContainer config={topicChartConfig} className="h-80 w-full">
-                  <BarChart data={topicPerformance} layout="vertical" margin={{ left: 16, right: 8, top: 8, bottom: 8 }}>
-                    <CartesianGrid horizontal={false} />
+              <CardContent className="flex-1 overflow-y-auto flex flex-col mt-4">
+                <ChartContainer config={topicChartConfig} className="h-[280px] w-full mb-4">
+                  <BarChart data={topicPerformance} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.3} />
                     <XAxis type="number" tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                    <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={118} />
+                    <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={100} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                    <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={8} />
+                    <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} barSize={24} />
                   </BarChart>
                 </ChartContainer>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mt-auto">
                   <Badge
                     variant={topicFilter === ALL_TOPICS ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:bg-primary/90 transition-colors"
                     onClick={() => setTopicFilter(ALL_TOPICS)}
                   >
                     {ALL_TOPICS}
@@ -821,7 +231,7 @@ export function AnalyticsView() {
                     <Badge
                       key={item.topic}
                       variant={topicFilter === item.topic ? "default" : "outline"}
-                      className="cursor-pointer"
+                      className="cursor-pointer hover:bg-primary/90 transition-colors"
                       onClick={() => setTopicFilter(item.topic)}
                     >
                       {item.topic} ({item.attempts})
@@ -832,10 +242,10 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+          <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Subtopic Drilldown</CardTitle>
+                <CardTitle className="text-xl">Subtopic Drilldown</CardTitle>
                 <CardDescription>
                   {topicFilter === ALL_TOPICS
                     ? "Lowest-performing subtopics across all topics."
@@ -844,52 +254,57 @@ export function AnalyticsView() {
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {displayedSubtopics.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No subtopic data yet.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No subtopic data yet.</div>
                 ) : (
-                  displayedSubtopics.slice(0, 8).map((row) => (
-                    <div key={row.key} className="rounded-xl border border-border/70 bg-background/60 p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <div className="text-sm font-semibold">{row.subtopic}</div>
-                          <div className="text-xs text-muted-foreground">{row.topic}</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {displayedSubtopics.slice(0, 8).map((row) => (
+                      <div key={row.key} className="rounded-xl border border-border/50 bg-background/50 p-4 transition-colors hover:bg-background/80">
+                        <div className="flex flex-col items-start">
+                          <div>
+                            <div className="font-semibold truncate">{row.subtopic}</div>
+                            <div className="text-xs text-muted-foreground">{row.topic}</div>
+                          </div>
+                          <div>
+                            <div className="font-bold text-primary">{formatPercent(row.accuracy)}</div>
+                            <div className="text-xs text-muted-foreground">{row.correct}/{row.attempts} right</div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold">{formatPercent(row.accuracy)}</div>
-                          <div className="text-xs text-muted-foreground">{row.correct}/{row.attempts} correct</div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                          <span className="bg-secondary/10 px-2 py-1 rounded-md">{row.writtenAttempts} written</span>
+                          <span className="bg-secondary/10 px-2 py-1 rounded-md">{row.mcAttempts} MC</span>
+                          {row.attempts < LOW_SAMPLE_THRESHOLD && (
+                            <span className="text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md">Low sample</span>
+                          )}
                         </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>{row.writtenAttempts} written</span>
-                        <span>{row.mcAttempts} MC</span>
-                        {row.attempts < LOW_SAMPLE_THRESHOLD ? <span>Low sample</span> : null}
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Actionable Flags</CardTitle>
+                <CardTitle className="text-xl">Actionable Flags</CardTitle>
                 <CardDescription>
                   Weak areas that deserve attention now.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {displayedSubtopics.slice(0, 5).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No flagged areas yet.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No flagged areas yet.</div>
                 ) : (
                   displayedSubtopics.slice(0, 5).map((row) => (
-                    <div key={row.key} className="rounded-xl border border-border/70 bg-background/60 p-3">
+                    <div key={row.key} className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 relative overflow-hidden">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-sm font-medium">{row.subtopic}</div>
-                        <Badge variant={row.attempts < LOW_SAMPLE_THRESHOLD ? "outline" : "secondary"}>
-                          {row.attempts < LOW_SAMPLE_THRESHOLD ? "Low sample" : "Established"}
+                        <div className="font-semibold text-destructive/90">{row.subtopic}</div>
+                        <Badge variant={row.attempts < LOW_SAMPLE_THRESHOLD ? "outline" : "secondary"} className="bg-background/80">
+                          {row.attempts < LOW_SAMPLE_THRESHOLD ? "Caution: Low sample" : "Established Trend"}
                         </Badge>
                       </div>
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {row.topic} • {row.correct}/{row.attempts} correct • {formatPercent(row.accuracy)}
+                      <div className="mt-2 text-sm text-muted-foreground flex items-center justify-between">
+                        <span>{row.topic}</span>
+                        <span className="font-medium text-foreground">{formatPercent(row.accuracy)} ({row.correct}/{row.attempts})</span>
                       </div>
                     </div>
                   ))
@@ -898,20 +313,19 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card className={`border border-border/70 bg-card/90 shadow-sm flex flex-col ${CARD_FIXED_HEIGHT}`}>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card className={`border border-border/50 bg-card/90 shadow-sm flex flex-col ${CARD_FIXED_HEIGHT} transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Written Analytics</CardTitle>
+                <CardTitle className="text-xl">Written Analytics</CardTitle>
                 <CardDescription>Score distribution for marked written responses.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto pb-0"> {/* flex-1 allows this to grow */}
+              <CardContent className="flex-1 overflow-y-auto pb-0 flex flex-col">
                 {writtenAttempts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No written attempts yet.</p>
+                  <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">No written attempts yet.</div>
                 ) : (
-                  /* Using aspect-auto and h-full to force vertical expansion */
                   <ChartContainer
                     config={marksChartConfig}
-                    className="aspect-auto h-[400px] w-full"
+                    className="flex-1 w-full min-h-[250px] mt-4"
                   >
                     <BarChart
                       data={writtenMarksDistribution}
@@ -930,7 +344,7 @@ export function AnalyticsView() {
                         dataKey="attempts"
                         fill="var(--color-attempts)"
                         radius={[6, 6, 0, 0]}
-                        barSize={60} // Manually set bar width if they look too skinny
+                        barSize={60}
                       />
                     </BarChart>
                   </ChartContainer>
@@ -938,39 +352,39 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Criterion Weak Points</CardTitle>
+                <CardTitle className="text-xl">Criterion Weak Points</CardTitle>
                 <CardDescription>
-                  Marks most often dropped across the last {Math.min(questionHistory.length, RECENT_WRITTEN_CRITERIA_WINDOW)} written marking passes.
+                  Marks most often dropped across the last {Math.min(questionHistoryLength, RECENT_WRITTEN_CRITERIA_WINDOW)} written marking passes.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto space-y-3">
                 {recentCriterionWeakPoints.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Criterion-level trends will appear after written answers are marked.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground text-center px-4">
+                    Criterion-level trends will appear after written answers are marked.
+                  </div>
                 ) : (
                   recentCriterionWeakPoints.map((row) => (
-                    <div key={row.criterion} className="rounded-xl border border-border/70 bg-background/60 p-3">
-                      <div className="flex flex-col items-start justify-between gap-2">
-                        <div>
-                          <div className="text-sm font-semibold">
-                            <MarkdownMath content={row.criterion} />
-                          </div>
-                          <div className="text-xs text-muted-foreground">
+                    <div key={row.criterion} className="rounded-xl border border-border/50 bg-background/50 p-4 hover:bg-background/80 transition-colors">
+                      <div className="flex flex-col items-start justify-between gap-3">
+                        <div className="w-full">
+                          <div className="text-xs font-semibold text-primary/80 uppercase tracking-wide">
                             {row.topicSummary || "Mixed topics"}
                           </div>
-                        </div>
-                        <div className="flex flex-row justify-center items-center gap-1 text-right">
-                          <div className="text-sm font-semibold">{formatPercent(row.successPercent)}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {row.achievedMarks}/{row.availableMarks} marks kept
+                          <div className="text-sm font-medium leading-relaxed rounded-md my-1">
+                            <MarkdownMath content={row.criterion} />
                           </div>
                         </div>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span>{row.attempts} recent criteria</span>
-                        <span>{formatPercent(row.lostPercent)} marks lost</span>
-                        <span>{new Date(row.lastSeenAt).toLocaleDateString()}</span>
+                        <div className="flex w-full items-center justify-between border-t border-border/50 pt-2 mt-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-bold">{formatPercent(row.successPercent)}</span>
+                            <span className="text-xs text-muted-foreground">success</span>
+                          </div>
+                          <div className="text-sm font-medium">
+                            {row.achievedMarks} <span className="text-muted-foreground font-normal">/ {row.availableMarks} marks kept</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -979,47 +393,47 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Answer Effort vs Score</CardTitle>
+                <CardTitle className="text-xl">Answer Effort vs Score</CardTitle>
                 <CardDescription>Average written score by answer length bucket.</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
                 {writtenEffortDistribution.every((item) => item.attempts === 0) ? (
-                  <p className="text-sm text-muted-foreground">Answer-length tracking will populate as new written attempts are marked.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">Tracking will populate as new written attempts are marked.</div>
                 ) : (
-                  <ChartContainer config={effortChartConfig} className="h-72 w-full">
-                    <BarChart data={writtenEffortDistribution} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-                      <CartesianGrid vertical={false} />
+                  <ChartContainer config={effortChartConfig} className="h-72 w-full mt-4">
+                    <BarChart data={writtenEffortDistribution} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                       <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                      <Bar dataKey="avgScorePercent" fill="var(--color-avgScorePercent)" radius={8} />
+                      <Bar dataKey="avgScorePercent" fill="var(--color-avgScorePercent)" radius={[4, 4, 0, 0]} maxBarSize={60} />
                     </BarChart>
                   </ChartContainer>
                 )}
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Written Interventions</CardTitle>
+                <CardTitle className="text-xl">Written Interventions</CardTitle>
                 <CardDescription>Initial marks vs appeals and manual overrides.</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
                 {writtenAttemptTypeData.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No written intervention data yet.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No written intervention data yet.</div>
                 ) : (
-                  <ChartContainer config={attemptTypeChartConfig} className="h-72 w-full">
+                  <ChartContainer config={attemptTypeChartConfig} className="h-72 w-full mt-4">
                     <PieChart>
                       <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                      <Pie data={writtenAttemptTypeData} dataKey="value" nameKey="label" innerRadius={60} outerRadius={92} paddingAngle={3}>
+                      <Pie data={writtenAttemptTypeData} dataKey="value" nameKey="label" innerRadius={70} outerRadius={100} paddingAngle={4} stroke="none">
                         {writtenAttemptTypeData.map((entry) => (
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}
                       </Pie>
-                      <ChartLegend content={<ChartLegendContent nameKey="label" />} />
+                      <ChartLegend content={<ChartLegendContent nameKey="label" />} className="pt-6" />
                     </PieChart>
                   </ChartContainer>
                 )}
@@ -1027,45 +441,45 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1fr_1.1fr]">
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+          <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Multiple-Choice Analytics</CardTitle>
+                <CardTitle className="text-xl">Multiple-Choice Analytics</CardTitle>
                 <CardDescription>Accuracy by topic for multiple-choice answers.</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
                 {mcTopicAccuracy.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No MC attempts yet.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No MC attempts yet.</div>
                 ) : (
-                  <ChartContainer config={topicChartConfig} className="h-72 w-full">
-                    <BarChart data={mcTopicAccuracy} layout="vertical" margin={{ left: 16, right: 8, top: 8, bottom: 8 }}>
-                      <CartesianGrid horizontal={false} />
+                  <ChartContainer config={topicChartConfig} className="h-72 w-full mt-4">
+                    <BarChart data={mcTopicAccuracy} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
+                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.2} />
                       <XAxis type="number" tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={118} />
+                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={100} />
                       <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                      <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={8} />
+                      <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} maxBarSize={30} />
                     </BarChart>
                   </ChartContainer>
                 )}
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>MC Response Speed</CardTitle>
+                <CardTitle className="text-xl">MC Response Speed</CardTitle>
                 <CardDescription>Average time to answer each topic when response timing is available.</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
                 {mcResponseLatency.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Response timing will appear for new MC attempts.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">Response timing will appear for new MC attempts.</div>
                 ) : (
-                  <ChartContainer config={responseLatencyChartConfig} className="h-72 w-full">
-                    <BarChart data={mcResponseLatency} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-                      <CartesianGrid vertical={false} />
+                  <ChartContainer config={responseLatencyChartConfig} className="h-72 w-full mt-4">
+                    <BarChart data={mcResponseLatency} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="topic" tickLine={false} axisLine={false} minTickGap={18} />
                       <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value}s`} />
                       <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                      <Bar dataKey="avgResponseSeconds" fill="var(--color-avgResponseSeconds)" radius={8} />
+                      <Bar dataKey="avgResponseSeconds" fill="var(--color-avgResponseSeconds)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -1073,55 +487,77 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Generation Diagnostics</CardTitle>
+                <CardTitle className="text-xl">Generation Diagnostics</CardTitle>
                 <CardDescription>Average generation time and repair pressure by difficulty.</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto">
                 {qualityRows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No generation telemetry yet.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No generation telemetry yet.</div>
                 ) : (
-                  <ChartContainer config={generationChartConfig} className="h-80 w-full">
-                    <BarChart data={qualityRows} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
-                      <CartesianGrid vertical={false} />
+                  <ChartContainer config={generationChartConfig} className="h-80 w-full mt-4">
+                    <BarChart data={qualityRows} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="difficulty" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                      <ChartLegend content={<ChartLegendContent />} />
-                      <Bar dataKey="avgDurationSeconds" fill="var(--color-avgDurationSeconds)" radius={8} />
-                      <Bar dataKey="avgRepairAttempts" fill="var(--color-avgRepairAttempts)" radius={8} />
+                      <ChartLegend content={<ChartLegendContent />} className="pt-4" />
+                      <Bar dataKey="avgDurationSeconds" fill="var(--color-avgDurationSeconds)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      <Bar dataKey="avgRepairAttempts" fill="var(--color-avgRepairAttempts)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     </BarChart>
                   </ChartContainer>
                 )}
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
               <CardHeader>
-                <CardTitle>Difficulty Notes</CardTitle>
+                <CardTitle className="text-xl">Difficulty Notes</CardTitle>
                 <CardDescription>Generation quality, depth, and accuracy rolled up by difficulty.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto space-y-3">
+              <CardContent className="flex-1 overflow-y-auto space-y-4">
                 {qualityRows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No diagnostic notes yet.</p>
+                  <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No diagnostic notes yet.</div>
                 ) : (
                   qualityRows.map((row) => (
-                    <div key={row.difficulty} className="rounded-xl border border-border/70 bg-background/60 p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div key={row.difficulty} className="rounded-xl border border-border/50 bg-background/50 p-4 hover:bg-background/80 transition-colors">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3 mb-3">
                         <div>
-                          <div className="text-sm font-semibold">{row.difficulty}</div>
-                          <div className="text-xs text-muted-foreground">{row.sampleCount} samples</div>
+                          <div className="text-lg font-bold capitalize">{row.difficulty}</div>
+                          <div className="text-xs text-muted-foreground">{row.sampleCount} samples evaluated</div>
                         </div>
-                        <div className="text-right text-sm font-semibold">{formatPercent(row.accuracy)}</div>
+                        <div className="text-right">
+                          <div className="text-2xl font-black text-primary">{formatPercent(row.accuracy)}</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wider">Accuracy</div>
+                        </div>
                       </div>
-                      <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-                        <div>Generation: {row.avgDurationSeconds.toFixed(1)}s average</div>
-                        <div>Repair attempts: {row.avgRepairAttempts.toFixed(2)} average</div>
-                        <div>Total generation attempts: {row.avgGenerationAttempts.toFixed(2)} average</div>
-                        {row.distinctnessAvg !== undefined ? <div>Distinctness: {row.distinctnessAvg.toFixed(2)}</div> : null}
-                        {row.multiStepDepthAvg !== undefined ? <div>Multi-step depth: {row.multiStepDepthAvg.toFixed(2)}</div> : null}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Gen Time:</span>
+                          <span className="font-medium">{row.avgDurationSeconds.toFixed(1)}s</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Repairs:</span>
+                          <span className="font-medium">{row.avgRepairAttempts.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Attempts:</span>
+                          <span className="font-medium">{row.avgGenerationAttempts.toFixed(2)}</span>
+                        </div>
+                        {row.distinctnessAvg !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Distinct:</span>
+                            <span className="font-medium">{row.distinctnessAvg.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {row.multiStepDepthAvg !== undefined && (
+                          <div className="flex justify-between col-span-2 mt-1 pt-2 border-t border-border/30">
+                            <span className="text-muted-foreground">Multi-step depth:</span>
+                            <span className="font-medium">{row.multiStepDepthAvg.toFixed(2)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -1130,40 +566,64 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <Card className={`border border-border/70 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col`}>
+          <Card className={`border border-border/50 bg-card/90 shadow-sm flex flex-col transition-all hover:shadow-md`}>
             <CardHeader>
-              <CardTitle>Lowest-Scoring Written Attempts</CardTitle>
+              <CardTitle className="text-xl">Lowest-Scoring Written Attempts</CardTitle>
               <CardDescription>Useful for spotting recurring failure patterns and intervention-heavy questions.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto space-y-3">
+            <CardContent className="flex-1 overflow-y-auto space-y-3 pb-6">
               {lowestScoringWritten.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No written attempts yet.</p>
+                <div className="flex h-48 flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted p-8 text-center">
+                  <div className="mb-2 rounded-full bg-muted/50 p-3">
+                    <FileText className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">No written attempts yet</p>
+                  <p className="text-xs text-muted-foreground">Your lowest scoring work will appear here for review.</p>
+                </div>
               ) : (
-                lowestScoringWritten.map((attempt) => (
-                  <div key={attempt.id} className="rounded-xl border border-border/70 bg-background/60 p-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <div className="text-sm font-semibold">{attempt.topic}</div>
-                        <div className="text-xs text-muted-foreground">{attempt.subtopic}</div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {lowestScoringWritten.map((attempt) => (
+                    <div
+                      key={attempt.id}
+                      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-destructive/50 hover:shadow-md"
+                    >
+                      {/* Top Row: Context & Score */}
+                      <div className="mb-3 flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive">
+                            {attempt.attemptKind || "Written"}
+                          </span>
+                          <h3 className="line-clamp-2 font-bold leading-tight text-foreground group-hover:text-destructive transition-colors">
+                            {attempt.topic}
+                          </h3>
+                          <p className="truncate text-xs text-muted-foreground">{attempt.subtopic}</p>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-2xl font-black tracking-tight text-destructive">
+                            {formatPercent(attempt.scorePercent)}
+                          </span>
+                          <span className="text-[10px] font-medium text-muted-foreground/60">SCORE</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold">{formatPercent(attempt.scorePercent)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {attempt.attemptKind ? `${attempt.attemptKind} attempt` : "written attempt"}
+
+                      {/* Bottom Row: Stats */}
+                      <div className="mt-auto flex items-center gap-3 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Type className="h-3.5 w-3.5 opacity-70" />
+                          <span>{attempt.answerWordCount ?? 0} words</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock3 className="h-3.5 w-3.5 opacity-70" />
+                          <span>{formatDurationMs(attempt.markingLatencyMs)}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      <span>{attempt.answerWordCount ?? 0} words</span>
-                      <span>{attempt.answerCharacterCount ?? 0} chars</span>
-                      <span>Marked in {formatDurationMs(attempt.markingLatencyMs)}</span>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
     </div>
   );
