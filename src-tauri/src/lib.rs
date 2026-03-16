@@ -1693,9 +1693,9 @@ fn difficulty_guidance(level: &str) -> &'static str {
     } else if level.eq_ignore_ascii_case("medium") {
         "- Require multi-step reasoning with at least two linked concepts.\n- Include non-routine context shifts that require method choice.\n- Use realistic exam pressure through concise but information-dense prompts."
     } else if level.eq_ignore_ascii_case("hard") {
-        "- Build discriminator-level questions requiring synthesis across multiple concepts.\n- Include unfamiliar or edge-case contexts that punish rote methods.\n- Require method selection, justification, and error-resistant reasoning chains."
+        "- Construct discriminator-level challenges that pivot on information-dense narratives, requiring students to synthesize multiple areas of the VCE Study Design simultaneously.\n- Use sophisticated wording to present edge-case scenarios or restricted domains that intentionally subvert rote-learned templates and punish routine algorithm application.\n- Require the student to articulate a rigorous, error-resistant reasoning chain that justifies their specific method selection amidst competing constraints."
     } else {
-        "- Go significantly beyond VCE exam difficulty; target olympiad or early university level.\n- Every question must require deep conceptual insight, multi-stage derivation, or cross-domain synthesis.\n- Unfamiliar problem framings only; absolutely no template-recall or routine algorithm application.\n- Maximise cognitive load: embed multiple constraints, require students to construct novel sub-results mid-solution."
+        "- Transcend standard VCE exam rigor by targeting an intellectual depth comparable to mathematical olympiads or introductory university analysis.\n- Employ abstract, multi-layered prose that embeds implicit constraints and requires the construction of original sub-results or cross-domain derivations (e.g., linking complex probability transformations with calculus optimization).\n- Maximize cognitive load through unfamiliar problem framings that offer zero reliance on template recall, forcing a deep conceptual derivation of the solution from first principles."
     }
 }
 
