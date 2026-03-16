@@ -40,7 +40,6 @@ import {
   SpecialistMathSubtopic,
   SPECIALIST_MATH_SUBTOPICS,
   VCE_COMMAND_TERMS,
-  VCE_COMMAND_TERMS_LOWER_THAN_EVALUATE,
   VceCommandTerm,
 } from "../types";
 import { confirmAction, fileToDataUrl, formatDurationMs, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
@@ -98,6 +97,7 @@ export function GeneratorView() {
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
+    subtopicInstructions,
   } = useAppPreferences();
   const {
     questions,
@@ -494,6 +494,21 @@ export function GeneratorView() {
     return Array.from(new Set(selectedSubtopics));
   }
 
+  function getSelectedSubtopicInstructions() {
+    const selected = getSelectedSubtopics();
+    const filtered: Record<string, string> = {};
+
+    for (const subtopic of selected) {
+      const instruction = subtopicInstructions[subtopic]?.trim();
+      if (!instruction) {
+        continue;
+      }
+      filtered[subtopic] = instruction;
+    }
+
+    return filtered;
+  }
+
   function getCustomFocusArea() {
     const customFocus = customFocusArea.trim();
     return customFocus.length > 0 ? customFocus : undefined;
@@ -677,6 +692,7 @@ export function GeneratorView() {
           techMode,
           useStructuredOutput,
           subtopics: getSelectedSubtopics(),
+          subtopicInstructions: getSelectedSubtopicInstructions(),
           customFocusArea: customFocus,
           avoidSimilarQuestions,
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
@@ -867,6 +883,7 @@ export function GeneratorView() {
           techMode,
           useStructuredOutput,
           subtopics: getSelectedSubtopics(),
+          subtopicInstructions: getSelectedSubtopicInstructions(),
           customFocusArea: customFocus,
           avoidSimilarQuestions,
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
@@ -1357,9 +1374,6 @@ export function GeneratorView() {
                       : hasAnyMathTopic
                         ? " Command-term prioritisation applies to non-Mathematics questions only."
                         : ""}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Lower-mark demand than Evaluate: {VCE_COMMAND_TERMS_LOWER_THAN_EVALUATE.join(", ")}
                   </p>
                 </div>
               )}

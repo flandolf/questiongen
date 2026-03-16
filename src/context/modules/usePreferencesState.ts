@@ -49,6 +49,9 @@ export function usePreferencesState() {
   const [questionMode, setQuestionMode] = useState<QuestionMode>(
     EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
   );
+  const [subtopicInstructions, setSubtopicInstructions] = useState<Record<string, string>>(
+    EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
+  );
 
   return {
     selectedTopics,
@@ -75,5 +78,7 @@ export function usePreferencesState() {
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
+    subtopicInstructions,
+    setSubtopicInstructions,
   };
 }

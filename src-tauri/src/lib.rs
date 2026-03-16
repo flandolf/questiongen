@@ -2,7 +2,7 @@ use base64::{Engine as _, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tauri::{Emitter, Manager};
@@ -109,6 +109,7 @@ struct GenerateQuestionsRequest {
     tech_mode: Option<String>,
     prioritized_command_terms: Option<Vec<String>>,
     subtopics: Option<Vec<String>>,
+    subtopic_instructions: Option<HashMap<String, String>>,
     custom_focus_area: Option<String>,
     avoid_similar_questions: Option<bool>,
     prior_question_prompts: Option<Vec<String>>,
@@ -431,6 +432,8 @@ async fn generate_questions(
         Some(subs) => format!(" Focus on the following subtopics: {}.", subs.join(", ")),
         None => String::new(),
     };
+    let subtopic_instruction_note =
+        build_subtopic_instructions_note(selected_subtopics, request.subtopic_instructions.as_ref());
     let custom_focus_note = match custom_focus_area {
         Some(value) => format!(
             " Custom focus area: \"{value}\". Prioritize this focus strongly across the set and align each question context to it where syllabus-valid."
@@ -463,13 +466,14 @@ async fn generate_questions(
     };
     let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
     let user_prompt = format!(
-        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and {max_marks_cap}.{command_term_guidance_note}{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and {max_marks_cap}.{command_term_guidance_note}{subtopics_note}{subtopic_instruction_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
         command_term_guidance_note = command_term_guidance_note,
         difficulty_rules = difficulty_rules,
         subtopics_note = subtopics_note,
+        subtopic_instruction_note = subtopic_instruction_note,
         custom_focus_note = custom_focus_note,
         tech_note = tech_note,
         math_methods_reference_note = math_methods_reference_note,
@@ -1344,6 +1348,7 @@ struct GenerateMcQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    subtopic_instructions: Option<HashMap<String, String>>,
     custom_focus_area: Option<String>,
     avoid_similar_questions: Option<bool>,
     prior_question_prompts: Option<Vec<String>>,
@@ -1465,6 +1470,8 @@ async fn generate_mc_questions(
         Some(subs) => format!(" Focus on the following subtopics: {}.", subs.join(", ")),
         None => String::new(),
     };
+    let subtopic_instruction_note_mc =
+        build_subtopic_instructions_note(selected_subtopics, request.subtopic_instructions.as_ref());
     let custom_focus_note_mc = match custom_focus_area {
         Some(value) => format!(
             " Custom focus area: \"{value}\". Prioritize this focus strongly across the set and align each question context to it where syllabus-valid."
@@ -1476,12 +1483,13 @@ async fn generate_mc_questions(
         request.prior_question_prompts.as_deref(),
     );
     let user_prompt = format!(
-        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.\n- explanationMarkdown must be concise: 1-3 short sentences, maximum 90 words.\n- explanationMarkdown must give only the final rationale: why the correct option is right and briefly why common distractors fail.\n- explanationMarkdown must not include chain-of-thought, self-talk, retries, uncertainty narration, or any rewriting/fixing of the question/options.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE multiple-choice questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nEach question must have exactly 4 options labeled A, B, C, D with only one correct answer.{subtopics_note}{subtopic_instruction_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Make each question materially distinct in concept and reasoning style.\n- Use plausible distractors based on common misconceptions.\n- Avoid giveaway wording in stems and options.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.\n- explanationMarkdown must be concise: 1-3 short sentences, maximum 90 words.\n- explanationMarkdown must give only the final rationale: why the correct option is right and briefly why common distractors fail.\n- explanationMarkdown must not include chain-of-thought, self-talk, retries, uncertainty narration, or any rewriting/fixing of the question/options.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
         difficulty_rules = difficulty_rules,
         subtopics_note = subtopics_note_mc,
+        subtopic_instruction_note = subtopic_instruction_note_mc,
         custom_focus_note = custom_focus_note_mc,
         tech_note = tech_note_mc,
         math_methods_reference_note = math_methods_reference_note,
@@ -1764,6 +1772,39 @@ fn build_command_term_guidance_note(
 
     format!(
         "\n- For non-Mathematics topics, start each prompt with one of these command terms and prioritise them across the set: {selected_terms}.\n- The prompt context must match what the chosen command term requires a student to do in order to answer successfully.\n- Questions using these command terms should usually carry fewer marks than Evaluate: {lower_than_evaluate_terms}."
+    )
+}
+
+fn build_subtopic_instructions_note(
+    selected_subtopics: Option<&Vec<String>>,
+    subtopic_instructions: Option<&HashMap<String, String>>,
+) -> String {
+    let Some(subs) = selected_subtopics else {
+        return String::new();
+    };
+    let Some(instructions) = subtopic_instructions else {
+        return String::new();
+    };
+
+    let mut lines = Vec::new();
+    for subtopic in subs {
+        let Some(instruction) = instructions.get(subtopic) else {
+            continue;
+        };
+        let trimmed = instruction.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        lines.push(format!("- {subtopic}: {trimmed}"));
+    }
+
+    if lines.is_empty() {
+        return String::new();
+    }
+
+    format!(
+        "\n\nSubtopic-specific constraints (mandatory when the subtopic is selected):\n{}",
+        lines.join("\n")
     )
 }
 

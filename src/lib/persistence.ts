@@ -24,6 +24,7 @@ import {
   QuestionMode,
   SAVED_SET_LIMIT,
   SavedQuestionSet,
+  SUBTOPIC_INSTRUCTIONS,
   StudentAnswerImage,
   TOPICS,
   VCE_COMMAND_TERMS,
@@ -52,6 +53,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   maxMarksPerQuestion: 10,
   prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
+  subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
 };
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
@@ -199,7 +201,32 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
         ? prioritizedCommandTerms
         : DEFAULT_PREFERENCES.prioritizedCommandTerms,
     questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
+    subtopicInstructions: normalizeSubtopicInstructions(data.subtopicInstructions),
   };
+}
+
+function normalizeSubtopicInstructions(raw: unknown): Record<string, string> {
+  const merged: Record<string, string> = { ...SUBTOPIC_INSTRUCTIONS };
+  if (!isRecord(raw)) {
+    return merged;
+  }
+
+  for (const [key, value] of Object.entries(raw)) {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) {
+      continue;
+    }
+    if (typeof value !== "string") {
+      continue;
+    }
+    const normalizedValue = value.trim();
+    if (!normalizedValue) {
+      continue;
+    }
+    merged[normalizedKey] = normalizedValue;
+  }
+
+  return merged;
 }
 
 function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {

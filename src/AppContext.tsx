@@ -60,6 +60,8 @@ interface AppContextState {
   setMaxMarksPerQuestion: (marks: number) => void;
   prioritizedCommandTerms: VceCommandTerm[];
   setPrioritizedCommandTerms: (terms: VceCommandTerm[] | ((prev: VceCommandTerm[]) => VceCommandTerm[])) => void;
+  subtopicInstructions: Record<string, string>;
+  setSubtopicInstructions: (instructions: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   model: string;
   setModel: (model: string) => void;
   debugMode: boolean;
@@ -192,6 +194,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
+    subtopicInstructions,
+    setSubtopicInstructions,
   } = usePreferencesState();
 
   const {
@@ -258,6 +262,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       maxMarksPerQuestion,
       prioritizedCommandTerms,
       questionMode,
+      subtopicInstructions,
     };
   }, [
     selectedTopics,
@@ -272,6 +277,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     maxMarksPerQuestion,
     prioritizedCommandTerms,
     questionMode,
+    subtopicInstructions,
   ]);
 
   useEffect(() => {
@@ -414,6 +420,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
     setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
+    setSubtopicInstructions(state.preferences.subtopicInstructions);
 
     setQuestions(state.writtenSession.questions);
     setActiveQuestionIndex(state.writtenSession.activeQuestionIndex);
@@ -525,6 +532,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setQuestionCount(entry.preferences.questionCount);
     setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
     setQuestionMode(entry.questionMode);
+    setSubtopicInstructions(entry.preferences.subtopicInstructions);
 
     if (entry.questionMode === "written" && entry.writtenSession) {
       setQuestions(entry.writtenSession.questions);
@@ -601,6 +609,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setMaxMarksPerQuestion,
         prioritizedCommandTerms,
         setPrioritizedCommandTerms,
+        subtopicInstructions,
+        setSubtopicInstructions,
         model,
         setModel,
         debugMode,
@@ -701,6 +711,8 @@ export function useAppPreferences() {
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
+    subtopicInstructions,
+    setSubtopicInstructions,
   } = useAppContext();
 
   return {
@@ -728,6 +740,8 @@ export function useAppPreferences() {
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
+    subtopicInstructions,
+    setSubtopicInstructions,
   };
 }
 
