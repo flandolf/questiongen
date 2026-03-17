@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Eye, EyeOff, Bug, Braces } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { invoke } from "@tauri-apps/api/core";
 
 export function SettingsView() {
   const {
@@ -26,20 +27,56 @@ export function SettingsView() {
   const [localModel, setLocalModel] = useState(model);
   const [showCustomModelInput, setShowCustomModelInput] = useState(false);
   const [customModelId, setCustomModelId] = useState("");
+  const [_tps, setTps] = useState<number | null>(null);
+  const [modelTpsMap, setModelTpsMap] = useState<Record<string, number | null>>({});
 
   const models = [
     { id: "openrouter/hunter-alpha", name: "Hunter Alpha" },
     { id: "openrouter/healer-alpha", name: "Healer Alpha" },
-    { id: "openrouter/aurora-alpha", name: "Aurora Alpha" },
+    { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite Preview" },
+    { id: "qwen/qwen3.5-35b-a3b", name: "Qwen 3.5 35B A3B" },
     { id: "openrouter/free", name: "Free" },
     { id: "custom", name: "Custom..." },
-  ]
+  ];
 
-  // Sync back to context when leaving or saving. Let's just update on save button for explicit action.
   useEffect(() => {
     setLocalKey(apiKey);
     setLocalModel(model);
   }, [apiKey, model]);
+
+  useEffect(() => {
+    async function fetchTpsForModels() {
+      const updatedModelTpsMap: Record<string, number | null> = {};
+      for (const model of models) {
+        if (model.id !== "custom" && localKey) {
+          try {
+            const result = await invoke("get_tps", { model: model.id, apiKey: localKey });
+            updatedModelTpsMap[model.id] = result as number;
+          } catch (error) {
+            console.error(`Failed to fetch TPS for model ${model.id}:`, error);
+            updatedModelTpsMap[model.id] = null;
+          }
+        }
+      }
+      setModelTpsMap(updatedModelTpsMap);
+    }
+    fetchTpsForModels();
+  }, [localKey]);
+
+  useEffect(() => {
+    async function fetchTps() {
+      if (localModel && localKey) {
+        try {
+          const result = await invoke("get_tps", { model: localModel, apiKey: localKey });
+          setTps(result as number);
+        } catch (error) {
+          console.error("Failed to fetch TPS:", error);
+          setTps(null);
+        }
+      }
+    }
+    fetchTps();
+  }, [localModel, localKey]);
 
   function handleSave() {
     setApiKey(localKey);
@@ -68,7 +105,10 @@ export function SettingsView() {
                 id="api-key"
                 type={showApiKey ? "text" : "password"}
                 value={localKey}
-                onChange={(e) => setLocalKey(e.target.value)}
+                onChange={(e) => {
+                  setLocalKey(e.target.value);
+                  handleSave();
+                }}
                 placeholder="sk-or-v1-..."
                 className="pr-10"
               />
@@ -100,14 +140,17 @@ export function SettingsView() {
         <CardContent>
           <div className="space-y-2">
             <Label htmlFor="model-id">Model ID</Label>
-            <Select value={localModel} onValueChange={(value) => {
-              if (value === "custom") {
-                setShowCustomModelInput(true);
-              } else {
-                setShowCustomModelInput(false);
-                setLocalModel(value);
-              }
-            }}>
+            <Select
+              value={localModel}
+              onValueChange={(value) => {
+                if (value === "custom") {
+                  setShowCustomModelInput(true);
+                } else {
+                  setShowCustomModelInput(false);
+                  setLocalModel(value);
+                }
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
@@ -115,10 +158,12 @@ export function SettingsView() {
                 {models.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
+                    {modelTpsMap[model.id] !== undefined && modelTpsMap[model.id] !== null && (
+                      `: ${modelTpsMap[model.id]} tps`
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
-
             </Select>
             {showCustomModelInput && (
               <div className="mt-2 space-y-2">
@@ -130,25 +175,26 @@ export function SettingsView() {
                   onChange={(e) => setCustomModelId(e.target.value)}
                   placeholder="e.g. openrouter/my-custom-model"
                 />
-                <Button className="mt-2" onClick={() => {
-                  setLocalModel(customModelId);
-                  setShowCustomModelInput(false);
-                }}>
+                <Button
+                  className="mt-2"
+                  onClick={() => {
+                    setLocalModel(customModelId);
+                    setShowCustomModelInput(false);
+                    handleSave();
+                  }}
+                >
                   Use Custom Model
                 </Button>
               </div>
             )}
           </div>
         </CardContent>
-        <CardFooter>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Theme</CardTitle>
-          <CardDescription> 
+          <CardDescription>
             Toggle between light, dark, or system theme modes.
           </CardDescription>
         </CardHeader>
@@ -168,7 +214,12 @@ export function SettingsView() {
           <p className="text-sm text-muted-foreground">
             {debugMode ? "Debug mode is enabled." : "Debug mode is disabled."}
           </p>
-          <Button type="button" variant={debugMode ? "default" : "outline"} className="gap-2" onClick={() => setDebugMode(!debugMode)}>
+          <Button
+            type="button"
+            variant={debugMode ? "default" : "outline"}
+            className="gap-2"
+            onClick={() => setDebugMode(!debugMode)}
+          >
             <Bug className="h-4 w-4" />
             {debugMode ? "Disable Debug Mode" : "Enable Debug Mode"}
           </Button>
