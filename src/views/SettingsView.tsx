@@ -107,7 +107,6 @@ export function SettingsView() {
                 value={localKey}
                 onChange={(e) => {
                   setLocalKey(e.target.value);
-                  handleSave();
                 }}
                 placeholder="sk-or-v1-..."
                 className="pr-10"
@@ -120,6 +119,7 @@ export function SettingsView() {
                 {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">Changes are saved when you click “Save Settings.”</p>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
@@ -180,7 +180,6 @@ export function SettingsView() {
                   onClick={() => {
                     setLocalModel(customModelId);
                     setShowCustomModelInput(false);
-                    handleSave();
                   }}
                 >
                   Use Custom Model

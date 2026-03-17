@@ -60,9 +60,41 @@ function countWords(value: string) {
   return trimmed.split(/\s+/).length;
 }
 
+function formatElapsedTime(startAt: number | null, endAt: number | null, now: number) {
+  if (startAt === null) {
+    return "00:00";
+  }
+  const effectiveEnd = endAt ?? now;
+  const elapsedSeconds = Math.max(0, Math.floor((effectiveEnd - startAt) / 1000));
+  const hours = Math.floor(elapsedSeconds / 3600);
+  const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+  const seconds = elapsedSeconds % 60;
+  if (hours > 0) return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function ElapsedTimerText({ startAt, endAt }: { startAt: number | null; endAt: number | null }) {
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    if (startAt === null) {
+      return;
+    }
+    if (endAt !== null) {
+      setNow(endAt);
+      return;
+    }
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [endAt, startAt]);
+
+  return <span>{formatElapsedTime(startAt, endAt, now)}</span>;
+}
+
 export function GeneratorView() {
   const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
-  const [timerNow, setTimerNow] = useState<number>(() => Date.now());
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
@@ -209,6 +241,31 @@ export function GeneratorView() {
   const canShowMcRawOutput = debugMode && mcRawModelOutput.trim().length > 0;
   const canShowPassageRawOutput = debugMode && passageRawModelOutput.trim().length > 0;
   const generatorTopics = selectedTopics;
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const hasAdvancedSelections = useMemo(() => {
+    return (
+      mathMethodsSubtopics.length > 0 ||
+      specialistMathSubtopics.length > 0 ||
+      chemistrySubtopics.length > 0 ||
+      physicalEducationSubtopics.length > 0 ||
+      englishLanguageSubtopics.length > 0 ||
+      prioritizedCommandTerms.length > 0 ||
+      customFocusArea.trim().length > 0 ||
+      (questionMode === "written" && englishTaskType === "text-analysis" && Boolean(passageAosSubtopic))
+    );
+  }, [
+    chemistrySubtopics.length,
+    customFocusArea,
+    englishLanguageSubtopics.length,
+    englishTaskType,
+    mathMethodsSubtopics.length,
+    passageAosSubtopic,
+    physicalEducationSubtopics.length,
+    prioritizedCommandTerms.length,
+    questionMode,
+    specialistMathSubtopics.length,
+  ]);
 
   const activeWrittenQuestion = isPassageMode ? passage?.questions[activePassageQuestionIndex] : activeQuestion;
   const activeWrittenAnswer = activeWrittenQuestion
@@ -371,33 +428,10 @@ export function GeneratorView() {
   const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
 
   useEffect(() => {
-    if (generationStartedAt === null) {
-      return;
+    if (hasAdvancedSelections) {
+      setShowAdvanced(true);
     }
-
-    if (sessionFinishedAt !== null) {
-      setTimerNow(sessionFinishedAt);
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setTimerNow(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(intervalId);
-  }, [generationStartedAt, sessionFinishedAt]);
-
-  const elapsedSeconds = generationStartedAt === null
-    ? 0
-    : Math.max(0, Math.floor(((sessionFinishedAt ?? timerNow) - generationStartedAt) / 1000));
-
-  const formattedElapsedTime = useMemo(() => {
-    const hours = Math.floor(elapsedSeconds / 3600);
-    const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-    const seconds = elapsedSeconds % 60;
-    if (hours > 0) return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  }, [elapsedSeconds]);
+  }, [hasAdvancedSelections]);
 
 
   useEffect(() => {
@@ -1391,7 +1425,8 @@ export function GeneratorView() {
       )}
 
       {showSetup ? (
-        <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
+        <>
+          <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
           <div className="px-5 pb-3 border-b">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
               <div>
@@ -1423,219 +1458,49 @@ export function GeneratorView() {
           </div>
 
           <CardContent className="space-y-2">
-            {/* Subject Selection */}
-            <div className="space-y-2">
-              <Label className="text-base font-semibold flex items-center gap-2">
-                Select Subjects
-              </Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {TOPICS.map((topic) => {
-                  const isSelected = selectedTopics.includes(topic);
-                  return (
-                    <Button key={topic} variant={isSelected ? "default" : "outline"} className={`w-full transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`} onClick={() => toggleTopic(topic)}>
-                      {topic}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Subtopic Drill-downs */}
-            {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education") || selectedTopics.includes("English Language")) && (
-              <div className="bg-muted/30 p-4 rounded-xl border space-y-2">
-                {selectedTopics.includes("Mathematical Methods") && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">Mathematical Methods Focus Areas</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Leave all unselected to test across the entire curriculum.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {MATH_METHODS_SUBTOPICS.map((sub) => (
-                        <Badge
-                          key={sub}
-                          variant={mathMethodsSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-3 text-xs transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => toggleMathMethodsSubtopic(sub)}
-                        >
-                          {sub}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedTopics.includes("Specialist Mathematics") && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">Specialist Mathematics Focus Areas</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Leave all unselected to test across the entire curriculum.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {SPECIALIST_MATH_SUBTOPICS.map((sub) => (
-                        <Badge
-                          key={sub}
-                          variant={specialistMathSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-3 text-xs transition-colors ${specialistMathSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => toggleSpecialistMathSubtopic(sub)}
-                        >
-                          {sub}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedTopics.includes("Chemistry") && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">Chemistry Focus Areas</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Select one or more Chemistry study points, or leave all unselected to span the full course.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {CHEMISTRY_SUBTOPICS.map((sub) => (
-                        <Badge
-                          key={sub}
-                          variant={chemistrySubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-3 text-xs transition-colors ${chemistrySubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => toggleChemistrySubtopic(sub)}
-                        >
-                          {sub}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedTopics.includes("Physical Education") && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">Physical Education Unit 3/4 Focus Areas</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Based on the 2025 Study Design.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PHYSICAL_EDUCATION_SUBTOPICS.map((sub) => (
-                        <Badge
-                          key={sub}
-                          variant={physicalEducationSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-3 text-xs transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => togglePhysicalEducationSubtopic(sub)}
-                        >
-                          {sub}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedTopics.includes("English Language") && questionMode === "written" && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">English Language Task Type</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Choose between short-answer questions or text analysis with a passage.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ENGLISH_LANGUAGE_TASK_TYPES.map((taskType) => {
-                        const isSelected = englishTaskType === taskType;
-                        return (
-                          <Badge
-                            key={taskType}
-                            variant={isSelected ? "default" : "outline"}
-                            className={`cursor-pointer p-3 text-xs transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
-                            onClick={() => setEnglishLanguageTaskTypes([taskType])}
-                          >
-                            {taskType === "short-answer" ? "Short Answer" : "Text Analysis (Passage)"}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {selectedTopics.includes("English Language") && questionMode === "written" && englishTaskType === "short-answer" && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">English Language Focus Areas</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Select one or more Areas of Study, or leave all unselected to span the full course.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
-                        <Badge
-                          key={sub}
-                          variant={englishLanguageSubtopics.includes(sub) ? "default" : "outline"}
-                          className={`cursor-pointer p-3 text-xs transition-colors ${englishLanguageSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => toggleEnglishLanguageSubtopic(sub)}
-                        >
-                          {sub}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedTopics.includes("English Language") && questionMode === "written" && englishTaskType === "text-analysis" && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-sm font-semibold">Text Analysis Area of Study</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Choose the Area of Study that guides the passage and question set.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
-                        <Badge
-                          key={sub}
-                          variant={passageAosSubtopic === sub ? "default" : "outline"}
-                          className={`cursor-pointer p-3 text-xs transition-colors ${passageAosSubtopic === sub ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => setPassageAosSubtopic(sub)}
-                        >
-                          {sub}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            )}
-
-            {/* Configuration Parameters */}
-            <div className="flex flex-col gap-y-3">
-              {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics")) && (
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-sm font-semibold flex items-center gap-2">
-                    <Settings2 className="w-4 h-4" /> Calculator Mode
+            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/10 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    Quick Start
                   </Label>
-                  <div className="grid grid-cols-3 gap-2 w-full md:w-2/3 lg:w-1/2">
-                    {(["tech-free", "mix", "tech-active"] as TechMode[]).map((mode) => {
-                      const isActive = techMode === mode;
-                      return (
-                        <Button
-                          key={mode}
-                          variant={isActive ? "default" : "outline"}
-                          className={`w-full h-9 text-sm transition-all ${isActive ? "shadow-md ring-2 ring-primary/20 ring-offset-1" : ""}`}
-                          onClick={() => setTechMode(mode)}
-                        >
-                          {mode === "tech-free" && <Pen className="w-4 h-4 mr-1" />}
-                          {mode === "tech-active" && <Calculator className="w-4 h-4 mr-1" />}
-                          {mode === "tech-free" ? "Tech-Free" : mode === "tech-active" ? "Tech-Active" : "Mixed"}
-                        </Button>
-                      )
-                    })}
-                  </div>
+                  <p className="text-xs text-muted-foreground">Pick your essentials. Advanced options are below.</p>
                 </div>
-              )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAdvanced((prev) => !prev)}
+                >
+                  {showAdvanced ? "Hide Advanced" : "Show Advanced"}
+                </Button>
+              </div>
 
-              <div className="space-y-1.5 md:col-span-2">
-                <div className="flex items-center gap-2">
-                  <BookCheck className="w-4 h-4" />
-                  <Label className="text-sm font-semibold">Custom Focus Area (Optional)</Label>
+              {/* Subject Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Select Subjects</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {TOPICS.map((topic) => {
+                    const isSelected = selectedTopics.includes(topic);
+                    return (
+                      <Button key={topic} variant={isSelected ? "default" : "outline"} className={`w-full transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`} onClick={() => toggleTopic(topic)}>
+                        {topic}
+                      </Button>
+                    );
+                  })}
                 </div>
-                <Input
-                  value={customFocusArea}
-                  onChange={(e) => setCustomFocusArea(e.target.value)}
-                  maxLength={160}
-                  placeholder="e.g. projectile motion with optimization constraints"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Add a custom topic or skill focus to guide generation. This is appended to the selected subtopics sent to the model.
-                </p>
+              </div>
+
+              <div className="rounded-xl border border-border/50 bg-background/70 p-3">
+                <div className="flex flex-wrap gap-2 text-xs font-medium">
+                  <Badge variant="secondary">{questionMode === "written" ? "Written Answer" : "Multiple Choice"}</Badge>
+                  <Badge variant="outline">{selectedTopics.length ? `${selectedTopics.length} subjects` : "No subjects yet"}</Badge>
+                  <Badge variant="outline">Difficulty: {difficulty}</Badge>
+                  <Badge variant="outline">{isPassageMode ? `${passageQuestionCount} passage questions` : `${questionCount} questions`}</Badge>
+                  {hasAnyMathTopic && questionMode === "written" ? (
+                    <Badge variant="outline">Max marks: {maxMarksPerQuestion}</Badge>
+                  ) : null}
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -1666,85 +1531,337 @@ export function GeneratorView() {
                     <Label className="text-sm font-semibold">Passage Question Count</Label>
                     <Badge variant="secondary" className="px-2 py-0.5 text-xs">{passageQuestionCount}</Badge>
                   </div>
-                  <Slider min={3} max={10} step={1} value={[passageQuestionCount]} onValueChange={(val) => setPassageQuestionCount(val[0])} className="py-1" />
+                  <div className="flex items-center gap-3">
+                    <Slider min={3} max={10} step={1} value={[passageQuestionCount]} onValueChange={(val) => setPassageQuestionCount(val[0])} className="py-1 flex-1" />
+                    <Input
+                      type="number"
+                      min={3}
+                      max={10}
+                      value={passageQuestionCount}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        if (!Number.isNaN(next)) {
+                          setPassageQuestionCount(Math.min(10, Math.max(3, Math.round(next))));
+                        }
+                      }}
+                      className="w-20"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-1.5 pt-1">
                   <div className="flex justify-between items-center">
                     <Label className="text-sm font-semibold">Question Count</Label>
-                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{questionCount}</Badge>
                   </div>
-                  <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-1" />
+                  <div className="flex items-center gap-3">
+                    <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-1 flex-1" />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={questionCount}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        if (!Number.isNaN(next)) {
+                          setQuestionCount(Math.min(20, Math.max(1, Math.round(next))));
+                        }
+                      }}
+                      className="w-20"
+                    />
+                  </div>
                 </div>
               )}
+            </div>
 
-              {questionMode === "written" && hasAnyMathTopic && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-sm font-semibold">Max Marks per Question</Label>
-                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{maxMarksPerQuestion}</Badge>
+            {showAdvanced ? (
+              <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-base font-semibold">Advanced Setup</Label>
+                    <p className="text-xs text-muted-foreground">Refine subtopics, modes, and guardrails.</p>
                   </div>
-                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-1" />
-                  <p className="text-xs text-muted-foreground">Caps the mark value for each generated maths question.</p>
+                  {hasAdvancedSelections ? (
+                    <Badge variant="secondary">Configured</Badge>
+                  ) : null}
                 </div>
-              )}
 
-              {questionMode === "written" && hasPeTopic && (
-                <div className="space-y-1.5 pt-1 md:col-span-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
-                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{prioritizedCommandTerms.length} Selected</Badge>
+                {/* Subtopic Drill-downs */}
+                {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education") || selectedTopics.includes("English Language")) && (
+                  <div className="bg-muted/30 p-4 rounded-xl border space-y-2">
+                    {selectedTopics.includes("Mathematical Methods") && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">Mathematical Methods Focus Areas</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Leave all unselected to test across the entire curriculum.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {MATH_METHODS_SUBTOPICS.map((sub) => (
+                            <Badge
+                              key={sub}
+                              variant={mathMethodsSubtopics.includes(sub) ? "default" : "outline"}
+                              className={`cursor-pointer p-3 text-xs transition-colors ${mathMethodsSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => toggleMathMethodsSubtopic(sub)}
+                            >
+                              {sub}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedTopics.includes("Specialist Mathematics") && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">Specialist Mathematics Focus Areas</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Leave all unselected to test across the entire curriculum.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {SPECIALIST_MATH_SUBTOPICS.map((sub) => (
+                            <Badge
+                              key={sub}
+                              variant={specialistMathSubtopics.includes(sub) ? "default" : "outline"}
+                              className={`cursor-pointer p-3 text-xs transition-colors ${specialistMathSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => toggleSpecialistMathSubtopic(sub)}
+                            >
+                              {sub}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedTopics.includes("Chemistry") && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">Chemistry Focus Areas</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Select one or more Chemistry study points, or leave all unselected to span the full course.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CHEMISTRY_SUBTOPICS.map((sub) => (
+                            <Badge
+                              key={sub}
+                              variant={chemistrySubtopics.includes(sub) ? "default" : "outline"}
+                              className={`cursor-pointer p-3 text-xs transition-colors ${chemistrySubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => toggleChemistrySubtopic(sub)}
+                            >
+                              {sub}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedTopics.includes("Physical Education") && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">Physical Education Unit 3/4 Focus Areas</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Based on the 2025 Study Design.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PHYSICAL_EDUCATION_SUBTOPICS.map((sub) => (
+                            <Badge
+                              key={sub}
+                              variant={physicalEducationSubtopics.includes(sub) ? "default" : "outline"}
+                              className={`cursor-pointer p-3 text-xs transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => togglePhysicalEducationSubtopic(sub)}
+                            >
+                              {sub}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedTopics.includes("English Language") && questionMode === "written" && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">English Language Task Type</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Choose between short-answer questions or text analysis with a passage.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ENGLISH_LANGUAGE_TASK_TYPES.map((taskType) => {
+                            const isSelected = englishTaskType === taskType;
+                            return (
+                              <Badge
+                                key={taskType}
+                                variant={isSelected ? "default" : "outline"}
+                                className={`cursor-pointer p-3 text-xs transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
+                                onClick={() => setEnglishLanguageTaskTypes([taskType])}
+                              >
+                                {taskType === "short-answer" ? "Short Answer" : "Text Analysis (Passage)"}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedTopics.includes("English Language") && questionMode === "written" && englishTaskType === "short-answer" && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">English Language Focus Areas</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Select one or more Areas of Study, or leave all unselected to span the full course.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
+                            <Badge
+                              key={sub}
+                              variant={englishLanguageSubtopics.includes(sub) ? "default" : "outline"}
+                              className={`cursor-pointer p-3 text-xs transition-colors ${englishLanguageSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => toggleEnglishLanguageSubtopic(sub)}
+                            >
+                              {sub}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedTopics.includes("English Language") && questionMode === "written" && englishTaskType === "text-analysis" && (
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-sm font-semibold">Text Analysis Area of Study</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">Choose the Area of Study that guides the passage and question set.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
+                            <Badge
+                              key={sub}
+                              variant={passageAosSubtopic === sub ? "default" : "outline"}
+                              className={`cursor-pointer p-3 text-xs transition-colors ${passageAosSubtopic === sub ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => setPassageAosSubtopic(sub)}
+                            >
+                              {sub}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {VCE_COMMAND_TERMS.map((term) => {
-                      const isSelected = prioritizedCommandTerms.includes(term);
-                      return (
-                        <Badge
-                          key={term}
-                          variant={isSelected ? "default" : "outline"}
-                          className={`px-3 py-1.5 text-xs transition-colors ${commandTermsDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => {
-                            if (!commandTermsDisabled) {
-                              togglePrioritizedCommandTerm(term);
+                )}
+
+                {/* Configuration Parameters */}
+                <div className="flex flex-col gap-y-3">
+                  {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics")) && (
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Settings2 className="w-4 h-4" /> Calculator Mode
+                      </Label>
+                      <div className="grid grid-cols-3 gap-2 w-full md:w-2/3 lg:w-1/2">
+                        {(["tech-free", "mix", "tech-active"] as TechMode[]).map((mode) => {
+                          const isActive = techMode === mode;
+                          return (
+                            <Button
+                              key={mode}
+                              variant={isActive ? "default" : "outline"}
+                              className={`w-full h-9 text-sm transition-all ${isActive ? "shadow-md ring-2 ring-primary/20 ring-offset-1" : ""}`}
+                              onClick={() => setTechMode(mode)}
+                            >
+                              {mode === "tech-free" && <Pen className="w-4 h-4 mr-1" />}
+                              {mode === "tech-active" && <Calculator className="w-4 h-4 mr-1" />}
+                              {mode === "tech-free" ? "Tech-Free" : mode === "tech-active" ? "Tech-Active" : "Mixed"}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <div className="flex items-center gap-2">
+                      <BookCheck className="w-4 h-4" />
+                      <Label className="text-sm font-semibold">Custom Focus Area (Optional)</Label>
+                    </div>
+                    <Input
+                      value={customFocusArea}
+                      onChange={(e) => setCustomFocusArea(e.target.value)}
+                      maxLength={160}
+                      placeholder="e.g. projectile motion with optimization constraints"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Add a custom topic or skill focus to guide generation. This is appended to the selected subtopics sent to the model.
+                    </p>
+                  </div>
+
+                  {questionMode === "written" && hasAnyMathTopic && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-sm font-semibold">Max Marks per Question</Label>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => setMaxMarksPerQuestion(val[0])} className="py-1 flex-1" />
+                        <Input
+                          type="number"
+                          min={1}
+                          max={30}
+                          value={maxMarksPerQuestion}
+                          onChange={(e) => {
+                            const next = Number(e.target.value);
+                            if (!Number.isNaN(next)) {
+                              setMaxMarksPerQuestion(Math.min(30, Math.max(1, Math.round(next))));
                             }
                           }}
-                        >
-                          {term}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    The model is instructed to focus on what each command term means and what a student must do to answer successfully.
-                    {commandTermsDisabled
-                      ? " Command-term prioritisation is currently disabled because only Mathematics topics are selected."
-                      : hasAnyMathTopic
-                        ? " Command-term prioritisation applies to non-Mathematics questions only."
-                        : ""}
-                  </p>
-                </div>
-              )}
+                          className="w-20"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Caps the mark value for each generated maths question.</p>
+                    </div>
+                  )}
 
-              <div className="space-y-1.5 md:col-span-2">
-                <Label className="text-sm font-semibold">Variation Guardrail</Label>
-                <Button
-                  type="button"
-                  variant={avoidSimilarQuestions ? "default" : "outline"}
-                  className="h-auto w-full justify-start py-2.5 text-left whitespace-normal"
-                  onClick={() => setAvoidSimilarQuestions(!avoidSimilarQuestions)}
-                >
-                  <div className="min-w-0 flex flex-col items-start gap-0.5">
-                    <span className="w-full wrap-break-word">
-                      {avoidSimilarQuestions ? "Avoid Similar Questions: On" : "Avoid Similar Questions: Off"}
-                    </span>
-                    <span className="w-full wrap-break-word text-xs font-normal opacity-80">
+                  {questionMode === "written" && hasPeTopic && (
+                    <div className="space-y-1.5 pt-1 md:col-span-2">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
+                        <Badge variant="secondary" className="px-2 py-0.5 text-xs">{prioritizedCommandTerms.length} Selected</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {VCE_COMMAND_TERMS.map((term) => {
+                          const isSelected = prioritizedCommandTerms.includes(term);
+                          return (
+                            <Badge
+                              key={term}
+                              variant={isSelected ? "default" : "outline"}
+                              className={`px-3 py-1.5 text-xs transition-colors ${commandTermsDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
+                              onClick={() => {
+                                if (!commandTermsDisabled) {
+                                  togglePrioritizedCommandTerm(term);
+                                }
+                              }}
+                            >
+                              {term}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        The model is instructed to focus on what each command term means and what a student must do to answer successfully.
+                        {commandTermsDisabled
+                          ? " Command-term prioritisation is currently disabled because only Mathematics topics are selected."
+                          : hasAnyMathTopic
+                            ? " Command-term prioritisation applies to non-Mathematics questions only."
+                            : ""}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label className="text-sm font-semibold">Variation Guardrail</Label>
+                      <button
+                        type="button"
+                        aria-pressed={avoidSimilarQuestions}
+                        onClick={() => setAvoidSimilarQuestions(!avoidSimilarQuestions)}
+                        className={`relative inline-flex h-7 w-12 items-center rounded-full border transition-colors ${avoidSimilarQuestions ? "bg-primary/80 border-primary" : "bg-muted/60 border-border"}`}
+                      >
+                        <span className={`inline-block h-5 w-5 transform rounded-full bg-background shadow transition-transform ${avoidSimilarQuestions ? "translate-x-6" : "translate-x-1"}`} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
                       When enabled, generation includes your recent same-topic prompts (if available) and asks the model to avoid repeating them.
-                    </span>
+                    </p>
                   </div>
-                </Button>
+                </div>
               </div>
-
-            </div>
+            ) : null}
 
             {!apiKey && (
               <div className="bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 p-3 rounded-lg text-xs flex items-center gap-2">
@@ -1779,7 +1896,7 @@ export function GeneratorView() {
                     <Badge variant="outline" className="bg-background/70 px-1.5 py-0">{generationStatus?.stage ?? "generating"}</Badge>
                     <Badge variant="outline" className="bg-background/70 px-1.5 py-0">Attempt {generationStatus?.attempt ?? 1}</Badge>
                     <span className="inline-flex items-center gap-1 font-medium text-xs">
-                      <Clock3 className="w-3 h-3" /> {formattedElapsedTime}
+                      <Clock3 className="w-3 h-3" /> <ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} />
                     </span>
                   </div>
                 </div>
@@ -1787,8 +1904,26 @@ export function GeneratorView() {
             )}
           </CardFooter>
         </Card>
-
-
+          <div className="sticky bottom-3 z-20 px-2 sm:px-4 lg:hidden">
+            <div className="rounded-2xl border border-border/60 bg-background/95 shadow-xl backdrop-blur flex items-center gap-3 p-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ready to generate</div>
+                <div className="text-sm font-medium truncate">
+                  {questionMode === "written" ? "Written Answer" : "Multiple Choice"} · {isPassageMode ? `${passageQuestionCount} passage questions` : `${questionCount} questions`}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="h-9"
+                onClick={questionMode === "written" ? (isPassageMode ? handleGeneratePassage : handleGenerateQuestions) : handleGenerateMcQuestions}
+                disabled={questionMode === "written" ? (isPassageMode ? !canGeneratePassage : !canGenerate) : !canGenerateMc}
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                {isGenerating ? "Generating" : "Generate"}
+              </Button>
+            </div>
+          </div>
+        </>
       ) : showCompletionScreen && isSetComplete ? (
         <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden animate-in fade-in duration-500">
           <CardHeader className="border-b bg-muted/20 p-5 md:p-6">
@@ -1808,10 +1943,10 @@ export function GeneratorView() {
                 <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Accuracy</div>
                 <div className="mt-1 text-3xl font-extrabold">{(completionAccuracyPercent ?? 0).toFixed(1)}%</div>
               </div>
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Time</div>
-                <div className="mt-1 text-3xl font-extrabold">{formattedElapsedTime}</div>
-              </div>
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Time</div>
+              <div className="mt-1 text-3xl font-extrabold"><ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} /></div>
+            </div>
               <div className="rounded-xl border bg-muted/20 p-4">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Difficulty</div>
                 <div className="mt-1 text-3xl font-extrabold">{difficulty}</div>
@@ -1903,7 +2038,7 @@ export function GeneratorView() {
                       {generationStartedAt !== null && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
                           <span>Timer</span>
-                          <span className="font-mono text-background">{formattedElapsedTime}</span>
+                          <span className="font-mono text-background"><ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} /></span>
                         </div>
                       )}
                       {activeWrittenTelemetry && (
@@ -2334,7 +2469,11 @@ export function GeneratorView() {
                             {generationStartedAt !== null && (
                               <div className="flex items-center justify-between gap-3 text-background/80">
                                 <span>Timer</span>
-                                <span className="font-mono text-background">{formattedElapsedTime}</span>
+                                <span className="font-mono text-background">{formatElapsedTime(
+                                  generationStartedAt,
+                                  sessionFinishedAt,
+                                  Date.now()
+                                )}</span>
                               </div>
                             )}
                             {mcGenerationTelemetry && (

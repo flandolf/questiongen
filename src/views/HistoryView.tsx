@@ -207,7 +207,10 @@ export function HistoryView() {
   }, [subjectCounts]);
 
   const activeSubject = subjectFilter && subjectCounts.has(subjectFilter) ? subjectFilter : null;
-  const visibleHistory = activeSubject ? combined.filter((entry) => entry.question.topic === activeSubject) : combined;
+  const visibleHistory = useMemo(
+    () => (activeSubject ? combined.filter((entry) => entry.question.topic === activeSubject) : combined),
+    [activeSubject, combined],
+  );
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const listVirtualizer = useVirtualizer({
     count: visibleHistory.length,
