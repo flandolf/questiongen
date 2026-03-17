@@ -5,6 +5,8 @@ import {
   APP_STATE_STORAGE_KEY,
   CHEMISTRY_SUBTOPICS,
   DEBUG_MODE_STORAGE_KEY,
+  ENGLISH_LANGUAGE_SUBTOPICS,
+  ENGLISH_LANGUAGE_TASK_TYPES,
   HISTORY_ENTRY_LIMIT,
   McAnswerAnalytics,
   MC_HISTORY_STORAGE_KEY,
@@ -12,13 +14,16 @@ import {
   McHistoryEntry,
   McOption,
   McQuestion,
+  GeneratedPassage,
   PHYSICAL_EDUCATION_SUBTOPICS,
   PERSISTED_APP_STATE_VERSION,
   PersistedAppState,
+  PersistedPassageSession,
   PersistedGeneratorPreferences,
   PersistedMcSession,
   PersistedSettings,
   PersistedWrittenSession,
+  PassageSubQuestion,
   QUESTION_HISTORY_STORAGE_KEY,
   QuestionHistoryEntry,
   QuestionMode,
@@ -49,11 +54,25 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   specialistMathSubtopics: [],
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
+  englishLanguageSubtopics: [],
+  englishLanguageTaskTypes: ["short-answer", "analytical-essay"],
   questionCount: 3,
   maxMarksPerQuestion: 10,
+  passageAosSubtopic: ENGLISH_LANGUAGE_SUBTOPICS[0],
+  passageQuestionCount: 5,
   prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
+};
+
+const DEFAULT_PASSAGE_SESSION: PersistedPassageSession = {
+  passage: null,
+  activeQuestionIndex: 0,
+  presentedAtByQuestionId: {},
+  answersByQuestionId: {},
+  feedbackByQuestionId: {},
+  rawModelOutput: "",
+  generationTelemetry: null,
 };
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
@@ -82,6 +101,7 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   version: PERSISTED_APP_STATE_VERSION,
   settings: DEFAULT_SETTINGS,
   preferences: DEFAULT_PREFERENCES,
+  passageSession: DEFAULT_PASSAGE_SESSION,
   writtenSession: DEFAULT_WRITTEN_SESSION,
   mcSession: DEFAULT_MC_SESSION,
   questionHistory: [],
@@ -113,6 +133,7 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     version: PERSISTED_APP_STATE_VERSION,
     settings: normalizeSettings(data.settings),
     preferences: normalizePreferences(data.preferences),
+    passageSession: normalizePassageSession(data.passageSession),
     writtenSession: normalizeWrittenSession(data.writtenSession),
     mcSession: normalizeMcSession(data.mcSession),
     questionHistory: normalizeQuestionHistory(data.questionHistory).slice(0, HISTORY_ENTRY_LIMIT),
@@ -194,8 +215,12 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     specialistMathSubtopics: filterStringLiterals(data.specialistMathSubtopics, SPECIALIST_MATH_SUBTOPICS),
     chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
+    englishLanguageSubtopics: filterStringLiterals(data.englishLanguageSubtopics, ENGLISH_LANGUAGE_SUBTOPICS),
+    englishLanguageTaskTypes: filterStringLiterals(data.englishLanguageTaskTypes, ENGLISH_LANGUAGE_TASK_TYPES),
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
     maxMarksPerQuestion: clampWholeNumber(data.maxMarksPerQuestion, DEFAULT_PREFERENCES.maxMarksPerQuestion, 1, 30),
+    passageAosSubtopic: filterStringLiterals([data.passageAosSubtopic], ENGLISH_LANGUAGE_SUBTOPICS)[0] ?? DEFAULT_PREFERENCES.passageAosSubtopic,
+    passageQuestionCount: clampWholeNumber(data.passageQuestionCount, DEFAULT_PREFERENCES.passageQuestionCount, 3, 10),
     prioritizedCommandTerms:
       prioritizedCommandTerms.length > 0
         ? prioritizedCommandTerms
@@ -244,6 +269,22 @@ function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
     savedSetId: normalizeNullableString(data.savedSetId),
+  };
+}
+
+function normalizePassageSession(raw: unknown): PersistedPassageSession {
+  const data = isRecord(raw) ? raw : {};
+  const passage = normalizeGeneratedPassage(data.passage);
+  const questions = passage?.questions ?? [];
+
+  return {
+    passage,
+    activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
+    presentedAtByQuestionId: normalizeNumberRecord(data.presentedAtByQuestionId),
+    answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
+    feedbackByQuestionId: normalizeFeedbackRecord(data.feedbackByQuestionId, questions),
+    rawModelOutput: asString(data.rawModelOutput),
+    generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
   };
 }
 
@@ -376,6 +417,59 @@ function normalizeGeneratedQuestions(raw: unknown) {
     .filter((question): question is NonNullable<ReturnType<typeof normalizeGeneratedQuestion>> => question !== null);
 }
 
+
+function normalizeGeneratedPassage(raw: unknown): GeneratedPassage | null {
+  const data = isRecord(raw) ? raw : null;
+  if (!data) {
+    return null;
+  }
+
+  const id = asString(data.id);
+  const text = asString(data.text);
+  const aosSubtopic = filterStringLiterals([data.aosSubtopic], ENGLISH_LANGUAGE_SUBTOPICS)[0];
+  const questions = normalizePassageSubQuestions(data.questions);
+
+  if (!id || !text || !aosSubtopic || questions.length === 0) {
+    return null;
+  }
+
+  return {
+    id,
+    text,
+    aosSubtopic,
+    questions,
+  };
+}
+
+function normalizePassageSubQuestions(raw: unknown): PassageSubQuestion[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((question) => normalizePassageSubQuestion(question))
+    .filter((question): question is PassageSubQuestion => question !== null);
+}
+
+function normalizePassageSubQuestion(raw: unknown): PassageSubQuestion | null {
+  const data = isRecord(raw) ? raw : null;
+  if (!data) {
+    return null;
+  }
+
+  const id = asString(data.id);
+  const promptMarkdown = asString(data.promptMarkdown);
+  if (!id || !promptMarkdown) {
+    return null;
+  }
+
+  return {
+    id,
+    promptMarkdown,
+    maxMarks: clampWholeNumber(data.maxMarks, 2, 1, 10),
+  };
+}
+
 function normalizeGeneratedQuestion(raw: unknown) {
   const data = isRecord(raw) ? raw : null;
   if (!data) {
@@ -393,6 +487,10 @@ function normalizeGeneratedQuestion(raw: unknown) {
     id,
     topic,
     subtopic: normalizeNullableString(data.subtopic) ?? undefined,
+    taskType: filterStringLiterals([data.taskType], ENGLISH_LANGUAGE_TASK_TYPES)[0] ?? undefined,
+    recommendedResponseLength: data.recommendedResponseLength === "short" || data.recommendedResponseLength === "extended"
+      ? data.recommendedResponseLength
+      : undefined,
     promptMarkdown,
     maxMarks: clampWholeNumber(data.maxMarks, 10, 1, 30),
     techAllowed: typeof data.techAllowed === "boolean" ? data.techAllowed : undefined,

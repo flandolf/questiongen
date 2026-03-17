@@ -23,6 +23,10 @@ import {
   TOPICS,
   Topic,
   TechMode,
+  ENGLISH_LANGUAGE_SUBTOPICS,
+  ENGLISH_LANGUAGE_TASK_TYPES,
+  EnglishLanguageSubtopic,
+  EnglishLanguageTaskType,
   MATH_METHODS_SUBTOPICS,
   MathMethodsSubtopic,
   CHEMISTRY_SUBTOPICS,
@@ -89,6 +93,10 @@ export function GeneratorView() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
+    englishLanguageSubtopics,
+    setEnglishLanguageSubtopics,
+    englishLanguageTaskTypes,
+    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
@@ -201,6 +209,7 @@ export function GeneratorView() {
 
   const canGenerate =
     selectedTopics.length > 0 &&
+    (!selectedTopics.includes("English Language") || englishLanguageTaskTypes.length > 0) &&
     apiKey.trim().length > 0 &&
     model.trim().length > 0 &&
     questionCount >= 1 &&
@@ -422,8 +431,10 @@ export function GeneratorView() {
 
     const questionId = activeQuestion.id;
     const nextQuestions = questions.filter((question) => question.id !== questionId);
+    const nextQuestionCount = Math.max(1, nextQuestions.length);
 
     setQuestions(nextQuestions);
+    setQuestionCount(nextQuestionCount);
     setActiveWrittenSavedSetId(null);
     setShowCompletionScreen(false);
     setActiveQuestionIndex(Math.min(activeQuestionIndex, Math.max(0, nextQuestions.length - 1)));
@@ -451,8 +462,10 @@ export function GeneratorView() {
 
     const questionId = activeMcQuestion.id;
     const nextQuestions = mcQuestions.filter((question) => question.id !== questionId);
+    const nextQuestionCount = Math.max(1, nextQuestions.length);
 
     setMcQuestions(nextQuestions);
+    setQuestionCount(nextQuestionCount);
     setActiveMcSavedSetId(null);
     setShowCompletionScreen(false);
     setActiveMcQuestionIndex(Math.min(activeMcQuestionIndex, Math.max(0, nextQuestions.length - 1)));
@@ -484,12 +497,23 @@ export function GeneratorView() {
     setPhysicalEducationSubtopics((prev: PhysicalEducationSubtopic[]) => prev.includes(sub) ? prev.filter((s: PhysicalEducationSubtopic) => s !== sub) : [...prev, sub]);
   }
 
+  function toggleEnglishLanguageSubtopic(sub: EnglishLanguageSubtopic) {
+    setEnglishLanguageSubtopics((prev: EnglishLanguageSubtopic[]) => prev.includes(sub) ? prev.filter((s: EnglishLanguageSubtopic) => s !== sub) : [...prev, sub]);
+  }
+
+  function toggleEnglishLanguageTaskType(taskType: EnglishLanguageTaskType) {
+    setEnglishLanguageTaskTypes((prev: EnglishLanguageTaskType[]) => prev.includes(taskType)
+      ? prev.filter((t: EnglishLanguageTaskType) => t !== taskType)
+      : [...prev, taskType]);
+  }
+
   function getSelectedSubtopics() {
     const selectedSubtopics: string[] = [
       ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
       ...(selectedTopics.includes("Specialist Mathematics") ? specialistMathSubtopics : []),
       ...(selectedTopics.includes("Chemistry") ? chemistrySubtopics : []),
       ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
+      ...(selectedTopics.includes("English Language") ? englishLanguageSubtopics : []),
     ];
 
     return Array.from(new Set(selectedSubtopics));
@@ -697,6 +721,7 @@ export function GeneratorView() {
           customFocusArea: customFocus,
           avoidSimilarQuestions,
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
+          englishTaskTypes: selectedTopics.includes("English Language") ? englishLanguageTaskTypes : [],
         },
       });
 
@@ -917,6 +942,7 @@ export function GeneratorView() {
 
   const hasAnyMathTopic = selectedTopics.some((topic) => isMathTopic(topic));
   const hasPeTopic = selectedTopics.includes("Physical Education");
+  const hasEnglishLanguageTopic = selectedTopics.includes("English Language");
   const commandTermsDisabled = !hasPeTopic;
 
   function handleMcAnswer(selectedLabel: string) {
@@ -1181,7 +1207,7 @@ export function GeneratorView() {
             </div>
 
             {/* Subtopic Drill-downs */}
-            {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education")) && (
+            {(selectedTopics.includes("Mathematical Methods") || selectedTopics.includes("Specialist Mathematics") || selectedTopics.includes("Chemistry") || selectedTopics.includes("Physical Education") || selectedTopics.includes("English Language")) && (
               <div className="bg-muted/30 p-4 rounded-xl border space-y-2">
                 {selectedTopics.includes("Mathematical Methods") && (
                   <div className="space-y-2">
@@ -1258,6 +1284,27 @@ export function GeneratorView() {
                           variant={physicalEducationSubtopics.includes(sub) ? "default" : "outline"}
                           className={`cursor-pointer p-3 text-xs transition-colors ${physicalEducationSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
                           onClick={() => togglePhysicalEducationSubtopic(sub)}
+                        >
+                          {sub}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedTopics.includes("English Language") && (
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-sm font-semibold">English Language Unit 1-4 Areas of Study</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Select specific study-design areas, or leave all unselected to span Units 1-4 broadly.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
+                        <Badge
+                          key={sub}
+                          variant={englishLanguageSubtopics.includes(sub) ? "default" : "outline"}
+                          className={`cursor-pointer p-3 text-xs transition-colors ${englishLanguageSubtopics.includes(sub) ? "shadow-md" : "hover:bg-primary/10"}`}
+                          onClick={() => toggleEnglishLanguageSubtopic(sub)}
                         >
                           {sub}
                         </Badge>
@@ -1384,6 +1431,33 @@ export function GeneratorView() {
                       : hasAnyMathTopic
                         ? " Command-term prioritisation applies to non-Mathematics questions only."
                         : ""}
+                  </p>
+                </div>
+              )}
+
+              {questionMode === "written" && hasEnglishLanguageTopic && (
+                <div className="space-y-1.5 pt-1 md:col-span-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-semibold">English Language Task Types</Label>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{englishLanguageTaskTypes.length} Selected</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ENGLISH_LANGUAGE_TASK_TYPES.map((taskType) => {
+                      const isSelected = englishLanguageTaskTypes.includes(taskType);
+                      return (
+                        <Badge
+                          key={taskType}
+                          variant={isSelected ? "default" : "outline"}
+                          className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
+                          onClick={() => toggleEnglishLanguageTaskType(taskType)}
+                        >
+                          {taskType === "short-answer" ? "Short Answer" : "Analytical Essay"}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select one or both SAC sections. At least one task type is required when English Language is selected.
                   </p>
                 </div>
               )}

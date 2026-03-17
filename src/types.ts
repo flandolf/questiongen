@@ -82,9 +82,25 @@ export const CHEMISTRY_SUBTOPICS = [
 
 export type ChemistrySubtopic = typeof CHEMISTRY_SUBTOPICS[number];
 
+export const ENGLISH_LANGUAGE_SUBTOPICS = [
+  "Unit 1 AOS 1: Nature and Functions of Language",
+  "Unit 1 AOS 2: Language Acquisition",
+  "Unit 2 AOS 1: English Across Time",
+  "Unit 2 AOS 2: Englishes in Contact",
+  "Unit 3 AOS 1: Informality",
+  "Unit 3 AOS 2: Formality",
+  "Unit 4 AOS 1: Language Variation in Australian Society",
+  "Unit 4 AOS 2: Individual and Group Identities",
+] as const;
+
+export type EnglishLanguageSubtopic = typeof ENGLISH_LANGUAGE_SUBTOPICS[number];
+
+export const ENGLISH_LANGUAGE_TASK_TYPES = ["short-answer", "analytical-essay"] as const;
+
+export type EnglishLanguageTaskType = typeof ENGLISH_LANGUAGE_TASK_TYPES[number];
+
 export const SUBTOPIC_INSTRUCTIONS: Record<string, string> = {
   "Functions and Graphs": `Questions test knowledge of key features of graphs: axis intercepts, stationary points, points of inflection, domain and range (using interval notation or set notation), asymptotic behaviour, and symmetry. Function types include: polynomials, power functions, exponential (especially base e), logarithmic (log_e and log_10), and circular functions (sin, cos, tan). Domain notation: Use interval notation e.g. [0, 2π] or set notation e.g. x ∈ R, x > 0. For restricted domains write as f : [a, b] → R, f(x) = ... Functions are written in the form f : domain → R, f(x) = ... Always specify the domain and codomain when defining a function. Range should be given using interval notation e.g. [−1, 3] or (−∞, 2]. Sum, difference, product and composite functions (f ∘ g) are assessable. Reciprocal/quotient composites are NOT in scope. Piecewise (hybrid) functions are assessable — write using brace notation with each piece and its domain condition. For inverse functions: state conditions for existence (one-to-one/strictly monotone on domain), and find by swapping x and y then solving. The graph of y = f⁻¹(x) is the reflection of y = f(x) in the line y = x.`,
-
   "Transformation of Graphs": `No matrices. Describe all transformations in plain language as dilations, reflections, and translations only. Standard transformations applied to y = f(x):
 - Dilation by factor a from the x-axis: y = a·f(x)
 - Dilation by factor 1/b from the y-axis: y = f(bx)
@@ -100,7 +116,7 @@ When describing a sequence, each step should be written as a separate numbered t
 2. Translation of 3 units in the positive direction of the x-axis
 Transformations apply to key points — track where specific coordinates map to under a given transformation.
 `,
-"Algebra and Structure": `Topics include: solving polynomial equations (degree n, up to n real solutions), inverse functions, composition of functions, simultaneous linear equations (including parametric cases), and literal equations.
+  "Algebra and Structure": `Topics include: solving polynomial equations (degree n, up to n real solutions), inverse functions, composition of functions, simultaneous linear equations (including parametric cases), and literal equations.
 For systems of simultaneous equations with parameter k: find values of k for which the system has no solution (parallel lines / singular matrix determinant = 0 with inconsistent RHS), infinitely many solutions, or a unique solution.
 Composition of functions: (f ∘ g)(x) = f(g(x)). State the domain of the composite — requires range of g to be a subset of domain of f.
 For inverse functions: swap x and y, solve for y. Domain of f⁻¹ = range of f.
@@ -121,7 +137,7 @@ Solving trigonometric equations over a given interval: identify the reference an
 For f(x+k) = f(x): this means k is a period of f on that domain. Find the smallest positive k that is a period of f, then determine the largest interval [0, a] over which both x and x+k remain in the domain.
 Newton's method applied to f: x_{n+1} = x_n − f(x_n)/f'(x_n). Apply iteratively from given x_0.
 `,
-"Exponential and Logarithmic Functions": `Key functions: e^x, a^x, log_e(x), log_a(x).
+  "Exponential and Logarithmic Functions": `Key functions: e^x, a^x, log_e(x), log_a(x).
 log_e is written as log_e(x) or ln(x) — both are acceptable. The VCAA formula sheet uses log_e notation.
 Laws of logarithms: log(ab) = log(a) + log(b), log(a/b) = log(a) − log(b), log(a^n) = n·log(a).
 Exponential equations: if a^f(x) = a^g(x) then f(x) = g(x). Convert between forms: a^x = e^(x·log_e(a)).
@@ -238,23 +254,47 @@ Pr(X > 200) = 0.325 means Pr(X ≤ 200) = 0.675. Use given constraints to set up
 
 Traffic light / Bernoulli trials with non-identical probabilities: compute Pr(Y = y) by listing combinations (not binomial formula since p differs). E.g. for three lights A, B, C with different p-values, Pr(Y=2) = Pr(A∩B∩C') + Pr(A∩B'∩C) + Pr(A'∩B∩C).
 `,
+  "Unit 1 AoS 1: Nature and Functions of Language": `Use conventions focusing on Unit 1 Area of Study 1. Prioritize questions regarding language as an arbitrary yet rule-governed meaning-making system and the specific properties of human communication. Focus on the major functions of language, specifically referential, emotive, conative, phatic, metalinguistic, and poetic functions. Require precise metalanguage in responses, particularly regarding situational context (field, setting, and language mode) and tenor (the relationship between participants). Include short stimulus excerpts where students must identify and explain features from the following subsystems: Morphology (morpheme types and affixation), Lexicology (word classes, function vs. content words), and Syntax (phrases, clauses, and the four sentence structures and types). Students must explain how these linguistic choices are influenced by the text's register and authorial intent.`,
+  "Unit 1 AOS 2: Language Acquisition": `Use Unit 1 Area of Study 2 conventions. Focus on first-language development stages, additional-language acquisition, and acquisition theories (for example usage-based and universalist accounts). Require students to apply evidence from child/adolescent language data and evaluate explanations. Include prompts on critical period debates, caretaker talk, overgeneralisation, and developmental milestones using explicit linguistic evidence.`,
+  "Unit 2 AOS 1: English Across Time": `Use Unit 2 Area of Study 1 conventions. Frame questions around historical development of English and subsystem change across periods. Include etymology, standardisation influences, orthographic change, semantic shift, and phonological change (for example Great Vowel Shift) where relevant. Demand clear cause-and-effect analysis using social, technological, and contact-driven drivers of change.`,
+  "Unit 2 AOS 2: Englishes in Contact": `Use Unit 2 Area of Study 2 conventions. Emphasise contact varieties, global spread, and sociocultural consequences of language contact. Include pidgins, creoles, Aboriginal Englishes, and world Englishes with context-sensitive analysis. Require students to discuss language maintenance, shift, prestige, attitudes, and identity impacts using accurate metalanguage and specific examples`,
+  "Unit 3 AOS 1: Informality": `Use Unit 3 Area of Study 1 conventions. Build prompts around contemporary Australian informal language, solidarity building, and rapport. Require analysis of lexical choices, discourse particles, idiomatic expressions, contractions, overlaps, and interactional strategies in informal contexts. Students should evaluate how features shape social goals, relationships, and audience alignment.`,
+  "Unit 3 AOS 2: Formality": `Use Unit 3 Area of Study 2 conventions. Prioritise formal register in institutional or public settings where authority, expertise, or distance is managed. Require close analysis of syntax, modality, nominalisation, hedging, politeness strategies, and discourse structure. Questions should ask students to compare formal and informal choices and justify contextual effectiveness.`,
+  "Unit 4 AOS 1: Language Variation in Australian Society": `Use Unit 4 Area of Study 1 conventions. Focus on variation across social and regional dialects in Australian contexts, including standard and non-standard forms. Require students to analyse how phonological, lexical, and discourse features index social meaning and group membership. Prompts should include identity, power, and attitudes toward varieties in contemporary Australia.`,
+  "Unit 4 AOS 2: Individual and Group Identities": `Use Unit 4 Area of Study 2 conventions. Emphasise idiolect, sociolect, ethnicity, gender, age, occupation, and community affiliations in identity construction. Require students to evaluate how language choices perform alignment, inclusion, exclusion, authority, and authenticity. Analytical tasks should reward argument quality, evidence integration, and nuanced discussion of language attitudes and ideology.`,
 };
 
 export type Topic =
   | "Mathematical Methods"
   | "Specialist Mathematics"
   | "Chemistry"
-  | "Physical Education";
+  | "Physical Education"
+  | "English Language";
 
 export type GeneratedQuestion = {
   id: string;
   topic: string;
   subtopic?: string;
+  taskType?: EnglishLanguageTaskType;
+  recommendedResponseLength?: "short" | "extended";
   promptMarkdown: string;
   maxMarks: number;
   techAllowed?: boolean;
   distinctnessScore?: number;
   multiStepDepth?: number;
+};
+
+export type PassageSubQuestion = {
+  id: string;
+  promptMarkdown: string;
+  maxMarks: number;
+};
+
+export type GeneratedPassage = {
+  id: string;
+  text: string;
+  aosSubtopic: EnglishLanguageSubtopic;
+  questions: PassageSubQuestion[];
 };
 
 export type GenerationTelemetry = {
@@ -279,7 +319,7 @@ export type GenerationStatusStage =
   | "failed";
 
 export type GenerationStatusEvent = {
-  mode: QuestionMode;
+  mode: QuestionMode | "passage";
   stage: GenerationStatusStage;
   message: string;
   attempt: number;
@@ -287,6 +327,12 @@ export type GenerationStatusEvent = {
 
 export type GenerateQuestionsResponse = {
   questions: GeneratedQuestion[];
+  rawModelOutput?: string;
+  telemetry?: GenerationTelemetry;
+};
+
+export type GeneratePassageResponse = {
+  passage: GeneratedPassage;
   rawModelOutput?: string;
   telemetry?: GenerationTelemetry;
 };
@@ -356,6 +402,7 @@ export const TOPICS: Topic[] = [
   "Specialist Mathematics",
   "Chemistry",
   "Physical Education",
+  "English Language",
 ];
 
 export const API_KEY_STORAGE_KEY = "questiongen.openrouterApiKey";
@@ -422,11 +469,25 @@ export type PersistedGeneratorPreferences = {
   specialistMathSubtopics: SpecialistMathSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  englishLanguageSubtopics: EnglishLanguageSubtopic[];
+  englishLanguageTaskTypes: EnglishLanguageTaskType[];
   questionCount: number;
   maxMarksPerQuestion: number;
+  passageAosSubtopic: EnglishLanguageSubtopic;
+  passageQuestionCount: number;
   prioritizedCommandTerms: VceCommandTerm[];
   questionMode: QuestionMode;
   subtopicInstructions: Record<string, string>;
+};
+
+export type PersistedPassageSession = {
+  passage: GeneratedPassage | null;
+  activeQuestionIndex: number;
+  presentedAtByQuestionId: Record<string, number>;
+  answersByQuestionId: Record<string, string>;
+  feedbackByQuestionId: Record<string, MarkAnswerResponse>;
+  rawModelOutput: string;
+  generationTelemetry?: GenerationTelemetry | null;
 };
 
 export type PersistedWrittenSession = {
@@ -466,6 +527,7 @@ export type PersistedAppState = {
   version: number;
   settings: PersistedSettings;
   preferences: PersistedGeneratorPreferences;
+  passageSession: PersistedPassageSession;
   writtenSession: PersistedWrittenSession;
   mcSession: PersistedMcSession;
   questionHistory: QuestionHistoryEntry[];

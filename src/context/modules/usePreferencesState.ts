@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   ChemistrySubtopic,
   Difficulty,
+  EnglishLanguageSubtopic,
+  EnglishLanguageTaskType,
   MathMethodsSubtopic,
   PhysicalEducationSubtopic,
   QuestionMode,
@@ -37,11 +39,23 @@ export function usePreferencesState() {
   const [physicalEducationSubtopics, setPhysicalEducationSubtopics] = useState<PhysicalEducationSubtopic[]>(
     EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   );
+  const [englishLanguageSubtopics, setEnglishLanguageSubtopics] = useState<EnglishLanguageSubtopic[]>(
+    EMPTY_PERSISTED_APP_STATE.preferences.englishLanguageSubtopics,
+  );
+  const [englishLanguageTaskTypes, setEnglishLanguageTaskTypes] = useState<EnglishLanguageTaskType[]>(
+    EMPTY_PERSISTED_APP_STATE.preferences.englishLanguageTaskTypes,
+  );
   const [questionCount, setQuestionCount] = useState(
     EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   );
   const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(
     EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion,
+  );
+  const [passageAosSubtopic, setPassageAosSubtopic] = useState<EnglishLanguageSubtopic>(
+    EMPTY_PERSISTED_APP_STATE.preferences.passageAosSubtopic,
+  );
+  const [passageQuestionCount, setPassageQuestionCount] = useState(
+    EMPTY_PERSISTED_APP_STATE.preferences.passageQuestionCount,
   );
   const [prioritizedCommandTerms, setPrioritizedCommandTerms] = useState<VceCommandTerm[]>(
     EMPTY_PERSISTED_APP_STATE.preferences.prioritizedCommandTerms,
@@ -70,10 +84,18 @@ export function usePreferencesState() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
+    englishLanguageSubtopics,
+    setEnglishLanguageSubtopics,
+    englishLanguageTaskTypes,
+    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
+    passageAosSubtopic,
+    setPassageAosSubtopic,
+    passageQuestionCount,
+    setPassageQuestionCount,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,

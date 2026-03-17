@@ -1,11 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark } from "lucide-react";
+import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark, Languages } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 export function Sidebar() {
   const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
   const links = [
     { to: "/", label: "Generator", icon: Sparkles },
+    { to: "/english", label: "English Language", icon: Languages },
     { to: "/history", label: "History", icon: History },
     { to: "/analytics", label: "Analytics", icon: ChartColumnIncreasing },
     { to: "/saved", label: "Saved", icon: Bookmark },

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
 const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
@@ -13,11 +13,14 @@ const GENERATION_REPAIR_RETRIES: usize = 1;
 const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
 const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
 const CHEMISTRY_TOPIC: &str = "Chemistry";
+const ENGLISH_LANGUAGE_TOPIC: &str = "English Language";
 const APP_STATE_FILE_NAME: &str = "app-state.json";
 const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematical Methods exam style: concise VCAA-style command verbs, realistic mark allocations, algebraic fluency, and prompts that reward method choice over template recall.";
 const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning. For biomechanics, avoid focus on pure physics calculations and instead emphasize application of concepts to novel contexts, as in VCE calculations are not examined.";
 const CHEMICAL_FORMULA_LATEX_GUIDANCE: &str = " For Chemistry content, always render every chemical formula and ionic species in LaTeX math delimiters, e.g. $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$.";
-const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
+const ENGLISH_LANGUAGE_REFERENCE_GUIDANCE: &str = " For English Language, produce SAC-style written tasks using VCE English Language conventions: explicit metalanguage, evidence-based analysis, and context-sensitive argumentation aligned to the selected Unit and Area of Study.";
+const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"taskType\":\"short-answer|analytical-essay\",\"recommendedResponseLength\":\"short|extended\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
+const PASSAGE_JSON_CONTRACT: &str = "{\"passage\":{\"id\":\"p1\",\"text\":\"...\",\"aosSubtopic\":\"Unit 1 AOS 1: Nature and Functions of Language\",\"questions\":[{\"id\":\"pq1\",\"promptMarkdown\":\"Identify two modal verbs from lines 3-5.\",\"maxMarks\":2}]}}";
 const LATEX_FORMATTING_RULES: &str = " LaTeX rules (mandatory, no exceptions): \
 (1) Every mathematical expression — including single variables ($x$), isolated numbers used in algebra ($3$), exponents ($n$), and inequalities — must be wrapped in delimiters. \
 (2) Inline math: $...$ — use within a sentence, e.g. the gradient is $\\frac{dy}{dx}$. \
@@ -29,6 +32,21 @@ const LATEX_FORMATTING_RULES: &str = " LaTeX rules (mandatory, no exceptions): \
 const MC_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"mc1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"options\":[{\"label\":\"A\",\"text\":\"...\"},{\"label\":\"B\",\"text\":\"...\"},{\"label\":\"C\",\"text\":\"...\"},{\"label\":\"D\",\"text\":\"...\"}],\"correctAnswer\":\"A\",\"explanationMarkdown\":\"...\",\"techAllowed\":false}]}";
 const MARK_ANSWER_JSON_CONTRACT: &str = "{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":10,\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}";
 const MC_EXPLANATION_MAX_WORDS: usize = 90;
+const PASSAGE_MIN_LINES: usize = 10;
+const PASSAGE_MAX_LINES: usize = 28;
+const PASSAGE_MAX_WORDS_PER_LINE: usize = 24;
+const PASSAGE_TEXT_TYPE_OPTIONS: [&str; 10] = [
+    "public notice",
+    "community newsletter excerpt",
+    "editorial opinion piece",
+    "letter to the editor",
+    "advertisement copy",
+    "formal email",
+    "speech transcript excerpt",
+    "brochure information text",
+    "social media thread excerpt",
+    "interview transcript excerpt",
+];
 
 #[derive(Debug, Clone, Copy)]
 struct CommandTermProfile {
@@ -109,6 +127,7 @@ struct GenerateQuestionsRequest {
     tech_mode: Option<String>,
     prioritized_command_terms: Option<Vec<String>>,
     subtopics: Option<Vec<String>>,
+    english_task_types: Option<Vec<String>>,
     subtopic_instructions: Option<HashMap<String, String>>,
     custom_focus_area: Option<String>,
     avoid_similar_questions: Option<bool>,
@@ -124,6 +143,10 @@ struct GeneratedQuestion {
     topic: String,
     #[serde(default)]
     subtopic: Option<String>,
+    #[serde(default)]
+    task_type: Option<String>,
+    #[serde(default)]
+    recommended_response_length: Option<String>,
     prompt_markdown: String,
     #[serde(default = "default_question_max_marks")]
     max_marks: u8,
@@ -181,6 +204,54 @@ struct MarkAnswerRequest {
     api_key: String,
     #[serde(rename = "useStructuredOutput")]
     _use_structured_output: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GeneratePassageQuestionsRequest {
+    aos_subtopic: String,
+    question_count: usize,
+    model: String,
+    api_key: String,
+    use_structured_output: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PassageSubQuestion {
+    id: String,
+    prompt_markdown: String,
+    max_marks: u8,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct GeneratedPassage {
+    id: String,
+    text: String,
+    aos_subtopic: String,
+    questions: Vec<PassageSubQuestion>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GeneratePassageResponse {
+    passage: GeneratedPassage,
+    #[serde(default)]
+    raw_model_output: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    telemetry: Option<GenerationTelemetry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkPassageAnswerRequest {
+    passage_text: String,
+    aos_subtopic: String,
+    question: PassageSubQuestion,
+    student_answer: String,
+    model: String,
+    api_key: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -399,6 +470,7 @@ async fn generate_questions(
     let system_prompt: &str = &system_prompt_owned;
     let topics_csv = request.topics.join(", ");
     let selected_subtopics = request.subtopics.as_ref().filter(|s| !s.is_empty());
+    let selected_english_task_types = normalize_english_task_types(request.english_task_types.as_deref());
     let prioritized_command_terms =
         normalize_prioritized_command_terms(request.prioritized_command_terms.as_deref());
     let custom_focus_area = request
@@ -421,6 +493,16 @@ async fn generate_questions(
         CHEMICAL_FORMULA_LATEX_GUIDANCE
     } else {
         ""
+    };
+    let english_language_reference_note = if includes_english_language(&request.topics) {
+        ENGLISH_LANGUAGE_REFERENCE_GUIDANCE
+    } else {
+        ""
+    };
+    let english_language_task_type_note = if includes_english_language(&request.topics) {
+        build_english_language_task_type_note(&selected_english_task_types)
+    } else {
+        String::new()
     };
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
     let tech_note = match tech_mode {
@@ -466,7 +548,7 @@ async fn generate_questions(
     };
     let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
     let user_prompt = format!(
-        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and {max_marks_cap}.{command_term_guidance_note}{subtopics_note}{subtopic_instruction_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{essential_skills_math_note}{extreme_math_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
+        "Create exactly {count} original VCE written-response questions for topics: {topics}. Difficulty level: {difficulty}.\n\nDifficulty calibration rules:\n{difficulty_rules}\n\nMark allocation rules:\n- Assign maxMarks based on command-term cognitive demand (do not force equal marks across all questions).\n- Keep maxMarks between 1 and {max_marks_cap}.{command_term_guidance_note}{subtopics_note}{subtopic_instruction_note}{custom_focus_note}{tech_note}{math_methods_reference_note}{physical_education_reference_note}{chemistry_formula_note}{english_language_reference_note}{essential_skills_math_note}{extreme_math_note}{english_language_task_type_note}\n\nQuality constraints:\n- Ensure all questions are materially distinct in concept, context, and required method.\n- Prefer concise prompts with high cognitive load for harder items.\n- Never include worked solutions in promptMarkdown.\n- Use markdown. Use LaTeX only with $...$ and $$...$$ delimiters.\n- For Chemistry content, every chemical formula and ionic species must be in LaTeX math delimiters.{similarity_guardrail_note}\n\nSubtopic constraints:\n- If subtopics are provided, choose \"subtopic\" only from that provided list.\n- If no specific subtopic clearly applies, omit \"subtopic\".\n\nOutput constraints:\n- Return JSON only. No markdown fences. No prose before or after JSON.\n- Return EXACTLY {count} questions.\n- Use this exact JSON shape: {json_contract}",
         count = request.question_count,
         topics = topics_csv,
         difficulty = request.difficulty,
@@ -479,8 +561,10 @@ async fn generate_questions(
         math_methods_reference_note = math_methods_reference_note,
         physical_education_reference_note = physical_education_reference_note,
         chemistry_formula_note = chemistry_formula_note,
+        english_language_reference_note = english_language_reference_note,
         essential_skills_math_note = essential_skills_math_note,
         extreme_math_note = extreme_math_note,
+        english_language_task_type_note = english_language_task_type_note,
         similarity_guardrail_note = similarity_guardrail_note,
         max_marks_cap = max_marks_cap,
         json_contract = WRITTEN_QUESTION_JSON_CONTRACT,
@@ -531,6 +615,7 @@ async fn generate_questions(
             &content,
             &request,
             selected_subtopics,
+            &selected_english_task_types,
             &prioritized_command_terms,
         ) {
             Ok(candidate) => {
@@ -598,6 +683,7 @@ async fn generate_questions(
             &content,
             &request,
             selected_subtopics,
+            &selected_english_task_types,
             &prioritized_command_terms,
         ) {
             Ok(candidate) => parsed = Some(candidate),
@@ -688,13 +774,23 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     } else {
         ""
     };
+    let english_rubric_note = if is_english_language_topic(&request.question.topic) {
+        match request.question.task_type.as_deref() {
+            Some("analytical-essay") => " For English Language analytical essays, ensure vcaaMarkingScheme contains at least four criteria that explicitly assess: argument quality, metalanguage precision, evidence/examples, and structure/coherence.",
+            Some("short-answer") => " For English Language short-answer responses, prioritise concise criterion checks for metalanguage accuracy, textual evidence, and explanation clarity.",
+            _ => " For English Language responses, use criterion descriptors that foreground metalanguage precision, textual evidence, and contextual reasoning.",
+        }
+    } else {
+        ""
+    };
     let user_prompt_text = format!(
-        "Question topic: {topic}\nQuestion:\n{question}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nUse VCAA-style criterion marking. Mark only what is explicitly stated in the student's response and do not infer unstated working. Build a criterion-by-criterion marking scheme, award marks out of {max_marks}, and compare the student response against the worked solution.\n\nConciseness rules:\n- comparisonToSolutionMarkdown: maximum 120 words.\n- feedbackMarkdown: maximum 120 words.\n- workedSolutionMarkdown: maximum 180 words.\n- Each rationale in vcaaMarkingScheme: maximum 45 words.\n\nReturn ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks. Use markdown and LaTeX where relevant.{chemistry_formula_note}",
+        "Question topic: {topic}\nQuestion:\n{question}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nUse VCAA-style criterion marking. Mark only what is explicitly stated in the student's response and do not infer unstated working. Build a criterion-by-criterion marking scheme, award marks out of {max_marks}, and compare the student response against the worked solution.\n\nConciseness rules:\n- comparisonToSolutionMarkdown: maximum 120 words.\n- feedbackMarkdown: maximum 120 words.\n- workedSolutionMarkdown: maximum 180 words.\n- Each rationale in vcaaMarkingScheme: maximum 45 words.\n\nReturn ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks. Use markdown and LaTeX where relevant.{chemistry_formula_note}{english_rubric_note}",
         topic = request.question.topic,
         question = request.question.prompt_markdown,
         answer = normalized_student_answer,
         max_marks = request.question.max_marks,
         chemistry_formula_note = chemistry_formula_note,
+        english_rubric_note = english_rubric_note,
     );
 
     let user_content = build_mark_answer_user_content(&user_prompt_text, request.student_answer_image_data_url.as_deref())?;
@@ -799,6 +895,314 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         parsed.score_out_of_10 = 10;
     }
 
+    if parsed.score_out_of_10 == 0 && parsed.max_marks > 0 {
+        let scaled = ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
+        parsed.score_out_of_10 = u8::min(scaled, 10);
+    }
+
+    parsed.feedback_markdown = decode_literal_newlines(&parsed.feedback_markdown);
+    parsed.worked_solution_markdown = decode_literal_newlines(&parsed.worked_solution_markdown);
+    parsed.comparison_to_solution_markdown = decode_literal_newlines(&parsed.comparison_to_solution_markdown);
+    for criterion in &mut parsed.vcaa_marking_scheme {
+        criterion.rationale = decode_literal_newlines(&criterion.rationale);
+        criterion.criterion = decode_literal_newlines(&criterion.criterion);
+    }
+
+    Ok(parsed)
+}
+
+#[tauri::command]
+async fn generate_passage_questions(
+    app: tauri::AppHandle,
+    request: GeneratePassageQuestionsRequest,
+) -> CommandResult<GeneratePassageResponse> {
+    validate_passage_generate_request(&request)?;
+    let generation_started = Instant::now();
+    emit_generation_status(
+        &app,
+        "passage",
+        "preparing",
+        "Preparing English Language passage request.",
+        1,
+    );
+
+    let instruction_note = english_language_passage_instruction(&request.aos_subtopic);
+    let selected_text_type = pick_passage_text_type();
+    let system_prompt = "You are an expert VCE English Language SAC writer. Produce a realistic stimulus passage and precise short-answer metalanguage questions aligned to the requested Area of Study. Return JSON only.";
+    let user_prompt = format!(
+        "Create exactly one English Language stimulus passage aligned to this Area of Study: {aos_subtopic}.\n\nArea-of-study guidance:\n{instruction_note}\n\nRequired text type for this generation:\n- Write the passage as a {selected_text_type}.\n- Do not default to a generic narrative unless that is the required text type.\n\nRequirements for the passage:\n- Passage length must be approximately 200-300 words.\n- Write a cohesive, natural text rather than bullet points.\n- Include a mix of sentence structures and language features that allow close linguistic analysis.\n- Use clear newline-delimited lines for line numbering: target 10-28 non-empty lines, and keep each line concise (roughly 4-24 words).\n- Do NOT include manual line numbers in the passage text (for example, no prefixes like 1., 2), 3:, or 4 -).\n- Do NOT include bullet markers for lines. The frontend adds line numbers automatically.\n- Ensure each sentence or clause is broken cleanly across lines so line references are unambiguous.\n- Make the passage rich enough to support direct identification questions such as modal verbs, clauses, sentence types, discourse features, and register choices.\n\nRequirements for the questions:\n- Return exactly {question_count} questions.\n- Every question must be answerable using evidence from the passage.\n- Questions must explicitly reference line numbers or a line range (include numeric line references such as \"line 3\" or \"lines 4-6\").\n- Use VCE English Language metalanguage and stay aligned to the selected Area of Study.\n- Prioritise short-answer analytical prompts such as identifying, explaining, comparing, and commenting on linguistic choices.\n- Keep each question concise and assign realistic maxMarks between 1 and 5.\n\nOutput constraints:\n- Return JSON only. No markdown fences. No commentary.\n- Use this exact JSON shape: {json_contract}",
+        aos_subtopic = request.aos_subtopic,
+        instruction_note = instruction_note,
+        selected_text_type = selected_text_type,
+        question_count = request.question_count,
+        json_contract = PASSAGE_JSON_CONTRACT,
+    );
+    let user_content = serde_json::Value::String(user_prompt.clone());
+    let response_format = if request.use_structured_output.unwrap_or(false) {
+        Some(passage_response_format())
+    } else {
+        None
+    };
+
+    emit_generation_status(
+        &app,
+        "passage",
+        "generating",
+        format!(
+            "Requesting a new English Language passage ({selected_text_type})."
+        ),
+        1,
+    );
+    let first_call = call_openrouter(
+        &request.api_key,
+        &request.model,
+        system_prompt,
+        user_content.clone(),
+        response_format.as_ref(),
+    )
+    .await?;
+    let mut structured_output_unsupported = first_call.structured_output_unsupported_fallback;
+    let mut content = first_call.content;
+
+    let mut parse_issue = String::new();
+    let mut parsed: Option<GeneratePassageResponse> = None;
+    let mut repair_attempts = 0usize;
+    let mut repair_path: Vec<String> = Vec::new();
+    let mut constrained_regeneration_used = false;
+    let mut total_attempts = 1usize;
+
+    for attempt in 0..=GENERATION_REPAIR_RETRIES {
+        emit_generation_status(
+            &app,
+            "passage",
+            "validating",
+            "Validating the passage response.",
+            total_attempts,
+        );
+        match parse_passage_response_candidate(&content, &request) {
+            Ok(candidate) => {
+                parsed = Some(candidate);
+                break;
+            }
+            Err(issue) => {
+                parse_issue = issue;
+                if attempt == GENERATION_REPAIR_RETRIES {
+                    break;
+                }
+                repair_attempts += 1;
+                repair_path.push("json-repair".to_string());
+                total_attempts += 1;
+                emit_generation_status(
+                    &app,
+                    "passage",
+                    "repairing",
+                    format!("Repairing invalid passage output (pass {}).", repair_attempts),
+                    total_attempts,
+                );
+                let repaired = request_json_repair(
+                    &request.api_key,
+                    &request.model,
+                    PASSAGE_JSON_CONTRACT,
+                    &content,
+                    &parse_issue,
+                    response_format.as_ref(),
+                )
+                .await?;
+                structured_output_unsupported =
+                    structured_output_unsupported || repaired.structured_output_unsupported_fallback;
+                content = repaired.content;
+            }
+        }
+    }
+
+    if parsed.is_none() {
+        constrained_regeneration_used = true;
+        total_attempts += 1;
+        repair_path.push("schema-constrained-regeneration".to_string());
+        emit_generation_status(
+            &app,
+            "passage",
+            "regenerating",
+            "Retrying with a stricter passage prompt.",
+            total_attempts,
+        );
+        let regenerated = request_schema_constrained_regeneration(
+            &request.api_key,
+            &request.model,
+            &user_prompt,
+            PASSAGE_JSON_CONTRACT,
+            &parse_issue,
+            &user_content,
+            None,
+            response_format.as_ref(),
+        )
+        .await?;
+        structured_output_unsupported =
+            structured_output_unsupported || regenerated.structured_output_unsupported_fallback;
+        content = regenerated.content;
+
+        match parse_passage_response_candidate(&content, &request) {
+            Ok(candidate) => parsed = Some(candidate),
+            Err(issue) => parse_issue = issue,
+        }
+    }
+
+    let parsed = parsed.ok_or_else(|| {
+        emit_generation_status(
+            &app,
+            "passage",
+            "failed",
+            format!("Passage generation failed after {} attempt(s).", total_attempts),
+            total_attempts,
+        );
+        AppError::new(
+            "MODEL_PARSE_ERROR",
+            format!(
+                "Could not parse generated passage after repair attempts. {} Try again or switch model.",
+                parse_issue
+            ),
+        )
+    })?;
+
+    let telemetry = GenerationTelemetry {
+        difficulty: request.aos_subtopic.clone(),
+        total_attempts,
+        repair_attempts,
+        constrained_regeneration_used,
+        repair_path,
+        duration_ms: generation_started.elapsed().as_millis() as u64,
+        structured_output_status: Some(
+            if request.use_structured_output.unwrap_or(false) {
+                if structured_output_unsupported {
+                    "not-supported-fallback"
+                } else {
+                    "used"
+                }
+            } else {
+                "not-requested"
+            }
+            .to_string(),
+        ),
+        distinctness_avg: None,
+        multi_step_depth_avg: None,
+    };
+
+    emit_generation_status(
+        &app,
+        "passage",
+        "completed",
+        format!("English Language passage ready in {} ms.", telemetry.duration_ms),
+        total_attempts,
+    );
+
+    Ok(GeneratePassageResponse {
+        passage: parsed.passage,
+        raw_model_output: content,
+        telemetry: Some(telemetry),
+    })
+}
+
+#[tauri::command]
+async fn mark_passage_answer(request: MarkPassageAnswerRequest) -> CommandResult<MarkAnswerResponse> {
+    validate_passage_mark_request(&request)?;
+
+    let system_prompt = "You are a strict but constructive VCE English Language marker. Mark short-answer responses against the passage evidence and the precision of the student's metalanguage. Return JSON only.";
+    let normalized_student_answer = normalize_student_answer_for_marking(&request.student_answer);
+    let user_prompt_text = format!(
+        "Area of Study: {aos_subtopic}\n\nPassage:\n{passage_text}\n\nQuestion:\n{question_prompt}\n\nQuestion max marks: {max_marks}\n\nStudent answer:\n{answer}\n\nMark this as a VCE English Language response. Reward precise linguistic identification, accurate metalanguage, relevant passage evidence, and concise explanation. Do not reward vague feature spotting without explanation.\n\nReturn ONLY valid JSON in this exact shape: {{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":1,\"maxMarks\":{max_marks},\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{{\"criterion\":\"...\",\"achievedMarks\":1,\"maxMarks\":1,\"rationale\":\"...\"}}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}}. Ensure the sum of vcaaMarkingScheme achievedMarks equals achievedMarks.",
+        aos_subtopic = request.aos_subtopic,
+        passage_text = request.passage_text,
+        question_prompt = request.question.prompt_markdown,
+        max_marks = request.question.max_marks,
+        answer = normalized_student_answer,
+    );
+
+    let mut content = call_openrouter(
+        &request.api_key,
+        &request.model,
+        system_prompt,
+        serde_json::Value::String(user_prompt_text),
+        Some(&mark_answer_response_format()),
+    )
+    .await?
+    .content;
+    let mut payload = parse_json_object(&content);
+    if payload.is_none() {
+        let repaired = request_json_repair(
+            &request.api_key,
+            &request.model,
+            MARK_ANSWER_JSON_CONTRACT,
+            &content,
+            "No valid JSON object found in passage marking response.",
+            Some(&mark_answer_response_format()),
+        )
+        .await?;
+        content = repaired.content;
+        payload = parse_json_object(&content);
+    }
+
+    let payload = payload.ok_or_else(|| {
+        AppError::new(
+            "MODEL_PARSE_ERROR",
+            format_marking_parse_error(
+                "Could not parse the passage marking response. Try submitting again.",
+                &content,
+            ),
+        )
+    })?;
+
+    let mut parsed: MarkAnswerResponse = match serde_json::from_str(&payload) {
+        Ok(parsed) => parsed,
+        Err(parse_error) => {
+            let repaired = request_json_repair(
+                &request.api_key,
+                &request.model,
+                MARK_ANSWER_JSON_CONTRACT,
+                &content,
+                &format!("Passage marking JSON did not match schema: {parse_error}"),
+                Some(&mark_answer_response_format()),
+            )
+            .await?;
+            content = repaired.content;
+            let repaired_payload = parse_json_object(&content).ok_or_else(|| {
+                AppError::new(
+                    "MODEL_PARSE_ERROR",
+                    format_marking_parse_error(
+                        "Could not parse repaired passage marking response.",
+                        &content,
+                    ),
+                )
+            })?;
+
+            serde_json::from_str(&repaired_payload).map_err(|_| {
+                AppError::new(
+                    "MODEL_PARSE_ERROR",
+                    format_marking_parse_error(
+                        "OpenRouter returned an unexpected passage marking format.",
+                        &content,
+                    ),
+                )
+            })?
+        }
+    };
+
+    parsed.max_marks = request.question.max_marks;
+    if parsed.achieved_marks > parsed.max_marks {
+        parsed.achieved_marks = parsed.max_marks;
+    }
+
+    let scheme_total = parsed
+        .vcaa_marking_scheme
+        .iter()
+        .fold(0u16, |acc, item| acc + item.achieved_marks as u16);
+
+    parsed.achieved_marks = u8::min(parsed.achieved_marks, parsed.max_marks);
+    if scheme_total as u8 != parsed.achieved_marks && !parsed.vcaa_marking_scheme.is_empty() {
+        parsed.achieved_marks = u8::min(scheme_total as u8, parsed.max_marks);
+    }
+    if parsed.score_out_of_10 > 10 {
+        parsed.score_out_of_10 = 10;
+    }
     if parsed.score_out_of_10 == 0 && parsed.max_marks > 0 {
         let scaled = ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
         parsed.score_out_of_10 = u8::min(scaled, 10);
@@ -942,6 +1346,63 @@ fn validate_mark_request(request: &MarkAnswerRequest) -> CommandResult<()> {
     Ok(())
 }
 
+fn validate_passage_generate_request(request: &GeneratePassageQuestionsRequest) -> CommandResult<()> {
+    if request.aos_subtopic.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Choose an Area of Study."));
+    }
+
+    if request.question_count < 3 || request.question_count > 10 {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Passage question count must be between 3 and 10.",
+        ));
+    }
+
+    if request.api_key.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+    }
+
+    if request.model.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Model is required."));
+    }
+
+    Ok(())
+}
+
+fn validate_passage_mark_request(request: &MarkPassageAnswerRequest) -> CommandResult<()> {
+    if request.passage_text.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Passage text is required."));
+    }
+
+    if request.question.prompt_markdown.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Question prompt is required."));
+    }
+
+    if request.student_answer.trim().is_empty() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Enter an answer before submitting.",
+        ));
+    }
+
+    if request.api_key.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+    }
+
+    if request.model.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Model is required."));
+    }
+
+    if request.question.max_marks == 0 {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Question max marks must be greater than zero.",
+        ));
+    }
+
+    Ok(())
+}
+
 fn written_questions_response_format() -> serde_json::Value {
     serde_json::json!({
         "type": "json_schema",
@@ -963,9 +1424,51 @@ fn written_questions_response_format() -> serde_json::Value {
                                 "id": { "type": "string" },
                                 "topic": { "type": "string" },
                                 "subtopic": { "type": "string" },
+                                "taskType": { "type": "string", "enum": ["short-answer", "analytical-essay"] },
+                                "recommendedResponseLength": { "type": "string", "enum": ["short", "extended"] },
                                 "promptMarkdown": { "type": "string" },
                                 "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
                                 "techAllowed": { "type": "boolean" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn passage_response_format() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "english_language_passage_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["passage"],
+                "properties": {
+                    "passage": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["id", "text", "aosSubtopic", "questions"],
+                        "properties": {
+                            "id": { "type": "string" },
+                            "text": { "type": "string" },
+                            "aosSubtopic": { "type": "string" },
+                            "questions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["id", "promptMarkdown", "maxMarks"],
+                                    "properties": {
+                                        "id": { "type": "string" },
+                                        "promptMarkdown": { "type": "string" },
+                                        "maxMarks": { "type": "integer", "minimum": 1, "maximum": 5 }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1321,8 +1824,67 @@ fn includes_chemistry(topics: &[String]) -> bool {
         .any(|topic| topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC))
 }
 
+fn includes_english_language(topics: &[String]) -> bool {
+    topics
+        .iter()
+        .any(|topic| topic.trim().eq_ignore_ascii_case(ENGLISH_LANGUAGE_TOPIC))
+}
+
 fn is_chemistry_topic(topic: &str) -> bool {
     topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC)
+}
+
+fn is_english_language_topic(topic: &str) -> bool {
+    topic.trim().eq_ignore_ascii_case(ENGLISH_LANGUAGE_TOPIC)
+}
+
+fn normalize_english_task_types(raw_types: Option<&[String]>) -> Vec<&'static str> {
+    let mut selected: Vec<&'static str> = Vec::new();
+
+    for task_type in raw_types.unwrap_or(&[]) {
+        let normalized = task_type.trim().to_ascii_lowercase();
+        let canonical = match normalized.as_str() {
+            "short-answer" => Some("short-answer"),
+            "analytical-essay" => Some("analytical-essay"),
+            _ => None,
+        };
+
+        if let Some(value) = canonical {
+            if !selected.contains(&value) {
+                selected.push(value);
+            }
+        }
+    }
+
+    if selected.is_empty() {
+        vec!["short-answer", "analytical-essay"]
+    } else {
+        selected
+    }
+}
+
+fn build_english_language_task_type_note(selected_types: &[&str]) -> String {
+    let labels = selected_types
+        .iter()
+        .map(|task_type| {
+            if *task_type == "short-answer" {
+                "short-answer"
+            } else {
+                "analytical-essay"
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let balancing_note = if selected_types.len() == 2 {
+        "\n- When question count is at least 2, include at least one short-answer and one analytical-essay task."
+    } else {
+        ""
+    };
+
+    format!(
+        "\n\nEnglish Language task constraints:\n- For English Language questions, set \"taskType\" to one of: {labels}.\n- Use \"recommendedResponseLength\" = \"short\" for short-answer and \"extended\" for analytical-essay.\n- For short-answer: target concise, evidence-based responses with clear metalanguage.\n- For analytical-essay: require sustained argument, integrated evidence, and coherent paragraphing.{balancing_note}"
+    )
 }
 
 fn infer_image_mime(path: &Path) -> Option<&'static str> {
@@ -1822,6 +2384,7 @@ fn parse_written_response_candidate(
     content: &str,
     request: &GenerateQuestionsRequest,
     selected_subtopics: Option<&Vec<String>>,
+    selected_english_task_types: &[&str],
     prioritized_command_terms: &[&'static CommandTermProfile],
 ) -> Result<GenerateQuestionsResponse, String> {
     let payload = parse_json_object(content)
@@ -1837,16 +2400,36 @@ fn parse_written_response_candidate(
 
     normalize_written_questions(
         &mut candidate.questions,
+        &request.topics,
         selected_subtopics,
+        selected_english_task_types,
         prioritized_command_terms,
     );
 
     validate_written_questions(
         &candidate.questions,
+        &request.topics,
         request.question_count,
+        selected_english_task_types,
         selected_subtopics,
         prioritized_command_terms,
     )?;
+
+    Ok(candidate)
+}
+
+fn parse_passage_response_candidate(
+    content: &str,
+    request: &GeneratePassageQuestionsRequest,
+) -> Result<GeneratePassageResponse, String> {
+    let payload = parse_json_object(content)
+        .ok_or_else(|| "No valid JSON object found in model output.".to_string())?;
+
+    let mut candidate: GeneratePassageResponse = serde_json::from_str(&payload)
+        .map_err(|err| format!("Response JSON did not match schema: {err}"))?;
+
+    normalize_generated_passage(&mut candidate.passage, &request.aos_subtopic);
+    validate_generated_passage(&candidate.passage, request.question_count, &request.aos_subtopic)?;
 
     Ok(candidate)
 }
@@ -2091,9 +2674,13 @@ fn round_score(value: f32) -> f32 {
 
 fn normalize_written_questions(
     questions: &mut [GeneratedQuestion],
+    selected_topics: &[String],
     selected_subtopics: Option<&Vec<String>>,
+    selected_english_task_types: &[&str],
     prioritized_command_terms: &[&'static CommandTermProfile],
 ) {
+    let includes_english = includes_english_language(selected_topics);
+
     for question in questions {
         let mut normalized_marks = if question.max_marks == 0 {
             default_question_max_marks()
@@ -2127,6 +2714,42 @@ fn normalize_written_questions(
             .as_ref()
             .map(|subtopic| subtopic.trim().to_string())
             .filter(|subtopic| !subtopic.is_empty());
+
+        if includes_english && is_english_language_topic(&question.topic) {
+            let normalized_task_type = question
+                .task_type
+                .as_ref()
+                .map(|value| value.trim().to_ascii_lowercase())
+                .and_then(|value| match value.as_str() {
+                    "short-answer" => Some("short-answer".to_string()),
+                    "analytical-essay" => Some("analytical-essay".to_string()),
+                    _ => None,
+                });
+
+            let selected_task_type = if selected_english_task_types.len() == 1 {
+                selected_english_task_types.first().map(|value| (*value).to_string())
+            } else {
+                None
+            };
+
+            question.task_type = normalized_task_type.or(selected_task_type);
+            question.recommended_response_length = match question.task_type.as_deref() {
+                Some("short-answer") => Some("short".to_string()),
+                Some("analytical-essay") => Some("extended".to_string()),
+                _ => question
+                    .recommended_response_length
+                    .as_ref()
+                    .map(|value| value.trim().to_ascii_lowercase())
+                    .and_then(|value| match value.as_str() {
+                        "short" => Some("short".to_string()),
+                        "extended" => Some("extended".to_string()),
+                        _ => None,
+                    }),
+            };
+        } else {
+            question.task_type = None;
+            question.recommended_response_length = None;
+        }
     }
 }
 
@@ -2160,9 +2783,43 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
     }
 }
 
+fn normalize_generated_passage(passage: &mut GeneratedPassage, selected_aos_subtopic: &str) {
+    passage.id = passage.id.trim().to_string();
+    passage.text = decode_literal_newlines(&passage.text)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    passage.aos_subtopic = if passage.aos_subtopic.trim().is_empty() {
+        selected_aos_subtopic.trim().to_string()
+    } else {
+        passage.aos_subtopic.trim().to_string()
+    };
+
+    for question in &mut passage.questions {
+        question.id = question.id.trim().to_string();
+        question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown)
+            .trim()
+            .to_string();
+        question.max_marks = question.max_marks.clamp(1, 5);
+    }
+}
+
+fn pick_passage_text_type() -> &'static str {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.subsec_nanos() as usize)
+        .unwrap_or(0);
+    let index = nanos % PASSAGE_TEXT_TYPE_OPTIONS.len();
+    PASSAGE_TEXT_TYPE_OPTIONS[index]
+}
+
 fn validate_written_questions(
     questions: &[GeneratedQuestion],
+    selected_topics: &[String],
     expected_count: usize,
+    selected_english_task_types: &[&str],
     _selected_subtopics: Option<&Vec<String>>,
     prioritized_command_terms: &[&'static CommandTermProfile],
 ) -> Result<(), String> {
@@ -2176,6 +2833,10 @@ fn validate_written_questions(
             questions.len()
         ));
     }
+
+    let requires_english_task_type = includes_english_language(selected_topics);
+    let mut english_short_answer_count = 0usize;
+    let mut english_analytical_essay_count = 0usize;
 
     for question in questions {
         if question.id.is_empty() {
@@ -2201,9 +2862,147 @@ fn validate_written_questions(
                 ));
             }
         }
+
+        if requires_english_task_type && is_english_language_topic(&question.topic) {
+            let task_type = question.task_type.as_deref().ok_or_else(|| {
+                format!(
+                    "Question {} is an English Language question and must include taskType.",
+                    question.id
+                )
+            })?;
+
+            if !selected_english_task_types.contains(&task_type) {
+                return Err(format!(
+                    "Question {} has taskType '{}' outside selected English task types.",
+                    question.id, task_type
+                ));
+            }
+
+            match task_type {
+                "short-answer" => english_short_answer_count += 1,
+                "analytical-essay" => english_analytical_essay_count += 1,
+                _ => {
+                    return Err(format!(
+                        "Question {} has invalid taskType '{}'.",
+                        question.id, task_type
+                    ));
+                }
+            }
+        }
+    }
+
+    if requires_english_task_type
+        && selected_english_task_types.contains(&"short-answer")
+        && selected_english_task_types.contains(&"analytical-essay")
+        && expected_count >= 2
+    {
+        if english_short_answer_count == 0 || english_analytical_essay_count == 0 {
+            return Err("English Language generation must include at least one short-answer and one analytical-essay question when both task types are selected and question count is at least 2.".to_string());
+        }
     }
 
     Ok(())
+}
+
+fn validate_generated_passage(
+    passage: &GeneratedPassage,
+    expected_count: usize,
+    selected_aos_subtopic: &str,
+) -> Result<(), String> {
+    if passage.id.is_empty() {
+        return Err("The passage is missing id.".to_string());
+    }
+
+    if passage.text.is_empty() {
+        return Err("The passage text is empty.".to_string());
+    }
+
+    let lines = passage
+        .text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+
+    if lines.len() < PASSAGE_MIN_LINES || lines.len() > PASSAGE_MAX_LINES {
+        return Err(format!(
+            "The passage must contain between {} and {} non-empty lines, but it had {}.",
+            PASSAGE_MIN_LINES,
+            PASSAGE_MAX_LINES,
+            lines.len()
+        ));
+    }
+
+    for (index, line) in lines.iter().enumerate() {
+        let words = line.split_whitespace().count();
+        if words > PASSAGE_MAX_WORDS_PER_LINE {
+            return Err(format!(
+                "Passage line {} is too long ({} words). Keep each line at {} words or fewer.",
+                index + 1,
+                words,
+                PASSAGE_MAX_WORDS_PER_LINE
+            ));
+        }
+
+        if has_manual_line_number_prefix(line) {
+            return Err(format!(
+                "Passage line {} appears to include a manual line number prefix. Remove in-text numbering because the frontend renders line numbers.",
+                index + 1
+            ));
+        }
+    }
+
+    if passage.aos_subtopic.trim() != selected_aos_subtopic.trim() {
+        return Err("The generated passage did not match the selected Area of Study.".to_string());
+    }
+
+    if passage.questions.len() != expected_count {
+        return Err(format!(
+            "Expected exactly {expected_count} passage questions but received {}.",
+            passage.questions.len()
+        ));
+    }
+
+    for question in &passage.questions {
+        if question.id.is_empty() {
+            return Err("A passage question is missing id.".to_string());
+        }
+        if question.prompt_markdown.is_empty() {
+            return Err(format!("Passage question {} has empty promptMarkdown.", question.id));
+        }
+        if question.max_marks == 0 || question.max_marks > 5 {
+            return Err(format!("Passage question {} has invalid maxMarks.", question.id));
+        }
+
+        let prompt_lower = question.prompt_markdown.to_ascii_lowercase();
+        let has_numeric_line_reference = prompt_lower.chars().any(|ch| ch.is_ascii_digit());
+        if !prompt_lower.contains("line") || !has_numeric_line_reference {
+            return Err(format!(
+                "Passage question {} must include an explicit numeric line reference.",
+                question.id
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn has_manual_line_number_prefix(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    let digit_count = trimmed
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .count();
+
+    if digit_count == 0 || digit_count > 3 {
+        return false;
+    }
+
+    let remainder = trimmed[digit_count..].trim_start();
+    remainder.starts_with('.')
+        || remainder.starts_with(')')
+        || remainder.starts_with(':')
+        || remainder.starts_with('-')
 }
 
 fn validate_mc_questions(
@@ -2292,6 +3091,20 @@ fn validate_mc_questions(
     }
 
     Ok(())
+}
+
+fn english_language_passage_instruction(aos_subtopic: &str) -> &'static str {
+    match aos_subtopic.trim() {
+        "Unit 1 AOS 1: Nature and Functions of Language" => "Focus on the nature and functions of language, especially situational context, register, lexical and syntactic choices, sentence structures, modal verbs, clauses, and the major functions of language.",
+        "Unit 1 AOS 2: Language Acquisition" => "Focus on acquisition evidence such as developmental features, overgeneralisation, caretaker talk, and linguistic milestones.",
+        "Unit 2 AOS 1: English Across Time" => "Focus on historical development of English, language change, lexical shift, and social or technological influences on change.",
+        "Unit 2 AOS 2: Englishes in Contact" => "Focus on contact varieties, borrowing, world Englishes, Aboriginal Englishes, prestige, attitudes, and identity impacts.",
+        "Unit 3 AOS 1: Informality" => "Focus on informal Australian English, rapport building, discourse particles, idioms, contractions, and interactional strategies.",
+        "Unit 3 AOS 2: Formality" => "Focus on formal register, authority, nominalisation, modality, hedging, politeness, and discourse structure.",
+        "Unit 4 AOS 1: Language Variation in Australian Society" => "Focus on variation across dialects, social meaning, identity, power, and attitudes toward language varieties in Australia.",
+        "Unit 4 AOS 2: Individual and Group Identities" => "Focus on idiolect, sociolect, group affiliation, inclusion, exclusion, authority, authenticity, and language choices shaping identity.",
+        _ => "Focus tightly on the selected VCE English Language Area of Study and reward precise metalanguage tied directly to textual evidence.",
+    }
 }
 
 async fn request_json_repair(
@@ -2436,7 +3249,9 @@ pub fn run() {
             load_persisted_state,
             save_persisted_state,
             generate_questions,
+            generate_passage_questions,
             mark_answer,
+            mark_passage_answer,
             analyze_image,
             generate_mc_questions
         ])
@@ -2469,6 +3284,8 @@ mod tests {
             id: "q1".to_string(),
             topic: "Mathematical Methods".to_string(),
             subtopic: None,
+            task_type: None,
+            recommended_response_length: None,
             prompt_markdown: "Find the derivative.".to_string(),
             max_marks: 4,
             tech_allowed: false,
@@ -2476,7 +3293,8 @@ mod tests {
             multi_step_depth: None,
         }];
 
-        let result = validate_written_questions(&questions, 2, None, &[]);
+        let selected_topics = vec!["Mathematical Methods".to_string()];
+        let result = validate_written_questions(&questions, &selected_topics, 2, &[], None, &[]);
         assert!(result.is_err());
     }
 
@@ -2522,6 +3340,8 @@ mod tests {
             id: "q1".to_string(),
             topic: "Mathematical Methods".to_string(),
             subtopic: Some("Functions and Graphs".to_string()),
+            task_type: None,
+            recommended_response_length: None,
             prompt_markdown: "Find the derivative.".to_string(),
             max_marks: 4,
             tech_allowed: false,
@@ -2530,7 +3350,8 @@ mod tests {
         }];
 
         let allowed = vec!["functions".to_string()];
-        let result = validate_written_questions(&questions, 1, Some(&allowed), &[]);
+        let selected_topics = vec!["Mathematical Methods".to_string()];
+        let result = validate_written_questions(&questions, &selected_topics, 1, &[], Some(&allowed), &[]);
         assert!(result.is_ok());
     }
 

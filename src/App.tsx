@@ -4,6 +4,7 @@ import { AppProvider } from "./AppContext";
 import { useAppContext } from "./AppContext";
 import { Layout } from "./components/layout/Layout";
 import { GeneratorView } from "./views/GeneratorView";
+import { EnglishLanguageView } from "./views/EnglishLanguageView";
 import { HistoryView } from "./views/HistoryView";
 import { AnalyticsView } from "./views/AnalyticsView";
 import { SavedView } from "./views/SavedView";
@@ -28,6 +29,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<GeneratorView />} />
+          <Route path="english" element={<EnglishLanguageView />} />
           <Route path="history" element={<HistoryView />} />
           <Route path="analytics" element={<AnalyticsView />} />
           <Route path="saved" element={<SavedView />} />

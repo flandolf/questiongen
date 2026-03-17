@@ -3,6 +3,9 @@ import { listen } from "@tauri-apps/api/event";
 import {
   ChemistrySubtopic,
   Difficulty,
+  EnglishLanguageSubtopic,
+  EnglishLanguageTaskType,
+  GeneratedPassage,
   GeneratedQuestion,
   GenerationStatusEvent,
   GenerationTelemetry,
@@ -14,6 +17,7 @@ import {
   PersistedAppState,
   PersistedGeneratorPreferences,
   PersistedMcSession,
+  PersistedPassageSession,
   PersistedWrittenSession,
   PhysicalEducationSubtopic,
   QuestionHistoryEntry,
@@ -29,6 +33,7 @@ import {
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
 import { useSettingsState } from "./context/modules/useSettingsState";
 import { usePreferencesState } from "./context/modules/usePreferencesState";
+import { usePassageSessionState } from "./context/modules/usePassageSessionState";
 import { useWrittenSessionState } from "./context/modules/useWrittenSessionState";
 import { useMultipleChoiceSessionState } from "./context/modules/useMultipleChoiceSessionState";
 
@@ -54,10 +59,18 @@ interface AppContextState {
   setChemistrySubtopics: (subtopics: ChemistrySubtopic[] | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])) => void;
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   setPhysicalEducationSubtopics: (subtopics: PhysicalEducationSubtopic[] | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])) => void;
+  englishLanguageSubtopics: EnglishLanguageSubtopic[];
+  setEnglishLanguageSubtopics: (subtopics: EnglishLanguageSubtopic[] | ((prev: EnglishLanguageSubtopic[]) => EnglishLanguageSubtopic[])) => void;
+  englishLanguageTaskTypes: EnglishLanguageTaskType[];
+  setEnglishLanguageTaskTypes: (types: EnglishLanguageTaskType[] | ((prev: EnglishLanguageTaskType[]) => EnglishLanguageTaskType[])) => void;
   questionCount: number;
   setQuestionCount: (count: number) => void;
   maxMarksPerQuestion: number;
   setMaxMarksPerQuestion: (marks: number) => void;
+  passageAosSubtopic: EnglishLanguageSubtopic;
+  setPassageAosSubtopic: (subtopic: EnglishLanguageSubtopic) => void;
+  passageQuestionCount: number;
+  setPassageQuestionCount: (count: number) => void;
   prioritizedCommandTerms: VceCommandTerm[];
   setPrioritizedCommandTerms: (terms: VceCommandTerm[] | ((prev: VceCommandTerm[]) => VceCommandTerm[])) => void;
   subtopicInstructions: Record<string, string>;
@@ -109,6 +122,21 @@ interface AppContextState {
   setActiveWrittenSavedSetId: (id: string | null) => void;
   activeMcSavedSetId: string | null;
   setActiveMcSavedSetId: (id: string | null) => void;
+
+  passage: GeneratedPassage | null;
+  setPassage: (passage: GeneratedPassage | null) => void;
+  activePassageQuestionIndex: number;
+  setActivePassageQuestionIndex: (idx: number) => void;
+  passageQuestionPresentedAtById: Record<string, number>;
+  setPassageQuestionPresentedAtById: (presentedAt: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)) => void;
+  passageAnswersByQuestionId: Record<string, string>;
+  setPassageAnswersByQuestionId: (answers: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
+  passageFeedbackByQuestionId: Record<string, MarkAnswerResponse>;
+  setPassageFeedbackByQuestionId: (feedback: Record<string, MarkAnswerResponse> | ((prev: Record<string, MarkAnswerResponse>) => Record<string, MarkAnswerResponse>)) => void;
+  passageRawModelOutput: string;
+  setPassageRawModelOutput: (output: string) => void;
+  passageGenerationTelemetry: GenerationTelemetry | null;
+  setPassageGenerationTelemetry: (telemetry: GenerationTelemetry | null) => void;
   savedSets: SavedQuestionSet[];
   saveCurrentSet: () => string | null;
   loadSavedSet: (savedSetId: string) => void;
@@ -186,10 +214,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
+    englishLanguageSubtopics,
+    setEnglishLanguageSubtopics,
+    englishLanguageTaskTypes,
+    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
+    passageAosSubtopic,
+    setPassageAosSubtopic,
+    passageQuestionCount,
+    setPassageQuestionCount,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
@@ -197,6 +233,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     subtopicInstructions,
     setSubtopicInstructions,
   } = usePreferencesState();
+
+  const {
+    passage,
+    setPassage,
+    activePassageQuestionIndex,
+    setActivePassageQuestionIndex,
+    passageQuestionPresentedAtById,
+    setPassageQuestionPresentedAtById,
+    passageAnswersByQuestionId,
+    setPassageAnswersByQuestionId,
+    passageFeedbackByQuestionId,
+    setPassageFeedbackByQuestionId,
+    passageRawModelOutput,
+    setPassageRawModelOutput,
+    passageGenerationTelemetry,
+    setPassageGenerationTelemetry,
+  } = usePassageSessionState();
 
   const {
     questions,
@@ -258,8 +311,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       specialistMathSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
+      englishLanguageSubtopics,
+      englishLanguageTaskTypes,
       questionCount,
       maxMarksPerQuestion,
+      passageAosSubtopic,
+      passageQuestionCount,
       prioritizedCommandTerms,
       questionMode,
       subtopicInstructions,
@@ -273,11 +330,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     specialistMathSubtopics,
     chemistrySubtopics,
     physicalEducationSubtopics,
+    englishLanguageSubtopics,
+    englishLanguageTaskTypes,
     questionCount,
     maxMarksPerQuestion,
+    passageAosSubtopic,
+    passageQuestionCount,
     prioritizedCommandTerms,
     questionMode,
     subtopicInstructions,
+  ]);
+
+  const passageSessionSnapshot = useMemo<PersistedPassageSession>(() => ({
+    passage,
+    activeQuestionIndex: activePassageQuestionIndex,
+    presentedAtByQuestionId: passageQuestionPresentedAtById,
+    answersByQuestionId: passageAnswersByQuestionId,
+    feedbackByQuestionId: passageFeedbackByQuestionId,
+    rawModelOutput: passageRawModelOutput,
+    generationTelemetry: passageGenerationTelemetry,
+  }), [
+    passage,
+    activePassageQuestionIndex,
+    passageQuestionPresentedAtById,
+    passageAnswersByQuestionId,
+    passageFeedbackByQuestionId,
+    passageRawModelOutput,
+    passageGenerationTelemetry,
   ]);
 
   useEffect(() => {
@@ -382,6 +461,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     version: EMPTY_PERSISTED_APP_STATE.version,
     settings: settingsSnapshot,
     preferences: preferencesSnapshot,
+    passageSession: passageSessionSnapshot,
     writtenSession: writtenSessionSnapshot,
     mcSession: mcSessionSnapshot,
     questionHistory: historySnapshot.questionHistory,
@@ -390,6 +470,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }), [
     settingsSnapshot,
     preferencesSnapshot,
+    passageSessionSnapshot,
     writtenSessionSnapshot,
     mcSessionSnapshot,
     historySnapshot,
@@ -423,11 +504,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSpecialistMathSubtopics(state.preferences.specialistMathSubtopics);
     setChemistrySubtopics(state.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
+    setEnglishLanguageSubtopics(state.preferences.englishLanguageSubtopics);
+    setEnglishLanguageTaskTypes(state.preferences.englishLanguageTaskTypes);
     setQuestionCount(state.preferences.questionCount);
     setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
+    setPassageAosSubtopic(state.preferences.passageAosSubtopic);
+    setPassageQuestionCount(state.preferences.passageQuestionCount);
     setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
     setSubtopicInstructions(state.preferences.subtopicInstructions);
+
+    setPassage(state.passageSession.passage);
+    setActivePassageQuestionIndex(state.passageSession.activeQuestionIndex);
+    setPassageQuestionPresentedAtById(state.passageSession.presentedAtByQuestionId);
+    setPassageAnswersByQuestionId(state.passageSession.answersByQuestionId);
+    setPassageFeedbackByQuestionId(state.passageSession.feedbackByQuestionId);
+    setPassageRawModelOutput(state.passageSession.rawModelOutput);
+    setPassageGenerationTelemetry(state.passageSession.generationTelemetry ?? null);
 
     setQuestions(state.writtenSession.questions);
     setActiveQuestionIndex(state.writtenSession.activeQuestionIndex);
@@ -536,8 +629,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
       setChemistrySubtopics(entry.preferences.chemistrySubtopics);
       setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
+      setEnglishLanguageSubtopics(entry.preferences.englishLanguageSubtopics);
+      setEnglishLanguageTaskTypes(entry.preferences.englishLanguageTaskTypes);
       setSpecialistMathSubtopics(entry.preferences.specialistMathSubtopics);
       setQuestionCount(entry.preferences.questionCount);
+      setPassageAosSubtopic(entry.preferences.passageAosSubtopic);
+      setPassageQuestionCount(entry.preferences.passageQuestionCount);
       setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
       setQuestionMode(entry.questionMode);
       setSubtopicInstructions(entry.preferences.subtopicInstructions);
@@ -612,10 +709,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setChemistrySubtopics,
         physicalEducationSubtopics,
         setPhysicalEducationSubtopics,
+        englishLanguageSubtopics,
+        setEnglishLanguageSubtopics,
+        englishLanguageTaskTypes,
+        setEnglishLanguageTaskTypes,
         questionCount,
         setQuestionCount,
         maxMarksPerQuestion,
         setMaxMarksPerQuestion,
+        passageAosSubtopic,
+        setPassageAosSubtopic,
+        passageQuestionCount,
+        setPassageQuestionCount,
         prioritizedCommandTerms,
         setPrioritizedCommandTerms,
         subtopicInstructions,
@@ -664,6 +769,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveWrittenSavedSetId,
         activeMcSavedSetId,
         setActiveMcSavedSetId,
+        passage,
+        setPassage,
+        activePassageQuestionIndex,
+        setActivePassageQuestionIndex,
+        passageQuestionPresentedAtById,
+        setPassageQuestionPresentedAtById,
+        passageAnswersByQuestionId,
+        setPassageAnswersByQuestionId,
+        passageFeedbackByQuestionId,
+        setPassageFeedbackByQuestionId,
+        passageRawModelOutput,
+        setPassageRawModelOutput,
+        passageGenerationTelemetry,
+        setPassageGenerationTelemetry,
         savedSets,
         saveCurrentSet,
         loadSavedSet,
@@ -712,10 +831,18 @@ export function useAppPreferences() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
+    englishLanguageSubtopics,
+    setEnglishLanguageSubtopics,
+    englishLanguageTaskTypes,
+    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
+    passageAosSubtopic,
+    setPassageAosSubtopic,
+    passageQuestionCount,
+    setPassageQuestionCount,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
@@ -741,16 +868,60 @@ export function useAppPreferences() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
+    englishLanguageSubtopics,
+    setEnglishLanguageSubtopics,
+    englishLanguageTaskTypes,
+    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
+    passageAosSubtopic,
+    setPassageAosSubtopic,
+    passageQuestionCount,
+    setPassageQuestionCount,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
     subtopicInstructions,
     setSubtopicInstructions,
+  };
+}
+
+export function usePassageSession() {
+  const {
+    passage,
+    setPassage,
+    activePassageQuestionIndex,
+    setActivePassageQuestionIndex,
+    passageQuestionPresentedAtById,
+    setPassageQuestionPresentedAtById,
+    passageAnswersByQuestionId,
+    setPassageAnswersByQuestionId,
+    passageFeedbackByQuestionId,
+    setPassageFeedbackByQuestionId,
+    passageRawModelOutput,
+    setPassageRawModelOutput,
+    passageGenerationTelemetry,
+    setPassageGenerationTelemetry,
+  } = useAppContext();
+
+  return {
+    passage,
+    setPassage,
+    activePassageQuestionIndex,
+    setActivePassageQuestionIndex,
+    passageQuestionPresentedAtById,
+    setPassageQuestionPresentedAtById,
+    passageAnswersByQuestionId,
+    setPassageAnswersByQuestionId,
+    passageFeedbackByQuestionId,
+    setPassageFeedbackByQuestionId,
+    passageRawModelOutput,
+    setPassageRawModelOutput,
+    passageGenerationTelemetry,
+    setPassageGenerationTelemetry,
   };
 }
 
