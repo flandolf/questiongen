@@ -1503,12 +1503,12 @@ export function GeneratorView() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="flex flex-row items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Album className="w-4 h-4" />
+                  <Album className="w-4 h-4 sm:hidden lg:flex" />
                   <Label className="text-sm font-semibold">Difficulty</Label>
                 </div>
-                <div className="pl-px flex w-full flex-nowrap items-start gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] py-1">
+                <div className="flex flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:thin] py-1 px-1">
                   {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((level) => {
                     const isSelected = difficulty === level;
                     return (
@@ -1810,7 +1810,7 @@ export function GeneratorView() {
                   {questionMode === "written" && hasPeTopic && (
                     <div className="space-y-1.5 pt-1 md:col-span-2">
                       <div className="flex justify-between items-center">
-                        <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
+                       <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
                         <Badge variant="secondary" className="px-2 py-0.5 text-xs">{prioritizedCommandTerms.length} Selected</Badge>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -1872,10 +1872,10 @@ export function GeneratorView() {
 
           </CardContent>
 
-          <CardFooter className="bg-muted/20 border-t flex flex-col gap-3">
+          <CardFooter className="bg-muted/20 border-t flex flex-col gap-3 sm:pb-2">
             <Button
               size="lg"
-              className={`w-full h-12 text-base font-bold transition-all duration-300 ${isGenerating ? 'opacity-90' : 'hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/25 bg-linear-to-r from-primary to-primary/90'}`}
+              className={`w-full h-12 text-base font-bold transition-all duration-300 ${isGenerating ? 'opacity-90' : 'hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/25 bg-linear-to-r from-primary to-primary/90'}  sm:hidden md:hidden lg:flex`}
               onClick={questionMode === "written" ? (isPassageMode ? handleGeneratePassage : handleGenerateQuestions) : handleGenerateMcQuestions}
               disabled={questionMode === "written" ? (isPassageMode ? !canGeneratePassage : !canGenerate) : !canGenerateMc}
             >
@@ -1904,8 +1904,8 @@ export function GeneratorView() {
             )}
           </CardFooter>
         </Card>
-          <div className="sticky bottom-3 z-20 px-2 sm:px-4 lg:hidden">
-            <div className="rounded-2xl border border-border/60 bg-background/95 shadow-xl backdrop-blur flex items-center gap-3 p-3">
+          <div className="sticky bottom-3 z-20 px-1.5 lg:hidden">
+            <div className="rounded-xl border border-border/60 bg-background/95 shadow-xl backdrop-blur flex items-center gap-3 p-3">
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ready to generate</div>
                 <div className="text-sm font-medium truncate">
