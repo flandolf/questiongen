@@ -283,7 +283,7 @@ export function AnalyticsView() {
               </CardContent>
             </Card>
 
-            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:shadow-md`}>
+            <Card className={`border border-border/50 bg-card/90 shadow-sm ${CARD_FIXED_HEIGHT} flex flex-col transition-all hover:border-destructive/50 hover:bg-destructive/10`}>
               <CardHeader>
                 <CardTitle className="text-xl">Actionable Flags</CardTitle>
                 <CardDescription>
@@ -295,7 +295,7 @@ export function AnalyticsView() {
                   <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No flagged areas yet.</div>
                 ) : (
                   displayedSubtopics.slice(0, 5).map((row) => (
-                    <div key={row.key} className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 relative overflow-hidden">
+                    <div key={row.key} className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 relative overflow-hidden hover:bg-destructive/10 transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <div className="font-semibold text-destructive/90 leading-tight wrap-break-word">{row.subtopic}</div>
                         <Badge variant={row.attempts < LOW_SAMPLE_THRESHOLD ? "outline" : "secondary"} className="bg-background/80 shrink-0">
@@ -433,7 +433,19 @@ export function AnalyticsView() {
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}
                       </Pie>
-                      <ChartLegend content={<ChartLegendContent nameKey="label" />} className="pt-6" />
+                      <ChartLegend
+                        content={
+                          <ChartLegendContent
+                            payload={writtenAttemptTypeData.map((entry) => ({
+                              value: entry.label,
+                              dataKey: entry.name,
+                              color: entry.fill,
+                              payload: entry,
+                            }))}
+                          />
+                        }
+                        className="pt-6"
+                      />
                     </PieChart>
                   </ChartContainer>
                 )}
