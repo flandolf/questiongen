@@ -55,7 +55,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
   englishLanguageSubtopics: [],
-  englishLanguageTaskTypes: ["short-answer", "analytical-essay"],
+  englishLanguageTaskTypes: ["short-answer", "text-analysis"],
   questionCount: 3,
   maxMarksPerQuestion: 10,
   passageAosSubtopic: ENGLISH_LANGUAGE_SUBTOPICS[0],
@@ -63,6 +63,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
+  customFocusArea: "",
 };
 
 const DEFAULT_PASSAGE_SESSION: PersistedPassageSession = {
@@ -227,6 +228,7 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
         : DEFAULT_PREFERENCES.prioritizedCommandTerms,
     questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
     subtopicInstructions: normalizeSubtopicInstructions(data.subtopicInstructions),
+    customFocusArea: asString(data.customFocusArea).trim(),
   };
 }
 

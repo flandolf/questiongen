@@ -95,7 +95,7 @@ export const ENGLISH_LANGUAGE_SUBTOPICS = [
 
 export type EnglishLanguageSubtopic = typeof ENGLISH_LANGUAGE_SUBTOPICS[number];
 
-export const ENGLISH_LANGUAGE_TASK_TYPES = ["short-answer", "analytical-essay"] as const;
+export const ENGLISH_LANGUAGE_TASK_TYPES = ["short-answer", "text-analysis"] as const;
 
 export type EnglishLanguageTaskType = typeof ENGLISH_LANGUAGE_TASK_TYPES[number];
 
@@ -478,6 +478,7 @@ export type PersistedGeneratorPreferences = {
   prioritizedCommandTerms: VceCommandTerm[];
   questionMode: QuestionMode;
   subtopicInstructions: Record<string, string>;
+  customFocusArea: string;
 };
 
 export type PersistedPassageSession = {

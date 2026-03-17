@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark, Info, Album, BookCheck, Calculator, Pen } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark, Info, Album, BookCheck, Calculator, Pen, BookText, RefreshCcw } from "lucide-react";
 import {
   useAppContext,
   useAppPreferences,
   useAppSettings,
   useMultipleChoiceSession,
   useWrittenSession,
+  usePassageSession,
 } from "../AppContext";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { Button } from "../components/ui/button";
@@ -15,6 +16,7 @@ import { Dropzone } from "../components/ui/dropzone";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
+import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Slider } from "../components/ui/slider";
@@ -23,10 +25,6 @@ import {
   TOPICS,
   Topic,
   TechMode,
-  ENGLISH_LANGUAGE_SUBTOPICS,
-  ENGLISH_LANGUAGE_TASK_TYPES,
-  EnglishLanguageSubtopic,
-  EnglishLanguageTaskType,
   MATH_METHODS_SUBTOPICS,
   MathMethodsSubtopic,
   CHEMISTRY_SUBTOPICS,
@@ -45,6 +43,11 @@ import {
   SPECIALIST_MATH_SUBTOPICS,
   VCE_COMMAND_TERMS,
   VceCommandTerm,
+  ENGLISH_LANGUAGE_SUBTOPICS,
+  EnglishLanguageSubtopic,
+  GeneratePassageResponse,
+  MarkAnswerResponse,
+  ENGLISH_LANGUAGE_TASK_TYPES,
 } from "../types";
 import { confirmAction, fileToDataUrl, formatDurationMs, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
 
@@ -62,7 +65,7 @@ export function GeneratorView() {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
-  const [customFocusArea, setCustomFocusArea] = useState("");
+  const [showPassageRawOutput, setShowPassageRawOutput] = useState(false);
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
   const [mcMarkAppealByQuestionId, setMcMarkAppealByQuestionId] = useState<Record<string, string>>({});
@@ -101,11 +104,17 @@ export function GeneratorView() {
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
+    passageAosSubtopic,
+    setPassageAosSubtopic,
+    passageQuestionCount,
+    setPassageQuestionCount,
     prioritizedCommandTerms,
     setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
     subtopicInstructions,
+    customFocusArea,
+    setCustomFocusArea,
   } = useAppPreferences();
   const {
     questions,
@@ -148,6 +157,21 @@ export function GeneratorView() {
     setActiveMcSavedSetId,
   } = useMultipleChoiceSession();
   const {
+    passage,
+    setPassage,
+    activePassageQuestionIndex,
+    setActivePassageQuestionIndex,
+    setPassageQuestionPresentedAtById,
+    passageAnswersByQuestionId,
+    setPassageAnswersByQuestionId,
+    passageFeedbackByQuestionId,
+    setPassageFeedbackByQuestionId,
+    passageRawModelOutput,
+    setPassageRawModelOutput,
+    passageGenerationTelemetry,
+    setPassageGenerationTelemetry,
+  } = usePassageSession();
+  const {
     saveCurrentSet,
     isGenerating,
     setIsGenerating,
@@ -165,10 +189,6 @@ export function GeneratorView() {
   const activeQuestionAnswer = activeQuestion ? (answersByQuestionId[activeQuestion.id] ?? "") : "";
   const activeQuestionImage = activeQuestion ? imagesByQuestionId[activeQuestion.id] : undefined;
   const activeFeedback = activeQuestion ? feedbackByQuestionId[activeQuestion.id] : undefined;
-  const activeMarkAppeal = activeQuestion ? (markAppealByQuestionId[activeQuestion.id] ?? "") : "";
-  const activeOverrideInput = activeQuestion
-    ? (markOverrideInputByQuestionId[activeQuestion.id] ?? (activeFeedback ? String(activeFeedback.achievedMarks) : ""))
-    : "";
 
   const activeMcQuestion = mcQuestions[activeMcQuestionIndex];
   const activeMcAnswer = activeMcQuestion ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? "") : "";
@@ -180,13 +200,52 @@ export function GeneratorView() {
     ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ?? (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ""))
     : "";
 
-  const showSetup = questionMode === "written" ? questions.length === 0 : mcQuestions.length === 0;
+  const hasEnglishTopic = selectedTopics.includes("English Language");
+  const englishTaskType = englishLanguageTaskTypes[0] ?? "short-answer";
+  const isPassageMode = questionMode === "written" && hasEnglishTopic && englishTaskType === "text-analysis";
+  const showSetup = isPassageMode ? !passage : (questionMode === "written" ? questions.length === 0 : mcQuestions.length === 0);
   const canShowWrittenRawOutput = debugMode && writtenRawModelOutput.trim().length > 0;
   const canShowMcRawOutput = debugMode && mcRawModelOutput.trim().length > 0;
+  const canShowPassageRawOutput = debugMode && passageRawModelOutput.trim().length > 0;
+  const generatorTopics = selectedTopics;
+
+  const activeWrittenQuestion = isPassageMode ? passage?.questions[activePassageQuestionIndex] : activeQuestion;
+  const activeWrittenAnswer = activeWrittenQuestion
+    ? (isPassageMode ? (passageAnswersByQuestionId[activeWrittenQuestion.id] ?? "") : activeQuestionAnswer)
+    : "";
+  const activeWrittenFeedback = activeWrittenQuestion
+    ? (isPassageMode ? passageFeedbackByQuestionId[activeWrittenQuestion.id] : activeFeedback)
+    : undefined;
+  const activeWrittenMarkAppeal = activeWrittenQuestion
+    ? (markAppealByQuestionId[activeWrittenQuestion.id] ?? "")
+    : "";
+  const activeWrittenOverrideInput = activeWrittenQuestion
+    ? (markOverrideInputByQuestionId[activeWrittenQuestion.id] ?? (activeWrittenFeedback ? String(activeWrittenFeedback.achievedMarks) : ""))
+    : "";
+  const activeWrittenTelemetry = isPassageMode ? passageGenerationTelemetry : writtenGenerationTelemetry;
 
   const completedCount = useMemo(
     () => questions.filter((q: { id: string | number; }) => feedbackByQuestionId[q.id]).length,
     [feedbackByQuestionId, questions],
+  );
+
+  const passageCompletedCount = useMemo(
+    () => (passage ? passage.questions.filter((q) => Boolean(passageFeedbackByQuestionId[q.id])).length : 0),
+    [passage, passageFeedbackByQuestionId],
+  );
+
+  const passageQuestionsComplete = useMemo(
+    () => (passage ? passage.questions.every((question) => Boolean(passageFeedbackByQuestionId[question.id])) : false),
+    [passage, passageFeedbackByQuestionId],
+  );
+
+  const activeLineItems = useMemo(
+    () =>
+      (passage?.text ?? "")
+        .split("\n")
+        .filter((line) => line.trim().length > 0)
+        .map((line, index) => ({ lineNumber: index + 1, text: line })),
+    [passage],
   );
 
   const mcCompletedCount = useMemo(
@@ -196,6 +255,7 @@ export function GeneratorView() {
 
   const lastWrittenCompletedCountRef = useRef(completedCount);
   const lastMcCompletedCountRef = useRef(mcCompletedCount);
+
 
 
   function getMcAwardedMarks(questionId: string, selectedAnswer: string, correctAnswer: string) {
@@ -208,16 +268,23 @@ export function GeneratorView() {
   }
 
   const canGenerate =
-    selectedTopics.length > 0 &&
-    (!selectedTopics.includes("English Language") || englishLanguageTaskTypes.length > 0) &&
+    generatorTopics.length > 0 &&
     apiKey.trim().length > 0 &&
     model.trim().length > 0 &&
     questionCount >= 1 &&
     questionCount <= 20 &&
     !isGenerating;
 
+  const canGeneratePassage =
+    isPassageMode &&
+    apiKey.trim().length > 0 &&
+    model.trim().length > 0 &&
+    passageQuestionCount >= 3 &&
+    passageQuestionCount <= 10 &&
+    !isGenerating;
+
   const canGenerateMc =
-    selectedTopics.length > 0 &&
+    generatorTopics.length > 0 &&
     apiKey.trim().length > 0 &&
     model.trim().length > 0 &&
     questionCount >= 1 &&
@@ -225,45 +292,63 @@ export function GeneratorView() {
     !isGenerating;
 
   const canSubmitAnswer =
-    Boolean(activeQuestion) &&
-    (activeQuestionAnswer.trim().length > 0 || Boolean(activeQuestionImage)) &&
+    Boolean(activeWrittenQuestion) &&
+    (isPassageMode
+      ? activeWrittenAnswer.trim().length > 0
+      : (activeQuestionAnswer.trim().length > 0 || Boolean(activeQuestionImage))) &&
     apiKey.trim().length > 0 &&
     model.trim().length > 0 &&
     !isMarking &&
-    !activeFeedback;
+    !activeWrittenFeedback;
 
-  const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && completedCount === questions.length;
+  const isWrittenSetComplete = questionMode === "written" && (
+    isPassageMode
+      ? Boolean(passage) && passageQuestionsComplete
+      : questions.length > 0 && completedCount === questions.length
+  );
   const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && mcCompletedCount === mcQuestions.length;
   const isSetComplete = isWrittenSetComplete || isMcSetComplete;
-  const isAtLastWrittenQuestion = activeQuestionIndex === questions.length - 1;
+  const isAtLastWrittenQuestion = isPassageMode
+    ? activePassageQuestionIndex === Math.max(0, (passage?.questions.length ?? 0) - 1)
+    : activeQuestionIndex === questions.length - 1;
   const isAtLastMcQuestion = activeMcQuestionIndex === mcQuestions.length - 1;
-  const canAdvanceWritten = questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
+  const canAdvanceWritten = isPassageMode
+    ? Boolean(passage) && (passage!.questions.length > 0) && (!isAtLastWrittenQuestion || passageQuestionsComplete)
+    : questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
   const canAdvanceMc = mcQuestions.length > 0 && (!isAtLastMcQuestion || isMcSetComplete);
+  const writtenTotalQuestions = isPassageMode ? (passage?.questions.length ?? 0) : questions.length;
+  const writtenCurrentIndex = isPassageMode ? activePassageQuestionIndex : activeQuestionIndex;
+  const writtenCompletedCount = isPassageMode ? passageCompletedCount : completedCount;
 
   const completionSetKey = useMemo(() => {
     if (questionMode === "written") {
+      if (isPassageMode && passage) {
+        return passage.questions.map((question) => question.id).join("|");
+      }
       return questions.map((question) => question.id).join("|");
     }
     return mcQuestions.map((question) => question.id).join("|");
-  }, [questionMode, questions, mcQuestions]);
+  }, [isPassageMode, passage, questionMode, questions, mcQuestions]);
 
   const writtenAccuracyPercent = useMemo(() => {
     if (!isWrittenSetComplete) {
       return null;
     }
 
-    const totalAvailable = questions.reduce((sum, question) => sum + question.maxMarks, 0);
+    const sourceQuestions = isPassageMode && passage ? passage.questions : questions;
+    const sourceFeedback = isPassageMode ? passageFeedbackByQuestionId : feedbackByQuestionId;
+    const totalAvailable = sourceQuestions.reduce((sum, question) => sum + question.maxMarks, 0);
     if (totalAvailable === 0) {
       return 0;
     }
 
-    const totalAchieved = questions.reduce((sum, question) => {
-      const feedback = feedbackByQuestionId[question.id];
+    const totalAchieved = sourceQuestions.reduce((sum, question) => {
+      const feedback = sourceFeedback[question.id];
       return sum + (feedback?.achievedMarks ?? 0);
     }, 0);
 
     return (totalAchieved / totalAvailable) * 100;
-  }, [feedbackByQuestionId, isWrittenSetComplete, questions]);
+  }, [feedbackByQuestionId, isPassageMode, isWrittenSetComplete, passage, passageFeedbackByQuestionId, questions]);
 
   const mcAccuracyPercent = useMemo(() => {
     if (!isMcSetComplete || mcQuestions.length === 0) {
@@ -360,6 +445,19 @@ export function GeneratorView() {
   }, [activeQuestion, setWrittenQuestionPresentedAtById]);
 
   useEffect(() => {
+    if (!isPassageMode || !activeWrittenQuestion) {
+      return;
+    }
+
+    setPassageQuestionPresentedAtById((prev) => {
+      if (prev[activeWrittenQuestion.id]) {
+        return prev;
+      }
+      return { ...prev, [activeWrittenQuestion.id]: Date.now() };
+    });
+  }, [activeWrittenQuestion, isPassageMode, setPassageQuestionPresentedAtById]);
+
+  useEffect(() => {
     if (!activeMcQuestion) {
       return;
     }
@@ -372,6 +470,15 @@ export function GeneratorView() {
       return { ...prev, [activeMcQuestion.id]: Date.now() };
     });
   }, [activeMcQuestion, setMcQuestionPresentedAtById]);
+
+  useEffect(() => {
+    if (!hasEnglishTopic) {
+      return;
+    }
+    if (englishLanguageTaskTypes.length !== 1) {
+      setEnglishLanguageTaskTypes([englishTaskType]);
+    }
+  }, [englishLanguageTaskTypes, englishTaskType, hasEnglishTopic, setEnglishLanguageTaskTypes]);
 
   function startStopwatch() {
     setGenerationStartedAt(Date.now());
@@ -391,6 +498,11 @@ export function GeneratorView() {
     if (isAtLastWrittenQuestion) {
       setSessionFinishedAt(Date.now());
       setShowCompletionScreen(true);
+      return;
+    }
+
+    if (isPassageMode && passage) {
+      setActivePassageQuestionIndex(Math.min(passage.questions.length - 1, activePassageQuestionIndex + 1));
       return;
     }
 
@@ -501,19 +613,13 @@ export function GeneratorView() {
     setEnglishLanguageSubtopics((prev: EnglishLanguageSubtopic[]) => prev.includes(sub) ? prev.filter((s: EnglishLanguageSubtopic) => s !== sub) : [...prev, sub]);
   }
 
-  function toggleEnglishLanguageTaskType(taskType: EnglishLanguageTaskType) {
-    setEnglishLanguageTaskTypes((prev: EnglishLanguageTaskType[]) => prev.includes(taskType)
-      ? prev.filter((t: EnglishLanguageTaskType) => t !== taskType)
-      : [...prev, taskType]);
-  }
-
   function getSelectedSubtopics() {
     const selectedSubtopics: string[] = [
-      ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
-      ...(selectedTopics.includes("Specialist Mathematics") ? specialistMathSubtopics : []),
-      ...(selectedTopics.includes("Chemistry") ? chemistrySubtopics : []),
-      ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
-      ...(selectedTopics.includes("English Language") ? englishLanguageSubtopics : []),
+      ...(generatorTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
+      ...(generatorTopics.includes("Specialist Mathematics") ? specialistMathSubtopics : []),
+      ...(generatorTopics.includes("Chemistry") ? chemistrySubtopics : []),
+      ...(generatorTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
+      ...(generatorTopics.includes("English Language") ? englishLanguageSubtopics : []),
     ];
 
     return Array.from(new Set(selectedSubtopics));
@@ -660,7 +766,7 @@ export function GeneratorView() {
   }
 
   function getRecentSameTopicQuestionPrompts(mode: "written" | "multiple-choice") {
-    const selectedTopicSet = new Set(selectedTopics);
+    const selectedTopicSet = new Set<string>(generatorTopics);
     const seen = new Set<string>();
     const prompts: string[] = [];
     const maxPromptCount = 6;
@@ -694,6 +800,7 @@ export function GeneratorView() {
     const customFocus = getCustomFocusArea();
     const hasPeTopicLocal = selectedTopics.includes("Physical Education");
     const hasAnyMathTopicLocal = selectedTopics.some((topic) => isMathTopic(topic));
+    const hasEnglishTopicLocal = selectedTopics.includes("English Language");
     startStopwatch();
     setErrorMessage(null);
     setGenerationStatus({
@@ -707,7 +814,7 @@ export function GeneratorView() {
     try {
       const response = await invoke<GenerateQuestionsResponse>("generate_questions", {
         request: {
-          topics: selectedTopics,
+          topics: generatorTopics,
           difficulty,
           questionCount,
           maxMarksPerQuestion: hasAnyMathTopicLocal ? maxMarksPerQuestion : undefined,
@@ -721,7 +828,7 @@ export function GeneratorView() {
           customFocusArea: customFocus,
           avoidSimilarQuestions,
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
-          englishTaskTypes: selectedTopics.includes("English Language") ? englishLanguageTaskTypes : [],
+          englishTaskTypes: hasEnglishTopicLocal ? englishLanguageTaskTypes : undefined,
         },
       });
 
@@ -750,38 +857,118 @@ export function GeneratorView() {
     }
   }
 
-  async function handleSubmitForMarking() {
-    if (!activeQuestion || !canSubmitAnswer) return;
-    setErrorMessage(null);
-    setIsMarking(true);
+  async function handleGeneratePassage() {
+    if (!canGeneratePassage) {
+      return;
+    }
 
     try {
-      const responseEnteredAtMs = writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
-      const markStartedAt = Date.now();
-      const rawResponse = await invoke<unknown>("mark_answer", {
+      setErrorMessage(null);
+      setIsGenerating(true);
+      setGenerationStatus({
+        mode: "passage",
+        stage: "preparing",
+        message: "Preparing passage generation request.",
+        attempt: 1,
+      });
+      setGenerationStartedAt(Date.now());
+
+      const response = await invoke<GeneratePassageResponse>("generate_passage_questions", {
         request: {
-          question: activeQuestion,
-          studentAnswer: activeQuestionAnswer,
-          studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
+          aosSubtopic: passageAosSubtopic,
+          questionCount: passageQuestionCount,
           model,
           apiKey,
           useStructuredOutput,
         },
       });
 
-      const markingLatencyMs = Date.now() - markStartedAt;
-      const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
-      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
-      setMarkOverrideInputByQuestionId((prev) => ({
-        ...prev,
-        [activeQuestion.id]: String(response.achievedMarks),
-      }));
-      appendWrittenHistoryEntry(activeQuestion, response, {
-        uploadedAnswerOverride: activeQuestionAnswer,
-        attemptKind: "initial",
-        markingLatencyMs,
-        responseEnteredAtMs,
+      setPassage(response.passage);
+      setActivePassageQuestionIndex(0);
+      setPassageAnswersByQuestionId({});
+      setPassageFeedbackByQuestionId({});
+      setPassageQuestionPresentedAtById({});
+      setPassageRawModelOutput(response.rawModelOutput ?? "");
+      setPassageGenerationTelemetry(response.telemetry ?? null);
+      setShowPassageRawOutput(false);
+    } catch (error) {
+      setGenerationStatus({
+        mode: "passage",
+        stage: "failed",
+        message: "Passage generation failed.",
+        attempt: generationStatus?.attempt ?? 1,
       });
+      setErrorMessage(readBackendError(error));
+    } finally {
+      setIsGenerating(false);
+      setGenerationStartedAt(null);
+    }
+  }
+
+  function handleResetPassage() {
+    setErrorMessage(null);
+    setPassage(null);
+    setActivePassageQuestionIndex(0);
+    setPassageAnswersByQuestionId({});
+    setPassageFeedbackByQuestionId({});
+    setPassageQuestionPresentedAtById({});
+    setPassageRawModelOutput("");
+    setPassageGenerationTelemetry(null);
+    setGenerationStatus(null);
+    setGenerationStartedAt(null);
+    setShowPassageRawOutput(false);
+  }
+
+  async function handleSubmitForMarking() {
+    if (!activeWrittenQuestion || !canSubmitAnswer) return;
+    setErrorMessage(null);
+    setIsMarking(true);
+
+    try {
+      if (isPassageMode && passage) {
+        const response = await invoke<MarkAnswerResponse>("mark_passage_answer", {
+          request: {
+            passageText: passage.text,
+            aosSubtopic: passage.aosSubtopic,
+            question: activeWrittenQuestion,
+            studentAnswer: activeWrittenAnswer,
+            model,
+            apiKey,
+          },
+        });
+        setPassageFeedbackByQuestionId((prev) => ({ ...prev, [activeWrittenQuestion.id]: response }));
+        setMarkOverrideInputByQuestionId((prev) => ({
+          ...prev,
+          [activeWrittenQuestion.id]: String(response.achievedMarks),
+        }));
+      } else {
+        const responseEnteredAtMs = writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
+        const markStartedAt = Date.now();
+        const rawResponse = await invoke<unknown>("mark_answer", {
+          request: {
+            question: activeQuestion,
+            studentAnswer: activeQuestionAnswer,
+            studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
+            model,
+            apiKey,
+            useStructuredOutput,
+          },
+        });
+
+        const markingLatencyMs = Date.now() - markStartedAt;
+        const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
+        setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
+        setMarkOverrideInputByQuestionId((prev) => ({
+          ...prev,
+          [activeQuestion.id]: String(response.achievedMarks),
+        }));
+        appendWrittenHistoryEntry(activeQuestion, response, {
+          uploadedAnswerOverride: activeQuestionAnswer,
+          attemptKind: "initial",
+          markingLatencyMs,
+          responseEnteredAtMs,
+        });
+      }
     } catch (error) {
       setErrorMessage(readBackendError(error));
     } finally {
@@ -790,9 +977,9 @@ export function GeneratorView() {
   }
 
   async function handleArgueForMark() {
-    if (!activeQuestion || !activeFeedback) return;
+    if (!activeWrittenQuestion || !activeWrittenFeedback) return;
 
-    const appealText = activeMarkAppeal.trim();
+    const appealText = activeWrittenMarkAppeal.trim();
     if (appealText.length === 0) {
       setErrorMessage("Enter your argument before requesting a re-mark.");
       return;
@@ -810,36 +997,54 @@ export function GeneratorView() {
       const responseEnteredAtMs = Date.now();
       const markStartedAt = Date.now();
       const arguedAnswer = [
-        activeQuestionAnswer,
+        activeWrittenAnswer,
         `Additional marking argument from student:\n${appealText}`,
       ]
         .filter((part) => part.trim().length > 0)
         .join("\n\n");
 
-      const rawResponse = await invoke<unknown>("mark_answer", {
-        request: {
-          question: activeQuestion,
-          studentAnswer: arguedAnswer,
-          studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
-          model,
-          apiKey,
-          useStructuredOutput,
-        },
-      });
+      if (isPassageMode && passage) {
+        const response = await invoke<MarkAnswerResponse>("mark_passage_answer", {
+          request: {
+            passageText: passage.text,
+            aosSubtopic: passage.aosSubtopic,
+            question: activeWrittenQuestion,
+            studentAnswer: arguedAnswer,
+            model,
+            apiKey,
+          },
+        });
+        setPassageFeedbackByQuestionId((prev) => ({ ...prev, [activeWrittenQuestion.id]: response }));
+        setMarkOverrideInputByQuestionId((prev) => ({
+          ...prev,
+          [activeWrittenQuestion.id]: String(response.achievedMarks),
+        }));
+      } else {
+        const rawResponse = await invoke<unknown>("mark_answer", {
+          request: {
+            question: activeQuestion,
+            studentAnswer: arguedAnswer,
+            studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
+            model,
+            apiKey,
+            useStructuredOutput,
+          },
+        });
 
-      const markingLatencyMs = Date.now() - markStartedAt;
-      const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
-      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
-      setMarkOverrideInputByQuestionId((prev) => ({
-        ...prev,
-        [activeQuestion.id]: String(response.achievedMarks),
-      }));
-      appendWrittenHistoryEntry(activeQuestion, response, {
-        uploadedAnswerOverride: activeQuestionAnswer,
-        attemptKind: "appeal",
-        markingLatencyMs,
-        responseEnteredAtMs,
-      });
+        const markingLatencyMs = Date.now() - markStartedAt;
+        const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
+        setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
+        setMarkOverrideInputByQuestionId((prev) => ({
+          ...prev,
+          [activeQuestion.id]: String(response.achievedMarks),
+        }));
+        appendWrittenHistoryEntry(activeQuestion, response, {
+          uploadedAnswerOverride: activeQuestionAnswer,
+          attemptKind: "appeal",
+          markingLatencyMs,
+          responseEnteredAtMs,
+        });
+      }
     } catch (error) {
       setErrorMessage(readBackendError(error));
     } finally {
@@ -848,25 +1053,25 @@ export function GeneratorView() {
   }
 
   function handleOverrideMark() {
-    if (!activeQuestion || !activeFeedback) {
+    if (!activeWrittenQuestion || !activeWrittenFeedback) {
       return;
     }
 
-    const parsed = Number(activeOverrideInput);
+    const parsed = Number(activeWrittenOverrideInput);
     if (!Number.isFinite(parsed)) {
       setErrorMessage("Enter a whole number to override the mark.");
       return;
     }
 
     const rounded = Math.round(parsed);
-    const clampedMarks = Math.max(0, Math.min(activeFeedback.maxMarks, rounded));
+    const clampedMarks = Math.max(0, Math.min(activeWrittenFeedback.maxMarks, rounded));
 
     const updatedResponse = {
-      ...activeFeedback,
+      ...activeWrittenFeedback,
       achievedMarks: clampedMarks,
-      scoreOutOf10: Math.round((clampedMarks / activeFeedback.maxMarks) * 10),
+      scoreOutOf10: Math.round((clampedMarks / activeWrittenFeedback.maxMarks) * 10),
       verdict:
-        clampedMarks === activeFeedback.maxMarks
+        clampedMarks === activeWrittenFeedback.maxMarks
           ? "Correct"
           : clampedMarks === 0
             ? "Incorrect"
@@ -874,16 +1079,20 @@ export function GeneratorView() {
     };
 
     setErrorMessage(null);
-    setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: updatedResponse }));
+    if (isPassageMode) {
+      setPassageFeedbackByQuestionId((prev) => ({ ...prev, [activeWrittenQuestion.id]: updatedResponse }));
+    } else {
+      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: updatedResponse }));
+      appendWrittenHistoryEntry(activeQuestion, updatedResponse, {
+        uploadedAnswerOverride: activeQuestionAnswer,
+        attemptKind: "override",
+        responseEnteredAtMs: Date.now(),
+      });
+    }
     setMarkOverrideInputByQuestionId((prev) => ({
       ...prev,
-      [activeQuestion.id]: String(clampedMarks),
+      [activeWrittenQuestion.id]: String(clampedMarks),
     }));
-    appendWrittenHistoryEntry(activeQuestion, updatedResponse, {
-      uploadedAnswerOverride: activeQuestionAnswer,
-      attemptKind: "override",
-      responseEnteredAtMs: Date.now(),
-    });
   }
 
   async function handleGenerateMcQuestions() {
@@ -901,7 +1110,7 @@ export function GeneratorView() {
     try {
       const response = await invoke<GenerateMcQuestionsResponse>("generate_mc_questions", {
         request: {
-          topics: selectedTopics,
+          topics: generatorTopics,
           difficulty,
           questionCount,
           model,
@@ -940,9 +1149,8 @@ export function GeneratorView() {
     }
   }
 
-  const hasAnyMathTopic = selectedTopics.some((topic) => isMathTopic(topic));
-  const hasPeTopic = selectedTopics.includes("Physical Education");
-  const hasEnglishLanguageTopic = selectedTopics.includes("English Language");
+  const hasAnyMathTopic = generatorTopics.some((topic) => isMathTopic(topic));
+  const hasPeTopic = generatorTopics.includes("Physical Education");
   const commandTermsDisabled = !hasPeTopic;
 
   function handleMcAnswer(selectedLabel: string) {
@@ -1098,9 +1306,17 @@ export function GeneratorView() {
     setMcMarkAppealByQuestionId({});
     setMcMarkOverrideInputByQuestionId({});
     setMcAwardedMarksByQuestionId({});
+    setPassage(null);
+    setActivePassageQuestionIndex(0);
+    setPassageAnswersByQuestionId({});
+    setPassageFeedbackByQuestionId({});
+    setPassageQuestionPresentedAtById({});
+    setPassageRawModelOutput("");
+    setPassageGenerationTelemetry(null);
+    setShowPassageRawOutput(false);
   }
   async function handleDropDropzone(acceptedFiles: File[]) {
-    if (!activeQuestion || acceptedFiles.length === 0) return;
+    if (isPassageMode || !activeQuestion || acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
     try {
       const dataUrl = await fileToDataUrl(file);
@@ -1292,11 +1508,35 @@ export function GeneratorView() {
                   </div>
                 )}
 
-                {selectedTopics.includes("English Language") && (
+                {selectedTopics.includes("English Language") && questionMode === "written" && (
                   <div className="space-y-2">
                     <div>
-                      <Label className="text-sm font-semibold">English Language Unit 1-4 Areas of Study</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">Select specific study-design areas, or leave all unselected to span Units 1-4 broadly.</p>
+                      <Label className="text-sm font-semibold">English Language Task Type</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Choose between short-answer questions or text analysis with a passage.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ENGLISH_LANGUAGE_TASK_TYPES.map((taskType) => {
+                        const isSelected = englishTaskType === taskType;
+                        return (
+                          <Badge
+                            key={taskType}
+                            variant={isSelected ? "default" : "outline"}
+                            className={`cursor-pointer p-3 text-xs transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
+                            onClick={() => setEnglishLanguageTaskTypes([taskType])}
+                          >
+                            {taskType === "short-answer" ? "Short Answer" : "Text Analysis (Passage)"}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {selectedTopics.includes("English Language") && questionMode === "written" && englishTaskType === "short-answer" && (
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-sm font-semibold">English Language Focus Areas</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Select one or more Areas of Study, or leave all unselected to span the full course.</p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
@@ -1312,6 +1552,28 @@ export function GeneratorView() {
                     </div>
                   </div>
                 )}
+
+                {selectedTopics.includes("English Language") && questionMode === "written" && englishTaskType === "text-analysis" && (
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-sm font-semibold">Text Analysis Area of Study</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">Choose the Area of Study that guides the passage and question set.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ENGLISH_LANGUAGE_SUBTOPICS.map((sub) => (
+                        <Badge
+                          key={sub}
+                          variant={passageAosSubtopic === sub ? "default" : "outline"}
+                          className={`cursor-pointer p-3 text-xs transition-colors ${passageAosSubtopic === sub ? "shadow-md" : "hover:bg-primary/10"}`}
+                          onClick={() => setPassageAosSubtopic(sub)}
+                        >
+                          {sub}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
 
@@ -1380,13 +1642,23 @@ export function GeneratorView() {
                 </div>
               </div>
 
-              <div className="space-y-1.5 pt-1">
-                <div className="flex justify-between items-center">
-                  <Label className="text-sm font-semibold">Question Count</Label>
-                  <Badge variant="secondary" className="px-2 py-0.5 text-xs">{questionCount}</Badge>
+              {isPassageMode ? (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-semibold">Passage Question Count</Label>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{passageQuestionCount}</Badge>
+                  </div>
+                  <Slider min={3} max={10} step={1} value={[passageQuestionCount]} onValueChange={(val) => setPassageQuestionCount(val[0])} className="py-1" />
                 </div>
-                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-1" />
-              </div>
+              ) : (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm font-semibold">Question Count</Label>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{questionCount}</Badge>
+                  </div>
+                  <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => setQuestionCount(val[0])} className="py-1" />
+                </div>
+              )}
 
               {questionMode === "written" && hasAnyMathTopic && (
                 <div className="space-y-1.5 pt-1">
@@ -1435,33 +1707,6 @@ export function GeneratorView() {
                 </div>
               )}
 
-              {questionMode === "written" && hasEnglishLanguageTopic && (
-                <div className="space-y-1.5 pt-1 md:col-span-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-sm font-semibold">English Language Task Types</Label>
-                    <Badge variant="secondary" className="px-2 py-0.5 text-xs">{englishLanguageTaskTypes.length} Selected</Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ENGLISH_LANGUAGE_TASK_TYPES.map((taskType) => {
-                      const isSelected = englishLanguageTaskTypes.includes(taskType);
-                      return (
-                        <Badge
-                          key={taskType}
-                          variant={isSelected ? "default" : "outline"}
-                          className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
-                          onClick={() => toggleEnglishLanguageTaskType(taskType)}
-                        >
-                          {taskType === "short-answer" ? "Short Answer" : "Analytical Essay"}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Select one or both SAC sections. At least one task type is required when English Language is selected.
-                  </p>
-                </div>
-              )}
-
               <div className="space-y-1.5 md:col-span-2">
                 <Label className="text-sm font-semibold">Variation Guardrail</Label>
                 <Button
@@ -1496,13 +1741,13 @@ export function GeneratorView() {
             <Button
               size="lg"
               className={`w-full h-12 text-base font-bold transition-all duration-300 ${isGenerating ? 'opacity-90' : 'hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/25 bg-linear-to-r from-primary to-primary/90'}`}
-              onClick={questionMode === "written" ? handleGenerateQuestions : handleGenerateMcQuestions}
-              disabled={questionMode === "written" ? !canGenerate : !canGenerateMc}
+              onClick={questionMode === "written" ? (isPassageMode ? handleGeneratePassage : handleGenerateQuestions) : handleGenerateMcQuestions}
+              disabled={questionMode === "written" ? (isPassageMode ? !canGeneratePassage : !canGenerate) : !canGenerateMc}
             >
               {isGenerating ? (
                 <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Crafting Questions...</>
               ) : (
-                <><Sparkles className="w-4 h-4 mr-2" /> Generate Revision Set</>
+                <><Sparkles className="w-4 h-4 mr-2" /> {isPassageMode ? "Generate Passage" : "Generate Revision Set"}</>
               )}
             </Button>
             {isGenerating && generationStartedAt !== null && (
@@ -1557,7 +1802,7 @@ export function GeneratorView() {
 
             <div className="flex flex-wrap gap-2 text-sm">
               <Badge variant="secondary">{questionMode === "written" ? "Written Answer" : "Multiple Choice"}</Badge>
-              <Badge variant="outline">{questionMode === "written" ? `${completedCount}/${questions.length}` : `${mcCompletedCount}/${mcQuestions.length}`} completed</Badge>
+              <Badge variant="outline">{questionMode === "written" ? `${writtenCompletedCount}/${writtenTotalQuestions}` : `${mcCompletedCount}/${mcQuestions.length}`} completed</Badge>
             </div>
           </CardContent>
 
@@ -1570,9 +1815,11 @@ export function GeneratorView() {
             >
               Review Questions
             </Button>
-            <Button variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
-              {questionMode === "written" ? (activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later") : (activeMcSavedSetId ? "Update Saved Set" : "Save for Later")}
-            </Button>
+            {!isPassageMode && (
+              <Button variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
+                {questionMode === "written" ? (activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later") : (activeMcSavedSetId ? "Update Saved Set" : "Save for Later")}
+              </Button>
+            )}
             <Button onClick={handleStartOver}>Start New Set</Button>
           </CardFooter>
         </Card>
@@ -1586,21 +1833,34 @@ export function GeneratorView() {
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <div className="flex items-baseline gap-1.5 shrink-0">
                   <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-                    Question {activeQuestionIndex + 1}
+                    Question {writtenCurrentIndex + 1}
                   </h2>
-                  <span className="text-sm text-muted-foreground font-medium">/ {questions.length}</span>
+                  <span className="text-sm text-muted-foreground font-medium">/ {writtenTotalQuestions}</span>
                 </div>
 
-                <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
-                  {activeQuestion?.topic}
-                </Badge>
-                <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>
-                  Difficulty: {difficulty}
-                </Badge>
+                {isPassageMode && passage ? (
+                  <>
+                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
+                      English Language
+                    </Badge>
+                    <Badge variant="outline" className="shrink-0 font-semibold">
+                      {passage.aosSubtopic}
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
+                      {activeQuestion?.topic}
+                    </Badge>
+                    <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>
+                      Difficulty: {difficulty}
+                    </Badge>
+                  </>
+                )}
                 <Badge variant="outline" className="shrink-0 font-semibold">
-                  {activeQuestion?.maxMarks} marks
+                  {activeWrittenQuestion?.maxMarks} marks
                 </Badge>
-                {activeQuestion && isMathTopic(activeQuestion.topic) && activeQuestion.techAllowed !== undefined && (
+                {!isPassageMode && activeQuestion && isMathTopic(activeQuestion.topic) && activeQuestion.techAllowed !== undefined && (
                   <Badge
                     variant={activeQuestion.techAllowed ? "default" : "destructive"}
                     className="shrink-0"
@@ -1630,22 +1890,22 @@ export function GeneratorView() {
                           <span className="font-mono text-background">{formattedElapsedTime}</span>
                         </div>
                       )}
-                      {writtenGenerationTelemetry && (
+                      {activeWrittenTelemetry && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
                           <span>Generation time</span>
-                          <span className="text-background">{formatDurationMs(writtenGenerationTelemetry.durationMs)}</span>
+                          <span className="text-background">{formatDurationMs(activeWrittenTelemetry.durationMs)}</span>
                         </div>
                       )}
-                      {writtenGenerationTelemetry && (writtenGenerationTelemetry.totalAttempts ?? 0) > 1 && (
+                      {activeWrittenTelemetry && (activeWrittenTelemetry.totalAttempts ?? 0) > 1 && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
                           <span>Attempts</span>
                           <span className="text-right text-background">
-                            {(writtenGenerationTelemetry.totalAttempts ?? 0)} total, {(writtenGenerationTelemetry.repairAttempts ?? 0)} repair
+                            {(activeWrittenTelemetry.totalAttempts ?? 0)} total, {(activeWrittenTelemetry.repairAttempts ?? 0)} repair
                           </span>
                         </div>
                       )}
                       {Boolean(
-                        (writtenGenerationTelemetry as { constrainedRegenerationUsed?: boolean } | null)
+                        (activeWrittenTelemetry as { constrainedRegenerationUsed?: boolean } | null)
                           ?.constrainedRegenerationUsed,
                       ) && (
                           <div className="flex items-center justify-between gap-3 text-background/80">
@@ -1653,44 +1913,58 @@ export function GeneratorView() {
                             <span className="text-red-300">Full regeneration used</span>
                           </div>
                         )}
-                      {writtenGenerationTelemetry?.structuredOutputStatus === "used" && (
+                      {activeWrittenTelemetry?.structuredOutputStatus === "used" && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
                           <span>Structured output</span>
                           <span className="text-emerald-300">JSON used</span>
                         </div>
                       )}
-                      {writtenGenerationTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
+                      {activeWrittenTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
                           <span>Structured output</span>
                           <span className="text-amber-300">Fallback used</span>
                         </div>
                       )}
-                      {generationStartedAt === null && !writtenGenerationTelemetry && (
+                      {generationStartedAt === null && !activeWrittenTelemetry && (
                         <div className="text-background/80">No extra generation diagnostics.</div>
                       )}
                     </div>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <Button
-                variant={activeWrittenSavedSetId ? "default" : "outline"}
-                size="sm"
-                onClick={saveCurrentSet}
-                className="h-8 gap-1.5"
-              >
-                <Bookmark className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleCancelWrittenQuestion}
-                disabled={questions.length === 0}
-                className="h-8"
-              >
-                <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Delete</span>
-              </Button>
+              {!isPassageMode && (
+                <Button
+                  variant={activeWrittenSavedSetId ? "default" : "outline"}
+                  size="sm"
+                  onClick={saveCurrentSet}
+                  className="h-8 gap-1.5"
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
+                </Button>
+              )}
+              {isPassageMode ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetPassage}
+                  className="h-8"
+                >
+                  <RefreshCcw className="w-3.5 h-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">New Passage</span>
+                </Button>
+              ) : (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleCancelWrittenQuestion}
+                  disabled={questions.length === 0}
+                  className="h-8"
+                >
+                  <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Delete</span>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -1702,8 +1976,14 @@ export function GeneratorView() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))}
-                disabled={activeQuestionIndex === 0}
+                onClick={() => {
+                  if (isPassageMode && passage) {
+                    setActivePassageQuestionIndex(Math.max(0, activePassageQuestionIndex - 1));
+                    return;
+                  }
+                  setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1));
+                }}
+                disabled={isPassageMode ? activePassageQuestionIndex === 0 : activeQuestionIndex === 0}
                 className="h-8"
               >
                 <ArrowLeft className="w-3.5 h-3.5 sm:mr-1.5" />
@@ -1722,17 +2002,61 @@ export function GeneratorView() {
             </div>
 
             <div className="w-full">
-              {renderProgressBar(activeQuestionIndex + 1, questions.length, completedCount)}
+              {renderProgressBar(writtenCurrentIndex + 1, writtenTotalQuestions, writtenCompletedCount)}
             </div>
           </div>
 
-          {activeQuestion && (
-            <div className="flex flex-col space-y-2">
+          {activeWrittenQuestion && (
+            <div className={isPassageMode ? "grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]" : "flex flex-col space-y-2"}>
+              {isPassageMode && passage ? (
+                <div className="space-y-3 lg:sticky lg:top-24">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="flex items-center gap-2 text-xl"><BookText className="w-5 h-5 text-primary" /> Passage</CardTitle>
+                        {canShowPassageRawOutput && (
+                          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowPassageRawOutput((prev) => !prev)}>
+                            <Bug className="h-4 w-4" />
+                            {showPassageRawOutput ? "Hide Raw Output" : "Show Raw Output"}
+                          </Button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="w-full rounded-xl border border-border/70 bg-muted/10">
+                        <div className="flex flex-col py-4 font-medium leading-[1.8] text-foreground">
+                          {activeLineItems.map((line) => (
+                            <div key={line.lineNumber} className="group flex flex-row px-4 transition-colors hover:bg-muted/30">
+                              <span className="flex w-10 shrink-0 select-none items-center justify-end border-r-2 border-border/40 pr-3 text-xs text-muted-foreground/60 transition-colors group-hover:border-border/80 group-hover:text-muted-foreground/80">
+                                {line.lineNumber}
+                              </span>
+                              <span className="whitespace-pre-wrap pl-4">{line.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                  {showPassageRawOutput && canShowPassageRawOutput && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm font-semibold">Raw Model Output</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap wrap-break-word rounded-lg bg-muted/30 p-3 text-xs">
+                          {passageRawModelOutput}
+                        </pre>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : null}
+              <div className="flex flex-col space-y-2">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
-                    {canShowWrittenRawOutput && (
+                    {!isPassageMode && canShowWrittenRawOutput && (
                       <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowWrittenRawOutput((prev) => !prev)}>
                         <Bug className="h-4 w-4" />
                         {showWrittenRawOutput ? "Hide Raw Output" : "Show Raw Output"}
@@ -1742,9 +2066,9 @@ export function GeneratorView() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="prose prose-slate dark:prose-invert max-w-none">
-                    <MarkdownMath content={activeQuestion.promptMarkdown} />
+                    <MarkdownMath content={activeWrittenQuestion.promptMarkdown} />
                   </div>
-                  {showWrittenRawOutput && canShowWrittenRawOutput && (
+                  {!isPassageMode && showWrittenRawOutput && canShowWrittenRawOutput && (
                     <div className="space-y-2">
                       <Separator />
                       <div>
@@ -1763,16 +2087,20 @@ export function GeneratorView() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 flex-1 flex flex-col">
-                  {!activeFeedback ? (
+                  {!activeWrittenFeedback ? (
                     <div className="flex-1 flex flex-col gap-6">
                       <div className="space-y-3 flex-1">
                         <Label className="text-base font-semibold">Type your answer</Label>
                         <Textarea
-                          placeholder="Compose your response here..."
+                          placeholder={isPassageMode ? "Write a concise response with line references..." : "Compose your response here..."}
                           className="min-h-[200px] resize-y text-base p-4 focus-visible:ring-primary/30"
-                          value={activeQuestionAnswer}
+                          value={activeWrittenAnswer}
                           onChange={(e) => {
                             const nextValue = e.target.value;
+                            if (isPassageMode && activeWrittenQuestion) {
+                              setPassageAnswersByQuestionId((prev) => ({ ...prev, [activeWrittenQuestion.id]: nextValue }));
+                              return;
+                            }
                             setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: nextValue }));
                             if (nextValue.trim().length === 0) {
                               return;
@@ -1789,23 +2117,25 @@ export function GeneratorView() {
                         />
                       </div>
 
-                      <div className="space-y-3">
-                        <Label className="text-base font-semibold">Or upload working (Image)</Label>
-                        {activeQuestionImage ? (
-                          <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm bg-muted/30 p-2">
-                            <img src={activeQuestionImage.dataUrl} alt="Uploaded text" className="w-full h-auto max-h-80 object-contain rounded-lg" />
-                            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                              <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
-                                <Trash2 className="w-4 h-4 mr-2" /> Remove Image
-                              </Button>
+                      {!isPassageMode && (
+                        <div className="space-y-3">
+                          <Label className="text-base font-semibold">Or upload working (Image)</Label>
+                          {activeQuestionImage ? (
+                            <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm bg-muted/30 p-2">
+                              <img src={activeQuestionImage.dataUrl} alt="Uploaded text" className="w-full h-auto max-h-80 object-contain rounded-lg" />
+                              <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+                                <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
+                                  <Trash2 className="w-4 h-4 mr-2" /> Remove Image
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="border-2 border-dashed border-border rounded-xl hover:bg-muted/30 transition-colors">
-                            <Dropzone onDrop={handleDropDropzone} />
-                          </div>
-                        )}
-                      </div>
+                          ) : (
+                            <div className="border-2 border-dashed border-border rounded-xl hover:bg-muted/30 transition-colors">
+                              <Dropzone onDrop={handleDropDropzone} />
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <Button
                         size="lg"
@@ -1820,9 +2150,9 @@ export function GeneratorView() {
                     <div className="space-y-2 animate-in slide-in-from-right-4 duration-500">
                       <div className="space-y-4">
                         <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Submitted Answer</Label>
-                        {activeQuestionAnswer.trim().length > 0 ? (
+                        {activeWrittenAnswer.trim().length > 0 ? (
                           <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
-                            <MarkdownMath content={activeQuestionAnswer} />
+                            <MarkdownMath content={activeWrittenAnswer} />
                           </div>
                         ) : (
                           <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
@@ -1830,7 +2160,7 @@ export function GeneratorView() {
                           </div>
                         )}
 
-                        {activeQuestionImage && (
+                        {!isPassageMode && activeQuestionImage && (
                           <div className="space-y-3">
                             <Label className="text-base font-semibold">Uploaded working</Label>
                             <div className="rounded-xl border border-border/50 bg-muted/20 p-3 shadow-sm">
@@ -1847,11 +2177,11 @@ export function GeneratorView() {
                         </div>
                         <div className="relative z-10">
                           <div className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Total Score</div>
-                          <div className="text-5xl font-extrabold text-foreground">{activeFeedback.scoreOutOf10}<span className="ml-1 text-2xl text-muted-foreground font-medium">/ 10</span></div>
+                          <div className="text-5xl font-extrabold text-foreground">{activeWrittenFeedback.scoreOutOf10}<span className="ml-1 text-2xl text-muted-foreground font-medium">/ 10</span></div>
                         </div>
                         <div className="text-right relative z-10 bg-background/80 backdrop-blur px-4 py-2 rounded-xl border">
                           <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Marks Awarded</div>
-                          <div className="text-2xl font-bold">{activeFeedback.achievedMarks} <span className="text-base text-muted-foreground font-normal">/ {activeFeedback.maxMarks}</span></div>
+                          <div className="text-2xl font-bold">{activeWrittenFeedback.achievedMarks} <span className="text-base text-muted-foreground font-normal">/ {activeWrittenFeedback.maxMarks}</span></div>
                         </div>
                       </div>
 
@@ -1861,11 +2191,11 @@ export function GeneratorView() {
                           <Textarea
                             placeholder="Explain why your response deserves additional marks..."
                             className="min-h-[96px]"
-                            value={activeMarkAppeal}
+                            value={activeWrittenMarkAppeal}
                             onChange={(e) =>
                               setMarkAppealByQuestionId((prev) => ({
                                 ...prev,
-                                [activeQuestion.id]: e.target.value,
+                                [activeWrittenQuestion.id]: e.target.value,
                               }))
                             }
                             disabled={isMarking}
@@ -1874,7 +2204,7 @@ export function GeneratorView() {
                             type="button"
                             variant="outline"
                             onClick={handleArgueForMark}
-                            disabled={isMarking || activeMarkAppeal.trim().length === 0}
+                            disabled={isMarking || activeWrittenMarkAppeal.trim().length === 0}
                           >
                             {isMarking ? (
                               <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Re-marking...</>
@@ -1892,18 +2222,18 @@ export function GeneratorView() {
                             <Input
                               type="number"
                               min={0}
-                              max={activeFeedback.maxMarks}
+                              max={activeWrittenFeedback.maxMarks}
                               step={1}
                               className="sm:max-w-28"
-                              value={activeOverrideInput}
+                              value={activeWrittenOverrideInput}
                               onChange={(e) =>
                                 setMarkOverrideInputByQuestionId((prev) => ({
                                   ...prev,
-                                  [activeQuestion.id]: e.target.value,
+                                  [activeWrittenQuestion.id]: e.target.value,
                                 }))
                               }
                             />
-                            <span className="text-sm text-muted-foreground">out of {activeFeedback.maxMarks}</span>
+                            <span className="text-sm text-muted-foreground">out of {activeWrittenFeedback.maxMarks}</span>
                             <Button type="button" onClick={handleOverrideMark}>Apply Override</Button>
                           </div>
                         </div>
@@ -1912,14 +2242,14 @@ export function GeneratorView() {
                       <div className="space-y-4">
                         <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-500" /> AI Feedback</Label>
                         <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
-                          <MarkdownMath content={activeFeedback.feedbackMarkdown} />
+                          <MarkdownMath content={activeWrittenFeedback.feedbackMarkdown} />
                         </div>
                       </div>
 
                       <div className="space-y-4">
                         <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Check className="w-5 h-5 text-green-500" /> Marking Scheme</Label>
                         <div className="space-y-3 mt-2">
-                          {activeFeedback.vcaaMarkingScheme.map((item: { criterion: string; achievedMarks: number; maxMarks: number; rationale: string }, idx: number) => {
+                          {activeWrittenFeedback.vcaaMarkingScheme.map((item: { criterion: string; achievedMarks: number; maxMarks: number; rationale: string }, idx: number) => {
                             const isFullMarks = item.achievedMarks === item.maxMarks;
                             return (
                               <div key={idx} className={`p-4 rounded-xl border text-sm flex justify-between gap-6 transition-colors ${isFullMarks ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" : "bg-card"}`}>
@@ -1944,6 +2274,7 @@ export function GeneratorView() {
                   )}
                 </CardContent>
               </Card>
+            </div>
             </div>
           )}
         </div>

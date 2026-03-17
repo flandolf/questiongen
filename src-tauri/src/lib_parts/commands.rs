@@ -103,25 +103,53 @@ async fn generate_questions(
     let started = Instant::now();
     emit_generation_status(&app, "written", "generating", "Generating questions...", 1);
 
-    let difficulty_rules = difficulty_guidance(&request.difficulty);
-    let tech_note = match request.tech_mode.as_deref().unwrap_or("mix") {
-        "tech-free" => "All questions must be tech-free. Set \"techAllowed\": false.",
-        "tech-active" => "All questions must be tech-active. Set \"techAllowed\": true.",
-        _ => "Mix of tech-free and tech-active. Set \"techAllowed\" per question.",
+    let includes_english = includes_english_language(&request.topics);
+    let difficulty_rules = if includes_english {
+        "Target the specific linguistic concepts, discourse features, and analytical depth expected in VCE English Language at this difficulty level."
+    } else {
+        difficulty_guidance(&request.difficulty)
+    };
+
+    let tech_note = if includes_english {
+        "Set \"techAllowed\": false."
+    } else {
+        match request.tech_mode.as_deref().unwrap_or("mix") {
+            "tech-free" => "All questions must be tech-free. Set \"techAllowed\": false.",
+            "tech-active" => "All questions must be tech-active. Set \"techAllowed\": true.",
+            _ => "Mix of tech-free and tech-active. Set \"techAllowed\" per question.",
+        }
+    };
+    let custom_focus_note = request
+        .custom_focus_area
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("Custom focus area: {value}\n"))
+        .unwrap_or_default();
+
+    let english_task_types_note = if includes_english {
+        let selected_types =
+            normalize_english_task_types(request.english_task_types.as_deref()).join(" or ");
+        format!("Task type requested: {}\nCRITICAL: This is an English Language task. DO NOT generate ANY mathematics, physics, or quantitative questions. DO NOT use LaTeX for anything.", selected_types)
+    } else {
+        String::new()
     };
 
     let user_prompt = format!(
         "Create exactly {count} VCE written-response questions for: {topics}.\n\
         Difficulty: {difficulty}\n\
+        {custom_focus_note}\
+        {english_task_types_note}\n\
         Rules:\n{difficulty_rules}\n{tech_note}\n\
         Constraints:\n\
         - Return ONLY JSON matching: {contract}\n\
         - Assign maxMarks between 1 and {max_marks_cap}.\n\
-        - Use LaTeX: $...$ for inline, $$...$$ for block.\n\
-        - No prose or markdown fences.",
+        - Use LaTeX: $...$ for inline, $$...$$ for block.\n",
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
+        custom_focus_note = custom_focus_note,
+        english_task_types_note = english_task_types_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
         max_marks_cap = request.max_marks_per_question.unwrap_or(30),
@@ -137,21 +165,27 @@ async fn generate_questions(
         "You are an expert VCE exam writer. Provide JSON only.",
         user_content,
         response_format.as_ref(),
-    ).await?;
+    )
+    .await?;
 
-    let payload = parse_json_object(&result.content)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response."))?;
+    let payload = parse_json_object(&result.content).ok_or_else(|| {
+        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
+    })?;
 
-    let mut parsed: GenerateQuestionsResponse = serde_json::from_str(&payload)
-        .or_else(|_| {
-            let val: serde_json::Value = serde_json::from_str(&payload).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
-            let normalized = normalize_questions_envelope(val).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
-            serde_json::from_value(normalized).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))
-        })?;
+    let mut parsed: GenerateQuestionsResponse = serde_json::from_str(&payload).or_else(|_| {
+        let val: serde_json::Value = serde_json::from_str(&payload)
+            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
+        let normalized =
+            normalize_questions_envelope(val).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
+        serde_json::from_value(normalized)
+            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))
+    })?;
 
     // Perform necessary normalization
-    let selected_english_task_types = normalize_english_task_types(request.english_task_types.as_deref());
-    let prioritized_command_terms = normalize_prioritized_command_terms(request.prioritized_command_terms.as_deref());
+    let selected_english_task_types =
+        normalize_english_task_types(request.english_task_types.as_deref());
+    let prioritized_command_terms =
+        normalize_prioritized_command_terms(request.prioritized_command_terms.as_deref());
 
     normalize_written_questions(
         &mut parsed.questions,
@@ -162,10 +196,23 @@ async fn generate_questions(
     );
 
     if parsed.questions.len() != request.question_count {
-        return Err(AppError::new("MODEL_ERROR", format!("Expected {} questions, got {}.", request.question_count, parsed.questions.len())));
+        return Err(AppError::new(
+            "MODEL_ERROR",
+            format!(
+                "Expected {} questions, got {}.",
+                request.question_count,
+                parsed.questions.len()
+            ),
+        ));
     }
 
-    emit_generation_status(&app, "written", "completed", format!("Finished in {}ms", started.elapsed().as_millis()), 1);
+    emit_generation_status(
+        &app,
+        "written",
+        "completed",
+        format!("Finished in {}ms", started.elapsed().as_millis()),
+        1,
+    );
 
     Ok(GenerateQuestionsResponse {
         questions: parsed.questions,
@@ -188,7 +235,7 @@ async fn generate_questions(
 async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
     validate_mark_request(&request)?;
     let normalized_answer = normalize_student_answer_for_marking(&request.student_answer);
-    
+
     let user_prompt = format!(
         "Mark this VCE {topic} question ({max_marks} marks).\n\
         Question:\n{question}\n\n\
@@ -204,7 +251,10 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         contract = MARK_ANSWER_JSON_CONTRACT
     );
 
-    let user_content = build_mark_answer_user_content(&user_prompt, request.student_answer_image_data_url.as_deref())?;
+    let user_content = build_mark_answer_user_content(
+        &user_prompt,
+        request.student_answer_image_data_url.as_deref(),
+    )?;
     let response_format = Some(mark_answer_response_format());
 
     let result = call_openrouter(
@@ -213,14 +263,16 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         "You are a strict VCE marker. Provide JSON only.",
         user_content,
         response_format.as_ref(),
-    ).await?;
+    )
+    .await?;
 
-    let payload = parse_json_object(&result.content)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response."))?;
+    let payload = parse_json_object(&result.content).ok_or_else(|| {
+        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
+    })?;
 
     let mut parsed: MarkAnswerResponse = serde_json::from_str(&payload)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
-    
+
     // Quick normalization
     parsed.max_marks = request.question.max_marks;
     parsed.achieved_marks = u8::min(parsed.achieved_marks, parsed.max_marks);
@@ -236,11 +288,17 @@ async fn generate_passage_questions(
 ) -> CommandResult<GeneratePassageResponse> {
     validate_passage_generate_request(&request)?;
     let started = Instant::now();
-    emit_generation_status(&app, "passage", "generating", "Generating English Language passage...", 1);
+    emit_generation_status(
+        &app,
+        "passage",
+        "generating",
+        "Generating English Language passage...",
+        1,
+    );
 
     let instruction_note = english_language_passage_instruction(&request.aos_subtopic);
     let selected_text_type = pick_passage_text_type();
-    
+
     let user_prompt = format!(
         "Create one English Language stimulus passage for: {aos_subtopic}.\n\
         Text type: {text_type}\n\
@@ -265,17 +323,31 @@ async fn generate_passage_questions(
         "You are an expert VCE English Language SAC writer. Provide JSON only.",
         serde_json::Value::String(user_prompt),
         response_format.as_ref(),
-    ).await?;
+    )
+    .await?;
 
-    let payload = parse_json_object(&result.content)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response."))?;
+    let payload = parse_json_object(&result.content).ok_or_else(|| {
+        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
+    })?;
 
-    let mut parsed: GeneratePassageResponse = serde_json::from_str(&payload)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
+    let mut parsed: GeneratePassageResponse = serde_json::from_str(&payload).or_else(|_| {
+        let val: serde_json::Value = serde_json::from_str(&payload)
+            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
+        let normalized =
+            normalize_passage_envelope(val).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
+        serde_json::from_value(normalized)
+            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))
+    })?;
 
     normalize_generated_passage(&mut parsed.passage, &request.aos_subtopic);
 
-    emit_generation_status(&app, "passage", "completed", format!("Finished in {}ms", started.elapsed().as_millis()), 1);
+    emit_generation_status(
+        &app,
+        "passage",
+        "completed",
+        format!("Finished in {}ms", started.elapsed().as_millis()),
+        1,
+    );
 
     Ok(GeneratePassageResponse {
         passage: parsed.passage,
@@ -295,7 +367,9 @@ async fn generate_passage_questions(
 }
 
 #[tauri::command]
-async fn mark_passage_answer(request: MarkPassageAnswerRequest) -> CommandResult<MarkAnswerResponse> {
+async fn mark_passage_answer(
+    request: MarkPassageAnswerRequest,
+) -> CommandResult<MarkAnswerResponse> {
     validate_passage_mark_request(&request)?;
     let normalized_answer = normalize_student_answer_for_marking(&request.student_answer);
 
@@ -320,14 +394,16 @@ async fn mark_passage_answer(request: MarkPassageAnswerRequest) -> CommandResult
         "You are a strict English Language marker. Provide JSON only.",
         serde_json::Value::String(user_prompt),
         Some(&mark_answer_response_format()),
-    ).await?;
+    )
+    .await?;
 
-    let payload = parse_json_object(&result.content)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response."))?;
+    let payload = parse_json_object(&result.content).ok_or_else(|| {
+        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
+    })?;
 
     let mut parsed: MarkAnswerResponse = serde_json::from_str(&payload)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
-    
+
     parsed.max_marks = request.question.max_marks;
     parsed.achieved_marks = u8::min(parsed.achieved_marks, parsed.max_marks);
     parsed.score_out_of_10 = u8::min(parsed.score_out_of_10, 10);
@@ -362,7 +438,10 @@ fn normalize_student_answer_for_marking(answer: &str) -> String {
 #[tauri::command]
 async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeImageResponse> {
     if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "OpenRouter API key is required.",
+        ));
     }
 
     if request.model.trim().is_empty() {
@@ -408,7 +487,10 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
 
 fn validate_generate_request(request: &GenerateQuestionsRequest) -> CommandResult<()> {
     if request.topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
     }
 
     if request.question_count == 0 || request.question_count > 20 {
@@ -419,7 +501,10 @@ fn validate_generate_request(request: &GenerateQuestionsRequest) -> CommandResul
     }
 
     if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "OpenRouter API key is required.",
+        ));
     }
 
     if request.model.trim().is_empty() {
@@ -445,7 +530,10 @@ fn validate_mark_request(request: &MarkAnswerRequest) -> CommandResult<()> {
     }
 
     if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "OpenRouter API key is required.",
+        ));
     }
 
     if request.model.trim().is_empty() {
@@ -462,9 +550,14 @@ fn validate_mark_request(request: &MarkAnswerRequest) -> CommandResult<()> {
     Ok(())
 }
 
-fn validate_passage_generate_request(request: &GeneratePassageQuestionsRequest) -> CommandResult<()> {
+fn validate_passage_generate_request(
+    request: &GeneratePassageQuestionsRequest,
+) -> CommandResult<()> {
     if request.aos_subtopic.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Choose an Area of Study."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Choose an Area of Study.",
+        ));
     }
 
     if request.question_count < 3 || request.question_count > 10 {
@@ -475,7 +568,10 @@ fn validate_passage_generate_request(request: &GeneratePassageQuestionsRequest) 
     }
 
     if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "OpenRouter API key is required.",
+        ));
     }
 
     if request.model.trim().is_empty() {
@@ -487,11 +583,17 @@ fn validate_passage_generate_request(request: &GeneratePassageQuestionsRequest) 
 
 fn validate_passage_mark_request(request: &MarkPassageAnswerRequest) -> CommandResult<()> {
     if request.passage_text.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Passage text is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Passage text is required.",
+        ));
     }
 
     if request.question.prompt_markdown.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Question prompt is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Question prompt is required.",
+        ));
     }
 
     if request.student_answer.trim().is_empty() {
@@ -502,7 +604,10 @@ fn validate_passage_mark_request(request: &MarkPassageAnswerRequest) -> CommandR
     }
 
     if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "OpenRouter API key is required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "OpenRouter API key is required.",
+        ));
     }
 
     if request.model.trim().is_empty() {
@@ -697,13 +802,14 @@ fn is_structured_output_unsupported_response(status: reqwest::StatusCode, body: 
     }
 
     let normalized = body.to_ascii_lowercase();
-    (normalized.contains("response_format") || normalized.contains("json_schema") || normalized.contains("structured"))
+    (normalized.contains("response_format")
+        || normalized.contains("json_schema")
+        || normalized.contains("structured"))
         && (normalized.contains("not support")
             || normalized.contains("unsupported")
             || normalized.contains("not available")
             || normalized.contains("invalid"))
 }
-
 
 async fn call_openrouter(
     api_key: &str,
@@ -762,7 +868,10 @@ async fn call_openrouter_with_plugins(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
 
         if response_format.is_some() && is_structured_output_unsupported_response(status, &body) {
             let mut fallback_request_body = request_body.clone();
@@ -791,10 +900,9 @@ async fn call_openrouter_with_plugins(
                 ));
             }
 
-            let parsed: OpenRouterResponse = fallback_response
-                .json()
-                .await
-                .map_err(|err| AppError::new("NETWORK_ERROR", format!("Invalid API response: {err}")))?;
+            let parsed: OpenRouterResponse = fallback_response.json().await.map_err(|err| {
+                AppError::new("NETWORK_ERROR", format!("Invalid API response: {err}"))
+            })?;
 
             let content = parsed
                 .choices
@@ -802,9 +910,7 @@ async fn call_openrouter_with_plugins(
                 .map(|c| c.message.content.clone())
                 .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
 
-            return Ok(OpenRouterCallResult {
-                content,
-            });
+            return Ok(OpenRouterCallResult { content });
         }
 
         return Err(AppError::new(
@@ -824,16 +930,17 @@ async fn call_openrouter_with_plugins(
         .map(|c| c.message.content.clone())
         .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
 
-    Ok(OpenRouterCallResult {
-        content,
-    })
+    Ok(OpenRouterCallResult { content })
 }
 
 fn build_mark_answer_user_content(
     text: &str,
     image_data_url: Option<&str>,
 ) -> CommandResult<serde_json::Value> {
-    let Some(image_data_url) = image_data_url.map(str::trim).filter(|value| !value.is_empty()) else {
+    let Some(image_data_url) = image_data_url
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
         return Ok(serde_json::Value::String(text.to_string()));
     };
 
@@ -906,9 +1013,11 @@ fn encode_image_file_to_data_url(image_path: &str) -> CommandResult<String> {
 }
 
 fn includes_mathematical_methods(topics: &[String]) -> bool {
-    topics
-        .iter()
-        .any(|topic| topic.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC))
+    topics.iter().any(|topic| {
+        topic
+            .trim()
+            .eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)
+    })
 }
 
 fn includes_physical_education(topics: &[String]) -> bool {
@@ -916,9 +1025,6 @@ fn includes_physical_education(topics: &[String]) -> bool {
         .iter()
         .any(|topic| topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC))
 }
-
-
-
 
 fn is_english_language_topic(topic: &str) -> bool {
     topic.trim().eq_ignore_ascii_case(ENGLISH_LANGUAGE_TOPIC)
@@ -948,9 +1054,6 @@ fn normalize_english_task_types(raw_types: Option<&[String]>) -> Vec<&'static st
         selected
     }
 }
-
-
-
 
 fn infer_image_mime(path: &Path) -> Option<&'static str> {
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();

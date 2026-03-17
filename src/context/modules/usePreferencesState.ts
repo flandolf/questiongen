@@ -66,6 +66,9 @@ export function usePreferencesState() {
   const [subtopicInstructions, setSubtopicInstructions] = useState<Record<string, string>>(
     EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
   );
+  const [customFocusArea, setCustomFocusArea] = useState(
+    EMPTY_PERSISTED_APP_STATE.preferences.customFocusArea,
+  );
 
   return {
     selectedTopics,
@@ -102,5 +105,7 @@ export function usePreferencesState() {
     setQuestionMode,
     subtopicInstructions,
     setSubtopicInstructions,
+    customFocusArea,
+    setCustomFocusArea,
   };
 }

@@ -8,6 +8,8 @@ struct GenerateMcQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    #[serde(default)]
+    custom_focus_area: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -64,10 +66,18 @@ async fn generate_mc_questions(
         "tech-active" => "All questions must be tech-active. Set \"techAllowed\": true.",
         _ => "Mix of tech-free and tech-active. Set \"techAllowed\" per question.",
     };
+    let custom_focus_note = request
+        .custom_focus_area
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("Custom focus area: {value}\n"))
+        .unwrap_or_default();
 
     let user_prompt = format!(
         "Create exactly {count} VCE multiple-choice questions (4 options: A, B, C, D) for: {topics}.\n\
         Difficulty: {difficulty}\n\
+        {custom_focus_note}\
         Rules:\n{difficulty_rules}\n{tech_note}\n\
         Constraints:\n\
         - Return ONLY JSON matching: {contract}\n\
@@ -77,6 +87,7 @@ async fn generate_mc_questions(
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
+        custom_focus_note = custom_focus_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
         contract = MC_QUESTION_JSON_CONTRACT
@@ -400,6 +411,43 @@ fn normalize_questions_envelope(value: serde_json::Value) -> Result<serde_json::
         "Missing required top-level questions array. Found keys: [{}].",
         keys
     ))
+}
+
+fn normalize_passage_envelope(value: serde_json::Value) -> Result<serde_json::Value, String> {
+    let serde_json::Value::Object(mut map) = value else {
+        return Err("Top-level JSON must be an object.".to_string());
+    };
+
+    let mut passage_obj = if let Some(serde_json::Value::Object(p)) = map.remove("passage") {
+        p
+    } else {
+        map.clone()
+    };
+
+    // If there is no `questions` key in the passage object, it might have been placed at the top level
+    if !passage_obj.contains_key("questions") {
+        if let Some(array) = map.remove("questions").filter(serde_json::Value::is_array) {
+            passage_obj.insert("questions".to_string(), array);
+        }
+    }
+
+    // Checking common aliases for 'questions' in both passage_obj and top-level map
+    if !passage_obj.contains_key("questions") {
+        for key in ["question", "items", "passageQuestions", "generatedQuestions", "subQuestions", "Questions"] {
+            if let Some(array) = passage_obj.remove(key).filter(serde_json::Value::is_array) {
+                passage_obj.insert("questions".to_string(), array);
+                break;
+            } else if let Some(array) = map.remove(key).filter(serde_json::Value::is_array) {
+                passage_obj.insert("questions".to_string(), array);
+                break;
+            }
+        }
+    }
+
+    let mut final_map = serde_json::Map::new();
+    final_map.insert("passage".to_string(), serde_json::Value::Object(passage_obj));
+
+    Ok(serde_json::Value::Object(final_map))
 }
 
 fn decode_literal_newlines(value: &str) -> String {

@@ -94,6 +94,8 @@ struct GenerateQuestionsRequest {
     subtopics: Option<Vec<String>>,
     english_task_types: Option<Vec<String>>,
     max_marks_per_question: Option<u8>,
+    #[serde(default)]
+    custom_focus_area: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

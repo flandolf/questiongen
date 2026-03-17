@@ -75,6 +75,8 @@ interface AppContextState {
   setPrioritizedCommandTerms: (terms: VceCommandTerm[] | ((prev: VceCommandTerm[]) => VceCommandTerm[])) => void;
   subtopicInstructions: Record<string, string>;
   setSubtopicInstructions: (instructions: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
+  customFocusArea: string;
+  setCustomFocusArea: (focus: string) => void;
   model: string;
   setModel: (model: string) => void;
   debugMode: boolean;
@@ -232,6 +234,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setQuestionMode,
     subtopicInstructions,
     setSubtopicInstructions,
+    customFocusArea,
+    setCustomFocusArea,
   } = usePreferencesState();
 
   const {
@@ -320,6 +324,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       prioritizedCommandTerms,
       questionMode,
       subtopicInstructions,
+      customFocusArea,
     };
   }, [
     selectedTopics,
@@ -513,6 +518,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
     setSubtopicInstructions(state.preferences.subtopicInstructions);
+    setCustomFocusArea(state.preferences.customFocusArea);
 
     setPassage(state.passageSession.passage);
     setActivePassageQuestionIndex(state.passageSession.activeQuestionIndex);
@@ -638,6 +644,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
       setQuestionMode(entry.questionMode);
       setSubtopicInstructions(entry.preferences.subtopicInstructions);
+      setCustomFocusArea(entry.preferences.customFocusArea);
 
       if (entry.questionMode === "written" && entry.writtenSession) {
         setQuestions(entry.writtenSession.questions);
@@ -725,6 +732,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPrioritizedCommandTerms,
         subtopicInstructions,
         setSubtopicInstructions,
+        customFocusArea,
+        setCustomFocusArea,
         model,
         setModel,
         debugMode,
@@ -849,6 +858,8 @@ export function useAppPreferences() {
     setQuestionMode,
     subtopicInstructions,
     setSubtopicInstructions,
+    customFocusArea,
+    setCustomFocusArea,
   } = useAppContext();
 
   return {
@@ -886,6 +897,8 @@ export function useAppPreferences() {
     setQuestionMode,
     subtopicInstructions,
     setSubtopicInstructions,
+    customFocusArea,
+    setCustomFocusArea,
   };
 }
 
