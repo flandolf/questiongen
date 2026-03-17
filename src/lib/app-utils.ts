@@ -127,7 +127,7 @@ function normalizePseudoMathDelimiters(content: string): string {
 }
 
 function escapeBarePercentInMath(content: string): string {
-  return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
+  return replaceMathSegments(content, (mathSegment: string) => {
     const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
     const inner = mathSegment.slice(delimiter.length, -delimiter.length);
     return `${delimiter}${escapeUnescapedPercent(inner)}${delimiter}`;
@@ -135,13 +135,91 @@ function escapeBarePercentInMath(content: string): string {
 }
 
 function normalizeEscapedLatexCommandsInMath(content: string): string {
-  return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
+  return replaceMathSegments(content, (mathSegment: string) => {
     const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
     const inner = mathSegment.slice(delimiter.length, -delimiter.length);
     // Model responses sometimes include JSON-escaped LaTeX commands (e.g. \\sin).
     const normalizedInner = inner.replace(/\\\\([A-Za-z]+)/g, "\\$1");
     return `${delimiter}${normalizedInner}${delimiter}`;
   });
+}
+
+function replaceMathSegments(content: string, replaceFn: (segment: string) => string): string {
+  let result = "";
+  let index = 0;
+
+  while (index < content.length) {
+    const char = content[index];
+    if (char !== "$" || isEscapedAt(content, index)) {
+      result += char;
+      index += 1;
+      continue;
+    }
+
+    const isDouble = content[index + 1] === "$" && !isEscapedAt(content, index + 1);
+    if (isDouble) {
+      const closing = findClosingDelimiter(content, index + 2, "$$", true);
+      if (closing === -1) {
+        result += char;
+        index += 1;
+        continue;
+      }
+
+      const segment = content.slice(index, closing + 2);
+      result += replaceFn(segment);
+      index = closing + 2;
+      continue;
+    }
+
+    const closing = findClosingDelimiter(content, index + 1, "$", false);
+    if (closing === -1) {
+      result += char;
+      index += 1;
+      continue;
+    }
+
+    const segment = content.slice(index, closing + 1);
+    result += replaceFn(segment);
+    index = closing + 1;
+  }
+
+  return result;
+}
+
+function findClosingDelimiter(
+  content: string,
+  startIndex: number,
+  delimiter: "$" | "$$",
+  allowNewlines: boolean,
+): number {
+  if (delimiter === "$$") {
+    for (let i = startIndex; i < content.length - 1; i += 1) {
+      if (content[i] === "$" && content[i + 1] === "$" && !isEscapedAt(content, i)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  for (let i = startIndex; i < content.length; i += 1) {
+    const char = content[i];
+    if (!allowNewlines && char === "\n") {
+      return -1;
+    }
+    if (char === "$" && !isEscapedAt(content, i)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+function isEscapedAt(content: string, index: number): boolean {
+  let backslashCount = 0;
+  for (let i = index - 1; i >= 0 && content[i] === "\\"; i -= 1) {
+    backslashCount += 1;
+  }
+  return backslashCount % 2 === 1;
 }
 
 function escapeUnescapedPercent(content: string): string {

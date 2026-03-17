@@ -489,6 +489,7 @@ export type PersistedPassageSession = {
   feedbackByQuestionId: Record<string, MarkAnswerResponse>;
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;
+  savedSetId?: string | null;
 };
 
 export type PersistedWrittenSession = {
@@ -521,6 +522,7 @@ export type SavedQuestionSet = {
   updatedAt: string;
   preferences: PersistedGeneratorPreferences;
   writtenSession?: PersistedWrittenSession;
+  passageSession?: PersistedPassageSession;
   mcSession?: PersistedMcSession;
 };
 

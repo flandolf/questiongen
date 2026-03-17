@@ -44,13 +44,20 @@ export function SavedView() {
       <ScrollArea className="flex-1">
         <div className="space-y-4 pb-8">
           {savedSets.map((savedSet) => {
+            const isPassageSet = savedSet.questionMode === "written" && Boolean(savedSet.passageSession?.passage);
             const questionCount = savedSet.questionMode === "written"
-              ? savedSet.writtenSession?.questions.length ?? 0
+              ? (isPassageSet ? savedSet.passageSession?.passage?.questions.length ?? 0 : savedSet.writtenSession?.questions.length ?? 0)
               : savedSet.mcSession?.questions.length ?? 0;
             const completedCount = savedSet.questionMode === "written"
-              ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
+              ? Object.keys((isPassageSet ? savedSet.passageSession?.feedbackByQuestionId : savedSet.writtenSession?.feedbackByQuestionId) ?? {}).length
               : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
             const topics = savedSet.preferences.selectedTopics;
+            const modeLabel = savedSet.questionMode === "written"
+              ? (isPassageSet ? "Written (Text Analysis)" : "Written")
+              : "Multiple Choice";
+            const modeDisplay = savedSet.questionMode === "written"
+              ? (isPassageSet ? "Text Analysis" : "Written Response")
+              : "Multiple Choice";
 
             return (
               <Card key={savedSet.id}>
@@ -60,7 +67,7 @@ export function SavedView() {
                       <div className="flex flex-wrap items-center gap-2">
                         <CardTitle>{savedSet.title}</CardTitle>
                         <Badge variant="secondary">
-                          {savedSet.questionMode === "written" ? "Written" : "Multiple Choice"}
+                          {modeLabel}
                         </Badge>
                       </div>
                       <CardDescription className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
@@ -94,7 +101,7 @@ export function SavedView() {
                       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mode</div>
                       <div className="mt-2 flex items-center gap-2 text-sm font-medium">
                         {savedSet.questionMode === "written" ? <BookOpen className="h-4 w-4 text-primary" /> : <Target className="h-4 w-4 text-primary" />}
-                        {savedSet.questionMode === "written" ? "Written Response" : "Multiple Choice"}
+                        {modeDisplay}
                       </div>
                     </div>
                     <div className="rounded-lg border bg-muted/20 p-3">

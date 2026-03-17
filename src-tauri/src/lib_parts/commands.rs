@@ -126,6 +126,10 @@ async fn generate_questions(
         .filter(|value| !value.is_empty())
         .map(|value| format!("Custom focus area: {value}\n"))
         .unwrap_or_default();
+    let focus_areas_note = build_focus_areas_note(
+        request.subtopics.as_ref(),
+        request.subtopic_instructions.as_ref(),
+    );
 
     let english_task_types_note = if includes_english {
         let selected_types =
@@ -139,6 +143,7 @@ async fn generate_questions(
         "Create exactly {count} VCE written-response questions for: {topics}.\n\
         Difficulty: {difficulty}\n\
         {custom_focus_note}\
+        {focus_areas_note}\
         {english_task_types_note}\n\
         Rules:\n{difficulty_rules}\n{tech_note}\n\
         Constraints:\n\
@@ -149,6 +154,7 @@ async fn generate_questions(
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
         custom_focus_note = custom_focus_note,
+        focus_areas_note = focus_areas_note,
         english_task_types_note = english_task_types_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
@@ -1053,6 +1059,32 @@ fn normalize_english_task_types(raw_types: Option<&[String]>) -> Vec<&'static st
     } else {
         selected
     }
+}
+
+fn build_focus_areas_note(
+    subtopics: Option<&Vec<String>>,
+    subtopic_instructions: Option<&std::collections::HashMap<String, String>>,
+) -> String {
+    let mut note = String::new();
+
+    if let Some(subtopics) = subtopics.filter(|items| !items.is_empty()) {
+        note.push_str(&format!("Focus areas selected: {}\n", subtopics.join("; ")));
+    }
+
+    if let Some(instructions) = subtopic_instructions.filter(|items| !items.is_empty()) {
+        note.push_str("Focus area guidance:\n");
+        let mut entries: Vec<(&String, &String)> = instructions.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+        for (subtopic, instruction) in entries {
+            let trimmed = instruction.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            note.push_str(&format!("- {subtopic}: {trimmed}\n"));
+        }
+    }
+
+    note
 }
 
 fn infer_image_mime(path: &Path) -> Option<&'static str> {

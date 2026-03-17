@@ -8,6 +8,7 @@ struct GenerateMcQuestionsRequest {
     api_key: String,
     tech_mode: Option<String>,
     subtopics: Option<Vec<String>>,
+    subtopic_instructions: Option<std::collections::HashMap<String, String>>,
     #[serde(default)]
     custom_focus_area: Option<String>,
 }
@@ -73,11 +74,16 @@ async fn generate_mc_questions(
         .filter(|value| !value.is_empty())
         .map(|value| format!("Custom focus area: {value}\n"))
         .unwrap_or_default();
+    let focus_areas_note = build_focus_areas_note(
+        request.subtopics.as_ref(),
+        request.subtopic_instructions.as_ref(),
+    );
 
     let user_prompt = format!(
         "Create exactly {count} VCE multiple-choice questions (4 options: A, B, C, D) for: {topics}.\n\
         Difficulty: {difficulty}\n\
         {custom_focus_note}\
+        {focus_areas_note}\
         Rules:\n{difficulty_rules}\n{tech_note}\n\
         Constraints:\n\
         - Return ONLY JSON matching: {contract}\n\
@@ -88,6 +94,7 @@ async fn generate_mc_questions(
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
         custom_focus_note = custom_focus_note,
+        focus_areas_note = focus_areas_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
         contract = MC_QUESTION_JSON_CONTRACT
@@ -316,6 +323,7 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
         }
     }
 }
+
 
 fn normalize_generated_passage(passage: &mut GeneratedPassage, selected_aos_subtopic: &str) {
     passage.id = passage.id.trim().to_string();

@@ -46,6 +46,7 @@ export default function App() {
         tex: {
           inlineMath: [["$", "$"]],
           displayMath: [["$$", "$$"]],
+          processEscapes: true,
         },
       }}
     >

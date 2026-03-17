@@ -62,6 +62,7 @@ function countWords(value: string) {
 
 export function GeneratorView() {
   const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
+  const [timerNow, setTimerNow] = useState<number>(() => Date.now());
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
@@ -369,9 +370,26 @@ export function GeneratorView() {
 
   const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
 
+  useEffect(() => {
+    if (generationStartedAt === null) {
+      return;
+    }
+
+    if (sessionFinishedAt !== null) {
+      setTimerNow(sessionFinishedAt);
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [generationStartedAt, sessionFinishedAt]);
+
   const elapsedSeconds = generationStartedAt === null
     ? 0
-    : Math.max(0, Math.floor(((sessionFinishedAt ?? Date.now()) - generationStartedAt) / 1000));
+    : Math.max(0, Math.floor(((sessionFinishedAt ?? timerNow) - generationStartedAt) / 1000));
 
   const formattedElapsedTime = useMemo(() => {
     const hours = Math.floor(elapsedSeconds / 3600);
@@ -1270,7 +1288,7 @@ export function GeneratorView() {
   function handleStartOver() {
     const shouldAutoSaveWritten =
       questionMode === "written" &&
-      questions.length > 0 &&
+      (questions.length > 0 || Boolean(passage)) &&
       !activeWrittenSavedSetId;
     const shouldAutoSaveMc =
       questionMode === "multiple-choice" &&
@@ -1404,7 +1422,7 @@ export function GeneratorView() {
             </div>
           </div>
 
-          <CardContent className="p-4 md:p-5 space-y-5">
+          <CardContent className="space-y-2">
             {/* Subject Selection */}
             <div className="space-y-2">
               <Label className="text-base font-semibold flex items-center gap-2">
@@ -1815,11 +1833,9 @@ export function GeneratorView() {
             >
               Review Questions
             </Button>
-            {!isPassageMode && (
-              <Button variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
-                {questionMode === "written" ? (activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later") : (activeMcSavedSetId ? "Update Saved Set" : "Save for Later")}
-              </Button>
-            )}
+            <Button variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
+              {questionMode === "written" ? (activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later") : (activeMcSavedSetId ? "Update Saved Set" : "Save for Later")}
+            </Button>
             <Button onClick={handleStartOver}>Start New Set</Button>
           </CardFooter>
         </Card>
@@ -1932,17 +1948,15 @@ export function GeneratorView() {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {!isPassageMode && (
-                <Button
-                  variant={activeWrittenSavedSetId ? "default" : "outline"}
-                  size="sm"
-                  onClick={saveCurrentSet}
-                  className="h-8 gap-1.5"
-                >
-                  <Bookmark className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
-                </Button>
-              )}
+              <Button
+                variant={activeWrittenSavedSetId ? "default" : "outline"}
+                size="sm"
+                onClick={saveCurrentSet}
+                className="h-8 gap-1.5"
+              >
+                <Bookmark className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
+              </Button>
               {isPassageMode ? (
                 <Button
                   variant="outline"

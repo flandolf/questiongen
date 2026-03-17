@@ -74,6 +74,7 @@ const DEFAULT_PASSAGE_SESSION: PersistedPassageSession = {
   feedbackByQuestionId: {},
   rawModelOutput: "",
   generationTelemetry: null,
+  savedSetId: null,
 };
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
@@ -287,6 +288,7 @@ function normalizePassageSession(raw: unknown): PersistedPassageSession {
     feedbackByQuestionId: normalizeFeedbackRecord(data.feedbackByQuestionId, questions),
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
+    savedSetId: normalizeNullableString(data.savedSetId),
   };
 }
 
@@ -339,6 +341,7 @@ function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
     updatedAt,
     preferences: normalizePreferences(data.preferences),
     writtenSession: questionMode === "written" ? normalizeWrittenSession(data.writtenSession) : undefined,
+    passageSession: questionMode === "written" ? normalizePassageSession(data.passageSession) : undefined,
     mcSession: questionMode === "multiple-choice" ? normalizeMcSession(data.mcSession) : undefined,
   };
 }

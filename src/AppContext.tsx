@@ -354,6 +354,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     feedbackByQuestionId: passageFeedbackByQuestionId,
     rawModelOutput: passageRawModelOutput,
     generationTelemetry: passageGenerationTelemetry,
+    savedSetId: activeWrittenSavedSetId,
   }), [
     passage,
     activePassageQuestionIndex,
@@ -362,6 +363,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     passageFeedbackByQuestionId,
     passageRawModelOutput,
     passageGenerationTelemetry,
+    activeWrittenSavedSetId,
   ]);
 
   useEffect(() => {
@@ -536,7 +538,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFeedbackByQuestionId(state.writtenSession.feedbackByQuestionId);
     setWrittenRawModelOutput(state.writtenSession.rawModelOutput);
     setWrittenGenerationTelemetry(state.writtenSession.generationTelemetry ?? null);
-    setActiveWrittenSavedSetId(state.writtenSession.savedSetId ?? null);
+    setActiveWrittenSavedSetId(state.writtenSession.savedSetId ?? state.passageSession.savedSetId ?? null);
 
     setMcQuestions(state.mcSession.questions);
     setActiveMcQuestionIndex(state.mcSession.activeQuestionIndex);
@@ -555,7 +557,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const now = new Date().toISOString();
 
     if (questionMode === "written") {
-      if (questions.length === 0) {
+      const hasWrittenQuestions = questions.length > 0;
+      const hasPassagePreference =
+        preferencesSnapshot.selectedTopics.includes("English Language") &&
+        preferencesSnapshot.englishLanguageTaskTypes.includes("text-analysis");
+      const hasPassage = hasPassagePreference && Boolean(passage);
+      if (!hasWrittenQuestions && !hasPassage) {
         return null;
       }
 
@@ -568,7 +575,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         preferences: preferencesSnapshot,
-        writtenSession: {
+        writtenSession: hasWrittenQuestions ? {
           questions,
           activeQuestionIndex,
           presentedAtByQuestionId: writtenQuestionPresentedAtById,
@@ -578,7 +585,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           rawModelOutput: writtenRawModelOutput,
           generationTelemetry: writtenGenerationTelemetry,
           savedSetId,
-        },
+        } : undefined,
+        passageSession: hasPassage ? {
+          passage,
+          activeQuestionIndex: activePassageQuestionIndex,
+          presentedAtByQuestionId: passageQuestionPresentedAtById,
+          answersByQuestionId: passageAnswersByQuestionId,
+          feedbackByQuestionId: passageFeedbackByQuestionId,
+          rawModelOutput: passageRawModelOutput,
+          generationTelemetry: passageGenerationTelemetry ?? null,
+          savedSetId,
+        } : undefined,
       };
 
       setSavedSets((prev) => {
@@ -646,15 +663,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSubtopicInstructions(entry.preferences.subtopicInstructions);
       setCustomFocusArea(entry.preferences.customFocusArea);
 
-      if (entry.questionMode === "written" && entry.writtenSession) {
-        setQuestions(entry.writtenSession.questions);
-        setActiveQuestionIndex(entry.writtenSession.activeQuestionIndex);
-        setWrittenQuestionPresentedAtById(entry.writtenSession.presentedAtByQuestionId);
-        setAnswersByQuestionId(entry.writtenSession.answersByQuestionId);
-        setImagesByQuestionId(entry.writtenSession.imagesByQuestionId);
-        setFeedbackByQuestionId(entry.writtenSession.feedbackByQuestionId);
-        setWrittenRawModelOutput(entry.writtenSession.rawModelOutput);
-        setWrittenGenerationTelemetry(entry.writtenSession.generationTelemetry ?? null);
+      if (entry.questionMode === "written") {
+        if (entry.passageSession) {
+          setPassage(entry.passageSession.passage);
+          setActivePassageQuestionIndex(entry.passageSession.activeQuestionIndex);
+          setPassageQuestionPresentedAtById(entry.passageSession.presentedAtByQuestionId);
+          setPassageAnswersByQuestionId(entry.passageSession.answersByQuestionId);
+          setPassageFeedbackByQuestionId(entry.passageSession.feedbackByQuestionId);
+          setPassageRawModelOutput(entry.passageSession.rawModelOutput);
+          setPassageGenerationTelemetry(entry.passageSession.generationTelemetry ?? null);
+        } else {
+          setPassage(null);
+          setActivePassageQuestionIndex(0);
+          setPassageQuestionPresentedAtById({});
+          setPassageAnswersByQuestionId({});
+          setPassageFeedbackByQuestionId({});
+          setPassageRawModelOutput("");
+          setPassageGenerationTelemetry(null);
+        }
+
+        if (entry.writtenSession) {
+          setQuestions(entry.writtenSession.questions);
+          setActiveQuestionIndex(entry.writtenSession.activeQuestionIndex);
+          setWrittenQuestionPresentedAtById(entry.writtenSession.presentedAtByQuestionId);
+          setAnswersByQuestionId(entry.writtenSession.answersByQuestionId);
+          setImagesByQuestionId(entry.writtenSession.imagesByQuestionId);
+          setFeedbackByQuestionId(entry.writtenSession.feedbackByQuestionId);
+          setWrittenRawModelOutput(entry.writtenSession.rawModelOutput);
+          setWrittenGenerationTelemetry(entry.writtenSession.generationTelemetry ?? null);
+        } else {
+          setQuestions([]);
+          setActiveQuestionIndex(0);
+          setWrittenQuestionPresentedAtById({});
+          setAnswersByQuestionId({});
+          setImagesByQuestionId({});
+          setFeedbackByQuestionId({});
+          setWrittenRawModelOutput("");
+          setWrittenGenerationTelemetry(null);
+        }
+
         setActiveWrittenSavedSetId(entry.id);
       }
 

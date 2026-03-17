@@ -1,6 +1,7 @@
 use base64::{Engine as _, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -92,6 +93,7 @@ struct GenerateQuestionsRequest {
     tech_mode: Option<String>,
     prioritized_command_terms: Option<Vec<String>>,
     subtopics: Option<Vec<String>>,
+    subtopic_instructions: Option<HashMap<String, String>>,
     english_task_types: Option<Vec<String>>,
     max_marks_per_question: Option<u8>,
     #[serde(default)]
