@@ -1,5 +1,3 @@
-use openrouter_rs::api::models::list_model_endpoints;
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GenerateMcQuestionsRequest {
@@ -523,30 +521,40 @@ async fn get_tps(model: &str, api_key: &str) -> Result<f64, String> {
 
 #[tauri::command]
 async fn test_model(model: &str, api_key: &str) -> Result<String, String> {
-    let prompt = "Who is Socrates?";
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": "Who is Socrates?"}],
+    });
 
-    let client = OpenRouterClient::builder()
-        .api_key(api_key)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let request = ChatCompletionRequest::builder()
-        .model(model)
-        .messages(vec![Message::new(Role::User, prompt)])
-        .build()
-        .map_err(|e| e.to_string())?;
-
+    let client = reqwest::Client::new();
     let response = client
-        .chat()
-        .create(&request)
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .json(&body)
+        .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("HTTP request failed: {e}"))?;
 
-    let content = response
-        .choices
-        .get(0)
-        .and_then(|c| c.content())
-        .unwrap_or("");
+    if !response.status().is_success() {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        return Err(format!("API request failed with status {status}: {text}"));
+    }
 
-    Ok(content.to_string())
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    let content = json
+        .get("choices")
+        .and_then(|c| c.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice.get("message"))
+        .and_then(|msg| msg.get("content"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_string();
+
+    Ok(content)
 }
