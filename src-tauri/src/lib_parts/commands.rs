@@ -1,5 +1,3 @@
-
-
 #[tauri::command]
 fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
     let path = persisted_state_path(&app)?;
@@ -136,50 +134,61 @@ async fn generate_questions(
     let english_task_types_note = if includes_english {
         let selected_types =
             normalize_english_task_types(request.english_task_types.as_deref()).join(" or ");
-        format!("Task type requested: {}\nCRITICAL: This is an English Language task. DO NOT generate ANY mathematics, physics, or quantitative questions. DO NOT use LaTeX for anything.", selected_types)
+        format!("Task types: {} only.\nDO NOT generate mathematics, science, or quantitative content. DO NOT use LaTeX.", selected_types)
+    } else {
+        String::new()
+    };
+
+    let repetition_avoidance_note = if !request.prior_question_prompts.is_empty() {
+        format!("AVOID REPETITION:\nDo not recreate these recent questions from the same topic(s):\n{}\n\n", request.prior_question_prompts.iter().map(|p| format!("  - {}", p)).collect::<Vec<_>>().join("\n"))
     } else {
         String::new()
     };
 
     let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
     let json_schema_note = format!(
-        "You must respond in JSON. Use this schema:\n\
+        "OUTPUT FORMAT (valid JSON only):\n\
         {{\n\
             \"questions\": [\n\
                 {{\n\
-                    \"id\": \"string (unique)\",\n\
-                    \"t\": \"string (topic)\",\n\
+                    \"id\": \"string (unique identifier)\",\n\
+                    \"t\": \"string (topic name)\",\n\
                     \"s\": \"string (subtopic, optional)\",\n\
-                    \"tt\": \"string (task type: short-answer or analytical-essay, optional)\",\n\
-                    \"rl\": \"string (response length: short or extended, optional)\",\n\
+                    \"tt\": \"string (task type for English: short-answer or analytical-essay, optional)\",\n\
+                    \"rl\": \"string (response length: short or extended, English only)\",\n\
                     \"p\": \"string (question prompt in markdown)\",\n\
-                    \"m\": integer (max marks, 1 to {max_marks_cap}),\n\
-                    \"ta\": boolean (tech allowed)\n\
+                    \"m\": integer (max marks, 1–{max_marks_cap}),\n\
+                    \"ta\": boolean (true=technology allowed, false=tech-free)\n\
                 }}\n\
             ]\n\
         }}\n"
     );
 
     let user_prompt = format!(
-        "Create exactly {count} VCE written-response questions for: {topics}.\n\
-        Difficulty: {difficulty}\n\
-        {custom_focus_note}\
+        "Generate exactly {count} VCE written-response questions.\n\n\
+        TOPICS: {topics}\n\n\
+        DIFFICULTY: {difficulty}\n\n\
+        {difficulty_rules}\n\n\
+        {tech_note}\n\n\
+        {english_task_types_note}\n\n\
+        MARK ALLOCATIONS: Distribute marks 1–{max_marks_cap} per question; vary command terms and cognitive demand.\n\n\
+        FORMATTING:\n\
+        • Use markdown; apply LaTeX for mathematics: inline \\\\(...\\\\), block \\\\[...\\\\].\n\
+        • Prompts: precise, economical language; command terms must align with mark allocations.\n\n\
         {focus_areas_note}\
-        {english_task_types_note}\n\
-        Rules:\n{difficulty_rules}\n{tech_note}\n\
-        Constraints:\n\
-        - Assign maxMarks between 1 and {max_marks_cap}.\n\
-        Use markdown when necessary for formatting, but keep it concise and focused on clarity.\n",
+        {custom_focus_note}\
+        {repetition_avoidance_note}\n\n",
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
-        custom_focus_note = custom_focus_note,
-        focus_areas_note = focus_areas_note,
-        english_task_types_note = english_task_types_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
-        max_marks_cap = max_marks_cap
-    ) + r#"- Use LaTeX: \\( ... \\) for inline, \\[ ... \\] for block.\n"# + &json_schema_note;
+        english_task_types_note = english_task_types_note,
+        max_marks_cap = max_marks_cap,
+        focus_areas_note = focus_areas_note,
+        custom_focus_note = custom_focus_note,
+        repetition_avoidance_note = repetition_avoidance_note,
+    ) + &json_schema_note;
 
     let (user_content, _) = build_generation_user_content(&app, &request.topics, &user_prompt)?;
     let response_format = Some(written_questions_response_format());
@@ -187,16 +196,14 @@ async fn generate_questions(
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are an expert VCE exam writer.",
+        "You are a VCE examination expert who writes rigorous, precisely-calibrated exam questions. You understand mark allocations, command term expectations, and learner cognitive load. Generate questions that authentically assess the curriculum.",
         user_content,
         response_format.as_ref(),
     )
     .await?;
 
-    let mut parsed: GenerateQuestionsResponse = parse_structured_response(
-        &result.content,
-        "written question generation",
-    )?;
+    let mut parsed: GenerateQuestionsResponse =
+        parse_structured_response(&result.content, "written question generation")?;
 
     // Perform necessary normalization
     let selected_english_task_types =
@@ -257,9 +264,29 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         "Mark this VCE {topic} question ({max_marks} marks).\n\
         Question:\n{question}\n\n\
         Student Answer:\n{answer}\n\n\
+        Instructions:\n\
+        - LaTeX delimiters: inline \\\\(...\\\\), block \\\\[...\\\\].\n\
         Constraints:\n\
         - Use VCAA-style criterion marking.\n\
-        - feedbackMarkdown: max 120 words.",
+        - feedbackMarkdown: max 120 words.\n\
+        Use this JSON schema:\n\
+        {{\n\
+            \"verdict\": \"string\",\n\
+            \"achievedMarks\": integer,\n\
+            \"maxMarks\": integer,\n\
+            \"scoreOutOf10\": integer,\n\
+            \"comparisonToSolutionMarkdown\": \"string\",\n\
+            \"feedbackMarkdown\": \"string\",\n\
+            \"workedSolutionMarkdown\": \"string\",\n\
+            \"vcaaMarkingScheme\": [\n\
+                {{\n\
+                    \"criterion\": \"string\",\n\
+                    \"achievedMarks\": integer,\n\
+                    \"maxMarks\": integer,\n\
+                    \"rationale\": \"string\"\n\
+                }}\n\
+            ]\n\
+        }}\n",
         topic = request.question.topic,
         max_marks = request.question.max_marks,
         question = request.question.prompt_markdown,
@@ -281,8 +308,12 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     )
     .await?;
 
+    // Try to normalize simpler response formats to the expected schema
+    let normalized_response =
+        normalize_mark_answer_response(&result.content, request.question.max_marks)?;
+
     let mut parsed: MarkAnswerResponse =
-        parse_structured_response(&result.content, "answer marking")?;
+        parse_structured_response(&normalized_response, "answer marking")?;
 
     // Quick normalization
     parsed.max_marks = request.question.max_marks;
@@ -353,10 +384,8 @@ async fn generate_passage_questions(
     )
     .await?;
 
-    let mut parsed: GeneratePassageResponse = parse_structured_response(
-        &result.content,
-        "passage generation",
-    )?;
+    let mut parsed: GeneratePassageResponse =
+        parse_structured_response(&result.content, "passage generation")?;
 
     normalize_generated_passage(&mut parsed.passage, &request.aos_subtopic);
 
@@ -661,24 +690,23 @@ fn mark_answer_response_format() -> serde_json::Value {
         "json_schema": {
             "name": "mark_answer_response",
             "strict": true,
+            "required": [
+                "achievedMarks",
+                "comparisonToSolutionMarkdown",
+                "feedbackMarkdown",
+                "maxMarks",
+                "scoreOutOf10",
+                "vcaaMarkingScheme",
+                "verdict",
+                "workedSolutionMarkdown",
+            ],
             "schema": {
                 "type": "object",
-                "additionalProperties": false,
-                "required": [
-                    "verdict",
-                    "achievedMarks",
-                    "maxMarks",
-                    "scoreOutOf10",
-                    "vcaaMarkingScheme",
-                    "comparisonToSolutionMarkdown",
-                    "feedbackMarkdown",
-                    "workedSolutionMarkdown"
-                ],
                 "properties": {
-                    "verdict": { "type": "string" },
-                    "achievedMarks": { "type": "integer", "minimum": 0 },
-                    "maxMarks": { "type": "integer", "minimum": 1 },
-                    "scoreOutOf10": { "type": "integer", "minimum": 0, "maximum": 10 },
+                    "verdict": { "type": "string", "description": "The verdict for the answer" },
+                    "achievedMarks": { "type": "integer", "minimum": 0, "description": "Marks achieved by the student's answer" },
+                    "maxMarks": { "type": "integer", "minimum": 1, "description": "Maximum marks for the question" },
+                    "scoreOutOf10": { "type": "integer", "minimum": 0, "maximum": 10, "description": "Score out of 10" },
                     "vcaaMarkingScheme": {
                         "type": "array",
                         "items": {
@@ -686,16 +714,16 @@ fn mark_answer_response_format() -> serde_json::Value {
                             "additionalProperties": false,
                             "required": ["criterion", "achievedMarks", "maxMarks", "rationale"],
                             "properties": {
-                                "criterion": { "type": "string" },
-                                "achievedMarks": { "type": "integer", "minimum": 0 },
-                                "maxMarks": { "type": "integer", "minimum": 0 },
-                                "rationale": { "type": "string" }
+                                "criterion": { "type": "string", "description": "The marking criterion" },
+                                "achievedMarks": { "type": "integer", "minimum": 0, "description": "Marks achieved for this criterion" },
+                                "maxMarks": { "type": "integer", "minimum": 0, "description": "Maximum marks for this criterion" },
+                                "rationale": { "type": "string", "description": "The rationale for the marking" }
                             }
                         }
                     },
-                    "comparisonToSolutionMarkdown": { "type": "string" },
-                    "feedbackMarkdown": { "type": "string" },
-                    "workedSolutionMarkdown": { "type": "string" }
+                    "comparisonToSolutionMarkdown": { "type": "string", "description": "Comparison to the solution in markdown" },
+                    "feedbackMarkdown": { "type": "string", "description": "Feedback in markdown" },
+                    "workedSolutionMarkdown": { "type": "string", "description": "Worked solution in markdown" }
                 }
             }
         }
@@ -709,12 +737,18 @@ async fn call_openrouter(
     user_content: serde_json::Value,
     response_format: Option<&serde_json::Value>,
 ) -> CommandResult<OpenRouterCallResult> {
+    let plugins = Some(serde_json::json!([
+        {
+            "id": "response-healing",
+        }
+    ]));
+
     call_openrouter_with_plugins(
         api_key,
         model,
         system_prompt,
         user_content,
-        None,
+        plugins,
         response_format.cloned(),
     )
     .await
@@ -741,27 +775,20 @@ async fn call_openrouter_with_plugins(
     };
 
     let has_response_format = response_format.is_some();
-    let is_cached_unsupported = has_response_format && is_model_structured_output_unsupported(model);
-    let prefer_structured_output = has_response_format && !is_cached_unsupported;
 
-    if is_cached_unsupported {
-        eprintln!(
-            "[DEBUG] Skipping response_format for model {model} due to cached structured-output incompatibility"
-        );
-    }
-
-    let initial_body = make_body(prefer_structured_output);
+    let initial_body = make_body(has_response_format);
     eprintln!(
         "[DEBUG] OpenRouter request - Model: {}, Has response_format: {}, Sending response_format: {}",
         model,
         has_response_format,
-        prefer_structured_output
+        has_response_format
+
     );
 
     match post_to_openrouter(api_key, &initial_body).await {
         Ok(response) => extract_openrouter_content(response),
         Err(err) => {
-            if prefer_structured_output {
+            if has_response_format {
                 eprintln!(
                     "[WARN] Structured-output request failed for model {model}: {:?}",
                     err
@@ -770,8 +797,7 @@ async fn call_openrouter_with_plugins(
                 eprintln!("[ERROR] OpenRouter API error: {:?}", err);
             }
 
-            if prefer_structured_output {
-                mark_model_structured_output_unsupported(model);
+            if has_response_format {
                 eprintln!(
                     "[DEBUG] Retrying without response_format after structured request failure; model cached as incompatible"
                 );
@@ -863,14 +889,14 @@ fn build_chat_completion_body(
         body["plugins"] = plugins.clone();
     }
 
+    println!("[DEBUG] Final OpenRouter request body: {}", body);
+
     body
 }
 
 fn build_user_message(content: &serde_json::Value) -> CommandResult<serde_json::Value> {
     match content {
-        serde_json::Value::String(text) => {
-            Ok(serde_json::json!({"role": "user", "content": text}))
-        }
+        serde_json::Value::String(text) => Ok(serde_json::json!({"role": "user", "content": text})),
         serde_json::Value::Array(parts) => {
             let parsed_parts = parts
                 .iter()
@@ -915,12 +941,12 @@ fn parse_content_part(value: &serde_json::Value) -> CommandResult<serde_json::Va
                 .ok_or_else(|| {
                     AppError::new("VALIDATION_ERROR", "image_url part must include a url.")
                 })?;
-            let detail = image_node
-                .get("detail")
-                .and_then(serde_json::Value::as_str);
+            let detail = image_node.get("detail").and_then(serde_json::Value::as_str);
 
             if let Some(detail) = detail {
-                Ok(serde_json::json!({"type": "image_url", "image_url": {"url": url, "detail": detail}}))
+                Ok(
+                    serde_json::json!({"type": "image_url", "image_url": {"url": url, "detail": detail}}),
+                )
             } else {
                 Ok(serde_json::json!({"type": "image_url", "image_url": {"url": url}}))
             }
@@ -945,26 +971,6 @@ fn extract_openrouter_content(response: serde_json::Value) -> CommandResult<Open
     Ok(OpenRouterCallResult {
         content: content.to_string(),
     })
-}
-
-static STRUCTURED_OUTPUT_UNSUPPORTED_MODELS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-
-fn structured_output_unsupported_models() -> &'static Mutex<HashSet<String>> {
-    STRUCTURED_OUTPUT_UNSUPPORTED_MODELS.get_or_init(|| Mutex::new(HashSet::new()))
-}
-
-fn is_model_structured_output_unsupported(model: &str) -> bool {
-    let guard = structured_output_unsupported_models()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    guard.contains(model)
-}
-
-fn mark_model_structured_output_unsupported(model: &str) {
-    let mut guard = structured_output_unsupported_models()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    guard.insert(model.to_string());
 }
 
 fn build_mark_answer_user_content(
@@ -1044,6 +1050,74 @@ fn encode_image_file_to_data_url(image_path: &str) -> CommandResult<String> {
     let encoded = general_purpose::STANDARD.encode(bytes);
 
     Ok(format!("data:{mime};base64,{encoded}"))
+}
+
+fn normalize_mark_answer_response(response_text: &str, max_marks: u8) -> CommandResult<String> {
+    let json: serde_json::Value = serde_json::from_str(response_text).map_err(|e| {
+        AppError::new(
+            "JSON_PARSE_ERROR",
+            format!("Failed to parse response JSON: {e}"),
+        )
+    })?;
+
+    // Check if this is the simpler format (has "marks" or "breakdown" directly)
+    if json.get("marks").is_some() || json.get("breakdown").is_some() {
+        // Convert simpler format to expected schema
+        let achieved_marks = json.get("marks").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
+
+        let feedback = json
+            .get("feedback")
+            .and_then(|v| v.as_str())
+            .unwrap_or("No feedback provided");
+
+        let breakdown = json.get("breakdown")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let criterion = item.get("criterion").and_then(|v| v.as_str()).unwrap_or("Unknown");
+                        let item_marks = item.get("awarded").or(item.get("marks"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u8;
+                        let max_item_marks = item.get("marks")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(1) as u8;
+                        Some(serde_json::json!({
+                            "criterion": criterion,
+                            "achievedMarks": item_marks,
+                            "maxMarks": max_item_marks,
+                            "rationale": format!("Awarded {} out of {} marks", item_marks, max_item_marks)
+                        }))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let score_out_of_10 = ((achieved_marks as f32 / max_marks as f32) * 10.0).round() as u8;
+
+        // Build the expected response format
+        let normalized = serde_json::json!({
+            "verdict": if achieved_marks == max_marks {
+                "Excellent - Full marks awarded"
+            } else if achieved_marks > (max_marks / 2) {
+                "Good - Partial credit awarded"
+            } else {
+                "Fair - Limited credit awarded"
+            },
+            "achievedMarks": achieved_marks,
+            "maxMarks": max_marks,
+            "scoreOutOf10": score_out_of_10,
+            "vcaaMarkingScheme": breakdown,
+            "feedbackMarkdown": feedback,
+            "comparisonToSolutionMarkdown": "Student response assessed against VCAA criteria.",
+            "workedSolutionMarkdown": "See feedback above for guidance."
+        });
+
+        return Ok(normalized.to_string());
+    }
+
+    // Already in expected format, return as-is
+    Ok(response_text.to_string())
 }
 
 fn includes_mathematical_methods(topics: &[String]) -> bool {

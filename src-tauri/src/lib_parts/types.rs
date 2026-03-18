@@ -1,9 +1,8 @@
 use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
@@ -12,18 +11,18 @@ const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
 const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
 const ENGLISH_LANGUAGE_TOPIC: &str = "English Language";
 const APP_STATE_FILE_NAME: &str = "app-state.json";
-const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematical Methods exam style: concise VCAA-style command verbs, realistic mark allocations, algebraic fluency, and prompts that reward method choice over template recall.";
-const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning. For biomechanics, avoid focus on pure physics calculations and instead emphasize application of concepts to novel contexts, as in VCE calculations are not examined.";
+const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = "Mathematical Methods: Reward method selection over template recall. Use authentic exam style with concise, VCAA-aligned command verbs and realistic mark allocations. Prioritize algebraic reasoning, calculus interpretation, and evidence of considered problem-solving. Avoid rote substitution questions; instead, construct scenarios requiring method choice justification.";
+const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = "Physical Education: Restrict to Unit 3/4 content. Use short, applied sport/training scenarios that reward data interpretation, reasoned justification, and evidence-based analysis. For biomechanics, avoid pure physics calculations; instead, emphasize application of principles (Newton's Laws, levers, projectile motion) to novel contexts and authentic athlete/training situations.";
 const PASSAGE_TEXT_TYPE_OPTIONS: [&str; 10] = [
     "public notice",
     "community newsletter excerpt",
     "editorial opinion piece",
     "letter to the editor",
     "advertisement copy",
-    "formal email",
+    "formal email or memo",
     "speech transcript excerpt",
     "brochure information text",
-    "social media thread excerpt",
+    "social media thread (structured)",
     "interview transcript excerpt",
 ];
 
@@ -73,7 +72,7 @@ const COMMAND_TERM_PROFILES: [CommandTermProfile; 8] = [
     CommandTermProfile {
         key: "justify",
         min_marks: 5,
-        max_marks: 7,
+        max_marks: 7
     },
 ];
 
@@ -93,6 +92,8 @@ struct GenerateQuestionsRequest {
     max_marks_per_question: Option<u8>,
     #[serde(default)]
     custom_focus_area: Option<String>,
+    #[serde(default)]
+    prior_question_prompts: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

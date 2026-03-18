@@ -11,6 +11,8 @@ struct GenerateMcQuestionsRequest {
     subtopic_instructions: Option<std::collections::HashMap<String, String>>,
     #[serde(default)]
     custom_focus_area: Option<String>,
+    #[serde(default)]
+    prior_question_prompts: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -95,49 +97,62 @@ async fn generate_mc_questions(
         request.subtopic_instructions.as_ref(),
     );
 
-    let json_schema_note = "You must respond in JSON. Use this schema:\n\
+    let repetition_avoidance_note = if !request.prior_question_prompts.is_empty() {
+        format!("AVOID REPETITION:\nDo not recreate these recent questions from the same topic(s):\n{}\n\n", request.prior_question_prompts.iter().map(|p| format!("  - {}", p)).collect::<Vec<_>>().join("\n"))
+    } else {
+        String::new()
+    };
+
+    let json_schema_note = "OUTPUT FORMAT (valid JSON only):\n\
         {\n\
             \"questions\": [\n\
                 {\n\
-                    \"id\": \"string (unique)\",\n\
-                    \"t\": \"string (topic)\",\n\
+                    \"id\": \"string (unique identifier)\",\n\
+                    \"t\": \"string (topic name)\",\n\
                     \"s\": \"string (subtopic, optional)\",\n\
                     \"p\": \"string (question prompt in markdown)\",\n\
                     \"o\": [\n\
-                        { \"l\": \"string (A, B, C, D)\", \"txt\": \"string (option text)\" }\n\
+                        { \"l\": \"string (A, B, C, or D)\", \"txt\": \"string (option text)\" }\n\
                     ],\n\
-                    \"a\": \"string (correct answer: A, B, C, D)\",\n\
-                    \"e\": \"string (explanation in markdown)\",\n\
-                    \"ta\": boolean (tech allowed)\n\
+                    \"a\": \"string (correct answer: A, B, C, or D)\",\n\
+                    \"e\": \"string (explanation in markdown, 1–3 sentences max)\",\n\
+                    \"ta\": boolean (true=technology allowed, false=tech-free)\n\
                 }\n\
             ]\n\
         }\n";
 
     let user_prompt = format!(
-        "Create exactly {count} VCE multiple-choice questions (4 options: A, B, C, D) for: {topics}.\n\
-        Difficulty: {difficulty}\n\
-        {custom_focus_note}\
+        "Generate exactly {count} VCE multiple-choice questions (4 options: A, B, C, D).\n\n\
+        TOPICS: {topics}\n\n\
+        DIFFICULTY: {difficulty}\n\n\
+        {difficulty_rules}\n\n\
+        {tech_note}\n\n\
+        QUESTION DESIGN:\n\
+        • Stem: clear, economical wording with no redundancy; embeds all essential context.\n\
+        • Options: plausible distractors; common misconceptions and conceptual errors preferred.\n\
+        • Explanations: 1–3 sentences; justify correct answer and briefly address key misconceptions.\n\
+        • Variety: mix command terms, cognitive demand, and mark-equivalent difficulty across questions.\n\n\
+        FORMATTING:\n\
+        • Use markdown; apply LaTeX for mathematics: inline \\\\(...\\\\), block \\\\[...\\\\].\n\n\
         {focus_areas_note}\
-        Rules:\n{difficulty_rules}\n{tech_note}\n\
-        Constraints:\n\
-        - explanationMarkdown: 1-3 sentences max.\n\
-        Use markdown when necessary for formatting, but keep it concise and focused on clarity.
-        ",
+        {custom_focus_note}\
+        {repetition_avoidance_note}\n",
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
-        custom_focus_note = custom_focus_note,
-        focus_areas_note = focus_areas_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
-    )+ r#"- Use LaTeX: \\( ... \\) for inline, \\[ ... \\] for block.\n"# + json_schema_note;
+        focus_areas_note = focus_areas_note,
+        custom_focus_note = custom_focus_note,
+        repetition_avoidance_note = repetition_avoidance_note,
+    ) + &json_schema_note;
     let (user_content, _) = build_generation_user_content(&app, &request.topics, &user_prompt)?;
     let response_format = Some(mc_questions_response_format());
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are an expert VCE exam writer.",
+        "You are a VCE examination expert who writes rigorous, precisely-calibrated exam questions. You understand mark allocations, command term expectations, and learner cognitive load. Generate questions that authentically assess the curriculum.",
         user_content,
         response_format.as_ref(),
     )
@@ -191,15 +206,15 @@ fn default_question_max_marks() -> u8 {
 
 fn difficulty_guidance(level: &str) -> &'static str {
     if level.eq_ignore_ascii_case("essential skills") {
-        "- Target essential syllabus skills only: direct recall, direct substitution, and straightforward procedure execution.\n- Keep cognitive load low: minimal analysis, minimal context decoding, and no hidden method-switching.\n- Prefer one-step to short two-step tasks using familiar phrasing and standard forms."
+        "Essential Skills level:\n- Assess direct recall, simple substitution, and basic procedural steps only.\n- Cognitive load: minimal. Single or very simple two-step tasks.\n- Use familiar language, standard contexts, and obvious method selection.\n- No calculation complexity; prioritize conceptual familiarity."
     } else if level.eq_ignore_ascii_case("easy") {
-        "- Target foundational understanding and direct application.\n- Use familiar contexts with minimal distractor complexity.\n- Keep reasoning steps short and explicit."
+        "Easy level:\n- Test foundational understanding with straightforward application.\n- Multi-step tasks that require combining two familiar concepts in direct sequence.\n- Clear context cues; minimal reading difficulty; no hidden method-switching.\n- Support students with explicit structural hints about the solution approach."
     } else if level.eq_ignore_ascii_case("medium") {
-        "- Require multi-step reasoning with at least two linked concepts.\n- Include non-routine context shifts that require method choice.\n- Use realistic exam pressure through concise but information-dense prompts."
+        "Medium level:\n- Require integration of two or more distinct concepts in non-obvious ways.\n- Include realistic scenarios where method selection is not automatic; student must diagnose the approach.\n- Expect 3–5 logical steps executed in correct sequence with justified reasoning.\n- Information density: moderate; wording is economical and precise (no extraneous detail)."
     } else if level.eq_ignore_ascii_case("hard") {
-        "- Construct discriminator-level challenges that pivot on information-dense narratives, requiring students to synthesize multiple areas of the VCE Study Design simultaneously.\n- Use sophisticated wording to present edge-case scenarios or restricted domains that intentionally subvert rote-learned templates and punish routine algorithm application.\n- Require the student to articulate a rigorous, error-resistant reasoning chain that justifies their specific method selection amidst competing constraints."
+        "Hard level:\n- Synthesize 3+ concepts simultaneously; scenario uncovers edge cases or constraint conflicts.\n- Method selection requires explicit comparison and justification; standard algorithms may require adaptation.\n- Dense narrative that requires careful interpretation; reward deep conceptual reasoning, not template recall.\n- Multi-step logical chains where early errors cascade; minimal scaffolding."
     } else {
-        "- Transcend standard VCE exam rigor by targeting an intellectual depth comparable to mathematical olympiads or introductory university analysis.\n- Employ abstract, multi-layered prose that embeds implicit constraints and requires the construction of original sub-results or cross-domain derivations (e.g., linking complex probability transformations with calculus optimization).\n- Maximize cognitive load through unfamiliar problem framings that offer zero reliance on template recall, forcing a deep conceptual derivation of the solution from first principles."
+        "Extreme level:\n- Require conceptual reasoning at near-university depth; problem framings are novel and abstract.\n- Few if any familiar templates apply; students must derive solutions from first principles using multiple interconnected ideas.\n- High information density and sophisticated mathematical language; expect sophisticated synthesis across domains.\n- Minimal explicit guidance; solutions demonstrate both procedural mastery and genuine conceptual depth."
     }
 }
 

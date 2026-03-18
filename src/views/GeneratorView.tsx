@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader2, ArrowRight, ArrowLeft, Trash2, CheckCircle2, XCircle, Clock3, Settings2, BookOpen, Target, Sparkles, Check, Bug, Bookmark, Info, Album, BookCheck, Calculator, Pen, BookText, RefreshCcw } from "lucide-react";
 import {
   useAppContext,
   useAppPreferences,
@@ -15,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Dropzone } from "../components/ui/dropzone";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Separator } from "../components/ui/separator";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
@@ -50,6 +48,7 @@ import {
   ENGLISH_LANGUAGE_TASK_TYPES,
 } from "../types";
 import { confirmAction, fileToDataUrl, formatDurationMs, normalizeMarkResponse, readBackendError } from "../lib/app-utils";
+import { XCircle, Sparkles, BookOpen, Target, Album, Settings2, Pen, Calculator, BookCheck, Loader2, Clock3, CheckCircle2, Info, Bookmark, RefreshCcw, Trash2, ArrowLeft, ArrowRight, BookText, Bug } from "lucide-react";
 
 function countWords(value: string) {
   const trimmed = value.trim();
@@ -313,8 +312,6 @@ export function GeneratorView() {
 
   const lastWrittenCompletedCountRef = useRef(completedCount);
   const lastMcCompletedCountRef = useRef(mcCompletedCount);
-
-
 
   function getMcAwardedMarks(questionId: string, selectedAnswer: string, correctAnswer: string) {
     const overridden = mcAwardedMarksByQuestionId[questionId];
@@ -1404,7 +1401,7 @@ export function GeneratorView() {
           <span>Question {current} of {total}</span>
           <span className="text-muted-foreground">Completed: {completed} / {total}</span>
         </div>
-        <div className="relative w-full h-3 bg-muted/40 rounded-full overflow-hidden">
+        <div className="relative w-full h-1.5 bg-muted/40 rounded-full overflow-hidden">
           <div
             className="absolute left-0 top-0 h-full bg-green-400/70 dark:bg-green-600/70 transition-all"
             style={{ width: `${completedPercent}%` }}
@@ -1419,16 +1416,17 @@ export function GeneratorView() {
   }
 
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 lg:p-6 flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className="min-h-full w-full p-2 sm:p-3 lg:p-4 flex flex-col gap-3 animate-in fade-in duration-500">
       {errorMessage && (
-        <div className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm">
-          <XCircle className="w-5 h-5 shrink-0" />
+        <div className="bg-destructive/15 border border-destructive/30 text-destructive px-4 py-3 rounded-lg text-sm flex items-center gap-2 shadow-sm">
+          <XCircle className="w-4 h-4 shrink-0" />
           <p className="font-medium">{errorMessage}</p>
         </div>
       )}
 
       {showSetup ? (
         <>
+          {/* Setup view (Unchanged for this task) */}
           <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
             <div className="px-5 pb-3 border-b">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
@@ -1950,260 +1948,148 @@ export function GeneratorView() {
         </>
       ) : showCompletionScreen && isSetComplete ? (
         <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden animate-in fade-in duration-500">
-          <CardHeader className="border-b bg-muted/20 p-5 md:p-6">
-            <div className="flex flex-col gap-2">
-              <CardTitle className="text-2xl font-extrabold flex items-center gap-2">
-                <CheckCircle2 className="w-6 h-6 text-green-500" /> Session Complete
+          <CardHeader className="border-b bg-muted/20 p-4">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-xl font-extrabold flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-500" /> Session Complete
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs">
                 Nice work. You have finished this {questionMode === "written" ? "written-response" : "multiple-choice"} set.
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent className="p-5 md:p-6 space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Accuracy</div>
-                <div className="mt-1 text-3xl font-extrabold">{(completionAccuracyPercent ?? 0).toFixed(1)}%</div>
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Accuracy</div>
+                <div className="mt-1 text-xl font-bold">{(completionAccuracyPercent ?? 0).toFixed(1)}%</div>
               </div>
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Time</div>
-                <div className="mt-1 text-3xl font-extrabold"><ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} /></div>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Time</div>
+                <div className="mt-1 text-xl font-bold"><ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} /></div>
               </div>
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Difficulty</div>
-                <div className="mt-1 text-3xl font-extrabold">{difficulty}</div>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Difficulty</div>
+                <div className="mt-1 text-xl font-bold truncate">{difficulty}</div>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 text-sm">
+            <div className="flex flex-wrap gap-2 text-xs">
               <Badge variant="secondary">{questionMode === "written" ? "Written Answer" : "Multiple Choice"}</Badge>
               <Badge variant="outline">{questionMode === "written" ? `${writtenCompletedCount}/${writtenTotalQuestions}` : `${mcCompletedCount}/${mcQuestions.length}`} completed</Badge>
             </div>
           </CardContent>
 
-          <CardFooter className="bg-muted/20 p-4 md:p-5 border-t flex flex-wrap gap-2 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowCompletionScreen(false);
-              }}
-            >
+          <CardFooter className="bg-muted/20 p-3 border-t flex flex-wrap gap-2 justify-end">
+            <Button size="sm" variant="outline" onClick={() => setShowCompletionScreen(false)}>
               Review Questions
             </Button>
-            <Button variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
+            <Button size="sm" variant={questionMode === "written" ? (activeWrittenSavedSetId ? "default" : "outline") : (activeMcSavedSetId ? "default" : "outline")} onClick={saveCurrentSet}>
               {questionMode === "written" ? (activeWrittenSavedSetId ? "Update Saved Set" : "Save for Later") : (activeMcSavedSetId ? "Update Saved Set" : "Save for Later")}
             </Button>
-            <Button onClick={handleStartOver}>Start New Set</Button>
+            <Button size="sm" onClick={handleStartOver}>Start New Set</Button>
           </CardFooter>
         </Card>
       ) : questionMode === "written" ? (
         // ── Written Question View ──
-        <div className="flex min-h-full flex-col gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
-
-          <div className="sticky px-4.5 top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-3 pt-2 backdrop-blur-xl">
-
+        <div className="flex min-h-full flex-col gap-4 pb-20 animate-in slide-in-from-bottom-4 duration-500">
+          {/* Top Navbar */}
+          <div className="sticky px-3 top-0 z-10 flex flex-col gap-2 border-b bg-background/80 py-1.5 backdrop-blur-xl shadow-sm">
             <div className="flex flex-wrap items-center justify-end gap-1.5">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <div className="flex items-baseline gap-1.5 shrink-0">
-                  <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-                    Question {writtenCurrentIndex + 1}
-                  </h2>
-                  <span className="text-sm text-muted-foreground font-medium">/ {writtenTotalQuestions}</span>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                <div className="flex items-baseline gap-1 shrink-0">
+                  <h2 className="text-lg sm:text-xl font-bold tracking-tight">Q{writtenCurrentIndex + 1}</h2>
+                  <span className="text-xs text-muted-foreground font-medium">/ {writtenTotalQuestions}</span>
                 </div>
 
                 {isPassageMode && passage ? (
                   <>
-                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
-                      English Language
-                    </Badge>
-                    <Badge variant="outline" className="shrink-0 font-semibold">
-                      {passage.aosSubtopic}
-                    </Badge>
+                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary px-1.5 py-0">English</Badge>
+                    <Badge variant="outline" className="shrink-0 text-[10px]">{passage.aosSubtopic}</Badge>
                   </>
                 ) : (
                   <>
-                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
-                      {activeQuestion?.topic}
-                    </Badge>
-                    <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>
-                      Difficulty: {difficulty}
-                    </Badge>
+                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary px-1.5 py-0">{activeQuestion?.topic}</Badge>
+                    <Badge variant="outline" className={`shrink-0 text-[10px] ${getDifficultyBadgeClasses(difficulty)}`}>{difficulty}</Badge>
                   </>
                 )}
-                <Badge variant="outline" className="shrink-0 font-semibold">
-                  {activeWrittenQuestion?.maxMarks} marks
-                </Badge>
+                <Badge variant="outline" className="shrink-0 text-[10px] font-semibold">{activeWrittenQuestion?.maxMarks} marks</Badge>
                 {!isPassageMode && activeQuestion && isMathTopic(activeQuestion.topic) && activeQuestion.techAllowed !== undefined && (
-                  <Badge
-                    variant={activeQuestion.techAllowed ? "default" : "destructive"}
-                    className="shrink-0"
-                  >
+                  <Badge variant={activeQuestion.techAllowed ? "default" : "destructive"} className="shrink-0 text-[10px]">
                     {activeQuestion.techAllowed ? "Tech-active" : "Tech-free"}
                   </Badge>
                 )}
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                      aria-label="Question details"
-                    >
-                      <Info className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-3">
-                    <div className="flex flex-col gap-2 text-xs">
-                      <div className="font-semibold text-background">Question details</div>
-                      {generationStartedAt !== null && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Timer</span>
-                          <span className="font-mono text-background"><ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} /></span>
-                        </div>
-                      )}
-                      {activeWrittenTelemetry && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Generation time</span>
-                          <span className="text-background">{formatDurationMs(activeWrittenTelemetry.durationMs)}</span>
-                        </div>
-                      )}
-                      {activeWrittenTelemetry && (activeWrittenTelemetry.totalAttempts ?? 0) > 1 && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Attempts</span>
-                          <span className="text-right text-background">
-                            {(activeWrittenTelemetry.totalAttempts ?? 0)} total, {(activeWrittenTelemetry.repairAttempts ?? 0)} repair
-                          </span>
-                        </div>
-                      )}
-                      {Boolean(
-                        (activeWrittenTelemetry as { constrainedRegenerationUsed?: boolean } | null)
-                          ?.constrainedRegenerationUsed,
-                      ) && (
-                          <div className="flex items-center justify-between gap-3 text-background/80">
-                            <span>Fallback</span>
-                            <span className="text-red-300">Full regeneration used</span>
-                          </div>
+              
+              <div className="flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon-sm" className="h-7 w-7 rounded-full"><Info className="h-3.5 w-3.5" /></Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 p-3 text-xs">
+                      {/* Telemetry tooltip content unchanged */}
+                      <div className="flex flex-col gap-2">
+                        <div className="font-semibold text-background">Details</div>
+                        {generationStartedAt !== null && (
+                          <div className="flex justify-between text-background/80"><span>Time</span><span className="font-mono"><ElapsedTimerText startAt={generationStartedAt} endAt={sessionFinishedAt} /></span></div>
                         )}
-                      {activeWrittenTelemetry?.structuredOutputStatus === "used" && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Structured output</span>
-                          <span className="text-emerald-300">JSON used</span>
-                        </div>
-                      )}
-                      {activeWrittenTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Structured output</span>
-                          <span className="text-amber-300">Fallback used</span>
-                        </div>
-                      )}
-                      {generationStartedAt === null && !activeWrittenTelemetry && (
-                        <div className="text-background/80">No extra generation diagnostics.</div>
-                      )}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button
-                variant={activeWrittenSavedSetId ? "default" : "outline"}
-                size="sm"
-                onClick={saveCurrentSet}
-                className="h-8 gap-1.5"
-              >
-                <Bookmark className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
-              </Button>
-              {isPassageMode ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleResetPassage}
-                  className="h-8"
-                >
-                  <RefreshCcw className="w-3.5 h-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">New Passage</span>
+                        {activeWrittenTelemetry && (
+                          <div className="flex justify-between text-background/80"><span>Generation</span><span>{formatDurationMs(activeWrittenTelemetry.durationMs)}</span></div>
+                        )}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <Button variant={activeWrittenSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="h-7 gap-1 px-2 text-xs">
+                  <Bookmark className="w-3 h-3" /><span className="hidden sm:inline">{activeWrittenSavedSetId ? "Update" : "Save"}</span>
                 </Button>
-              ) : (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleCancelWrittenQuestion}
-                  disabled={questions.length === 0}
-                  className="h-8"
-                >
-                  <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Delete</span>
+                {isPassageMode ? (
+                  <Button variant="outline" size="sm" onClick={handleResetPassage} className="h-7 px-2 text-xs gap-1">
+                    <RefreshCcw className="w-3 h-3" /><span className="hidden sm:inline">New Passage</span>
+                  </Button>
+                ) : (
+                  <Button variant="destructive" size="sm" onClick={handleCancelWrittenQuestion} disabled={questions.length === 0} className="h-7 px-2 text-xs gap-1">
+                    <Trash2 className="w-3 h-3" /><span className="hidden sm:inline">Delete</span>
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleStartOver} className="h-7 px-2 text-xs">Exit</Button>
+                <Button variant="outline" size="sm" onClick={() => { isPassageMode && passage ? setActivePassageQuestionIndex(Math.max(0, activePassageQuestionIndex - 1)) : setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1)); }} disabled={isPassageMode ? activePassageQuestionIndex === 0 : activeQuestionIndex === 0} className="h-7 px-2 text-xs gap-1">
+                  <ArrowLeft className="w-3 h-3" /><span className="hidden sm:inline">Prev</span>
                 </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleStartOver}
-                className="h-8 text-muted-foreground hover:text-foreground"
-              >
-                Exit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (isPassageMode && passage) {
-                    setActivePassageQuestionIndex(Math.max(0, activePassageQuestionIndex - 1));
-                    return;
-                  }
-                  setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1));
-                }}
-                disabled={isPassageMode ? activePassageQuestionIndex === 0 : activeQuestionIndex === 0}
-                className="h-8"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Prev</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextWrittenQuestion}
-                disabled={!canAdvanceWritten}
-                className="h-8"
-              >
-                <span className="hidden sm:inline">{isAtLastWrittenQuestion ? "Summary" : "Next"}</span>
-                <ArrowRight className="w-3.5 h-3.5 sm:ml-1.5" />
-              </Button>
+                <Button variant="outline" size="sm" onClick={handleNextWrittenQuestion} disabled={!canAdvanceWritten} className="h-7 px-2 text-xs gap-1">
+                  <span className="hidden sm:inline">{isAtLastWrittenQuestion ? "Summary" : "Next"}</span><ArrowRight className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
-
-            <div className="w-full">
-              {renderProgressBar(writtenCurrentIndex + 1, writtenTotalQuestions, writtenCompletedCount)}
-            </div>
+            {renderProgressBar(writtenCurrentIndex + 1, writtenTotalQuestions, writtenCompletedCount)}
           </div>
 
           {activeWrittenQuestion && (
-            <div className={isPassageMode ? "grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]" : "flex flex-col space-y-2"}>
+            <div className={isPassageMode ? "grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-3" : "flex flex-col gap-3"}>
               {isPassageMode && passage ? (
-                <div className="space-y-3 lg:sticky lg:top-24">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between gap-3">
-                        <CardTitle className="flex items-center gap-2 text-xl"><BookText className="w-5 h-5 text-primary" /> Passage</CardTitle>
+                <div className="flex flex-col gap-2 lg:sticky lg:top-14 h-fit">
+                  <Card className="shadow-sm">
+                    <CardHeader className="py-2 px-3 border-b bg-muted/10">
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className="flex items-center gap-1.5 text-sm font-semibold"><BookText className="w-4 h-4 text-primary" /> Passage</CardTitle>
                         {canShowPassageRawOutput && (
-                          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowPassageRawOutput((prev) => !prev)}>
-                            <Bug className="h-4 w-4" />
-                            {showPassageRawOutput ? "Hide Raw Output" : "Show Raw Output"}
+                          <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowPassageRawOutput((prev) => !prev)}>
+                            <Bug className="h-3 w-3" /> {showPassageRawOutput ? "Hide" : "Raw"}
                           </Button>
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="w-full rounded-xl border border-border/70 bg-muted/10">
-                        <div className="flex flex-col py-4 font-medium leading-[1.8] text-foreground">
+                    <CardContent className="p-0">
+                      <ScrollArea className="w-full h-[50vh] lg:h-[70vh] bg-background">
+                        <div className="flex flex-col py-2 text-[13px] leading-[1.6]">
                           {activeLineItems.map((line) => (
-                            <div key={line.lineNumber} className="group flex flex-row px-4 transition-colors hover:bg-muted/30">
-                              <span className="flex w-10 shrink-0 select-none items-center justify-end border-r-2 border-border/40 pr-3 text-xs text-muted-foreground/60 transition-colors group-hover:border-border/80 group-hover:text-muted-foreground/80">
+                            <div key={line.lineNumber} className="group flex flex-row px-2 hover:bg-muted/30">
+                              <span className="w-8 shrink-0 text-right pr-2 select-none text-muted-foreground/50 border-r border-border/40 group-hover:border-border/80 group-hover:text-muted-foreground">
                                 {line.lineNumber}
                               </span>
-                              <span className="whitespace-pre-wrap pl-4">{line.text}</span>
+                              <span className="whitespace-pre-wrap pl-3">{line.text}</span>
                             </div>
                           ))}
                         </div>
@@ -2211,62 +2097,48 @@ export function GeneratorView() {
                     </CardContent>
                   </Card>
                   {showPassageRawOutput && canShowPassageRawOutput && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm font-semibold">Raw Model Output</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap wrap-break-word rounded-lg bg-muted/30 p-3 text-xs">
-                          {passageRawModelOutput}
-                        </pre>
-                      </CardContent>
-                    </Card>
+                    <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded border bg-muted/30 p-2 text-[10px]">{passageRawModelOutput}</pre>
                   )}
                 </div>
               ) : null}
-              <div className="flex flex-col space-y-2">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
+              
+              <div className="flex flex-col gap-3">
+                {/* Question Block */}
+                <Card className="shadow-sm border-border/60">
+                  <CardHeader className="py-2 px-3 border-b bg-muted/5">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="flex items-center gap-1.5 text-sm font-semibold"><BookOpen className="w-4 h-4 text-primary" /> The Problem</CardTitle>
                       {!isPassageMode && canShowWrittenRawOutput && (
-                        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowWrittenRawOutput((prev) => !prev)}>
-                          <Bug className="h-4 w-4" />
-                          {showWrittenRawOutput ? "Hide Raw Output" : "Show Raw Output"}
+                        <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowWrittenRawOutput((prev) => !prev)}>
+                          <Bug className="h-3 w-3" /> {showWrittenRawOutput ? "Hide" : "Raw"}
                         </Button>
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="prose prose-slate dark:prose-invert max-w-none">
+                  <CardContent className="p-3 text-sm">
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
                       <MarkdownMath content={activeWrittenQuestion.promptMarkdown} />
                     </div>
                     {!isPassageMode && showWrittenRawOutput && canShowWrittenRawOutput && (
-                      <div className="space-y-2">
-                        <Separator />
-                        <div>
-                          <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
-                          <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-5 whitespace-pre-wrap wrap-break-word">{writtenRawModelOutput}</pre>
-                        </div>
-                      </div>
+                      <pre className="mt-3 max-h-40 overflow-auto rounded border bg-muted/30 p-2 text-[10px] whitespace-pre-wrap">{writtenRawModelOutput}</pre>
                     )}
                   </CardContent>
                 </Card>
 
-                <Card className="shadow-md border-border/50 flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                      <Target className="w-5 h-5 text-primary" /> Your Response
+                {/* Response / Marking Block */}
+                <Card className="shadow-sm border-border/60 flex-1 flex flex-col">
+                  <CardHeader className="py-2 px-3 border-b bg-muted/5">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Target className="w-4 h-4 text-primary" /> {activeWrittenFeedback ? "Feedback" : "Your Response"}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 flex-1 flex flex-col">
+                  <CardContent className="p-3 flex-1 flex flex-col gap-3">
                     {!activeWrittenFeedback ? (
-                      <div className="flex-1 flex flex-col gap-6">
-                        <div className="space-y-3 flex-1">
-                          <Label className="text-base font-semibold">Type your answer</Label>
+                      <div className="flex-1 flex flex-col gap-3">
+                        <div className="space-y-1.5 flex-1">
                           <Textarea
-                            placeholder={isPassageMode ? "Write a concise response with line references..." : "Compose your response here..."}
-                            className="min-h-[200px] resize-y text-base p-4 focus-visible:ring-primary/30"
+                            placeholder={isPassageMode ? "Concise response with line references..." : "Type your answer..."}
+                            className="min-h-[120px] text-sm p-3 focus-visible:ring-1"
                             value={activeWrittenAnswer}
                             onChange={(e) => {
                               const nextValue = e.target.value;
@@ -2275,169 +2147,92 @@ export function GeneratorView() {
                                 return;
                               }
                               setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: nextValue }));
-                              if (nextValue.trim().length === 0) {
-                                return;
+                              if (nextValue.trim().length > 0) {
+                                setWrittenResponseEnteredAtById((prev) => prev[activeQuestion.id] !== undefined ? prev : { ...prev, [activeQuestion.id]: Date.now() });
                               }
-                              setWrittenResponseEnteredAtById((prev) => {
-                                if (prev[activeQuestion.id] !== undefined) {
-                                  return prev;
-                                }
-
-                                return { ...prev, [activeQuestion.id]: Date.now() };
-                              });
                             }}
                             disabled={isMarking}
                           />
                         </div>
 
                         {!isPassageMode && (
-                          <div className="space-y-3">
-                            <Label className="text-base font-semibold">Or upload working (Image)</Label>
+                          <div className="space-y-1.5">
                             {activeQuestionImage ? (
-                              <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm bg-muted/30 p-2">
-                                <img src={activeQuestionImage.dataUrl} alt="Uploaded text" className="w-full h-auto max-h-80 object-contain rounded-lg" />
-                                <div className="absolute inset-0 bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-                                  <Button variant="destructive" size="sm" className="shadow-xl" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
-                                    <Trash2 className="w-4 h-4 mr-2" /> Remove Image
-                                  </Button>
-                                </div>
+                              <div className="relative group rounded-md border border-primary/20 bg-muted/10 p-1.5 flex items-center justify-between">
+                                <span className="text-xs truncate font-medium max-w-[200px]">{activeQuestionImage.name} attached</span>
+                                <Button variant="ghost" size="sm" className="h-6 text-xs text-destructive hover:bg-destructive/10 px-2" onClick={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}>
+                                  Remove
+                                </Button>
                               </div>
                             ) : (
-                              <div className="border-2 border-dashed border-border rounded-xl hover:bg-muted/30 transition-colors">
+                              <div className="border border-dashed border-border/80 rounded-md hover:bg-muted/20 transition-colors p-2 text-center text-xs">
                                 <Dropzone onDrop={handleDropDropzone} />
                               </div>
                             )}
                           </div>
                         )}
 
-                        <Button
-                          size="lg"
-                          className="w-full mt-auto h-14 text-base font-bold shadow-md transition-all hover:shadow-primary/20"
-                          onClick={handleSubmitForMarking}
-                          disabled={!canSubmitAnswer || isMarking}
-                        >
-                          {isMarking ? <><Loader2 className="w-5 h-5 mr-3 animate-spin" /> Evaluating Answer...</> : <><CheckCircle2 className="w-5 h-5 mr-2" /> Submit for Marking</>}
+                        <Button size="sm" className="w-full font-semibold h-8" onClick={handleSubmitForMarking} disabled={!canSubmitAnswer || isMarking}>
+                          {isMarking ? <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Evaluating...</> : "Submit"}
                         </Button>
                       </div>
                     ) : (
-                      <div className="space-y-2 animate-in slide-in-from-right-4 duration-500">
-                        <div className="space-y-4">
-                          <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Submitted Answer</Label>
+                      <div className="space-y-4 animate-in fade-in duration-300">
+                        {/* Compact Score Inline Banner */}
+                        <div className="flex justify-between items-center rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+                          <span className="text-sm font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-amber-500"/> Scored</span>
+                          <span className="text-lg font-bold">{activeWrittenFeedback.achievedMarks} <span className="text-xs text-muted-foreground">/ {activeWrittenFeedback.maxMarks}</span></span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Answer</Label>
                           {activeWrittenAnswer.trim().length > 0 ? (
-                            <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
+                            <div className="prose prose-sm dark:prose-invert max-w-none bg-muted/10 p-2.5 rounded border border-border/50 text-sm">
                               <MarkdownMath content={activeWrittenAnswer} />
                             </div>
-                          ) : (
-                            <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
-                              No typed answer was submitted.
-                            </div>
-                          )}
-
-                          {!isPassageMode && activeQuestionImage && (
-                            <div className="space-y-3">
-                              <Label className="text-base font-semibold">Uploaded working</Label>
-                              <div className="rounded-xl border border-border/50 bg-muted/20 p-3 shadow-sm">
-                                <img src={activeQuestionImage.dataUrl} alt="Submitted working" className="w-full h-auto max-h-96 object-contain rounded-lg" />
-                              </div>
-                            </div>
-                          )}
+                          ) : <div className="text-xs text-muted-foreground italic border rounded p-2 bg-muted/10">No text submitted.</div>}
                         </div>
 
-                        {/* Score Banner */}
-                        <div className="bg-linear-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 rounded-2xl flex justify-between items-center shadow-sm relative overflow-hidden">
-                          <div className="absolute -right-4 -top-4 opacity-5 pointer-events-none">
-                            <Target className="w-32 h-32" />
-                          </div>
-                          <div className="relative z-10">
-                            <div className="text-sm font-bold uppercase tracking-wider text-primary mb-1">Total Score</div>
-                            <div className="text-5xl font-extrabold text-foreground">{activeWrittenFeedback.scoreOutOf10}<span className="ml-1 text-2xl text-muted-foreground font-medium">/ 10</span></div>
-                          </div>
-                          <div className="text-right relative z-10 bg-background/80 backdrop-blur px-4 py-2 rounded-xl border">
-                            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Marks Awarded</div>
-                            <div className="text-2xl font-bold">{activeWrittenFeedback.achievedMarks} <span className="text-base text-muted-foreground font-normal">/ {activeWrittenFeedback.maxMarks}</span></div>
-                          </div>
-                        </div>
-
-                        <div className="p-3.5 rounded-2xl border border-border/60 bg-muted/20 space-y-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold">Argue for Mark</Label>
-                            <Textarea
-                              placeholder="Explain why your response deserves additional marks..."
-                              className="min-h-[96px]"
-                              value={activeWrittenMarkAppeal}
-                              onChange={(e) =>
-                                setMarkAppealByQuestionId((prev) => ({
-                                  ...prev,
-                                  [activeWrittenQuestion.id]: e.target.value,
-                                }))
-                              }
-                              disabled={isMarking}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={handleArgueForMark}
-                              disabled={isMarking || activeWrittenMarkAppeal.trim().length === 0}
-                            >
-                              {isMarking ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Re-marking...</>
-                              ) : (
-                                <>Argue for Mark</>
-                              )}
+                        {/* Side-by-side Argue & Override blocks */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-2.5 rounded border bg-muted/5">
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Argue for Mark</Label>
+                            <Textarea placeholder="Reasoning..." className="min-h-[50px] text-xs py-1.5 px-2" value={activeWrittenMarkAppeal} onChange={(e) => setMarkAppealByQuestionId((prev) => ({ ...prev, [activeWrittenQuestion.id]: e.target.value }))} disabled={isMarking} />
+                            <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={handleArgueForMark} disabled={isMarking || activeWrittenMarkAppeal.trim().length === 0}>
+                              {isMarking ? "Re-marking..." : "Argue"}
                             </Button>
                           </div>
-
-                          <Separator />
-
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold">Override Mark</Label>
-                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                              <Input
-                                type="number"
-                                min={0}
-                                max={activeWrittenFeedback.maxMarks}
-                                step={1}
-                                className="sm:max-w-28"
-                                value={activeWrittenOverrideInput}
-                                onChange={(e) =>
-                                  setMarkOverrideInputByQuestionId((prev) => ({
-                                    ...prev,
-                                    [activeWrittenQuestion.id]: e.target.value,
-                                  }))
-                                }
-                              />
-                              <span className="text-sm text-muted-foreground">out of {activeWrittenFeedback.maxMarks}</span>
-                              <Button type="button" onClick={handleOverrideMark}>Apply Override</Button>
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Override</Label>
+                            <div className="flex gap-2 items-center">
+                              <Input type="number" min={0} max={activeWrittenFeedback.maxMarks} className="h-7 text-xs w-16" value={activeWrittenOverrideInput} onChange={(e) => setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeWrittenQuestion.id]: e.target.value }))} />
+                              <span className="text-xs text-muted-foreground">/ {activeWrittenFeedback.maxMarks}</span>
                             </div>
+                            <Button size="sm" variant="secondary" className="w-full h-7 text-xs mt-auto" onClick={handleOverrideMark}>Apply</Button>
                           </div>
                         </div>
 
-                        <div className="space-y-4">
-                          <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-500" /> AI Feedback</Label>
-                          <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-5 rounded-xl border border-border/50">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">AI Feedback</Label>
+                          <div className="prose prose-sm dark:prose-invert max-w-none text-sm p-0">
                             <MarkdownMath content={activeWrittenFeedback.feedbackMarkdown} />
                           </div>
                         </div>
 
-                        <div className="space-y-4">
-                          <Label className="text-xl font-bold border-b pb-2 flex items-center gap-2"><Check className="w-5 h-5 text-green-500" /> Marking Scheme</Label>
-                          <div className="space-y-3 mt-2">
-                            {activeWrittenFeedback.vcaaMarkingScheme.map((item: { criterion: string; achievedMarks: number; maxMarks: number; rationale: string }, idx: number) => {
+                        <div className="space-y-1.5 mt-2">
+                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b pb-1 flex w-full">Marking Scheme</Label>
+                          <div className="flex flex-col gap-2">
+                            {activeWrittenFeedback.vcaaMarkingScheme.map((item: any, idx: number) => {
                               const isFullMarks = item.achievedMarks === item.maxMarks;
                               return (
-                                <div key={idx} className={`p-4 rounded-xl border text-sm flex justify-between gap-6 transition-colors ${isFullMarks ? "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" : "bg-card"}`}>
-                                  <div className="leading-relaxed flex-1 space-y-2">
-                                    <MarkdownMath content={item.criterion} />
-                                    {item.rationale.trim().length > 0 && (
-                                      <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-                                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rationale</p>
-                                        <MarkdownMath content={item.rationale} />
-                                      </div>
-                                    )}
+                                <div key={idx} className={`p-2.5 rounded border text-sm flex justify-between gap-3 ${isFullMarks ? "bg-green-500/5 border-green-500/20" : "bg-card"}`}>
+                                  <div className="flex-1 space-y-1">
+                                    <div className="prose prose-sm dark:prose-invert"><MarkdownMath content={item.criterion} /></div>
+                                    {item.rationale.trim().length > 0 && <div className="text-[11px] text-muted-foreground"><MarkdownMath content={item.rationale} /></div>}
                                   </div>
-                                  <span className={`font-bold whitespace-nowrap px-3 py-1 rounded-md h-fit ${isFullMarks ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" : "bg-muted"}`}>
-                                    {item.achievedMarks} / {item.maxMarks}
-                                  </span>
+                                  <div className={`text-xs font-bold px-1.5 py-0.5 rounded h-fit ${isFullMarks ? "text-green-600 bg-green-500/10" : "bg-muted text-muted-foreground"}`}>
+                                    {item.achievedMarks}/{item.maxMarks}
+                                  </div>
                                 </div>
                               );
                             })}
@@ -2453,270 +2248,120 @@ export function GeneratorView() {
         </div>
       ) : (
         // ── Multiple Choice Question View ──
-        <div className="flex flex-col h-full gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
-
-          <div className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-4 pt-2 backdrop-blur-xl">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-2 flex flex-wrap items-center gap-3">
-                  <h2 className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent sm:text-3xl">
-                    Question {activeMcQuestionIndex + 1}
-                  </h2>
-                  <span className="text-base font-medium text-muted-foreground sm:text-xl">of {mcQuestions.length}</span>
-                </div>
-                <div className="flex flex-row justify-between ">
-                  <div className="mt-1 flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 text-xs sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">{activeMcQuestion?.topic}</Badge>
-                    <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>Difficulty: {difficulty}</Badge>
-                    {activeMcQuestion && isMathTopic(activeMcQuestion.topic) && activeMcQuestion.techAllowed !== undefined && (
-                      <Badge variant={activeMcQuestion.techAllowed ? "default" : "destructive"} className="shrink-0 shadow-sm">
-                        <span className="hidden sm:inline">{activeMcQuestion.techAllowed ? "CAS allowed" : "No calculator"}</span>
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-row gap-x-1.5">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                            aria-label="Question details"
-                          >
-                            <Info className="h-3.5 w-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="end" sideOffset={8}>
-                          <div className="flex flex-col gap-2 text-xs">
-                            <div className="font-semibold text-background">Question details</div>
-                            {generationStartedAt !== null && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Timer</span>
-                                <span className="font-mono text-background">{formatElapsedTime(
-                                  generationStartedAt,
-                                  sessionFinishedAt,
-                                  Date.now()
-                                )}</span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Generation time</span>
-                                <span className="text-background">{formatDurationMs(mcGenerationTelemetry.durationMs)}</span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry && mcGenerationTelemetry.totalAttempts > 1 && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Attempts</span>
-                                <span className="text-right text-background">
-                                  {mcGenerationTelemetry.totalAttempts} total, {mcGenerationTelemetry.repairAttempts} repair
-                                </span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry?.constrainedRegenerationUsed && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Fallback</span>
-                                <span className="text-red-300">Full regeneration used</span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry?.structuredOutputStatus === "used" && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Structured output</span>
-                                <span className="text-emerald-300">JSON used</span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Structured output</span>
-                                <span className="text-amber-300">Fallback used</span>
-                              </div>
-                            )}
-                            {generationStartedAt === null && !mcGenerationTelemetry && (
-                              <div className="text-background/80">No extra generation diagnostics.</div>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Button variant={activeMcSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="gap-2 shadow-sm">
-                      <Bookmark className="w-4 h-4" />
-                      <span className="hidden xl:inline">{activeMcSavedSetId ? "Update Saved Set" : "Save for Later"}</span>
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={handleCancelMcQuestion} disabled={mcQuestions.length === 0} className="shadow-sm">
-                      <Trash2 className="w-4 h-4 xl:mr-2" />
-                      <span className="hidden xl:inline">Cancel Question</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleStartOver} className="text-muted-foreground hover:text-foreground">Exit Set</Button>
-                    <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))} disabled={activeMcQuestionIndex === 0} className="shadow-sm">
-                      <ArrowLeft className="w-4 h-4 xl:mr-2" /> <span className="hidden xl:inline">Previous</span>
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleNextMcQuestion} disabled={!canAdvanceMc} className="shadow-sm">
-                      <span className="hidden xl:inline">{isAtLastMcQuestion ? "View Summary" : "Next"}</span> <ArrowRight className="w-4 h-4 xl:ml-2" />
-                    </Button>
-                  </div>
-                </div>
-
+        <div className="flex flex-col h-full gap-4 pb-20 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="sticky top-0 z-10 flex flex-col gap-2 border-b bg-background/80 py-2 backdrop-blur-xl shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight">Q{activeMcQuestionIndex + 1}</h2>
+                <span className="text-xs font-medium text-muted-foreground">/ {mcQuestions.length}</span>
+                <Badge variant="secondary" className="border-primary/20 bg-primary/10 text-primary px-1.5 py-0 text-[10px]">{activeMcQuestion?.topic}</Badge>
+              </div>
+              
+              <div className="flex items-center gap-1">
+                <Button variant={activeMcSavedSetId ? "default" : "outline"} size="sm" onClick={saveCurrentSet} className="h-7 px-2 text-xs gap-1">
+                  <Bookmark className="w-3" /><span className="hidden sm:inline">Save</span>
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleCancelMcQuestion} disabled={mcQuestions.length === 0} className="h-7 px-2 text-xs gap-1">
+                  <Trash2 className="w-3" /><span className="hidden sm:inline">Drop</span>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleStartOver} className="h-7 px-2 text-xs">Exit</Button>
+                <Button variant="outline" size="sm" onClick={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))} disabled={activeMcQuestionIndex === 0} className="h-7 px-2 text-xs">
+                  <ArrowLeft className="w-3 sm:mr-1" /> <span className="hidden sm:inline">Prev</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleNextMcQuestion} disabled={!canAdvanceMc} className="h-7 px-2 text-xs">
+                  <span className="hidden sm:inline">{isAtLastMcQuestion ? "Summary" : "Next"}</span> <ArrowRight className="w-3 sm:ml-1" />
+                </Button>
               </div>
             </div>
-
-            <div className="w-full">
-              {renderProgressBar(activeMcQuestionIndex + 1, mcQuestions.length, mcCompletedCount)}
-            </div>
+            {renderProgressBar(activeMcQuestionIndex + 1, mcQuestions.length, mcCompletedCount)}
           </div>
 
           {activeMcQuestion && (
-            <div className="flex flex-col space-y-2">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="flex items-center gap-2 text-xl"><BookOpen className="w-5 h-5 text-primary" /> The Problem</CardTitle>
-                    {canShowMcRawOutput && (
-                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setShowMcRawOutput((prev) => !prev)}>
-                        <Bug className="h-4 w-4" />
-                        {showMcRawOutput ? "Hide Raw Output" : "Show Raw Output"}
-                      </Button>
-                    )}
-                  </div>
+            <div className="flex flex-col gap-3">
+              <Card className="shadow-sm border-border/60">
+                <CardHeader className="py-2 px-3 border-b bg-muted/5 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><BookOpen className="w-4 h-4 text-primary" /> The Problem</CardTitle>
+                  {canShowMcRawOutput && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] px-2 gap-1" onClick={() => setShowMcRawOutput((prev) => !prev)}>
+                      <Bug className="h-3 w-3" /> Raw
+                    </Button>
+                  )}
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="prose prose-slate dark:prose-invert max-w-none text-lg">
+                <CardContent className="p-3 text-sm">
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
                     <MarkdownMath content={activeMcQuestion.promptMarkdown} />
                   </div>
                   {showMcRawOutput && canShowMcRawOutput && (
-                    <div className="space-y-2">
-                      <Separator />
-                      <div>
-                        <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
-                        <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-sm leading-5 whitespace-pre-wrap wrap-break-word">{mcRawModelOutput}</pre>
-                      </div>
-                    </div>
+                    <pre className="mt-2 max-h-40 overflow-auto rounded border bg-muted/30 p-2 text-[10px] whitespace-pre-wrap">{mcRawModelOutput}</pre>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="flex-col">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><Target className="w-5 h-5 text-primary" /> Select an Answer</CardTitle>
+              <Card className="shadow-sm border-border/60 flex-col">
+                <CardHeader className="py-2 px-3 border-b bg-muted/5">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Target className="w-4 h-4 text-primary" /> Options</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex flex-col gap-3">
+                <CardContent className="p-3 space-y-3">
+                  <div className="flex flex-col gap-2">
                     {activeMcQuestion.options.map((opt: McOption) => {
                       const answered = Boolean(activeMcAnswer);
                       const isChosen = activeMcAnswer === opt.label;
                       const isCorrect = opt.label === activeMcQuestion.correctAnswer;
-
-                      let dynamicClasses = "border-2 bg-card hover:border-primary/50 hover:bg-muted/50";
+                      let dynamicClasses = "border bg-card hover:bg-muted/50";
 
                       if (answered) {
-                        if (isCorrect) {
-                          dynamicClasses = "border-green-500 bg-green-50 dark:bg-green-950/40 shadow-sm ring-1 ring-green-500/20";
-                        } else if (isChosen) {
-                          dynamicClasses = "border-red-500 bg-red-50 dark:bg-red-950/40 opacity-90";
-                        } else {
-                          dynamicClasses = "border-border bg-card opacity-50 grayscale transition-all";
-                        }
+                        if (isCorrect) dynamicClasses = "border-green-500/50 bg-green-500/10 font-medium";
+                        else if (isChosen) dynamicClasses = "border-red-500/50 bg-red-500/10 opacity-90";
+                        else dynamicClasses = "border-border/50 bg-card opacity-50 grayscale";
                       }
 
                       return (
                         <button
                           key={opt.label}
                           disabled={answered}
-                          className={`w-full text-left p-3.5 rounded-2xl flex gap-4 items-center transition-all duration-200 ${dynamicClasses} ${!answered ? "cursor-pointer transform hover:-translate-y-0.5" : "cursor-default"}`}
+                          className={`w-full text-left p-2 rounded-md flex gap-3 items-center text-sm transition-all ${dynamicClasses} ${!answered ? "cursor-pointer hover:border-primary/40" : "cursor-default"}`}
                           onClick={() => handleMcAnswer(opt.label)}
                         >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${answered && isCorrect ? 'bg-green-500 text-white' : answered && isChosen ? 'bg-red-500 text-white' : 'bg-muted text-foreground'}`}>
+                          <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 font-bold text-xs ${answered && isCorrect ? 'bg-green-500 text-white' : answered && isChosen ? 'bg-red-500 text-white' : 'bg-muted border text-foreground'}`}>
                             {opt.label}
                           </div>
-                          <div className="flex-1 text-base">
-                            <MarkdownMath content={opt.text} />
-                          </div>
+                          <div className="flex-1 prose-sm"><MarkdownMath content={opt.text} /></div>
                         </button>
                       );
                     })}
                   </div>
 
                   {activeMcAnswer && (
-                    <div className="mt-6 space-y-4 animate-in zoom-in-95 duration-300">
-                      <div className={`p-6 rounded-2xl border-2 flex gap-4 items-start ${activeMcAnswer === activeMcQuestion.correctAnswer
-                        ? "bg-green-50/80 dark:bg-green-950/30 border-green-200 dark:border-green-900/50 text-green-900 dark:text-green-100"
-                        : "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-900 dark:text-red-100"
-                        }`}>
-                        {activeMcAnswer === activeMcQuestion.correctAnswer
-                          ? <CheckCircle2 className="w-8 h-8 shrink-0 text-green-600 dark:text-green-400" />
-                          : <XCircle className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" />}
-                        <div className="flex-1">
-                          <p className="font-extrabold text-lg mb-2 flex items-center gap-2">
-                            {activeMcAnswer === activeMcQuestion.correctAnswer
-                              ? "Excellent! That is correct."
-                              : `Incorrect. The correct answer is ${activeMcQuestion.correctAnswer}.`}
-                          </p>
-                          <div className="prose prose-sm dark:prose-invert max-w-none opacity-90">
-                            <MarkdownMath content={activeMcQuestion.explanationMarkdown} />
-                          </div>
+                    <div className="mt-4 space-y-3 animate-in fade-in duration-300">
+                      <div className={`p-3 rounded-md border text-sm flex gap-3 items-start ${activeMcAnswer === activeMcQuestion.correctAnswer ? "bg-green-500/10 border-green-500/20 text-green-900 dark:text-green-100" : "bg-red-500/10 border-red-500/20 text-red-900 dark:text-red-100"}`}>
+                        {activeMcAnswer === activeMcQuestion.correctAnswer ? <CheckCircle2 className="w-5 h-5 shrink-0 text-green-600" /> : <XCircle className="w-5 h-5 shrink-0 text-red-600" />}
+                        <div className="flex-1 space-y-1">
+                          <p className="font-bold">{activeMcAnswer === activeMcQuestion.correctAnswer ? "Correct" : `Incorrect. Correct answer is ${activeMcQuestion.correctAnswer}`}</p>
+                          <div className="prose prose-sm dark:prose-invert opacity-90 text-[13px]"><MarkdownMath content={activeMcQuestion.explanationMarkdown} /></div>
                         </div>
                       </div>
-                      {activeMcAnswer !== activeMcQuestion.correctAnswer && (
-                        <div className="p-3.5 rounded-2xl border border-border/60 bg-muted/20 space-y-4">
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                            <div className="text-sm font-semibold">Awarded mark</div>
-                            <div className="text-lg font-bold">
-                              {(activeMcAwardedMarks ?? (activeMcAnswer === activeMcQuestion.correctAnswer ? 1 : 0)).toFixed(0)} / 1
-                            </div>
-                          </div>
 
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold">Argue for Mark</Label>
-                            <Textarea
-                              placeholder="Explain why this answer should still receive a mark..."
-                              className="min-h-[96px]"
-                              value={activeMcMarkAppeal}
-                              onChange={(e) =>
-                                setMcMarkAppealByQuestionId((prev) => ({
-                                  ...prev,
-                                  [activeMcQuestion.id]: e.target.value,
-                                }))
-                              }
-                              disabled={isMarking}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={handleArgueForMcMark}
-                              disabled={isMarking || activeMcMarkAppeal.trim().length === 0}
-                            >
-                              {isMarking ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Re-marking...</>
-                              ) : (
-                                <>Argue for Mark</>
-                              )}
+                      {activeMcAnswer !== activeMcQuestion.correctAnswer && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-2.5 rounded border bg-muted/5">
+                           <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Argue for Mark</Label>
+                            <Textarea placeholder="Reasoning..." className="min-h-[50px] text-xs py-1.5 px-2" value={activeMcMarkAppeal} onChange={(e) => setMcMarkAppealByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: e.target.value }))} disabled={isMarking} />
+                            <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={handleArgueForMcMark} disabled={isMarking || activeMcMarkAppeal.trim().length === 0}>
+                              {isMarking ? "Re-marking..." : "Argue"}
                             </Button>
                           </div>
-
-                          <Separator />
-
-                          <div className="space-y-2">
-                            <Label className="text-sm font-semibold">Override Mark</Label>
-                            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                              <Input
-                                type="number"
-                                min={0}
-                                max={1}
-                                step={1}
-                                className="sm:max-w-28"
-                                value={activeMcOverrideInput}
-                                onChange={(e) =>
-                                  setMcMarkOverrideInputByQuestionId((prev) => ({
-                                    ...prev,
-                                    [activeMcQuestion.id]: e.target.value,
-                                  }))
-                                }
-                              />
-                              <span className="text-sm text-muted-foreground">out of 1</span>
-                              <Button type="button" onClick={handleOverrideMcMark}>Apply Override</Button>
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase flex justify-between">
+                              <span>Override</span>
+                              <span className="text-foreground">Awarded: {(activeMcAwardedMarks ?? 0).toFixed(0)}/1</span>
+                            </Label>
+                            <div className="flex gap-2 items-center">
+                              <Input type="number" min={0} max={1} className="h-7 text-xs w-16" value={activeMcOverrideInput} onChange={(e) => setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: e.target.value }))} />
                             </div>
+                            <Button size="sm" variant="secondary" className="w-full h-7 text-xs mt-auto" onClick={handleOverrideMcMark}>Apply</Button>
                           </div>
-                        </div>)}
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>

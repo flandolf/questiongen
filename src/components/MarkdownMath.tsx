@@ -10,12 +10,10 @@ export const MarkdownMath = memo(function MarkdownMath({ content }: { content: s
   const protectedContent = content.replace(/\\/g, "\\\\");
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none math-markdown">
       <MathJax dynamic>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
           {protectedContent}
         </ReactMarkdown>
       </MathJax>
-    </div>
   );
 });
