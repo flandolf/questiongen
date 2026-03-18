@@ -1,3 +1,5 @@
+use openrouter_rs::api::models::list_model_endpoints;
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GenerateMcQuestionsRequest {
@@ -16,7 +18,9 @@ struct GenerateMcQuestionsRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct McOption {
+    #[serde(alias = "l")]
     label: String,
+    #[serde(alias = "txt")]
     text: String,
 }
 
@@ -24,14 +28,19 @@ struct McOption {
 #[serde(rename_all = "camelCase")]
 struct McQuestion {
     id: String,
+    #[serde(alias = "t")]
     topic: String,
-    #[serde(default)]
+    #[serde(alias = "s", default)]
     subtopic: Option<String>,
+    #[serde(alias = "p")]
     prompt_markdown: String,
+    #[serde(alias = "o")]
     options: Vec<McOption>,
+    #[serde(alias = "a")]
     correct_answer: String,
+    #[serde(alias = "e")]
     explanation_markdown: String,
-    #[serde(default)]
+    #[serde(alias = "ta", default)]
     tech_allowed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     distinctness_score: Option<f32>,
@@ -55,10 +64,19 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     let started = Instant::now();
-    emit_generation_status(&app, "multiple-choice", "generating", "Generating questions...", 1);
+    emit_generation_status(
+        &app,
+        "multiple-choice",
+        "generating",
+        "Generating questions...",
+        1,
+    );
 
     if request.topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
     }
 
     let difficulty_rules = difficulty_guidance(&request.difficulty);
@@ -79,6 +97,24 @@ async fn generate_mc_questions(
         request.subtopic_instructions.as_ref(),
     );
 
+    let json_schema_note = "You must respond in JSON. Use this schema:\n\
+        {\n\
+            \"questions\": [\n\
+                {\n\
+                    \"id\": \"string (unique)\",\n\
+                    \"t\": \"string (topic)\",\n\
+                    \"s\": \"string (subtopic, optional)\",\n\
+                    \"p\": \"string (question prompt in markdown)\",\n\
+                    \"o\": [\n\
+                        { \"l\": \"string (A, B, C, D)\", \"txt\": \"string (option text)\" }\n\
+                    ],\n\
+                    \"a\": \"string (correct answer: A, B, C, D)\",\n\
+                    \"e\": \"string (explanation in markdown)\",\n\
+                    \"ta\": boolean (tech allowed)\n\
+                }\n\
+            ]\n\
+        }\n";
+
     let user_prompt = format!(
         "Create exactly {count} VCE multiple-choice questions (4 options: A, B, C, D) for: {topics}.\n\
         Difficulty: {difficulty}\n\
@@ -86,10 +122,9 @@ async fn generate_mc_questions(
         {focus_areas_note}\
         Rules:\n{difficulty_rules}\n{tech_note}\n\
         Constraints:\n\
-        - Return ONLY JSON matching: {contract}\n\
         - explanationMarkdown: 1-3 sentences max.\n\
-        - Use LaTeX: $...$ for inline, $$...$$ for block.\n\
-        - No prose or markdown fences.",
+        Use markdown when necessary for formatting, but keep it concise and focused on clarity.
+        ",
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
@@ -97,39 +132,43 @@ async fn generate_mc_questions(
         focus_areas_note = focus_areas_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
-        contract = MC_QUESTION_JSON_CONTRACT
-    );
-
+    )+ r#"- Use LaTeX: \\( ... \\) for inline, \\[ ... \\] for block.\n"# + json_schema_note;
     let (user_content, _) = build_generation_user_content(&app, &request.topics, &user_prompt)?;
     let response_format = Some(mc_questions_response_format());
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are an expert VCE exam writer. Provide JSON only.",
+        "You are an expert VCE exam writer.",
         user_content,
         response_format.as_ref(),
-    ).await?;
+    )
+    .await?;
 
-    let payload = parse_json_object(&result.content)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response."))?;
-
-    let mut parsed: GenerateMcQuestionsResponse = serde_json::from_str(&payload)
-        .or_else(|_| {
-            // Fallback for some models that might wrap in a "questions" key inside another object
-            let val: serde_json::Value = serde_json::from_str(&payload).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
-            let normalized = normalize_questions_envelope(val).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
-            serde_json::from_value(normalized).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))
-        })?;
+    let mut parsed: GenerateMcQuestionsResponse =
+        parse_structured_response(&result.content, "multiple-choice generation")?;
 
     normalize_mc_questions(&mut parsed.questions, request.subtopics.as_ref());
-    
+
     // Minimal validation
     if parsed.questions.len() != request.question_count {
-        return Err(AppError::new("MODEL_ERROR", format!("Expected {} questions, got {}.", request.question_count, parsed.questions.len())));
+        return Err(AppError::new(
+            "MODEL_ERROR",
+            format!(
+                "Expected {} questions, got {}.",
+                request.question_count,
+                parsed.questions.len()
+            ),
+        ));
     }
 
-    emit_generation_status(&app, "multiple-choice", "completed", format!("Finished in {}ms", started.elapsed().as_millis()), 1);
+    emit_generation_status(
+        &app,
+        "multiple-choice",
+        "completed",
+        format!("Finished in {}ms", started.elapsed().as_millis()),
+        1,
+    );
 
     Ok(GenerateMcQuestionsResponse {
         questions: parsed.questions,
@@ -210,9 +249,6 @@ fn includes_english_language(topics: &[String]) -> bool {
         .any(|topic| topic.trim().eq_ignore_ascii_case(ENGLISH_LANGUAGE_TOPIC))
 }
 
-
-
-
 fn normalize_written_questions(
     questions: &mut [GeneratedQuestion],
     selected_topics: &[String],
@@ -246,7 +282,9 @@ fn normalize_written_questions(
                 .and_then(|subs| subs.first().cloned());
         }
 
-        question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown).trim().to_string();
+        question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown)
+            .trim()
+            .to_string();
         question.topic = question.topic.trim().to_string();
         question.id = question.id.trim().to_string();
         question.max_marks = normalized_marks.clamp(1, 30);
@@ -268,7 +306,9 @@ fn normalize_written_questions(
                 });
 
             let selected_task_type = if selected_english_task_types.len() == 1 {
-                selected_english_task_types.first().map(|value| (*value).to_string())
+                selected_english_task_types
+                    .first()
+                    .map(|value| (*value).to_string())
             } else {
                 None
             };
@@ -307,8 +347,12 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
                 .and_then(|subs| subs.first().cloned());
         }
 
-        question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown).trim().to_string();
-        question.explanation_markdown = decode_literal_newlines(&question.explanation_markdown).trim().to_string();
+        question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown)
+            .trim()
+            .to_string();
+        question.explanation_markdown = decode_literal_newlines(&question.explanation_markdown)
+            .trim()
+            .to_string();
         question.correct_answer = question.correct_answer.trim().to_uppercase();
         question.topic = question.topic.trim().to_string();
         question.id = question.id.trim().to_string();
@@ -323,7 +367,6 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
         }
     }
 }
-
 
 fn normalize_generated_passage(passage: &mut GeneratedPassage, selected_aos_subtopic: &str) {
     passage.id = passage.id.trim().to_string();
@@ -357,8 +400,6 @@ fn pick_passage_text_type() -> &'static str {
     PASSAGE_TEXT_TYPE_OPTIONS[index]
 }
 
-
-
 fn english_language_passage_instruction(aos_subtopic: &str) -> &'static str {
     match aos_subtopic.trim() {
         "Unit 1 AOS 1: Nature and Functions of Language" => "Focus on the nature and functions of language, especially situational context, register, lexical and syntactic choices, sentence structures, modal verbs, clauses, and the major functions of language.",
@@ -371,91 +412,6 @@ fn english_language_passage_instruction(aos_subtopic: &str) -> &'static str {
         "Unit 4 AOS 2: Individual and Group Identities" => "Focus on idiolect, sociolect, group affiliation, inclusion, exclusion, authority, authenticity, and language choices shaping identity.",
         _ => "Focus tightly on the selected VCE English Language Area of Study and reward precise metalanguage tied directly to textual evidence.",
     }
-}
-
-// Repair logic removed.
-
-fn normalize_questions_envelope(value: serde_json::Value) -> Result<serde_json::Value, String> {
-    if value.is_array() {
-        return Ok(serde_json::json!({ "questions": value }));
-    }
-
-    let serde_json::Value::Object(mut map) = value else {
-        return Err("Top-level JSON must be an object or array of questions.".to_string());
-    };
-
-    if map
-        .get("questions")
-        .map(serde_json::Value::is_array)
-        .unwrap_or(false)
-    {
-        return Ok(serde_json::Value::Object(map));
-    }
-
-    for key in [
-        "question",
-        "items",
-        "mcQuestions",
-        "multipleChoiceQuestions",
-        "generatedQuestions",
-    ] {
-        if let Some(array) = map.remove(key).filter(serde_json::Value::is_array) {
-            map.insert("questions".to_string(), array);
-            return Ok(serde_json::Value::Object(map));
-        }
-    }
-
-    for key in ["data", "result", "output", "payload"] {
-        if let Some(serde_json::Value::Object(nested)) = map.get(key) {
-            if let Some(array) = nested.get("questions").filter(|value| value.is_array()) {
-                map.insert("questions".to_string(), array.clone());
-                return Ok(serde_json::Value::Object(map));
-            }
-        }
-    }
-
-    let keys = map.keys().cloned().collect::<Vec<_>>().join(", ");
-    Err(format!(
-        "Missing required top-level questions array. Found keys: [{}].",
-        keys
-    ))
-}
-
-fn normalize_passage_envelope(value: serde_json::Value) -> Result<serde_json::Value, String> {
-    let serde_json::Value::Object(mut map) = value else {
-        return Err("Top-level JSON must be an object.".to_string());
-    };
-
-    let mut passage_obj = if let Some(serde_json::Value::Object(p)) = map.remove("passage") {
-        p
-    } else {
-        map.clone()
-    };
-
-    // If there is no `questions` key in the passage object, it might have been placed at the top level
-    if !passage_obj.contains_key("questions") {
-        if let Some(array) = map.remove("questions").filter(serde_json::Value::is_array) {
-            passage_obj.insert("questions".to_string(), array);
-        }
-    }
-
-    // Checking common aliases for 'questions' in both passage_obj and top-level map
-    if !passage_obj.contains_key("questions") {
-        for key in ["question", "items", "passageQuestions", "generatedQuestions", "subQuestions", "Questions"] {
-            if let Some(array) = passage_obj.remove(key).filter(serde_json::Value::is_array) {
-                passage_obj.insert("questions".to_string(), array);
-                break;
-            } else if let Some(array) = map.remove(key).filter(serde_json::Value::is_array) {
-                passage_obj.insert("questions".to_string(), array);
-                break;
-            }
-        }
-    }
-
-    let mut final_map = serde_json::Map::new();
-    final_map.insert("passage".to_string(), serde_json::Value::Object(passage_obj));
-
-    Ok(serde_json::Value::Object(final_map))
 }
 
 fn decode_literal_newlines(value: &str) -> String {
@@ -496,32 +452,18 @@ fn decode_literal_newlines(value: &str) -> String {
     decoded
 }
 
-fn parse_json_object(content: &str) -> Option<String> {
+fn parse_structured_response<T>(content: &str, context: &str) -> CommandResult<T>
+where
+    T: serde::de::DeserializeOwned,
+{
     let trimmed = content.trim();
-    if trimmed.starts_with('{')
-        && serde_json::from_str::<serde_json::Value>(trimmed)
-            .map(|value| value.is_object())
-            .unwrap_or(false)
-    {
-        return Some(trimmed.to_string());
-    }
-
-    for (index, ch) in content.char_indices() {
-        if ch != '{' {
-            continue;
-        }
-
-        let slice = &content[index..];
-        let mut stream = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
-        if let Some(Ok(value)) = stream.next() {
-            if value.is_object() {
-                let end = index + stream.byte_offset();
-                return content.get(index..end).map(str::to_string);
-            }
-        }
-    }
-
-    None
+    println!("Parsing structured response for {}: {}", context, trimmed);
+    serde_json::from_str(trimmed).map_err(|err| {
+        AppError::new(
+            "MODEL_PARSE_ERROR",
+            format!("Failed to parse structured output for {context}: {err}"),
+        )
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -537,88 +479,13 @@ pub fn run() {
             mark_passage_answer,
             analyze_image,
             generate_mc_questions,
-            get_tps
+            get_tps,
+            test_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_json_object_extracts_fenced_payload() {
-        let content = "Here is your output:\n```json\n{\"questions\":[{\"id\":\"q1\",\"topic\":\"Mathematical Methods\",\"promptMarkdown\":\"Find x\",\"maxMarks\":2,\"techAllowed\":false}]}\n```";
-        let parsed = parse_json_object(content);
-        assert!(parsed.is_some());
-        let value: serde_json::Value = serde_json::from_str(&parsed.unwrap()).unwrap();
-        assert!(value.get("questions").is_some());
-    }
-
-    #[test]
-    fn parse_json_object_returns_none_for_invalid_payload() {
-        let content = "No valid object here: {missing: quotes}";
-        assert!(parse_json_object(content).is_none());
-    }
-
-
-
-    #[test]
-    fn normalize_questions_envelope_accepts_top_level_array() {
-        let value = serde_json::json!([
-            {
-                "id": "mc1",
-                "topic": "Chemistry",
-                "promptMarkdown": "Question",
-                "options": [
-                    { "label": "A", "text": "A1" },
-                    { "label": "B", "text": "B1" },
-                    { "label": "C", "text": "C1" },
-                    { "label": "D", "text": "D1" }
-                ],
-                "correctAnswer": "A",
-                "explanationMarkdown": "Because"
-            }
-        ]);
-
-        let normalized = normalize_questions_envelope(value).unwrap();
-        assert!(normalized.get("questions").is_some());
-        assert_eq!(
-            normalized
-                .get("questions")
-                .and_then(|v| v.as_array())
-                .map(Vec::len),
-            Some(1)
-        );
-    }
-
-    #[test]
-    fn normalize_questions_envelope_accepts_nested_data_questions() {
-        let value = serde_json::json!({
-            "data": {
-                "questions": [
-                    {
-                        "id": "q1",
-                        "topic": "Mathematical Methods",
-                        "promptMarkdown": "Find x",
-                        "maxMarks": 2
-                    }
-                ]
-            }
-        });
-
-        let normalized = normalize_questions_envelope(value).unwrap();
-        assert!(normalized.get("questions").is_some());
-        assert_eq!(
-            normalized
-                .get("questions")
-                .and_then(|v| v.as_array())
-                .map(Vec::len),
-            Some(1)
-        );
-    }
-}
 #[tauri::command]
 async fn get_tps(model: &str, api_key: &str) -> Result<f64, String> {
     let url = format!("https://openrouter.ai/api/v1/models/{}/endpoints", model);
@@ -652,4 +519,34 @@ async fn get_tps(model: &str, api_key: &str) -> Result<f64, String> {
         .ok_or_else(|| "Failed to extract TPS from response".to_string())?;
 
     Ok(tps)
+}
+
+#[tauri::command]
+async fn test_model(model: &str, api_key: &str) -> Result<String, String> {
+    let prompt = "Who is Socrates?";
+
+    let client = OpenRouterClient::builder()
+        .api_key(api_key)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let request = ChatCompletionRequest::builder()
+        .model(model)
+        .messages(vec![Message::new(Role::User, prompt)])
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .chat()
+        .create(&request)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let content = response
+        .choices
+        .get(0)
+        .and_then(|c| c.content())
+        .unwrap_or("");
+
+    Ok(content.to_string())
 }

@@ -1,13 +1,12 @@
 use base64::{Engine as _, engine::general_purpose};
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager};
 
-const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MAX_TOKENS: u16 = 1400;
 const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
 const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
@@ -15,10 +14,6 @@ const ENGLISH_LANGUAGE_TOPIC: &str = "English Language";
 const APP_STATE_FILE_NAME: &str = "app-state.json";
 const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = " Use a compact Mathematical Methods exam style: concise VCAA-style command verbs, realistic mark allocations, algebraic fluency, and prompts that reward method choice over template recall.";
 const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = " Restrict Physical Education to Unit 3/4 and use short applied sport/training scenarios that reward data interpretation, justification, and evidence-based reasoning. For biomechanics, avoid focus on pure physics calculations and instead emphasize application of concepts to novel contexts, as in VCE calculations are not examined.";
-const WRITTEN_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"q1\",\"topic\":\"...\",\"subtopic\":\"...\",\"taskType\":\"short-answer|analytical-essay\",\"recommendedResponseLength\":\"short|extended\",\"promptMarkdown\":\"...\",\"maxMarks\":10,\"techAllowed\":false}]}";
-const PASSAGE_JSON_CONTRACT: &str = "{\"passage\":{\"id\":\"p1\",\"text\":\"...\",\"aosSubtopic\":\"Unit 1 AOS 1: Nature and Functions of Language\",\"questions\":[{\"id\":\"pq1\",\"promptMarkdown\":\"Identify two modal verbs from lines 3-5.\",\"maxMarks\":2}]}}";
-const MC_QUESTION_JSON_CONTRACT: &str = "{\"questions\":[{\"id\":\"mc1\",\"topic\":\"...\",\"subtopic\":\"...\",\"promptMarkdown\":\"...\",\"options\":[{\"label\":\"A\",\"text\":\"...\"},{\"label\":\"B\",\"text\":\"...\"},{\"label\":\"C\",\"text\":\"...\"},{\"label\":\"D\",\"text\":\"...\"}],\"correctAnswer\":\"A\",\"explanationMarkdown\":\"...\",\"techAllowed\":false}]}";
-const MARK_ANSWER_JSON_CONTRACT: &str = "{\"verdict\":\"Correct|Partially Correct|Incorrect\",\"achievedMarks\":6,\"maxMarks\":10,\"scoreOutOf10\":8,\"vcaaMarkingScheme\":[{\"criterion\":\"...\",\"achievedMarks\":2,\"maxMarks\":3,\"rationale\":\"...\"}],\"comparisonToSolutionMarkdown\":\"...\",\"feedbackMarkdown\":\"...\",\"workedSolutionMarkdown\":\"...\"}";
 const PASSAGE_TEXT_TYPE_OPTIONS: [&str; 10] = [
     "public notice",
     "community newsletter excerpt",
@@ -104,17 +99,19 @@ struct GenerateQuestionsRequest {
 #[serde(rename_all = "camelCase")]
 struct GeneratedQuestion {
     id: String,
+    #[serde(alias = "t")]
     topic: String,
-    #[serde(default)]
+    #[serde(alias = "s", default)]
     subtopic: Option<String>,
-    #[serde(default)]
+    #[serde(alias = "tt", default)]
     task_type: Option<String>,
-    #[serde(default)]
+    #[serde(alias = "rl", default)]
     recommended_response_length: Option<String>,
+    #[serde(alias = "p")]
     prompt_markdown: String,
-    #[serde(default = "default_question_max_marks")]
+    #[serde(alias = "m", default = "default_question_max_marks")]
     max_marks: u8,
-    #[serde(default)]
+    #[serde(alias = "ta", default)]
     tech_allowed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     distinctness_score: Option<f32>,
@@ -183,7 +180,9 @@ struct GeneratePassageQuestionsRequest {
 #[serde(rename_all = "camelCase")]
 struct PassageSubQuestion {
     id: String,
+    #[serde(alias = "p")]
     prompt_markdown: String,
+    #[serde(alias = "m")]
     max_marks: u8,
 }
 
@@ -191,8 +190,11 @@ struct PassageSubQuestion {
 #[serde(rename_all = "camelCase")]
 struct GeneratedPassage {
     id: String,
+    #[serde(alias = "txt")]
     text: String,
+    #[serde(alias = "aos")]
     aos_subtopic: String,
+    #[serde(alias = "q")]
     questions: Vec<PassageSubQuestion>,
 }
 
@@ -258,21 +260,6 @@ struct AnalyzeImageRequest {
 #[serde(rename_all = "camelCase")]
 struct AnalyzeImageResponse {
     output_text: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterResponse {
-    choices: Vec<OpenRouterChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterChoice {
-    message: OpenRouterMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterMessage {
-    content: String,
 }
 
 #[derive(Debug)]

@@ -76,7 +76,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
                 {item.question.options.map((opt) => {
                   const isChosen = item.selectedAnswer === opt.label;
                   const isCorrect = opt.label === item.question.correctAnswer;
-                  let cls = "p-3 rounded-lg border flex gap-2 items-start text-sm";
+                  let cls = "p-3 rounded-lg border flex gap-2 items-center text-sm";
                   if (isCorrect) cls += " border-green-500 bg-green-50 dark:bg-green-950/40";
                   else if (isChosen) cls += " border-red-500 bg-red-50 dark:bg-red-950/40";
                   return (

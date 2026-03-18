@@ -1,3 +1,9 @@
+use openrouter_rs::{
+    OpenRouterClient,
+    api::chat::{ChatCompletionRequest, ContentPart, Message, Plugin},
+    types::{completion::CompletionsResponse, ResponseFormat, Role},
+};
+
 #[tauri::command]
 fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
     let path = persisted_state_path(&app)?;
@@ -139,6 +145,25 @@ async fn generate_questions(
         String::new()
     };
 
+    let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
+    let json_schema_note = format!(
+        "You must respond in JSON. Use this schema:\n\
+        {{\n\
+            \"questions\": [\n\
+                {{\n\
+                    \"id\": \"string (unique)\",\n\
+                    \"t\": \"string (topic)\",\n\
+                    \"s\": \"string (subtopic, optional)\",\n\
+                    \"tt\": \"string (task type: short-answer or analytical-essay, optional)\",\n\
+                    \"rl\": \"string (response length: short or extended, optional)\",\n\
+                    \"p\": \"string (question prompt in markdown)\",\n\
+                    \"m\": integer (max marks, 1 to {max_marks_cap}),\n\
+                    \"ta\": boolean (tech allowed)\n\
+                }}\n\
+            ]\n\
+        }}\n"
+    );
+
     let user_prompt = format!(
         "Create exactly {count} VCE written-response questions for: {topics}.\n\
         Difficulty: {difficulty}\n\
@@ -147,9 +172,8 @@ async fn generate_questions(
         {english_task_types_note}\n\
         Rules:\n{difficulty_rules}\n{tech_note}\n\
         Constraints:\n\
-        - Return ONLY JSON matching: {contract}\n\
         - Assign maxMarks between 1 and {max_marks_cap}.\n\
-        - Use LaTeX: $...$ for inline, $$...$$ for block.\n",
+        Use markdown when necessary for formatting, but keep it concise and focused on clarity.\n",
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
@@ -158,9 +182,8 @@ async fn generate_questions(
         english_task_types_note = english_task_types_note,
         difficulty_rules = difficulty_rules,
         tech_note = tech_note,
-        max_marks_cap = request.max_marks_per_question.unwrap_or(30),
-        contract = WRITTEN_QUESTION_JSON_CONTRACT
-    );
+        max_marks_cap = max_marks_cap
+    ) + r#"- Use LaTeX: \\( ... \\) for inline, \\[ ... \\] for block.\n"# + &json_schema_note;
 
     let (user_content, _) = build_generation_user_content(&app, &request.topics, &user_prompt)?;
     let response_format = Some(written_questions_response_format());
@@ -168,24 +191,16 @@ async fn generate_questions(
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are an expert VCE exam writer. Provide JSON only.",
+        "You are an expert VCE exam writer.",
         user_content,
         response_format.as_ref(),
     )
     .await?;
 
-    let payload = parse_json_object(&result.content).ok_or_else(|| {
-        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
-    })?;
-
-    let mut parsed: GenerateQuestionsResponse = serde_json::from_str(&payload).or_else(|_| {
-        let val: serde_json::Value = serde_json::from_str(&payload)
-            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
-        let normalized =
-            normalize_questions_envelope(val).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
-        serde_json::from_value(normalized)
-            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))
-    })?;
+    let mut parsed: GenerateQuestionsResponse = parse_structured_response(
+        &result.content,
+        "written question generation",
+    )?;
 
     // Perform necessary normalization
     let selected_english_task_types =
@@ -247,14 +262,12 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         Question:\n{question}\n\n\
         Student Answer:\n{answer}\n\n\
         Constraints:\n\
-        - Return ONLY JSON matching: {contract}\n\
         - Use VCAA-style criterion marking.\n\
         - feedbackMarkdown: max 120 words.",
         topic = request.question.topic,
         max_marks = request.question.max_marks,
         question = request.question.prompt_markdown,
-        answer = normalized_answer,
-        contract = MARK_ANSWER_JSON_CONTRACT
+        answer = normalized_answer
     );
 
     let user_content = build_mark_answer_user_content(
@@ -266,18 +279,14 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are a strict VCE marker. Provide JSON only.",
+        "You are a strict VCE marker.",
         user_content,
         response_format.as_ref(),
     )
     .await?;
 
-    let payload = parse_json_object(&result.content).ok_or_else(|| {
-        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
-    })?;
-
-    let mut parsed: MarkAnswerResponse = serde_json::from_str(&payload)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
+    let mut parsed: MarkAnswerResponse =
+        parse_structured_response(&result.content, "answer marking")?;
 
     // Quick normalization
     parsed.max_marks = request.question.max_marks;
@@ -305,20 +314,36 @@ async fn generate_passage_questions(
     let instruction_note = english_language_passage_instruction(&request.aos_subtopic);
     let selected_text_type = pick_passage_text_type();
 
+    let json_schema_note = "You must respond in JSON. Use this schema:\n\
+        {\n\
+            \"passage\": {\n\
+                \"id\": \"string (unique)\",\n\
+                \"txt\": \"string (passage text)\",\n\
+                \"aos\": \"string (Area of Study)\",\n\
+                \"q\": [\n\
+                    {\n\
+                        \"id\": \"string (unique)\",\n\
+                        \"p\": \"string (question prompt in markdown)\",\n\
+                        \"m\": integer (max marks, 1 to 5)\n\
+                    }\n\
+                ]\n\
+            }\n\
+        }\n";
+
     let user_prompt = format!(
         "Create one English Language stimulus passage for: {aos_subtopic}.\n\
         Text type: {text_type}\n\
         Rules:\n{instruction}\n\
         Constraints:\n\
         - Return exactly {question_count} questions based on the passage.\n\
-        - Return ONLY JSON matching: {contract}\n\
         - Passage: 200-300 words, clearly delimited lines (no manual numbers).\n\
-        - Questions: must include numeric line references.",
+        - Questions: must include numeric line references.\n\
+        {json_schema_note}",
         aos_subtopic = request.aos_subtopic,
         text_type = selected_text_type,
         instruction = instruction_note,
         question_count = request.question_count,
-        contract = PASSAGE_JSON_CONTRACT
+        json_schema_note = json_schema_note
     );
 
     let response_format = Some(passage_response_format());
@@ -326,24 +351,16 @@ async fn generate_passage_questions(
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are an expert VCE English Language SAC writer. Provide JSON only.",
+        "You are an expert VCE English Language SAC writer.",
         serde_json::Value::String(user_prompt),
         response_format.as_ref(),
     )
     .await?;
 
-    let payload = parse_json_object(&result.content).ok_or_else(|| {
-        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
-    })?;
-
-    let mut parsed: GeneratePassageResponse = serde_json::from_str(&payload).or_else(|_| {
-        let val: serde_json::Value = serde_json::from_str(&payload)
-            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
-        let normalized =
-            normalize_passage_envelope(val).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
-        serde_json::from_value(normalized)
-            .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))
-    })?;
+    let mut parsed: GeneratePassageResponse = parse_structured_response(
+        &result.content,
+        "passage generation",
+    )?;
 
     normalize_generated_passage(&mut parsed.passage, &request.aos_subtopic);
 
@@ -385,30 +402,24 @@ async fn mark_passage_answer(
         Question:\n{question}\n\n\
         Student Answer:\n{answer}\n\n\
         Constraints:\n\
-        - Return ONLY JSON matching: {contract}\n\
         - Reward precise metalanguage and passage evidence.",
         max_marks = request.question.max_marks,
         passage = request.passage_text,
         question = request.question.prompt_markdown,
-        answer = normalized_answer,
-        contract = MARK_ANSWER_JSON_CONTRACT
+        answer = normalized_answer
     );
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        "You are a strict English Language marker. Provide JSON only.",
+        "You are a strict English Language marker.",
         serde_json::Value::String(user_prompt),
         Some(&mark_answer_response_format()),
     )
     .await?;
 
-    let payload = parse_json_object(&result.content).ok_or_else(|| {
-        AppError::new("MODEL_PARSE_ERROR", "Failed to extract JSON from response.")
-    })?;
-
-    let mut parsed: MarkAnswerResponse = serde_json::from_str(&payload)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e.to_string()))?;
+    let mut parsed: MarkAnswerResponse =
+        parse_structured_response(&result.content, "passage answer marking")?;
 
     parsed.max_marks = request.question.max_marks;
     parsed.achieved_marks = u8::min(parsed.achieved_marks, parsed.max_marks);
@@ -632,124 +643,19 @@ fn validate_passage_mark_request(request: &MarkPassageAnswerRequest) -> CommandR
 
 fn written_questions_response_format() -> serde_json::Value {
     serde_json::json!({
-        "type": "json_schema",
-        "json_schema": {
-            "name": "written_questions_response",
-            "strict": true,
-            "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["questions"],
-                "properties": {
-                    "questions": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": ["id", "topic", "promptMarkdown", "maxMarks"],
-                            "properties": {
-                                "id": { "type": "string" },
-                                "topic": { "type": "string" },
-                                "subtopic": { "type": "string" },
-                                "taskType": { "type": "string", "enum": ["short-answer", "analytical-essay"] },
-                                "recommendedResponseLength": { "type": "string", "enum": ["short", "extended"] },
-                                "promptMarkdown": { "type": "string" },
-                                "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
-                                "techAllowed": { "type": "boolean" }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        "type": "json_object"
     })
 }
 
 fn passage_response_format() -> serde_json::Value {
     serde_json::json!({
-        "type": "json_schema",
-        "json_schema": {
-            "name": "english_language_passage_response",
-            "strict": true,
-            "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["passage"],
-                "properties": {
-                    "passage": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["id", "text", "aosSubtopic", "questions"],
-                        "properties": {
-                            "id": { "type": "string" },
-                            "text": { "type": "string" },
-                            "aosSubtopic": { "type": "string" },
-                            "questions": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": false,
-                                    "required": ["id", "promptMarkdown", "maxMarks"],
-                                    "properties": {
-                                        "id": { "type": "string" },
-                                        "promptMarkdown": { "type": "string" },
-                                        "maxMarks": { "type": "integer", "minimum": 1, "maximum": 5 }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        "type": "json_object"
     })
 }
 
 fn mc_questions_response_format() -> serde_json::Value {
     serde_json::json!({
-        "type": "json_schema",
-        "json_schema": {
-            "name": "mc_questions_response",
-            "strict": true,
-            "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["questions"],
-                "properties": {
-                    "questions": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": false,
-                            "required": ["id", "topic", "promptMarkdown", "options", "correctAnswer", "explanationMarkdown"],
-                            "properties": {
-                                "id": { "type": "string" },
-                                "topic": { "type": "string" },
-                                "subtopic": { "type": "string" },
-                                "promptMarkdown": { "type": "string" },
-                                "options": {
-                                    "type": "array",
-                                    "minItems": 4,
-                                    "maxItems": 4,
-                                    "items": {
-                                        "type": "object",
-                                        "additionalProperties": false,
-                                        "required": ["label", "text"],
-                                        "properties": {
-                                            "label": { "type": "string" },
-                                            "text": { "type": "string" }
-                                        }
-                                    }
-                                },
-                                "correctAnswer": { "type": "string", "enum": ["A", "B", "C", "D"] },
-                                "explanationMarkdown": { "type": "string" },
-                                "techAllowed": { "type": "boolean" }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        "type": "json_object"
     })
 }
 
@@ -800,23 +706,6 @@ fn mark_answer_response_format() -> serde_json::Value {
     })
 }
 
-fn is_structured_output_unsupported_response(status: reqwest::StatusCode, body: &str) -> bool {
-    if status != reqwest::StatusCode::BAD_REQUEST
-        && status != reqwest::StatusCode::UNPROCESSABLE_ENTITY
-    {
-        return false;
-    }
-
-    let normalized = body.to_ascii_lowercase();
-    (normalized.contains("response_format")
-        || normalized.contains("json_schema")
-        || normalized.contains("structured"))
-        && (normalized.contains("not support")
-            || normalized.contains("unsupported")
-            || normalized.contains("not available")
-            || normalized.contains("invalid"))
-}
-
 async fn call_openrouter(
     api_key: &str,
     model: &str,
@@ -843,100 +732,235 @@ async fn call_openrouter_with_plugins(
     plugins: Option<serde_json::Value>,
     response_format: Option<serde_json::Value>,
 ) -> CommandResult<OpenRouterCallResult> {
-    let client = reqwest::Client::new();
+    let client = OpenRouterClient::builder()
+        .api_key(api_key)
+        .build()
+        .map_err(|err| AppError::new("OPENROUTER_ERROR", err.to_string()))?;
 
-    let mut request_body = serde_json::json!({
-        "model": model,
-        "messages": [
-            { "role": "system", "content": system_prompt },
-            { "role": "user", "content": user_content }
-        ],
-        "temperature": 0.5,
-        "max_tokens": OPENROUTER_MAX_TOKENS
-    });
+    let user_message = build_user_message(&user_content)?;
+    let make_request = |include_response_format: bool| {
+        build_chat_completion_request(
+            model,
+            system_prompt,
+            &user_message,
+            plugins.as_ref(),
+            response_format.as_ref(),
+            include_response_format,
+        )
+    };
+
+    let has_response_format = response_format.is_some();
+    let is_cached_unsupported = has_response_format && is_model_structured_output_unsupported(model);
+    let prefer_structured_output = has_response_format && !is_cached_unsupported;
+
+    if is_cached_unsupported {
+        eprintln!(
+            "[DEBUG] Skipping response_format for model {model} due to cached structured-output incompatibility"
+        );
+    }
+
+    let initial_request = make_request(prefer_structured_output)?;
+    eprintln!(
+        "[DEBUG] OpenRouter request - Model: {}, Has response_format: {}, Sending response_format: {}",
+        model,
+        has_response_format,
+        prefer_structured_output
+    );
+
+    match client.chat().create(&initial_request).await {
+        Ok(response) => extract_openrouter_content(response),
+        Err(err) => {
+            if prefer_structured_output {
+                eprintln!(
+                    "[WARN] Structured-output request failed for model {model}: {:?}",
+                    err
+                );
+            } else {
+                eprintln!("[ERROR] OpenRouter API error: {:?}", err);
+            }
+
+            if prefer_structured_output {
+                mark_model_structured_output_unsupported(model);
+                eprintln!(
+                    "[DEBUG] Retrying without response_format after structured request failure; model cached as incompatible"
+                );
+                let fallback_request = make_request(false)?;
+                let fallback_response = client
+                    .chat()
+                    .create(&fallback_request)
+                    .await
+                    .map_err(|fallback_err| {
+                        eprintln!("[ERROR] Fallback request also failed: {:?}", fallback_err);
+                        AppError::new(
+                            "OPENROUTER_ERROR",
+                            format!(
+                                "OpenRouter request failed (structured): {err}; fallback without response_format failed: {fallback_err}"
+                            ),
+                        )
+                    })?;
+                extract_openrouter_content(fallback_response)
+            } else {
+                Err(AppError::new(
+                    "OPENROUTER_ERROR",
+                    format!("OpenRouter request failed: {err}"),
+                ))
+            }
+        }
+    }
+}
+
+fn build_chat_completion_request(
+    model: &str,
+    system_prompt: &str,
+    user_message: &Message,
+    plugins: Option<&serde_json::Value>,
+    response_format: Option<&serde_json::Value>,
+    include_response_format: bool,
+) -> CommandResult<ChatCompletionRequest> {
+    let mut binding = ChatCompletionRequest::builder();
+    let mut builder = binding
+        .model(model)
+        .messages(vec![
+            Message::new(Role::System, system_prompt),
+            user_message.clone(),
+        ])
+        .temperature(0.5)
+        .max_tokens(u32::from(OPENROUTER_MAX_TOKENS));
+
+    if include_response_format {
+        if let Some(response_format) = response_format {
+            let schema_name = response_format
+                .get("json_schema")
+                .and_then(|node| node.get("name"))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("unknown");
+            eprintln!(
+                "[DEBUG] Applying response_format json_schema: {}",
+                schema_name
+            );
+            builder = builder.response_format(parse_response_format(response_format)?);
+        }
+    }
 
     if let Some(plugins) = plugins {
-        request_body["plugins"] = plugins;
+        builder = builder.plugins(parse_plugins(plugins)?);
     }
 
-    if let Some(response_format) = response_format.clone() {
-        request_body["response_format"] = response_format;
-    }
+    builder
+        .build()
+        .map_err(|err| {
+            eprintln!("[ERROR] Failed to build ChatCompletionRequest: {}", err);
+            AppError::new("OPENROUTER_ERROR", err.to_string())
+        })
+}
 
-    let response = client
-        .post(OPENROUTER_CHAT_URL)
-        .header(AUTHORIZATION, format!("Bearer {api_key}"))
-        .header(CONTENT_TYPE, "application/json")
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|err| AppError::new("NETWORK_ERROR", format!("Request failed: {err}")))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "Unknown error".to_string());
-
-        if response_format.is_some() && is_structured_output_unsupported_response(status, &body) {
-            let mut fallback_request_body = request_body.clone();
-            if let serde_json::Value::Object(ref mut map) = fallback_request_body {
-                map.remove("response_format");
-            }
-
-            let fallback_response = client
-                .post(OPENROUTER_CHAT_URL)
-                .header(AUTHORIZATION, format!("Bearer {api_key}"))
-                .header(CONTENT_TYPE, "application/json")
-                .json(&fallback_request_body)
-                .send()
-                .await
-                .map_err(|err| AppError::new("NETWORK_ERROR", format!("Request failed: {err}")))?;
-
-            if !fallback_response.status().is_success() {
-                let fallback_status = fallback_response.status();
-                let fallback_body = fallback_response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Unknown error".to_string());
-                return Err(AppError::new(
-                    "OPENROUTER_ERROR",
-                    format!("OpenRouter request failed ({fallback_status}): {fallback_body}"),
-                ));
-            }
-
-            let parsed: OpenRouterResponse = fallback_response.json().await.map_err(|err| {
-                AppError::new("NETWORK_ERROR", format!("Invalid API response: {err}"))
-            })?;
-
-            let content = parsed
-                .choices
-                .first()
-                .map(|c| c.message.content.clone())
-                .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
-
-            return Ok(OpenRouterCallResult { content });
+fn build_user_message(content: &serde_json::Value) -> CommandResult<Message> {
+    match content {
+        serde_json::Value::String(text) => Ok(Message::new(Role::User, text.clone())),
+        serde_json::Value::Array(parts) => {
+            let parsed_parts = parts
+                .iter()
+                .map(parse_content_part)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Message::with_parts(Role::User, parsed_parts))
         }
-
-        return Err(AppError::new(
-            "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {body}"),
-        ));
+        other => Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!("Unsupported user content type: {other}"),
+        )),
     }
+}
 
-    let parsed: OpenRouterResponse = response
-        .json()
-        .await
-        .map_err(|err| AppError::new("NETWORK_ERROR", format!("Invalid API response: {err}")))?;
+fn parse_content_part(value: &serde_json::Value) -> CommandResult<ContentPart> {
+    let kind = value
+        .get("type")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .ok_or_else(|| AppError::new("VALIDATION_ERROR", "Content part must include a type."))?;
 
-    let content = parsed
+    match kind {
+        "text" => {
+            let text = value
+                .get("text")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| AppError::new("VALIDATION_ERROR", "Text content part is missing \"text\"."))?;
+            Ok(ContentPart::text(text))
+        }
+        "image_url" => {
+            let image_node = value
+                .get("image_url")
+                .and_then(serde_json::Value::as_object)
+                .ok_or_else(|| AppError::new("VALIDATION_ERROR", "image_url content part is invalid."))?;
+            let url = image_node
+                .get("url")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| AppError::new("VALIDATION_ERROR", "image_url part must include a url."))?;
+            let detail = image_node
+                .get("detail")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string);
+
+            if let Some(detail) = detail {
+                Ok(ContentPart::image_url_with_detail(url, detail))
+            } else {
+                Ok(ContentPart::image_url(url))
+            }
+        }
+        _ => Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!("Unsupported content part type: {kind}"),
+        )),
+    }
+}
+
+fn parse_response_format(value: &serde_json::Value) -> CommandResult<ResponseFormat> {
+    serde_json::from_value(value.clone()).map_err(|err| {
+        AppError::new(
+            "STRUCTURED_FORMAT_ERROR",
+            format!("Invalid response format: {err}"),
+        )
+    })
+}
+
+fn parse_plugins(value: &serde_json::Value) -> CommandResult<Vec<Plugin>> {
+    serde_json::from_value(value.clone()).map_err(|err| {
+        AppError::new(
+            "PLUGIN_CONFIG_ERROR",
+            format!("Invalid plugin configuration: {err}"),
+        )
+    })
+}
+
+fn extract_openrouter_content(response: CompletionsResponse) -> CommandResult<OpenRouterCallResult> {
+    let content = response
         .choices
         .first()
-        .map(|c| c.message.content.clone())
-        .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
+        .and_then(|choice| choice.content())
+        .unwrap_or("");
 
-    Ok(OpenRouterCallResult { content })
+    Ok(OpenRouterCallResult {
+        content: content.to_string(),
+    })
+}
+
+static STRUCTURED_OUTPUT_UNSUPPORTED_MODELS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+fn structured_output_unsupported_models() -> &'static Mutex<HashSet<String>> {
+    STRUCTURED_OUTPUT_UNSUPPORTED_MODELS.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn is_model_structured_output_unsupported(model: &str) -> bool {
+    let guard = structured_output_unsupported_models()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    guard.contains(model)
+}
+
+fn mark_model_structured_output_unsupported(model: &str) {
+    let mut guard = structured_output_unsupported_models()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    guard.insert(model.to_string());
 }
 
 fn build_mark_answer_user_content(

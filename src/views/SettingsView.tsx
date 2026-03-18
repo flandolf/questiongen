@@ -4,10 +4,11 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
-import { Eye, EyeOff, Bug, Braces } from "lucide-react";
+import { Eye, EyeOff, Bug, Braces, Loader } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { invoke } from "@tauri-apps/api/core";
+import { MarkdownMath } from "@/components/MarkdownMath";
 
 export function SettingsView() {
   const {
@@ -22,6 +23,8 @@ export function SettingsView() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
+    pendingDollarDelimiterMigrations,
+    migrateDollarDelimiterContent,
   } = useAppSettings();
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
@@ -29,12 +32,17 @@ export function SettingsView() {
   const [customModelId, setCustomModelId] = useState("");
   const [_tps, setTps] = useState<number | null>(null);
   const [modelTpsMap, setModelTpsMap] = useState<Record<string, number | null>>({});
-
+  const [testOutput, setTestOutput] = useState<string>("");
+  const [isTestLoading, setIsTestLoading] = useState(false);
+  const [testStartTime, setTestStartTime] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [testDurationSeconds, setTestDurationSeconds] = useState<number | null>(null);
+  const [migrationResult, setMigrationResult] = useState<string>("");
   const models = [
     { id: "openrouter/hunter-alpha", name: "Hunter Alpha" },
     { id: "openrouter/healer-alpha", name: "Healer Alpha" },
-    { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite Preview" },
-    { id: "qwen/qwen3.5-35b-a3b", name: "Qwen 3.5 35B A3B" },
+    { id: "minimax/minimax-m2.5:free", name: "Minimax M2.5 (free)" },
+    { id: "qwen/qwen3-next-80b-a3b-instruct:free", name: "Qwen3 Next 80B (free)" },
     { id: "openrouter/free", name: "Free" },
     { id: "custom", name: "Custom..." },
   ];
@@ -43,6 +51,16 @@ export function SettingsView() {
     setLocalKey(apiKey);
     setLocalModel(model);
   }, [apiKey, model]);
+
+  useEffect(() => {
+    if (isTestLoading && testStartTime) {
+      const timer = setInterval(() => {
+        const now = Date.now();
+        setElapsedMs(now - testStartTime);
+      }, 100);
+      return () => clearInterval(timer);
+    }
+  }, [isTestLoading, testStartTime]);
 
   useEffect(() => {
     async function fetchTpsForModels() {
@@ -81,6 +99,40 @@ export function SettingsView() {
   function handleSave() {
     setApiKey(localKey);
     setModel(localModel);
+  }
+
+  function handleTestModel() {
+    if (localModel && localKey) {
+      const startTime = Date.now();
+      setIsTestLoading(true);
+      setTestStartTime(startTime);
+      setElapsedMs(0);
+      setTestDurationSeconds(null);
+      invoke("test_model", { model: localModel, apiKey: localKey }).then((result) => {
+        const endTime = Date.now();
+        const duration = (endTime - startTime) / 1000;
+        setTestOutput(result as string);
+        setTestDurationSeconds(duration);
+        setIsTestLoading(false);
+      }).catch((error) => {
+        const endTime = Date.now();
+        const duration = (endTime - startTime) / 1000;
+        console.error("Model test failed:", error);
+        setTestOutput(`Error: ${error}`);
+        setTestDurationSeconds(duration);
+        setIsTestLoading(false);
+      });
+    }
+  }
+
+  function handleMigrateDollarDelimiters() {
+    const migratedFieldCount = migrateDollarDelimiterContent();
+    if (migratedFieldCount === 0) {
+      setMigrationResult("No saved question content needed migration.");
+      return;
+    }
+
+    setMigrationResult(`Migrated ${migratedFieldCount} field${migratedFieldCount === 1 ? "" : "s"} from dollar delimiters.`);
   }
 
   return (
@@ -148,6 +200,7 @@ export function SettingsView() {
                 } else {
                   setShowCustomModelInput(false);
                   setLocalModel(value);
+                  setModel(value);
                 }
               }}
             >
@@ -165,6 +218,24 @@ export function SettingsView() {
                 ))}
               </SelectContent>
             </Select>
+            <Button size="sm" onClick={handleTestModel} disabled={isTestLoading}>
+              {isTestLoading ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin mr-2" />
+                  {elapsedMs}ms
+                </>
+              ) : (
+                "Test"
+              )}
+            </Button>
+            {testDurationSeconds !== null && (
+              <p className="text-sm text-muted-foreground">done in {testDurationSeconds.toFixed(2)} s</p>
+            )}
+            {testOutput && (
+              <div className="px-4 py-2 bg-muted rounded">
+                <MarkdownMath content={testOutput}></MarkdownMath>
+              </div>
+            )}
             {showCustomModelInput && (
               <div className="mt-2 space-y-2">
                 <Label htmlFor="custom-model-id">Custom Model ID</Label>
@@ -180,6 +251,7 @@ export function SettingsView() {
                   onClick={() => {
                     setLocalModel(customModelId);
                     setShowCustomModelInput(false);
+                    setModel(customModelId);
                   }}
                 >
                   Use Custom Model
@@ -247,6 +319,30 @@ export function SettingsView() {
             <Braces className="h-4 w-4" />
             {useStructuredOutput ? "Disable Structured Output" : "Enable Structured Output"}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Math Delimiter Migration</CardTitle>
+          <CardDescription>
+            Dollar-sign math delimiters are deprecated. Migrate saved question content from $...$ and $$...$$ to \\( ... \\) and \\[ ... \\].
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {pendingDollarDelimiterMigrations > 0
+              ? `${pendingDollarDelimiterMigrations} field${pendingDollarDelimiterMigrations === 1 ? "" : "s"} can be migrated.`
+              : "No legacy dollar delimiters were found in saved question content."}
+          </p>
+          <Button
+            type="button"
+            onClick={handleMigrateDollarDelimiters}
+            disabled={pendingDollarDelimiterMigrations === 0}
+          >
+            Migrate Saved Questions
+          </Button>
+          {migrationResult && <p className="text-sm text-muted-foreground">{migrationResult}</p>}
         </CardContent>
       </Card>
     </div>

@@ -19,7 +19,7 @@ if (/Android/i.test(window.navigator.userAgent)) {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider defaultTheme="dark" storageKey="questiongen-theme">
-      <App />
+      <App/>
     </ThemeProvider>
   </React.StrictMode>,
 );

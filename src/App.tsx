@@ -44,8 +44,8 @@ export default function App() {
       version={3}
       config={{
         tex: {
-          inlineMath: [["$", "$"]],
-          displayMath: [["$$", "$$"]],
+          inlineMath: [["\\\\(", "\\\\)"], ["\\(", "\\)"]],
+          displayMath: [["\\\\[", "\\\\]"], ["\\[", "\\]"]],
           processEscapes: true,
         },
       }}

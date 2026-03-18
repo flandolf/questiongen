@@ -31,6 +31,11 @@ import {
   VceCommandTerm,
 } from "./types";
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
+import {
+  countDollarMathDelimiterMigrations,
+  DelimiterMigrationTarget,
+  migrateDollarMathDelimitersInState,
+} from "./lib/math-delimiter-migration";
 import { useSettingsState } from "./context/modules/useSettingsState";
 import { usePreferencesState } from "./context/modules/usePreferencesState";
 import { usePassageSessionState } from "./context/modules/usePassageSessionState";
@@ -155,6 +160,8 @@ interface AppContextState {
   errorMessage: string | null;
   setErrorMessage: (msg: string | null) => void;
 
+  pendingDollarDelimiterMigrations: number;
+  migrateDollarDelimiterContent: () => number;
   clearApiKey: () => void;
 }
 
@@ -448,6 +455,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const savedSetsSnapshot = useMemo(() => applySavedSetLimit(savedSets), [savedSets]);
 
+  const delimiterMigrationTarget = useMemo<DelimiterMigrationTarget>(() => ({
+    writtenSession: writtenSessionSnapshot,
+    passageSession: passageSessionSnapshot,
+    mcSession: mcSessionSnapshot,
+    questionHistory,
+    mcHistory,
+    savedSets,
+  }), [
+    writtenSessionSnapshot,
+    passageSessionSnapshot,
+    mcSessionSnapshot,
+    questionHistory,
+    mcHistory,
+    savedSets,
+  ]);
+
+  const pendingDollarDelimiterMigrations = useMemo(
+    () => countDollarMathDelimiterMigrations(delimiterMigrationTarget),
+    [delimiterMigrationTarget],
+  );
+
   useEffect(() => {
     let unlisten: undefined | (() => void);
 
@@ -725,6 +753,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMcHistory((prev) => applyHistoryLimit(resolveArrayStateUpdate(history, prev)));
   }, []);
 
+  const migrateDollarDelimiterContent = useCallback(() => {
+    const { state: migrated, updatedFieldCount } = migrateDollarMathDelimitersInState(delimiterMigrationTarget);
+    if (updatedFieldCount === 0) {
+      return 0;
+    }
+
+    setQuestions(migrated.writtenSession.questions);
+    setAnswersByQuestionId(migrated.writtenSession.answersByQuestionId);
+    setFeedbackByQuestionId(migrated.writtenSession.feedbackByQuestionId);
+
+    setPassage(migrated.passageSession.passage);
+    setPassageAnswersByQuestionId(migrated.passageSession.answersByQuestionId);
+    setPassageFeedbackByQuestionId(migrated.passageSession.feedbackByQuestionId);
+
+    setMcQuestions(migrated.mcSession.questions);
+
+    setQuestionHistoryWithLimit(migrated.questionHistory);
+    setMcHistoryWithLimit(migrated.mcHistory);
+    setSavedSets(applySavedSetLimit(migrated.savedSets));
+
+    return updatedFieldCount;
+  }, [
+    delimiterMigrationTarget,
+    setAnswersByQuestionId,
+    setFeedbackByQuestionId,
+    setMcHistoryWithLimit,
+    setMcQuestions,
+    setPassage,
+    setPassageAnswersByQuestionId,
+    setPassageFeedbackByQuestionId,
+    setQuestionHistoryWithLimit,
+    setQuestions,
+  ]);
+
   function deleteSavedSet(savedSetId: string) {
     setSavedSets((prev) => prev.filter((entry) => entry.id !== savedSetId));
     if (activeWrittenSavedSetId === savedSetId) {
@@ -853,6 +915,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsMarking,
         errorMessage,
         setErrorMessage,
+        pendingDollarDelimiterMigrations,
+        migrateDollarDelimiterContent,
         clearApiKey,
       }}
     >
@@ -997,6 +1061,8 @@ export function useAppSettings() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
+    pendingDollarDelimiterMigrations,
+    migrateDollarDelimiterContent,
     clearApiKey,
   } = useAppContext();
 
@@ -1011,6 +1077,8 @@ export function useAppSettings() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
+    pendingDollarDelimiterMigrations,
+    migrateDollarDelimiterContent,
     clearApiKey,
   };
 }
