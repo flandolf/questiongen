@@ -1,8 +1,4 @@
-use openrouter_rs::{
-    OpenRouterClient,
-    api::chat::{ChatCompletionRequest, ContentPart, Message, Plugin},
-    types::{completion::CompletionsResponse, ResponseFormat, Role},
-};
+
 
 #[tauri::command]
 fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
@@ -732,14 +728,9 @@ async fn call_openrouter_with_plugins(
     plugins: Option<serde_json::Value>,
     response_format: Option<serde_json::Value>,
 ) -> CommandResult<OpenRouterCallResult> {
-    let client = OpenRouterClient::builder()
-        .api_key(api_key)
-        .build()
-        .map_err(|err| AppError::new("OPENROUTER_ERROR", err.to_string()))?;
-
     let user_message = build_user_message(&user_content)?;
-    let make_request = |include_response_format: bool| {
-        build_chat_completion_request(
+    let make_body = |include_response_format: bool| {
+        build_chat_completion_body(
             model,
             system_prompt,
             &user_message,
@@ -759,7 +750,7 @@ async fn call_openrouter_with_plugins(
         );
     }
 
-    let initial_request = make_request(prefer_structured_output)?;
+    let initial_body = make_body(prefer_structured_output);
     eprintln!(
         "[DEBUG] OpenRouter request - Model: {}, Has response_format: {}, Sending response_format: {}",
         model,
@@ -767,7 +758,7 @@ async fn call_openrouter_with_plugins(
         prefer_structured_output
     );
 
-    match client.chat().create(&initial_request).await {
+    match post_to_openrouter(api_key, &initial_body).await {
         Ok(response) => extract_openrouter_content(response),
         Err(err) => {
             if prefer_structured_output {
@@ -784,17 +775,16 @@ async fn call_openrouter_with_plugins(
                 eprintln!(
                     "[DEBUG] Retrying without response_format after structured request failure; model cached as incompatible"
                 );
-                let fallback_request = make_request(false)?;
-                let fallback_response = client
-                    .chat()
-                    .create(&fallback_request)
+                let fallback_body = make_body(false);
+                let fallback_response = post_to_openrouter(api_key, &fallback_body)
                     .await
                     .map_err(|fallback_err| {
                         eprintln!("[ERROR] Fallback request also failed: {:?}", fallback_err);
                         AppError::new(
                             "OPENROUTER_ERROR",
                             format!(
-                                "OpenRouter request failed (structured): {err}; fallback without response_format failed: {fallback_err}"
+                                "OpenRouter request failed (structured): {:?}; fallback without response_format failed: {:?}",
+                                err, fallback_err
                             ),
                         )
                     })?;
@@ -802,67 +792,91 @@ async fn call_openrouter_with_plugins(
             } else {
                 Err(AppError::new(
                     "OPENROUTER_ERROR",
-                    format!("OpenRouter request failed: {err}"),
+                    format!("OpenRouter request failed: {:?}", err),
                 ))
             }
         }
     }
 }
 
-fn build_chat_completion_request(
+async fn post_to_openrouter(
+    api_key: &str,
+    body: &serde_json::Value,
+) -> CommandResult<serde_json::Value> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::new("OPENROUTER_ERROR", format!("HTTP request failed: {e}")))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        return Err(AppError::new(
+            "OPENROUTER_ERROR",
+            format!("API request failed with status {status}: {text}"),
+        ));
+    }
+
+    response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| AppError::new("OPENROUTER_ERROR", format!("Failed to parse response: {e}")))
+}
+
+fn build_chat_completion_body(
     model: &str,
     system_prompt: &str,
-    user_message: &Message,
+    user_message: &serde_json::Value,
     plugins: Option<&serde_json::Value>,
     response_format: Option<&serde_json::Value>,
     include_response_format: bool,
-) -> CommandResult<ChatCompletionRequest> {
-    let mut binding = ChatCompletionRequest::builder();
-    let mut builder = binding
-        .model(model)
-        .messages(vec![
-            Message::new(Role::System, system_prompt),
-            user_message.clone(),
-        ])
-        .temperature(0.5)
-        .max_tokens(u32::from(OPENROUTER_MAX_TOKENS));
+) -> serde_json::Value {
+    let messages = serde_json::json!([
+        {"role": "system", "content": system_prompt},
+        user_message,
+    ]);
+
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages,
+        "temperature": 0.5,
+        "max_tokens": OPENROUTER_MAX_TOKENS,
+    });
 
     if include_response_format {
-        if let Some(response_format) = response_format {
-            let schema_name = response_format
+        if let Some(fmt) = response_format {
+            let schema_name = fmt
                 .get("json_schema")
                 .and_then(|node| node.get("name"))
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("unknown");
-            eprintln!(
-                "[DEBUG] Applying response_format json_schema: {}",
-                schema_name
-            );
-            builder = builder.response_format(parse_response_format(response_format)?);
+            eprintln!("[DEBUG] Applying response_format json_schema: {schema_name}");
+            body["response_format"] = fmt.clone();
         }
     }
 
     if let Some(plugins) = plugins {
-        builder = builder.plugins(parse_plugins(plugins)?);
+        body["plugins"] = plugins.clone();
     }
 
-    builder
-        .build()
-        .map_err(|err| {
-            eprintln!("[ERROR] Failed to build ChatCompletionRequest: {}", err);
-            AppError::new("OPENROUTER_ERROR", err.to_string())
-        })
+    body
 }
 
-fn build_user_message(content: &serde_json::Value) -> CommandResult<Message> {
+fn build_user_message(content: &serde_json::Value) -> CommandResult<serde_json::Value> {
     match content {
-        serde_json::Value::String(text) => Ok(Message::new(Role::User, text.clone())),
+        serde_json::Value::String(text) => {
+            Ok(serde_json::json!({"role": "user", "content": text}))
+        }
         serde_json::Value::Array(parts) => {
             let parsed_parts = parts
                 .iter()
                 .map(parse_content_part)
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(Message::with_parts(Role::User, parsed_parts))
+            Ok(serde_json::json!({"role": "user", "content": parsed_parts}))
         }
         other => Err(AppError::new(
             "VALIDATION_ERROR",
@@ -871,7 +885,7 @@ fn build_user_message(content: &serde_json::Value) -> CommandResult<Message> {
     }
 }
 
-fn parse_content_part(value: &serde_json::Value) -> CommandResult<ContentPart> {
+fn parse_content_part(value: &serde_json::Value) -> CommandResult<serde_json::Value> {
     let kind = value
         .get("type")
         .and_then(serde_json::Value::as_str)
@@ -883,27 +897,32 @@ fn parse_content_part(value: &serde_json::Value) -> CommandResult<ContentPart> {
             let text = value
                 .get("text")
                 .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| AppError::new("VALIDATION_ERROR", "Text content part is missing \"text\"."))?;
-            Ok(ContentPart::text(text))
+                .ok_or_else(|| {
+                    AppError::new("VALIDATION_ERROR", "Text content part is missing \"text\".")
+                })?;
+            Ok(serde_json::json!({"type": "text", "text": text}))
         }
         "image_url" => {
             let image_node = value
                 .get("image_url")
                 .and_then(serde_json::Value::as_object)
-                .ok_or_else(|| AppError::new("VALIDATION_ERROR", "image_url content part is invalid."))?;
+                .ok_or_else(|| {
+                    AppError::new("VALIDATION_ERROR", "image_url content part is invalid.")
+                })?;
             let url = image_node
                 .get("url")
                 .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| AppError::new("VALIDATION_ERROR", "image_url part must include a url."))?;
+                .ok_or_else(|| {
+                    AppError::new("VALIDATION_ERROR", "image_url part must include a url.")
+                })?;
             let detail = image_node
                 .get("detail")
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_string);
+                .and_then(serde_json::Value::as_str);
 
             if let Some(detail) = detail {
-                Ok(ContentPart::image_url_with_detail(url, detail))
+                Ok(serde_json::json!({"type": "image_url", "image_url": {"url": url, "detail": detail}}))
             } else {
-                Ok(ContentPart::image_url(url))
+                Ok(serde_json::json!({"type": "image_url", "image_url": {"url": url}}))
             }
         }
         _ => Err(AppError::new(
@@ -913,29 +932,14 @@ fn parse_content_part(value: &serde_json::Value) -> CommandResult<ContentPart> {
     }
 }
 
-fn parse_response_format(value: &serde_json::Value) -> CommandResult<ResponseFormat> {
-    serde_json::from_value(value.clone()).map_err(|err| {
-        AppError::new(
-            "STRUCTURED_FORMAT_ERROR",
-            format!("Invalid response format: {err}"),
-        )
-    })
-}
-
-fn parse_plugins(value: &serde_json::Value) -> CommandResult<Vec<Plugin>> {
-    serde_json::from_value(value.clone()).map_err(|err| {
-        AppError::new(
-            "PLUGIN_CONFIG_ERROR",
-            format!("Invalid plugin configuration: {err}"),
-        )
-    })
-}
-
-fn extract_openrouter_content(response: CompletionsResponse) -> CommandResult<OpenRouterCallResult> {
+fn extract_openrouter_content(response: serde_json::Value) -> CommandResult<OpenRouterCallResult> {
     let content = response
-        .choices
-        .first()
-        .and_then(|choice| choice.content())
+        .get("choices")
+        .and_then(|c| c.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|choice| choice.get("message"))
+        .and_then(|msg| msg.get("content"))
+        .and_then(serde_json::Value::as_str)
         .unwrap_or("");
 
     Ok(OpenRouterCallResult {
