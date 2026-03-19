@@ -23,8 +23,6 @@ export function SettingsView() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
-    pendingDollarDelimiterMigrations,
-    migrateDollarDelimiterContent,
   } = useAppSettings();
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
@@ -37,13 +35,12 @@ export function SettingsView() {
   const [testStartTime, setTestStartTime] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [testDurationSeconds, setTestDurationSeconds] = useState<number | null>(null);
-  const [migrationResult, setMigrationResult] = useState<string>("");
   const models = [
-    { id: "openrouter/hunter-alpha", name: "Hunter Alpha" },
-    { id: "openrouter/healer-alpha", name: "Healer Alpha" },
-    { id: "minimax/minimax-m2.5:free", name: "Minimax M2.5 (free)" },
-    { id: "qwen/qwen3-next-80b-a3b-instruct:free", name: "Qwen3 Next 80B (free)" },
-    { id: "openrouter/free", name: "Free" },
+    {id: "nvidia/nemotron-3-super-120b-a12b:free", name: "NVIDIA Nemotron 3 Super 120B (A12B)"},
+    {id:"arcee-ai/trinity-large-preview:free", name: "Arcee Trinity Large Preview"},
+    {id:"arcee-ai/trinity-mini:free", name: "Arcee Trinity Mini"},
+    {id:"openai/gpt-5-nano", name: "OpenAI GPT-5 Nano"},
+    {id:"qwen/qwen3.5-flash-02-23", name: "Qwen3.5 Flash"},
     { id: "custom", name: "Custom..." },
   ];
 
@@ -123,16 +120,6 @@ export function SettingsView() {
         setIsTestLoading(false);
       });
     }
-  }
-
-  function handleMigrateDollarDelimiters() {
-    const migratedFieldCount = migrateDollarDelimiterContent();
-    if (migratedFieldCount === 0) {
-      setMigrationResult("No saved question content needed migration.");
-      return;
-    }
-
-    setMigrationResult(`Migrated ${migratedFieldCount} field${migratedFieldCount === 1 ? "" : "s"} from dollar delimiters.`);
   }
 
   return (
@@ -319,30 +306,6 @@ export function SettingsView() {
             <Braces className="h-4 w-4" />
             {useStructuredOutput ? "Disable Structured Output" : "Enable Structured Output"}
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Math Delimiter Migration</CardTitle>
-          <CardDescription>
-            Dollar-sign math delimiters are deprecated. Migrate saved question content from $...$ and $$...$$ to \\( ... \\) and \\[ ... \\].
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {pendingDollarDelimiterMigrations > 0
-              ? `${pendingDollarDelimiterMigrations} field${pendingDollarDelimiterMigrations === 1 ? "" : "s"} can be migrated.`
-              : "No legacy dollar delimiters were found in saved question content."}
-          </p>
-          <Button
-            type="button"
-            onClick={handleMigrateDollarDelimiters}
-            disabled={pendingDollarDelimiterMigrations === 0}
-          >
-            Migrate Saved Questions
-          </Button>
-          {migrationResult && <p className="text-sm text-muted-foreground">{migrationResult}</p>}
         </CardContent>
       </Card>
     </div>

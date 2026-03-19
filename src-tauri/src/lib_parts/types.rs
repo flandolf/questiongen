@@ -1,30 +1,22 @@
 use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Instant};
 use tauri::{Emitter, Manager};
 
 const OPENROUTER_MAX_TOKENS: u16 = 1400;
 const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
 const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
-const ENGLISH_LANGUAGE_TOPIC: &str = "English Language";
 const APP_STATE_FILE_NAME: &str = "app-state.json";
 const MATHEMATICAL_METHODS_REFERENCE_GUIDANCE: &str = "Mathematical Methods: Reward method selection over template recall. Use authentic exam style with concise, VCAA-aligned command verbs and realistic mark allocations. Prioritize algebraic reasoning, calculus interpretation, and evidence of considered problem-solving. Avoid rote substitution questions; instead, construct scenarios requiring method choice justification.";
 const PHYSICAL_EDUCATION_REFERENCE_GUIDANCE: &str = "Physical Education: Restrict to Unit 3/4 content. Use short, applied sport/training scenarios that reward data interpretation, reasoned justification, and evidence-based analysis. For biomechanics, avoid pure physics calculations; instead, emphasize application of principles (Newton's Laws, levers, projectile motion) to novel contexts and authentic athlete/training situations.";
-const PASSAGE_TEXT_TYPE_OPTIONS: [&str; 10] = [
-    "public notice",
-    "community newsletter excerpt",
-    "editorial opinion piece",
-    "letter to the editor",
-    "advertisement copy",
-    "formal email or memo",
-    "speech transcript excerpt",
-    "brochure information text",
-    "social media thread (structured)",
-    "interview transcript excerpt",
-];
+
+/// LaTeX delimiter instruction included in every generation and marking prompt.
+/// The double-backslash form is intentional: inside a JSON string the model
+const LATEX_NOTE: &str =
+    "Math notation: wrap inline expressions in $...$ and display/block expressions in $$...$$. Use no other math delimiters.";
 
 #[derive(Debug, Clone, Copy)]
 struct CommandTermProfile {
@@ -34,46 +26,14 @@ struct CommandTermProfile {
 }
 
 const COMMAND_TERM_PROFILES: [CommandTermProfile; 8] = [
-    CommandTermProfile {
-        key: "identify",
-        min_marks: 1,
-        max_marks: 2,
-    },
-    CommandTermProfile {
-        key: "describe",
-        min_marks: 1,
-        max_marks: 3,
-    },
-    CommandTermProfile {
-        key: "explain",
-        min_marks: 1,
-        max_marks: 4,
-    },
-    CommandTermProfile {
-        key: "compare",
-        min_marks: 2,
-        max_marks: 4,
-    },
-    CommandTermProfile {
-        key: "analyse",
-        min_marks: 3,
-        max_marks: 6,
-    },
-    CommandTermProfile {
-        key: "discuss",
-        min_marks: 4,
-        max_marks: 7,
-    },
-    CommandTermProfile {
-        key: "evaluate",
-        min_marks: 4,
-        max_marks: 8,
-    },
-    CommandTermProfile {
-        key: "justify",
-        min_marks: 5,
-        max_marks: 7
-    },
+    CommandTermProfile { key: "identify",  min_marks: 1, max_marks: 2 },
+    CommandTermProfile { key: "describe",  min_marks: 1, max_marks: 3 },
+    CommandTermProfile { key: "explain",   min_marks: 1, max_marks: 4 },
+    CommandTermProfile { key: "compare",   min_marks: 2, max_marks: 4 },
+    CommandTermProfile { key: "analyse",   min_marks: 3, max_marks: 6 },
+    CommandTermProfile { key: "discuss",   min_marks: 4, max_marks: 7 },
+    CommandTermProfile { key: "evaluate",  min_marks: 4, max_marks: 8 },
+    CommandTermProfile { key: "justify",   min_marks: 5, max_marks: 7 },
 ];
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +48,6 @@ struct GenerateQuestionsRequest {
     prioritized_command_terms: Option<Vec<String>>,
     subtopics: Option<Vec<String>>,
     subtopic_instructions: Option<HashMap<String, String>>,
-    english_task_types: Option<Vec<String>>,
     max_marks_per_question: Option<u8>,
     #[serde(default)]
     custom_focus_area: Option<String>,
@@ -99,15 +58,12 @@ struct GenerateQuestionsRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct GeneratedQuestion {
+    #[serde(default)]
     id: String,
     #[serde(alias = "t")]
     topic: String,
     #[serde(alias = "s", default)]
     subtopic: Option<String>,
-    #[serde(alias = "tt", default)]
-    task_type: Option<String>,
-    #[serde(alias = "rl", default)]
-    recommended_response_length: Option<String>,
     #[serde(alias = "p")]
     prompt_markdown: String,
     #[serde(alias = "m", default = "default_question_max_marks")]
@@ -147,6 +103,22 @@ struct GenerationTelemetry {
     multi_step_depth_avg: Option<f32>,
 }
 
+impl GenerationTelemetry {
+    fn simple(difficulty: impl Into<String>, duration_ms: u64) -> Self {
+        Self {
+            difficulty: difficulty.into(),
+            total_attempts: 1,
+            repair_attempts: 0,
+            constrained_regeneration_used: false,
+            repair_path: vec![],
+            duration_ms,
+            structured_output_status: Some("used".to_string()),
+            distinctness_avg: None,
+            multi_step_depth_avg: None,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct GenerationStatusEvent {
@@ -166,57 +138,6 @@ struct MarkAnswerRequest {
     api_key: String,
     #[serde(rename = "useStructuredOutput")]
     _use_structured_output: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GeneratePassageQuestionsRequest {
-    aos_subtopic: String,
-    question_count: usize,
-    model: String,
-    api_key: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct PassageSubQuestion {
-    id: String,
-    #[serde(alias = "p")]
-    prompt_markdown: String,
-    #[serde(alias = "m")]
-    max_marks: u8,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct GeneratedPassage {
-    id: String,
-    #[serde(alias = "txt")]
-    text: String,
-    #[serde(alias = "aos")]
-    aos_subtopic: String,
-    #[serde(alias = "q")]
-    questions: Vec<PassageSubQuestion>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GeneratePassageResponse {
-    passage: GeneratedPassage,
-    #[serde(default)]
-    raw_model_output: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    telemetry: Option<GenerationTelemetry>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MarkPassageAnswerRequest {
-    passage_text: String,
-    question: PassageSubQuestion,
-    student_answer: String,
-    model: String,
-    api_key: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -277,10 +198,7 @@ struct AppError {
 
 impl AppError {
     fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
+        Self { code, message: message.into() }
     }
 }
 
@@ -295,11 +213,6 @@ fn emit_generation_status(
 ) {
     let _ = app.emit(
         "generation-status",
-        GenerationStatusEvent {
-            mode,
-            stage,
-            message: message.into(),
-            attempt,
-        },
+        GenerationStatusEvent { mode, stage, message: message.into(), attempt },
     );
 }

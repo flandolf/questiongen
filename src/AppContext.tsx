@@ -1,10 +1,7 @@
 import React, { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import {
   ChemistrySubtopic,
   Difficulty,
-  EnglishLanguageSubtopic,
-  EnglishLanguageTaskType,
   GeneratedPassage,
   GeneratedQuestion,
   GenerationStatusEvent,
@@ -31,11 +28,7 @@ import {
   VceCommandTerm,
 } from "./types";
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
-import {
-  countDollarMathDelimiterMigrations,
-  DelimiterMigrationTarget,
-  migrateDollarMathDelimitersInState,
-} from "./lib/math-delimiter-migration";
+
 import { useSettingsState } from "./context/modules/useSettingsState";
 import { usePreferencesState } from "./context/modules/usePreferencesState";
 import { usePassageSessionState } from "./context/modules/usePassageSessionState";
@@ -64,16 +57,10 @@ interface AppContextState {
   setChemistrySubtopics: (subtopics: ChemistrySubtopic[] | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])) => void;
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   setPhysicalEducationSubtopics: (subtopics: PhysicalEducationSubtopic[] | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])) => void;
-  englishLanguageSubtopics: EnglishLanguageSubtopic[];
-  setEnglishLanguageSubtopics: (subtopics: EnglishLanguageSubtopic[] | ((prev: EnglishLanguageSubtopic[]) => EnglishLanguageSubtopic[])) => void;
-  englishLanguageTaskTypes: EnglishLanguageTaskType[];
-  setEnglishLanguageTaskTypes: (types: EnglishLanguageTaskType[] | ((prev: EnglishLanguageTaskType[]) => EnglishLanguageTaskType[])) => void;
   questionCount: number;
   setQuestionCount: (count: number) => void;
   maxMarksPerQuestion: number;
   setMaxMarksPerQuestion: (marks: number) => void;
-  passageAosSubtopic: EnglishLanguageSubtopic;
-  setPassageAosSubtopic: (subtopic: EnglishLanguageSubtopic) => void;
   passageQuestionCount: number;
   setPassageQuestionCount: (count: number) => void;
   prioritizedCommandTerms: VceCommandTerm[];
@@ -159,9 +146,6 @@ interface AppContextState {
   setIsMarking: (is: boolean) => void;
   errorMessage: string | null;
   setErrorMessage: (msg: string | null) => void;
-
-  pendingDollarDelimiterMigrations: number;
-  migrateDollarDelimiterContent: () => number;
   clearApiKey: () => void;
 }
 
@@ -223,16 +207,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
-    englishLanguageSubtopics,
-    setEnglishLanguageSubtopics,
-    englishLanguageTaskTypes,
-    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    passageAosSubtopic,
-    setPassageAosSubtopic,
     passageQuestionCount,
     setPassageQuestionCount,
     prioritizedCommandTerms,
@@ -322,11 +300,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       specialistMathSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
-      englishLanguageSubtopics,
-      englishLanguageTaskTypes,
       questionCount,
       maxMarksPerQuestion,
-      passageAosSubtopic,
       passageQuestionCount,
       prioritizedCommandTerms,
       questionMode,
@@ -342,11 +317,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     specialistMathSubtopics,
     chemistrySubtopics,
     physicalEducationSubtopics,
-    englishLanguageSubtopics,
-    englishLanguageTaskTypes,
     questionCount,
     maxMarksPerQuestion,
-    passageAosSubtopic,
     passageQuestionCount,
     prioritizedCommandTerms,
     questionMode,
@@ -455,43 +427,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const savedSetsSnapshot = useMemo(() => applySavedSetLimit(savedSets), [savedSets]);
 
-  const delimiterMigrationTarget = useMemo<DelimiterMigrationTarget>(() => ({
-    writtenSession: writtenSessionSnapshot,
-    passageSession: passageSessionSnapshot,
-    mcSession: mcSessionSnapshot,
-    questionHistory,
-    mcHistory,
-    savedSets,
-  }), [
-    writtenSessionSnapshot,
-    passageSessionSnapshot,
-    mcSessionSnapshot,
-    questionHistory,
-    mcHistory,
-    savedSets,
-  ]);
-
-  const pendingDollarDelimiterMigrations = useMemo(
-    () => countDollarMathDelimiterMigrations(delimiterMigrationTarget),
-    [delimiterMigrationTarget],
-  );
-
-  useEffect(() => {
-    let unlisten: undefined | (() => void);
-
-    void listen<GenerationStatusEvent>("generation-status", (event) => {
-      setGenerationStatus(event.payload);
-    }).then((dispose) => {
-      unlisten = dispose;
-    });
-
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, []);
-
   const persistedSnapshot = useMemo<PersistedAppState>(() => ({
     version: EMPTY_PERSISTED_APP_STATE.version,
     settings: settingsSnapshot,
@@ -539,11 +474,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSpecialistMathSubtopics(state.preferences.specialistMathSubtopics);
     setChemistrySubtopics(state.preferences.chemistrySubtopics);
     setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
-    setEnglishLanguageSubtopics(state.preferences.englishLanguageSubtopics);
-    setEnglishLanguageTaskTypes(state.preferences.englishLanguageTaskTypes);
     setQuestionCount(state.preferences.questionCount);
     setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
-    setPassageAosSubtopic(state.preferences.passageAosSubtopic);
     setPassageQuestionCount(state.preferences.passageQuestionCount);
     setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
@@ -586,10 +518,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (questionMode === "written") {
       const hasWrittenQuestions = questions.length > 0;
-      const hasPassagePreference =
-        preferencesSnapshot.selectedTopics.includes("English Language") &&
-        preferencesSnapshot.englishLanguageTaskTypes.includes("text-analysis");
-      const hasPassage = hasPassagePreference && Boolean(passage);
+      const hasPassage = Boolean(passage);
       if (!hasWrittenQuestions && !hasPassage) {
         return null;
       }
@@ -680,11 +609,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setMathMethodsSubtopics(entry.preferences.mathMethodsSubtopics);
       setChemistrySubtopics(entry.preferences.chemistrySubtopics);
       setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
-      setEnglishLanguageSubtopics(entry.preferences.englishLanguageSubtopics);
-      setEnglishLanguageTaskTypes(entry.preferences.englishLanguageTaskTypes);
       setSpecialistMathSubtopics(entry.preferences.specialistMathSubtopics);
       setQuestionCount(entry.preferences.questionCount);
-      setPassageAosSubtopic(entry.preferences.passageAosSubtopic);
       setPassageQuestionCount(entry.preferences.passageQuestionCount);
       setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
       setQuestionMode(entry.questionMode);
@@ -753,40 +679,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMcHistory((prev) => applyHistoryLimit(resolveArrayStateUpdate(history, prev)));
   }, []);
 
-  const migrateDollarDelimiterContent = useCallback(() => {
-    const { state: migrated, updatedFieldCount } = migrateDollarMathDelimitersInState(delimiterMigrationTarget);
-    if (updatedFieldCount === 0) {
-      return 0;
-    }
-
-    setQuestions(migrated.writtenSession.questions);
-    setAnswersByQuestionId(migrated.writtenSession.answersByQuestionId);
-    setFeedbackByQuestionId(migrated.writtenSession.feedbackByQuestionId);
-
-    setPassage(migrated.passageSession.passage);
-    setPassageAnswersByQuestionId(migrated.passageSession.answersByQuestionId);
-    setPassageFeedbackByQuestionId(migrated.passageSession.feedbackByQuestionId);
-
-    setMcQuestions(migrated.mcSession.questions);
-
-    setQuestionHistoryWithLimit(migrated.questionHistory);
-    setMcHistoryWithLimit(migrated.mcHistory);
-    setSavedSets(applySavedSetLimit(migrated.savedSets));
-
-    return updatedFieldCount;
-  }, [
-    delimiterMigrationTarget,
-    setAnswersByQuestionId,
-    setFeedbackByQuestionId,
-    setMcHistoryWithLimit,
-    setMcQuestions,
-    setPassage,
-    setPassageAnswersByQuestionId,
-    setPassageFeedbackByQuestionId,
-    setQuestionHistoryWithLimit,
-    setQuestions,
-  ]);
-
   function deleteSavedSet(savedSetId: string) {
     setSavedSets((prev) => prev.filter((entry) => entry.id !== savedSetId));
     if (activeWrittenSavedSetId === savedSetId) {
@@ -825,16 +717,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setChemistrySubtopics,
         physicalEducationSubtopics,
         setPhysicalEducationSubtopics,
-        englishLanguageSubtopics,
-        setEnglishLanguageSubtopics,
-        englishLanguageTaskTypes,
-        setEnglishLanguageTaskTypes,
         questionCount,
         setQuestionCount,
         maxMarksPerQuestion,
         setMaxMarksPerQuestion,
-        passageAosSubtopic,
-        setPassageAosSubtopic,
         passageQuestionCount,
         setPassageQuestionCount,
         prioritizedCommandTerms,
@@ -915,9 +801,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsMarking,
         errorMessage,
         setErrorMessage,
-        pendingDollarDelimiterMigrations,
-        migrateDollarDelimiterContent,
         clearApiKey,
+        
       }}
     >
       {children}
@@ -951,16 +836,10 @@ export function useAppPreferences() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
-    englishLanguageSubtopics,
-    setEnglishLanguageSubtopics,
-    englishLanguageTaskTypes,
-    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    passageAosSubtopic,
-    setPassageAosSubtopic,
     passageQuestionCount,
     setPassageQuestionCount,
     prioritizedCommandTerms,
@@ -990,16 +869,10 @@ export function useAppPreferences() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
-    englishLanguageSubtopics,
-    setEnglishLanguageSubtopics,
-    englishLanguageTaskTypes,
-    setEnglishLanguageTaskTypes,
     questionCount,
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    passageAosSubtopic,
-    setPassageAosSubtopic,
     passageQuestionCount,
     setPassageQuestionCount,
     prioritizedCommandTerms,
@@ -1061,8 +934,6 @@ export function useAppSettings() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
-    pendingDollarDelimiterMigrations,
-    migrateDollarDelimiterContent,
     clearApiKey,
   } = useAppContext();
 
@@ -1077,8 +948,6 @@ export function useAppSettings() {
     setDebugMode,
     useStructuredOutput,
     setUseStructuredOutput,
-    pendingDollarDelimiterMigrations,
-    migrateDollarDelimiterContent,
     clearApiKey,
   };
 }

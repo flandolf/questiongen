@@ -6,7 +6,6 @@ import {
   CHEMISTRY_SUBTOPICS,
   DEBUG_MODE_STORAGE_KEY,
   ENGLISH_LANGUAGE_SUBTOPICS,
-  ENGLISH_LANGUAGE_TASK_TYPES,
   HISTORY_ENTRY_LIMIT,
   McAnswerAnalytics,
   MC_HISTORY_STORAGE_KEY,
@@ -54,11 +53,8 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   specialistMathSubtopics: [],
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
-  englishLanguageSubtopics: [],
-  englishLanguageTaskTypes: ["short-answer", "text-analysis"],
   questionCount: 3,
   maxMarksPerQuestion: 10,
-  passageAosSubtopic: ENGLISH_LANGUAGE_SUBTOPICS[0],
   passageQuestionCount: 5,
   prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
@@ -217,11 +213,8 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     specialistMathSubtopics: filterStringLiterals(data.specialistMathSubtopics, SPECIALIST_MATH_SUBTOPICS),
     chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
-    englishLanguageSubtopics: filterStringLiterals(data.englishLanguageSubtopics, ENGLISH_LANGUAGE_SUBTOPICS),
-    englishLanguageTaskTypes: filterStringLiterals(data.englishLanguageTaskTypes, ENGLISH_LANGUAGE_TASK_TYPES),
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
     maxMarksPerQuestion: clampWholeNumber(data.maxMarksPerQuestion, DEFAULT_PREFERENCES.maxMarksPerQuestion, 1, 30),
-    passageAosSubtopic: filterStringLiterals([data.passageAosSubtopic], ENGLISH_LANGUAGE_SUBTOPICS)[0] ?? DEFAULT_PREFERENCES.passageAosSubtopic,
     passageQuestionCount: clampWholeNumber(data.passageQuestionCount, DEFAULT_PREFERENCES.passageQuestionCount, 3, 10),
     prioritizedCommandTerms:
       prioritizedCommandTerms.length > 0
@@ -492,10 +485,6 @@ function normalizeGeneratedQuestion(raw: unknown) {
     id,
     topic,
     subtopic: normalizeNullableString(data.subtopic) ?? undefined,
-    taskType: filterStringLiterals([data.taskType], ENGLISH_LANGUAGE_TASK_TYPES)[0] ?? undefined,
-    recommendedResponseLength: data.recommendedResponseLength === "short" || data.recommendedResponseLength === "extended"
-      ? data.recommendedResponseLength
-      : undefined,
     promptMarkdown,
     maxMarks: clampWholeNumber(data.maxMarks, 10, 1, 30),
     techAllowed: typeof data.techAllowed === "boolean" ? data.techAllowed : undefined,

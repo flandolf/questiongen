@@ -27,6 +27,7 @@ struct McOption {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct McQuestion {
+    #[serde(default)]
     id: String,
     #[serde(alias = "t")]
     topic: String,
@@ -63,6 +64,13 @@ async fn generate_mc_questions(
     app: tauri::AppHandle,
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
+    if request.topics.is_empty() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
+    }
+
     let started = Instant::now();
     emit_generation_status(
         &app,
@@ -72,54 +80,13 @@ async fn generate_mc_questions(
         1,
     );
 
-    if request.topics.is_empty() {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "Select at least one topic.",
-        ));
-    }
-
-    let difficulty_rules = difficulty_guidance(&request.difficulty);
-    let tech_note = match request.tech_mode.as_deref().unwrap_or("mix") {
-        "tech-free" => "All questions must be tech-free. Set \"techAllowed\": false.",
-        "tech-active" => "All questions must be tech-active. Set \"techAllowed\": true.",
-        _ => "Mix of tech-free and tech-active. Set \"techAllowed\" per question.",
-    };
-    let custom_focus_note = request
-        .custom_focus_area
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(|value| format!("Custom focus area: {value}\n"))
-        .unwrap_or_default();
+    let tech_note = tech_mode_note(request.tech_mode.as_deref(), false);
+    let custom_focus_note = custom_focus_note(request.custom_focus_area.as_deref());
     let focus_areas_note = build_focus_areas_note(
         request.subtopics.as_ref(),
         request.subtopic_instructions.as_ref(),
     );
-
-    let repetition_avoidance_note = if !request.prior_question_prompts.is_empty() {
-        format!("AVOID REPETITION:\nDo not recreate these recent questions from the same topic(s):\n{}\n\n", request.prior_question_prompts.iter().map(|p| format!("  - {}", p)).collect::<Vec<_>>().join("\n"))
-    } else {
-        String::new()
-    };
-
-    let json_schema_note = "OUTPUT FORMAT (valid JSON only):\n\
-        {\n\
-            \"questions\": [\n\
-                {\n\
-                    \"id\": \"string (unique identifier)\",\n\
-                    \"t\": \"string (topic name)\",\n\
-                    \"s\": \"string (subtopic, optional)\",\n\
-                    \"p\": \"string (question prompt in markdown)\",\n\
-                    \"o\": [\n\
-                        { \"l\": \"string (A, B, C, or D)\", \"txt\": \"string (option text)\" }\n\
-                    ],\n\
-                    \"a\": \"string (correct answer: A, B, C, or D)\",\n\
-                    \"e\": \"string (explanation in markdown, 1–3 sentences max)\",\n\
-                    \"ta\": boolean (true=technology allowed, false=tech-free)\n\
-                }\n\
-            ]\n\
-        }\n";
+    let repetition_note = repetition_avoidance_note(&request.prior_question_prompts);
 
     let user_prompt = format!(
         "Generate exactly {count} VCE multiple-choice questions (4 options: A, B, C, D).\n\n\
@@ -133,28 +100,24 @@ async fn generate_mc_questions(
         • Explanations: 1–3 sentences; justify correct answer and briefly address key misconceptions.\n\
         • Variety: mix command terms, cognitive demand, and mark-equivalent difficulty across questions.\n\n\
         FORMATTING:\n\
-        • Use markdown; apply LaTeX for mathematics: inline \\\\(...\\\\), block \\\\[...\\\\].\n\n\
+        • Use markdown. {LATEX_NOTE}\n\n\
         {focus_areas_note}\
         {custom_focus_note}\
-        {repetition_avoidance_note}\n",
+        {repetition_note}",
         count = request.question_count,
         topics = request.topics.join(", "),
         difficulty = request.difficulty,
-        difficulty_rules = difficulty_rules,
-        tech_note = tech_note,
-        focus_areas_note = focus_areas_note,
-        custom_focus_note = custom_focus_note,
-        repetition_avoidance_note = repetition_avoidance_note,
-    ) + &json_schema_note;
-    let (user_content, _) = build_generation_user_content(&app, &request.topics, &user_prompt)?;
-    let response_format = Some(mc_questions_response_format());
+        difficulty_rules = difficulty_guidance(&request.difficulty),
+    );
+
+    let (user_content, _) = build_generation_user_content(&request.topics, &user_prompt)?;
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
         "You are a VCE examination expert who writes rigorous, precisely-calibrated exam questions. You understand mark allocations, command term expectations, and learner cognitive load. Generate questions that authentically assess the curriculum.",
         user_content,
-        response_format.as_ref(),
+        Some(&mc_questions_response_format()),
     )
     .await?;
 
@@ -163,40 +126,22 @@ async fn generate_mc_questions(
 
     normalize_mc_questions(&mut parsed.questions, request.subtopics.as_ref());
 
-    // Minimal validation
-    if parsed.questions.len() != request.question_count {
-        return Err(AppError::new(
-            "MODEL_ERROR",
-            format!(
-                "Expected {} questions, got {}.",
-                request.question_count,
-                parsed.questions.len()
-            ),
-        ));
-    }
-
+    let duration_ms = started.elapsed().as_millis() as u64;
     emit_generation_status(
         &app,
         "multiple-choice",
         "completed",
-        format!("Finished in {}ms", started.elapsed().as_millis()),
+        format!("Finished in {duration_ms}ms"),
         1,
     );
 
     Ok(GenerateMcQuestionsResponse {
         questions: parsed.questions,
         raw_model_output: result.content,
-        telemetry: Some(GenerationTelemetry {
-            difficulty: request.difficulty,
-            total_attempts: 1,
-            repair_attempts: 0,
-            constrained_regeneration_used: false,
-            repair_path: vec![],
-            duration_ms: started.elapsed().as_millis() as u64,
-            structured_output_status: Some("used".to_string()),
-            distinctness_avg: None,
-            multi_step_depth_avg: None,
-        }),
+        telemetry: Some(GenerationTelemetry::simple(
+            &request.difficulty,
+            duration_ms,
+        )),
     })
 }
 
@@ -235,9 +180,7 @@ fn normalize_prioritized_command_terms(
 
 fn find_command_term_profile(value: &str) -> Option<&'static CommandTermProfile> {
     let normalized = value.to_ascii_lowercase();
-    COMMAND_TERM_PROFILES
-        .iter()
-        .find(|profile| profile.key == normalized)
+    COMMAND_TERM_PROFILES.iter().find(|p| p.key == normalized)
 }
 
 fn infer_prompt_command_term(prompt: &str) -> Option<&'static CommandTermProfile> {
@@ -250,28 +193,25 @@ fn infer_prompt_command_term(prompt: &str) -> Option<&'static CommandTermProfile
                 .to_ascii_lowercase()
         })
         .unwrap_or_default();
-
     COMMAND_TERM_PROFILES
         .iter()
-        .find(|profile| profile.key == leading_token)
+        .find(|p| p.key == leading_token)
 }
 
-fn includes_english_language(topics: &[String]) -> bool {
-    topics
-        .iter()
-        .any(|topic| topic.trim().eq_ignore_ascii_case(ENGLISH_LANGUAGE_TOPIC))
+/// Returns true if `topics` contains the given topic name (case-insensitive).
+fn includes_topic(topics: &[String], topic: &str) -> bool {
+    topics.iter().any(|t| t.trim().eq_ignore_ascii_case(topic))
 }
 
 fn normalize_written_questions(
     questions: &mut [GeneratedQuestion],
-    selected_topics: &[String],
     selected_subtopics: Option<&Vec<String>>,
-    selected_english_task_types: &[&str],
     prioritized_command_terms: &[&'static CommandTermProfile],
 ) {
-    let includes_english = includes_english_language(selected_topics);
-
-    for question in questions {
+    for (i, question) in questions.iter_mut().enumerate() {
+        if question.id.trim().is_empty() {
+            question.id = format!("q{}", i + 1);
+        }
         let mut normalized_marks = if question.max_marks == 0 {
             default_question_max_marks()
         } else {
@@ -304,51 +244,16 @@ fn normalize_written_questions(
         question.subtopic = question
             .subtopic
             .as_ref()
-            .map(|subtopic| subtopic.trim().to_string())
-            .filter(|subtopic| !subtopic.is_empty());
-
-        if includes_english && is_english_language_topic(&question.topic) {
-            let normalized_task_type = question
-                .task_type
-                .as_ref()
-                .map(|value| value.trim().to_ascii_lowercase())
-                .and_then(|value| match value.as_str() {
-                    "short-answer" => Some("short-answer".to_string()),
-                    "analytical-essay" => Some("analytical-essay".to_string()),
-                    _ => None,
-                });
-
-            let selected_task_type = if selected_english_task_types.len() == 1 {
-                selected_english_task_types
-                    .first()
-                    .map(|value| (*value).to_string())
-            } else {
-                None
-            };
-
-            question.task_type = normalized_task_type.or(selected_task_type);
-            question.recommended_response_length = match question.task_type.as_deref() {
-                Some("short-answer") => Some("short".to_string()),
-                Some("analytical-essay") => Some("extended".to_string()),
-                _ => question
-                    .recommended_response_length
-                    .as_ref()
-                    .map(|value| value.trim().to_ascii_lowercase())
-                    .and_then(|value| match value.as_str() {
-                        "short" => Some("short".to_string()),
-                        "extended" => Some("extended".to_string()),
-                        _ => None,
-                    }),
-            };
-        } else {
-            question.task_type = None;
-            question.recommended_response_length = None;
-        }
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
     }
 }
 
 fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Option<&Vec<String>>) {
-    for question in questions {
+    for (i, question) in questions.iter_mut().enumerate() {
+        if question.id.trim().is_empty() {
+            question.id = format!("mc{}", i + 1);
+        }
         if question
             .subtopic
             .as_ref()
@@ -372,8 +277,8 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
         question.subtopic = question
             .subtopic
             .as_ref()
-            .map(|subtopic| subtopic.trim().to_string())
-            .filter(|subtopic| !subtopic.is_empty());
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
         for opt in &mut question.options {
             opt.label = opt.label.trim().to_uppercase();
             opt.text = decode_literal_newlines(&opt.text).trim().to_string();
@@ -381,96 +286,193 @@ fn normalize_mc_questions(questions: &mut [McQuestion], selected_subtopics: Opti
     }
 }
 
-fn normalize_generated_passage(passage: &mut GeneratedPassage, selected_aos_subtopic: &str) {
-    passage.id = passage.id.trim().to_string();
-    passage.text = decode_literal_newlines(&passage.text)
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n");
-    passage.aos_subtopic = if passage.aos_subtopic.trim().is_empty() {
-        selected_aos_subtopic.trim().to_string()
-    } else {
-        passage.aos_subtopic.trim().to_string()
-    };
-
-    for question in &mut passage.questions {
-        question.id = question.id.trim().to_string();
-        question.prompt_markdown = decode_literal_newlines(&question.prompt_markdown)
-            .trim()
-            .to_string();
-        question.max_marks = question.max_marks.clamp(1, 5);
-    }
-}
-
-fn pick_passage_text_type() -> &'static str {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.subsec_nanos() as usize)
-        .unwrap_or(0);
-    let index = nanos % PASSAGE_TEXT_TYPE_OPTIONS.len();
-    PASSAGE_TEXT_TYPE_OPTIONS[index]
-}
-
-fn english_language_passage_instruction(aos_subtopic: &str) -> &'static str {
-    match aos_subtopic.trim() {
-        "Unit 1 AOS 1: Nature and Functions of Language" => "Focus on the nature and functions of language, especially situational context, register, lexical and syntactic choices, sentence structures, modal verbs, clauses, and the major functions of language.",
-        "Unit 1 AOS 2: Language Acquisition" => "Focus on acquisition evidence such as developmental features, overgeneralisation, caretaker talk, and linguistic milestones.",
-        "Unit 2 AOS 1: English Across Time" => "Focus on historical development of English, language change, lexical shift, and social or technological influences on change.",
-        "Unit 2 AOS 2: Englishes in Contact" => "Focus on contact varieties, borrowing, world Englishes, Aboriginal Englishes, prestige, attitudes, and identity impacts.",
-        "Unit 3 AOS 1: Informality" => "Focus on informal Australian English, rapport building, discourse particles, idioms, contractions, and interactional strategies.",
-        "Unit 3 AOS 2: Formality" => "Focus on formal register, authority, nominalisation, modality, hedging, politeness, and discourse structure.",
-        "Unit 4 AOS 1: Language Variation in Australian Society" => "Focus on variation across dialects, social meaning, identity, power, and attitudes toward language varieties in Australia.",
-        "Unit 4 AOS 2: Individual and Group Identities" => "Focus on idiolect, sociolect, group affiliation, inclusion, exclusion, authority, authenticity, and language choices shaping identity.",
-        _ => "Focus tightly on the selected VCE English Language Area of Study and reward precise metalanguage tied directly to textual evidence.",
-    }
-}
-
+/// Decodes literal `\n` and `\r\n` escape sequences to real newlines, while
+/// preserving LaTeX commands like `\neq`, `\nabla`, etc.
 fn decode_literal_newlines(value: &str) -> String {
     let mut decoded = String::with_capacity(value.len());
-    let chars: Vec<char> = value.chars().collect();
-    let mut index = 0;
+    let mut chars = value.chars().peekable();
 
-    while index < chars.len() {
-        if chars[index] == '\\' {
-            if index + 3 < chars.len()
-                && chars[index + 1] == 'r'
-                && chars[index + 2] == '\\'
-                && chars[index + 3] == 'n'
-            {
-                decoded.push('\n');
-                index += 4;
-                continue;
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            decoded.push(ch);
+            continue;
+        }
+
+        match chars.peek() {
+            Some('r') => {
+                // Consume 'r'; check for \n after
+                chars.next();
+                if chars.peek() == Some(&'\\') {
+                    let mut ahead = chars.clone();
+                    ahead.next(); // consume '\'
+                    if ahead.peek() == Some(&'n') {
+                        chars.next(); // consume '\'
+                        chars.next(); // consume 'n'
+                        decoded.push('\n');
+                        continue;
+                    }
+                }
+                decoded.push('\\');
+                decoded.push('r');
             }
-
-            if index + 1 < chars.len() && chars[index + 1] == 'n' {
-                let next_after_n = chars.get(index + 2).copied();
-                // Preserve common LaTeX commands such as \neq, \nabla, etc.
-                if next_after_n.is_some_and(|ch| ch.is_ascii_lowercase()) {
+            Some('n') => {
+                chars.next(); // consume 'n'
+                              // Preserve LaTeX commands starting with \n (e.g. \neq, \nabla)
+                if chars
+                    .peek()
+                    .map(|c| c.is_ascii_lowercase())
+                    .unwrap_or(false)
+                {
                     decoded.push('\\');
                     decoded.push('n');
                 } else {
                     decoded.push('\n');
                 }
-                index += 2;
-                continue;
+            }
+            _ => {
+                decoded.push('\\');
             }
         }
-
-        decoded.push(chars[index]);
-        index += 1;
     }
 
     decoded
 }
 
-fn parse_structured_response<T>(content: &str, context: &str) -> CommandResult<T>
-where
-    T: serde::de::DeserializeOwned,
-{
+// ── Structured output schemas ─────────────────────────────────────────────────
+//
+// All models support structured output, so we always use json_schema mode.
+// The schema keys use the short aliases the model must emit (t, s, p, m, …)
+// because that is what the Rust structs deserialise from via #[serde(alias)].
+
+fn mark_answer_response_format() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "mark_answer_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "verdict", "achievedMarks", "maxMarks", "scoreOutOf10",
+                    "vcaaMarkingScheme", "comparisonToSolutionMarkdown",
+                    "feedbackMarkdown", "workedSolutionMarkdown"
+                ],
+                "properties": {
+                    "verdict":                      { "type": "string" },
+                    "achievedMarks":                { "type": "integer", "minimum": 0 },
+                    "maxMarks":                     { "type": "integer", "minimum": 1 },
+                    "scoreOutOf10":                 { "type": "integer", "minimum": 0, "maximum": 10 },
+                    "vcaaMarkingScheme": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["criterion", "achievedMarks", "maxMarks", "rationale"],
+                            "properties": {
+                                "criterion":     { "type": "string" },
+                                "achievedMarks": { "type": "integer", "minimum": 0 },
+                                "maxMarks":      { "type": "integer", "minimum": 0 },
+                                "rationale":     { "type": "string" }
+                            }
+                        }
+                    },
+                    "comparisonToSolutionMarkdown": { "type": "string" },
+                    "feedbackMarkdown":             { "type": "string" },
+                    "workedSolutionMarkdown":        { "type": "string" }
+                }
+            }
+        }
+    })
+}
+
+fn mc_questions_response_format() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "mc_questions_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["questions"],
+                "properties": {
+                    "questions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["id", "t", "s", "p", "o", "a", "e", "ta"],
+                            "properties": {
+                                "id": { "type": "string", "description": "Unique question ID, e.g q1, q2, q3" },
+                                "t":  { "type": "string", "description": "Topic name" },
+                                "s":  { "type": ["string", "null"], "description": "Subtopic, or null if none" },
+                                "p":  { "type": "string", "description": "Question prompt (markdown)" },
+                                "o":  {
+                                    "type": "array",
+                                    "minItems": 4,
+                                    "maxItems": 4,
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "required": ["l", "txt"],
+                                        "properties": {
+                                            "l":   { "type": "string", "description": "Option label: A, B, C, or D" },
+                                            "txt": { "type": "string", "description": "Option text" }
+                                        }
+                                    }
+                                },
+                                "a":  { "type": "string", "description": "Correct answer: A, B, C, or D" },
+                                "e":  { "type": "string", "description": "Explanation (markdown, 1–3 sentences)" },
+                                "ta": { "type": "boolean", "description": "Technology allowed" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn written_questions_response_format(max_marks_cap: u8) -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "written_questions_response",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["questions"],
+                "properties": {
+                    "questions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["id", "t", "s", "p", "m", "ta"],
+                            "properties": {
+                                "id": { "type": "string", "description": "Unique question ID, e.g q1, q2, q3" },
+                                "t":  { "type": "string", "description": "Topic name" },
+                                "s":  { "type": ["string", "null"], "description": "Subtopic, or null if none" },
+                                "p":  { "type": "string", "description": "Question prompt (markdown)" },
+                                "m":  { "type": "integer", "minimum": 1, "maximum": max_marks_cap, "description": "Max marks" },
+                                "ta": { "type": "boolean", "description": "Technology allowed" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn parse_structured_response<T: serde::de::DeserializeOwned>(
+    content: &str,
+    context: &str,
+) -> CommandResult<T> {
     let trimmed = content.trim();
-    println!("Parsing structured response for {}: {}", context, trimmed);
+    println!("Parsing structured response for {context}: {trimmed}");
     serde_json::from_str(trimmed).map_err(|err| {
         AppError::new(
             "MODEL_PARSE_ERROR",
@@ -487,9 +489,7 @@ pub fn run() {
             load_persisted_state,
             save_persisted_state,
             generate_questions,
-            generate_passage_questions,
             mark_answer,
-            mark_passage_answer,
             analyze_image,
             generate_mc_questions,
             get_tps,
@@ -501,15 +501,13 @@ pub fn run() {
 
 #[tauri::command]
 async fn get_tps(model: &str, api_key: &str) -> Result<f64, String> {
-    let url = format!("https://openrouter.ai/api/v1/models/{}/endpoints", model);
-    let client = reqwest::Client::new();
-
-    let response = client
+    let url = format!("https://openrouter.ai/api/v1/models/{model}/endpoints");
+    let response = reqwest::Client::new()
         .get(&url)
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
+        .map_err(|e| format!("Failed to send request: {e}"))?;
 
     if !response.status().is_success() {
         return Err(format!("Request failed with status: {}", response.status()));
@@ -518,20 +516,16 @@ async fn get_tps(model: &str, api_key: &str) -> Result<f64, String> {
     let json: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse JSON response: {}", e))?;
+        .map_err(|e| format!("Failed to parse JSON response: {e}"))?;
 
-    let tps = json["data"]["endpoints"]
+    json["data"]["endpoints"]
         .as_array()
         .and_then(|endpoints| {
-            endpoints.iter().find_map(|endpoint| {
-                endpoint["throughput_last_30m"]
-                    .get("p50")
-                    .and_then(|value| value.as_f64())
-            })
+            endpoints
+                .iter()
+                .find_map(|ep| ep["throughput_last_30m"]["p50"].as_f64())
         })
-        .ok_or_else(|| "Failed to extract TPS from response".to_string())?;
-
-    Ok(tps)
+        .ok_or_else(|| "Failed to extract TPS from response".to_string())
 }
 
 #[tauri::command]
@@ -541,8 +535,7 @@ async fn test_model(model: &str, api_key: &str) -> Result<String, String> {
         "messages": [{"role": "user", "content": "Who is Socrates?"}],
     });
 
-    let client = reqwest::Client::new();
-    let response = client
+    let response = reqwest::Client::new()
         .post("https://openrouter.ai/api/v1/chat/completions")
         .header("Authorization", format!("Bearer {api_key}"))
         .json(&body)
@@ -561,15 +554,8 @@ async fn test_model(model: &str, api_key: &str) -> Result<String, String> {
         .await
         .map_err(|e| format!("Failed to parse response: {e}"))?;
 
-    let content = json
-        .get("choices")
-        .and_then(|c| c.as_array())
-        .and_then(|arr| arr.first())
-        .and_then(|choice| choice.get("message"))
-        .and_then(|msg| msg.get("content"))
-        .and_then(serde_json::Value::as_str)
+    Ok(json["choices"][0]["message"]["content"]
+        .as_str()
         .unwrap_or("")
-        .to_string();
-
-    Ok(content)
+        .to_string())
 }

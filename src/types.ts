@@ -266,15 +266,12 @@ export type Topic =
   | "Mathematical Methods"
   | "Specialist Mathematics"
   | "Chemistry"
-  | "Physical Education"
-  | "English Language";
+  | "Physical Education";
 
 export type GeneratedQuestion = {
   id: string;
   topic: string;
   subtopic?: string;
-  taskType?: EnglishLanguageTaskType;
-  recommendedResponseLength?: "short" | "extended";
   promptMarkdown: string;
   maxMarks: number;
   techAllowed?: boolean;
@@ -400,7 +397,6 @@ export const TOPICS: Topic[] = [
   "Specialist Mathematics",
   "Chemistry",
   "Physical Education",
-  "English Language",
 ];
 
 export const API_KEY_STORAGE_KEY = "questiongen.openrouterApiKey";
@@ -467,11 +463,8 @@ export type PersistedGeneratorPreferences = {
   specialistMathSubtopics: SpecialistMathSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  englishLanguageSubtopics: EnglishLanguageSubtopic[];
-  englishLanguageTaskTypes: EnglishLanguageTaskType[];
   questionCount: number;
   maxMarksPerQuestion: number;
-  passageAosSubtopic: EnglishLanguageSubtopic;
   passageQuestionCount: number;
   prioritizedCommandTerms: VceCommandTerm[];
   questionMode: QuestionMode;

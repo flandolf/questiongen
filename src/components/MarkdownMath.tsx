@@ -4,16 +4,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 export const MarkdownMath = memo(function MarkdownMath({ content }: { content: string }) {
-  // We add an extra layer of escaping specifically for the Markdown parser.
-  // This ensures that after ReactMarkdown "cleans" the string,
-  // a single backslash still exists in the DOM for MathJax to see.
-  const protectedContent = content.replace(/\\/g, "\\\\");
-
   return (
       <MathJax dynamic>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {protectedContent}
-        </ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
       </MathJax>
   );
 });
