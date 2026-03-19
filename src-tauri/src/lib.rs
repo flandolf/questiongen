@@ -135,6 +135,9 @@ fn written_system() -> String {
     format!(
         "You are an expert VCE exam writer. Produce exam-style written-response questions with \
          LaTeX where needed.\n\
+         CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
+         provided in the user prompt. Only test concepts that are explicitly listed in that key \
+         knowledge. Do not introduce content that is not in the Study Design.\n\
          {LATEX_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
@@ -156,6 +159,9 @@ fn mc_system() -> String {
     format!(
         "You are an expert VCE exam writer. Create challenging multiple-choice questions. \
          Provide only final answers — no chain-of-thought in explanations.\n\
+         CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
+         provided in the user prompt. Only test concepts that are explicitly listed in that key \
+         knowledge. Do not introduce content that is not in the Study Design.\n\
          {LATEX_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
@@ -208,12 +214,15 @@ fn marking_system(chem_note: &str) -> String {
 fn topic_notes(topics: &[String]) -> String {
     let mut s = String::new();
     if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)) {
+        s.push('\n');
         s.push_str(MATHEMATICAL_METHODS_GUIDANCE);
     }
     if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC)) {
+        s.push('\n');
         s.push_str(PHYSICAL_EDUCATION_GUIDANCE);
     }
     if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC)) {
+        s.push('\n');
         s.push_str(CHEMISTRY_LATEX_GUIDANCE);
     }
     s
@@ -229,14 +238,25 @@ fn tech_note(mode: &str) -> &'static str {
 
 fn subtopics_note(selected: Option<&Vec<String>>, instructions: Option<&HashMap<String,String>>) -> String {
     let Some(subs) = selected.filter(|s| !s.is_empty()) else { return String::new() };
-    let mut s = format!(" Focus subtopics: {}.", subs.join(", "));
+    let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
+
+    // Inject Study Design key knowledge for each selected subtopic.
+    let kk_map = crate::constants::subtopic_key_knowledge();
+    for sub in subs {
+        let key = sub.trim().to_ascii_lowercase();
+        if let Some(kk) = kk_map.get(key.as_str()) {
+            s.push_str(&format!("\n\n[{sub}]\n{kk}"));
+        }
+    }
+
+    // User-supplied per-subtopic instructions override or supplement the above.
     if let Some(instr) = instructions {
         let lines: Vec<String> = subs.iter()
             .filter_map(|sub| instr.get(sub).map(|i| format!("- {sub}: {}", i.trim())))
             .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
             .collect();
         if !lines.is_empty() {
-            s.push_str("\nSubtopic constraints:\n");
+            s.push_str("\nSubtopic constraints (user-specified):\n");
             s.push_str(&lines.join("\n"));
         }
     }
@@ -344,6 +364,8 @@ async fn generate_questions(
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts/contexts/methods. No worked solutions in prompts.\
          {sim_note}\n\n\
+         STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
+         key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
          Output exactly {count} questions.",
         count       = request.question_count,
@@ -435,6 +457,8 @@ async fn generate_mc_questions(
          Quality: distinct concepts, plausible distractors based on common misconceptions.\n\
          Explanation: ≤90 words, final rationale only — no chain-of-thought or self-talk.\
          {sim_note}\n\n\
+         STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
+         key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
          Output exactly {count} questions.",
         count       = request.question_count,
