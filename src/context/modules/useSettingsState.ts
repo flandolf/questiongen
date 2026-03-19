@@ -6,9 +6,6 @@ export function useSettingsState() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [model, setModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.model);
   const [debugMode, setDebugMode] = useState(EMPTY_PERSISTED_APP_STATE.settings.debugMode);
-  const [useStructuredOutput, setUseStructuredOutput] = useState(
-    EMPTY_PERSISTED_APP_STATE.settings.useStructuredOutput,
-  );
 
   return {
     apiKey,
@@ -19,7 +16,5 @@ export function useSettingsState() {
     setModel,
     debugMode,
     setDebugMode,
-    useStructuredOutput,
-    setUseStructuredOutput,
   };
 }

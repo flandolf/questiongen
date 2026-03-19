@@ -66,8 +66,6 @@ interface AppContextState {
   setModel: (model: string) => void;
   debugMode: boolean;
   setDebugMode: (enabled: boolean) => void;
-  useStructuredOutput: boolean;
-  setUseStructuredOutput: (enabled: boolean) => void;
 
   questionMode: QuestionMode;
   setQuestionMode: (mode: QuestionMode) => void;
@@ -165,8 +163,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setModel,
     debugMode,
     setDebugMode,
-    useStructuredOutput,
-    setUseStructuredOutput,
   } = useSettingsState();
 
   const {
@@ -312,8 +308,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     apiKey,
     model,
     debugMode,
-    useStructuredOutput,
-  }), [apiKey, model, debugMode, useStructuredOutput]);
+  }), [apiKey, model, debugMode]);
 
   const writtenSessionSnapshot = useMemo<PersistedWrittenSession>(() => ({
     questions,
@@ -414,7 +409,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setApiKey(state.settings.apiKey);
     setModel(state.settings.model);
     setDebugMode(state.settings.debugMode);
-    setUseStructuredOutput(state.settings.useStructuredOutput);
     setSelectedTopics(state.preferences.selectedTopics);
     setDifficulty(state.preferences.difficulty);
     setTechMode(state.preferences.techMode);
@@ -624,8 +618,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setModel,
         debugMode,
         setDebugMode,
-        useStructuredOutput,
-        setUseStructuredOutput,
         questionMode,
         setQuestionMode,
         questions,
@@ -764,8 +756,6 @@ export function useAppSettings() {
     setModel,
     debugMode,
     setDebugMode,
-    useStructuredOutput,
-    setUseStructuredOutput,
     clearApiKey,
   } = useAppContext();
 
@@ -778,8 +768,6 @@ export function useAppSettings() {
     setModel,
     debugMode,
     setDebugMode,
-    useStructuredOutput,
-    setUseStructuredOutput,
     clearApiKey,
   };
 }

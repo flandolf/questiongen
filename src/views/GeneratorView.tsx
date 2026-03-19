@@ -70,7 +70,6 @@ export function GeneratorView() {
     apiKey,
     model,
     debugMode,
-    useStructuredOutput,
   } = useAppSettings();
   const {
     selectedTopics,
@@ -691,7 +690,6 @@ export function GeneratorView() {
           model,
           apiKey,
           techMode,
-          useStructuredOutput,
           subtopics: getSelectedSubtopics(),
           subtopicInstructions: getSelectedSubtopicInstructions(),
           customFocusArea: customFocus,
@@ -701,8 +699,8 @@ export function GeneratorView() {
       });
 
       setQuestions(response.questions);
-      setWrittenRawModelOutput(response.rawModelOutput ?? "");
-      setWrittenGenerationTelemetry(response.telemetry ?? null);
+      setWrittenRawModelOutput("");
+      setWrittenGenerationTelemetry({ durationMs: response.durationMs, distinctnessAvg: response.distinctnessAvg, multiStepDepthAvg: response.multiStepDepthAvg });
       setShowWrittenRawOutput(false);
       setActiveQuestionIndex(0);
       setActiveWrittenSavedSetId(null);
@@ -740,7 +738,6 @@ export function GeneratorView() {
           studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
           model,
           apiKey,
-          useStructuredOutput,
         },
       });
 
@@ -798,7 +795,6 @@ export function GeneratorView() {
           studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
           model,
           apiKey,
-          useStructuredOutput,
         },
       });
 
@@ -882,7 +878,6 @@ export function GeneratorView() {
           model,
           apiKey,
           techMode,
-          useStructuredOutput,
           subtopics: getSelectedSubtopics(),
           subtopicInstructions: getSelectedSubtopicInstructions(),
           customFocusArea: customFocus,
@@ -891,8 +886,8 @@ export function GeneratorView() {
         },
       });
       setMcQuestions(response.questions);
-      setMcRawModelOutput(response.rawModelOutput ?? "");
-      setMcGenerationTelemetry(response.telemetry ?? null);
+      setMcRawModelOutput("");
+      setMcGenerationTelemetry({ durationMs: response.durationMs, distinctnessAvg: response.distinctnessAvg, multiStepDepthAvg: response.multiStepDepthAvg });
       setShowMcRawOutput(false);
       setActiveMcQuestionIndex(0);
       setActiveMcSavedSetId(null);
@@ -984,7 +979,6 @@ export function GeneratorView() {
           studentAnswer: arguedAnswer,
           model,
           apiKey,
-          useStructuredOutput,
         },
       });
 
@@ -1562,37 +1556,20 @@ export function GeneratorView() {
                           <span className="text-background">{formatDurationMs(writtenGenerationTelemetry.durationMs)}</span>
                         </div>
                       )}
-                      {writtenGenerationTelemetry && (writtenGenerationTelemetry.totalAttempts ?? 0) > 1 && (
+                      {writtenGenerationTelemetry?.distinctnessAvg !== undefined && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Attempts</span>
-                          <span className="text-right text-background">
-                            {(writtenGenerationTelemetry.totalAttempts ?? 0)} total, {(writtenGenerationTelemetry.repairAttempts ?? 0)} repair
-                          </span>
+                          <span>Distinctness</span>
+                          <span className="text-background">{(writtenGenerationTelemetry.distinctnessAvg * 100).toFixed(0)}%</span>
                         </div>
                       )}
-                      {Boolean(
-                        (writtenGenerationTelemetry as { constrainedRegenerationUsed?: boolean } | null)
-                          ?.constrainedRegenerationUsed,
-                      ) && (
-                          <div className="flex items-center justify-between gap-3 text-background/80">
-                            <span>Fallback</span>
-                            <span className="text-red-300">Full regeneration used</span>
-                          </div>
-                        )}
-                      {writtenGenerationTelemetry?.structuredOutputStatus === "used" && (
+                      {writtenGenerationTelemetry?.multiStepDepthAvg !== undefined && (
                         <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Structured output</span>
-                          <span className="text-emerald-300">JSON used</span>
-                        </div>
-                      )}
-                      {writtenGenerationTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Structured output</span>
-                          <span className="text-amber-300">Fallback used</span>
+                          <span>Multi-step depth</span>
+                          <span className="text-background">{writtenGenerationTelemetry.multiStepDepthAvg.toFixed(2)}</span>
                         </div>
                       )}
                       {generationStartedAt === null && !writtenGenerationTelemetry && (
-                        <div className="text-background/80">No extra generation diagnostics.</div>
+                        <div className="text-background/80">No generation diagnostics yet.</div>
                       )}
                     </div>
                   </TooltipContent>
@@ -1924,34 +1901,20 @@ export function GeneratorView() {
                                 <span className="text-background">{formatDurationMs(mcGenerationTelemetry.durationMs)}</span>
                               </div>
                             )}
-                            {mcGenerationTelemetry && mcGenerationTelemetry.totalAttempts > 1 && (
+                            {mcGenerationTelemetry?.distinctnessAvg !== undefined && (
                               <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Attempts</span>
-                                <span className="text-right text-background">
-                                  {mcGenerationTelemetry.totalAttempts} total, {mcGenerationTelemetry.repairAttempts} repair
-                                </span>
+                                <span>Distinctness</span>
+                                <span className="text-background">{(mcGenerationTelemetry.distinctnessAvg * 100).toFixed(0)}%</span>
                               </div>
                             )}
-                            {mcGenerationTelemetry?.constrainedRegenerationUsed && (
+                            {mcGenerationTelemetry?.multiStepDepthAvg !== undefined && (
                               <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Fallback</span>
-                                <span className="text-red-300">Full regeneration used</span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry?.structuredOutputStatus === "used" && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Structured output</span>
-                                <span className="text-emerald-300">JSON used</span>
-                              </div>
-                            )}
-                            {mcGenerationTelemetry?.structuredOutputStatus === "not-supported-fallback" && (
-                              <div className="flex items-center justify-between gap-3 text-background/80">
-                                <span>Structured output</span>
-                                <span className="text-amber-300">Fallback used</span>
+                                <span>Multi-step depth</span>
+                                <span className="text-background">{mcGenerationTelemetry.multiStepDepthAvg.toFixed(2)}</span>
                               </div>
                             )}
                             {generationStartedAt === null && !mcGenerationTelemetry && (
-                              <div className="text-background/80">No extra generation diagnostics.</div>
+                              <div className="text-background/80">No generation diagnostics yet.</div>
                             )}
                           </div>
                         </TooltipContent>

@@ -3,6 +3,7 @@ mod constants;
 mod difficulty;
 mod models;
 mod openrouter;
+mod openrouter_info;
 mod parsing;
 mod persistence;
 mod quality;
@@ -22,6 +23,7 @@ use parsing::{
     clean_field, extract_json_object, normalize_envelope,
     normalise_mc, normalise_written, validate_mc, validate_written,
 };
+use openrouter_info::{get_credits, get_model_stats};
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
 
@@ -616,6 +618,8 @@ pub fn run() {
             mark_answer,
             analyze_image,
             generate_mc_questions,
+            get_model_stats,
+            get_credits,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

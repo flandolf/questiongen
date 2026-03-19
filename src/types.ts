@@ -258,13 +258,7 @@ export type GeneratedQuestion = {
 };
 
 export type GenerationTelemetry = {
-  difficulty: string;
-  totalAttempts: number;
-  repairAttempts: number;
-  constrainedRegenerationUsed: boolean;
-  repairPath: string[];
   durationMs: number;
-  structuredOutputStatus?: "used" | "not-supported-fallback" | "not-requested";
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
 };
@@ -272,9 +266,6 @@ export type GenerationTelemetry = {
 export type GenerationStatusStage =
   | "preparing"
   | "generating"
-  | "validating"
-  | "repairing"
-  | "regenerating"
   | "completed"
   | "failed";
 
@@ -287,8 +278,9 @@ export type GenerationStatusEvent = {
 
 export type GenerateQuestionsResponse = {
   questions: GeneratedQuestion[];
-  rawModelOutput?: string;
-  telemetry?: GenerationTelemetry;
+  durationMs: number;
+  distinctnessAvg?: number;
+  multiStepDepthAvg?: number;
 };
 
 export type MarkAnswerResponse = {
@@ -389,8 +381,9 @@ export type McQuestion = {
 
 export type GenerateMcQuestionsResponse = {
   questions: McQuestion[];
-  rawModelOutput?: string;
-  telemetry?: GenerationTelemetry;
+  durationMs: number;
+  distinctnessAvg?: number;
+  multiStepDepthAvg?: number;
 };
 
 export type McHistoryEntry = {
@@ -410,7 +403,6 @@ export type PersistedSettings = {
   apiKey: string;
   model: string;
   debugMode: boolean;
-  useStructuredOutput: boolean;
 };
 
 export type PersistedGeneratorPreferences = {

@@ -144,45 +144,53 @@ pub fn sanitise_latex(text: &str) -> String {
 }
 
 /// Replace `\(...\)` with `$...$` and `\[...\]` with `$$...$$`.
+///
+/// Operates on `&str` slices (not raw bytes) so multi-byte UTF-8 characters
+/// are always copied correctly.
 fn convert_paren_delimiters(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
-    let bytes = s.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
-    while i < len {
-        if bytes[i] == b'\\' && i + 1 < len {
-            match bytes[i + 1] {
-                b'(' => {
-                    if let Some(close) = find_delimiter(s, i + 2, "\\)") {
+    let mut rest = s;
+    while !rest.is_empty() {
+        // Look for the next backslash.
+        match rest.find('\\') {
+            None => {
+                out.push_str(rest);
+                break;
+            }
+            Some(bs) => {
+                // Copy everything before the backslash verbatim.
+                out.push_str(&rest[..bs]);
+                let after = &rest[bs + 1..];
+                if after.starts_with('(') {
+                    let inner_start = bs + 2;
+                    if let Some(close) = rest[inner_start..].find("\\)") {
+                        let inner = &rest[inner_start..inner_start + close];
                         out.push('$');
-                        out.push_str(&s[i + 2..close]);
+                        out.push_str(inner);
                         out.push('$');
-                        i = close + 2;
+                        rest = &rest[inner_start + close + 2..];
+                        continue;
+                    }
+                } else if after.starts_with('[') {
+                    let inner_start = bs + 2;
+                    if let Some(close) = rest[inner_start..].find("\\]") {
+                        let inner = &rest[inner_start..inner_start + close];
+                        out.push_str("$$");
+                        out.push_str(inner);
+                        out.push_str("$$");
+                        rest = &rest[inner_start + close + 2..];
                         continue;
                     }
                 }
-                b'[' => {
-                    if let Some(close) = find_delimiter(s, i + 2, "\\]") {
-                        out.push_str("$$");
-                        out.push_str(&s[i + 2..close]);
-                        out.push_str("$$");
-                        i = close + 2;
-                        continue;
-                    }
-                }
-                _ => {}
+                // Not a recognised delimiter — emit the backslash and advance one char.
+                out.push('\\');
+                rest = after;
             }
         }
-        // Safe: only ASCII control chars checked above; non-ASCII bytes copied verbatim.
-        out.push(bytes[i] as char);
-        i += 1;
     }
     out
 }
 
-fn find_delimiter(s: &str, from: usize, needle: &str) -> Option<usize> {
-    s[from..].find(needle).map(|rel| from + rel)
-}
 
 /// Replace bare `$` immediately before a digit (not part of `$$`) with `\$`.
 fn protect_currency_dollars(s: &str) -> String {
@@ -206,8 +214,31 @@ fn protect_currency_dollars(s: &str) -> String {
 // --- Full pipeline convenience -----------------------------------------------
 
 /// Run the full decode -> sanitise pipeline on a single field.
+///
+/// Steps: decode JSON escape artefacts → normalise typography → sanitise LaTeX.
 pub fn clean_field(s: &str) -> String {
-    sanitise_latex(&decode_escapes(s))
+    sanitise_latex(&normalise_typography(&decode_escapes(s)))
+}
+
+/// Replace Unicode typographic characters with their plain ASCII equivalents.
+///
+/// Models frequently emit "smart" quotes, em-dashes, and ellipses from their
+/// training data. These render fine in most contexts but can appear as mojibake
+/// (e.g. â\x80\x99 instead of \') when a downstream renderer misidentifies the
+/// encoding, and they add no value in exam question text.
+fn normalise_typography(s: &str) -> String {
+    s
+        // Curly single quotes  → straight apostrophe
+        .replace('\u{2018}', "'")   // LEFT  SINGLE QUOTATION MARK  '
+        .replace('\u{2019}', "'")   // RIGHT SINGLE QUOTATION MARK  '
+        // Curly double quotes  → straight double quote
+        .replace('\u{201C}', "\"")   // LEFT  DOUBLE QUOTATION MARK  "
+        .replace('\u{201D}', "\"")   // RIGHT DOUBLE QUOTATION MARK  "
+        // Dashes
+        .replace('\u{2013}', "--")   // EN DASH  –
+        .replace('\u{2014}', "--")   // EM DASH  —
+        // Ellipsis
+        .replace('\u{2026}', "...")  // HORIZONTAL ELLIPSIS  …
 }
 
 // --- Normalise + validate written questions ----------------------------------
@@ -387,5 +418,27 @@ mod tests {
     fn currency_followed_by_display_math_not_mangled() {
         // $$ is display math, not currency
         assert_eq!(sanitise_latex("$$x = 1$$"), "$$x = 1$$");
+    }
+
+    #[test]
+    fn smart_quotes_normalised_to_ascii() {
+        assert_eq!(clean_field("it’s Newton‘s law"), "it's Newton's law");
+    }
+
+
+    #[test]
+    fn em_dash_normalised() {
+        assert_eq!(clean_field("speed—velocity"), "speed--velocity");
+    }
+
+    #[test]
+    fn ellipsis_normalised() {
+        assert_eq!(clean_field("and so on…"), "and so on...");
+    }
+
+    #[test]
+    fn non_ascii_passthrough_unaffected() {
+        // Greek letters and accented chars outside the replacement set pass through
+        assert_eq!(clean_field("café αβγ"), "café αβγ");
     }
 }
