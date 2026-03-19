@@ -8,10 +8,10 @@ pub const CHEMISTRY_TOPIC: &str = "Chemistry";
 pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 
 pub const MATHEMATICAL_METHODS_GUIDANCE: &str =
-    " MM exam style: concise VCAA command verbs, realistic mark allocations, reward method choice over template recall.";
+    " Mathematical Methods exam style: concise VCAA command verbs, realistic mark allocations, reward method choice over template recall.";
 
 pub const PHYSICAL_EDUCATION_GUIDANCE: &str =
-    " PE Unit 3/4 only: short applied sport/training scenarios rewarding data interpretation and evidence-based reasoning. No pure physics calculations for biomechanics.";
+    " Physical Education: short applied sport/training scenarios rewarding data interpretation and evidence-based reasoning. No pure physics calculations for biomechanics.";
 
 pub const CHEMISTRY_LATEX_GUIDANCE: &str =
     " Render every chemical formula/ionic species in LaTeX: $H_2O$, $CO_2$, $Fe^{3+}$, $SO_4^{2-}$.";

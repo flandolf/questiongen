@@ -42,9 +42,10 @@ function formatTps(tps: number | null): string {
   return `${tps.toFixed(0)} tok/s`;
 }
 
-function formatLatency(latencySeconds: number | null): string {
-  if (latencySeconds === null) return "—";
-  return `${(latencySeconds * 1000).toFixed(0)}ms`;
+function formatLatency(latencyMs: number | null): string {
+  if (latencyMs === null) return "—";
+  if (latencyMs >= 1000) return `${(latencyMs / 1000).toFixed(2)} s`;
+  return `${latencyMs.toFixed(0)} ms`;
 }
 
 function formatContext(tokens: number | null): string {
@@ -88,10 +89,14 @@ function StatRow({ icon, label, value, dimmed }: {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRESET_MODELS = [
-  { id: "openai/gpt-5.4-nano",                        name: "GPT-5.4 Nano" },
-  { id: "qwen/qwen3.5-9b",                            name: "Qwen 3.5 9B" },
-  { id: "nvidia/nemotron-3-super-120b-a12b:freeze",   name: "Nemotron 3 Super 120B" },
-  { id: "custom",                                     name: "Custom..." },
+  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
+  { id: "qwen/qwen3.5-9b", name: "Qwen 3.5 9B" },
+  { id: "qwen/qwen3.5-35b-a3b", name: "Qwen 3.5 35B" },
+  { id: "nvidia/nemotron-3-super-120b-a12b:freeze", name: "Nemotron 3 Super 120B" },
+  { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
+  { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
+  { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
+  { id: "custom", name: "Custom..." },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -105,19 +110,19 @@ export function SettingsView() {
     debugMode, setDebugMode,
   } = useAppSettings();
 
-  const [localKey, setLocalKey]     = useState(apiKey);
+  const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const [customModelId, setCustomModelId]     = useState("");
+  const [customModelId, setCustomModelId] = useState("");
 
-  const [modelStats, setModelStats]     = useState<ModelStats | null>(null);
+  const [modelStats, setModelStats] = useState<ModelStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError]     = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [statsUpdatedAt, setStatsUpdatedAt] = useState<Date | null>(null);
 
-  const [credits, setCredits]               = useState<CreditsInfo | null>(null);
+  const [credits, setCredits] = useState<CreditsInfo | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
-  const [creditsError, setCreditsError]     = useState<string | null>(null);
+  const [creditsError, setCreditsError] = useState<string | null>(null);
   const [creditsUpdatedAt, setCreditsUpdatedAt] = useState<Date | null>(null);
 
   // Sync local state on first hydration
@@ -331,12 +336,12 @@ export function SettingsView() {
           )}
           {modelStats && !statsLoading && (
             <div className="space-y-0">
-              <StatRow icon={<Zap className="h-3.5 w-3.5" />}        label="Throughput (p50)"   value={formatTps(modelStats.tpsP50)} />
-              <StatRow icon={<Wifi className="h-3.5 w-3.5" />}       label="Latency TTFT (p50)" value={formatLatency(modelStats.latencyP50)} />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Input price"        value={formatPrice(modelStats.promptPricePerToken)} />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Output price"       value={formatPrice(modelStats.completionPricePerToken)} />
-              <StatRow icon={<Cpu className="h-3.5 w-3.5" />}        label="Context window"     value={formatContext(modelStats.contextLength)} />
-              <StatRow icon={<Wifi className="h-3.5 w-3.5" />}       label="Uptime (30m)"       value={formatUptime(modelStats.uptimeLast30m)} />
+              <StatRow icon={<Zap className="h-3.5 w-3.5" />} label="Throughput (p50)" value={formatTps(modelStats.tpsP50)} />
+              <StatRow icon={<Wifi className="h-3.5 w-3.5" />} label="Latency TTFT (p50)" value={formatLatency(modelStats.latencyP50)} />
+              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Input price" value={formatPrice(modelStats.promptPricePerToken)} />
+              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Output price" value={formatPrice(modelStats.completionPricePerToken)} />
+              <StatRow icon={<Cpu className="h-3.5 w-3.5" />} label="Context window" value={formatContext(modelStats.contextLength)} />
+              <StatRow icon={<Wifi className="h-3.5 w-3.5" />} label="Uptime (30m)" value={formatUptime(modelStats.uptimeLast30m)} />
               <StatRow
                 icon={<Cpu className="h-3.5 w-3.5" />}
                 label="Structured output"
@@ -385,8 +390,8 @@ export function SettingsView() {
           )}
           {credits && !creditsLoading && (
             <div className="space-y-0">
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Remaining"       value={`$${credits.remaining.toFixed(4)}`} />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Used"            value={`$${credits.totalUsage.toFixed(4)}`} dimmed />
+              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Remaining" value={`$${credits.remaining.toFixed(4)}`} />
+              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Used" value={`$${credits.totalUsage.toFixed(4)}`} dimmed />
               <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Total purchased" value={`$${credits.totalCredits.toFixed(4)}`} dimmed />
             </div>
           )}
