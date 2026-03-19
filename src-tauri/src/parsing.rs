@@ -1,4 +1,3 @@
-use crate::command_terms::{infer_prompt_term, is_math_topic};
 use crate::models::{AppError, CommandResult, GeneratedQuestion, McQuestion, default_max_marks};
 
 // --- JSON object extraction ---------------------------------------------------
@@ -246,7 +245,6 @@ fn normalise_typography(s: &str) -> String {
 pub fn normalise_written(
     questions: &mut [GeneratedQuestion],
     selected_subtopics: Option<&Vec<String>>,
-    priority_terms: &[&'static crate::models::CommandTermProfile],
 ) {
     let sole_subtopic = selected_subtopics
         .filter(|s| s.len() == 1)
@@ -262,20 +260,13 @@ pub fn normalise_written(
             .or_else(|| sole_subtopic.cloned());
 
         let marks = if q.max_marks == 0 { default_max_marks() } else { q.max_marks };
-        q.max_marks = if let Some(p) = infer_prompt_term(&q.prompt_markdown) {
-            marks.clamp(p.min_marks, p.max_marks)
-        } else if let Some(p) = priority_terms.first() {
-            marks.clamp(p.min_marks, p.max_marks)
-        } else {
-            marks
-        }.clamp(1, 30);
+        q.max_marks = marks.clamp(1, 30);
     }
 }
 
 pub fn validate_written(
     questions: &[GeneratedQuestion],
     expected: usize,
-    priority_terms: &[&'static crate::models::CommandTermProfile],
 ) -> CommandResult<()> {
     if questions.len() != expected {
         return Err(AppError::new("VALIDATION_ERROR", format!(
@@ -290,13 +281,6 @@ pub fn validate_written(
         }
         if q.max_marks == 0 || q.max_marks > 30 {
             return Err(AppError::new("VALIDATION_ERROR", format!("Q{} has invalid maxMarks.", q.id)));
-        }
-        if priority_terms.len() == 1 && !is_math_topic(&q.topic) {
-            let required = priority_terms[0].key;
-            if infer_prompt_term(&q.prompt_markdown).map(|p| p.key) != Some(required) {
-                return Err(AppError::new("VALIDATION_ERROR", format!(
-                    "Q{} must start with '{}'.", q.id, priority_terms[0].display)));
-            }
         }
     }
     Ok(())

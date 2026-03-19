@@ -8,7 +8,6 @@ import {
   SpecialistMathSubtopic,
   TechMode,
   Topic,
-  VceCommandTerm,
 } from "../../types";
 import { EMPTY_PERSISTED_APP_STATE } from "../../lib/persistence";
 
@@ -43,9 +42,6 @@ export function usePreferencesState() {
   const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(
     EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion,
   );
-  const [prioritizedCommandTerms, setPrioritizedCommandTerms] = useState<VceCommandTerm[]>(
-    EMPTY_PERSISTED_APP_STATE.preferences.prioritizedCommandTerms,
-  );
   const [questionMode, setQuestionMode] = useState<QuestionMode>(
     EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
   );
@@ -74,8 +70,6 @@ export function usePreferencesState() {
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    prioritizedCommandTerms,
-    setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
     subtopicInstructions,

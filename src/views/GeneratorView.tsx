@@ -22,7 +22,6 @@ import {
   QuestionHistoryEntry,
   Difficulty,
   WrittenAttemptKind,
-  VceCommandTerm,
 } from "@/types";
 import {
   confirmAction,
@@ -94,7 +93,6 @@ export function GeneratorView() {
     physicalEducationSubtopics, setPhysicalEducationSubtopics,
     questionCount, setQuestionCount,
     maxMarksPerQuestion, setMaxMarksPerQuestion,
-    prioritizedCommandTerms, setPrioritizedCommandTerms,
     questionMode, setQuestionMode,
     subtopicInstructions,
   } = useAppPreferences();
@@ -312,7 +310,6 @@ export function GeneratorView() {
   function toggleSpecialistMathSubtopic(sub: SpecialistMathSubtopic) { setSpecialistMathSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
   function toggleChemistrySubtopic(sub: ChemistrySubtopic) { setChemistrySubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
   function togglePhysicalEducationSubtopic(sub: PhysicalEducationSubtopic) { setPhysicalEducationSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
-  function togglePrioritizedCommandTerm(term: VceCommandTerm) { setPrioritizedCommandTerms((p) => p.includes(term) ? p.filter((t) => t !== term) : [...p, term]); }
 
   // ── Subtopic / focus helpers ─────────────────────────────────────────────────
   function getSelectedSubtopics() {
@@ -396,7 +393,6 @@ export function GeneratorView() {
   // ── Generation ───────────────────────────────────────────────────────────────
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
-    const hasPe = selectedTopics.includes("Physical Education");
     const hasMath = selectedTopics.some((t) => isMathTopic(t));
     startStopwatch(); setErrorMessage(null);
     setGenerationStatus({ mode: "written", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
@@ -406,7 +402,6 @@ export function GeneratorView() {
         request: {
           topics: selectedTopics, difficulty, questionCount,
           maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
-          prioritizedCommandTerms: hasPe ? prioritizedCommandTerms : [],
           model, apiKey, techMode,
           subtopics: getSelectedSubtopics(), subtopicInstructions: getSelectedSubtopicInstructions(),
           customFocusArea: getCustomFocusArea(), avoidSimilarQuestions,
@@ -608,7 +603,6 @@ export function GeneratorView() {
           difficulty={difficulty} onSetDifficulty={setDifficulty}
           questionCount={questionCount} onSetQuestionCount={setQuestionCount}
           maxMarksPerQuestion={maxMarksPerQuestion} onSetMaxMarksPerQuestion={setMaxMarksPerQuestion}
-          prioritizedCommandTerms={prioritizedCommandTerms} onTogglePrioritizedCommandTerm={togglePrioritizedCommandTerm}
           avoidSimilarQuestions={avoidSimilarQuestions} onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}

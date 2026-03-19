@@ -18,17 +18,6 @@ impl AppError {
 
 pub type CommandResult<T> = Result<T, AppError>;
 
-// ─── Command terms ────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Copy)]
-pub struct CommandTermProfile {
-    pub key: &'static str,
-    pub display: &'static str,
-    pub min_marks: u8,
-    pub max_marks: u8,
-    pub below_evaluate: bool,
-}
-
 // ─── OpenRouter wire types ────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -80,7 +69,6 @@ pub struct GenerateQuestionsRequest {
     pub model: String,
     pub api_key: String,
     pub tech_mode: Option<String>,
-    pub prioritized_command_terms: Option<Vec<String>>,
     pub subtopics: Option<Vec<String>>,
     pub subtopic_instructions: Option<HashMap<String, String>>,
     pub custom_focus_area: Option<String>,

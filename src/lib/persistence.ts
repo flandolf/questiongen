@@ -27,7 +27,6 @@ import {
   SUBTOPIC_INSTRUCTIONS,
   StudentAnswerImage,
   TOPICS,
-  VCE_COMMAND_TERMS,
   WrittenAnswerAnalytics,
   SPECIALIST_MATH_SUBTOPICS,
 } from "../types";
@@ -37,7 +36,6 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: "",
   model: "openrouter/healer-alpha",
   debugMode: false,
-  useStructuredOutput: false,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -51,7 +49,6 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   physicalEducationSubtopics: [],
   questionCount: 3,
   maxMarksPerQuestion: 10,
-  prioritizedCommandTerms: ["Evaluate"],
   questionMode: "written",
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
 };
@@ -174,16 +171,11 @@ function normalizeSettings(raw: unknown): PersistedSettings {
     apiKey: asString(data.apiKey),
     model: asString(data.model) || DEFAULT_SETTINGS.model,
     debugMode: Boolean(data.debugMode),
-    useStructuredOutput: Boolean(data.useStructuredOutput),
   };
 }
 
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
-  const prioritizedCommandTerms = filterStringLiterals(
-    data.prioritizedCommandTerms,
-    VCE_COMMAND_TERMS,
-  );
 
   return {
     selectedTopics: filterStringLiterals(data.selectedTopics, TOPICS),
@@ -196,10 +188,6 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
     maxMarksPerQuestion: clampWholeNumber(data.maxMarksPerQuestion, DEFAULT_PREFERENCES.maxMarksPerQuestion, 1, 30),
-    prioritizedCommandTerms:
-      prioritizedCommandTerms.length > 0
-        ? prioritizedCommandTerms
-        : DEFAULT_PREFERENCES.prioritizedCommandTerms,
     questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
     subtopicInstructions: normalizeSubtopicInstructions(data.subtopicInstructions),
   };

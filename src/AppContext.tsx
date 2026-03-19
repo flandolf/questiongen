@@ -24,7 +24,6 @@ import {
   StudentAnswerImage,
   TechMode,
   Topic,
-  VceCommandTerm,
 } from "./types";
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
 import { useSettingsState } from "./context/modules/useSettingsState";
@@ -58,8 +57,6 @@ interface AppContextState {
   setQuestionCount: (count: number) => void;
   maxMarksPerQuestion: number;
   setMaxMarksPerQuestion: (marks: number) => void;
-  prioritizedCommandTerms: VceCommandTerm[];
-  setPrioritizedCommandTerms: (terms: VceCommandTerm[] | ((prev: VceCommandTerm[]) => VceCommandTerm[])) => void;
   subtopicInstructions: Record<string, string>;
   setSubtopicInstructions: (instructions: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   model: string;
@@ -186,8 +183,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    prioritizedCommandTerms,
-    setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
     subtopicInstructions,
@@ -256,7 +251,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       physicalEducationSubtopics,
       questionCount,
       maxMarksPerQuestion,
-      prioritizedCommandTerms,
       questionMode,
       subtopicInstructions,
     };
@@ -271,7 +265,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     physicalEducationSubtopics,
     questionCount,
     maxMarksPerQuestion,
-    prioritizedCommandTerms,
     questionMode,
     subtopicInstructions,
   ]);
@@ -419,7 +412,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPhysicalEducationSubtopics(state.preferences.physicalEducationSubtopics);
     setQuestionCount(state.preferences.questionCount);
     setMaxMarksPerQuestion(state.preferences.maxMarksPerQuestion);
-    setPrioritizedCommandTerms(state.preferences.prioritizedCommandTerms);
     setQuestionMode(state.preferences.questionMode);
     setSubtopicInstructions(state.preferences.subtopicInstructions);
 
@@ -532,7 +524,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPhysicalEducationSubtopics(entry.preferences.physicalEducationSubtopics);
       setSpecialistMathSubtopics(entry.preferences.specialistMathSubtopics);
       setQuestionCount(entry.preferences.questionCount);
-      setPrioritizedCommandTerms(entry.preferences.prioritizedCommandTerms);
       setQuestionMode(entry.questionMode);
       setSubtopicInstructions(entry.preferences.subtopicInstructions);
 
@@ -610,8 +601,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setQuestionCount,
         maxMarksPerQuestion,
         setMaxMarksPerQuestion,
-        prioritizedCommandTerms,
-        setPrioritizedCommandTerms,
         subtopicInstructions,
         setSubtopicInstructions,
         model,
@@ -708,8 +697,6 @@ export function useAppPreferences() {
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    prioritizedCommandTerms,
-    setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
     subtopicInstructions,
@@ -737,8 +724,6 @@ export function useAppPreferences() {
     setQuestionCount,
     maxMarksPerQuestion,
     setMaxMarksPerQuestion,
-    prioritizedCommandTerms,
-    setPrioritizedCommandTerms,
     questionMode,
     setQuestionMode,
     subtopicInstructions,

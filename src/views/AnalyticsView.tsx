@@ -379,7 +379,7 @@ export function AnalyticsView() {
                       >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="min-w-0">
-                            <div className="font-semibold text-sm leading-tight break-words">{row.subtopic}</div>
+                            <div className="font-semibold text-sm leading-tight wrap-break-word">{row.subtopic}</div>
                             <div className="text-[11px] text-muted-foreground mt-0.5">{row.topic}</div>
                           </div>
                           <div className="shrink-0 text-right">
@@ -418,7 +418,7 @@ export function AnalyticsView() {
                       >
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500/70" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-rose-500/90 leading-tight break-words">
+                          <div className="font-semibold text-sm text-rose-500/90 leading-tight wrap-break-word">
                             {row.subtopic}
                           </div>
                           <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">

@@ -48,19 +48,6 @@ export const PHYSICAL_EDUCATION_SUBTOPICS = [
 
 export type PhysicalEducationSubtopic = typeof PHYSICAL_EDUCATION_SUBTOPICS[number];
 
-export const VCE_COMMAND_TERMS = [
-  "Identify",
-  "Describe",
-  "Explain",
-  "Compare",
-  "Analyse",
-  "Discuss",
-  "Evaluate",
-  "Justify",
-] as const;
-
-export type VceCommandTerm = typeof VCE_COMMAND_TERMS[number];
-
 export const CHEMISTRY_SUBTOPICS = [
   "Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements",
   "Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces",
@@ -416,7 +403,6 @@ export type PersistedGeneratorPreferences = {
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
   maxMarksPerQuestion: number;
-  prioritizedCommandTerms: VceCommandTerm[];
   questionMode: QuestionMode;
   subtopicInstructions: Record<string, string>;
 };

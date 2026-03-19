@@ -19,8 +19,6 @@ import {
   PhysicalEducationSubtopic,
   Difficulty,
   QuestionMode,
-  VCE_COMMAND_TERMS,
-  VceCommandTerm,
   GenerationStatusEvent
 } from "@/types";
 type SetupPanelProps = {
@@ -57,9 +55,6 @@ type SetupPanelProps = {
   maxMarksPerQuestion: number;
   onSetMaxMarksPerQuestion: (marks: number) => void;
 
-  prioritizedCommandTerms: VceCommandTerm[];
-  onTogglePrioritizedCommandTerm: (term: VceCommandTerm) => void;
-
   avoidSimilarQuestions: boolean;
   onSetAvoidSimilarQuestions: (enabled: boolean) => void;
 
@@ -85,7 +80,6 @@ export function SetupPanel({
   difficulty, onSetDifficulty,
   questionCount, onSetQuestionCount,
   maxMarksPerQuestion, onSetMaxMarksPerQuestion,
-  prioritizedCommandTerms, onTogglePrioritizedCommandTerm,
   avoidSimilarQuestions, onSetAvoidSimilarQuestions,
   hasApiKey, canGenerate, isGenerating,
   generationStatus, generationStartedAt, formattedElapsedTime,
@@ -94,8 +88,6 @@ export function SetupPanel({
   const hasAnyMathTopic = selectedTopics.some(
     (t) => t === "Mathematical Methods" || t === "Specialist Mathematics",
   );
-  const hasPeTopic = selectedTopics.includes("Physical Education");
-  const commandTermsDisabled = !hasPeTopic;
 
   const hasSubtopicSection =
     selectedTopics.includes("Mathematical Methods") ||
@@ -332,39 +324,6 @@ export function SetupPanel({
               </div>
               <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => onSetMaxMarksPerQuestion(val[0])} className="py-1" />
               <p className="text-xs text-muted-foreground">Caps the mark value for each generated maths question.</p>
-            </div>
-          )}
-
-          {/* Command Terms — written + PE only */}
-          {questionMode === "written" && hasPeTopic && (
-            <div className="space-y-1.5 pt-1 md:col-span-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-sm font-semibold">VCE Command Terms to Prioritise</Label>
-                <Badge variant="secondary" className="px-2 py-0.5 text-xs">{prioritizedCommandTerms.length} Selected</Badge>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {VCE_COMMAND_TERMS.map((term) => {
-                  const isSelected = prioritizedCommandTerms.includes(term);
-                  return (
-                    <Badge
-                      key={term}
-                      variant={isSelected ? "default" : "outline"}
-                      className={`px-3 py-1.5 text-xs transition-colors ${commandTermsDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${isSelected ? "shadow-md" : "hover:bg-primary/10"}`}
-                      onClick={() => { if (!commandTermsDisabled) onTogglePrioritizedCommandTerm(term); }}
-                    >
-                      {term}
-                    </Badge>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                The model is instructed to focus on what each command term means and what a student must do to answer successfully.
-                {commandTermsDisabled
-                  ? " Command-term prioritisation is currently disabled because only Mathematics topics are selected."
-                  : hasAnyMathTopic
-                    ? " Command-term prioritisation applies to non-Mathematics questions only."
-                    : ""}
-              </p>
             </div>
           )}
 

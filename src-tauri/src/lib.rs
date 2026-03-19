@@ -1,4 +1,3 @@
-mod command_terms;
 mod constants;
 mod difficulty;
 mod models;
@@ -14,7 +13,6 @@ use std::time::Instant;
 use base64::{Engine as _, engine::general_purpose};
 use tauri::Emitter;
 
-use command_terms::{command_term_note, is_math_topic, resolve_prioritized_terms};
 use constants::*;
 use difficulty::difficulty_guidance;
 use models::*;
@@ -190,12 +188,18 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
 }
 
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
-    let has_math = topics.iter().any(|t| is_math_topic(t.trim()));
-    if !has_math { return ""; }
-    match difficulty.to_ascii_lowercase().as_str() {
-        "essential skills" => " Math Essential Skills: single-skill items, direct substitution only.",
-        "extreme"          => " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation.",
-        _                  => "",
+    if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)) {
+        return match difficulty.to_ascii_lowercase().as_str() {
+            "essential skills" => " Math Essential Skills: single-skill items, direct substitution only.",
+            "extreme"          => " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation.",
+            _                  => "",
+        }
+    } else {
+        return match difficulty.to_ascii_lowercase().as_str() {
+            "essential skills" => " Essential Skills: straightforward questions, minimal inference.",
+            "extreme"          => " Extreme: multi-step reasoning, synthesis of multiple concepts.",
+            _                  => "",
+        }
     }
 }
 
@@ -225,7 +229,6 @@ async fn generate_questions(
         "mode": "written", "stage": "generating", "message": "Requesting question set."
     }));
 
-    let priority_terms = resolve_prioritized_terms(request.prioritized_command_terms.as_deref());
     let selected_subs  = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode      = request.tech_mode.as_deref().unwrap_or("mix");
     let max_marks_cap  = request.max_marks_per_question.unwrap_or(30);
@@ -239,7 +242,7 @@ async fn generate_questions(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
          Mark rules: assign maxMarks by command-term demand; cap at {max_marks_cap}.\
-         {term_note}{subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
+         {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts/contexts/methods. No worked solutions in prompts.\
          {sim_note}\n\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
@@ -248,7 +251,6 @@ async fn generate_questions(
         topics     = request.topics.join(", "),
         difficulty = request.difficulty,
         diff_rules = difficulty_guidance(&request.difficulty),
-        term_note  = command_term_note(&priority_terms, &request.topics),
         subs_note  = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note = custom_note,
         tech       = tech_note(tech_mode),
@@ -280,8 +282,8 @@ async fn generate_questions(
     let mut payload: WrittenQuestionsPayload = serde_json::from_value(normalised)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))?;
 
-    normalise_written(&mut payload.questions, selected_subs, &priority_terms);
-    validate_written(&payload.questions, request.question_count, &priority_terms)?;
+    normalise_written(&mut payload.questions, selected_subs);
+    validate_written(&payload.questions, request.question_count)?;
 
     // Apply tech override
     match tech_mode {
@@ -666,7 +668,7 @@ mod tests {
             prompt_markdown: "Find the derivative.".into(), max_marks: 4,
             tech_allowed: false, distinctness_score: None, multi_step_depth: None,
         }];
-        assert!(validate_written(&questions, 2, &[]).is_err());
+        assert!(validate_written(&questions, 2).is_err());
     }
 
     #[test]
