@@ -73,6 +73,26 @@ export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): M
   };
 }
 
+/**
+ * Normalise math delimiters and fix LaTeX rendering issues for MathJax 3.
+ *
+ * Pipeline (applied outside code spans/fences):
+ *
+ * 1. normalizePseudoMathDelimiters  — \(...\) → $...$, \[...\] → $$...$$
+ *    Kept for backwards-compat with data stored before the Rust sanitise_latex
+ *    pass was added. New data arriving from the backend is already normalised.
+ *
+ * 2. renderCurrencyEscapes  — \$ → $ outside math spans.
+ *    The Rust backend emits \$ for currency dollar signs so they don't confuse
+ *    the MathJax delimiter scanner. This step converts them back to a visible $
+ *    for display. Must run AFTER step 1 so pseudo-delimiters are resolved first,
+ *    and BEFORE steps 3–4 so math spans are correctly identified.
+ *
+ * 3. normalizeEscapedLatexCommandsInMath  — \\sin → \sin inside math spans.
+ *    Fixes double-escaped backslashes that survive JSON decode.
+ *
+ * 4. escapeBarePercentInMath  — % → \% inside math spans.
+ */
 export function normalizeMathDelimiters(content: string): string {
   const cached = normalizedMathCache.get(content);
   if (cached !== undefined) {
@@ -82,7 +102,9 @@ export function normalizeMathDelimiters(content: string): string {
   const normalized = transformOutsideCode(content, (segment) =>
     escapeBarePercentInMath(
       normalizeEscapedLatexCommandsInMath(
-        normalizePseudoMathDelimiters(segment),
+        renderCurrencyEscapes(
+          normalizePseudoMathDelimiters(segment),
+        ),
       ),
     ),
   );
@@ -119,11 +141,60 @@ function transformOutsideCode(content: string, transform: (segment: string) => s
     .join("");
 }
 
+// Backwards-compat: convert \[...\] and \(...\) delimiters to $$...$$ / $...$
+// that MathJax 3 understands. New data from the backend is already normalised by
+// the Rust sanitise_latex pass, but stored history may predate that.
 function normalizePseudoMathDelimiters(content: string): string {
   return content
     .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression: string) => `$$${expression.trim()}$$`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression: string) => `$${expression.trim()}$`)
-  ;
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression: string) => `$${expression.trim()}$`);
+}
+
+/**
+ * Convert \$ (escaped dollar, emitted by the Rust backend for currency amounts)
+ * back to a literal $ outside math spans, so it renders correctly on screen.
+ *
+ * Must run after normalizePseudoMathDelimiters (so all math spans use $ delimiters)
+ * and before escapeBarePercentInMath / normalizeEscapedLatexCommandsInMath
+ * (which identify math spans by their $ delimiters).
+ *
+ * A \$ inside a math span is left untouched — LaTeX itself uses \$ to render
+ * a literal dollar sign in math mode, so MathJax handles it correctly already.
+ */
+function renderCurrencyEscapes(content: string): string {
+  // Walk the string, replacing \$ that falls outside a math span.
+  // We identify math spans ($...$ and $$...$$) to skip over them.
+  let result = "";
+  let i = 0;
+  while (i < content.length) {
+    // Display math: $$...$$
+    if (content[i] === "$" && content[i + 1] === "$") {
+      const close = content.indexOf("$$", i + 2);
+      if (close !== -1) {
+        result += content.slice(i, close + 2);
+        i = close + 2;
+        continue;
+      }
+    }
+    // Inline math: $...$  (not preceded by \)
+    if (content[i] === "$" && content[i - 1] !== "\\") {
+      const close = content.indexOf("$", i + 1);
+      if (close !== -1) {
+        result += content.slice(i, close + 1);
+        i = close + 1;
+        continue;
+      }
+    }
+    // Currency escape: \$ outside math → literal $
+    if (content[i] === "\\" && content[i + 1] === "$") {
+      result += "$";
+      i += 2;
+      continue;
+    }
+    result += content[i];
+    i += 1;
+  }
+  return result;
 }
 
 function escapeBarePercentInMath(content: string): string {

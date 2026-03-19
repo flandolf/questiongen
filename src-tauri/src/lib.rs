@@ -19,7 +19,7 @@ use difficulty::difficulty_guidance;
 use models::*;
 use openrouter::{call_openrouter, json_schema_format};
 use parsing::{
-    decode_escapes, extract_json_object, normalize_envelope,
+    clean_field, extract_json_object, normalize_envelope,
     normalise_mc, normalise_written, validate_mc, validate_written,
 };
 use persistence::{load_persisted_state, save_persisted_state};
@@ -41,9 +41,8 @@ fn written_format() -> serde_json::Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["id","topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
+                    "required": ["topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
                     "properties": {
-                        "id":             { "type": "string" },
                         "topic":          { "type": "string" },
                         "subtopic":       { "type": ["string","null"] },
                         "promptMarkdown": { "type": "string" },
@@ -67,9 +66,8 @@ fn mc_format() -> serde_json::Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
+                    "required": ["topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
                     "properties": {
-                        "id":                  { "type": "string" },
                         "topic":               { "type": "string" },
                         "subtopic":            { "type": ["string","null"] },
                         "promptMarkdown":      { "type": "string" },
@@ -172,7 +170,7 @@ fn subtopics_note(selected: Option<&Vec<String>>, instructions: Option<&HashMap<
 
 fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     if !enabled { return String::new(); }
-    let mut examples: Vec<String> = prior.unwrap_or(&[])
+    let examples: Vec<String> = prior.unwrap_or(&[])
         .iter()
         .map(|p| {
             let p = p.trim().replace(['\n','\r'], " ");
@@ -527,12 +525,12 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     }
 
     // Decode literal \n sequences in text fields
-    parsed.feedback_markdown             = decode_escapes(&parsed.feedback_markdown);
-    parsed.worked_solution_markdown      = decode_escapes(&parsed.worked_solution_markdown);
-    parsed.comparison_to_solution_markdown = decode_escapes(&parsed.comparison_to_solution_markdown);
+    parsed.feedback_markdown             = clean_field(&parsed.feedback_markdown);
+    parsed.worked_solution_markdown      = clean_field(&parsed.worked_solution_markdown);
+    parsed.comparison_to_solution_markdown = clean_field(&parsed.comparison_to_solution_markdown);
     for c in &mut parsed.vcaa_marking_scheme {
-        c.criterion = decode_escapes(&c.criterion);
-        c.rationale = decode_escapes(&c.rationale);
+        c.criterion = clean_field(&c.criterion);
+        c.rationale = clean_field(&c.rationale);
     }
 
     Ok(parsed)

@@ -5,7 +5,6 @@ import { normalizeMathDelimiters } from "../lib/app-utils";
 
 type MarkdownMathProps = {
   content: string;
-  onFallbackChange?: (isFallback: boolean) => void;
 };
 
 export const MarkdownMath = memo(function MarkdownMath({ content }: MarkdownMathProps) {

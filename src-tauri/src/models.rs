@@ -51,6 +51,7 @@ pub struct OpenRouterMessage {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneratedQuestion {
+    #[serde(default)]
     pub id: String,
     pub topic: String,
     #[serde(default)]
@@ -193,6 +194,7 @@ pub struct McOption {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct McQuestion {
+    #[serde(default)]
     pub id: String,
     pub topic: String,
     #[serde(default)]
