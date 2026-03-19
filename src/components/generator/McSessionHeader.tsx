@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProgressBar } from "@/components/generator/ProgressBar";
 import { Difficulty, GenerationTelemetry } from "@/types";
-import { formatDurationMs } from "@/lib/app-utils";
+import { TelemetryTooltip } from "@/components/generator/WrittenSessionHeader";
 
 type McSessionHeaderProps = {
   questionIndex: number;
@@ -77,36 +77,11 @@ export function McSessionHeader({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" align="end" sideOffset={8}>
-                    <div className="flex flex-col gap-2 text-xs">
-                      <div className="font-semibold text-background">Question details</div>
-                      {generationStartedAt !== null && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Timer</span>
-                          <span className="font-mono text-background">{formattedElapsedTime}</span>
-                        </div>
-                      )}
-                      {telemetry && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Generation time</span>
-                          <span className="text-background">{formatDurationMs(telemetry.durationMs)}</span>
-                        </div>
-                      )}
-                      {telemetry?.distinctnessAvg !== undefined && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Distinctness</span>
-                          <span className="text-background">{(telemetry.distinctnessAvg * 100).toFixed(0)}%</span>
-                        </div>
-                      )}
-                      {telemetry?.multiStepDepthAvg !== undefined && (
-                        <div className="flex items-center justify-between gap-3 text-background/80">
-                          <span>Multi-step depth</span>
-                          <span className="text-background">{telemetry.multiStepDepthAvg.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {generationStartedAt === null && !telemetry && (
-                        <div className="text-background/80">No generation diagnostics yet.</div>
-                      )}
-                    </div>
+                    <TelemetryTooltip
+                      generationStartedAt={generationStartedAt}
+                      formattedElapsedTime={formattedElapsedTime}
+                      telemetry={telemetry}
+                    />
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

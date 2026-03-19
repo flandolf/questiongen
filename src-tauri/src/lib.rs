@@ -26,11 +26,8 @@ use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
 
 // ─── Response format schemas ──────────────────────────────────────────────────
-// Defined inline — small, used once each, no need for a separate file.
 
 fn written_format() -> serde_json::Value {
-    // strict mode requires every property key to appear in `required`.
-    // Optional fields use `["string","null"]` so the model can emit null when absent.
     json_schema_format("written_questions", serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -126,6 +123,86 @@ fn marking_format() -> serde_json::Value {
     }))
 }
 
+// ─── System prompt builders ───────────────────────────────────────────────────
+//
+// Each system prompt ends with:
+//   (a) the global LATEX_RULES constant, and
+//   (b) a concise description of the expected JSON schema so the model knows
+//       exactly what fields to emit even before it sees the response_format.
+//       This is more reliable than relying on response_format alone.
+
+fn written_system() -> String {
+    format!(
+        "You are an expert VCE exam writer. Produce exam-style written-response questions with \
+         LaTeX where needed.\n\
+         {LATEX_RULES}\n\n\
+         OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
+         {{\n\
+           \"questions\": [\n\
+             {{\n\
+               \"topic\": string,\n\
+               \"subtopic\": string | null,\n\
+               \"promptMarkdown\": string,\n\
+               \"maxMarks\": integer (1–30),\n\
+               \"techAllowed\": boolean\n\
+             }}\n\
+           ]\n\
+         }}\n\
+         No markdown fences, no extra keys, no commentary outside JSON."
+    )
+}
+
+fn mc_system() -> String {
+    format!(
+        "You are an expert VCE exam writer. Create challenging multiple-choice questions. \
+         Provide only final answers — no chain-of-thought in explanations.\n\
+         {LATEX_RULES}\n\n\
+         OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
+         {{\n\
+           \"questions\": [\n\
+             {{\n\
+               \"topic\": string,\n\
+               \"subtopic\": string | null,\n\
+               \"promptMarkdown\": string,\n\
+               \"options\": [\n\
+                 {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
+               ],\n\
+               \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
+               \"explanationMarkdown\": string (≤90 words),\n\
+               \"techAllowed\": boolean\n\
+             }}\n\
+           ]\n\
+         }}\n\
+         No markdown fences, no extra keys, no commentary outside JSON."
+    )
+}
+
+fn marking_system(chem_note: &str) -> String {
+    format!(
+        "You are a strict but constructive VCE marker. Assess student answers fairly.\n\
+         {LATEX_RULES}{chem_note}\n\n\
+         OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
+         {{\n\
+           \"verdict\": string,\n\
+           \"achievedMarks\": integer ≥ 0,\n\
+           \"maxMarks\": integer ≥ 1,\n\
+           \"scoreOutOf10\": integer 0–10,\n\
+           \"vcaaMarkingScheme\": [\n\
+             {{\n\
+               \"criterion\": string,\n\
+               \"achievedMarks\": integer,\n\
+               \"maxMarks\": integer,\n\
+               \"rationale\": string (≤45 words)\n\
+             }}\n\
+           ],\n\
+           \"comparisonToSolutionMarkdown\": string (≤120 words),\n\
+           \"feedbackMarkdown\": string (≤120 words),\n\
+           \"workedSolutionMarkdown\": string (≤180 words)\n\
+         }}\n\
+         No markdown fences, no extra keys, no commentary outside JSON."
+    )
+}
+
 // ─── Shared prompt-note builders ──────────────────────────────────────────────
 
 fn topic_notes(topics: &[String]) -> String {
@@ -151,18 +228,16 @@ fn tech_note(mode: &str) -> &'static str {
 }
 
 fn subtopics_note(selected: Option<&Vec<String>>, instructions: Option<&HashMap<String,String>>) -> String {
-    let mut s = String::new();
-    if let Some(subs) = selected.filter(|s| !s.is_empty()) {
-        s.push_str(&format!(" Focus subtopics: {}.", subs.join(", ")));
-        if let Some(instr) = instructions {
-            let lines: Vec<String> = subs.iter()
-                .filter_map(|sub| instr.get(sub).map(|i| format!("- {sub}: {}", i.trim())))
-                .filter(|l| !l.trim_end_matches(|c: char| !c.is_alphanumeric()).is_empty())
-                .collect();
-            if !lines.is_empty() {
-                s.push_str("\nSubtopic constraints:\n");
-                s.push_str(&lines.join("\n"));
-            }
+    let Some(subs) = selected.filter(|s| !s.is_empty()) else { return String::new() };
+    let mut s = format!(" Focus subtopics: {}.", subs.join(", "));
+    if let Some(instr) = instructions {
+        let lines: Vec<String> = subs.iter()
+            .filter_map(|sub| instr.get(sub).map(|i| format!("- {sub}: {}", i.trim())))
+            .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
+            .collect();
+        if !lines.is_empty() {
+            s.push_str("\nSubtopic constraints:\n");
+            s.push_str(&lines.join("\n"));
         }
     }
     s
@@ -179,29 +254,56 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
         .filter(|p| !p.is_empty())
         .take(6)
         .collect();
-
     if examples.is_empty() {
         return "\nSimilarity guardrail: avoid repeating recent question contexts or solving methods.".into();
     }
-    let list = examples.iter().enumerate().map(|(i,p)| format!("{}. {p}", i+1)).collect::<Vec<_>>().join("\n");
+    let list = examples.iter().enumerate()
+        .map(|(i, p)| format!("{}. {p}", i + 1))
+        .collect::<Vec<_>>().join("\n");
     format!("\nSimilarity guardrail — do not reuse scenario/method from:\n{list}")
 }
 
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
     if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)) {
-        return match difficulty.to_ascii_lowercase().as_str() {
+        match difficulty.to_ascii_lowercase().as_str() {
             "essential skills" => " Math Essential Skills: single-skill items, direct substitution only.",
             "extreme"          => " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation.",
             _                  => "",
         }
     } else {
-        return match difficulty.to_ascii_lowercase().as_str() {
+        match difficulty.to_ascii_lowercase().as_str() {
             "essential skills" => " Essential Skills: straightforward questions, minimal inference.",
             "extreme"          => " Extreme: multi-step reasoning, synthesis of multiple concepts.",
             _                  => "",
         }
     }
 }
+
+// ─── Shared parse pipeline ────────────────────────────────────────────────────
+
+/// Extract + deserialise a `{"questions":[...]}` payload from a raw model string.
+fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> CommandResult<T> {
+    let json_str = extract_json_object(raw)
+        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object in response."))?;
+    let value: serde_json::Value = serde_json::from_str(&json_str)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
+    let normalised = normalize_envelope(value)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
+    serde_json::from_value(normalised)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))
+}
+
+fn apply_tech_override<T: TechAllowed>(questions: &mut [T], mode: &str) {
+    match mode {
+        "tech-free"   => questions.iter_mut().for_each(|q| q.set_tech_allowed(false)),
+        "tech-active" => questions.iter_mut().for_each(|q| q.set_tech_allowed(true)),
+        _ => {}
+    }
+}
+
+trait TechAllowed { fn set_tech_allowed(&mut self, v: bool); }
+impl TechAllowed for GeneratedQuestion { fn set_tech_allowed(&mut self, v: bool) { self.tech_allowed = v; } }
+impl TechAllowed for McQuestion        { fn set_tech_allowed(&mut self, v: bool) { self.tech_allowed = v; } }
 
 // ─── Tauri command: generate written questions ────────────────────────────────
 
@@ -210,7 +312,6 @@ async fn generate_questions(
     app: tauri::AppHandle,
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
-    // Validate
     if request.topics.is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
     }
@@ -224,19 +325,17 @@ async fn generate_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model required."));
     }
 
-    let started = Instant::now();
+    let started       = Instant::now();
+    let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
+    let tech_mode     = request.tech_mode.as_deref().unwrap_or("mix");
+    let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
+    let custom_note   = request.custom_focus_area.as_deref().map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map_or(String::new(), |v| format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid."));
+
     let _ = app.emit("generation-status", serde_json::json!({
         "mode": "written", "stage": "generating", "message": "Requesting question set."
     }));
-
-    let selected_subs  = request.subtopics.as_ref().filter(|s| !s.is_empty());
-    let tech_mode      = request.tech_mode.as_deref().unwrap_or("mix");
-    let max_marks_cap  = request.max_marks_per_question.unwrap_or(30);
-    let custom_focus   = request.custom_focus_area.as_deref().map(str::trim).filter(|v| !v.is_empty());
-
-    let custom_note = custom_focus.map_or(String::new(), |v| {
-        format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
-    });
 
     let prompt = format!(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
@@ -246,53 +345,33 @@ async fn generate_questions(
          Quality: distinct concepts/contexts/methods. No worked solutions in prompts.\
          {sim_note}\n\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
-         Output: JSON only, no fences, exactly {count} questions.",
-        count      = request.question_count,
-        topics     = request.topics.join(", "),
-        difficulty = request.difficulty,
-        diff_rules = difficulty_guidance(&request.difficulty),
-        subs_note  = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
+         Output exactly {count} questions.",
+        count       = request.question_count,
+        topics      = request.topics.join(", "),
+        difficulty  = request.difficulty,
+        diff_rules  = difficulty_guidance(&request.difficulty),
+        subs_note   = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note = custom_note,
-        tech       = tech_note(tech_mode),
+        tech        = tech_note(tech_mode),
         topic_notes = topic_notes(&request.topics),
-        math_diff  = math_difficulty_note(&request.difficulty, &request.topics),
-        sim_note   = similarity_note(
+        math_diff   = math_difficulty_note(&request.difficulty, &request.topics),
+        sim_note    = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
         ),
     );
 
-    let system = format!(
-        "You are an expert VCE exam writer. Produce exam-style questions with LaTeX where needed.{LATEX_RULES}"
-    );
-
-    let raw = call_openrouter(
-        &request.api_key, &request.model, &system,
+    let result = call_openrouter(
+        &request.api_key, &request.model, &written_system(),
         serde_json::Value::String(prompt),
         &written_format(),
     ).await?;
 
-    // Parse
-    let json_str = extract_json_object(&raw)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object in response."))?;
-    let value: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
-    let normalised = normalize_envelope(value)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
-    let mut payload: WrittenQuestionsPayload = serde_json::from_value(normalised)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))?;
-
+    let mut payload: WrittenQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_written(&mut payload.questions, selected_subs);
     validate_written(&payload.questions, request.question_count)?;
+    apply_tech_override(&mut payload.questions, tech_mode);
 
-    // Apply tech override
-    match tech_mode {
-        "tech-free"   => payload.questions.iter_mut().for_each(|q| q.tech_allowed = false),
-        "tech-active" => payload.questions.iter_mut().for_each(|q| q.tech_allowed = true),
-        _ => {}
-    }
-
-    // Quality scores
     let texts: Vec<String> = payload.questions.iter().map(|q| q.prompt_markdown.clone()).collect();
     let (scores, summary) = score_batch(&texts);
     for (q, (d, m)) in payload.questions.iter_mut().zip(scores) {
@@ -309,7 +388,10 @@ async fn generate_questions(
     Ok(GenerateQuestionsResponse {
         questions: payload.questions,
         duration_ms,
-        distinctness_avg: summary.distinctness_avg,
+        prompt_tokens:      result.prompt_tokens,
+        completion_tokens:  result.completion_tokens,
+        total_tokens:       result.total_tokens,
+        distinctness_avg:   summary.distinctness_avg,
         multi_step_depth_avg: summary.multi_step_depth_avg,
     })
 }
@@ -334,14 +416,12 @@ async fn generate_mc_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model required."));
     }
 
-    let started    = Instant::now();
+    let started       = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
-    let tech_mode  = request.tech_mode.as_deref().unwrap_or("mix");
-    let custom_focus = request.custom_focus_area.as_deref().map(str::trim).filter(|v| !v.is_empty());
-
-    let custom_note = custom_focus.map_or(String::new(), |v| {
-        format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
-    });
+    let tech_mode     = request.tech_mode.as_deref().unwrap_or("mix");
+    let custom_note   = request.custom_focus_area.as_deref().map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map_or(String::new(), |v| format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid."));
 
     let _ = app.emit("generation-status", serde_json::json!({
         "mode": "multiple-choice", "stage": "generating", "message": "Requesting MC set."
@@ -356,50 +436,32 @@ async fn generate_mc_questions(
          Explanation: ≤90 words, final rationale only — no chain-of-thought or self-talk.\
          {sim_note}\n\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
-         Output: JSON only, no fences, exactly {count} questions.",
-        count      = request.question_count,
-        topics     = request.topics.join(", "),
-        difficulty = request.difficulty,
-        diff_rules = difficulty_guidance(&request.difficulty),
-        subs_note  = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
+         Output exactly {count} questions.",
+        count       = request.question_count,
+        topics      = request.topics.join(", "),
+        difficulty  = request.difficulty,
+        diff_rules  = difficulty_guidance(&request.difficulty),
+        subs_note   = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note = custom_note,
-        tech       = tech_note(tech_mode),
+        tech        = tech_note(tech_mode),
         topic_notes = topic_notes(&request.topics),
-        math_diff  = math_difficulty_note(&request.difficulty, &request.topics),
-        sim_note   = similarity_note(
+        math_diff   = math_difficulty_note(&request.difficulty, &request.topics),
+        sim_note    = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
         ),
     );
 
-    let system = format!(
-        "You are an expert VCE exam writer. Create challenging multiple-choice questions. \
-         Provide only the final answer — no chain-of-thought.{LATEX_RULES}"
-    );
-
-    let raw = call_openrouter(
-        &request.api_key, &request.model, &system,
+    let result = call_openrouter(
+        &request.api_key, &request.model, &mc_system(),
         serde_json::Value::String(prompt),
         &mc_format(),
     ).await?;
 
-    let json_str = extract_json_object(&raw)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object in response."))?;
-    let value: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
-    let normalised = normalize_envelope(value)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
-    let mut payload: McQuestionsPayload = serde_json::from_value(normalised)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))?;
-
+    let mut payload: McQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_mc(&mut payload.questions, selected_subs);
     validate_mc(&payload.questions, request.question_count)?;
-
-    match tech_mode {
-        "tech-free"   => payload.questions.iter_mut().for_each(|q| q.tech_allowed = false),
-        "tech-active" => payload.questions.iter_mut().for_each(|q| q.tech_allowed = true),
-        _ => {}
-    }
+    apply_tech_override(&mut payload.questions, tech_mode);
 
     let texts: Vec<String> = payload.questions.iter().map(|q| {
         let opts = q.options.iter().map(|o| format!("{}: {}", o.label, o.text)).collect::<Vec<_>>().join(" ");
@@ -420,7 +482,10 @@ async fn generate_mc_questions(
     Ok(GenerateMcQuestionsResponse {
         questions: payload.questions,
         duration_ms,
-        distinctness_avg: summary.distinctness_avg,
+        prompt_tokens:      result.prompt_tokens,
+        completion_tokens:  result.completion_tokens,
+        total_tokens:       result.total_tokens,
+        distinctness_avg:   summary.distinctness_avg,
         multi_step_depth_avg: summary.multi_step_depth_avg,
     })
 }
@@ -445,7 +510,6 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         return Err(AppError::new("VALIDATION_ERROR", "maxMarks must be > 0."));
     }
 
-    // Normalise + truncate student answer
     const MAX_ANSWER_CHARS: usize = 12_000;
     let mut answer = request.student_answer
         .replace("\r\n", "\n")
@@ -460,23 +524,20 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         answer.push_str("\n\n[Truncated: answer exceeded length limit.]");
     }
 
-    let is_chem = request.question.topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC);
+    let is_chem   = request.question.topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC);
     let chem_note = if is_chem { CHEMISTRY_LATEX_GUIDANCE } else { "" };
 
     let prompt = format!(
         "Topic: {topic}\nQuestion: {question}\nMax marks: {max}\n\n\
          Student answer:\n{answer}\n\n\
          Mark using VCAA criterion marking. Only mark what is explicitly stated — do not infer unstated working.\n\
-         Conciseness limits: comparisonToSolution ≤120 words, feedback ≤120 words, workedSolution ≤180 words, each rationale ≤45 words.\
-         {chem_note}",
+         Conciseness limits: comparisonToSolution ≤120 words, feedback ≤120 words, workedSolution ≤180 words, each rationale ≤45 words.",
         topic    = request.question.topic,
         question = request.question.prompt_markdown,
         max      = request.question.max_marks,
         answer   = answer,
-        chem_note = chem_note,
     );
 
-    // Build user content (text-only or multimodal)
     let user_content = match request.student_answer_image_data_url.as_deref()
         .map(str::trim).filter(|v| !v.is_empty())
     {
@@ -492,29 +553,26 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         }
     };
 
-    let system = format!(
-        "You are a strict but constructive VCE marker. Assess student answers fairly.{LATEX_RULES}"
-    );
-
-    let raw = call_openrouter(
-        &request.api_key, &request.model, &system, user_content, &marking_format(),
+    let result = call_openrouter(
+        &request.api_key, &request.model, &marking_system(chem_note),
+        user_content, &marking_format(),
     ).await?;
 
-    let json_str = extract_json_object(&raw)
+    let json_str = extract_json_object(&result.content)
         .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR",
-            format!("No JSON in marking response. Raw:\n{}", &raw.chars().take(800).collect::<String>())))?;
+            format!("No JSON in marking response. Raw:\n{}", &result.content.chars().take(800).collect::<String>())))?;
 
     let mut parsed: MarkAnswerResponse = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Marking schema mismatch: {e}")))?;
 
     // Clamp / fix marks
-    parsed.max_marks = if request.question.max_marks > 0 { request.question.max_marks } else { 10 };
+    parsed.max_marks     = if request.question.max_marks > 0 { request.question.max_marks } else { 10 };
     parsed.achieved_marks = parsed.achieved_marks.min(parsed.max_marks);
 
     if !parsed.vcaa_marking_scheme.is_empty() {
-        let scheme_total: u8 = parsed.vcaa_marking_scheme.iter()
-            .map(|c| c.achieved_marks)
-            .fold(0u16, |a, b| a + b as u16)
+        let scheme_total = parsed.vcaa_marking_scheme.iter()
+            .map(|c| c.achieved_marks as u16)
+            .sum::<u16>()
             .min(parsed.max_marks as u16) as u8;
         if scheme_total != parsed.achieved_marks {
             parsed.achieved_marks = scheme_total;
@@ -528,14 +586,17 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
     }
 
-    // Decode literal \n sequences in text fields
-    parsed.feedback_markdown             = clean_field(&parsed.feedback_markdown);
-    parsed.worked_solution_markdown      = clean_field(&parsed.worked_solution_markdown);
+    parsed.feedback_markdown               = clean_field(&parsed.feedback_markdown);
+    parsed.worked_solution_markdown        = clean_field(&parsed.worked_solution_markdown);
     parsed.comparison_to_solution_markdown = clean_field(&parsed.comparison_to_solution_markdown);
     for c in &mut parsed.vcaa_marking_scheme {
         c.criterion = clean_field(&c.criterion);
         c.rationale = clean_field(&c.rationale);
     }
+
+    parsed.prompt_tokens     = result.prompt_tokens;
+    parsed.completion_tokens = result.completion_tokens;
+    parsed.total_tokens      = result.total_tokens;
 
     Ok(parsed)
 }
@@ -572,15 +633,12 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         .ok_or_else(|| AppError::new("VALIDATION_ERROR",
             "Unsupported format. Use png, jpg, webp, gif, heic, or heif."))?;
 
-    let bytes = std::fs::read(path)
+    let bytes    = std::fs::read(path)
         .map_err(|e| AppError::new("IO_ERROR", format!("Failed to read image: {e}")))?;
     let data_url = format!("data:{mime};base64,{}", general_purpose::STANDARD.encode(bytes));
-
-    let prompt = request.prompt.as_deref().filter(|v| !v.trim().is_empty())
+    let prompt   = request.prompt.as_deref().filter(|v| !v.trim().is_empty())
         .unwrap_or("What's in this image?");
 
-    // analyze_image has no structured output requirement — free-form text response.
-    // We still pass a minimal response_format to satisfy the required parameter.
     let free_text_format = json_schema_format("text_response", serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -588,7 +646,7 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         "properties": { "text": { "type": "string" } }
     }));
 
-    let raw = call_openrouter(
+    let result = call_openrouter(
         &request.api_key, &request.model,
         "You are a helpful visual reasoning assistant.",
         serde_json::json!([
@@ -598,11 +656,10 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         &free_text_format,
     ).await?;
 
-    // Extract the text field if JSON, otherwise use raw.
-    let output_text = serde_json::from_str::<serde_json::Value>(&raw)
+    let output_text = serde_json::from_str::<serde_json::Value>(&result.content)
         .ok()
         .and_then(|v| v.get("text").and_then(|t| t.as_str()).map(str::to_string))
-        .unwrap_or(raw);
+        .unwrap_or(result.content);
 
     Ok(AnalyzeImageResponse { output_text })
 }

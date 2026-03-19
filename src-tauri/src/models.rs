@@ -23,6 +23,7 @@ pub type CommandResult<T> = Result<T, AppError>;
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterResponse {
     pub choices: Vec<OpenRouterChoice>,
+    pub usage: Option<OpenRouterUsage>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +34,13 @@ pub struct OpenRouterChoice {
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterMessage {
     pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenRouterUsage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
 }
 
 // ─── Shared question types ────────────────────────────────────────────────────
@@ -90,6 +98,9 @@ pub struct WrittenQuestionsPayload {
 pub struct GenerateQuestionsResponse {
     pub questions: Vec<GeneratedQuestion>,
     pub duration_ms: u64,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distinctness_avg: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -124,6 +135,12 @@ pub struct MarkAnswerResponse {
     pub comparison_to_solution_markdown: String,
     pub feedback_markdown: String,
     pub worked_solution_markdown: String,
+    #[serde(default)]
+    pub prompt_tokens: u32,
+    #[serde(default)]
+    pub completion_tokens: u32,
+    #[serde(default)]
+    pub total_tokens: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -212,6 +229,9 @@ pub struct McQuestionsPayload {
 pub struct GenerateMcQuestionsResponse {
     pub questions: Vec<McQuestion>,
     pub duration_ms: u64,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distinctness_avg: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]

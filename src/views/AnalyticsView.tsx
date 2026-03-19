@@ -304,7 +304,7 @@ export function AnalyticsView() {
                 title="Accuracy Trend"
                 description="Cumulative accuracy across all attempts, separated by mode."
               >
-                <ChartContainer config={trendChartConfig} className="h-80 w-full mt-4">
+                <ChartContainer config={trendChartConfig} className="h-[50em] w-full mt-4">
                   <LineChart data={trendData} margin={{ left: 0, right: 12, top: 12, bottom: 0 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} tick={{ fontSize: 11 }} />
@@ -322,7 +322,7 @@ export function AnalyticsView() {
                 title="Topic Performance"
                 description="Accuracy by topic. Filter below to inspect specific subtopics."
               >
-                <ChartContainer config={topicChartConfig} className="h-[240px] w-full mt-4">
+                <ChartContainer config={topicChartConfig} className="h-[450px] w-full mt-4">
                   <BarChart data={topicPerformance} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }}>
                     <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.2} />
                     <XAxis type="number" tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />

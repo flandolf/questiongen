@@ -409,7 +409,14 @@ export function GeneratorView() {
         },
       });
       setQuestions(response.questions); setWrittenRawModelOutput("");
-      setWrittenGenerationTelemetry({ durationMs: response.durationMs, distinctnessAvg: response.distinctnessAvg, multiStepDepthAvg: response.multiStepDepthAvg });
+        setWrittenGenerationTelemetry({
+    durationMs:         response.durationMs,
+    promptTokens:       response.promptTokens,
+    completionTokens:   response.completionTokens,
+    totalTokens:        response.totalTokens,
+    distinctnessAvg:    response.distinctnessAvg,
+    multiStepDepthAvg:  response.multiStepDepthAvg,
+  });
       setShowWrittenRawOutput(false); setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null);
       setWrittenQuestionPresentedAtById({}); setWrittenResponseEnteredAtById({});
       setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
@@ -435,7 +442,14 @@ export function GeneratorView() {
         },
       });
       setMcQuestions(response.questions); setMcRawModelOutput("");
-      setMcGenerationTelemetry({ durationMs: response.durationMs, distinctnessAvg: response.distinctnessAvg, multiStepDepthAvg: response.multiStepDepthAvg });
+      setMcGenerationTelemetry({
+        durationMs:         response.durationMs,
+        promptTokens:       response.promptTokens,
+        completionTokens:   response.completionTokens,
+        totalTokens:        response.totalTokens,
+        distinctnessAvg:    response.distinctnessAvg,
+        multiStepDepthAvg:  response.multiStepDepthAvg,
+      });
       setShowMcRawOutput(false); setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null);
       setMcQuestionPresentedAtById({}); setMcAnswersByQuestionId({});
       setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});

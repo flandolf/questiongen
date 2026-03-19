@@ -244,11 +244,14 @@ export type GeneratedQuestion = {
   multiStepDepth?: number;
 };
 
-export type GenerationTelemetry = {
-  durationMs: number;
-  distinctnessAvg?: number;
-  multiStepDepthAvg?: number;
-};
+  export type GenerationTelemetry = {
+    durationMs: number;
+    promptTokens?: number;       // ← add
+    completionTokens?: number;   // ← add
+    totalTokens?: number;        // ← add
+    distinctnessAvg?: number;
+    multiStepDepthAvg?: number;
+  };
 
 export type GenerationStatusStage =
   | "preparing"

@@ -78,36 +78,11 @@ export function WrittenSessionHeader({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-3">
-              <div className="flex flex-col gap-2 text-xs">
-                <div className="font-semibold text-background">Question details</div>
-                {generationStartedAt !== null && (
-                  <div className="flex items-center justify-between gap-3 text-background/80">
-                    <span>Timer</span>
-                    <span className="font-mono text-background">{formattedElapsedTime}</span>
-                  </div>
-                )}
-                {telemetry && (
-                  <div className="flex items-center justify-between gap-3 text-background/80">
-                    <span>Generation time</span>
-                    <span className="text-background">{formatDurationMs(telemetry.durationMs)}</span>
-                  </div>
-                )}
-                {telemetry?.distinctnessAvg !== undefined && (
-                  <div className="flex items-center justify-between gap-3 text-background/80">
-                    <span>Distinctness</span>
-                    <span className="text-background">{(telemetry.distinctnessAvg * 100).toFixed(0)}%</span>
-                  </div>
-                )}
-                {telemetry?.multiStepDepthAvg !== undefined && (
-                  <div className="flex items-center justify-between gap-3 text-background/80">
-                    <span>Multi-step depth</span>
-                    <span className="text-background">{telemetry.multiStepDepthAvg.toFixed(2)}</span>
-                  </div>
-                )}
-                {generationStartedAt === null && !telemetry && (
-                  <div className="text-background/80">No generation diagnostics yet.</div>
-                )}
-              </div>
+              <TelemetryTooltip
+                generationStartedAt={generationStartedAt}
+                formattedElapsedTime={formattedElapsedTime}
+                telemetry={telemetry}
+              />
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -134,6 +109,58 @@ export function WrittenSessionHeader({
       </div>
 
       <ProgressBar current={questionIndex + 1} total={totalQuestions} completed={completedCount} />
+    </div>
+  );
+}
+
+// ─── Shared telemetry tooltip ─────────────────────────────────────────────────
+
+type TelemetryTooltipProps = {
+  generationStartedAt: number | null;
+  formattedElapsedTime: string;
+  telemetry: GenerationTelemetry | null;
+};
+
+export function TelemetryTooltip({ generationStartedAt, formattedElapsedTime, telemetry }: TelemetryTooltipProps) {
+  const hasAny = generationStartedAt !== null || telemetry;
+  if (!hasAny) {
+    return <div className="text-xs text-background/80">No generation diagnostics yet.</div>;
+  }
+  return (
+    <div className="flex flex-col gap-2 text-xs">
+      <div className="font-semibold text-background">Question details</div>
+
+      {generationStartedAt !== null && (
+        <Row label="Timer" value={<span className="font-mono">{formattedElapsedTime}</span>} />
+      )}
+      {telemetry && (
+        <Row label="Generation time" value={formatDurationMs(telemetry.durationMs)} />
+      )}
+      {telemetry?.totalTokens !== undefined && telemetry.totalTokens > 0 && (
+        <Row
+          label="Tokens"
+          value={
+            <span title={`Prompt: ${telemetry.promptTokens ?? 0} · Completion: ${telemetry.completionTokens ?? 0}`}>
+              {telemetry.totalTokens.toLocaleString()}
+            </span>
+          }
+        />
+      )}
+      {telemetry?.distinctnessAvg !== undefined && (
+        <Row label="Distinctness" value={`${(telemetry.distinctnessAvg * 100).toFixed(0)}%`} />
+      )}
+      {telemetry?.multiStepDepthAvg !== undefined && (
+        <Row label="Multi-step depth" value={telemetry.multiStepDepthAvg.toFixed(2)} />
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-background/80">
+      <span>{label}</span>
+      <span className="text-background">{value}</span>
     </div>
   );
 }

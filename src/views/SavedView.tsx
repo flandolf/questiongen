@@ -1,9 +1,9 @@
-import { Bookmark, BookOpen, Clock3, FolderOpen, Trash2, Target } from "lucide-react";
+import { Bookmark, BookOpen, Clock3, FolderOpen, Trash2, Target, BarChart2, Hash } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSavedSets } from "../AppContext";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { confirmAction, formatDate } from "../lib/app-utils";
 import { EmptyState } from "../components/EmptyState";
@@ -35,76 +35,132 @@ export function SavedView() {
   }
 
   return (
-    <div className="min-w-full p-4.5 h-full flex flex-col gap-4">
-      <div>
+    <div className="min-w-full px-4 py-4 h-full flex flex-col gap-4">
+      {/* Page header */}
+      <div className="px-1">
         <h1 className="text-3xl font-bold tracking-tight">Saved Sets</h1>
-        <p className="text-muted-foreground mt-2">Reopen saved written and multiple-choice sets with your progress intact.</p>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Reopen saved written and multiple-choice sets with your progress intact.
+        </p>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="space-y-4 pb-8">
+        <div className="space-y-3 pb-8">
           {savedSets.map((savedSet) => {
-            const questionCount = savedSet.questionMode === "written"
-              ? savedSet.writtenSession?.questions.length ?? 0
-              : savedSet.mcSession?.questions.length ?? 0;
-            const completedCount = savedSet.questionMode === "written"
-              ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
-              : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
+            const questionCount =
+              savedSet.questionMode === "written"
+                ? savedSet.writtenSession?.questions.length ?? 0
+                : savedSet.mcSession?.questions.length ?? 0;
+            const completedCount =
+              savedSet.questionMode === "written"
+                ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
+                : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
+            const progressPct = questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
             const topics = savedSet.preferences.selectedTopics;
+            const isWritten = savedSet.questionMode === "written";
 
             return (
-              <Card key={savedSet.id}>
-                <CardHeader className="gap-3">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="space-y-2">
+              <Card key={savedSet.id} className="overflow-hidden border shadow-sm transition-shadow hover:shadow-md">
+                <CardHeader className="px-4 border-b">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {/* Title + meta */}
+                    <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle>{savedSet.title}</CardTitle>
-                        <Badge variant="secondary">
-                          {savedSet.questionMode === "written" ? "Written" : "Multiple Choice"}
+                        <span className="text-base font-semibold truncate">{savedSet.title}</span>
+                        <Badge
+                          variant="secondary"
+                          className={`shrink-0 text-xs ${isWritten
+                              ? "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
+                              : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                            }`}
+                        >
+                          {isWritten ? "Written" : "Multiple Choice"}
                         </Badge>
                       </div>
-                      <CardDescription className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-                        <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> Saved {formatDate(savedSet.updatedAt)}</span>
-                        <span>{completedCount}/{questionCount} completed</span>
-                      </CardDescription>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock3 className="h-3 w-3 shrink-0" />
+                        Saved {formatDate(savedSet.updatedAt)}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => handleOpen(savedSet.id)}>
-                        <FolderOpen className="h-4 w-4" />
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 px-3 py-2 h-8 text-xs"
+                        onClick={() => handleOpen(savedSet.id)}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
                         Reopen
                       </Button>
-                      <Button type="button" variant="destructive" size="sm" className="gap-2" onClick={() => handleDelete(savedSet.id, savedSet.title)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 px-3 py-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(savedSet.id, savedSet.title)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                         Delete
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {topics.length > 0 ? topics.map((topic) => (
-                      <Badge key={topic} variant="outline">{topic}</Badge>
-                    )) : (
-                      <Badge variant="outline">Mixed topics</Badge>
-                    )}
+
+                <CardContent className="px-4 py-3 space-y-3">
+                  {/* Topics */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {topics.length > 0
+                      ? topics.map((topic) => (
+                        <Badge key={topic} variant="outline" className="text-xs px-2 py-0.5">
+                          {topic}
+                        </Badge>
+                      ))
+                      : <Badge variant="outline" className="text-xs px-2 py-0.5">Mixed topics</Badge>}
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mode</div>
-                      <div className="mt-2 flex items-center gap-2 text-sm font-medium">
-                        {savedSet.questionMode === "written" ? <BookOpen className="h-4 w-4 text-primary" /> : <Target className="h-4 w-4 text-primary" />}
-                        {savedSet.questionMode === "written" ? "Written Response" : "Multiple Choice"}
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        {isWritten
+                          ? <BookOpen className="h-3 w-3 shrink-0" />
+                          : <Target className="h-3 w-3 shrink-0" />}
+                        <span className="text-xs font-semibold uppercase tracking-wide">Mode</span>
+                      </div>
+                      <div className="text-xs font-medium truncate">
+                        {isWritten ? "Written" : "Multiple Choice"}
                       </div>
                     </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Difficulty</div>
-                      <div className="mt-2 text-sm font-medium">{savedSet.preferences.difficulty}</div>
+
+                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <BarChart2 className="h-3 w-3 shrink-0" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Difficulty</span>
+                      </div>
+                      <div className="text-xs font-medium capitalize">{savedSet.preferences.difficulty}</div>
                     </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Questions</div>
-                      <div className="mt-2 text-sm font-medium">{questionCount} total</div>
+
+                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Hash className="h-3 w-3 shrink-0" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Progress</span>
+                      </div>
+                      <div className="text-xs font-medium">{completedCount}/{questionCount}</div>
                     </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${isWritten ? "bg-sky-500" : "bg-violet-500"}`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground text-right">{progressPct.toFixed(0)}% complete</p>
                   </div>
                 </CardContent>
               </Card>
