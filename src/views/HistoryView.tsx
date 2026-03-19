@@ -115,11 +115,9 @@ const ToggleButton = memo(function ToggleButton({
 function ScorePill({
   awarded,
   max,
-  correct,
 }: {
   awarded: number;
   max: number;
-  correct?: boolean;
 }) {
   const isCorrect = awarded >= max;
   return (

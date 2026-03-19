@@ -16,7 +16,6 @@ import {
   Dumbbell,
   FunctionSquare,
   SigmaSquare,
-  BookCheck,
   Crosshair,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
