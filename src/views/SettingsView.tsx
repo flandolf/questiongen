@@ -28,10 +28,9 @@ export function SettingsView() {
   const [customModelId, setCustomModelId] = useState("");
 
   const models = [
-    { id: "openrouter/hunter-alpha", name: "Hunter Alpha" },
-    { id: "openrouter/healer-alpha", name: "Healer Alpha" },
-    { id: "openrouter/aurora-alpha", name: "Aurora Alpha" },
-    { id: "openrouter/free", name: "Free" },
+    { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
+    { id:"qwen/qwen3.5-9b", name: "Qwen 3.5 9B" },
+    { id: "nvidia/nemotron-3-super-120b-a12b:freeze", name: "Nemotron 3 Super 120B" },
     { id: "custom", name: "Custom..." },
   ]
 

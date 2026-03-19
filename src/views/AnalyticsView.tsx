@@ -193,7 +193,7 @@ export function AnalyticsView() {
                     <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
                     <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                    <ChartLegend content={<ChartLegendContent />} className="pt-4" />
+                    <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-4" />
                     <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={3} dot={false} />
                     <Line type="monotone" dataKey="writtenAccuracy" stroke="var(--color-writtenAccuracy)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                     <Line type="monotone" dataKey="mcAccuracy" stroke="var(--color-mcAccuracy)" strokeWidth={2} strokeDasharray="3 3" dot={false} />
@@ -433,7 +433,7 @@ export function AnalyticsView() {
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}
                       </Pie>
-                      <ChartLegend content={<ChartLegendContent nameKey="label" />} className="pt-6" />
+                      <ChartLegend content={<ChartLegendContent nameKey="label" payload={undefined} />} className="pt-6" />
                     </PieChart>
                   </ChartContainer>
                 )}
@@ -503,7 +503,7 @@ export function AnalyticsView() {
                       <XAxis dataKey="difficulty" tickLine={false} axisLine={false} />
                       <YAxis tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                      <ChartLegend content={<ChartLegendContent />} className="pt-4" />
+                      <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-4" />
                       <Bar dataKey="avgDurationSeconds" fill="var(--color-avgDurationSeconds)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                       <Bar dataKey="avgRepairAttempts" fill="var(--color-avgRepairAttempts)" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     </BarChart>
