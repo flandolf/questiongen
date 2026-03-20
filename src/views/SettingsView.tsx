@@ -5,10 +5,12 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
-import { Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Cpu, Wifi } from "lucide-react";
+import { Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Clock, Database, Settings } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { readBackendError } from "../lib/app-utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ─── Types matching Rust structs ──────────────────────────────────────────────
 
@@ -105,6 +107,8 @@ export function SettingsView() {
   const {
     apiKey, setApiKey,
     model, setModel,
+    markingModel, setMarkingModel,
+    useSeparateMarkingModel, setUseSeparateMarkingModel,
     clearApiKey,
     showApiKey, setShowApiKey,
     debugMode, setDebugMode,
@@ -112,6 +116,8 @@ export function SettingsView() {
 
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
+  const [localMarkingModel, setLocalMarkingModel] = useState(markingModel);
+  const [localUseSeparateMarkingModel, setLocalUseSeparateMarkingModel] = useState(useSeparateMarkingModel);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customModelId, setCustomModelId] = useState("");
 
@@ -119,6 +125,10 @@ export function SettingsView() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [statsUpdatedAt, setStatsUpdatedAt] = useState<Date | null>(null);
+  const [markingModelStats, setMarkingModelStats] = useState<ModelStats | null>(null);
+  const [markingStatsLoading, setMarkingStatsLoading] = useState(false);
+  const [markingStatsError, setMarkingStatsError] = useState<string | null>(null);
+  const [markingStatsUpdatedAt, setMarkingStatsUpdatedAt] = useState<Date | null>(null);
 
   const [credits, setCredits] = useState<CreditsInfo | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
@@ -128,6 +138,35 @@ export function SettingsView() {
   // Sync local state on first hydration
   useEffect(() => { setLocalKey(apiKey); }, [apiKey]);
   useEffect(() => { setLocalModel(model); }, [model]);
+    useEffect(() => { setLocalMarkingModel(markingModel); }, [markingModel]);
+    useEffect(() => { setLocalUseSeparateMarkingModel(useSeparateMarkingModel); }, [useSeparateMarkingModel]);
+
+  // Auto-save models when the user changes them (no need to press "Save Settings")
+  useEffect(() => {
+    if (localModel && localModel !== model) {
+      setModel(localModel);
+    }
+  }, [localModel, model, setModel]);
+
+  useEffect(() => {
+    if (localMarkingModel && localMarkingModel !== markingModel) {
+      setMarkingModel(localMarkingModel);
+    }
+  }, [localMarkingModel, markingModel, setMarkingModel]);
+
+  // Auto-save API key when it changes locally
+  useEffect(() => {
+    if (localKey !== apiKey) {
+      setApiKey(localKey);
+    }
+  }, [localKey, apiKey, setApiKey]);
+
+  // Auto-save the "use separate marking model" toggle
+  useEffect(() => {
+    if (localUseSeparateMarkingModel !== useSeparateMarkingModel) {
+      setUseSeparateMarkingModel(localUseSeparateMarkingModel);
+    }
+  }, [localUseSeparateMarkingModel, useSeparateMarkingModel, setUseSeparateMarkingModel]);
 
   // ── Fetch helpers ──────────────────────────────────────────────────────────
 
@@ -170,6 +209,27 @@ export function SettingsView() {
     }
   }, [apiKey, model, fetchModelStats]);
 
+  // Fetch stats for committed marking model when separate-marking toggle is enabled
+  useEffect(() => {
+    if (apiKey && useSeparateMarkingModel && markingModel) {
+      // fetch stats for committed marking model
+      (async () => {
+        setMarkingStatsLoading(true);
+        setMarkingStatsError(null);
+        setMarkingModelStats(null);
+        try {
+          const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: markingModel });
+          setMarkingModelStats(stats);
+          setMarkingStatsUpdatedAt(new Date());
+        } catch (err) {
+          setMarkingStatsError(readBackendError(err));
+        } finally {
+          setMarkingStatsLoading(false);
+        }
+      })();
+    }
+  }, [apiKey, useSeparateMarkingModel, markingModel]);
+
   // Fetch credits on initial load only (user refreshes manually after that)
   useEffect(() => {
     if (apiKey) {
@@ -185,11 +245,33 @@ export function SettingsView() {
     }
   }, [localModel, apiKey, fetchModelStats]);
 
+  // Fetch model stats immediately when local marking model changes (if toggle enabled)
+  useEffect(() => {
+    if (apiKey && localUseSeparateMarkingModel && localMarkingModel && localMarkingModel !== "custom") {
+      (async () => {
+        setMarkingStatsLoading(true);
+        setMarkingStatsError(null);
+        setMarkingModelStats(null);
+        try {
+          const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: localMarkingModel });
+          setMarkingModelStats(stats);
+          setMarkingStatsUpdatedAt(new Date());
+        } catch (err) {
+          setMarkingStatsError(readBackendError(err));
+        } finally {
+          setMarkingStatsLoading(false);
+        }
+      })();
+    }
+  }, [localMarkingModel, apiKey, localUseSeparateMarkingModel]);
+
   // ── Actions ────────────────────────────────────────────────────────────────
 
   function handleSave() {
     setApiKey(localKey);
     setModel(localModel);
+    setMarkingModel(localMarkingModel);
+    setUseSeparateMarkingModel(localUseSeparateMarkingModel);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -238,6 +320,71 @@ export function SettingsView() {
           <Button variant="outline" onClick={clearApiKey}>Clear Key</Button>
           <Button onClick={handleSave}>Save Settings</Button>
         </CardFooter>
+      </Card>
+
+      {/* ── Separate Marking Model ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Separate Marking Model</CardTitle>
+          <CardDescription>Optionally use a different model for marking student answers.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              id="use-separate-marking-model"
+              checked={localUseSeparateMarkingModel}
+              onCheckedChange={(checked) => setLocalUseSeparateMarkingModel(!!checked)}
+            />
+            <Label htmlFor="use-separate-marking-model">Use separate model for marking</Label>
+          </div>
+
+          {localUseSeparateMarkingModel && (
+            <div className="space-y-2">
+              <Label htmlFor="marking-model-select">Marking model</Label>
+              <Select
+                value={PRESET_MODELS.some((m) => m.id === localMarkingModel && m.id !== "custom") ? localMarkingModel : (localMarkingModel === "custom" ? "custom" : localMarkingModel)}
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    // reveal custom input by setting to custom sentinel
+                    setLocalMarkingModel("custom");
+                  } else {
+                    setLocalMarkingModel(value);
+                  }
+                }}
+              >
+                <SelectTrigger id="marking-model-select">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRESET_MODELS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {localMarkingModel === "custom" && (
+                <div className="mt-2 space-y-2">
+                  <Label htmlFor="custom-marking-model-id">Custom Marking Model ID</Label>
+                  <Input
+                    id="custom-marking-model-id"
+                    value={customModelId}
+                    onChange={(e) => setCustomModelId(e.target.value)}
+                    placeholder="e.g. openai/gpt-4o"
+                  />
+                  <Button
+                    className="mt-2"
+                    disabled={!customModelId.trim()}
+                    onClick={() => {
+                      setLocalMarkingModel(customModelId.trim());
+                    }}
+                  >
+                    Use Custom Marking Model
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {/* ── Model Selection ── */}
@@ -298,58 +445,123 @@ export function SettingsView() {
         </CardFooter>
       </Card>
 
-      {/* ── Model Stats ── */}
+      {/* ── Combined Model Stats Table ── */}
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div>
             <CardTitle>Model Stats</CardTitle>
             <CardDescription>
-              Live performance and pricing for{" "}
-              <span className="font-medium text-foreground">{localModel || "the selected model"}</span>.
+              Live performance and pricing for selected models.
               {statsUpdatedAt && !statsLoading && (
                 <span className="ml-2 text-xs text-muted-foreground/70">{formatLastUpdated(statsUpdatedAt)}</span>
               )}
+              {markingStatsUpdatedAt && !markingStatsLoading && (
+                <span className="ml-2 text-xs text-muted-foreground/70">{formatLastUpdated(markingStatsUpdatedAt)}</span>
+              )}
             </CardDescription>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            disabled={statsLoading || !apiKey || !localModel || localModel === "custom"}
-            onClick={() => fetchModelStats(apiKey, localModel)}
-            title="Refresh model stats"
-          >
-            <RefreshCw className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`} />
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              disabled={statsLoading || !apiKey || !localModel || localModel === "custom"}
+              onClick={() => fetchModelStats(apiKey, localModel)}
+              title="Refresh model stats"
+            >
+              <RefreshCw className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`} />
+            </Button>
+            {localUseSeparateMarkingModel && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                disabled={markingStatsLoading || !apiKey || !localMarkingModel || localMarkingModel === "custom"}
+                onClick={() => {
+                  if (apiKey && localMarkingModel) {
+                    void (async () => {
+                      setMarkingStatsLoading(true);
+                      setMarkingStatsError(null);
+                      setMarkingModelStats(null);
+                      try {
+                        const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: localMarkingModel });
+                        setMarkingModelStats(stats);
+                        setMarkingStatsUpdatedAt(new Date());
+                      } catch (err) {
+                        setMarkingStatsError(readBackendError(err));
+                      } finally {
+                        setMarkingStatsLoading(false);
+                      }
+                    })();
+                  }
+                }}
+                title="Refresh marking model stats"
+              >
+                <RefreshCw className={`h-4 w-4 ${markingStatsLoading ? "animate-spin" : ""}`} />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {statsError && (
-            <p className="text-sm text-destructive">{statsError}</p>
-          )}
-          {!modelStats && !statsLoading && !statsError && (
-            <p className="text-sm text-muted-foreground">
-              {apiKey ? "Select a model to load stats." : "Save your API key to load model stats."}
-            </p>
-          )}
-          {statsLoading && (
-            <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
-          )}
-          {modelStats && !statsLoading && (
-            <div className="space-y-0">
-              <StatRow icon={<Zap className="h-3.5 w-3.5" />} label="Throughput (p50)" value={formatTps(modelStats.tpsP50)} />
-              <StatRow icon={<Wifi className="h-3.5 w-3.5" />} label="Latency TTFT (p50)" value={formatLatency(modelStats.latencyP50)} />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Input price" value={formatPrice(modelStats.promptPricePerToken)} />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Output price" value={formatPrice(modelStats.completionPricePerToken)} />
-              <StatRow icon={<Cpu className="h-3.5 w-3.5" />} label="Context window" value={formatContext(modelStats.contextLength)} />
-              <StatRow icon={<Wifi className="h-3.5 w-3.5" />} label="Uptime (30m)" value={formatUptime(modelStats.uptimeLast30m)} />
-              <StatRow
-                icon={<Cpu className="h-3.5 w-3.5" />}
-                label="Structured output"
-                value={modelStats.supportsStructuredOutput ? "Supported" : "Not supported"}
-                dimmed={!modelStats.supportsStructuredOutput}
-              />
+          {(statsError || markingStatsError) && (
+            <div className="space-y-1">
+              {statsError && <p className="text-sm text-destructive">{statsError}</p>}
+              {markingStatsError && <p className="text-sm text-destructive">{markingStatsError}</p>}
             </div>
           )}
+
+          <Table className="mt-2">
+            <TableHeader>
+              <tr>
+                <TableHead>Metric</TableHead>
+                <TableHead>{localModel || "Generation model"}</TableHead>
+                {localUseSeparateMarkingModel && <TableHead>{localMarkingModel || "Marking model"}</TableHead>}
+              </tr>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><Zap className="h-4 w-4"/> Throughput (p50)</TableCell>
+                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatTps(modelStats.tpsP50) : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatTps(markingModelStats.tpsP50) : "—"}</TableCell>}
+              </TableRow>
+
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><Clock className="h-4 w-4"/> Latency TTFT (p50)</TableCell>
+                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatLatency(modelStats.latencyP50) : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatLatency(markingModelStats.latencyP50) : "—"}</TableCell>}
+              </TableRow>
+
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><DollarSign className="h-4 w-4"/> Input price</TableCell>
+                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatPrice(modelStats.promptPricePerToken) : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatPrice(markingModelStats.promptPricePerToken) : "—"}</TableCell>}
+              </TableRow>
+
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><DollarSign className="h-4 w-4"/> Output price</TableCell>
+                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatPrice(modelStats.completionPricePerToken) : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatPrice(markingModelStats.completionPricePerToken) : "—"}</TableCell>}
+              </TableRow>
+
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><Database className="h-4 w-4"/> Context window</TableCell>
+                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatContext(modelStats.contextLength) : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatContext(markingModelStats.contextLength) : "—"}</TableCell>}
+              </TableRow>
+
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><Clock className="h-4 w-4"/> Uptime (30m)</TableCell>
+                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatUptime(modelStats.uptimeLast30m) : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatUptime(markingModelStats.uptimeLast30m) : "—"}</TableCell>}
+              </TableRow>
+
+              <TableRow>
+                <TableCell className="flex flex-row items-center gap-2 "><Settings className="h-4 w-4"/> Structured output</TableCell>
+                <TableCell>{modelStats ? (modelStats.supportsStructuredOutput ? "Supported" : "Not supported") : "—"}</TableCell>
+                {localUseSeparateMarkingModel && <TableCell>{markingModelStats ? (markingModelStats.supportsStructuredOutput ? "Supported" : "Not supported") : "—"}</TableCell>}
+              </TableRow>
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 

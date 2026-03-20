@@ -128,7 +128,6 @@ export function useAnalyticsData() {
       answerWordCount: entry.analytics?.answerWordCount,
       answerCharacterCount: entry.analytics?.answerCharacterCount,
       generationDurationMs: entry.generationTelemetry?.durationMs,
-      difficulty: entry.generationTelemetry?.difficulty,
     }));
   }, [questionHistory]);
 
@@ -150,7 +149,6 @@ export function useAnalyticsData() {
         answerWordCount: entry.analytics?.answerWordCount,
         answerCharacterCount: entry.analytics?.answerCharacterCount,
         generationDurationMs: entry.generationTelemetry?.durationMs,
-        difficulty: entry.generationTelemetry?.difficulty,
       };
     });
   }, [mcHistory]);
@@ -522,7 +520,7 @@ export function useAnalyticsData() {
       entry: QuestionHistoryEntry | McHistoryEntry,
       isCorrectFunc: () => boolean
     ) => {
-      const difficulty = entry.generationTelemetry?.difficulty ?? "Unknown";
+      const difficulty = "Unknown";
       const bucket = bucketByDifficulty.get(difficulty) ?? {
         sampleCount: 0,
         correct: 0,
@@ -543,9 +541,6 @@ export function useAnalyticsData() {
         bucket.durationTotal += entry.generationTelemetry.durationMs;
         bucket.durationCount += 1;
       }
-
-      bucket.repairTotal += entry.generationTelemetry?.repairAttempts ?? 0;
-      bucket.attemptsTotal += entry.generationTelemetry?.totalAttempts ?? 0;
 
       if (entry.question.distinctnessScore !== undefined) {
         bucket.distinctnessTotal += entry.question.distinctnessScore;

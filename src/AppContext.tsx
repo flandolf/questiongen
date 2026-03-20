@@ -61,6 +61,10 @@ interface AppContextState {
   setSubtopicInstructions: (instructions: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   model: string;
   setModel: (model: string) => void;
+  markingModel: string;
+  setMarkingModel: (model: string) => void;
+  useSeparateMarkingModel: boolean;
+  setUseSeparateMarkingModel: (enabled: boolean) => void;
   debugMode: boolean;
   setDebugMode: (enabled: boolean) => void;
 
@@ -158,6 +162,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setShowApiKey,
     model,
     setModel,
+    markingModel,
+    setMarkingModel,
+    useSeparateMarkingModel,
+    setUseSeparateMarkingModel,
     debugMode,
     setDebugMode,
   } = useSettingsState();
@@ -300,8 +308,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const settingsSnapshot = useMemo(() => ({
     apiKey,
     model,
+    markingModel,
+    useSeparateMarkingModel,
     debugMode,
-  }), [apiKey, model, debugMode]);
+  }), [apiKey, model, markingModel, useSeparateMarkingModel, debugMode]);
 
   const writtenSessionSnapshot = useMemo<PersistedWrittenSession>(() => ({
     questions,
@@ -401,6 +411,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   function applyPersistedState(state: PersistedAppState) {
     setApiKey(state.settings.apiKey);
     setModel(state.settings.model);
+    setMarkingModel(state.settings.markingModel);
+    setUseSeparateMarkingModel(Boolean(state.settings.useSeparateMarkingModel));
     setDebugMode(state.settings.debugMode);
     setSelectedTopics(state.preferences.selectedTopics);
     setDifficulty(state.preferences.difficulty);
@@ -605,6 +617,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSubtopicInstructions,
         model,
         setModel,
+        markingModel,
+        setMarkingModel,
+        useSeparateMarkingModel,
+        setUseSeparateMarkingModel,
         debugMode,
         setDebugMode,
         questionMode,
@@ -739,6 +755,10 @@ export function useAppSettings() {
     setShowApiKey,
     model,
     setModel,
+    markingModel,
+    setMarkingModel,
+    useSeparateMarkingModel,
+    setUseSeparateMarkingModel,
     debugMode,
     setDebugMode,
     clearApiKey,
@@ -751,6 +771,10 @@ export function useAppSettings() {
     setShowApiKey,
     model,
     setModel,
+    markingModel,
+    setMarkingModel,
+    useSeparateMarkingModel,
+    setUseSeparateMarkingModel,
     debugMode,
     setDebugMode,
     clearApiKey,

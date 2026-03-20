@@ -87,7 +87,7 @@ When describing a sequence, each step should be written as a separate numbered t
 2. Translation of 3 units in the positive direction of the x-axis
 Transformations apply to key points — track where specific coordinates map to under a given transformation.
 `,
-"Algebra and Structure": `Topics include: solving polynomial equations (degree n, up to n real solutions), inverse functions, composition of functions, simultaneous linear equations (including parametric cases), and literal equations.
+  "Algebra and Structure": `Topics include: solving polynomial equations (degree n, up to n real solutions), inverse functions, composition of functions, simultaneous linear equations (including parametric cases), and literal equations.
 For systems of simultaneous equations with parameter k: find values of k for which the system has no solution (parallel lines / singular matrix determinant = 0 with inconsistent RHS), infinitely many solutions, or a unique solution.
 Composition of functions: (f ∘ g)(x) = f(g(x)). State the domain of the composite — requires range of g to be a subset of domain of f.
 For inverse functions: swap x and y, solve for y. Domain of f⁻¹ = range of f.
@@ -108,7 +108,7 @@ Solving trigonometric equations over a given interval: identify the reference an
 For f(x+k) = f(x): this means k is a period of f on that domain. Find the smallest positive k that is a period of f, then determine the largest interval [0, a] over which both x and x+k remain in the domain.
 Newton's method applied to f: x_{n+1} = x_n − f(x_n)/f'(x_n). Apply iteratively from given x_0.
 `,
-"Exponential and Logarithmic Functions": `Key functions: e^x, a^x, log_e(x), log_a(x).
+  "Exponential and Logarithmic Functions": `Key functions: e^x, a^x, log_e(x), log_a(x).
 log_e is written as log_e(x) or ln(x) — both are acceptable. The VCAA formula sheet uses log_e notation.
 Laws of logarithms: log(ab) = log(a) + log(b), log(a/b) = log(a) − log(b), log(a^n) = n·log(a).
 Exponential equations: if a^f(x) = a^g(x) then f(x) = g(x). Convert between forms: a^x = e^(x·log_e(a)).
@@ -244,14 +244,14 @@ export type GeneratedQuestion = {
   multiStepDepth?: number;
 };
 
-  export type GenerationTelemetry = {
-    durationMs: number;
-    promptTokens?: number;       // ← add
-    completionTokens?: number;   // ← add
-    totalTokens?: number;        // ← add
-    distinctnessAvg?: number;
-    multiStepDepthAvg?: number;
-  };
+export type GenerationTelemetry = {
+  durationMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  distinctnessAvg?: number;
+  multiStepDepthAvg?: number;
+};
 
 export type GenerationStatusStage =
   | "preparing"
@@ -392,6 +392,8 @@ export type McHistoryEntry = {
 export type PersistedSettings = {
   apiKey: string;
   model: string;
+  markingModel: string;
+  useSeparateMarkingModel: boolean;
   debugMode: boolean;
 };
 

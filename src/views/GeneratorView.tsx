@@ -80,7 +80,8 @@ export function GeneratorView() {
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
 
   // ── Context ─────────────────────────────────────────────────────────────────
-  const { apiKey, model, debugMode } = useAppSettings();
+  const { apiKey, model, markingModel, useSeparateMarkingModel, debugMode } = useAppSettings();
+  const markModel = useSeparateMarkingModel && markingModel && markingModel.trim().length > 0 ? markingModel : model;
 
   const {
     selectedTopics, setSelectedTopics,
@@ -163,7 +164,7 @@ export function GeneratorView() {
     Boolean(activeQuestion) &&
     (activeQuestionAnswer.trim().length > 0 || Boolean(activeQuestionImage)) &&
     apiKey.trim().length > 0 &&
-    model.trim().length > 0 &&
+    markModel.trim().length > 0 &&
     !isMarking &&
     !activeFeedback;
 
@@ -462,7 +463,7 @@ export function GeneratorView() {
       const responseEnteredAtMs = writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
       const markStartedAt = Date.now();
       const rawResponse = await invoke<unknown>("mark_answer", {
-        request: { question: activeQuestion, studentAnswer: activeQuestionAnswer, studentAnswerImageDataUrl: activeQuestionImage?.dataUrl, model, apiKey },
+        request: { question: activeQuestion, studentAnswer: activeQuestionAnswer, studentAnswerImageDataUrl: activeQuestionImage?.dataUrl, model: markModel, apiKey },
       });
       const markingLatencyMs = Date.now() - markStartedAt;
       const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
@@ -477,13 +478,13 @@ export function GeneratorView() {
     if (!activeQuestion || !activeFeedback) return;
     const appealText = activeMarkAppeal.trim();
     if (!appealText) { setErrorMessage("Enter your argument before requesting a re-mark."); return; }
-    if (!apiKey.trim() || !model.trim()) { setErrorMessage("Configure API key and model before requesting a re-mark."); return; }
+    if (!apiKey.trim() || !markModel.trim()) { setErrorMessage("Configure API key and model before requesting a re-mark."); return; }
     setErrorMessage(null); setIsMarking(true);
     try {
       const responseEnteredAtMs = Date.now(); const markStartedAt = Date.now();
       const arguedAnswer = [activeQuestionAnswer, `Additional marking argument from student:\n${appealText}`].filter((p) => p.trim()).join("\n\n");
       const rawResponse = await invoke<unknown>("mark_answer", {
-        request: { question: activeQuestion, studentAnswer: arguedAnswer, studentAnswerImageDataUrl: activeQuestionImage?.dataUrl, model, apiKey },
+        request: { question: activeQuestion, studentAnswer: arguedAnswer, studentAnswerImageDataUrl: activeQuestionImage?.dataUrl, model: markModel, apiKey },
       });
       const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
       setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
@@ -525,7 +526,7 @@ export function GeneratorView() {
     if (!activeMcQuestion || !activeMcAnswer) return;
     const appealText = activeMcMarkAppeal.trim();
     if (!appealText) { setErrorMessage("Enter your argument before requesting a re-mark."); return; }
-    if (!apiKey.trim() || !model.trim()) { setErrorMessage("Configure API key and model before requesting a re-mark."); return; }
+    if (!apiKey.trim() || !markModel.trim()) { setErrorMessage("Configure API key and model before requesting a re-mark."); return; }
     setErrorMessage(null); setIsMarking(true);
     try {
       const responseEnteredAtMs = Date.now();
@@ -534,7 +535,7 @@ export function GeneratorView() {
       const rawResponse = await invoke<unknown>("mark_answer", {
         request: {
           question: { id: activeMcQuestion.id, topic: activeMcQuestion.topic, subtopic: activeMcQuestion.subtopic, promptMarkdown: buildMcMarkingPrompt(activeMcQuestion), maxMarks: 1, techAllowed: Boolean(activeMcQuestion.techAllowed) },
-          studentAnswer: arguedAnswer, model, apiKey,
+          studentAnswer: arguedAnswer, model: markModel, apiKey,
         },
       });
       const response = normalizeMarkResponse(rawResponse, 1);

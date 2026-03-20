@@ -35,6 +35,8 @@ import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: "",
   model: "openrouter/healer-alpha",
+  markingModel: "openrouter/healer-alpha",
+  useSeparateMarkingModel: false,
   debugMode: false,
 };
 
@@ -170,6 +172,8 @@ function normalizeSettings(raw: unknown): PersistedSettings {
   return {
     apiKey: asString(data.apiKey),
     model: asString(data.model) || DEFAULT_SETTINGS.model,
+    markingModel: asString(data.markingModel) || asString(data.model) || DEFAULT_SETTINGS.markingModel,
+    useSeparateMarkingModel: Boolean(data.useSeparateMarkingModel),
     debugMode: Boolean(data.debugMode),
   };
 }
