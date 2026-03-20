@@ -131,6 +131,9 @@ export function GeneratorView() {
     errorMessage, setErrorMessage,
   } = useAppContext();
 
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [, setNow] = useState(Date.now());
+
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
   const activeQuestionAnswer = activeQuestion ? (answersByQuestionId[activeQuestion.id] ?? "") : "";
@@ -226,6 +229,9 @@ export function GeneratorView() {
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => { setShowCompletionScreen(false); }, [completionSetKey]);
 
+  // Clear lastSavedAt if the active saved id changes externally
+  useEffect(() => { setLastSavedAt(null); }, [activeWrittenSavedSetId, activeMcSavedSetId]);
+
   useEffect(() => {
     const prev = lastWrittenCompletedCountRef.current;
     if (questionMode === "written" && activeWrittenSavedSetId && questions.length > 0 && completedCount > prev) saveCurrentSet();
@@ -257,6 +263,12 @@ export function GeneratorView() {
   // ── Stopwatch ────────────────────────────────────────────────────────────────
   function startStopwatch() { setGenerationStartedAt(Date.now()); setSessionFinishedAt(null); }
   function resetStopwatch() { setGenerationStartedAt(null); setSessionFinishedAt(null); }
+
+  useEffect(() => {
+    if (generationStartedAt === null || sessionFinishedAt !== null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [generationStartedAt, sessionFinishedAt]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   function handleNextWrittenQuestion() {
@@ -416,6 +428,7 @@ export function GeneratorView() {
         multiStepDepthAvg: response.multiStepDepthAvg,
       });
       setShowWrittenRawOutput(false); setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null);
+      setLastSavedAt(null);
       setWrittenQuestionPresentedAtById({}); setWrittenResponseEnteredAtById({});
       setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
     } catch (error) {
@@ -446,6 +459,7 @@ export function GeneratorView() {
         multiStepDepthAvg: response.multiStepDepthAvg,
       });
       setShowMcRawOutput(false); setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null);
+      setLastSavedAt(null);
       setMcQuestionPresentedAtById({}); setMcAnswersByQuestionId({});
       setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
     } catch (error) {
@@ -472,6 +486,16 @@ export function GeneratorView() {
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "initial", markingLatencyMs, responseEnteredAtMs });
     } catch (error) { setErrorMessage(readBackendError(error)); }
     finally { setIsMarking(false); }
+  }
+
+  // Wrap saveCurrentSet to update UI state (saved timestamp) and ensure persistence
+  function handleSave() {
+    const id = saveCurrentSet();
+    if (id) {
+      const now = new Date().toISOString();
+      setLastSavedAt(now);
+    }
+    return id;
   }
 
   async function handleArgueForMark() {
@@ -633,7 +657,7 @@ export function GeneratorView() {
           totalCount={questionMode === "written" ? questions.length : mcQuestions.length}
           hasSavedSet={Boolean(questionMode === "written" ? activeWrittenSavedSetId : activeMcSavedSetId)}
           onReview={() => setShowCompletionScreen(false)}
-          onSave={saveCurrentSet}
+          onSave={handleSave}
           onStartOver={handleStartOver}
         />
 
@@ -658,7 +682,8 @@ export function GeneratorView() {
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))}
             onNext={handleNextWrittenQuestion}
-            onSave={saveCurrentSet}
+            onSave={handleSave}
+            lastSavedAt={lastSavedAt}
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
           />
@@ -730,7 +755,8 @@ export function GeneratorView() {
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))}
             onNext={handleNextMcQuestion}
-            onSave={saveCurrentSet}
+            onSave={handleSave}
+            lastSavedAt={lastSavedAt}
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
           />

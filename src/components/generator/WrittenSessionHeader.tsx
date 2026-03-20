@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ProgressBar } from "@/components/generator/ProgressBar";
 import { Difficulty, GenerationTelemetry } from "../../types";
 import { formatDurationMs } from "../../lib/app-utils";
+import { formatDate } from "../../lib/app-utils";
 
 type WrittenSessionHeaderProps = {
   questionIndex: number;
@@ -18,6 +19,7 @@ type WrittenSessionHeaderProps = {
   isAtLast: boolean;
   canAdvance: boolean;
   hasSavedSet: boolean;
+  lastSavedAt?: string | null;
   generationStartedAt: number | null;
   formattedElapsedTime: string;
   telemetry: GenerationTelemetry | null;
@@ -35,7 +37,7 @@ export function WrittenSessionHeader({
   isAtLast, canAdvance, hasSavedSet,
   generationStartedAt, formattedElapsedTime, telemetry,
   getDifficultyBadgeClasses,
-  onPrev, onNext, onSave, onDelete, onExit,
+  onPrev, onNext, onSave, onDelete, onExit, lastSavedAt,
 }: WrittenSessionHeaderProps) {
   return (
     <div className="sticky px-4.5 top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-3 pt-2 backdrop-blur-xl">
@@ -91,6 +93,9 @@ export function WrittenSessionHeader({
           <Bookmark className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">{hasSavedSet ? "Update" : "Save"}</span>
         </Button>
+        {lastSavedAt && (
+          <span className="ml-2 hidden sm:inline text-xs text-muted-foreground">Saved at {formatDate(lastSavedAt)}</span>
+        )}
         <Button variant="destructive" size="sm" onClick={onDelete} disabled={totalQuestions === 0} className="h-8">
           <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
           <span className="hidden sm:inline">Delete</span>

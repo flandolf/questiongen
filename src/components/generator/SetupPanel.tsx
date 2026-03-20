@@ -238,7 +238,7 @@ export function SetupPanel({
         </div>
       </div>
 
-      <CardContent className="px-4 py-4 space-y-5">
+      <CardContent className="px-4 pb-4 space-y-3">
 
         {/* ── Step 1: Subjects ── */}
         <div>

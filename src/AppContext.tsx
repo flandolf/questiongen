@@ -26,6 +26,7 @@ import {
   Topic,
 } from "./types";
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
+import { confirmAction } from "./lib/app-utils";
 import { useSettingsState } from "./context/modules/useSettingsState";
 import { usePreferencesState } from "./context/modules/usePreferencesState";
 import { useWrittenSessionState } from "./context/modules/useWrittenSessionState";
@@ -480,11 +481,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         },
       };
 
-      setSavedSets((prev) => {
-        const remaining = prev.filter((entry) => entry.id !== savedSetId);
-        return applySavedSetLimit([nextEntry, ...remaining]);
-      });
+      // compute next saved sets and persist immediately for explicit save
+      const nextSavedSets = applySavedSetLimit([nextEntry, ...savedSets.filter((entry) => entry.id !== savedSetId)]);
+      setSavedSets(nextSavedSets);
       setActiveWrittenSavedSetId(savedSetId);
+
+      const nextPersisted = { ...persistedSnapshot, savedSets: nextSavedSets };
+      void savePersistedAppState(nextPersisted).catch(() => setErrorMessage((current) => current ?? "Could not save app data."));
       return savedSetId;
     }
 
@@ -512,11 +515,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
     };
 
-    setSavedSets((prev) => {
-      const remaining = prev.filter((entry) => entry.id !== savedSetId);
-      return applySavedSetLimit([nextEntry, ...remaining]);
-    });
+    const nextSavedSets = applySavedSetLimit([nextEntry, ...savedSets.filter((entry) => entry.id !== savedSetId)]);
+    setSavedSets(nextSavedSets);
     setActiveMcSavedSetId(savedSetId);
+
+    const nextPersisted = { ...persistedSnapshot, savedSets: nextSavedSets };
+    void savePersistedAppState(nextPersisted).catch(() => setErrorMessage((current) => current ?? "Could not save app data."));
     return savedSetId;
   }
 
@@ -524,6 +528,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const entry = savedSets.find((candidate) => candidate.id === savedSetId);
     if (!entry) {
       return;
+    }
+    // If user has an active non-empty session that isn't already the target saved set,
+    // offer to save current work first (OK = save & load, Cancel = abort).
+    const hasUnsaved = (questionMode === "written" ? questions.length > 0 : mcQuestions.length > 0) &&
+      !(entry.id === (questionMode === "written" ? activeWrittenSavedSetId : activeMcSavedSetId));
+
+    if (hasUnsaved) {
+      const doSaveAndLoad = confirmAction("You have unsaved work. Click OK to save current session and load the selected set, or Cancel to abort.");
+      if (!doSaveAndLoad) return;
+      // attempt to save current session before loading
+      try { saveCurrentSet(); } catch { /* ignore */ }
     }
 
     startTransition(() => {

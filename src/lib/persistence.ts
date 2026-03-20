@@ -105,6 +105,11 @@ export async function savePersistedAppState(state: PersistedAppState): Promise<v
   window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
 }
 
+// Convenience helper to persist immediately from other modules.
+export async function persistNow(state: PersistedAppState): Promise<void> {
+  return savePersistedAppState(state);
+}
+
 export function normalizePersistedAppState(raw: unknown): PersistedAppState {
   const data = isRecord(raw) ? raw : {};
 

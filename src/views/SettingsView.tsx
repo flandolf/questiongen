@@ -4,13 +4,12 @@ import { useAppSettings } from "../AppContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../components/ui/card";
-import { Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Clock, Database, Settings } from "lucide-react";
+import { Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Clock, Database, Settings, Key, Cpu, CreditCard, Palette, ChevronRight, CheckCircle2, AlertCircle } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { readBackendError } from "../lib/app-utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 // ─── Types matching Rust structs ──────────────────────────────────────────────
 
@@ -36,7 +35,7 @@ interface CreditsInfo {
 function formatPrice(pricePerToken: number | null): string {
   if (pricePerToken === null) return "—";
   const perMillion = pricePerToken * 1_000_000;
-  return `$${perMillion.toFixed(2)}/M tokens`;
+  return `$${perMillion.toFixed(2)}/M`;
 }
 
 function formatTps(tps: number | null): string {
@@ -64,42 +63,158 @@ function formatUptime(pct: number | null): string {
 
 function formatLastUpdated(date: Date | null): string {
   if (!date) return "";
-  return `Updated ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
-}
-
-// ─── Stat row ─────────────────────────────────────────────────────────────────
-
-function StatRow({ icon, label, value, dimmed }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  dimmed?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <span className={`text-sm font-medium tabular-nums ${dimmed ? "text-muted-foreground" : ""}`}>
-        {value}
-      </span>
-    </div>
-  );
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRESET_MODELS = [
-  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
-  { id: "qwen/qwen3.5-9b", name: "Qwen 3.5 9B" },
-  { id: "qwen/qwen3.5-35b-a3b", name: "Qwen 3.5 35B" },
-  { id: "nvidia/nemotron-3-super-120b-a12b:freeze", name: "Nemotron 3 Super 120B" },
+  { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
+  { id: "nvidia/nemotron-3-super-120b-a12b:nitro", name: "Nemotron 3 Super 120B (Nitro)" },
+  { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
   { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
-  { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
-  { id: "custom", name: "Custom..." },
+  { id: "qwen/qwen3.5-9b", name: "Qwen 3.5 9B" },
+  { id: "qwen/qwen3.5-35b-a3b", name: "Qwen 3.5 35B" },
+  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
+  { id: "custom", name: "Custom…" },
 ];
+
+type Section = "api" | "models" | "credits" | "appearance" | "debug";
+
+const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode; description: string }[] = [
+  { id: "api", label: "API Key", icon: <Key className="h-4 w-4" />, description: "OpenRouter credentials" },
+  { id: "models", label: "Models", icon: <Cpu className="h-4 w-4" />, description: "Generation & marking models" },
+  { id: "credits", label: "Credits", icon: <CreditCard className="h-4 w-4" />, description: "Account balance" },
+  { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" />, description: "Theme preferences" },
+  { id: "debug", label: "Debug", icon: <Bug className="h-4 w-4" />, description: "Developer tools" },
+];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SectionHeader({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+    </div>
+  );
+}
+
+function FieldGroup({ label, htmlFor, hint, children }: {
+  label: string;
+  htmlFor?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={htmlFor} className="text-sm font-medium">{label}</Label>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="border-t border-border my-6" />;
+}
+
+function StatusBadge({ value }: { value: string | boolean | null; loading?: boolean }) {
+  if (value === null) return <span className="text-muted-foreground tabular-nums text-sm">—</span>;
+  if (typeof value === "boolean") {
+    return value
+      ? <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-sm"><CheckCircle2 className="h-3.5 w-3.5" />Yes</span>
+      : <span className="inline-flex items-center gap-1 text-muted-foreground text-sm"><AlertCircle className="h-3.5 w-3.5" />No</span>;
+  }
+  return <span className="tabular-nums text-sm font-medium">{value}</span>;
+}
+
+function StatsTable({
+  primary,
+  secondary,
+  primaryLabel,
+  secondaryLabel,
+  loading,
+  secondaryLoading,
+}: {
+  primary: ModelStats | null;
+  secondary: ModelStats | null;
+  primaryLabel: string;
+  secondaryLabel?: string;
+  loading: boolean;
+  secondaryLoading?: boolean;
+}) {
+  const showSecondary = !!secondaryLabel;
+  const rows: { icon: React.ReactNode; label: string; pVal: (s: ModelStats) => string | boolean | null }[] = [
+    { icon: <Zap className="h-3.5 w-3.5" />, label: "Throughput (p50)", pVal: s => formatTps(s.tpsP50) },
+    { icon: <Clock className="h-3.5 w-3.5" />, label: "Latency TTFT (p50)", pVal: s => formatLatency(s.latencyP50) },
+    { icon: <DollarSign className="h-3.5 w-3.5" />, label: "Input price", pVal: s => formatPrice(s.promptPricePerToken) },
+    { icon: <DollarSign className="h-3.5 w-3.5" />, label: "Output price", pVal: s => formatPrice(s.completionPricePerToken) },
+    { icon: <Database className="h-3.5 w-3.5" />, label: "Context window", pVal: s => formatContext(s.contextLength) },
+    { icon: <Clock className="h-3.5 w-3.5" />, label: "Uptime (30m)", pVal: s => formatUptime(s.uptimeLast30m) },
+    { icon: <Settings className="h-3.5 w-3.5" />, label: "Structured output", pVal: s => s.supportsStructuredOutput },
+  ];
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      {/* Header */}
+      <div className={cn("grid text-xs font-medium text-muted-foreground bg-muted/50 px-4 py-2.5 border-b border-border", showSecondary ? "grid-cols-3" : "grid-cols-2")}>
+        <span>Metric</span>
+        <span className="truncate">{primaryLabel || "Generation"}</span>
+        {showSecondary && <span className="truncate">{secondaryLabel}</span>}
+      </div>
+      {/* Rows */}
+      {rows.map((row, i) => (
+        <div
+          key={i}
+          className={cn(
+            "grid items-center px-4 py-3 text-sm border-b border-border last:border-0",
+            showSecondary ? "grid-cols-3" : "grid-cols-2",
+            i % 2 === 0 ? "bg-background" : "bg-muted/20"
+          )}
+        >
+          <span className="flex items-center gap-2 text-muted-foreground">
+            {row.icon}
+            {row.label}
+          </span>
+          <span>
+            {loading ? (
+              <span className="text-muted-foreground animate-pulse">Loading…</span>
+            ) : primary ? (
+              <StatusBadge value={row.pVal(primary)} />
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </span>
+          {showSecondary && (
+            <span>
+              {secondaryLoading ? (
+                <span className="text-muted-foreground animate-pulse">Loading…</span>
+              ) : secondary ? (
+                <StatusBadge value={row.pVal(secondary)} />
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CreditBar({ used, total }: { used: number; total: number }) {
+  const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+  return (
+    <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+      <div
+        className="h-full rounded-full bg-primary transition-all duration-500"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -114,12 +229,15 @@ export function SettingsView() {
     debugMode, setDebugMode,
   } = useAppSettings();
 
+  const [activeSection, setActiveSection] = useState<Section>("api");
+
   const [localKey, setLocalKey] = useState(apiKey);
   const [localModel, setLocalModel] = useState(model);
   const [localMarkingModel, setLocalMarkingModel] = useState(markingModel);
   const [localUseSeparateMarkingModel, setLocalUseSeparateMarkingModel] = useState(useSeparateMarkingModel);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customModelId, setCustomModelId] = useState("");
+  const [keySaved, setKeySaved] = useState(false);
 
   const [modelStats, setModelStats] = useState<ModelStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -138,35 +256,13 @@ export function SettingsView() {
   // Sync local state on first hydration
   useEffect(() => { setLocalKey(apiKey); }, [apiKey]);
   useEffect(() => { setLocalModel(model); }, [model]);
-    useEffect(() => { setLocalMarkingModel(markingModel); }, [markingModel]);
-    useEffect(() => { setLocalUseSeparateMarkingModel(useSeparateMarkingModel); }, [useSeparateMarkingModel]);
+  useEffect(() => { setLocalMarkingModel(markingModel); }, [markingModel]);
+  useEffect(() => { setLocalUseSeparateMarkingModel(useSeparateMarkingModel); }, [useSeparateMarkingModel]);
 
-  // Auto-save models when the user changes them (no need to press "Save Settings")
-  useEffect(() => {
-    if (localModel && localModel !== model) {
-      setModel(localModel);
-    }
-  }, [localModel, model, setModel]);
-
-  useEffect(() => {
-    if (localMarkingModel && localMarkingModel !== markingModel) {
-      setMarkingModel(localMarkingModel);
-    }
-  }, [localMarkingModel, markingModel, setMarkingModel]);
-
-  // Auto-save API key when it changes locally
-  useEffect(() => {
-    if (localKey !== apiKey) {
-      setApiKey(localKey);
-    }
-  }, [localKey, apiKey, setApiKey]);
-
-  // Auto-save the "use separate marking model" toggle
-  useEffect(() => {
-    if (localUseSeparateMarkingModel !== useSeparateMarkingModel) {
-      setUseSeparateMarkingModel(localUseSeparateMarkingModel);
-    }
-  }, [localUseSeparateMarkingModel, useSeparateMarkingModel, setUseSeparateMarkingModel]);
+  // Auto-save models
+  useEffect(() => { if (localModel && localModel !== model) setModel(localModel); }, [localModel, model, setModel]);
+  useEffect(() => { if (localMarkingModel && localMarkingModel !== markingModel) setMarkingModel(localMarkingModel); }, [localMarkingModel, markingModel, setMarkingModel]);
+  useEffect(() => { if (localUseSeparateMarkingModel !== useSeparateMarkingModel) setUseSeparateMarkingModel(localUseSeparateMarkingModel); }, [localUseSeparateMarkingModel, useSeparateMarkingModel, setUseSeparateMarkingModel]);
 
   // ── Fetch helpers ──────────────────────────────────────────────────────────
 
@@ -174,7 +270,7 @@ export function SettingsView() {
     if (!key.trim() || !modelId.trim() || modelId === "custom") return;
     setStatsLoading(true);
     setStatsError(null);
-    setModelStats(null); // clear stale data immediately
+    setModelStats(null);
     try {
       const stats = await invoke<ModelStats>("get_model_stats", { apiKey: key, modelId });
       setModelStats(stats);
@@ -183,6 +279,22 @@ export function SettingsView() {
       setStatsError(readBackendError(err));
     } finally {
       setStatsLoading(false);
+    }
+  }, []);
+
+  const fetchMarkingModelStats = useCallback(async (key: string, modelId: string) => {
+    if (!key.trim() || !modelId.trim() || modelId === "custom") return;
+    setMarkingStatsLoading(true);
+    setMarkingStatsError(null);
+    setMarkingModelStats(null);
+    try {
+      const stats = await invoke<ModelStats>("get_model_stats", { apiKey: key, modelId });
+      setMarkingModelStats(stats);
+      setMarkingStatsUpdatedAt(new Date());
+    } catch (err) {
+      setMarkingStatsError(readBackendError(err));
+    } finally {
+      setMarkingStatsLoading(false);
     }
   }, []);
 
@@ -202,448 +314,411 @@ export function SettingsView() {
     }
   }, []);
 
-  // Fetch stats whenever the committed model changes (covers initial load + saves)
-  useEffect(() => {
-    if (apiKey && model) {
-      fetchModelStats(apiKey, model);
-    }
-  }, [apiKey, model, fetchModelStats]);
-
-  // Fetch stats for committed marking model when separate-marking toggle is enabled
-  useEffect(() => {
-    if (apiKey && useSeparateMarkingModel && markingModel) {
-      // fetch stats for committed marking model
-      (async () => {
-        setMarkingStatsLoading(true);
-        setMarkingStatsError(null);
-        setMarkingModelStats(null);
-        try {
-          const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: markingModel });
-          setMarkingModelStats(stats);
-          setMarkingStatsUpdatedAt(new Date());
-        } catch (err) {
-          setMarkingStatsError(readBackendError(err));
-        } finally {
-          setMarkingStatsLoading(false);
-        }
-      })();
-    }
-  }, [apiKey, useSeparateMarkingModel, markingModel]);
-
-  // Fetch credits on initial load only (user refreshes manually after that)
-  useEffect(() => {
-    if (apiKey) {
-      fetchCredits(apiKey);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey]); // intentionally omit fetchCredits — only re-run when key changes
-
-  // Fetch model stats immediately when localModel changes, using the committed key
-  useEffect(() => {
-    if (apiKey && localModel && localModel !== "custom") {
-      fetchModelStats(apiKey, localModel);
-    }
-  }, [localModel, apiKey, fetchModelStats]);
-
-  // Fetch model stats immediately when local marking model changes (if toggle enabled)
-  useEffect(() => {
-    if (apiKey && localUseSeparateMarkingModel && localMarkingModel && localMarkingModel !== "custom") {
-      (async () => {
-        setMarkingStatsLoading(true);
-        setMarkingStatsError(null);
-        setMarkingModelStats(null);
-        try {
-          const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: localMarkingModel });
-          setMarkingModelStats(stats);
-          setMarkingStatsUpdatedAt(new Date());
-        } catch (err) {
-          setMarkingStatsError(readBackendError(err));
-        } finally {
-          setMarkingStatsLoading(false);
-        }
-      })();
-    }
-  }, [localMarkingModel, apiKey, localUseSeparateMarkingModel]);
+  useEffect(() => { if (apiKey && model) fetchModelStats(apiKey, model); }, [apiKey, model, fetchModelStats]);
+  useEffect(() => { if (apiKey && useSeparateMarkingModel && markingModel) fetchMarkingModelStats(apiKey, markingModel); }, [apiKey, useSeparateMarkingModel, markingModel, fetchMarkingModelStats]);
+  useEffect(() => { if (apiKey) fetchCredits(apiKey); }, [apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (apiKey && localModel && localModel !== "custom") fetchModelStats(apiKey, localModel); }, [localModel, apiKey, fetchModelStats]);
+  useEffect(() => { if (apiKey && localUseSeparateMarkingModel && localMarkingModel && localMarkingModel !== "custom") fetchMarkingModelStats(apiKey, localMarkingModel); }, [localMarkingModel, apiKey, localUseSeparateMarkingModel, fetchMarkingModelStats]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  function handleSave() {
+  function handleSaveKey() {
     setApiKey(localKey);
-    setModel(localModel);
-    setMarkingModel(localMarkingModel);
-    setUseSeparateMarkingModel(localUseSeparateMarkingModel);
+    setKeySaved(true);
+    setTimeout(() => setKeySaved(false), 2000);
   }
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   const isPreset = PRESET_MODELS.some((m) => m.id === localModel && m.id !== "custom");
   const selectValue = isPreset ? localModel : (showCustomInput ? "custom" : localModel);
 
-  return (
-    <div className="min-w-full p-4.5 mx-auto flex flex-col gap-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-2">Manage your OpenRouter API key and model preferences.</p>
-      </div>
+  // ── Render sections ────────────────────────────────────────────────────────
 
-      {/* ── API Key ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>OpenRouter API Key</CardTitle>
-          <CardDescription>
-            Required for question generation, marking, and account info.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="api-key">API Key</Label>
-            <div className="relative">
-              <Input
-                id="api-key"
-                type={showApiKey ? "text" : "password"}
-                value={localKey}
-                onChange={(e) => setLocalKey(e.target.value)}
-                placeholder="sk-or-v1-..."
-                className="pr-10"
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => setShowApiKey(!showApiKey)}
-              >
-                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+  function renderSection() {
+    switch (activeSection) {
+
+      case "api":
+        return (
+          <div>
+            <SectionHeader title="OpenRouter API Key" description="Required for question generation, marking, and account info." />
+            <FieldGroup label="API Key" htmlFor="api-key" hint="Your key is stored locally and never sent anywhere except OpenRouter.">
+              <div className="relative">
+                <Input
+                  id="api-key"
+                  type={showApiKey ? "text" : "password"}
+                  value={localKey}
+                  onChange={(e) => setLocalKey(e.target.value)}
+                  placeholder="sk-or-v1-…"
+                  className="pr-10 font-mono text-sm"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                >
+                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </FieldGroup>
+
+            <div className="mt-5 flex items-center gap-3">
+              <Button onClick={handleSaveKey} className="gap-2">
+                {keySaved ? <CheckCircle2 className="h-4 w-4" /> : <Key className="h-4 w-4" />}
+                {keySaved ? "Saved!" : "Save Key"}
+              </Button>
+              <Button variant="ghost" onClick={clearApiKey} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                Clear Key
+              </Button>
             </div>
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={clearApiKey}>Clear Key</Button>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </CardFooter>
-      </Card>
+        );
 
-      {/* ── Separate Marking Model ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Separate Marking Model</CardTitle>
-          <CardDescription>Optionally use a different model for marking student answers.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Checkbox
-              id="use-separate-marking-model"
-              checked={localUseSeparateMarkingModel}
-              onCheckedChange={(checked) => setLocalUseSeparateMarkingModel(!!checked)}
-            />
-            <Label htmlFor="use-separate-marking-model">Use separate model for marking</Label>
-          </div>
+      case "models":
+        return (
+          <div className="space-y-3">
+            {/* Generation model */}
+            <div>
+              <SectionHeader title="Generation Model" description="Used to generate questions and content." />
+              <FieldGroup label="Model" htmlFor="model-select">
+                <Select
+                  value={selectValue}
+                  onValueChange={(value) => {
+                    if (value === "custom") {
+                      setShowCustomInput(true);
+                    } else {
+                      setShowCustomInput(false);
+                      setLocalModel(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="model-select" className="w-full">
+                    <SelectValue placeholder="Select a model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRESET_MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
 
-          {localUseSeparateMarkingModel && (
-            <div className="space-y-2">
-              <Label htmlFor="marking-model-select">Marking model</Label>
-              <Select
-                value={PRESET_MODELS.some((m) => m.id === localMarkingModel && m.id !== "custom") ? localMarkingModel : (localMarkingModel === "custom" ? "custom" : localMarkingModel)}
-                onValueChange={(value) => {
-                  if (value === "custom") {
-                    // reveal custom input by setting to custom sentinel
-                    setLocalMarkingModel("custom");
-                  } else {
-                    setLocalMarkingModel(value);
-                  }
-                }}
-              >
-                <SelectTrigger id="marking-model-select">
-                  <SelectValue placeholder="Select a model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRESET_MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {localMarkingModel === "custom" && (
-                <div className="mt-2 space-y-2">
-                  <Label htmlFor="custom-marking-model-id">Custom Marking Model ID</Label>
-                  <Input
-                    id="custom-marking-model-id"
-                    value={customModelId}
-                    onChange={(e) => setCustomModelId(e.target.value)}
-                    placeholder="e.g. openai/gpt-4o"
-                  />
+              {showCustomInput && (
+                <div className="mt-3 p-4 rounded-lg border border-dashed border-border space-y-3">
+                  <FieldGroup label="Custom Model ID" htmlFor="custom-model-id" hint="Format: provider/model-name (e.g. openai/gpt-4o)">
+                    <Input
+                      id="custom-model-id"
+                      value={customModelId}
+                      onChange={(e) => setCustomModelId(e.target.value)}
+                      placeholder="e.g. openai/gpt-4o"
+                      className="font-mono text-sm"
+                    />
+                  </FieldGroup>
                   <Button
-                    className="mt-2"
+                    size="sm"
                     disabled={!customModelId.trim()}
-                    onClick={() => {
-                      setLocalMarkingModel(customModelId.trim());
-                    }}
+                    onClick={() => { setLocalModel(customModelId.trim()); setShowCustomInput(false); }}
                   >
-                    Use Custom Marking Model
+                    Apply
                   </Button>
                 </div>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* ── Model Selection ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Model Selection</CardTitle>
-          <CardDescription>
-            Which OpenRouter model to use for generation and marking.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Label htmlFor="model-select">Model</Label>
-          <Select
-            value={selectValue}
-            onValueChange={(value) => {
-              if (value === "custom") {
-                setShowCustomInput(true);
-              } else {
-                setShowCustomInput(false);
-                setLocalModel(value);
-              }
-            }}
-          >
-            <SelectTrigger id="model-select">
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {PRESET_MODELS.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Divider />
 
-          {showCustomInput && (
-            <div className="mt-2 space-y-2">
-              <Label htmlFor="custom-model-id">Custom Model ID</Label>
-              <Input
-                id="custom-model-id"
-                value={customModelId}
-                onChange={(e) => setCustomModelId(e.target.value)}
-                placeholder="e.g. openai/gpt-4o"
-              />
+            {/* Marking model */}
+            <div>
+              <SectionHeader title="Marking Model" description="Optionally use a separate model for grading student answers." />
+
+              <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-muted/50">
+                <Checkbox
+                  id="use-separate-marking-model"
+                  checked={localUseSeparateMarkingModel}
+                  onCheckedChange={(checked) => setLocalUseSeparateMarkingModel(!!checked)}
+                />
+                <div>
+                  <Label htmlFor="use-separate-marking-model" className="font-medium cursor-pointer">Use a separate marking model</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">When disabled, the generation model is used for marking too.</p>
+                </div>
+              </div>
+
+              {localUseSeparateMarkingModel && (
+                <div className="space-y-3 pl-0">
+                  <FieldGroup label="Marking model" htmlFor="marking-model-select">
+                    <Select
+                      value={PRESET_MODELS.some((m) => m.id === localMarkingModel && m.id !== "custom") ? localMarkingModel : localMarkingModel}
+                      onValueChange={(value) => {
+                        setLocalMarkingModel(value === "custom" ? "custom" : value);
+                      }}
+                    >
+                      <SelectTrigger id="marking-model-select" className="w-full">
+                        <SelectValue placeholder="Select a model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRESET_MODELS.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+
+                  {localMarkingModel === "custom" && (
+                    <div className="p-4 rounded-lg border border-dashed border-border space-y-3">
+                      <FieldGroup label="Custom Marking Model ID" htmlFor="custom-marking-model-id" hint="Format: provider/model-name">
+                        <Input
+                          id="custom-marking-model-id"
+                          value={customModelId}
+                          onChange={(e) => setCustomModelId(e.target.value)}
+                          placeholder="e.g. openai/gpt-4o"
+                          className="font-mono text-sm"
+                        />
+                      </FieldGroup>
+                      <Button
+                        size="sm"
+                        disabled={!customModelId.trim()}
+                        onClick={() => setLocalMarkingModel(customModelId.trim())}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Divider />
+
+            {/* Stats */}
+            <div>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-semibold tracking-tight">Live Stats</h2>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Performance and pricing for the selected models.</p>
+                  {(statsUpdatedAt || markingStatsUpdatedAt) && (
+                    <p className="mt-0.5 text-xs text-muted-foreground/60">
+                      Updated {formatLastUpdated(statsUpdatedAt || markingStatsUpdatedAt)}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0 ml-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={statsLoading || !apiKey || !localModel || localModel === "custom"}
+                    onClick={() => fetchModelStats(apiKey, localModel)}
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", statsLoading && "animate-spin")} />
+                    {localUseSeparateMarkingModel ? "Generation" : "Refresh"}
+                  </Button>
+                  {localUseSeparateMarkingModel && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={markingStatsLoading || !apiKey || !localMarkingModel || localMarkingModel === "custom"}
+                      onClick={() => fetchMarkingModelStats(apiKey, localMarkingModel)}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", markingStatsLoading && "animate-spin")} />
+                      Marking
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {(statsError || markingStatsError) && (
+                <div className="mb-3 space-y-1.5">
+                  {statsError && (
+                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                      <AlertCircle className="h-4 w-4 shrink-0" />{statsError}
+                    </div>
+                  )}
+                  {markingStatsError && (
+                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                      <AlertCircle className="h-4 w-4 shrink-0" />{markingStatsError}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!apiKey ? (
+                <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-4 py-3">
+                  Save your API key to load model stats.
+                </div>
+              ) : (
+                <StatsTable
+                  primary={modelStats}
+                  secondary={localUseSeparateMarkingModel ? markingModelStats : null}
+                  primaryLabel={localModel || "Generation model"}
+                  secondaryLabel={localUseSeparateMarkingModel ? (localMarkingModel || "Marking model") : undefined}
+                  loading={statsLoading}
+                  secondaryLoading={markingStatsLoading}
+                />
+              )}
+            </div>
+          </div>
+        );
+
+      case "credits":
+        return (
+          <div>
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Account Credits</h2>
+                <p className="mt-1 text-sm text-muted-foreground">OpenRouter credit balance for the current API key.</p>
+                {creditsUpdatedAt && !creditsLoading && (
+                  <p className="mt-1 text-xs text-muted-foreground/60">Updated {formatLastUpdated(creditsUpdatedAt)}</p>
+                )}
+              </div>
               <Button
-                className="mt-2"
-                disabled={!customModelId.trim()}
-                onClick={() => {
-                  setLocalModel(customModelId.trim());
-                  setShowCustomInput(false);
-                }}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={creditsLoading || !apiKey}
+                onClick={() => fetchCredits(apiKey)}
               >
-                Use Custom Model
+                <RefreshCw className={cn("h-3.5 w-3.5", creditsLoading && "animate-spin")} />
+                Refresh
               </Button>
             </div>
-          )}
-        </CardContent>
-        <CardFooter>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </CardFooter>
-      </Card>
 
-      {/* ── Combined Model Stats Table ── */}
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-2">
-          <div>
-            <CardTitle>Model Stats</CardTitle>
-            <CardDescription>
-              Live performance and pricing for selected models.
-              {statsUpdatedAt && !statsLoading && (
-                <span className="ml-2 text-xs text-muted-foreground/70">{formatLastUpdated(statsUpdatedAt)}</span>
-              )}
-              {markingStatsUpdatedAt && !markingStatsLoading && (
-                <span className="ml-2 text-xs text-muted-foreground/70">{formatLastUpdated(markingStatsUpdatedAt)}</span>
-              )}
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0"
-              disabled={statsLoading || !apiKey || !localModel || localModel === "custom"}
-              onClick={() => fetchModelStats(apiKey, localModel)}
-              title="Refresh model stats"
-            >
-              <RefreshCw className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`} />
-            </Button>
-            {localUseSeparateMarkingModel && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0"
-                disabled={markingStatsLoading || !apiKey || !localMarkingModel || localMarkingModel === "custom"}
-                onClick={() => {
-                  if (apiKey && localMarkingModel) {
-                    void (async () => {
-                      setMarkingStatsLoading(true);
-                      setMarkingStatsError(null);
-                      setMarkingModelStats(null);
-                      try {
-                        const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: localMarkingModel });
-                        setMarkingModelStats(stats);
-                        setMarkingStatsUpdatedAt(new Date());
-                      } catch (err) {
-                        setMarkingStatsError(readBackendError(err));
-                      } finally {
-                        setMarkingStatsLoading(false);
-                      }
-                    })();
-                  }
-                }}
-                title="Refresh marking model stats"
-              >
-                <RefreshCw className={`h-4 w-4 ${markingStatsLoading ? "animate-spin" : ""}`} />
-              </Button>
+            {creditsError && (
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 mb-4">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {creditsError}
+              </div>
+            )}
+
+            {!credits && !creditsLoading && !creditsError && (
+              <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg px-4 py-3">
+                {apiKey ? "Click refresh to load credit info." : "Save your API key to load credit info."}
+              </div>
+            )}
+
+            {creditsLoading && (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
+                ))}
+              </div>
+            )}
+
+            {credits && !creditsLoading && (
+              <div className="space-y-6">
+                {/* Usage bar */}
+                <div className="p-5 rounded-xl border border-border bg-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Credit usage</span>
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      ${credits.totalUsage.toFixed(4)} / ${credits.totalCredits.toFixed(4)}
+                    </span>
+                  </div>
+                  <CreditBar used={credits.totalUsage} total={credits.totalCredits} />
+                </div>
+
+                {/* Stat rows */}
+                <div className="rounded-lg border border-border overflow-hidden">
+                  {[
+                    { label: "Remaining", value: `$${credits.remaining.toFixed(4)}`, highlight: true },
+                    { label: "Used", value: `$${credits.totalUsage.toFixed(4)}` },
+                    { label: "Purchased", value: `$${credits.totalCredits.toFixed(4)}` },
+                  ].map((row, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "flex items-center justify-between px-4 py-3 text-sm border-b border-border last:border-0",
+                        i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      )}
+                    >
+                      <span className="text-muted-foreground">{row.label}</span>
+                      <span className={cn("tabular-nums font-medium", row.highlight && "text-emerald-600 dark:text-emerald-400")}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-        </CardHeader>
-        <CardContent>
-          {(statsError || markingStatsError) && (
-            <div className="space-y-1">
-              {statsError && <p className="text-sm text-destructive">{statsError}</p>}
-              {markingStatsError && <p className="text-sm text-destructive">{markingStatsError}</p>}
-            </div>
-          )}
+        );
 
-          <Table className="mt-2">
-            <TableHeader>
-              <tr>
-                <TableHead>Metric</TableHead>
-                <TableHead>{localModel || "Generation model"}</TableHead>
-                {localUseSeparateMarkingModel && <TableHead>{localMarkingModel || "Marking model"}</TableHead>}
-              </tr>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><Zap className="h-4 w-4"/> Throughput (p50)</TableCell>
-                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatTps(modelStats.tpsP50) : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatTps(markingModelStats.tpsP50) : "—"}</TableCell>}
-              </TableRow>
-
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><Clock className="h-4 w-4"/> Latency TTFT (p50)</TableCell>
-                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatLatency(modelStats.latencyP50) : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatLatency(markingModelStats.latencyP50) : "—"}</TableCell>}
-              </TableRow>
-
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><DollarSign className="h-4 w-4"/> Input price</TableCell>
-                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatPrice(modelStats.promptPricePerToken) : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatPrice(markingModelStats.promptPricePerToken) : "—"}</TableCell>}
-              </TableRow>
-
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><DollarSign className="h-4 w-4"/> Output price</TableCell>
-                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatPrice(modelStats.completionPricePerToken) : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatPrice(markingModelStats.completionPricePerToken) : "—"}</TableCell>}
-              </TableRow>
-
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><Database className="h-4 w-4"/> Context window</TableCell>
-                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatContext(modelStats.contextLength) : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatContext(markingModelStats.contextLength) : "—"}</TableCell>}
-              </TableRow>
-
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><Clock className="h-4 w-4"/> Uptime (30m)</TableCell>
-                <TableCell>{statsLoading ? "Loading…" : modelStats ? formatUptime(modelStats.uptimeLast30m) : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingStatsLoading ? "Loading…" : markingModelStats ? formatUptime(markingModelStats.uptimeLast30m) : "—"}</TableCell>}
-              </TableRow>
-
-              <TableRow>
-                <TableCell className="flex flex-row items-center gap-2 "><Settings className="h-4 w-4"/> Structured output</TableCell>
-                <TableCell>{modelStats ? (modelStats.supportsStructuredOutput ? "Supported" : "Not supported") : "—"}</TableCell>
-                {localUseSeparateMarkingModel && <TableCell>{markingModelStats ? (markingModelStats.supportsStructuredOutput ? "Supported" : "Not supported") : "—"}</TableCell>}
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* ── Credits ── */}
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-2">
+      case "appearance":
+        return (
           <div>
-            <CardTitle>Account Credits</CardTitle>
-            <CardDescription>
-              OpenRouter credit balance for the current API key.
-              {creditsUpdatedAt && !creditsLoading && (
-                <span className="ml-2 text-xs text-muted-foreground/70">{formatLastUpdated(creditsUpdatedAt)}</span>
-              )}
-            </CardDescription>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            disabled={creditsLoading || !apiKey}
-            onClick={() => fetchCredits(apiKey)}
-            title="Refresh credits"
-          >
-            <RefreshCw className={`h-4 w-4 ${creditsLoading ? "animate-spin" : ""}`} />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {creditsError && (
-            <p className="text-sm text-destructive">{creditsError}</p>
-          )}
-          {!credits && !creditsLoading && !creditsError && (
-            <p className="text-sm text-muted-foreground">
-              {apiKey ? "Click refresh to load credit info." : "Save your API key to load credit info."}
-            </p>
-          )}
-          {creditsLoading && (
-            <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
-          )}
-          {credits && !creditsLoading && (
-            <div className="space-y-0">
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Remaining" value={`$${credits.remaining.toFixed(4)}`} />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Used" value={`$${credits.totalUsage.toFixed(4)}`} dimmed />
-              <StatRow icon={<DollarSign className="h-3.5 w-3.5" />} label="Total purchased" value={`$${credits.totalCredits.toFixed(4)}`} dimmed />
+            <SectionHeader title="Appearance" description="Customize the look and feel of the application." />
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+              <div>
+                <p className="text-sm font-medium">Color theme</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Choose between light, dark, or follow system.</p>
+              </div>
+              <ModeToggle />
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        );
 
-      {/* ── Theme ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Theme</CardTitle>
-          <CardDescription>Toggle between light, dark, or system theme.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ModeToggle />
-        </CardContent>
-      </Card>
+      case "debug":
+        return (
+          <div>
+            <SectionHeader title="Debug Mode" description="Developer tools for inspecting LLM payloads." />
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+              <div>
+                <p className="text-sm font-medium">Raw generation payload</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {debugMode
+                    ? "Enabled — raw LLM output is shown on problem cards."
+                    : "Reveal the raw LLM generation payload from the problem card for prompt inspection."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant={debugMode ? "default" : "outline"}
+                size="sm"
+                className="gap-2 shrink-0 ml-4"
+                onClick={() => setDebugMode(!debugMode)}
+              >
+                <Bug className="h-4 w-4" />
+                {debugMode ? "Disable" : "Enable"}
+              </Button>
+            </div>
+          </div>
+        );
+    }
+  }
 
-      {/* ── Debug Mode ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Debug Mode</CardTitle>
-          <CardDescription>
-            Reveal the raw LLM generation payload from the problem card for prompt inspection.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {debugMode ? "Debug mode is enabled." : "Debug mode is disabled."}
-          </p>
-          <Button
-            type="button"
-            variant={debugMode ? "default" : "outline"}
-            className="gap-2"
-            onClick={() => setDebugMode(!debugMode)}
+  // ── Layout ─────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex h-full min-h-0">
+      {/* Sidebar */}
+      <nav className="w-56 shrink-0 border-r border-border flex flex-col py-4 px-2 gap-0.5">
+        <p className="px-3 mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">Settings</p>
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveSection(item.id)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left group",
+              activeSection === item.id
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
           >
-            <Bug className="h-4 w-4" />
-            {debugMode ? "Disable Debug Mode" : "Enable Debug Mode"}
-          </Button>
-        </CardContent>
-      </Card>
+            <span className={cn(
+              "shrink-0 transition-colors",
+              activeSection === item.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+            )}>
+              {item.icon}
+            </span>
+            <span className="flex-1 truncate">{item.label}</span>
+            {activeSection === item.id && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-primary/60" />}
+          </button>
+        ))}
+      </nav>
+
+      {/* Content */}
+      <main className="flex-1 min-w-0 overflow-y-auto p-8">
+        <div className="max-w-2xl">
+          {renderSection()}
+        </div>
+      </main>
     </div>
   );
 }
