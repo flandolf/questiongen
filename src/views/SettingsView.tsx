@@ -70,6 +70,8 @@ function formatLastUpdated(date: Date | null): string {
 
 const PRESET_MODELS = [
   { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
+  { id: "google/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
+  { id: "google/gemma-3n-e2b-it:free", name: "Gemma 3n E2B IT (Free)" },
   { id: "nvidia/nemotron-3-super-120b-a12b:nitro", name: "Nemotron 3 Super 120B (Nitro)" },
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
