@@ -26,7 +26,6 @@ import {
   Topic,
 } from "./types";
 import { EMPTY_PERSISTED_APP_STATE, loadPersistedAppState, savePersistedAppState } from "./lib/persistence";
-import { confirmAction } from "./lib/app-utils";
 import { useSettingsState } from "./context/modules/useSettingsState";
 import { usePreferencesState } from "./context/modules/usePreferencesState";
 import { useWrittenSessionState } from "./context/modules/useWrittenSessionState";
@@ -112,6 +111,7 @@ interface AppContextState {
   savedSets: SavedQuestionSet[];
   saveCurrentSet: () => string | null;
   loadSavedSet: (savedSetId: string) => void;
+  needsSaveBeforeLoad: (savedSetId: string) => boolean;
   deleteSavedSet: (savedSetId: string) => void;
 
   isGenerating: boolean;
@@ -529,17 +529,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!entry) {
       return;
     }
-    // If user has an active non-empty session that isn't already the target saved set,
-    // offer to save current work first (OK = save & load, Cancel = abort).
-    const hasUnsaved = (questionMode === "written" ? questions.length > 0 : mcQuestions.length > 0) &&
-      !(entry.id === (questionMode === "written" ? activeWrittenSavedSetId : activeMcSavedSetId));
-
-    if (hasUnsaved) {
-      const doSaveAndLoad = confirmAction("You have unsaved work. Click OK to save current session and load the selected set, or Cancel to abort.");
-      if (!doSaveAndLoad) return;
-      // attempt to save current session before loading
-      try { saveCurrentSet(); } catch { /* ignore */ }
-    }
+    // Loading a saved set is unconditional here; callers can check `needsSaveBeforeLoad`
+    // and optionally save before invoking this function.
 
     startTransition(() => {
       setSelectedTopics(entry.preferences.selectedTopics);
@@ -576,6 +567,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveMcSavedSetId(entry.id);
       }
     });
+  }
+
+  function needsSaveBeforeLoad(savedSetId: string) {
+    const entry = savedSets.find((candidate) => candidate.id === savedSetId);
+    if (!entry) return false;
+    const hasUnsaved = (questionMode === "written" ? questions.length > 0 : mcQuestions.length > 0) &&
+      !(entry.id === (questionMode === "written" ? activeWrittenSavedSetId : activeMcSavedSetId));
+    return hasUnsaved;
   }
 
   const setQuestionHistoryWithLimit = useCallback((history: ArrayStateUpdate<QuestionHistoryEntry>) => {
@@ -679,6 +678,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         savedSets,
         saveCurrentSet,
         loadSavedSet,
+        needsSaveBeforeLoad,
         deleteSavedSet,
         isGenerating,
         setIsGenerating,

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -28,6 +28,7 @@ type McSessionHeaderProps = {
   onSave: () => void;
   onDelete: () => void;
   onExit: () => void;
+  onRegenerate?: () => void;
 };
 
 export function McSessionHeader({
@@ -37,6 +38,7 @@ export function McSessionHeader({
   generationStartedAt, formattedElapsedTime, telemetry,
   getDifficultyBadgeClasses,
   onPrev, onNext, onSave, onDelete, onExit, lastSavedAt,
+  onRegenerate,
 }: McSessionHeaderProps) {
   return (
     <div className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-4 pt-2 backdrop-blur-xl">
@@ -92,6 +94,12 @@ export function McSessionHeader({
                 <Bookmark className="w-4 h-4" />
                 <span className="hidden xl:inline">{hasSavedSet ? "Update Saved Set" : "Save for Later"}</span>
               </Button>
+              {onRegenerate && (
+                <Button variant="ghost" size="sm" onClick={onRegenerate} className="shadow-sm">
+                  <RefreshCw className="w-4 h-4 xl:mr-2" />
+                  <span className="hidden xl:inline">Regenerate</span>
+                </Button>
+              )}
               {lastSavedAt && (
                 <span className="ml-2 hidden xl:inline text-xs text-muted-foreground">Saved at {formatDate(lastSavedAt)}</span>
               )}

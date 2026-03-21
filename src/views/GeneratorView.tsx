@@ -24,11 +24,13 @@ import {
   WrittenAttemptKind,
 } from "@/types";
 import {
-  confirmAction,
   fileToDataUrl,
   normalizeMarkResponse,
   readBackendError,
 } from "@/lib/app-utils";
+
+
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 import { SetupPanel } from "@/components/generator/SetupPanel";
 import { CompletionScreen } from "@/components/generator/CompletionScreen";
@@ -131,8 +133,18 @@ export function GeneratorView() {
     errorMessage, setErrorMessage,
   } = useAppContext();
 
+  const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const [pendingCancelType, setPendingCancelType] = useState<null | "written" | "mc">(null);
+
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [, setNow] = useState(Date.now());
+  // Telemetry from the most recently completed generation — survives handleStartOver
+  // so it stays visible on the SetupPanel when the user returns to configure a new set.
+  const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
+    import("@/types").GenerationTelemetry | null
+  >(null);
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -288,33 +300,53 @@ export function GeneratorView() {
   }
 
   function handleCancelWrittenQuestion() {
-    if (!activeQuestion || !confirmAction("Cancel this question? It will be removed from your current set.")) return;
-    const id = activeQuestion.id;
-    const next = questions.filter((q) => q.id !== id);
-    setQuestions(next); setActiveWrittenSavedSetId(null); setShowCompletionScreen(false);
-    setActiveQuestionIndex(Math.min(activeQuestionIndex, Math.max(0, next.length - 1)));
-    setWrittenQuestionPresentedAtById((p) => removeKey(p, id));
-    setAnswersByQuestionId((p) => removeKey(p, id));
-    setImagesByQuestionId((p) => removeKey(p, id));
-    setFeedbackByQuestionId((p) => removeKey(p, id));
-    setMarkAppealByQuestionId((p) => removeKey(p, id));
-    setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
-    setWrittenResponseEnteredAtById((p) => removeKey(p, id));
-    setErrorMessage(null);
+    if (!activeQuestion) return;
+    setConfirmMessage(`Remove question ${activeQuestionIndex + 1} ("${activeQuestion.topic}")? It will be taken out of your current set.`);
+    setPendingCancelType("written");
+    setConfirmOpen(true);
   }
 
   function handleCancelMcQuestion() {
-    if (!activeMcQuestion || !confirmAction("Cancel this question? It will be removed from your current set.")) return;
-    const id = activeMcQuestion.id;
-    const next = mcQuestions.filter((q) => q.id !== id);
-    setMcQuestions(next); setActiveMcSavedSetId(null); setShowCompletionScreen(false);
-    setActiveMcQuestionIndex(Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)));
-    setMcQuestionPresentedAtById((p) => removeKey(p, id));
-    setMcAnswersByQuestionId((p) => removeKey(p, id));
-    setMcMarkAppealByQuestionId((p) => removeKey(p, id));
-    setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
-    setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
-    setErrorMessage(null);
+    if (!activeMcQuestion) return;
+    setConfirmMessage(`Remove question ${activeMcQuestionIndex + 1} ("${activeMcQuestion.topic}")? It will be taken out of your current set.`);
+    setPendingCancelType("mc");
+    setConfirmOpen(true);
+  }
+
+  function performConfirmedCancel() {
+    if (pendingCancelType === "written" && activeQuestion) {
+      const id = activeQuestion.id;
+      const next = questions.filter((q) => q.id !== id);
+      setQuestions(next);
+      setActiveWrittenSavedSetId(null);
+      setShowCompletionScreen(false);
+      setActiveQuestionIndex(Math.min(activeQuestionIndex, Math.max(0, next.length - 1)));
+      setWrittenQuestionPresentedAtById((p) => removeKey(p, id));
+      setAnswersByQuestionId((p) => removeKey(p, id));
+      setImagesByQuestionId((p) => removeKey(p, id));
+      setFeedbackByQuestionId((p) => removeKey(p, id));
+      setMarkAppealByQuestionId((p) => removeKey(p, id));
+      setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+      setWrittenResponseEnteredAtById((p) => removeKey(p, id));
+      setErrorMessage(null);
+    }
+    if (pendingCancelType === "mc" && activeMcQuestion) {
+      const id = activeMcQuestion.id;
+      const next = mcQuestions.filter((q) => q.id !== id);
+      setMcQuestions(next);
+      setActiveMcSavedSetId(null);
+      setShowCompletionScreen(false);
+      setActiveMcQuestionIndex(Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)));
+      setMcQuestionPresentedAtById((p) => removeKey(p, id));
+      setMcAnswersByQuestionId((p) => removeKey(p, id));
+      setMcMarkAppealByQuestionId((p) => removeKey(p, id));
+      setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+      setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
+      setErrorMessage(null);
+    }
+    setPendingCancelType(null);
+    setConfirmOpen(false);
+    setConfirmMessage(null);
   }
 
   // ── Topic / subtopic toggles ─────────────────────────────────────────────────
@@ -407,7 +439,7 @@ export function GeneratorView() {
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
     const hasMath = selectedTopics.some((t) => isMathTopic(t));
-    startStopwatch(); setErrorMessage(null);
+    startStopwatch(); setErrorMessage(null); setLastFailedAction(null);
     setGenerationStatus({ mode: "written", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
     setIsGenerating(true);
     try {
@@ -421,12 +453,19 @@ export function GeneratorView() {
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
         },
       });
-      setQuestions(response.questions); setWrittenRawModelOutput("");
-      setWrittenGenerationTelemetry({
+      const telemetry = {
         durationMs: response.durationMs,
+        promptTokens: response.promptTokens,
+        completionTokens: response.completionTokens,
+        totalTokens: response.totalTokens,
+        estimatedCostUsd: response.estimatedCostUsd,
         distinctnessAvg: response.distinctnessAvg,
         multiStepDepthAvg: response.multiStepDepthAvg,
-      });
+      };
+      console.debug("[GeneratorView] written telemetry received:", telemetry);
+      setQuestions(response.questions); setWrittenRawModelOutput("");
+      setWrittenGenerationTelemetry(telemetry);
+      setLastSessionTelemetry(telemetry);
       setShowWrittenRawOutput(false); setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null);
       setLastSavedAt(null);
       setWrittenQuestionPresentedAtById({}); setWrittenResponseEnteredAtById({});
@@ -435,12 +474,13 @@ export function GeneratorView() {
       resetStopwatch();
       setGenerationStatus({ mode: "written", stage: "failed", message: "Generation failed.", attempt: generationStatus?.attempt ?? 1 });
       setErrorMessage(readBackendError(error));
+      setLastFailedAction("generate-written");
     } finally { setIsGenerating(false); }
   }
 
   async function handleGenerateMcQuestions() {
     if (!canGenerate) return;
-    startStopwatch(); setErrorMessage(null);
+    startStopwatch(); setErrorMessage(null); setLastFailedAction(null);
     setGenerationStatus({ mode: "multiple-choice", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
     setIsGenerating(true);
     try {
@@ -452,12 +492,19 @@ export function GeneratorView() {
           priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
         },
       });
-      setMcQuestions(response.questions); setMcRawModelOutput("");
-      setMcGenerationTelemetry({
+      const mcTelemetry = {
         durationMs: response.durationMs,
+        promptTokens: response.promptTokens,
+        completionTokens: response.completionTokens,
+        totalTokens: response.totalTokens,
+        estimatedCostUsd: response.estimatedCostUsd,
         distinctnessAvg: response.distinctnessAvg,
         multiStepDepthAvg: response.multiStepDepthAvg,
-      });
+      };
+      console.debug("[GeneratorView] MC telemetry received:", mcTelemetry);
+      setMcQuestions(response.questions); setMcRawModelOutput("");
+      setMcGenerationTelemetry(mcTelemetry);
+      setLastSessionTelemetry(mcTelemetry);
       setShowMcRawOutput(false); setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null);
       setLastSavedAt(null);
       setMcQuestionPresentedAtById({}); setMcAnswersByQuestionId({});
@@ -466,13 +513,14 @@ export function GeneratorView() {
       resetStopwatch();
       setGenerationStatus({ mode: "multiple-choice", stage: "failed", message: "Generation failed.", attempt: generationStatus?.attempt ?? 1 });
       setErrorMessage(readBackendError(error));
+      setLastFailedAction("generate-mc");
     } finally { setIsGenerating(false); }
   }
 
   // ── Marking ──────────────────────────────────────────────────────────────────
   async function handleSubmitForMarking() {
     if (!activeQuestion || !canSubmitAnswer) return;
-    setErrorMessage(null); setIsMarking(true);
+    setErrorMessage(null); setIsMarking(true); setLastFailedAction(null);
     try {
       const responseEnteredAtMs = writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
       const markStartedAt = Date.now();
@@ -484,7 +532,7 @@ export function GeneratorView() {
       setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
       setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(response.achievedMarks) }));
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "initial", markingLatencyMs, responseEnteredAtMs });
-    } catch (error) { setErrorMessage(readBackendError(error)); }
+    } catch (error) { setErrorMessage(readBackendError(error)); setLastFailedAction("mark-written"); }
     finally { setIsMarking(false); }
   }
 
@@ -503,7 +551,7 @@ export function GeneratorView() {
     const appealText = activeMarkAppeal.trim();
     if (!appealText) { setErrorMessage("Enter your argument before requesting a re-mark."); return; }
     if (!apiKey.trim() || !markModel.trim()) { setErrorMessage("Configure API key and model before requesting a re-mark."); return; }
-    setErrorMessage(null); setIsMarking(true);
+    setErrorMessage(null); setIsMarking(true); setLastFailedAction(null);
     try {
       const responseEnteredAtMs = Date.now(); const markStartedAt = Date.now();
       const arguedAnswer = [activeQuestionAnswer, `Additional marking argument from student:\n${appealText}`].filter((p) => p.trim()).join("\n\n");
@@ -514,7 +562,7 @@ export function GeneratorView() {
       setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
       setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(response.achievedMarks) }));
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "appeal", markingLatencyMs: Date.now() - markStartedAt, responseEnteredAtMs });
-    } catch (error) { setErrorMessage(readBackendError(error)); }
+    } catch (error) { setErrorMessage(readBackendError(error)); setLastFailedAction("mark-written"); }
     finally { setIsMarking(false); }
   }
 
@@ -616,9 +664,23 @@ export function GeneratorView() {
     <div className="min-h-full w-full p-3 sm:p-4 lg:p-6 flex flex-col gap-6 animate-in fade-in duration-500">
 
       {errorMessage && (
-        <div className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm">
+        <div role="alert" aria-live="assertive" className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm">
           <XCircle className="w-5 h-5 shrink-0" />
-          <p className="font-medium">{errorMessage}</p>
+          <p className="font-medium flex-1">{errorMessage}</p>
+          {lastFailedAction && (
+            <button
+              type="button"
+              onClick={() => {
+                if (lastFailedAction === "generate-written") handleGenerateQuestions();
+                else if (lastFailedAction === "generate-mc") handleGenerateMcQuestions();
+                else if (lastFailedAction === "mark-written") handleSubmitForMarking();
+                setLastFailedAction(null);
+              }}
+              className="ml-2 text-sm text-destructive underline"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
@@ -644,6 +706,7 @@ export function GeneratorView() {
           generationStartedAt={generationStartedAt}
           formattedElapsedTime={formattedElapsedTime}
           onGenerate={questionMode === "written" ? handleGenerateQuestions : handleGenerateMcQuestions}
+          lastGenerationTelemetry={lastSessionTelemetry}
         />
 
         /* ── Completion ── */
@@ -789,6 +852,16 @@ export function GeneratorView() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmOpen}
+        title="Remove question"
+        description={confirmMessage ?? undefined}
+        confirmText="Remove"
+        cancelText="Keep"
+        onConfirm={performConfirmedCancel}
+        onCancel={() => { setConfirmOpen(false); setPendingCancelType(null); setConfirmMessage(null); }}
+      />
     </div>
   );
 }

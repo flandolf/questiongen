@@ -1,6 +1,6 @@
+use crate::models::{AppError, CommandResult};
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
-use crate::models::{AppError, CommandResult};
 
 const OPENROUTER_BASE: &str = "https://openrouter.ai/api/v1";
 
@@ -93,11 +93,12 @@ struct CreditsData {
 /// Split `"author/slug"` into `("author", "slug")`.
 /// Handles models with extra path segments by splitting on the first `/` only.
 fn split_model_id(model_id: &str) -> CommandResult<(&str, &str)> {
-    model_id.split_once('/')
-        .ok_or_else(|| AppError::new(
+    model_id.split_once('/').ok_or_else(|| {
+        AppError::new(
             "VALIDATION_ERROR",
             format!("Model ID '{model_id}' must be in 'author/slug' format."),
-        ))
+        )
+    })
 }
 
 fn parse_price(s: Option<&String>) -> Option<f64> {
@@ -175,9 +176,9 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         }
 
         // Structured output support
-        if ep.supported_parameters.as_deref()
-            .map_or(false, |params| params.iter().any(|p| p == "response_format"))
-        {
+        if ep.supported_parameters.as_deref().map_or(false, |params| {
+            params.iter().any(|p| p == "response_format")
+        }) {
             supports_structured = true;
         }
 
@@ -238,4 +239,29 @@ pub async fn get_credits(api_key: String) -> CommandResult<CreditsInfo> {
         total_usage: d.total_usage,
         remaining: d.total_credits - d.total_usage,
     })
+}
+
+/// Compute the estimated USD cost of a generation call.
+///
+/// Returns `None` if either token count or either price is unavailable.
+pub fn compute_generation_cost(
+    prompt_tokens: Option<u64>,
+    completion_tokens: Option<u64>,
+    prompt_price_per_token: Option<f64>,
+    completion_price_per_token: Option<f64>,
+) -> Option<f64> {
+    let mut total_cost = 0f64;
+    let mut has_cost = false;
+
+    if let (Some(price), Some(tokens)) = (prompt_price_per_token, prompt_tokens) {
+        total_cost += price * tokens as f64;
+        has_cost = true;
+    }
+
+    if let (Some(price), Some(tokens)) = (completion_price_per_token, completion_tokens) {
+        total_cost += price * tokens as f64;
+        has_cost = true;
+    }
+
+    has_cost.then_some(total_cost)
 }

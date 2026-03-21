@@ -295,3 +295,11 @@ function isTauriRuntime(): boolean {
   return typeof runtimeWindow.__TAURI__ !== "undefined"
     || typeof runtimeWindow.__TAURI_INTERNALS__ !== "undefined";
 }
+
+export function formatCostUsd(costUsd: number | null | undefined): string {
+  if (costUsd == null) return "n/a";
+  if (costUsd === 0) return "$0.00";
+  if (costUsd < 0.00001) return "<$0.00001";
+  if (costUsd < 0.01) return `$${costUsd.toFixed(5)}`;
+  return `$${costUsd.toFixed(4)}`;
+}

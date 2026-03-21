@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -29,6 +29,7 @@ type WrittenSessionHeaderProps = {
   onSave: () => void;
   onDelete: () => void;
   onExit: () => void;
+  onRegenerate?: () => void;
 };
 
 export function WrittenSessionHeader({
@@ -93,6 +94,12 @@ export function WrittenSessionHeader({
           <Bookmark className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">{hasSavedSet ? "Update" : "Save"}</span>
         </Button>
+        {onRegenerate && (
+          <Button variant="ghost" size="sm" onClick={onRegenerate} className="h-8">
+            <RefreshCw className="w-3.5 h-3.5 sm:mr-1.5" />
+            <span className="hidden sm:inline">Regenerate</span>
+          </Button>
+        )}
         {lastSavedAt && (
           <span className="ml-2 hidden sm:inline text-xs text-muted-foreground">Saved at {formatDate(lastSavedAt)}</span>
         )}

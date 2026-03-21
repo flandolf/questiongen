@@ -1,4 +1,4 @@
-use crate::models::{AppError, CommandResult, GeneratedQuestion, McQuestion, default_max_marks};
+use crate::models::{default_max_marks, AppError, CommandResult, GeneratedQuestion, McQuestion};
 
 // --- JSON object extraction ---------------------------------------------------
 
@@ -10,25 +10,32 @@ pub fn extract_json_object(content: &str) -> Option<String> {
     // Already a clean object.
     if s.starts_with('{') {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
-            if v.is_object() { return Some(s.to_string()); }
+            if v.is_object() {
+                return Some(s.to_string());
+            }
         }
     }
 
     // Strip ```json ... ``` fences.
     let fence = s
-        .strip_prefix("```json").or_else(|| s.strip_prefix("```"))
+        .strip_prefix("```json")
+        .or_else(|| s.strip_prefix("```"))
         .map(|s| s.trim_start_matches('\n'))
         .and_then(|s| s.strip_suffix("```"))
         .map(str::trim);
     if let Some(inner) = fence {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
-            if v.is_object() { return Some(inner.to_string()); }
+            if v.is_object() {
+                return Some(inner.to_string());
+            }
         }
     }
 
     // Scan for the first parseable object.
     for (i, ch) in content.char_indices() {
-        if ch != '{' { continue; }
+        if ch != '{' {
+            continue;
+        }
         let slice = &content[i..];
         let mut iter = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
         if let Some(Ok(v)) = iter.next() {
@@ -54,13 +61,19 @@ pub fn normalize_envelope(value: serde_json::Value) -> Result<serde_json::Value,
     if map.get("questions").map(|v| v.is_array()).unwrap_or(false) {
         return Ok(serde_json::Value::Object(map));
     }
-    for key in ["question","items","mcQuestions","multipleChoiceQuestions","generatedQuestions"] {
+    for key in [
+        "question",
+        "items",
+        "mcQuestions",
+        "multipleChoiceQuestions",
+        "generatedQuestions",
+    ] {
         if let Some(arr) = map.remove(key).filter(|v| v.is_array()) {
             map.insert("questions".into(), arr);
             return Ok(serde_json::Value::Object(map));
         }
     }
-    for key in ["data","result","output","payload"] {
+    for key in ["data", "result", "output", "payload"] {
         if let Some(serde_json::Value::Object(nested)) = map.get(key) {
             if let Some(arr) = nested.get("questions").filter(|v| v.is_array()).cloned() {
                 map.insert("questions".into(), arr);
@@ -68,7 +81,10 @@ pub fn normalize_envelope(value: serde_json::Value) -> Result<serde_json::Value,
             }
         }
     }
-    Err(format!("No questions array found. Keys: [{}].", map.keys().cloned().collect::<Vec<_>>().join(", ")))
+    Err(format!(
+        "No questions array found. Keys: [{}].",
+        map.keys().cloned().collect::<Vec<_>>().join(", ")
+    ))
 }
 
 // --- Text post-processing pipeline -------------------------------------------
@@ -88,23 +104,28 @@ pub fn decode_escapes(value: &str) -> String {
     while i < chars.len() {
         if chars[i] == '\\' && i + 1 < chars.len() {
             if i + 3 < chars.len()
-                && chars[i+1] == 'r'
-                && chars[i+2] == '\\'
-                && chars[i+3] == 'n'
+                && chars[i + 1] == 'r'
+                && chars[i + 2] == '\\'
+                && chars[i + 3] == 'n'
             {
-                out.push('\n'); i += 4; continue;
+                out.push('\n');
+                i += 4;
+                continue;
             }
-            if chars[i+1] == 'n' {
-                if chars.get(i+2).map_or(false, |c| c.is_ascii_lowercase()) {
+            if chars[i + 1] == 'n' {
+                if chars.get(i + 2).map_or(false, |c| c.is_ascii_lowercase()) {
                     // LaTeX command like \nabla — keep the backslash
-                    out.push('\\'); out.push('n');
+                    out.push('\\');
+                    out.push('n');
                 } else {
                     out.push('\n');
                 }
-                i += 2; continue;
+                i += 2;
+                continue;
             }
         }
-        out.push(chars[i]); i += 1;
+        out.push(chars[i]);
+        i += 1;
     }
     out
 }
@@ -190,7 +211,6 @@ fn convert_paren_delimiters(s: &str) -> String {
     out
 }
 
-
 /// Replace bare `$` immediately before a digit (not part of `$$`) with `\$`.
 fn protect_currency_dollars(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
@@ -199,7 +219,7 @@ fn protect_currency_dollars(s: &str) -> String {
         if ch == '$' {
             let prev_dollar = i > 0 && chars[i - 1] == '$';
             let next_dollar = chars.get(i + 1) == Some(&'$');
-            let next_digit  = chars.get(i + 1).map_or(false, |c| c.is_ascii_digit());
+            let next_digit = chars.get(i + 1).map_or(false, |c| c.is_ascii_digit());
             if !prev_dollar && !next_dollar && next_digit {
                 out.push_str("\\$");
                 continue;
@@ -228,16 +248,16 @@ pub fn clean_field(s: &str) -> String {
 fn normalise_typography(s: &str) -> String {
     s
         // Curly single quotes  → straight apostrophe
-        .replace('\u{2018}', "'")   // LEFT  SINGLE QUOTATION MARK  '
-        .replace('\u{2019}', "'")   // RIGHT SINGLE QUOTATION MARK  '
+        .replace('\u{2018}', "'") // LEFT  SINGLE QUOTATION MARK  '
+        .replace('\u{2019}', "'") // RIGHT SINGLE QUOTATION MARK  '
         // Curly double quotes  → straight double quote
-        .replace('\u{201C}', "\"")   // LEFT  DOUBLE QUOTATION MARK  "
-        .replace('\u{201D}', "\"")   // RIGHT DOUBLE QUOTATION MARK  "
+        .replace('\u{201C}', "\"") // LEFT  DOUBLE QUOTATION MARK  "
+        .replace('\u{201D}', "\"") // RIGHT DOUBLE QUOTATION MARK  "
         // Dashes
-        .replace('\u{2013}', "--")   // EN DASH  –
-        .replace('\u{2014}', "--")   // EM DASH  —
+        .replace('\u{2013}', "--") // EN DASH  –
+        .replace('\u{2014}', "--") // EM DASH  —
         // Ellipsis
-        .replace('\u{2026}', "...")  // HORIZONTAL ELLIPSIS  …
+        .replace('\u{2026}', "...") // HORIZONTAL ELLIPSIS  …
 }
 
 // --- Normalise + validate written questions ----------------------------------
@@ -251,36 +271,47 @@ pub fn normalise_written(
         .and_then(|s| s.first());
 
     for (idx, q) in questions.iter_mut().enumerate() {
-        q.id    = format!("q{}", idx + 1);
+        q.id = format!("q{}", idx + 1);
         q.topic = q.topic.trim().into();
         q.prompt_markdown = clean_field(q.prompt_markdown.trim());
-        q.subtopic = q.subtopic.as_ref()
+        q.subtopic = q
+            .subtopic
+            .as_ref()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .or_else(|| sole_subtopic.cloned());
 
-        let marks = if q.max_marks == 0 { default_max_marks() } else { q.max_marks };
+        let marks = if q.max_marks == 0 {
+            default_max_marks()
+        } else {
+            q.max_marks
+        };
         q.max_marks = marks.clamp(1, 30);
     }
 }
 
-pub fn validate_written(
-    questions: &[GeneratedQuestion],
-    expected: usize,
-) -> CommandResult<()> {
+pub fn validate_written(questions: &[GeneratedQuestion], expected: usize) -> CommandResult<()> {
     if questions.len() != expected {
-        return Err(AppError::new("VALIDATION_ERROR", format!(
-            "Expected {expected} questions, got {}.", questions.len())));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!("Expected {expected} questions, got {}.", questions.len()),
+        ));
     }
     for q in questions {
         if q.topic.is_empty() {
             return Err(AppError::new("VALIDATION_ERROR", "Question missing topic."));
         }
         if q.prompt_markdown.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Q{} has empty prompt.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} has empty prompt.", q.id),
+            ));
         }
         if q.max_marks == 0 || q.max_marks > 30 {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Q{} has invalid maxMarks.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} has invalid maxMarks.", q.id),
+            ));
         }
     }
     Ok(())
@@ -291,8 +322,18 @@ pub fn validate_written(
 const MC_MAX_EXPLANATION_WORDS: usize = 90;
 
 const DISALLOWED_SELF_TALK: &[&str] = &[
-    "let's","let us","i will","i'll","wait,","not in options","error in options",
-    "to make it work","change the question","adjust the question","revised prompt","i'll update",
+    "let's",
+    "let us",
+    "i will",
+    "i'll",
+    "wait,",
+    "not in options",
+    "error in options",
+    "to make it work",
+    "change the question",
+    "adjust the question",
+    "revised prompt",
+    "i'll update",
 ];
 
 pub fn normalise_mc(questions: &mut [McQuestion], selected_subtopics: Option<&Vec<String>>) {
@@ -301,60 +342,86 @@ pub fn normalise_mc(questions: &mut [McQuestion], selected_subtopics: Option<&Ve
         .and_then(|s| s.first());
 
     for (idx, q) in questions.iter_mut().enumerate() {
-        q.id    = format!("mc{}", idx + 1);
+        q.id = format!("mc{}", idx + 1);
         q.topic = q.topic.trim().into();
-        q.prompt_markdown      = clean_field(q.prompt_markdown.trim());
+        q.prompt_markdown = clean_field(q.prompt_markdown.trim());
         q.explanation_markdown = clean_field(q.explanation_markdown.trim());
-        q.correct_answer       = q.correct_answer.trim().to_uppercase();
-        q.subtopic = q.subtopic.as_ref()
+        q.correct_answer = q.correct_answer.trim().to_uppercase();
+        q.subtopic = q
+            .subtopic
+            .as_ref()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .or_else(|| sole_subtopic.cloned());
         for opt in &mut q.options {
             opt.label = opt.label.trim().to_uppercase();
-            opt.text  = clean_field(opt.text.trim());
+            opt.text = clean_field(opt.text.trim());
         }
     }
 }
 
 pub fn validate_mc(questions: &[McQuestion], expected: usize) -> CommandResult<()> {
     if questions.len() != expected {
-        return Err(AppError::new("VALIDATION_ERROR", format!(
-            "Expected {expected} MC questions, got {}.", questions.len())));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!("Expected {expected} MC questions, got {}.", questions.len()),
+        ));
     }
     for q in questions {
         if q.topic.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Q{} missing topic.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} missing topic.", q.id),
+            ));
         }
         if q.prompt_markdown.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Q{} empty prompt.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} empty prompt.", q.id),
+            ));
         }
         if q.explanation_markdown.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Q{} empty explanation.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} empty explanation.", q.id),
+            ));
         }
         let words = q.explanation_markdown.split_whitespace().count();
         if words > MC_MAX_EXPLANATION_WORDS {
-            return Err(AppError::new("VALIDATION_ERROR", format!(
-                "Q{} explanation too long ({words} words; max {MC_MAX_EXPLANATION_WORDS}).", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!(
+                    "Q{} explanation too long ({words} words; max {MC_MAX_EXPLANATION_WORDS}).",
+                    q.id
+                ),
+            ));
         }
         let low = q.explanation_markdown.to_lowercase();
         if DISALLOWED_SELF_TALK.iter().any(|m| low.contains(m)) {
-            return Err(AppError::new("VALIDATION_ERROR",
-                format!("Q{} explanation contains self-talk.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} explanation contains self-talk.", q.id),
+            ));
         }
         if q.options.len() != 4 {
-            return Err(AppError::new("VALIDATION_ERROR",
-                format!("Q{} must have exactly 4 options.", q.id)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} must have exactly 4 options.", q.id),
+            ));
         }
         let mut labels: Vec<_> = q.options.iter().map(|o| o.label.clone()).collect();
         labels.sort();
-        if labels != ["A","B","C","D"] {
-            return Err(AppError::new("VALIDATION_ERROR",
-                format!("Q{} options must be labeled A, B, C, D.", q.id)));
+        if labels != ["A", "B", "C", "D"] {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} options must be labeled A, B, C, D.", q.id),
+            ));
         }
-        if !matches!(q.correct_answer.as_str(), "A"|"B"|"C"|"D") {
-            return Err(AppError::new("VALIDATION_ERROR",
-                format!("Q{} invalid correctAnswer.", q.id)));
+        if !matches!(q.correct_answer.as_str(), "A" | "B" | "C" | "D") {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} invalid correctAnswer.", q.id),
+            ));
         }
     }
     Ok(())
@@ -408,7 +475,6 @@ mod tests {
     fn smart_quotes_normalised_to_ascii() {
         assert_eq!(clean_field("it’s Newton‘s law"), "it's Newton's law");
     }
-
 
     #[test]
     fn em_dash_normalised() {

@@ -10,8 +10,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles, AlertTriangle } from "lucide-react";
+import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles, AlertTriangle, PlusCircle, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import {
   ChartConfig,
@@ -25,6 +26,9 @@ import { EmptyState } from "../components/EmptyState";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDurationMs, formatPercent } from "../lib/app-utils";
 import { useAnalyticsData, ALL_TOPICS, LOW_SAMPLE_THRESHOLD, RECENT_WRITTEN_CRITERIA_WINDOW } from "./useAnalyticsData";
+import { useAppSettings } from "../AppContext";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 type KpiCardProps = {
   title: string;
@@ -32,11 +36,13 @@ type KpiCardProps = {
   detail: string;
   icon: typeof Target;
   accent?: "default" | "success" | "warning" | "danger";
+  // --- #9: Optional delta ---
+  delta?: number | null;
+  deltaLabel?: string;
 };
 
 const CARD_FIXED_HEIGHT = "min-h-[26rem]";
 
-// Colour helpers — map accuracy to a semantic CSS variable
 function accuracyColor(pct: number | undefined): string {
   if (pct === undefined) return "text-muted-foreground";
   if (pct >= 75) return "text-emerald-500";
@@ -85,7 +91,6 @@ const generationChartConfig = {
   avgRepairAttempts: { label: "Repair attempts", color: "var(--color-chart-2)" },
 } satisfies ChartConfig;
 
-// ─── Section divider ────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 pt-2">
@@ -97,7 +102,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── Empty chart placeholder ─────────────────────────────────────────────────
 function ChartEmpty({ message }: { message: string }) {
   return (
     <div className="flex h-32 items-center justify-center rounded-lg border border-dashed border-border/40 bg-muted/20 text-sm text-muted-foreground">
@@ -106,8 +110,33 @@ function ChartEmpty({ message }: { message: string }) {
   );
 }
 
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-function KpiCard({ title, value, detail, icon: Icon, accent = "default" }: KpiCardProps) {
+// --- #10: Simple tooltip component for technical terms ---
+function Tooltip({ content, children }: { content: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-center gap-1">
+      {children}
+      <button
+        type="button"
+        className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen((p) => !p)}
+        aria-label="More information"
+      >
+        <Info className="h-3 w-3" />
+      </button>
+      {open && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-52 rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md pointer-events-none">
+          {content}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// --- #9: KPI card with delta indicator ---
+function KpiCard({ title, value, detail, icon: Icon, accent = "default", delta, deltaLabel }: KpiCardProps) {
   const accentStyles: Record<string, string> = {
     default: "bg-primary/10 text-primary border-primary/20",
     success: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
@@ -131,7 +160,21 @@ function KpiCard({ title, value, detail, icon: Icon, accent = "default" }: KpiCa
           <div className={`text-3xl font-black tabular-nums leading-none ${valueStyles[accent]}`}>
             {value}
           </div>
-          <div className="text-xs text-muted-foreground truncate">{detail}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground truncate">{detail}</div>
+            {/* --- #9: Delta badge --- */}
+            {delta !== null && delta !== undefined && (
+              <span className={`shrink-0 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
+                delta > 0
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : delta < 0
+                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                  : "bg-muted/50 text-muted-foreground"
+              }`}>
+                {delta > 0 ? "+" : ""}{delta.toFixed(1)}%{deltaLabel ? ` ${deltaLabel}` : ""}
+              </span>
+            )}
+          </div>
         </div>
         <div className={`shrink-0 rounded-xl border p-2.5 transition-colors ${accentStyles[accent]}`}>
           <Icon className="h-5 w-5" />
@@ -141,7 +184,6 @@ function KpiCard({ title, value, detail, icon: Icon, accent = "default" }: KpiCa
   );
 }
 
-// ─── Chart card wrapper ───────────────────────────────────────────────────────
 function ChartCard({
   title,
   description,
@@ -174,6 +216,12 @@ function ChartCard({
 
 // ─── Main view ────────────────────────────────────────────────────────────────
 export function AnalyticsView() {
+  const navigate = useNavigate();
+  const { debugMode } = useAppSettings();
+
+  // --- #10: Debug diagnostics toggle ---
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
   const {
     allAttempts,
     writtenAttempts,
@@ -192,16 +240,33 @@ export function AnalyticsView() {
     qualityRows,
     lowestScoringWritten,
     questionHistoryLength,
-  } = useAnalyticsData();
+    // --- #9: Expect early/recent splits for delta — these may need to be added to useAnalyticsData ---
+    earlyOverallAccuracy,
+    recentOverallAccuracy,
+    earlyWrittenAvg,
+    recentWrittenAvg,
+    earlyMcAccuracy,
+    recentMcAccuracy,
+  } = useAnalyticsData() as any;
 
   const hasAnyAttempts = allAttempts.length > 0;
 
-  // Derive accent colours from live summary values
   const overallPct = summary.overallAccuracy;
   const writtenPct = summary.writtenAverageScore;
   const mcPct      = summary.mcAttempts ? (summary.mcCorrect / summary.mcAttempts) * 100 : 0;
   const toAccent = (pct: number) =>
     pct >= 75 ? "success" : pct >= 50 ? "warning" : pct > 0 ? "danger" : "default";
+
+  // --- #9: Compute deltas (recent minus early); null if not enough data ---
+  const overallDelta = recentOverallAccuracy != null && earlyOverallAccuracy != null
+    ? recentOverallAccuracy - earlyOverallAccuracy
+    : null;
+  const writtenDelta = recentWrittenAvg != null && earlyWrittenAvg != null
+    ? recentWrittenAvg - earlyWrittenAvg
+    : null;
+  const mcDelta = recentMcAccuracy != null && earlyMcAccuracy != null
+    ? recentMcAccuracy - earlyMcAccuracy
+    : null;
 
   return (
     <div className="min-h-full min-w-full space-y-8 p-6 pb-12">
@@ -242,6 +307,13 @@ export function AnalyticsView() {
             title="No analytics yet"
             description="Complete some written or multiple-choice questions and this page will build trend lines, topic breakdowns, and generation diagnostics automatically."
             className="h-auto py-16"
+            // --- #13: CTA ---
+            action={
+              <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/")}>
+                <PlusCircle className="h-4 w-4" />
+                Generate your first set
+              </Button>
+            }
           />
         </Card>
       ) : (
@@ -257,6 +329,8 @@ export function AnalyticsView() {
                 detail={`${summary.totalCorrect} / ${summary.totalAttempts} attempts correct`}
                 icon={Target}
                 accent={toAccent(overallPct)}
+                delta={overallDelta}
+                deltaLabel="vs early"
               />
               <KpiCard
                 title="Written Average"
@@ -264,6 +338,8 @@ export function AnalyticsView() {
                 detail={`${summary.writtenAttempts} written attempts`}
                 icon={TrendingUp}
                 accent={toAccent(writtenPct)}
+                delta={writtenDelta}
+                deltaLabel="vs early"
               />
               <KpiCard
                 title="MC Accuracy"
@@ -271,6 +347,8 @@ export function AnalyticsView() {
                 detail={`${summary.mcCorrect} / ${summary.mcAttempts} multiple-choice`}
                 icon={Gauge}
                 accent={toAccent(mcPct)}
+                delta={mcDelta}
+                deltaLabel="vs early"
               />
               <KpiCard
                 title="Marking Latency"
@@ -340,7 +418,7 @@ export function AnalyticsView() {
                   >
                     {ALL_TOPICS}
                   </Badge>
-                  {topicPerformance.map((item) => (
+                  {topicPerformance.map((item: any) => (
                     <Badge
                       key={item.topic}
                       variant={topicFilter === item.topic ? "default" : "outline"}
@@ -372,7 +450,7 @@ export function AnalyticsView() {
                   <ChartEmpty message="No subtopic data yet." />
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 mt-1">
-                    {displayedSubtopics.slice(0, 8).map((row) => (
+                    {displayedSubtopics.slice(0, 8).map((row: any) => (
                       <div
                         key={row.key}
                         className="rounded-xl border border-border/40 bg-background/50 p-3.5 transition-colors hover:bg-background/80"
@@ -402,31 +480,44 @@ export function AnalyticsView() {
                 )}
               </ChartCard>
 
-              {/* Actionable flags */}
+              {/* --- #8: Actionable flags — now includes "Practice this" CTA, not just a duplicate list --- */}
               <ChartCard
                 title="Actionable Flags"
-                description="Weak areas that deserve attention now."
+                description="Weak areas where targeted practice would help most."
               >
                 {displayedSubtopics.slice(0, 5).length === 0 ? (
                   <ChartEmpty message="No flagged areas yet." />
                 ) : (
                   <div className="space-y-2.5 mt-1">
-                    {displayedSubtopics.slice(0, 5).map((row) => (
+                    {displayedSubtopics.slice(0, 5).map((row: any) => (
                       <div
                         key={row.key}
                         className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 p-3.5"
                       >
                         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500/70" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-rose-500/90 leading-tight wrap-break-word">
-                            {row.subtopic}
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div>
+                            <div className="font-semibold text-sm text-rose-500/90 leading-tight wrap-break-word">
+                              {row.subtopic}
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                              <span className="truncate">{row.topic}</span>
+                              <span className="shrink-0 font-semibold text-foreground">
+                                {formatPercent(row.accuracy)} ({row.correct}/{row.attempts})
+                              </span>
+                            </div>
                           </div>
-                          <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <span className="truncate">{row.topic}</span>
-                            <span className="shrink-0 font-semibold text-foreground">
-                              {formatPercent(row.accuracy)} ({row.correct}/{row.attempts})
-                            </span>
-                          </div>
+                          {/* --- #8: Practice CTA that pre-fills generator --- */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 border-rose-500/30 text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400"
+                            onClick={() => navigate(`/?topic=${encodeURIComponent(row.topic)}&subtopic=${encodeURIComponent(row.subtopic)}`)}
+                          >
+                            <PlusCircle className="h-3 w-3" />
+                            Practice this
+                          </Button>
                         </div>
                         <Badge
                           variant={row.attempts < LOW_SAMPLE_THRESHOLD ? "outline" : "secondary"}
@@ -481,7 +572,7 @@ export function AnalyticsView() {
                   <ChartEmpty message="Criterion trends will appear after written answers are marked." />
                 ) : (
                   <div className="space-y-2.5 mt-1">
-                    {recentCriterionWeakPoints.map((row) => (
+                    {recentCriterionWeakPoints.map((row: any) => (
                       <div
                         key={row.criterion}
                         className="rounded-xl border border-border/40 bg-background/50 p-3.5 hover:bg-background/80 transition-colors"
@@ -518,7 +609,7 @@ export function AnalyticsView() {
                 title="Answer Effort vs Score"
                 description="Average written score by answer length bucket."
               >
-                {writtenEffortDistribution.every((item) => item.attempts === 0) ? (
+                {writtenEffortDistribution.every((item: any) => item.attempts === 0) ? (
                   <ChartEmpty message="Tracking will populate as written attempts are marked." />
                 ) : (
                   <ChartContainer config={effortChartConfig} className="h-72 w-full mt-4">
@@ -552,7 +643,7 @@ export function AnalyticsView() {
                         paddingAngle={4}
                         stroke="none"
                       >
-                        {writtenAttemptTypeData.map((entry) => (
+                        {writtenAttemptTypeData.map((entry: any) => (
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}
                       </Pie>
@@ -608,85 +699,112 @@ export function AnalyticsView() {
             </div>
           </section>
 
-          {/* ── Generation diagnostics ── */}
+          {/* ── Generation diagnostics — gated behind debug mode or manual expand ── */}
+          {/* --- #10: Hidden from casual users unless debugMode or manually expanded --- */}
           <section className="space-y-4">
-            <SectionLabel>Generation diagnostics</SectionLabel>
-            <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
-              <ChartCard
-                title="Generation Diagnostics"
-                description="Average generation time and repair pressure by difficulty."
+            <div className="flex items-center gap-3 pt-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+                Generation diagnostics
+              </span>
+              <div className="flex-1 border-t border-border/40" />
+              <button
+                type="button"
+                onClick={() => setShowDiagnostics((p) => !p)}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
               >
-                {qualityRows.length === 0 ? (
-                  <ChartEmpty message="No generation telemetry yet." />
+                {showDiagnostics || debugMode ? (
+                  <><ChevronUp className="h-3 w-3" /> Hide</>
                 ) : (
-                  <ChartContainer config={generationChartConfig} className="flex-1 w-full min-h-[250px] mt-4">
-                    <BarChart data={qualityRows} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
-                      <XAxis dataKey="difficulty" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                      <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                      <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-4" />
-                      <Bar dataKey="avgDurationSeconds" fill="var(--color-avgDurationSeconds)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                      <Bar dataKey="avgRepairAttempts" fill="var(--color-avgRepairAttempts)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    </BarChart>
-                  </ChartContainer>
+                  <><ChevronDown className="h-3 w-3" /> Show</>
                 )}
-              </ChartCard>
-
-              <ChartCard
-                title="Difficulty Notes"
-                description="Generation quality, depth, and accuracy rolled up by difficulty."
-              >
-                {qualityRows.length === 0 ? (
-                  <ChartEmpty message="No diagnostic notes yet." />
-                ) : (
-                  <div className="space-y-3 mt-1">
-                    {qualityRows.map((row) => (
-                      <div
-                        key={row.difficulty}
-                        className="rounded-xl border border-border/40 bg-background/50 p-4 hover:bg-background/80 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-3 pb-3 border-b border-border/40">
-                          <div>
-                            <div className="text-sm font-bold capitalize">{row.difficulty}</div>
-                            <div className="text-[10px] text-muted-foreground">{row.sampleCount} samples</div>
-                          </div>
-                          <div className={`text-xl font-black tabular-nums ${accuracyColor(row.accuracy)}`}>
-                            {formatPercent(row.accuracy)}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Gen time</span>
-                            <span className="font-semibold tabular-nums">{row.avgDurationSeconds.toFixed(1)}s</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Repairs</span>
-                            <span className="font-semibold tabular-nums">{row.avgRepairAttempts.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Attempts</span>
-                            <span className="font-semibold tabular-nums">{row.avgGenerationAttempts.toFixed(2)}</span>
-                          </div>
-                          {row.distinctnessAvg !== undefined && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Distinct</span>
-                              <span className="font-semibold tabular-nums">{row.distinctnessAvg.toFixed(2)}</span>
-                            </div>
-                          )}
-                          {row.multiStepDepthAvg !== undefined && (
-                            <div className="flex justify-between col-span-2 mt-1.5 pt-2 border-t border-border/30">
-                              <span className="text-muted-foreground">Multi-step depth</span>
-                              <span className="font-semibold tabular-nums">{row.multiStepDepthAvg.toFixed(2)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ChartCard>
+              </button>
             </div>
+
+            {(showDiagnostics || debugMode) && (
+              <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+                <ChartCard
+                  title="Generation Diagnostics"
+                  description="Average generation time and repair pressure by difficulty."
+                >
+                  {qualityRows.length === 0 ? (
+                    <ChartEmpty message="No generation telemetry yet." />
+                  ) : (
+                    <ChartContainer config={generationChartConfig} className="flex-1 w-full min-h-[250px] mt-4">
+                      <BarChart data={qualityRows} margin={{ left: 0, right: 8, top: 10, bottom: 0 }}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.2} />
+                        <XAxis dataKey="difficulty" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                        <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                        <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                        <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-4" />
+                        <Bar dataKey="avgDurationSeconds" fill="var(--color-avgDurationSeconds)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                        <Bar dataKey="avgRepairAttempts" fill="var(--color-avgRepairAttempts)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      </BarChart>
+                    </ChartContainer>
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  title="Difficulty Notes"
+                  description="Generation quality, depth, and accuracy rolled up by difficulty."
+                >
+                  {qualityRows.length === 0 ? (
+                    <ChartEmpty message="No diagnostic notes yet." />
+                  ) : (
+                    <div className="space-y-3 mt-1">
+                      {qualityRows.map((row: any) => (
+                        <div
+                          key={row.difficulty}
+                          className="rounded-xl border border-border/40 bg-background/50 p-4 hover:bg-background/80 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-3 pb-3 border-b border-border/40">
+                            <div>
+                              <div className="text-sm font-bold capitalize">{row.difficulty}</div>
+                              <div className="text-[10px] text-muted-foreground">{row.sampleCount} samples</div>
+                            </div>
+                            <div className={`text-xl font-black tabular-nums ${accuracyColor(row.accuracy)}`}>
+                              {formatPercent(row.accuracy)}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Gen time</span>
+                              <span className="font-semibold tabular-nums">{row.avgDurationSeconds.toFixed(1)}s</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              {/* --- #10: Tooltip on technical term --- */}
+                              <Tooltip content="How many times the AI had to retry generating a valid question before succeeding.">
+                                <span className="text-muted-foreground">Repairs</span>
+                              </Tooltip>
+                              <span className="font-semibold tabular-nums">{row.avgRepairAttempts.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Attempts</span>
+                              <span className="font-semibold tabular-nums">{row.avgGenerationAttempts.toFixed(2)}</span>
+                            </div>
+                            {row.distinctnessAvg !== undefined && (
+                              <div className="flex justify-between items-center">
+                                <Tooltip content="How different this question is from others generated in the same session (higher = more unique).">
+                                  <span className="text-muted-foreground">Distinct</span>
+                                </Tooltip>
+                                <span className="font-semibold tabular-nums">{row.distinctnessAvg.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {row.multiStepDepthAvg !== undefined && (
+                              <div className="flex justify-between items-center col-span-2 mt-1.5 pt-2 border-t border-border/30">
+                                <Tooltip content="Average number of reasoning steps required — higher depth means more complex multi-part questions.">
+                                  <span className="text-muted-foreground">Multi-step depth</span>
+                                </Tooltip>
+                                <span className="font-semibold tabular-nums">{row.multiStepDepthAvg.toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ChartCard>
+              </div>
+            )}
           </section>
 
           {/* ── Lowest-scoring written attempts ── */}
@@ -710,7 +828,7 @@ export function AnalyticsView() {
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {lowestScoringWritten.map((attempt) => {
+                    {lowestScoringWritten.map((attempt: any) => {
                       const scorePct = attempt.scorePercent ?? 0;
                       return (
                         <div

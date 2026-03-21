@@ -17,8 +17,15 @@ import {
   FunctionSquare,
   SigmaSquare,
   Crosshair,
+  DollarSign,
+  Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAppSettings } from "@/AppContext";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useState } from "react";
+import { formatCostUsd } from "@/lib/app-utils";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +46,7 @@ import {
   Difficulty,
   QuestionMode,
   GenerationStatusEvent,
+  GenerationTelemetry,
 } from "@/types";
 
 // ─── Topic icon map ──────────────────────────────────────────────────────────
@@ -130,6 +138,62 @@ function SubtopicGroup({
   );
 }
 
+// ─── Cost formatter ──────────────────────────────────────────────────────────
+
+// NOTE: cost formatting is provided by app-utils `formatCostUsd`.
+
+// ─── Last-generation stats strip ─────────────────────────────────────────────
+
+function LastGenerationStats({ telemetry }: { telemetry: GenerationTelemetry }) {
+  console.debug("[SetupPanel] LastGenerationStats rendering with:", telemetry);
+  const items: { icon: React.ReactNode; label: string; value: string }[] = [];
+
+  if (telemetry.estimatedCostUsd != null) {
+    items.push({
+      icon: <DollarSign className="w-3 h-3" />,
+      label: "Cost",
+      value: formatCostUsd(telemetry.estimatedCostUsd),
+    });
+  }
+
+  if (telemetry.totalTokens != null) {
+    items.push({
+      icon: <Coins className="w-3 h-3" />,
+      label: "Tokens",
+      value: telemetry.totalTokens.toLocaleString(),
+    });
+  }
+
+  if (telemetry.durationMs != null) {
+    items.push({
+      icon: <Clock3 className="w-3 h-3" />,
+      label: "Time",
+      value: telemetry.durationMs < 1000
+        ? `${Math.round(telemetry.durationMs)}ms`
+        : `${(telemetry.durationMs / 1000).toFixed(1)}s`,
+    });
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+        Last Generation
+      </p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {items.map(({ icon, label, value }) => (
+          <div key={label} className="flex items-center gap-1 text-xs text-foreground">
+            <span className="text-muted-foreground">{icon}</span>
+            <span className="text-muted-foreground">{label}:</span>
+            <span className="font-semibold tabular-nums">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 
 type SetupPanelProps = {
@@ -164,6 +228,7 @@ type SetupPanelProps = {
   generationStartedAt: number | null;
   formattedElapsedTime: string;
   onGenerate: () => void;
+  lastGenerationTelemetry?: GenerationTelemetry | null;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -184,7 +249,12 @@ export function SetupPanel({
   hasApiKey, canGenerate, isGenerating,
   generationStatus, generationStartedAt, formattedElapsedTime,
   onGenerate,
+  lastGenerationTelemetry,
 }: SetupPanelProps) {
+  const navigate = useNavigate();
+  const { apiKey, model } = useAppSettings();
+  const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(null);
+  const [completionPricePerToken, setCompletionPricePerToken] = useState<number | null>(null);
   const hasAnyMathTopic = selectedTopics.some(
     (t) => t === "Mathematical Methods" || t === "Specialist Mathematics"
   );
@@ -196,6 +266,72 @@ export function SetupPanel({
 
   let stepNum = 0;
   const step = () => ++stepNum;
+
+  // Fetch model pricing (if available) to compute estimates
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchStats() {
+      if (!apiKey || !model || model === "custom") return;
+      try {
+        const stats = await invoke<any>("get_model_stats", { apiKey, modelId: model });
+        if (cancelled) return;
+        setPromptPricePerToken(stats.promptPricePerToken ?? null);
+        setCompletionPricePerToken(stats.completionPricePerToken ?? null);
+      } catch (err) {
+        // ignore failures — pricing is optional
+        setPromptPricePerToken(null);
+        setCompletionPricePerToken(null);
+      }
+    }
+
+    void fetchStats();
+    return () => { cancelled = true; };
+  }, [apiKey, model]);
+
+  // Heuristic token estimate per question based on mode/difficulty/marks
+  const estimated = useMemo(() => {
+    // Base tokens by question mode
+    const base = questionMode === "written" ? 350 : 120;
+    const difficultyMultiplier: Record<Difficulty, number> = {
+      "Essential Skills": 0.6,
+      Easy: 0.8,
+      Medium: 1.0,
+      Hard: 1.3,
+      Extreme: 1.6,
+    };
+
+    const mult = difficultyMultiplier[difficulty] ?? 1.0;
+    const marksFactor = 1 + Math.max(0, (maxMarksPerQuestion - 1)) * 0.03;
+    const focusFactor = customFocusArea.trim() ? 1.1 : 1.0;
+    const variationFactor = avoidSimilarQuestions ? 1.05 : 1.0;
+
+    const totalTokensPerQuestion = Math.round(base * mult * marksFactor * focusFactor * variationFactor);
+
+    // Split prompt/completion ratios
+    const ratios = questionMode === "written" ? { prompt: 0.35, completion: 0.65 } : { prompt: 0.6, completion: 0.4 };
+    const promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
+    const completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
+
+    const totalPromptTokens = promptTokensPerQuestion * questionCount;
+    const totalCompletionTokens = completionTokensPerQuestion * questionCount;
+    const totalTokens = totalPromptTokens + totalCompletionTokens;
+
+    const promptCost = promptPricePerToken != null ? promptPricePerToken * totalPromptTokens : null;
+    const completionCost = completionPricePerToken != null ? completionPricePerToken * totalCompletionTokens : null;
+    const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
+
+    return {
+      totalTokensPerQuestion,
+      promptTokensPerQuestion,
+      completionTokensPerQuestion,
+      totalTokens,
+      totalPromptTokens,
+      totalCompletionTokens,
+      promptCost,
+      completionCost,
+      totalCost,
+    };
+  }, [questionMode, difficulty, maxMarksPerQuestion, customFocusArea, avoidSimilarQuestions, questionCount, promptPricePerToken, completionPricePerToken]);
 
   return (
     <Card className="border shadow-lg overflow-hidden">
@@ -347,6 +483,31 @@ export function SetupPanel({
           </div>
         </div>
 
+        {/* Estimated tokens & cost (live) */}
+        <div className="w-full rounded-lg border bg-muted/20 px-3 py-2 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-3">
+            <div>
+              <p className="text-[11px] text-muted-foreground">Est. tokens / question</p>
+              <p className="font-semibold tabular-nums">{estimated.totalTokensPerQuestion.toLocaleString()} tok</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground">Est. total tokens</p>
+              <p className="font-semibold tabular-nums">{estimated.totalTokens.toLocaleString()} tok</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] text-muted-foreground">Est. cost</p>
+            {promptPricePerToken == null && completionPricePerToken == null ? (
+              <p className="font-semibold">—</p>
+            ) : (
+              <div>
+                <p className="font-semibold">{formatCostUsd(estimated.totalCost)}</p>
+                <p className="text-[10px] text-muted-foreground">{promptPricePerToken != null ? `input ${formatCostUsd(estimated.promptCost)}` : ""}{promptPricePerToken != null && completionPricePerToken != null ? " • " : ""}{completionPricePerToken != null ? `output ${formatCostUsd(estimated.completionCost)}` : ""}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         <SectionDivider />
 
         {/* ── Step 3: Questions + Marks ── */}
@@ -474,11 +635,16 @@ export function SetupPanel({
 
         {/* ── API key warning ── */}
         {!hasApiKey && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2.5">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
-              <strong>API key missing.</strong> Go to Settings to configure your OpenRouter key before generating.
-            </p>
+            <div className="flex-1">
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
+                <strong>API key missing.</strong> Configure your OpenRouter key in Settings before generating.
+              </p>
+              <div className="mt-2">
+                <Button size="sm" variant="outline" onClick={() => navigate("/settings")}>Open Settings</Button>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
@@ -527,6 +693,11 @@ export function SetupPanel({
               </span>
             </div>
           </div>
+        )}
+
+        {/* Last generation stats */}
+        {!isGenerating && lastGenerationTelemetry && (
+          <LastGenerationStats telemetry={lastGenerationTelemetry} />
         )}
       </CardFooter>
     </Card>

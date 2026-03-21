@@ -7,120 +7,129 @@ mod parsing;
 mod persistence;
 mod quality;
 
+use base64::{engine::general_purpose, Engine as _};
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
-use base64::{Engine as _, engine::general_purpose};
 use tauri::Emitter;
 
 use constants::*;
 use difficulty::difficulty_guidance;
 use models::*;
 use openrouter::{call_openrouter, json_schema_format};
+use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
-    clean_field, extract_json_object, normalize_envelope,
-    normalise_mc, normalise_written, validate_mc, validate_written,
+    clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
+    validate_mc, validate_written,
 };
-use openrouter_info::{get_credits, get_model_stats};
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
 
 // ─── Response format schemas ──────────────────────────────────────────────────
 
 fn written_format() -> serde_json::Value {
-    json_schema_format("written_questions", serde_json::json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["questions"],
-        "properties": {
-            "questions": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
-                    "properties": {
-                        "topic":          { "type": "string" },
-                        "subtopic":       { "type": ["string","null"] },
-                        "promptMarkdown": { "type": "string" },
-                        "maxMarks":       { "type": "integer", "minimum": 1, "maximum": 30 },
-                        "techAllowed":    { "type": "boolean" }
+    json_schema_format(
+        "written_questions",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["questions"],
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
+                        "properties": {
+                            "topic":          { "type": "string" },
+                            "subtopic":       { "type": ["string","null"] },
+                            "promptMarkdown": { "type": "string" },
+                            "maxMarks":       { "type": "integer", "minimum": 1, "maximum": 30 },
+                            "techAllowed":    { "type": "boolean" }
+                        }
                     }
                 }
             }
-        }
-    }))
+        }),
+    )
 }
 
 fn mc_format() -> serde_json::Value {
-    json_schema_format("mc_questions", serde_json::json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["questions"],
-        "properties": {
-            "questions": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
-                    "properties": {
-                        "topic":               { "type": "string" },
-                        "subtopic":            { "type": ["string","null"] },
-                        "promptMarkdown":      { "type": "string" },
-                        "options": {
-                            "type": "array", "minItems": 4, "maxItems": 4,
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": false,
-                                "required": ["label","text"],
-                                "properties": {
-                                    "label": { "type": "string" },
-                                    "text":  { "type": "string" }
+    json_schema_format(
+        "mc_questions",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["questions"],
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
+                        "properties": {
+                            "topic":               { "type": "string" },
+                            "subtopic":            { "type": ["string","null"] },
+                            "promptMarkdown":      { "type": "string" },
+                            "options": {
+                                "type": "array", "minItems": 4, "maxItems": 4,
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": ["label","text"],
+                                    "properties": {
+                                        "label": { "type": "string" },
+                                        "text":  { "type": "string" }
+                                    }
                                 }
-                            }
-                        },
-                        "correctAnswer":       { "type": "string", "enum": ["A","B","C","D"] },
-                        "explanationMarkdown": { "type": "string" },
-                        "techAllowed":         { "type": "boolean" }
+                            },
+                            "correctAnswer":       { "type": "string", "enum": ["A","B","C","D"] },
+                            "explanationMarkdown": { "type": "string" },
+                            "techAllowed":         { "type": "boolean" }
+                        }
                     }
                 }
             }
-        }
-    }))
+        }),
+    )
 }
 
 fn marking_format() -> serde_json::Value {
-    json_schema_format("mark_answer", serde_json::json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
-                     "vcaaMarkingScheme","comparisonToSolutionMarkdown",
-                     "feedbackMarkdown","workedSolutionMarkdown"],
-        "properties": {
-            "verdict":       { "type": "string" },
-            "achievedMarks": { "type": "integer", "minimum": 0 },
-            "maxMarks":      { "type": "integer", "minimum": 1 },
-            "scoreOutOf10":  { "type": "integer", "minimum": 0, "maximum": 10 },
-            "vcaaMarkingScheme": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["criterion","achievedMarks","maxMarks","rationale"],
-                    "properties": {
-                        "criterion":     { "type": "string" },
-                        "achievedMarks": { "type": "integer", "minimum": 0 },
-                        "maxMarks":      { "type": "integer", "minimum": 0 },
-                        "rationale":     { "type": "string" }
+    json_schema_format(
+        "mark_answer",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
+                         "vcaaMarkingScheme","comparisonToSolutionMarkdown",
+                         "feedbackMarkdown","workedSolutionMarkdown"],
+            "properties": {
+                "verdict":       { "type": "string" },
+                "achievedMarks": { "type": "integer", "minimum": 0 },
+                "maxMarks":      { "type": "integer", "minimum": 1 },
+                "scoreOutOf10":  { "type": "integer", "minimum": 0, "maximum": 10 },
+                "vcaaMarkingScheme": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["criterion","achievedMarks","maxMarks","rationale"],
+                        "properties": {
+                            "criterion":     { "type": "string" },
+                            "achievedMarks": { "type": "integer", "minimum": 0 },
+                            "maxMarks":      { "type": "integer", "minimum": 0 },
+                            "rationale":     { "type": "string" }
+                        }
                     }
-                }
-            },
-            "comparisonToSolutionMarkdown": { "type": "string" },
-            "feedbackMarkdown":             { "type": "string" },
-            "workedSolutionMarkdown":       { "type": "string" }
-        }
-    }))
+                },
+                "comparisonToSolutionMarkdown": { "type": "string" },
+                "feedbackMarkdown":             { "type": "string" },
+                "workedSolutionMarkdown":       { "type": "string" }
+            }
+        }),
+    )
 }
 
 // ─── System prompt builders ───────────────────────────────────────────────────
@@ -213,15 +222,24 @@ fn marking_system(chem_note: &str) -> String {
 
 fn topic_notes(topics: &[String]) -> String {
     let mut s = String::new();
-    if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)) {
+    if topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC))
+    {
         s.push('\n');
         s.push_str(MATHEMATICAL_METHODS_GUIDANCE);
     }
-    if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC)) {
+    if topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC))
+    {
         s.push('\n');
         s.push_str(PHYSICAL_EDUCATION_GUIDANCE);
     }
-    if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC)) {
+    if topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC))
+    {
         s.push('\n');
         s.push_str(CHEMISTRY_LATEX_GUIDANCE);
     }
@@ -230,14 +248,19 @@ fn topic_notes(topics: &[String]) -> String {
 
 fn tech_note(mode: &str) -> &'static str {
     match mode {
-        "tech-free"   => " All questions tech-free; set techAllowed:false.",
+        "tech-free" => " All questions tech-free; set techAllowed:false.",
         "tech-active" => " All questions tech-active; set techAllowed:true.",
-        _             => " Mix tech-free and tech-active; set techAllowed per question.",
+        _ => " Mix tech-free and tech-active; set techAllowed per question.",
     }
 }
 
-fn subtopics_note(selected: Option<&Vec<String>>, instructions: Option<&HashMap<String,String>>) -> String {
-    let Some(subs) = selected.filter(|s| !s.is_empty()) else { return String::new() };
+fn subtopics_note(
+    selected: Option<&Vec<String>>,
+    instructions: Option<&HashMap<String, String>>,
+) -> String {
+    let Some(subs) = selected.filter(|s| !s.is_empty()) else {
+        return String::new();
+    };
     let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
 
     // Inject Study Design key knowledge for each selected subtopic.
@@ -251,7 +274,8 @@ fn subtopics_note(selected: Option<&Vec<String>>, instructions: Option<&HashMap<
 
     // User-supplied per-subtopic instructions override or supplement the above.
     if let Some(instr) = instructions {
-        let lines: Vec<String> = subs.iter()
+        let lines: Vec<String> = subs
+            .iter()
             .filter_map(|sub| instr.get(sub).map(|i| format!("- {sub}: {}", i.trim())))
             .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
             .collect();
@@ -264,12 +288,19 @@ fn subtopics_note(selected: Option<&Vec<String>>, instructions: Option<&HashMap<
 }
 
 fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
-    if !enabled { return String::new(); }
-    let examples: Vec<String> = prior.unwrap_or(&[])
+    if !enabled {
+        return String::new();
+    }
+    let examples: Vec<String> = prior
+        .unwrap_or(&[])
         .iter()
         .map(|p| {
-            let p = p.trim().replace(['\n','\r'], " ");
-            if p.len() > 260 { format!("{}...", &p[..260]) } else { p }
+            let p = p.trim().replace(['\n', '\r'], " ");
+            if p.len() > 260 {
+                format!("{}...", &p[..260])
+            } else {
+                p
+            }
         })
         .filter(|p| !p.is_empty())
         .take(6)
@@ -277,24 +308,36 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     if examples.is_empty() {
         return "\nSimilarity guardrail: avoid repeating recent question contexts or solving methods.".into();
     }
-    let list = examples.iter().enumerate()
+    let list = examples
+        .iter()
+        .enumerate()
         .map(|(i, p)| format!("{}. {p}", i + 1))
-        .collect::<Vec<_>>().join("\n");
+        .collect::<Vec<_>>()
+        .join("\n");
     format!("\nSimilarity guardrail — do not reuse scenario/method from:\n{list}")
 }
 
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
-    if topics.iter().any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)) {
+    if topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC))
+    {
         match difficulty.to_ascii_lowercase().as_str() {
-            "essential skills" => " Math Essential Skills: single-skill items, direct substitution only.",
-            "extreme"          => " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation.",
-            _                  => "",
+            "essential skills" => {
+                " Math Essential Skills: single-skill items, direct substitution only."
+            }
+            "extreme" => {
+                " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation."
+            }
+            _ => "",
         }
     } else {
         match difficulty.to_ascii_lowercase().as_str() {
-            "essential skills" => " Essential Skills: straightforward questions, minimal inference.",
-            "extreme"          => " Extreme: multi-step reasoning, synthesis of multiple concepts.",
-            _                  => "",
+            "essential skills" => {
+                " Essential Skills: straightforward questions, minimal inference."
+            }
+            "extreme" => " Extreme: multi-step reasoning, synthesis of multiple concepts.",
+            _ => "",
         }
     }
 }
@@ -307,23 +350,33 @@ fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> Command
         .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object in response."))?;
     let value: serde_json::Value = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
-    let normalised = normalize_envelope(value)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
+    let normalised =
+        normalize_envelope(value).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
     serde_json::from_value(normalised)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))
 }
 
 fn apply_tech_override<T: TechAllowed>(questions: &mut [T], mode: &str) {
     match mode {
-        "tech-free"   => questions.iter_mut().for_each(|q| q.set_tech_allowed(false)),
+        "tech-free" => questions.iter_mut().for_each(|q| q.set_tech_allowed(false)),
         "tech-active" => questions.iter_mut().for_each(|q| q.set_tech_allowed(true)),
         _ => {}
     }
 }
 
-trait TechAllowed { fn set_tech_allowed(&mut self, v: bool); }
-impl TechAllowed for GeneratedQuestion { fn set_tech_allowed(&mut self, v: bool) { self.tech_allowed = v; } }
-impl TechAllowed for McQuestion        { fn set_tech_allowed(&mut self, v: bool) { self.tech_allowed = v; } }
+trait TechAllowed {
+    fn set_tech_allowed(&mut self, v: bool);
+}
+impl TechAllowed for GeneratedQuestion {
+    fn set_tech_allowed(&mut self, v: bool) {
+        self.tech_allowed = v;
+    }
+}
+impl TechAllowed for McQuestion {
+    fn set_tech_allowed(&mut self, v: bool) {
+        self.tech_allowed = v;
+    }
+}
 
 // ─── Tauri command: generate written questions ────────────────────────────────
 
@@ -333,10 +386,16 @@ async fn generate_questions(
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
     if request.topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
     }
     if request.question_count == 0 || request.question_count > 20 {
-        return Err(AppError::new("VALIDATION_ERROR", "Question count must be 1–20."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Question count must be 1–20.",
+        ));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -345,17 +404,25 @@ async fn generate_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model required."));
     }
 
-    let started       = Instant::now();
+    let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
-    let tech_mode     = request.tech_mode.as_deref().unwrap_or("mix");
+    let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
     let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
-    let custom_note   = request.custom_focus_area.as_deref().map(str::trim)
+    let custom_note = request
+        .custom_focus_area
+        .as_deref()
+        .map(str::trim)
         .filter(|v| !v.is_empty())
-        .map_or(String::new(), |v| format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid."));
+        .map_or(String::new(), |v| {
+            format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
+        });
 
-    let _ = app.emit("generation-status", serde_json::json!({
-        "mode": "written", "stage": "generating", "message": "Requesting question set."
-    }));
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "written", "stage": "generating", "message": "Requesting question set."
+        }),
+    );
 
     let prompt = format!(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
@@ -383,37 +450,64 @@ async fn generate_questions(
         ),
     );
 
-    let result = call_openrouter(
-        &request.api_key, &request.model, &written_system(),
-        serde_json::Value::String(prompt),
-        &written_format(),
-    ).await?;
+    // Bind temporaries so their lifetimes cover the entire join! block.
+    let written_sys = written_system();
+    let written_fmt = written_format();
+    // Run the generation call and the pricing fetch concurrently.
+    let (result, stats_result) = tokio::join!(
+        call_openrouter(
+            &request.api_key,
+            &request.model,
+            &written_sys,
+            serde_json::Value::String(prompt),
+            &written_fmt,
+        ),
+        get_model_stats(request.api_key.clone(), request.model.clone()),
+    );
+    let result = result?;
 
     let mut payload: WrittenQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_written(&mut payload.questions, selected_subs);
     validate_written(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
 
-    let texts: Vec<String> = payload.questions.iter().map(|q| q.prompt_markdown.clone()).collect();
+    let texts: Vec<String> = payload
+        .questions
+        .iter()
+        .map(|q| q.prompt_markdown.clone())
+        .collect();
     let (scores, summary) = score_batch(&texts);
     for (q, (d, m)) in payload.questions.iter_mut().zip(scores) {
         q.distinctness_score = Some(d);
-        q.multi_step_depth   = Some(m);
+        q.multi_step_depth = Some(m);
     }
 
+    let estimated_cost_usd = stats_result.ok().and_then(|stats| {
+        compute_generation_cost(
+            Some(result.prompt_tokens as u64),
+            Some(result.completion_tokens as u64),
+            stats.prompt_price_per_token,
+            stats.completion_price_per_token,
+        )
+    });
+
     let duration_ms = started.elapsed().as_millis() as u64;
-    let _ = app.emit("generation-status", serde_json::json!({
-        "mode": "written", "stage": "completed",
-        "message": format!("Done in {duration_ms}ms.")
-    }));
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "written", "stage": "completed",
+            "message": format!("Done in {duration_ms}ms.")
+        }),
+    );
 
     Ok(GenerateQuestionsResponse {
         questions: payload.questions,
         duration_ms,
-        prompt_tokens:      result.prompt_tokens,
-        completion_tokens:  result.completion_tokens,
-        total_tokens:       result.total_tokens,
-        distinctness_avg:   summary.distinctness_avg,
+        prompt_tokens: result.prompt_tokens,
+        completion_tokens: result.completion_tokens,
+        total_tokens: result.total_tokens,
+        estimated_cost_usd,
+        distinctness_avg: summary.distinctness_avg,
         multi_step_depth_avg: summary.multi_step_depth_avg,
     })
 }
@@ -426,10 +520,16 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     if request.topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
     }
     if request.question_count == 0 || request.question_count > 20 {
-        return Err(AppError::new("VALIDATION_ERROR", "Question count must be 1–20."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Question count must be 1–20.",
+        ));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -438,16 +538,24 @@ async fn generate_mc_questions(
         return Err(AppError::new("VALIDATION_ERROR", "Model required."));
     }
 
-    let started       = Instant::now();
+    let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
-    let tech_mode     = request.tech_mode.as_deref().unwrap_or("mix");
-    let custom_note   = request.custom_focus_area.as_deref().map(str::trim)
+    let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+    let custom_note = request
+        .custom_focus_area
+        .as_deref()
+        .map(str::trim)
         .filter(|v| !v.is_empty())
-        .map_or(String::new(), |v| format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid."));
+        .map_or(String::new(), |v| {
+            format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
+        });
 
-    let _ = app.emit("generation-status", serde_json::json!({
-        "mode": "multiple-choice", "stage": "generating", "message": "Requesting MC set."
-    }));
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "multiple-choice", "stage": "generating", "message": "Requesting MC set."
+        }),
+    );
 
     let prompt = format!(
         "Generate exactly {count} VCE multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
@@ -476,40 +584,72 @@ async fn generate_mc_questions(
         ),
     );
 
-    let result = call_openrouter(
-        &request.api_key, &request.model, &mc_system(),
-        serde_json::Value::String(prompt),
-        &mc_format(),
-    ).await?;
+    // Bind temporaries so their lifetimes cover the entire join! block.
+    let mc_sys = mc_system();
+    let mc_fmt = mc_format();
+    // Run the generation call and the pricing fetch concurrently.
+    let (result, stats_result) = tokio::join!(
+        call_openrouter(
+            &request.api_key,
+            &request.model,
+            &mc_sys,
+            serde_json::Value::String(prompt),
+            &mc_fmt,
+        ),
+        get_model_stats(request.api_key.clone(), request.model.clone()),
+    );
+    let result = result?;
 
     let mut payload: McQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_mc(&mut payload.questions, selected_subs);
     validate_mc(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
 
-    let texts: Vec<String> = payload.questions.iter().map(|q| {
-        let opts = q.options.iter().map(|o| format!("{}: {}", o.label, o.text)).collect::<Vec<_>>().join(" ");
-        format!("{} {opts}", q.prompt_markdown)
-    }).collect();
+    let texts: Vec<String> = payload
+        .questions
+        .iter()
+        .map(|q| {
+            let opts = q
+                .options
+                .iter()
+                .map(|o| format!("{}: {}", o.label, o.text))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("{} {opts}", q.prompt_markdown)
+        })
+        .collect();
     let (scores, summary) = score_batch(&texts);
     for (q, (d, m)) in payload.questions.iter_mut().zip(scores) {
         q.distinctness_score = Some(d);
-        q.multi_step_depth   = Some(m);
+        q.multi_step_depth = Some(m);
     }
 
+    let estimated_cost_usd = stats_result.ok().and_then(|stats| {
+        compute_generation_cost(
+            Some(result.prompt_tokens as u64),
+            Some(result.completion_tokens as u64),
+            stats.prompt_price_per_token,
+            stats.completion_price_per_token,
+        )
+    });
+
     let duration_ms = started.elapsed().as_millis() as u64;
-    let _ = app.emit("generation-status", serde_json::json!({
-        "mode": "multiple-choice", "stage": "completed",
-        "message": format!("Done in {duration_ms}ms.")
-    }));
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "multiple-choice", "stage": "completed",
+            "message": format!("Done in {duration_ms}ms.")
+        }),
+    );
 
     Ok(GenerateMcQuestionsResponse {
         questions: payload.questions,
         duration_ms,
-        prompt_tokens:      result.prompt_tokens,
-        completion_tokens:  result.completion_tokens,
-        total_tokens:       result.total_tokens,
-        distinctness_avg:   summary.distinctness_avg,
+        prompt_tokens: result.prompt_tokens,
+        completion_tokens: result.completion_tokens,
+        total_tokens: result.total_tokens,
+        estimated_cost_usd,
+        distinctness_avg: summary.distinctness_avg,
         multi_step_depth_avg: summary.multi_step_depth_avg,
     })
 }
@@ -518,11 +658,16 @@ async fn generate_mc_questions(
 
 #[tauri::command]
 async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
-    let has_text  = !request.student_answer.trim().is_empty();
-    let has_image = request.student_answer_image_data_url.as_ref()
+    let has_text = !request.student_answer.trim().is_empty();
+    let has_image = request
+        .student_answer_image_data_url
+        .as_ref()
         .map_or(false, |v| !v.trim().is_empty());
     if !has_text && !has_image {
-        return Err(AppError::new("VALIDATION_ERROR", "Provide an answer or image."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Provide an answer or image.",
+        ));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -535,7 +680,8 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     }
 
     const MAX_ANSWER_CHARS: usize = 12_000;
-    let mut answer = request.student_answer
+    let mut answer = request
+        .student_answer
         .replace("\r\n", "\n")
         .lines()
         .map(str::trim_end)
@@ -548,8 +694,16 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         answer.push_str("\n\n[Truncated: answer exceeded length limit.]");
     }
 
-    let is_chem   = request.question.topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC);
-    let chem_note = if is_chem { CHEMISTRY_LATEX_GUIDANCE } else { "" };
+    let is_chem = request
+        .question
+        .topic
+        .trim()
+        .eq_ignore_ascii_case(CHEMISTRY_TOPIC);
+    let chem_note = if is_chem {
+        CHEMISTRY_LATEX_GUIDANCE
+    } else {
+        ""
+    };
 
     let prompt = format!(
         "Topic: {topic}\nQuestion: {question}\nMax marks: {max}\n\n\
@@ -562,13 +716,19 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         answer   = answer,
     );
 
-    let user_content = match request.student_answer_image_data_url.as_deref()
-        .map(str::trim).filter(|v| !v.is_empty())
+    let user_content = match request
+        .student_answer_image_data_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
     {
         None => serde_json::Value::String(prompt.clone()),
         Some(url) => {
             if !url.starts_with("data:image/") {
-                return Err(AppError::new("VALIDATION_ERROR", "Image must be a valid data URL."));
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    "Image must be a valid data URL.",
+                ));
             }
             serde_json::json!([
                 { "type": "text",      "text": prompt },
@@ -578,23 +738,39 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     };
 
     let result = call_openrouter(
-        &request.api_key, &request.model, &marking_system(chem_note),
-        user_content, &marking_format(),
-    ).await?;
+        &request.api_key,
+        &request.model,
+        &marking_system(chem_note),
+        user_content,
+        &marking_format(),
+    )
+    .await?;
 
-    let json_str = extract_json_object(&result.content)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR",
-            format!("No JSON in marking response. Raw:\n{}", &result.content.chars().take(800).collect::<String>())))?;
+    let json_str = extract_json_object(&result.content).ok_or_else(|| {
+        AppError::new(
+            "MODEL_PARSE_ERROR",
+            format!(
+                "No JSON in marking response. Raw:\n{}",
+                &result.content.chars().take(800).collect::<String>()
+            ),
+        )
+    })?;
 
     let mut parsed: MarkAnswerResponse = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Marking schema mismatch: {e}")))?;
 
     // Clamp / fix marks
-    parsed.max_marks     = if request.question.max_marks > 0 { request.question.max_marks } else { 10 };
+    parsed.max_marks = if request.question.max_marks > 0 {
+        request.question.max_marks
+    } else {
+        10
+    };
     parsed.achieved_marks = parsed.achieved_marks.min(parsed.max_marks);
 
     if !parsed.vcaa_marking_scheme.is_empty() {
-        let scheme_total = parsed.vcaa_marking_scheme.iter()
+        let scheme_total = parsed
+            .vcaa_marking_scheme
+            .iter()
             .map(|c| c.achieved_marks as u16)
             .sum::<u16>()
             .min(parsed.max_marks as u16) as u8;
@@ -610,17 +786,17 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
     }
 
-    parsed.feedback_markdown               = clean_field(&parsed.feedback_markdown);
-    parsed.worked_solution_markdown        = clean_field(&parsed.worked_solution_markdown);
+    parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);
+    parsed.worked_solution_markdown = clean_field(&parsed.worked_solution_markdown);
     parsed.comparison_to_solution_markdown = clean_field(&parsed.comparison_to_solution_markdown);
     for c in &mut parsed.vcaa_marking_scheme {
         c.criterion = clean_field(&c.criterion);
         c.rationale = clean_field(&c.rationale);
     }
 
-    parsed.prompt_tokens     = result.prompt_tokens;
+    parsed.prompt_tokens = result.prompt_tokens;
     parsed.completion_tokens = result.completion_tokens;
-    parsed.total_tokens      = result.total_tokens;
+    parsed.total_tokens = result.total_tokens;
 
     Ok(parsed)
 }
@@ -643,42 +819,58 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
     if !path.exists() {
         return Err(AppError::new("VALIDATION_ERROR", "Image file not found."));
     }
-    let mime = path.extension()
+    let mime = path
+        .extension()
         .and_then(|e| e.to_str())
         .and_then(|e| match e.to_ascii_lowercase().as_str() {
-            "jpg"|"jpeg" => Some("image/jpeg"),
-            "png"        => Some("image/png"),
-            "webp"       => Some("image/webp"),
-            "gif"        => Some("image/gif"),
-            "heic"       => Some("image/heic"),
-            "heif"       => Some("image/heif"),
-            _            => None,
+            "jpg" | "jpeg" => Some("image/jpeg"),
+            "png" => Some("image/png"),
+            "webp" => Some("image/webp"),
+            "gif" => Some("image/gif"),
+            "heic" => Some("image/heic"),
+            "heif" => Some("image/heif"),
+            _ => None,
         })
-        .ok_or_else(|| AppError::new("VALIDATION_ERROR",
-            "Unsupported format. Use png, jpg, webp, gif, heic, or heif."))?;
+        .ok_or_else(|| {
+            AppError::new(
+                "VALIDATION_ERROR",
+                "Unsupported format. Use png, jpg, webp, gif, heic, or heif.",
+            )
+        })?;
 
-    let bytes    = std::fs::read(path)
+    let bytes = std::fs::read(path)
         .map_err(|e| AppError::new("IO_ERROR", format!("Failed to read image: {e}")))?;
-    let data_url = format!("data:{mime};base64,{}", general_purpose::STANDARD.encode(bytes));
-    let prompt   = request.prompt.as_deref().filter(|v| !v.trim().is_empty())
+    let data_url = format!(
+        "data:{mime};base64,{}",
+        general_purpose::STANDARD.encode(bytes)
+    );
+    let prompt = request
+        .prompt
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
         .unwrap_or("What's in this image?");
 
-    let free_text_format = json_schema_format("text_response", serde_json::json!({
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["text"],
-        "properties": { "text": { "type": "string" } }
-    }));
+    let free_text_format = json_schema_format(
+        "text_response",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text"],
+            "properties": { "text": { "type": "string" } }
+        }),
+    );
 
     let result = call_openrouter(
-        &request.api_key, &request.model,
+        &request.api_key,
+        &request.model,
         "You are a helpful visual reasoning assistant.",
         serde_json::json!([
             { "type": "text",      "text": prompt },
             { "type": "image_url", "image_url": { "url": data_url } }
         ]),
         &free_text_format,
-    ).await?;
+    )
+    .await?;
 
     let output_text = serde_json::from_str::<serde_json::Value>(&result.content)
         .ok()
@@ -745,9 +937,14 @@ mod tests {
     #[test]
     fn validate_written_rejects_wrong_count() {
         let questions = vec![GeneratedQuestion {
-            id: "q1".into(), topic: "Mathematical Methods".into(), subtopic: None,
-            prompt_markdown: "Find the derivative.".into(), max_marks: 4,
-            tech_allowed: false, distinctness_score: None, multi_step_depth: None,
+            id: "q1".into(),
+            topic: "Mathematical Methods".into(),
+            subtopic: None,
+            prompt_markdown: "Find the derivative.".into(),
+            max_marks: 4,
+            tech_allowed: false,
+            distinctness_score: None,
+            multi_step_depth: None,
         }];
         assert!(validate_written(&questions, 2).is_err());
     }
@@ -755,16 +952,33 @@ mod tests {
     #[test]
     fn validate_mc_rejects_bad_labels() {
         let questions = vec![McQuestion {
-            id: "mc1".into(), topic: "Chemistry".into(), subtopic: None,
+            id: "mc1".into(),
+            topic: "Chemistry".into(),
+            subtopic: None,
             prompt_markdown: "Question?".into(),
             options: vec![
-                McOption { label: "A".into(), text: "1".into() },
-                McOption { label: "B".into(), text: "2".into() },
-                McOption { label: "C".into(), text: "3".into() },
-                McOption { label: "E".into(), text: "4".into() }, // invalid
+                McOption {
+                    label: "A".into(),
+                    text: "1".into(),
+                },
+                McOption {
+                    label: "B".into(),
+                    text: "2".into(),
+                },
+                McOption {
+                    label: "C".into(),
+                    text: "3".into(),
+                },
+                McOption {
+                    label: "E".into(),
+                    text: "4".into(),
+                }, // invalid
             ],
-            correct_answer: "A".into(), explanation_markdown: "Because.".into(),
-            tech_allowed: false, distinctness_score: None, multi_step_depth: None,
+            correct_answer: "A".into(),
+            explanation_markdown: "Because.".into(),
+            tech_allowed: false,
+            distinctness_score: None,
+            multi_step_depth: None,
         }];
         assert!(validate_mc(&questions, 1).is_err());
     }

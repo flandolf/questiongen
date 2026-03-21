@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 // ─── Error ────────────────────────────────────────────────────────────────────
 
@@ -12,7 +12,10 @@ pub struct AppError {
 
 impl AppError {
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -64,7 +67,9 @@ pub struct GeneratedQuestion {
     pub multi_step_depth: Option<f32>,
 }
 
-pub fn default_max_marks() -> u8 { 10 }
+pub fn default_max_marks() -> u8 {
+    10
+}
 
 // ─── Written questions ────────────────────────────────────────────────────────
 
@@ -101,6 +106,8 @@ pub struct GenerateQuestionsResponse {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distinctness_avg: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -232,6 +239,8 @@ pub struct GenerateMcQuestionsResponse {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distinctness_avg: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]

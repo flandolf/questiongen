@@ -1,6 +1,6 @@
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use crate::constants::{OPENROUTER_CHAT_URL, OPENROUTER_MAX_TOKENS};
 use crate::models::{AppError, CommandResult, OpenRouterResponse};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 
 /// Result of a single OpenRouter call: raw content string + token usage.
 pub struct OpenRouterResult {
@@ -46,9 +46,14 @@ pub async fn call_openrouter(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_else(|_| "Unknown error".into());
-        return Err(AppError::new("OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {body}")));
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".into());
+        return Err(AppError::new(
+            "OPENROUTER_ERROR",
+            format!("OpenRouter request failed ({status}): {body}"),
+        ));
     }
 
     let parsed: OpenRouterResponse = response
@@ -56,15 +61,23 @@ pub async fn call_openrouter(
         .await
         .map_err(|e| AppError::new("NETWORK_ERROR", format!("Invalid API response: {e}")))?;
 
-    let content = parsed.choices.first()
+    let content = parsed
+        .choices
+        .first()
         .map(|c| c.message.content.clone())
         .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
 
-    let (prompt_tokens, completion_tokens, total_tokens) = parsed.usage
+    let (prompt_tokens, completion_tokens, total_tokens) = parsed
+        .usage
         .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
         .unwrap_or((0, 0, 0));
 
-    Ok(OpenRouterResult { content, prompt_tokens, completion_tokens, total_tokens })
+    Ok(OpenRouterResult {
+        content,
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+    })
 }
 
 /// Build a `response_format` value for a named JSON schema.

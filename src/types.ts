@@ -249,6 +249,7 @@ export type GenerationTelemetry = {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  estimatedCostUsd?: number;     
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
 };
@@ -269,6 +270,10 @@ export type GenerationStatusEvent = {
 export type GenerateQuestionsResponse = {
   questions: GeneratedQuestion[];
   durationMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
 };
@@ -372,6 +377,10 @@ export type McQuestion = {
 export type GenerateMcQuestionsResponse = {
   questions: McQuestion[];
   durationMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
 };
