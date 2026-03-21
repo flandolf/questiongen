@@ -1,4 +1,4 @@
-import { Bookmark, BookOpen, Clock3, FolderOpen, Trash2, Target, BarChart2, Hash, SortAsc, Filter, Search, PlusCircle } from "lucide-react";
+import { Bookmark, Clock3, FolderOpen, Trash2, BarChart2, Hash, SortAsc, Search, PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSavedSets } from "../AppContext";
 import { Badge } from "../components/ui/badge";
@@ -113,7 +113,7 @@ export function SavedView() {
         description="Save a generated question set from the generator to reopen it later."
         icon={Bookmark}
         // --- #13: CTA to generator ---
-        action={
+        actions={
           <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/")}>
             <PlusCircle className="h-4 w-4" />
             Generate your first set

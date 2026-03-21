@@ -890,6 +890,7 @@ export function useSavedSets() {
     saveCurrentSet,
     loadSavedSet,
     deleteSavedSet,
+    needsSaveBeforeLoad,
   } = useAppContext();
 
   return {
@@ -897,5 +898,6 @@ export function useSavedSets() {
     saveCurrentSet,
     loadSavedSet,
     deleteSavedSet,
+    needsSaveBeforeLoad,
   };
 }

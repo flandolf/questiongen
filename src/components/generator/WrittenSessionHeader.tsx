@@ -39,6 +39,7 @@ export function WrittenSessionHeader({
   generationStartedAt, formattedElapsedTime, telemetry,
   getDifficultyBadgeClasses,
   onPrev, onNext, onSave, onDelete, onExit, lastSavedAt,
+  onRegenerate,
 }: WrittenSessionHeaderProps) {
   return (
     <div className="sticky px-4.5 top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-3 pt-2 backdrop-blur-xl">

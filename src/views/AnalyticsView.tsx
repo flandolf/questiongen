@@ -308,7 +308,7 @@ export function AnalyticsView() {
             description="Complete some written or multiple-choice questions and this page will build trend lines, topic breakdowns, and generation diagnostics automatically."
             className="h-auto py-16"
             // --- #13: CTA ---
-            action={
+            actions={
               <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/")}>
                 <PlusCircle className="h-4 w-4" />
                 Generate your first set
