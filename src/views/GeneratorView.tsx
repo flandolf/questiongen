@@ -64,6 +64,14 @@ function getDifficultyBadgeClasses(level: Difficulty) {
   }
 }
 
+// ─── Stopwatch persistence keys ───────────────────────────────────────────────
+// Stored outside the component so they're stable constants, not recreated on
+// every render. These let the timer survive tab closes, app suspensions, and
+// OS-level backgrounding — on cold mount we rehydrate from localStorage if the
+// context value is null.
+const LS_STOPWATCH_STARTED_KEY = "generator_stopwatch_startedAt";
+const LS_STOPWATCH_FINISHED_KEY = "generator_stopwatch_finishedAt";
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GeneratorView() {
@@ -140,6 +148,8 @@ export function GeneratorView() {
 
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [, setNow] = useState(Date.now());
+
+
   // Telemetry from the most recently completed generation — survives handleStartOver
   // so it stays visible on the SetupPanel when the user returns to configure a new set.
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
@@ -273,13 +283,66 @@ export function GeneratorView() {
   }, [activeMcQuestion, setMcQuestionPresentedAtById]);
 
   // ── Stopwatch ────────────────────────────────────────────────────────────────
-  function startStopwatch() { setGenerationStartedAt(Date.now()); setSessionFinishedAt(null); }
-  function resetStopwatch() { setGenerationStartedAt(null); setSessionFinishedAt(null); }
+  function startStopwatch() {
+    const now = Date.now();
+    localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(now));
+    localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
+    setGenerationStartedAt(now);
+    setSessionFinishedAt(null);
+  }
 
+  function resetStopwatch() {
+    localStorage.removeItem(LS_STOPWATCH_STARTED_KEY);
+    localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
+    setGenerationStartedAt(null);
+    setSessionFinishedAt(null);
+  }
+
+  // Rehydrate from localStorage on cold mount if context lost the value
+  useEffect(() => {
+    if (generationStartedAt !== null) return; // context already has it
+    const storedStart = localStorage.getItem(LS_STOPWATCH_STARTED_KEY);
+    const storedFinish = localStorage.getItem(LS_STOPWATCH_FINISHED_KEY);
+    if (storedStart) {
+      const parsed = Number(storedStart);
+      if (Number.isFinite(parsed) && parsed > 0) setGenerationStartedAt(parsed);
+    }
+    if (storedFinish) {
+      const parsed = Number(storedFinish);
+      if (Number.isFinite(parsed) && parsed > 0) setSessionFinishedAt(parsed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep localStorage in sync whenever these values change
+  useEffect(() => {
+    if (generationStartedAt !== null) {
+      localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(generationStartedAt));
+    }
+  }, [generationStartedAt]);
+
+  useEffect(() => {
+    if (sessionFinishedAt !== null) {
+      localStorage.setItem(LS_STOPWATCH_FINISHED_KEY, String(sessionFinishedAt));
+    }
+  }, [sessionFinishedAt]);
+
+  // Tick every second while the timer is running
   useEffect(() => {
     if (generationStartedAt === null || sessionFinishedAt !== null) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
+  }, [generationStartedAt, sessionFinishedAt]);
+
+  // Snap the display correct the moment the user returns to the tab/window
+  // (the interval may have been throttled or frozen while hidden)
+  useEffect(() => {
+    if (generationStartedAt === null || sessionFinishedAt !== null) return;
+    function onVisibilityChange() {
+      if (!document.hidden) setNow(Date.now());
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [generationStartedAt, sessionFinishedAt]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
