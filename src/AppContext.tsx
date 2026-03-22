@@ -65,6 +65,10 @@ interface AppContextState {
   setMarkingModel: (model: string) => void;
   useSeparateMarkingModel: boolean;
   setUseSeparateMarkingModel: (enabled: boolean) => void;
+  imageMarkingModel: string;
+  setImageMarkingModel: (model: string) => void;
+  useSeparateImageMarkingModel: boolean;
+  setUseSeparateImageMarkingModel: (enabled: boolean) => void;
   debugMode: boolean;
   setDebugMode: (enabled: boolean) => void;
 
@@ -167,6 +171,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setMarkingModel,
     useSeparateMarkingModel,
     setUseSeparateMarkingModel,
+    imageMarkingModel,
+    setImageMarkingModel,
+    useSeparateImageMarkingModel,
+    setUseSeparateImageMarkingModel,
     debugMode,
     setDebugMode,
   } = useSettingsState();
@@ -311,8 +319,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     model,
     markingModel,
     useSeparateMarkingModel,
+    imageMarkingModel,
+    useSeparateImageMarkingModel,
     debugMode,
-  }), [apiKey, model, markingModel, useSeparateMarkingModel, debugMode]);
+  }), [apiKey, model, markingModel, useSeparateMarkingModel, imageMarkingModel, useSeparateImageMarkingModel, debugMode]);
 
   const writtenSessionSnapshot = useMemo<PersistedWrittenSession>(() => ({
     questions,
@@ -414,6 +424,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setModel(state.settings.model);
     setMarkingModel(state.settings.markingModel);
     setUseSeparateMarkingModel(Boolean(state.settings.useSeparateMarkingModel));
+    setImageMarkingModel(state.settings.imageMarkingModel);
+    setUseSeparateImageMarkingModel(Boolean(state.settings.useSeparateImageMarkingModel));
     setDebugMode(state.settings.debugMode);
     setSelectedTopics(state.preferences.selectedTopics);
     setDifficulty(state.preferences.difficulty);
@@ -635,6 +647,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setMarkingModel,
         useSeparateMarkingModel,
         setUseSeparateMarkingModel,
+        imageMarkingModel,
+        setImageMarkingModel,
+        useSeparateImageMarkingModel,
+        setUseSeparateImageMarkingModel,
         debugMode,
         setDebugMode,
         questionMode,
@@ -774,6 +790,10 @@ export function useAppSettings() {
     setMarkingModel,
     useSeparateMarkingModel,
     setUseSeparateMarkingModel,
+    imageMarkingModel,
+    setImageMarkingModel,
+    useSeparateImageMarkingModel,
+    setUseSeparateImageMarkingModel,
     debugMode,
     setDebugMode,
     clearApiKey,
@@ -790,6 +810,10 @@ export function useAppSettings() {
     setMarkingModel,
     useSeparateMarkingModel,
     setUseSeparateMarkingModel,
+    imageMarkingModel,
+    setImageMarkingModel,
+    useSeparateImageMarkingModel,
+    setUseSeparateImageMarkingModel,
     debugMode,
     setDebugMode,
     clearApiKey,

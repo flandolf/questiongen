@@ -37,6 +37,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   model: "openrouter/healer-alpha",
   markingModel: "openrouter/healer-alpha",
   useSeparateMarkingModel: false,
+  imageMarkingModel: "openrouter/healer-alpha",
+  useSeparateImageMarkingModel: false,
   debugMode: false,
 };
 
@@ -179,6 +181,8 @@ function normalizeSettings(raw: unknown): PersistedSettings {
     model: asString(data.model) || DEFAULT_SETTINGS.model,
     markingModel: asString(data.markingModel) || asString(data.model) || DEFAULT_SETTINGS.markingModel,
     useSeparateMarkingModel: Boolean(data.useSeparateMarkingModel),
+    imageMarkingModel: asString(data.imageMarkingModel) || asString(data.markingModel) || asString(data.model) || DEFAULT_SETTINGS.imageMarkingModel,
+    useSeparateImageMarkingModel: Boolean(data.useSeparateImageMarkingModel),
     debugMode: Boolean(data.debugMode),
   };
 }

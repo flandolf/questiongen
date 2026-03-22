@@ -7,6 +7,8 @@ export function useSettingsState() {
   const [model, setModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.model);
   const [markingModel, setMarkingModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.markingModel);
   const [useSeparateMarkingModel, setUseSeparateMarkingModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel);
+  const [imageMarkingModel, setImageMarkingModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.imageMarkingModel);
+  const [useSeparateImageMarkingModel, setUseSeparateImageMarkingModel] = useState(EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel);
   const [debugMode, setDebugMode] = useState(EMPTY_PERSISTED_APP_STATE.settings.debugMode);
 
   return {
@@ -20,6 +22,10 @@ export function useSettingsState() {
     setMarkingModel,
     useSeparateMarkingModel,
     setUseSeparateMarkingModel,
+    imageMarkingModel,
+    setImageMarkingModel,
+    useSeparateImageMarkingModel,
+    setUseSeparateImageMarkingModel,
     debugMode,
     setDebugMode,
   };

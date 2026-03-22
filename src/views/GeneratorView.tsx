@@ -92,9 +92,8 @@ export function GeneratorView() {
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
 
   // ── Context ─────────────────────────────────────────────────────────────────
-  const { apiKey, model, markingModel, useSeparateMarkingModel, debugMode } = useAppSettings();
-  const markModel = useSeparateMarkingModel && markingModel && markingModel.trim().length > 0 ? markingModel : model;
-
+  const { apiKey, model, markingModel, useSeparateMarkingModel, imageMarkingModel, useSeparateImageMarkingModel, debugMode } = useAppSettings();
+  // ...existing code...
   const {
     selectedTopics, setSelectedTopics,
     difficulty, setDifficulty,
@@ -154,7 +153,6 @@ export function GeneratorView() {
   // Accumulated SSE stream text shown in the generation timeline.
   const [streamText, setStreamText] = useState("");
 
-
   // Telemetry from the most recently completed generation — survives handleStartOver
   // so it stays visible on the SetupPanel when the user returns to configure a new set.
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
@@ -162,6 +160,7 @@ export function GeneratorView() {
   >(null);
 
   // ── Derived values ───────────────────────────────────────────────────────────
+  // Only declare these once, after all state is available
   const activeQuestion = questions[activeQuestionIndex];
   const activeQuestionAnswer = activeQuestion ? (answersByQuestionId[activeQuestion.id] ?? "") : "";
   const activeQuestionImage = activeQuestion ? imagesByQuestionId[activeQuestion.id] : undefined;
@@ -178,6 +177,17 @@ export function GeneratorView() {
   const activeMcOverrideInput = activeMcQuestion
     ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ?? (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ""))
     : "";
+
+  // Determine which model to use for marking: image, marking, or generation
+  const markModel = (() => {
+    if (activeQuestionImage && useSeparateImageMarkingModel && imageMarkingModel && imageMarkingModel.trim().length > 0) {
+      return imageMarkingModel;
+    }
+    if (useSeparateMarkingModel && markingModel && markingModel.trim().length > 0) {
+      return markingModel;
+    }
+    return model;
+  })();
 
   const showSetup = questionMode === "written" ? questions.length === 0 : mcQuestions.length === 0;
   const canShowWrittenRawOutput = debugMode && writtenRawModelOutput.trim().length > 0;

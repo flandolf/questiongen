@@ -415,6 +415,8 @@ export type PersistedSettings = {
   model: string;
   markingModel: string;
   useSeparateMarkingModel: boolean;
+  imageMarkingModel: string;
+  useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
 };
 
