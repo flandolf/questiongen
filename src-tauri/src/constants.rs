@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 pub const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
-pub const OPENROUTER_MAX_TOKENS: u16 = 5000;
 
 pub const MATHEMATICAL_METHODS_TOPIC: &str = "Mathematical Methods";
 pub const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";

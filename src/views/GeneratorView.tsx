@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { XCircle } from "lucide-react";
 import {
   useAppContext,
@@ -22,6 +23,7 @@ import {
   QuestionHistoryEntry,
   Difficulty,
   WrittenAttemptKind,
+  GenerationTokenEvent,
 } from "@/types";
 import {
   fileToDataUrl,
@@ -148,6 +150,9 @@ export function GeneratorView() {
 
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [, setNow] = useState(Date.now());
+
+  // Accumulated SSE stream text shown in the generation timeline.
+  const [streamText, setStreamText] = useState("");
 
 
   // Telemetry from the most recently completed generation — survives handleStartOver
@@ -345,6 +350,15 @@ export function GeneratorView() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [generationStartedAt, sessionFinishedAt]);
 
+  // ── Stream token listener ────────────────────────────────────────────────────
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<GenerationTokenEvent>("generation-token", (event) => {
+      setStreamText((prev) => prev + event.payload.text);
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, []);
+
   // ── Navigation ───────────────────────────────────────────────────────────────
   function handleNextWrittenQuestion() {
     if (!canAdvanceWritten) return;
@@ -502,7 +516,7 @@ export function GeneratorView() {
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
     const hasMath = selectedTopics.some((t) => isMathTopic(t));
-    startStopwatch(); setErrorMessage(null); setLastFailedAction(null);
+    startStopwatch(); setErrorMessage(null); setLastFailedAction(null); setStreamText("");
     setGenerationStatus({ mode: "written", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
     setIsGenerating(true);
     try {
@@ -543,7 +557,7 @@ export function GeneratorView() {
 
   async function handleGenerateMcQuestions() {
     if (!canGenerate) return;
-    startStopwatch(); setErrorMessage(null); setLastFailedAction(null);
+    startStopwatch(); setErrorMessage(null); setLastFailedAction(null); setStreamText("");
     setGenerationStatus({ mode: "multiple-choice", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
     setIsGenerating(true);
     try {
@@ -770,6 +784,7 @@ export function GeneratorView() {
           formattedElapsedTime={formattedElapsedTime}
           onGenerate={questionMode === "written" ? handleGenerateQuestions : handleGenerateMcQuestions}
           lastGenerationTelemetry={lastSessionTelemetry}
+          streamText={streamText}
         />
 
         /* ── Completion ── */

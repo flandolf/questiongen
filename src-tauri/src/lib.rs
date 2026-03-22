@@ -16,7 +16,7 @@ use tauri::Emitter;
 use constants::*;
 use difficulty::difficulty_guidance;
 use models::*;
-use openrouter::{call_openrouter, json_schema_format};
+use openrouter::{call_openrouter, call_openrouter_streaming, json_schema_format};
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
     clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
@@ -378,24 +378,16 @@ impl TechAllowed for McQuestion {
     }
 }
 
-// ─── Tauri command: generate written questions ────────────────────────────────
-
 #[tauri::command]
 async fn generate_questions(
     app: tauri::AppHandle,
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
     if request.topics.is_empty() {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "Select at least one topic.",
-        ));
+        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
     }
     if request.question_count == 0 || request.question_count > 20 {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "Question count must be 1–20.",
-        ));
+        return Err(AppError::new("VALIDATION_ERROR", "Question count must be 1–20."));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -417,10 +409,12 @@ async fn generate_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
+    // ── Timeline stage: preparing ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
-            "mode": "written", "stage": "generating", "message": "Requesting question set."
+            "mode": "written", "stage": "preparing",
+            "message": "Building prompt.", "attempt": 1
         }),
     );
 
@@ -450,21 +444,45 @@ async fn generate_questions(
         ),
     );
 
-    // Bind temporaries so their lifetimes cover the entire join! block.
+    // ── Timeline stage: generating — fetch model stats concurrently ───────────
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "written", "stage": "generating",
+            "message": format!("Generating {} questions…", request.question_count),
+            "attempt": 1
+        }),
+    );
+
     let written_sys = written_system();
     let written_fmt = written_format();
-    // Run the generation call and the pricing fetch concurrently.
+    // 1 500 tokens per question + 1 000 token buffer.
+    // For written: keep previous logic but increase buffer to 2000
+    let max_tokens = (request.question_count as u32) * 1_500 + 2_000;
+
     let (result, stats_result) = tokio::join!(
-        call_openrouter(
+        call_openrouter_streaming(
+            &app,
             &request.api_key,
             &request.model,
             &written_sys,
             serde_json::Value::String(prompt),
             &written_fmt,
+            max_tokens,
         ),
         get_model_stats(request.api_key.clone(), request.model.clone()),
     );
     let result = result?;
+
+    // ── Timeline stage: parsing ───────────────────────────────────────────────
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "written", "stage": "parsing",
+            "message": "Parsing and validating questions.",
+            "attempt": 1
+        }),
+    );
 
     let mut payload: WrittenQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_written(&mut payload.questions, selected_subs);
@@ -492,11 +510,19 @@ async fn generate_questions(
     });
 
     let duration_ms = started.elapsed().as_millis() as u64;
+
+    // ── Timeline stage: completed ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "written", "stage": "completed",
-            "message": format!("Done in {duration_ms}ms.")
+            "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0),
+            "attempt": 1,
+            "totalTokens": result.total_tokens,
+            "promptTokens": result.prompt_tokens,
+            "completionTokens": result.completion_tokens,
+            "estimatedCostUsd": estimated_cost_usd,
+            "durationMs": duration_ms,
         }),
     );
 
@@ -520,16 +546,10 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     if request.topics.is_empty() {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "Select at least one topic.",
-        ));
+        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
     }
     if request.question_count == 0 || request.question_count > 20 {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "Question count must be 1–20.",
-        ));
+        return Err(AppError::new("VALIDATION_ERROR", "Question count must be 1–20."));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -550,10 +570,12 @@ async fn generate_mc_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
+    // ── Timeline stage: preparing ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
-            "mode": "multiple-choice", "stage": "generating", "message": "Requesting MC set."
+            "mode": "multiple-choice", "stage": "preparing",
+            "message": "Building prompt.", "attempt": 1
         }),
     );
 
@@ -584,21 +606,49 @@ async fn generate_mc_questions(
         ),
     );
 
-    // Bind temporaries so their lifetimes cover the entire join! block.
+    // ── Timeline stage: generating ────────────────────────────────────────────
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "multiple-choice", "stage": "generating",
+            "message": format!("Generating {} questions…", request.question_count),
+            "attempt": 1
+        }),
+    );
+
     let mc_sys = mc_system();
     let mc_fmt = mc_format();
-    // Run the generation call and the pricing fetch concurrently.
+    // 1 500 tokens per question + 1 000 token buffer.
+    // For MC: 2250 for first, +350 for each additional, plus 2000 buffer
+    let max_tokens = if request.question_count > 0 {
+        2250 + ((request.question_count as u32 - 1) * 350) + 2000
+    } else {
+        2000
+    };
+
     let (result, stats_result) = tokio::join!(
-        call_openrouter(
+        call_openrouter_streaming(
+            &app,
             &request.api_key,
             &request.model,
             &mc_sys,
             serde_json::Value::String(prompt),
             &mc_fmt,
+            max_tokens,
         ),
         get_model_stats(request.api_key.clone(), request.model.clone()),
     );
     let result = result?;
+
+    // ── Timeline stage: parsing ───────────────────────────────────────────────
+    let _ = app.emit(
+        "generation-status",
+        serde_json::json!({
+            "mode": "multiple-choice", "stage": "parsing",
+            "message": "Parsing and validating questions.",
+            "attempt": 1
+        }),
+    );
 
     let mut payload: McQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_mc(&mut payload.questions, selected_subs);
@@ -634,11 +684,19 @@ async fn generate_mc_questions(
     });
 
     let duration_ms = started.elapsed().as_millis() as u64;
+
+    // ── Timeline stage: completed ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "multiple-choice", "stage": "completed",
-            "message": format!("Done in {duration_ms}ms.")
+            "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0),
+            "attempt": 1,
+            "totalTokens": result.total_tokens,
+            "promptTokens": result.prompt_tokens,
+            "completionTokens": result.completion_tokens,
+            "estimatedCostUsd": estimated_cost_usd,
+            "durationMs": duration_ms,
         }),
     );
 
@@ -653,7 +711,6 @@ async fn generate_mc_questions(
         multi_step_depth_avg: summary.multi_step_depth_avg,
     })
 }
-
 // ─── Tauri command: mark answer ───────────────────────────────────────────────
 
 #[tauri::command]
@@ -737,12 +794,17 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         }
     };
 
+    // 300 tokens per mark covers verdict + criterion rationales + worked solution + feedback.
+    // 1 000 token buffer handles fixed-length fields and JSON structure overhead.
+    let max_tokens = (request.question.max_marks as u32) * 300 + 1_000;
+
     let result = call_openrouter(
         &request.api_key,
         &request.model,
         &marking_system(chem_note),
         user_content,
         &marking_format(),
+        max_tokens,
     )
     .await?;
 
@@ -869,6 +931,7 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
             { "type": "image_url", "image_url": { "url": data_url } }
         ]),
         &free_text_format,
+        4_500,
     )
     .await?;
 

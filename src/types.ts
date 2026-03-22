@@ -257,6 +257,7 @@ export type GenerationTelemetry = {
 export type GenerationStatusStage =
   | "preparing"
   | "generating"
+  | "parsing"
   | "completed"
   | "failed";
 
@@ -265,6 +266,17 @@ export type GenerationStatusEvent = {
   stage: GenerationStatusStage;
   message: string;
   attempt: number;
+  // Fields present only in the "completed" event:
+  totalTokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  estimatedCostUsd?: number;
+  durationMs?: number;
+};
+
+/** Fired for every SSE token chunk during streaming generation. */
+export type GenerationTokenEvent = {
+  text: string;
 };
 
 export type GenerateQuestionsResponse = {

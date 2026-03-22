@@ -1,4 +1,5 @@
-import { Bug } from "lucide-react";
+import { Bug, Copy, Download } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,29 @@ export function WrittenQuestionCard({
   rawModelOutput,
   onToggleRawOutput,
 }: WrittenQuestionCardProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(rawModelOutput ?? "");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // noop
+    }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([rawModelOutput ?? ""], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "raw-llm-output.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
   return (
     <Card>
       <CardHeader>
@@ -44,8 +68,18 @@ export function WrittenQuestionCard({
           <div className="space-y-2">
             <Separator />
             <div>
-              <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
-              <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-5 whitespace-pre-wrap wrap-break-word">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Raw LLM Output</Label>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleCopy} aria-label="Copy raw output">
+                    <Copy className="w-4 h-4 mr-2" /> {copied ? "Copied!" : "Copy"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleDownload} aria-label="Download raw output">
+                    <Download className="w-4 h-4 mr-2" /> Download
+                  </Button>
+                </div>
+              </div>
+              <pre className="mt-2 max-h-80 overflow-auto rounded-xl border border-border/60 bg-muted/30 p-4 text-xs leading-5 whitespace-pre-wrap wrap-break-word" aria-live="polite">
                 {rawModelOutput}
               </pre>
             </div>

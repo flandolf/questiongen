@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownMath } from "@/components/MarkdownMath";
 import { McOption } from "@/types";
+import { useRef } from "react";
 
 type McAnswerPanelProps = {
   questionId: string;
@@ -42,6 +43,32 @@ export function McAnswerPanel({
 }: McAnswerPanelProps) {
   const answered = Boolean(selectedAnswer);
   const isCorrect = selectedAnswer === correctAnswer;
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function focusOption(idx: number) {
+    const el = optionRefs.current[idx];
+    if (el) el.focus();
+  }
+
+  function handleOptionsKeyDown(e: React.KeyboardEvent) {
+    const key = e.key;
+    const activeIndex = optionRefs.current.findIndex((el) => el === document.activeElement);
+    if (key === "ArrowDown" || key === "ArrowRight") {
+      e.preventDefault();
+      const next = (activeIndex + 1) % options.length;
+      focusOption(next);
+    } else if (key === "ArrowUp" || key === "ArrowLeft") {
+      e.preventDefault();
+      const prev = (activeIndex - 1 + options.length) % options.length;
+      focusOption(prev);
+    } else if (key === "Home") {
+      e.preventDefault();
+      focusOption(0);
+    } else if (key === "End") {
+      e.preventDefault();
+      focusOption(options.length - 1);
+    }
+  }
 
   return (
     <Card className="flex-col">
@@ -52,21 +79,32 @@ export function McAnswerPanel({
       </CardHeader>
       <CardContent className="space-y-2">
         {/* Options */}
-        <div className="flex flex-col gap-3">
-          {options.map((opt) => {
-            const isChosen   = selectedAnswer === opt.label;
+        <div
+          className="flex flex-col gap-3"
+          role="listbox"
+          aria-label="Answer options"
+          onKeyDown={handleOptionsKeyDown}
+        >
+          {options.map((opt, idx) => {
+            const isChosen = selectedAnswer === opt.label;
             const optCorrect = opt.label === correctAnswer;
 
             let dynamicClasses = "border-2 bg-card hover:border-primary/50 hover:bg-muted/50";
             if (answered) {
-              if (optCorrect)     dynamicClasses = "border-green-500 bg-green-50 dark:bg-green-950/40 shadow-sm ring-1 ring-green-500/20";
-              else if (isChosen)  dynamicClasses = "border-red-500 bg-red-50 dark:bg-red-950/40 opacity-90";
-              else                dynamicClasses = "border-border bg-card opacity-50 grayscale transition-all";
+              if (optCorrect) dynamicClasses = "border-green-500 bg-green-50 dark:bg-green-950/40 shadow-sm ring-1 ring-green-500/20";
+              else if (isChosen) dynamicClasses = "border-red-500 bg-red-50 dark:bg-red-950/40 opacity-90";
+              else dynamicClasses = "border-border bg-card opacity-50 grayscale transition-all";
             }
 
             return (
               <button
                 key={opt.label}
+                ref={(el) => {
+                  optionRefs.current[idx] = el;
+                }}
+                role="option"
+                aria-selected={isChosen}
+                tabIndex={answered ? -1 : 0}
                 disabled={answered}
                 className={`w-full text-left p-3.5 rounded-2xl flex gap-4 items-center transition-all duration-200 ${dynamicClasses} ${!answered ? "cursor-pointer transform hover:-translate-y-0.5" : "cursor-default"}`}
                 onClick={() => onSelectAnswer(opt.label)}
