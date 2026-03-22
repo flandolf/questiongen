@@ -47,7 +47,7 @@ interface ModelSearchResult {
   supportsImages: boolean;
 }
 
-type SortKey = "speed" | "price" | "latency" | "context";
+type SortKey = "speed" | "priceIn" | "priceOut" | "priceCombined" | "latency" | "context";
 type SortDir = "asc" | "desc";
 type Section = "api" | "models" | "credits" | "appearance" | "debug";
 
@@ -71,11 +71,13 @@ const PRESET_MODELS = [
 const SEARCH_MIN_TPS = 30;  // tok/s
 const SEARCH_MIN_UPTIME = 80;  // %
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "speed", label: "Speed" },
-  { key: "price", label: "Price" },
-  { key: "latency", label: "Latency" },
-  { key: "context", label: "Context" },
+const SORT_OPTIONS: { key: SortKey; label: string; description: string }[] = [
+  { key: "speed", label: "Speed", description: "Tokens/sec (p50)" },
+  { key: "priceIn", label: "Input $", description: "Prompt price per token" },
+  { key: "priceOut", label: "Output $", description: "Completion price per token" },
+  { key: "priceCombined", label: "Combined $", description: "Average of input + output price" },
+  { key: "latency", label: "Latency", description: "Time to first token (p50)" },
+  { key: "context", label: "Context", description: "Context window size" },
 ];
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
@@ -90,6 +92,11 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
 
 const fmt = {
   price(p: number | null) { return p == null ? "—" : `$${(p * 1e6).toFixed(2)}/M`; },
+  priceCombined(a: number | null, b: number | null) {
+    if (a == null && b == null) return "—";
+    const sum = (a ?? 0) + (b ?? 0);
+    return `$${(sum * 1e6).toFixed(2)}/M`;
+  },
   tps(v: number | null) { return v == null ? "—" : `${v.toFixed(0)} t/s`; },
   latency(v: number | null) { return v == null ? "—" : v >= 1000 ? `${(v / 1000).toFixed(2)} s` : `${v.toFixed(0)} ms`; },
   context(v: number | null) { return v == null ? "—" : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v); },
@@ -514,17 +521,35 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
     const dir = sortDir === "desc" ? -1 : 1;
     return [...list].sort((a, b) => {
       switch (sortKey) {
-        case "speed": return dir * ((a.tpsP50 ?? -1) - (b.tpsP50 ?? -1));
-        case "price": return dir * ((a.promptPricePerToken ?? Infinity) - (b.promptPricePerToken ?? Infinity));
-        case "latency": return dir * ((a.latencyP50 ?? Infinity) - (b.latencyP50 ?? Infinity));
-        case "context": return dir * ((a.contextLength ?? 0) - (b.contextLength ?? 0));
+        case "speed":
+          return dir * ((a.tpsP50 ?? -1) - (b.tpsP50 ?? -1));
+        case "priceIn":
+          return dir * ((a.promptPricePerToken ?? Infinity) - (b.promptPricePerToken ?? Infinity));
+        case "priceOut":
+          return dir * ((a.completionPricePerToken ?? Infinity) - (b.completionPricePerToken ?? Infinity));
+        case "priceCombined": {
+          const aCombined = (a.promptPricePerToken ?? Infinity) + (a.completionPricePerToken ?? Infinity);
+          const bCombined = (b.promptPricePerToken ?? Infinity) + (b.completionPricePerToken ?? Infinity);
+          return dir * (aCombined - bCombined);
+        }
+        case "latency":
+          return dir * ((a.latencyP50 ?? Infinity) - (b.latencyP50 ?? Infinity));
+        case "context":
+          return dir * ((a.contextLength ?? 0) - (b.contextLength ?? 0));
       }
     });
   }, [results, query, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir((d) => d === "desc" ? "asc" : "desc");
-    else { setSortKey(key); setSortDir(key === "price" || key === "latency" ? "asc" : "desc"); }
+    if (sortKey === key) {
+      setSortDir((d) => d === "desc" ? "asc" : "desc");
+    } else {
+      setSortKey(key);
+      // Price and latency: ascending by default (cheaper/faster first)
+      // Speed and context: descending by default (higher is better)
+      const defaultAsc: SortKey[] = ["priceIn", "priceOut", "priceCombined", "latency"];
+      setSortDir(defaultAsc.includes(key) ? "asc" : "desc");
+    }
   }
 
   function SortIcon({ k }: { k: SortKey }) {
@@ -532,12 +557,15 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
     return sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
   }
 
-  const SortBtn = ({ k, label }: { k: SortKey; label: string }) => (
+  const SortBtn = ({ k, label, title }: { k: SortKey; label: string; title?: string }) => (
     <button
       onClick={() => toggleSort(k)}
+      title={title}
       className={cn(
         "inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors",
-        sortKey === k ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        sortKey === k
+          ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
       <SortIcon k={k} />{label}
@@ -552,6 +580,14 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
     ? "structured output + vision + speed/uptime"
     : "structured output + response_format";
 
+  const statusLine = loading
+    ? `Scanning for models with ${requiresDesc}…`
+    : fromCache
+      ? `${results.length} models · from cache (${cacheMinutesLeft}m remaining)`
+      : query.trim()
+        ? `${displayed.length} of ${results.length} match "${query}"`
+        : `${results.length} models loaded`;
+
   return (
     <Card className="overflow-hidden shadow-sm">
       {/* Header */}
@@ -564,14 +600,13 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
                 for {isImageTarget ? "image marking" : "marking"}
               </span>
             )}
+            {fromCache && !loading && (
+              <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 leading-none">
+                cached
+              </span>
+            )}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {loading
-              ? `Scanning for models with ${requiresDesc}…`
-              : fromCache
-                ? `${results.length} models · cached (~${cacheMinutesLeft}m left)`
-                : `${displayed.length} of ${results.length} shown`}
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{statusLine}</p>
         </div>
         <button
           onClick={onClose}
@@ -595,16 +630,24 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
             value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name or ID…" className="pl-8 h-8 text-sm"
+            placeholder="Filter by name or ID…" className="pl-8 pr-8 h-8 text-sm"
+            autoFocus
           />
           {query && (
-            <button onClick={() => setQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear search"
+            >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1 ml-auto">
-          {SORT_OPTIONS.map(({ key, label }) => <SortBtn key={key} k={key} label={label} />)}
+        <div className="flex items-center gap-1 ml-auto flex-wrap">
+          <span className="text-xs text-muted-foreground/60 mr-1 hidden sm:inline">Sort:</span>
+          {SORT_OPTIONS.map(({ key, label, description }) => (
+            <SortBtn key={key} k={key} label={label} title={description} />
+          ))}
         </div>
       </div>
 
@@ -614,13 +657,13 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
       {/* Empty states */}
       {!loading && !error && results.length === 0 && (
         <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-          No models found with {requiresDesc}.
+          No models found matching the required capabilities ({requiresDesc}).
         </div>
       )}
       {!loading && !error && results.length > 0 && displayed.length === 0 && (
-        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-          No models match your filter.{" "}
-          <button className="underline text-primary" onClick={() => setQuery("")}>Clear</button>
+        <div className="px-4 py-10 text-center">
+          <p className="text-sm text-muted-foreground mb-1.5">No models match <span className="font-medium text-foreground">"{query}"</span></p>
+          <button className="text-xs text-primary underline underline-offset-2" onClick={() => setQuery("")}>Clear filter</button>
         </div>
       )}
 
@@ -641,18 +684,25 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
               <tr className="text-xs text-muted-foreground">
                 <th className="text-left px-4 py-2 font-medium">Model</th>
                 {([
-                  { k: "speed" as SortKey, label: "TPS" },
-                  { k: "latency" as SortKey, label: "Latency" },
-                  { k: "price" as SortKey, label: "$/M in" },
-                  { k: "price" as SortKey, label: "$/M out" },
-                  { k: "context" as SortKey, label: "Context" },
-                ] as { k: SortKey; label: string }[]).map(({ k, label }, i) => (
+                  { k: "speed" as SortKey, label: "TPS", title: "Throughput, tokens/sec (p50)" },
+                  { k: "latency" as SortKey, label: "Latency", title: "Time to first token (p50)" },
+                  { k: "priceIn" as SortKey, label: "$/M in", title: "Input (prompt) price per 1M tokens" },
+                  { k: "priceOut" as SortKey, label: "$/M out", title: "Output (completion) price per 1M tokens" },
+                  { k: "priceCombined" as SortKey, label: "$/M in+out", title: "Combined input + output price per 1M tokens" },
+                  { k: "context" as SortKey, label: "Context", title: "Context window size" },
+                ] as { k: SortKey; label: string; title: string }[]).map(({ k, label, title }) => (
                   <th
-                    key={`${k}-${i}`}
-                    className={cn("text-right px-3 py-2 font-medium cursor-pointer hover:text-foreground transition-colors whitespace-nowrap select-none", sortKey === k && "text-foreground")}
+                    key={k}
+                    title={title}
+                    className={cn(
+                      "text-right px-3 py-2 font-medium cursor-pointer hover:text-foreground transition-colors whitespace-nowrap select-none",
+                      sortKey === k && "text-foreground"
+                    )}
                     onClick={() => toggleSort(k)}
                   >
-                    <span className="inline-flex items-center justify-end gap-1"><SortIcon k={k} />{label}</span>
+                    <span className="inline-flex items-center justify-end gap-1">
+                      <SortIcon k={k} />{label}
+                    </span>
                   </th>
                 ))}
                 <th className="w-16 px-3 py-2" />
@@ -669,6 +719,12 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
                   <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">{fmt.latency(r.latencyP50)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">{fmt.price(r.promptPricePerToken)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">{fmt.price(r.completionPricePerToken)}</td>
+                  <td className={cn(
+                    "px-3 py-2.5 text-right tabular-nums text-sm transition-colors",
+                    sortKey === "priceCombined" ? "text-foreground font-medium" : "text-muted-foreground"
+                  )}>
+                    {fmt.priceCombined(r.promptPricePerToken, r.completionPricePerToken)}
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">{fmt.context(r.contextLength)}</td>
                   <td className="px-3 py-2.5 text-right">
                     <Button
@@ -685,13 +741,17 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
           </table>
 
           {/* Load more / end of results footer */}
-          <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between">
+          <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {exhausted ? `All ${results.length} qualifying models shown` : `${results.length} models loaded`}
+              {exhausted
+                ? `All ${results.length} qualifying models shown`
+                : query.trim()
+                  ? `Showing ${displayed.length} filtered · ${results.length} loaded`
+                  : `${results.length} models loaded`}
             </p>
             {!exhausted && (
               <Button
-                variant="outline" size="sm" className="gap-1.5 h-7 text-xs"
+                variant="outline" size="sm" className="gap-1.5 h-7 text-xs shrink-0"
                 disabled={loadingMore} onClick={handleLoadMore}
               >
                 {loadingMore
@@ -1043,6 +1103,10 @@ export function SettingsView() {
                     <span className="text-muted-foreground tabular-nums">${credits.totalUsage.toFixed(4)} / ${credits.totalCredits.toFixed(4)}</span>
                   </div>
                   <CreditBar used={credits.totalUsage} total={credits.totalCredits} />
+                  <div className="flex items-center justify-between text-xs mt-1">
+                    <span className="text-muted-foreground">Percent used</span>
+                    <span className="tabular-nums font-mono">{credits.totalCredits > 0 ? ((credits.totalUsage / credits.totalCredits) * 100).toFixed(5) : "0.00000"}%</span>
+                  </div>
                 </Card>
                 <Card className="overflow-hidden divide-y divide-border">
                   {[
