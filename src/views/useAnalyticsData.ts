@@ -587,6 +587,36 @@ export function useAnalyticsData() {
       .slice(0, 5);
   }, [writtenAttempts]);
 
+  // Early/recent accuracy splits for delta KPI badges
+  // Split all attempts in half; compute accuracy for each half
+  const { earlyOverallAccuracy, recentOverallAccuracy, earlyWrittenAvg, recentWrittenAvg, earlyMcAccuracy, recentMcAccuracy } = useMemo(() => {
+    if (allAttempts.length < 6) {
+      return { earlyOverallAccuracy: null, recentOverallAccuracy: null, earlyWrittenAvg: null, recentWrittenAvg: null, earlyMcAccuracy: null, recentMcAccuracy: null };
+    }
+    const half = Math.floor(allAttempts.length / 2);
+    const early = allAttempts.slice(0, half);
+    const recent = allAttempts.slice(half);
+
+    const calcOverall = (arr: AttemptRow[]) => arr.length > 0 ? percent(arr.filter(a => a.isCorrect).length, arr.length) : null;
+    const calcWrittenAvg = (arr: AttemptRow[]) => {
+      const w = arr.filter(a => a.mode === "written");
+      return w.length > 0 ? average(w.reduce((s, a) => s + a.scorePercent, 0), w.length) : null;
+    };
+    const calcMc = (arr: AttemptRow[]) => {
+      const mc = arr.filter(a => a.mode === "multiple-choice");
+      return mc.length > 0 ? percent(mc.filter(a => a.isCorrect).length, mc.length) : null;
+    };
+
+    return {
+      earlyOverallAccuracy: calcOverall(early),
+      recentOverallAccuracy: calcOverall(recent),
+      earlyWrittenAvg: calcWrittenAvg(early),
+      recentWrittenAvg: calcWrittenAvg(recent),
+      earlyMcAccuracy: calcMc(early),
+      recentMcAccuracy: calcMc(recent),
+    };
+  }, [allAttempts]);
+
   return {
     allAttempts,
     writtenAttempts,
@@ -605,5 +635,11 @@ export function useAnalyticsData() {
     qualityRows,
     lowestScoringWritten,
     questionHistoryLength: questionHistory.length,
+    earlyOverallAccuracy,
+    recentOverallAccuracy,
+    earlyWrittenAvg,
+    recentWrittenAvg,
+    earlyMcAccuracy,
+    recentMcAccuracy,
   };
 }

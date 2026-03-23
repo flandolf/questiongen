@@ -240,14 +240,13 @@ export function AnalyticsView() {
     qualityRows,
     lowestScoringWritten,
     questionHistoryLength,
-    // --- #9: Expect early/recent splits for delta — these may need to be added to useAnalyticsData ---
     earlyOverallAccuracy,
     recentOverallAccuracy,
     earlyWrittenAvg,
     recentWrittenAvg,
     earlyMcAccuracy,
     recentMcAccuracy,
-  } = useAnalyticsData() as any;
+  } = useAnalyticsData();
 
   const hasAnyAttempts = allAttempts.length > 0;
 

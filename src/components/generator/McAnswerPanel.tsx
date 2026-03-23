@@ -46,8 +46,7 @@ export function McAnswerPanel({
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   function focusOption(idx: number) {
-    const el = optionRefs.current[idx];
-    if (el) el.focus();
+    optionRefs.current[idx]?.focus();
   }
 
   function handleOptionsKeyDown(e: React.KeyboardEvent) {
@@ -55,32 +54,28 @@ export function McAnswerPanel({
     const activeIndex = optionRefs.current.findIndex((el) => el === document.activeElement);
     if (key === "ArrowDown" || key === "ArrowRight") {
       e.preventDefault();
-      const next = (activeIndex + 1) % options.length;
-      focusOption(next);
+      focusOption((activeIndex + 1) % options.length);
     } else if (key === "ArrowUp" || key === "ArrowLeft") {
       e.preventDefault();
-      const prev = (activeIndex - 1 + options.length) % options.length;
-      focusOption(prev);
-    } else if (key === "Home") {
-      e.preventDefault();
-      focusOption(0);
-    } else if (key === "End") {
-      e.preventDefault();
-      focusOption(options.length - 1);
-    }
+      focusOption((activeIndex - 1 + options.length) % options.length);
+    } else if (key === "Home") { e.preventDefault(); focusOption(0); }
+    else if (key === "End") { e.preventDefault(); focusOption(options.length - 1); }
   }
+
+  // Option label colors
+  const optionColors: Record<string, string> = { A: "#3b82f6", B: "#8b5cf6", C: "#f59e0b", D: "#ec4899" };
 
   return (
     <Card className="flex-col">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <Target className="w-5 h-5 text-primary" /> Select an Answer
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Target className="w-4.5 h-4.5 text-primary" /> Select an Answer
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-3">
         {/* Options */}
         <div
-          className="flex flex-col gap-3"
+          className="grid sm:grid-cols-2 gap-2.5"
           role="listbox"
           aria-label="Answer options"
           onKeyDown={handleOptionsKeyDown}
@@ -88,31 +83,42 @@ export function McAnswerPanel({
           {options.map((opt, idx) => {
             const isChosen = selectedAnswer === opt.label;
             const optCorrect = opt.label === correctAnswer;
+            const color = optionColors[opt.label] ?? "#6b7280";
 
-            let dynamicClasses = "border-2 bg-card hover:border-primary/50 hover:bg-muted/50";
+            let borderClass = "border-border/60 hover:border-primary/40 hover:bg-muted/30";
+            let labelBg = "bg-muted text-foreground";
+
             if (answered) {
-              if (optCorrect) dynamicClasses = "border-green-500 bg-green-50 dark:bg-green-950/40 shadow-sm ring-1 ring-green-500/20";
-              else if (isChosen) dynamicClasses = "border-red-500 bg-red-50 dark:bg-red-950/40 opacity-90";
-              else dynamicClasses = "border-border bg-card opacity-50 grayscale transition-all";
+              if (optCorrect) {
+                borderClass = "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-sm";
+                labelBg = "bg-emerald-500 text-white";
+              } else if (isChosen) {
+                borderClass = "border-rose-400 bg-rose-50/60 dark:bg-rose-950/20 opacity-80";
+                labelBg = "bg-rose-500 text-white";
+              } else {
+                borderClass = "border-border/40 bg-muted/20 opacity-45 grayscale";
+              }
             }
 
             return (
               <button
                 key={opt.label}
-                ref={(el) => {
-                  optionRefs.current[idx] = el;
-                }}
+                ref={(el) => { optionRefs.current[idx] = el; }}
                 role="option"
                 aria-selected={isChosen}
                 tabIndex={answered ? -1 : 0}
                 disabled={answered}
-                className={`w-full text-left p-3.5 rounded-2xl flex gap-4 items-center transition-all duration-200 ${dynamicClasses} ${!answered ? "cursor-pointer transform hover:-translate-y-0.5" : "cursor-default"}`}
+                className={`w-full text-left p-3 rounded-xl border-2 flex gap-3 items-start transition-all duration-200 ${borderClass} ${
+                  !answered ? "cursor-pointer hover:-translate-y-0.5 active:translate-y-0" : "cursor-default"
+                }`}
                 onClick={() => onSelectAnswer(opt.label)}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-sm ${answered && optCorrect ? "bg-green-500 text-white" : answered && isChosen ? "bg-red-500 text-white" : "bg-muted text-foreground"}`}>
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm transition-colors ${labelBg}`}
+                  style={!answered ? { backgroundColor: `${color}20`, color } : undefined}
+                >
                   {opt.label}
                 </div>
-                <div className="flex-1 text-base">
+                <div className="flex-1 text-sm leading-relaxed pt-0.5">
                   <MarkdownMath content={opt.text} />
                 </div>
               </button>
@@ -122,42 +128,44 @@ export function McAnswerPanel({
 
         {/* Result + explanation */}
         {answered && (
-          <div className="mt-6 space-y-4 animate-in zoom-in-95 duration-300">
-            <div className={`p-6 rounded-2xl border-2 flex gap-4 items-start ${
+          <div className="mt-2 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className={`p-4 rounded-xl border flex gap-3 items-start ${
               isCorrect
-                ? "bg-green-50/80 dark:bg-green-950/30 border-green-200 dark:border-green-900/50 text-green-900 dark:text-green-100"
-                : "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/50 text-red-900 dark:text-red-100"
+                ? "bg-emerald-50/80 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-900/40"
+                : "bg-rose-50/70 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40"
             }`}>
-              {isCorrect
-                ? <CheckCircle2 className="w-8 h-8 shrink-0 text-green-600 dark:text-green-400" />
-                : <XCircle className="w-8 h-8 shrink-0 text-red-600 dark:text-red-400" />}
-              <div className="flex-1">
-                <p className="font-extrabold text-lg mb-2">
-                  {isCorrect ? "Excellent! That is correct." : `Incorrect. The correct answer is ${correctAnswer}.`}
+              <div className={`shrink-0 mt-0.5 w-7 h-7 rounded-full flex items-center justify-center ${
+                isCorrect ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-rose-100 dark:bg-rose-900/50"
+              }`}>
+                {isCorrect
+                  ? <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" />
+                  : <XCircle className="w-4.5 h-4.5 text-rose-600 dark:text-rose-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`font-bold text-sm mb-2 ${isCorrect ? "text-emerald-900 dark:text-emerald-100" : "text-rose-900 dark:text-rose-100"}`}>
+                  {isCorrect ? "Correct!" : `Incorrect — the answer is ${correctAnswer}.`}
                 </p>
-                <div className="prose prose-sm dark:prose-invert max-w-none opacity-90">
+                <div className="prose prose-sm dark:prose-invert max-w-none opacity-90 text-sm">
                   <MarkdownMath content={explanationMarkdown} />
                 </div>
               </div>
             </div>
 
-            {/* Argue / Override — only shown when wrong */}
+            {/* Dispute section — only shown when wrong */}
             {!isCorrect && (
-              <div className="p-3.5 rounded-2xl border border-border/60 bg-muted/20 space-y-4">
-                {/* Awarded mark display */}
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                  <div className="text-sm font-semibold">Awarded mark</div>
-                  <div className="text-lg font-bold">
-                    {(awardedMarks ?? 0).toFixed(0)} / 1
-                  </div>
+              <div className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">Dispute this mark</p>
+                  <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                    Awarded: {(awardedMarks ?? 0).toFixed(0)}/1
+                  </span>
                 </div>
 
-                {/* Argue */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Argue for Mark</Label>
+                  <Label className="text-sm font-semibold">Argue for mark</Label>
                   <Textarea
                     placeholder="Explain why this answer should still receive a mark..."
-                    className="min-h-[96px]"
+                    className="min-h-[72px] text-sm resize-none"
                     value={appealText}
                     onChange={(e) => onAppealChange(e.target.value)}
                     disabled={isMarking}
@@ -165,32 +173,30 @@ export function McAnswerPanel({
                   <Button
                     type="button"
                     variant="outline"
+                    size="sm"
                     onClick={onArgueForMark}
                     disabled={isMarking || appealText.trim().length === 0}
+                    className="gap-2"
                   >
                     {isMarking
-                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Re-marking...</>
-                      : <>Argue for Mark</>}
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Re-marking…</>
+                      : <>Request Re-mark</>}
                   </Button>
                 </div>
 
                 <Separator />
 
-                {/* Override */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Override Mark</Label>
-                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  <Label className="text-sm font-semibold">Override mark</Label>
+                  <div className="flex items-center gap-2">
                     <Input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={1}
-                      className="sm:max-w-28"
+                      type="number" min={0} max={1} step={1}
+                      className="max-w-[70px] text-sm h-8"
                       value={overrideInput}
                       onChange={(e) => onOverrideInputChange(e.target.value)}
                     />
                     <span className="text-sm text-muted-foreground">out of 1</span>
-                    <Button type="button" onClick={onApplyOverride}>Apply Override</Button>
+                    <Button type="button" size="sm" className="h-8" onClick={onApplyOverride}>Apply</Button>
                   </div>
                 </div>
               </div>

@@ -42,83 +42,86 @@ export function WrittenSessionHeader({
   onRegenerate,
 }: WrittenSessionHeaderProps) {
   return (
-    <div className="sticky px-4.5 top-0 z-10 flex flex-col gap-3 border-b bg-background/80 pb-3 pt-2 backdrop-blur-xl">
-      <div className="flex flex-wrap items-center justify-end gap-1.5">
+    <div className="sticky top-0 z-10 flex flex-col gap-2.5 border-b bg-background/90 pb-3 pt-2.5 px-1 backdrop-blur-xl">
+      {/* Top row: title + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         {/* Left: question counter + badges */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="flex items-baseline gap-1.5 shrink-0">
-            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-              Question {questionIndex + 1}
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">
+              Q{questionIndex + 1}
             </h2>
-            <span className="text-sm text-muted-foreground font-medium">/ {totalQuestions}</span>
+            <span className="text-sm text-muted-foreground font-medium">of {totalQuestions}</span>
           </div>
-          <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary">
-            {topic}
+          {topic && (
+            <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary text-[11px]">
+              {topic}
+            </Badge>
+          )}
+          <Badge variant="outline" className={`shrink-0 font-semibold text-[11px] ${getDifficultyBadgeClasses(difficulty)}`}>
+            {difficulty}
           </Badge>
-          <Badge variant="outline" className={`shrink-0 font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>
-            Difficulty: {difficulty}
-          </Badge>
-          <Badge variant="outline" className="shrink-0 font-semibold">
-            {maxMarks} marks
-          </Badge>
+          {maxMarks !== undefined && (
+            <Badge variant="outline" className="shrink-0 text-[11px]">
+              {maxMarks}mk
+            </Badge>
+          )}
           {isMathTopic && techAllowed !== undefined && (
-            <Badge variant={techAllowed ? "default" : "destructive"} className="shrink-0">
-              {techAllowed ? "Tech-active" : "Tech-free"}
+            <Badge variant={techAllowed ? "default" : "destructive"} className="shrink-0 text-[11px]">
+              {techAllowed ? "CAS" : "No CAS"}
             </Badge>
           )}
         </div>
 
-        {/* Right: info tooltip + action buttons */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-                aria-label="Question details"
-              >
-                <Info className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-3">
-              <TelemetryTooltip
-                generationStartedAt={generationStartedAt}
-                formattedElapsedTime={formattedElapsedTime}
-                telemetry={telemetry}
-              />
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 rounded-full text-muted-foreground hover:text-foreground h-7 w-7"
+                  aria-label="Question details"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-3">
+                <TelemetryTooltip
+                  generationStartedAt={generationStartedAt}
+                  formattedElapsedTime={formattedElapsedTime}
+                  telemetry={telemetry}
+                />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        <Button variant={hasSavedSet ? "default" : "outline"} size="sm" onClick={onSave} className="h-8 gap-1.5">
-          <Bookmark className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{hasSavedSet ? "Update" : "Save"}</span>
-        </Button>
-        {onRegenerate && (
-          <Button variant="ghost" size="sm" onClick={onRegenerate} className="h-8">
-            <RefreshCw className="w-3.5 h-3.5 sm:mr-1.5" />
-            <span className="hidden sm:inline">Regenerate</span>
+          <Button variant={hasSavedSet ? "default" : "outline"} size="sm" onClick={onSave} className="h-7 gap-1.5 text-xs px-2.5">
+            <Bookmark className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{hasSavedSet ? "Saved" : "Save"}</span>
           </Button>
-        )}
-        {lastSavedAt && (
-          <span className="ml-2 hidden sm:inline text-xs text-muted-foreground">Saved at {formatDate(lastSavedAt)}</span>
-        )}
-        <Button variant="destructive" size="sm" onClick={onDelete} disabled={totalQuestions === 0} className="h-8">
-          <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
-          <span className="hidden sm:inline">Delete</span>
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onExit} className="h-8 text-muted-foreground hover:text-foreground">
-          Exit
-        </Button>
-        <Button variant="outline" size="sm" onClick={onPrev} disabled={questionIndex === 0} className="h-8">
-          <ArrowLeft className="w-3.5 h-3.5 sm:mr-1.5" />
-          <span className="hidden sm:inline">Prev</span>
-        </Button>
-        <Button variant="outline" size="sm" onClick={onNext} disabled={!canAdvance} className="h-8">
-          <span className="hidden sm:inline">{isAtLast ? "Summary" : "Next"}</span>
-          <ArrowRight className="w-3.5 h-3.5 sm:ml-1.5" />
-        </Button>
+          {onRegenerate && (
+            <Button variant="ghost" size="sm" onClick={onRegenerate} className="h-7 px-2">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onDelete} disabled={totalQuestions === 0} className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onExit} className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground">
+            Exit
+          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={onPrev} disabled={questionIndex === 0} className="h-7 w-7 p-0">
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant={isAtLast && canAdvance ? "default" : "outline"} size="sm" onClick={onNext} disabled={!canAdvance} className="h-7 gap-1 px-2.5 text-xs">
+              <span className="hidden sm:inline">{isAtLast ? "Finish" : "Next"}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <ProgressBar current={questionIndex + 1} total={totalQuestions} completed={completedCount} />
