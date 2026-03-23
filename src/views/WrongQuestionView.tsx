@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store";
 import { McHistoryEntry, QuestionHistoryEntry } from "../types";
@@ -12,6 +12,7 @@ import {
     ChevronDown, ChevronUp, Shuffle, List, BookOpen, Target,
     CheckCircle2, XCircle, RotateCcw, Eye, ChevronLeft, ChevronRight,
     Lightbulb, Trophy, Frown, Trash2, Loader2, Sparkles, Check, AlertCircle,
+    ImagePlus, X, FileImage, PenLine, Camera,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ type McWrongEntry = McHistoryEntry & { kind: "multiple-choice" };
 type WrongEntry = WrittenWrongEntry | McWrongEntry;
 type ViewMode = "list" | "reattempt" | "summary";
 type ReattemptResult = { id: string; correct: boolean };
+type AnswerMode = "text" | "image";
 type MarkingState =
     | { phase: "idle" }
     | { phase: "marking" }
@@ -54,6 +56,17 @@ const OPTION_COLORS: Record<string, string> = {
     A: "#3b82f6", B: "#8b5cf6", C: "#f59e0b", D: "#ec4899",
 };
 
+// ─── Convert file to base64 data URL ─────────────────────────────────────────
+
+function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 // ─── EmptyState ───────────────────────────────────────────────────────────────
 
 function EmptyState() {
@@ -77,7 +90,6 @@ function EmptyState() {
 function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
     return (
         <div className="space-y-4">
-            {/* Two-column: your answer | worked solution */}
             <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Your answer</p>
@@ -183,12 +195,10 @@ function ListEntryCard({
                     className="flex-1 text-left px-3.5 py-3 flex items-start gap-3 group min-w-0"
                     onClick={onToggle}
                 >
-                    {/* Index number */}
                     <span className="shrink-0 w-5 h-5 mt-0.5 rounded-md bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums">
                         {index + 1}
                     </span>
                     <div className="flex-1 min-w-0 space-y-1">
-                        {/* Inline meta row */}
                         <div className="flex flex-wrap items-center gap-1">
                             <Badge variant="outline" className={`text-[10px] font-semibold px-1.5 py-0 gap-0.5 ${isWritten ? "border-sky-400/40 text-sky-600 dark:text-sky-400" : "border-violet-400/40 text-violet-600 dark:text-violet-400"}`}>
                                 {isWritten ? <BookOpen className="w-2.5 h-2.5" /> : <Target className="w-2.5 h-2.5" />}
@@ -201,7 +211,6 @@ function ListEntryCard({
                                 <span className="text-[10px] text-muted-foreground/50 truncate max-w-[8rem]">{entry.question.subtopic}</span>
                             )}
                         </div>
-                        {/* Question text */}
                         <div className="py-3 overflow-hidden relative">
                             <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
                                 <MarkdownMath content={entry.question.promptMarkdown} />
@@ -209,7 +218,6 @@ function ListEntryCard({
                             <div className="absolute bottom-0 inset-x-0 h-5 bg-linear-to-t from-card to-transparent pointer-events-none" />
                         </div>
                     </div>
-                    {/* Score + chevron */}
                     <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
                         {isWritten && scoreLabel && (
                             <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${scoreBg(pct)}`}>{scoreLabel}</span>
@@ -237,6 +245,139 @@ function ListEntryCard({
                     {isWritten ? <WrittenExpandedBody entry={entry as WrittenWrongEntry} /> : <McExpandedBody entry={entry as McWrongEntry} />}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Image upload answer input ────────────────────────────────────────────────
+
+function ImageAnswerInput({
+    imageDataUrl,
+    onImageChange,
+    disabled,
+}: {
+    imageDataUrl: string | null;
+    onImageChange: (dataUrl: string | null) => void;
+    disabled?: boolean;
+}) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleFile = async (file: File) => {
+        if (!file.type.startsWith("image/")) return;
+        try {
+            const dataUrl = await fileToDataUrl(file);
+            onImageChange(dataUrl);
+        } catch {
+            // ignore
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    };
+
+    if (imageDataUrl) {
+        return (
+            <div className="relative rounded-xl border-2 border-primary/30 bg-muted/10 overflow-hidden group">
+                <img
+                    src={imageDataUrl}
+                    alt="Your answer"
+                    className="w-full max-h-[340px] object-contain"
+                />
+                {!disabled && (
+                    <div className="absolute inset-0 bg-background/0 group-hover:bg-background/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-border shadow text-xs font-medium hover:bg-muted transition-colors"
+                        >
+                            <Camera className="w-3.5 h-3.5" /> Replace
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onImageChange(null)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-rose-400/50 shadow text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" /> Remove
+                        </button>
+                    </div>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+            </div>
+        );
+    }
+
+    return (
+        <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => !disabled && fileInputRef.current?.click()}
+            className={`
+                flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed
+                min-h-[200px] cursor-pointer transition-all duration-200 select-none
+                ${disabled ? "opacity-50 cursor-not-allowed" : "hover:border-primary/50 hover:bg-muted/10 active:scale-[0.99]"}
+                ${isDragging ? "border-primary bg-primary/5 scale-[0.99]" : "border-border/50 bg-muted/5"}
+            `}
+        >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isDragging ? "bg-primary/15" : "bg-muted/40"}`}>
+                <FileImage className={`w-6 h-6 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground/60"}`} />
+            </div>
+            <div className="text-center">
+                <p className="text-sm font-semibold text-foreground/80">
+                    {isDragging ? "Drop to upload" : "Upload your handwritten answer"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                    Drag & drop or click — PNG, JPG, WEBP, GIF
+                </p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/40 text-xs font-medium text-muted-foreground">
+                <ImagePlus className="w-3.5 h-3.5" />
+                Choose image
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+                disabled={disabled} />
+        </div>
+    );
+}
+
+// ─── Answer mode toggle ───────────────────────────────────────────────────────
+
+function AnswerModeToggle({
+    mode, onChange, disabled,
+}: { mode: AnswerMode; onChange: (m: AnswerMode) => void; disabled?: boolean; }) {
+    return (
+        <div className="flex items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5 self-start">
+            <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange("text")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === "text"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+                <PenLine className="w-3 h-3" />
+                Type
+            </button>
+            <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange("image")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === "image"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+                <Camera className="w-3 h-3" />
+                Photo
+            </button>
         </div>
     );
 }
@@ -281,8 +422,8 @@ function AiMarkingResult({
 
     return (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Score header + feedback side by side */}
-            <div className="grid sm:grid-cols-[auto_1fr] gap-3 items-start">
+            {/* Score header + feedback */}
+            <div className="grid sm:grid-cols-[auto_0.7fr] gap-3 items-center">
                 <div className={`flex items-center gap-3 p-3.5 rounded-xl border sm:flex-col sm:items-center sm:gap-2 sm:px-4 sm:py-3 ${scoreBg(pct)}`}>
                     <div className="relative w-14 h-14 shrink-0">
                         <svg className="absolute inset-0 -rotate-90" width="56" height="56" viewBox="0 0 64 64">
@@ -396,7 +537,11 @@ function ReattemptView({
     const [idx, setIdx] = useState(0);
     const [results, setResults] = useState<ReattemptResult[]>([]);
     const [mcSelected, setMcSelected] = useState<string | null>(null);
+
+    // Per-question written state — lifted so we can read them for resolveResult
     const [writtenAnswer, setWrittenAnswer] = useState("");
+    const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+    const [answerMode, setAnswerMode] = useState<AnswerMode>("text");
     const [showAnswer, setShowAnswer] = useState(false);
     const [selfRated, setSelfRated] = useState<boolean | null>(null);
     const [markingState, setMarkingState] = useState<MarkingState>({ phase: "idle" });
@@ -412,15 +557,31 @@ function ReattemptView({
     const attemptedSoFar = results.length;
     const progressPct = (idx / questions.length) * 100;
 
+    const hasTextAnswer = writtenAnswer.trim().length > 0;
+    const hasImageAnswer = imageDataUrl !== null;
+    const hasAnswer = answerMode === "text" ? hasTextAnswer : hasImageAnswer;
+    const isMarking = markingState.phase === "marking";
+    const isDone = markingState.phase === "done";
+    const isIdle = markingState.phase === "idle";
+    const canMark = hasAnswer && !!apiKey && !!model && isIdle && !showAnswer;
+
     const doMark = async (appealText?: string) => {
         if (!writtenEntry) return;
         setMarkingState({ phase: "marking" });
         const studentAnswer = appealText
             ? `${writtenAnswer}\n\nAdditional argument from student:\n${appealText}`
-            : writtenAnswer;
+            : (answerMode === "text" ? writtenAnswer : "See attached image.");
         try {
             const raw = await invoke<unknown>("mark_answer", {
-                request: { question: writtenEntry.question, studentAnswer, model, apiKey },
+                request: {
+                    question: writtenEntry.question,
+                    studentAnswer,
+                    model,
+                    apiKey,
+                    ...(answerMode === "image" && imageDataUrl
+                        ? { studentAnswerImageDataUrl: imageDataUrl }
+                        : {}),
+                },
             });
             setMarkingState({ phase: "done", response: normalizeMarkResponse(raw, writtenEntry.question.maxMarks) });
         } catch (err) {
@@ -451,8 +612,9 @@ function ReattemptView({
         (isWritten && (markingState.phase === "done" || selfRated !== null || showAnswer));
 
     const resetQuestion = () => {
-        setMcSelected(null); setWrittenAnswer(""); setShowAnswer(false);
-        setSelfRated(null); setMarkingState({ phase: "idle" });
+        setMcSelected(null);
+        setWrittenAnswer(""); setImageDataUrl(null); setAnswerMode("text");
+        setShowAnswer(false); setSelfRated(null); setMarkingState({ phase: "idle" });
     };
 
     const handleNext = () => {
@@ -465,7 +627,6 @@ function ReattemptView({
 
     const handleDeleteCurrent = () => {
         onDelete(entry);
-        // Remove any pending result for this question
         const remainingResults = results.filter((r) => r.id !== entry.id);
         if (isLast) { onExit(remainingResults); return; }
         setResults(remainingResults);
@@ -543,7 +704,7 @@ function ReattemptView({
                 </div>
             </div>
 
-            {/* MC options — 2×2 grid, centered */}
+            {/* MC options */}
             {isMc && mcEntry && (
                 <div className="grid grid-cols-2 gap-2 shrink-0">
                     {mcEntry.question.options.map((opt) => {
@@ -597,80 +758,128 @@ function ReattemptView({
                 </div>
             )}
 
-            {/* Written answer area */}
+            {/* Written answer area — redesigned with mode switching + image upload */}
             {isWritten && writtenEntry && (
-                <div className="space-y-3 flex-1 flex flex-col">
-                    <Textarea
-                        value={writtenAnswer}
-                        onChange={(e) => setWrittenAnswer(e.target.value)}
-                        disabled={showAnswer || markingState.phase === "marking" || markingState.phase === "done"}
-                        placeholder="Write your answer here…"
-                        className="flex-1 min-h-[200px] resize-y text-sm leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
-                    />
-
-                    {markingState.phase === "idle" && !showAnswer && (
-                        <div className="flex items-center gap-2 flex-wrap shrink-0">
-                            <Button variant="outline" size="sm" onClick={() => setShowAnswer(true)} className="gap-2 h-8 text-xs">
-                                <Eye className="w-3.5 h-3.5" /> Reveal answer
-                            </Button>
-                            <Button size="sm" onClick={() => doMark()}
-                                disabled={writtenAnswer.trim().length === 0 || !apiKey || !model}
-                                className="gap-2 h-8 text-xs">
-                                <Sparkles className="w-3.5 h-3.5" />
-                                {(!apiKey || !model) ? "Configure API key in Settings" : "Mark with AI"}
-                            </Button>
+                <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
+                    <div className="px-4 pt-4 pb-4 space-y-3">
+                        {/* Mode toggle + header */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                                Your answer
+                                {writtenEntry.question.maxMarks > 0 && (
+                                    <span className="ml-1.5 normal-case font-medium text-muted-foreground/50">
+                                        ({writtenEntry.question.maxMarks} mark{writtenEntry.question.maxMarks !== 1 ? "s" : ""})
+                                    </span>
+                                )}
+                            </p>
+                            <AnswerModeToggle
+                                mode={answerMode}
+                                onChange={(m) => {
+                                    if (!isMarking && !isDone && !showAnswer) setAnswerMode(m);
+                                }}
+                                disabled={isMarking || isDone || showAnswer}
+                            />
                         </div>
-                    )}
 
-                    {markingState.phase !== "idle" && (
-                        <AiMarkingResult
-                            markingState={markingState}
-                            maxMarks={writtenEntry.question.maxMarks}
-                            onMark={() => doMark()}
-                            onOverride={handleOverride}
-                            onAppeal={(t) => doMark(t)}
-                        />
-                    )}
+                        {/* Answer input area */}
+                        {answerMode === "text" ? (
+                            <Textarea
+                                value={writtenAnswer}
+                                onChange={(e) => setWrittenAnswer(e.target.value)}
+                                disabled={showAnswer || isMarking || isDone}
+                                placeholder="Type your answer here…"
+                                className="min-h-[180px] resize-y text-sm leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
+                            />
+                        ) : (
+                            <ImageAnswerInput
+                                imageDataUrl={imageDataUrl}
+                                onImageChange={setImageDataUrl}
+                                disabled={showAnswer || isMarking || isDone}
+                            />
+                        )}
 
-                    {showAnswer && markingState.phase === "idle" && (
-                        <div className="space-y-4 animate-in fade-in duration-250">
-                            <div className="rounded-xl border border-border/40 overflow-hidden">
-                                <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
-                                    <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Worked solution</span>
-                                </div>
-                                <div className="px-4 py-3.5 text-sm prose prose-sm dark:prose-invert max-w-none">
-                                    <MarkdownMath content={writtenEntry.workedSolutionMarkdown || "No worked solution available."} />
-                                </div>
+                        {/* Photo mode info tip */}
+                        {answerMode === "image" && isIdle && !showAnswer && (
+                            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-sky-500/8 border border-sky-500/15 text-xs text-sky-700 dark:text-sky-300">
+                                <Camera className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span>Upload a photo of your handwritten work — AI will read and mark it directly.</span>
                             </div>
-                            {selfRated === null ? (
-                                <div className="rounded-xl border border-border/40 bg-muted/10 p-4">
-                                    <p className="text-sm font-semibold mb-3 text-center">How did you go this time?</p>
-                                    <div className="flex items-center gap-3 justify-center">
-                                        <Button variant="outline" size="sm" onClick={() => setSelfRated(false)}
-                                            className="gap-2 border-rose-400/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 h-9 px-4">
-                                            <Frown className="w-4 h-4" /> Still wrong
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => setSelfRated(true)}
-                                            className="gap-2 border-emerald-400/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 h-9 px-4">
-                                            <CheckCircle2 className="w-4 h-4" /> Got it!
-                                        </Button>
+                        )}
+
+                        {/* Action row */}
+                        {isIdle && !showAnswer && (
+                            <div className="flex items-center gap-2 flex-wrap pt-1">
+                                <Button
+                                    variant="outline" size="sm"
+                                    onClick={() => setShowAnswer(true)}
+                                    className="gap-2 h-8 text-xs"
+                                >
+                                    <Eye className="w-3.5 h-3.5" /> Reveal answer
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => doMark()}
+                                    disabled={!canMark}
+                                    className="gap-2 h-8 text-xs"
+                                    title={!apiKey || !model ? "Configure API key in Settings" : !hasAnswer ? "Provide an answer first" : undefined}
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    {(!apiKey || !model) ? "Configure API key" : "Mark with AI"}
+                                </Button>
+                                {!hasAnswer && (
+                                    <p className="text-[11px] text-muted-foreground/50">
+                                        {answerMode === "text" ? "Write" : "Upload"} your answer to mark.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Marking result */}
+                        {markingState.phase !== "idle" && (
+                            <AiMarkingResult
+                                markingState={markingState}
+                                maxMarks={writtenEntry.question.maxMarks}
+                                onMark={() => doMark()}
+                                onOverride={handleOverride}
+                                onAppeal={(t) => doMark(t)}
+                            />
+                        )}
+
+                        {/* Revealed answer + self-rate */}
+                        {showAnswer && isIdle && (
+                            <div className="space-y-4 animate-in fade-in duration-250">
+                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
+                                        <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Worked solution</span>
+                                    </div>
+                                    <div className="px-4 py-3.5 text-sm prose prose-sm dark:prose-invert max-w-none">
+                                        <MarkdownMath content={writtenEntry.workedSolutionMarkdown || "No worked solution available."} />
                                     </div>
                                 </div>
-                            ) : (
-                                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${selfRated ? "bg-emerald-500/10 border-emerald-500/25" : "bg-rose-500/10 border-rose-400/25"}`}>
-                                    {selfRated ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-                                    <p className="text-sm font-medium">{selfRated ? "Marked as correct — great work!" : "Marked as still incorrect."}</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {markingState.phase === "idle" && !showAnswer && writtenAnswer.length === 0 && (
-                        <p className="text-[11px] text-muted-foreground/50 text-center shrink-0">
-                            Write your answer, then mark with AI or reveal the solution to compare.
-                        </p>
-                    )}
+                                {selfRated === null ? (
+                                    <div className="rounded-xl border border-border/40 bg-muted/10 p-4">
+                                        <p className="text-sm font-semibold mb-3 text-center">How did you go this time?</p>
+                                        <div className="flex items-center gap-3 justify-center">
+                                            <Button variant="outline" size="sm" onClick={() => setSelfRated(false)}
+                                                className="gap-2 border-rose-400/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 h-9 px-4">
+                                                <Frown className="w-4 h-4" /> Still wrong
+                                            </Button>
+                                            <Button variant="outline" size="sm" onClick={() => setSelfRated(true)}
+                                                className="gap-2 border-emerald-400/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 h-9 px-4">
+                                                <CheckCircle2 className="w-4 h-4" /> Got it!
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${selfRated ? "bg-emerald-500/10 border-emerald-500/25" : "bg-rose-500/10 border-rose-400/25"}`}>
+                                        {selfRated ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                                        <p className="text-sm font-medium">{selfRated ? "Marked as correct — great work!" : "Marked as still incorrect."}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

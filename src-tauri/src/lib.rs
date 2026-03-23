@@ -909,11 +909,12 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         }
     }
 
-    parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
-    if parsed.score_out_of_10 == 0 && parsed.max_marks > 0 {
-        parsed.score_out_of_10 =
-            ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
+    // Always compute score_out_of_10 from achieved_marks and max_marks, do not use LLM value
+    if parsed.max_marks > 0 {
+        parsed.score_out_of_10 = ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
         parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
+    } else {
+        parsed.score_out_of_10 = 0;
     }
 
     parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);
