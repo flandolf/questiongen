@@ -21,7 +21,7 @@ import { useAppStore } from "./store";
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
   const setGenerationStatus = useAppStore((s) => s.setGenerationStatus);
-  
+
   // Hydrate from persisted storage on mount
   useEffect(() => {
     void hydrate();
@@ -30,16 +30,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Forward backend SSE events into the store
   useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
     void listen<GenerationStatusEvent>("generation-status", (event) => {
       setGenerationStatus(event.payload);
-    }).then((dispose) => {
-      unlisten = dispose;
+    }).then((fn) => {
+      if (cancelled) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
     });
-    return () => unlisten?.();
-  }, [setGenerationStatus]);
 
-  // Surface store errors via the global error state (already in store)
-  // Nothing extra needed — the store sets errorMessage directly.
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [setGenerationStatus]);
 
   return <>{children}</>;
 }

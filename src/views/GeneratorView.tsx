@@ -385,37 +385,58 @@ export function GeneratorView() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [generationStartedAt, sessionFinishedAt]);
 
-  // ── Stream token listener ────────────────────────────────────────────────────
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<GenerationTokenEvent>("generation-token", (event) => {
-      setStreamText((prev) => prev + event.payload.text);
-    }).then((fn) => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, []);
+// ── Stream token listener ────────────────────────────────────────────────────
+useEffect(() => {
+  let unlisten: (() => void) | undefined;
+  let cancelled = false;
 
-  // ── SSE status listener — forwards stage updates into batchProgress ──────────
-  // When a multi-topic run is active, each backend status event for "stage" is
-  // reflected into the currently-active batch entry so the UI stays live.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<import("@/types").GenerationStatusEvent>("generation-status", (event) => {
-      setGenerationStatus(event.payload);
-      // Mirror stage into the active batch entry when a multi-topic run is in progress
-      setBatchProgress((prev) => {
-        const activeIdx = prev.findIndex((e) => e.status === "active");
-        if (activeIdx === -1) return prev;
-        const next = [...prev];
-        next[activeIdx] = {
-          ...next[activeIdx],
-          stage: event.payload.stage,
-          message: event.payload.message,
-        };
-        return next;
-      });
-    }).then((fn) => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  }, [setGenerationStatus]);
+  listen<GenerationTokenEvent>("generation-token", (event) => {
+    setStreamText((prev) => prev + event.payload.text);
+  }).then((fn) => {
+    if (cancelled) {
+      fn(); // Promise resolved after cleanup — immediately unlisten
+    } else {
+      unlisten = fn;
+    }
+  }).catch(() => {});
+
+  return () => {
+    cancelled = true;
+    unlisten?.();
+  };
+}, []);
+
+// ── SSE status listener — forwards stage updates into batchProgress ──────────
+useEffect(() => {
+  let unlisten: (() => void) | undefined;
+  let cancelled = false;
+
+  listen<import("@/types").GenerationStatusEvent>("generation-status", (event) => {
+    setGenerationStatus(event.payload);
+    setBatchProgress((prev) => {
+      const activeIdx = prev.findIndex((e) => e.status === "active");
+      if (activeIdx === -1) return prev;
+      const next = [...prev];
+      next[activeIdx] = {
+        ...next[activeIdx],
+        stage: event.payload.stage,
+        message: event.payload.message,
+      };
+      return next;
+    });
+  }).then((fn) => {
+    if (cancelled) {
+      fn();
+    } else {
+      unlisten = fn;
+    }
+  }).catch(() => {});
+
+  return () => {
+    cancelled = true;
+    unlisten?.();
+  };
+}, [setGenerationStatus]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   function handleNextWrittenQuestion() {

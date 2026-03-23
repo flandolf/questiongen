@@ -65,6 +65,9 @@ const PRESET_MODELS = [
   { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
   { id: "qwen/qwen3.5-flash-02-23", name: "Qwen 3.5 Flash" },
   { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
+  { id: "arcee-ai/trinity-large-preview:free", name: "Trinity Large (Preview)" },
+  { id: "arcee-ai/trinity-mini:free", name: "Trinity Mini" },
+  { id: "arcee-ai/trinity-mini", name: "Trinity Mini (Paid)" },
   { id: "custom", name: "Custom…" },
 ];
 
