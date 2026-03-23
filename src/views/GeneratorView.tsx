@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { XCircle } from "lucide-react";
@@ -24,6 +25,11 @@ import {
   Difficulty,
   WrittenAttemptKind,
   GenerationTokenEvent,
+  TOPICS,
+  MATH_METHODS_SUBTOPICS,
+  SPECIALIST_MATH_SUBTOPICS,
+  CHEMISTRY_SUBTOPICS,
+  PHYSICAL_EDUCATION_SUBTOPICS,
 } from "@/types";
 import {
   fileToDataUrl,
@@ -85,6 +91,31 @@ function distributeQuestions(topics: Topic[], total: number): number[] {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GeneratorView() {
+  // Read query params for pre-selection
+  const location = useLocation();
+    // Pre-select topic and subtopic from query params on mount
+    useEffect(() => {
+      const params = new URLSearchParams(location.search);
+      const topic = params.get("topic");
+      const subtopic = params.get("subtopic");
+      if (topic && TOPICS.includes(topic as Topic)) {
+        setSelectedTopics([topic as Topic]);
+        // Try to select subtopic if present and valid for this topic
+        if (subtopic) {
+          if (topic === "Mathematical Methods" && MATH_METHODS_SUBTOPICS.includes(subtopic as MathMethodsSubtopic)) {
+            setMathMethodsSubtopics([subtopic as MathMethodsSubtopic]);
+          } else if (topic === "Specialist Mathematics" && SPECIALIST_MATH_SUBTOPICS.includes(subtopic as SpecialistMathSubtopic)) {
+            setSpecialistMathSubtopics([subtopic as SpecialistMathSubtopic]);
+          } else if (topic === "Chemistry" && CHEMISTRY_SUBTOPICS.includes(subtopic as ChemistrySubtopic)) {
+            setChemistrySubtopics([subtopic as ChemistrySubtopic]);
+          } else if (topic === "Physical Education" && PHYSICAL_EDUCATION_SUBTOPICS.includes(subtopic as PhysicalEducationSubtopic)) {
+            setPhysicalEducationSubtopics([subtopic as PhysicalEducationSubtopic]);
+          }
+        }
+      }
+    // Only run on mount or when location.search changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
   // ── Local UI state ──────────────────────────────────────────────────────────
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);

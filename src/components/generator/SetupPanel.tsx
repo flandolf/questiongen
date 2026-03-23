@@ -724,16 +724,16 @@ export function SetupPanel({
                     <span className="ml-2 font-normal normal-case">— leave blank to cover all</span>
                   </p>
                   {selectedTopics.includes("Mathematical Methods") && (
-                    <SubtopicGroup label="Mathematical Methods" items={MATH_METHODS_SUBTOPICS} selected={mathMethodsSubtopics} onToggle={onToggleMathMethodsSubtopic as (s: string) => void} />
+                    <SubtopicGroup label="Mathematical Methods" hint="Unit 3/4" items={MATH_METHODS_SUBTOPICS} selected={mathMethodsSubtopics} onToggle={onToggleMathMethodsSubtopic as (s: string) => void} />
                   )}
                   {selectedTopics.includes("Specialist Mathematics") && (
-                    <SubtopicGroup label="Specialist Mathematics" items={SPECIALIST_MATH_SUBTOPICS} selected={specialistMathSubtopics} onToggle={onToggleSpecialistMathSubtopic as (s: string) => void} />
+                    <SubtopicGroup label="Specialist Mathematics" hint="Unit 1/2" items={SPECIALIST_MATH_SUBTOPICS} selected={specialistMathSubtopics} onToggle={onToggleSpecialistMathSubtopic as (s: string) => void} />
                   )}
                   {selectedTopics.includes("Chemistry") && (
-                    <SubtopicGroup label="Chemistry" items={CHEMISTRY_SUBTOPICS} selected={chemistrySubtopics} onToggle={onToggleChemistrySubtopic as (s: string) => void} />
+                    <SubtopicGroup label="Chemistry" hint="Unit 1/2" items={CHEMISTRY_SUBTOPICS} selected={chemistrySubtopics} onToggle={onToggleChemistrySubtopic as (s: string) => void} />
                   )}
                   {selectedTopics.includes("Physical Education") && (
-                    <SubtopicGroup label="Physical Education" hint="Based on the 2025 Study Design" items={PHYSICAL_EDUCATION_SUBTOPICS} selected={physicalEducationSubtopics} onToggle={onTogglePhysicalEducationSubtopic as (s: string) => void} />
+                    <SubtopicGroup label="Physical Education" hint="Unit 3/4" items={PHYSICAL_EDUCATION_SUBTOPICS} selected={physicalEducationSubtopics} onToggle={onTogglePhysicalEducationSubtopic as (s: string) => void} />
                   )}
                 </div>
               </>
