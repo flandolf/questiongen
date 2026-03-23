@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppSettings } from "../AppContext";
 import { Button } from "../components/ui/button";
@@ -8,6 +8,7 @@ import {
   Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Clock, Database,
   Settings, Key, Cpu, CreditCard, Palette, ChevronRight, CheckCircle2,
   AlertCircle, Search, Image, X, ArrowUpDown, ArrowUp, ArrowDown,
+  ShieldAlert,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Slider } from "@/components/ui/slider";
@@ -27,6 +28,7 @@ interface ModelStats {
   name: string | null;
   latencyP50: number | null;
   uptimeLast30m: number | null;
+  supportsImages: boolean | null;
 }
 
 interface CreditsInfo {
@@ -52,6 +54,14 @@ type SortKey = "speed" | "priceIn" | "priceOut" | "priceCombined" | "latency" | 
 type SortDir = "asc" | "desc";
 type Section = "api" | "models" | "credits" | "appearance" | "debug";
 
+// Validation result for image-capable models
+type ImageValidationState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "supported" }
+  | { status: "unsupported" }
+  | { status: "error"; message: string };
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRESET_MODELS = [
@@ -72,6 +82,53 @@ const PRESET_MODELS = [
   { id: "custom", name: "Custom…" },
 ];
 
+// Preset models known to support image/vision inputs.
+// These are shown in the image marking model select — all support multimodal input.
+const PRESET_IMAGE_MODELS = [
+  { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
+  { id: "qwen/qwen3.5-flash-02-23", name: "Qwen 3.5 Flash" },
+  { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
+  { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
+  { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
+  { id: "custom", name: "Custom…" },
+];
+
+// ─── Module-level image validation cache ──────────────────────────────────────
+//
+// Keyed by `${apiKey}:${modelId}`. Stores whether the model supports images so
+// re-selecting the same model is instant without another network round-trip.
+// The Rust backend has its own 15-minute TTL cache for the underlying API call,
+// so this frontend cache is effectively just session-level deduplication.
+
+interface ImageValidationCacheEntry {
+  supportsImages: boolean;
+  fetchedAt: number;
+}
+
+const IMAGE_VALIDATION_CACHE_TTL_MS = 15 * 60_000; // 15 minutes — mirrors Rust cache TTL
+const imageValidationCache = new Map<string, ImageValidationCacheEntry>();
+
+function getImageValidationCacheKey(apiKey: string, modelId: string): string {
+  return `${apiKey}:${modelId}`;
+}
+
+function getCachedImageValidation(apiKey: string, modelId: string): boolean | null {
+  const key = getImageValidationCacheKey(apiKey, modelId);
+  const entry = imageValidationCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > IMAGE_VALIDATION_CACHE_TTL_MS) {
+    imageValidationCache.delete(key);
+    return null;
+  }
+  return entry.supportsImages;
+}
+
+function setCachedImageValidation(apiKey: string, modelId: string, supportsImages: boolean): void {
+  imageValidationCache.set(getImageValidationCacheKey(apiKey, modelId), {
+    supportsImages,
+    fetchedAt: Date.now(),
+  });
+}
 
 const SEARCH_MIN_TPS = 30;  // tok/s
 const SEARCH_MIN_UPTIME = 80;  // %
@@ -179,26 +236,19 @@ function ModelSelectRow({ id, value, models, disabled, onSelect, onSearch, place
   id: string; value: string; models: { id: string; name: string }[];
   disabled?: boolean; onSelect: (v: string) => void; onSearch?: () => void; placeholder?: string;
 }) {
-  // Determine if the current value is a known preset (including "custom" sentinel)
   const isKnown = models.some((m) => m.id === value);
-
-  // If it's a real model ID not in the list (e.g. picked via search or custom input),
-  // inject it as an extra entry so the Select always has a matching item to display.
   const extraEntry = !isKnown && value && value !== "custom"
     ? [{ id: value, name: value.includes("/") ? value.split("/").slice(1).join("/") : value }]
     : [];
-
-  // The Select's controlled value — always either a known ID or the injected one
   const selectVal = value && value !== "custom" ? value : (isKnown ? value : "");
 
   return (
     <div className="flex gap-2">
       <Select value={selectVal} onValueChange={onSelect}>
-        <SelectTrigger id={id} className="w-full min-w-0">
+        <SelectTrigger id={id} className="flex-1 min-w-0">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          {/* Injected entry for an out-of-preset model, shown at top with a subtle badge */}
           {extraEntry.map((m) => (
             <SelectItem key={m.id} value={m.id}>
               <span className="flex items-center gap-2 min-w-0">
@@ -207,10 +257,7 @@ function ModelSelectRow({ id, value, models, disabled, onSelect, onSearch, place
               </span>
             </SelectItem>
           ))}
-          {/* Separator between injected entry and presets */}
-          {extraEntry.length > 0 && (
-            <div className="my-1 border-t border-border" />
-          )}
+          {extraEntry.length > 0 && <div className="my-1 border-t border-border" />}
           {models.map((m) => (
             <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
           ))}
@@ -223,6 +270,129 @@ function ModelSelectRow({ id, value, models, disabled, onSelect, onSearch, place
         >
           <Search className="h-3.5 w-3.5" />
         </Button>
+      )}
+    </div>
+  );
+}
+
+// ─── ImageModelSelectRow ──────────────────────────────────────────────────────
+//
+// Like ModelSelectRow but also validates the selected model for vision/image
+// support via get_model_stats. Results are cached at module scope so re-selecting
+// a previously validated model is instant — the Rust backend also has a 15-minute
+// cache, so even a cache miss costs at most one lightweight API call.
+
+function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, placeholder = "Select a vision model" }: {
+  id: string;
+  value: string;
+  disabled?: boolean;
+  apiKey: string;
+  onSelect: (v: string) => void;
+  onSearch?: () => void;
+  placeholder?: string;
+}) {
+  const [validation, setValidation] = useState<ImageValidationState>({ status: "idle" });
+  const lastValidatedRef = useRef<string>("");
+
+  // Validate the selected model for image support
+  const validateModel = useCallback(async (modelId: string) => {
+    if (!modelId || modelId === "custom" || !apiKey.trim()) {
+      setValidation({ status: "idle" });
+      return;
+    }
+
+    // Hit the frontend cache first
+    const cached = getCachedImageValidation(apiKey, modelId);
+    if (cached !== null) {
+      setValidation({ status: cached ? "supported" : "unsupported" });
+      return;
+    }
+
+    setValidation({ status: "loading" });
+    try {
+      const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId });
+      const supports = stats.supportsImages === true;
+      setCachedImageValidation(apiKey, modelId, supports);
+      setValidation({ status: supports ? "supported" : "unsupported" });
+    } catch (e) {
+      setValidation({ status: "error", message: readBackendError(e) });
+    }
+  }, [apiKey]);
+
+  // Re-validate whenever the value or API key changes
+  useEffect(() => {
+    if (value === lastValidatedRef.current) return;
+    lastValidatedRef.current = value;
+    void validateModel(value);
+  }, [value, validateModel]);
+
+  const isKnown = PRESET_IMAGE_MODELS.some((m) => m.id === value);
+  const extraEntry = !isKnown && value && value !== "custom"
+    ? [{ id: value, name: value.includes("/") ? value.split("/").slice(1).join("/") : value }]
+    : [];
+  const selectVal = value && value !== "custom" ? value : (isKnown ? value : "");
+
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-2 items-center">
+        <Select value={selectVal} onValueChange={onSelect} disabled={disabled}>
+          <SelectTrigger id={id} className="w-full min-w-0">
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {extraEntry.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="truncate font-mono text-xs">{m.name}</span>
+                  <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none">custom</span>
+                </span>
+              </SelectItem>
+            ))}
+            {extraEntry.length > 0 && <div className="my-1 border-t border-border" />}
+            {PRESET_IMAGE_MODELS.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.id === "custom" ? m.name : (
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{m.name}</span>
+                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 font-semibold leading-none flex items-center gap-0.5">
+                      <Image className="h-2.5 w-2.5" />Vision
+                    </span>
+                  </span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {onSearch && (
+          <Button
+            variant="outline" size="sm" className="shrink-0"
+            disabled={disabled} onClick={onSearch} title="Search vision-capable models"
+          >
+            <Search className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+
+      {/* Warning banner when a model is confirmed not to support images */}
+      {validation.status === "unsupported" && selectVal && selectVal !== "custom" && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold">Vision support not detected.</span>{" "}
+            This model may not be able to process image uploads. Image-marked answers could fail or produce incorrect results.
+            Consider choosing a model from the list or searching for vision-capable alternatives.
+          </div>
+        </div>
+      )}
+
+      {/* Error banner when validation itself failed */}
+      {validation.status === "error" && (
+        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>Could not verify vision support: {validation.message}</span>
+        </div>
       )}
     </div>
   );
@@ -256,6 +426,7 @@ const STAT_ROWS: { icon: React.ReactNode; label: string; get: (s: ModelStats) =>
   { icon: <Database className="h-3.5 w-3.5" />, label: "Context window", get: s => fmt.context(s.contextLength) },
   { icon: <Clock className="h-3.5 w-3.5" />, label: "Uptime (30 m)", get: s => fmt.uptime(s.uptimeLast30m) },
   { icon: <Settings className="h-3.5 w-3.5" />, label: "Structured output", get: s => s.supportsStructuredOutput },
+  { icon: <Image className="h-3.5 w-3.5" />, label: "Vision / images", get: s => s.supportsImages ?? null },
 ];
 
 interface StatsColumn { stats: ModelStats | null; label: string; loading: boolean; }
@@ -302,18 +473,17 @@ function CreditBar({ used, total }: { used: number; total: number }) {
   );
 }
 
-const SEARCH_MAX_RESULTS = 15;           // initial page size
-const SEARCH_LOAD_MORE = 10;           // results to add per "Load more"
-const SEARCH_CACHE_TTL_MS = 45 * 60_000;  // 45-minute cache
+const SEARCH_MAX_RESULTS = 15;
+const SEARCH_LOAD_MORE = 10;
+const SEARCH_CACHE_TTL_MS = 45 * 60_000;
 
 interface SearchCache {
   results: ModelSearchResult[];
-  catalogueOffset: number;   // where to resume scanning from
-  exhausted: boolean;        // true when the full catalogue has been scanned
+  catalogueOffset: number;
+  exhausted: boolean;
   fetchedAt: number;
 }
 
-// Keyed by `${apiKey}:${target}` — generation/marking share one cache, imageMarking gets its own
 const searchCache = new Map<string, SearchCache>();
 
 function getCacheKey(apiKey: string, target: ModelSearchPanelProps["target"]): string {
@@ -329,7 +499,6 @@ function getCachedEntry(apiKey: string, target: ModelSearchPanelProps["target"])
 }
 
 // ─── ModelSearchPanel ─────────────────────────────────────────────────────────
-
 
 interface ModelSearchPanelProps {
   target: "generation" | "marking" | "imageMarking";
@@ -359,8 +528,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
   function modelPasses(stats: ModelStats, supportsImages: boolean): boolean {
     if (!stats.supportsStructuredOutput) return false;
     if (isImageTarget && !supportsImages) return false;
-    // Generation/marking: structured output is enough
-    // Image marking: additionally need image support + TPS/uptime gates
     if (isImageTarget) {
       if (stats.tpsP50 != null && stats.tpsP50 < SEARCH_MIN_TPS) return false;
       if (stats.uptimeLast30m != null && stats.uptimeLast30m < SEARCH_MIN_UPTIME) return false;
@@ -390,6 +557,8 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
             const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: m.id });
             if (signal.cancelled) return;
             if (modelPasses(stats, m.supportsImages)) {
+              // Also populate the image validation cache while we have the stats
+              setCachedImageValidation(apiKey, m.id, stats.supportsImages === true);
               found.push({
                 id: m.id, name: stats.name ?? m.name ?? m.id,
                 tpsP50: stats.tpsP50, uptimeLast30m: stats.uptimeLast30m,
@@ -401,6 +570,9 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
                 supportsImages: m.supportsImages,
               });
               setResults([...found]);
+            } else if (stats.supportsImages !== undefined) {
+              // Cache even for models that don't pass the filter
+              setCachedImageValidation(apiKey, m.id, stats.supportsImages === true);
             }
           } catch { /* skip */ }
         })
@@ -480,7 +652,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
     setLoadingMore(true);
     const signal = { cancelled: false };
     try {
-      // Re-fetch catalogue if needed (cache doesn't store it to save memory)
       const res = await fetch("https://openrouter.ai/api/v1/models", {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
@@ -508,7 +679,7 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
       const cacheKey = getCacheKey(apiKey, target);
       searchCache.set(cacheKey, {
         results: newResults, catalogueOffset: nextOffset, exhausted: done,
-        fetchedAt: cached.fetchedAt, // preserve original fetch time for TTL
+        fetchedAt: cached.fetchedAt,
       });
     } catch (e) {
       setError(String(e));
@@ -526,21 +697,16 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
     const dir = sortDir === "desc" ? -1 : 1;
     return [...list].sort((a, b) => {
       switch (sortKey) {
-        case "speed":
-          return dir * ((a.tpsP50 ?? -1) - (b.tpsP50 ?? -1));
-        case "priceIn":
-          return dir * ((a.promptPricePerToken ?? Infinity) - (b.promptPricePerToken ?? Infinity));
-        case "priceOut":
-          return dir * ((a.completionPricePerToken ?? Infinity) - (b.completionPricePerToken ?? Infinity));
+        case "speed": return dir * ((a.tpsP50 ?? -1) - (b.tpsP50 ?? -1));
+        case "priceIn": return dir * ((a.promptPricePerToken ?? Infinity) - (b.promptPricePerToken ?? Infinity));
+        case "priceOut": return dir * ((a.completionPricePerToken ?? Infinity) - (b.completionPricePerToken ?? Infinity));
         case "priceCombined": {
           const aCombined = (a.promptPricePerToken ?? Infinity) + (a.completionPricePerToken ?? Infinity);
           const bCombined = (b.promptPricePerToken ?? Infinity) + (b.completionPricePerToken ?? Infinity);
           return dir * (aCombined - bCombined);
         }
-        case "latency":
-          return dir * ((a.latencyP50 ?? Infinity) - (b.latencyP50 ?? Infinity));
-        case "context":
-          return dir * ((a.contextLength ?? 0) - (b.contextLength ?? 0));
+        case "latency": return dir * ((a.latencyP50 ?? Infinity) - (b.latencyP50 ?? Infinity));
+        case "context": return dir * ((a.contextLength ?? 0) - (b.contextLength ?? 0));
       }
     });
   }, [results, query, sortKey, sortDir]);
@@ -550,8 +716,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
       setSortDir((d) => d === "desc" ? "asc" : "desc");
     } else {
       setSortKey(key);
-      // Price and latency: ascending by default (cheaper/faster first)
-      // Speed and context: descending by default (higher is better)
       const defaultAsc: SortKey[] = ["priceIn", "priceOut", "priceCombined", "latency"];
       setSortDir(defaultAsc.includes(key) ? "asc" : "desc");
     }
@@ -595,7 +759,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
 
   return (
     <Card className="overflow-hidden shadow-sm">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
         <div className="min-w-0">
           <p className="text-sm font-semibold flex items-center gap-2">
@@ -603,6 +766,11 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
             {target !== "generation" && (
               <span className="text-xs font-normal text-muted-foreground">
                 for {isImageTarget ? "image marking" : "marking"}
+              </span>
+            )}
+            {isImageTarget && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800 leading-none flex items-center gap-0.5">
+                <Image className="h-2.5 w-2.5" />Vision only
               </span>
             )}
             {fromCache && !loading && (
@@ -622,14 +790,12 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
         </button>
       </div>
 
-      {/* Progress bar — indeterminate pulse while loading */}
       <div className="h-0.5 bg-border overflow-hidden">
         {loading
           ? <div className="h-full w-1/3 bg-primary animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full" style={{ animation: "pulse 1.5s ease-in-out infinite" }} />
           : <div className="h-full bg-emerald-500 w-full transition-all" />}
       </div>
 
-      {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background flex-wrap gap-y-2">
         <div className="relative flex-1 min-w-40">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -656,10 +822,8 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
         </div>
       </div>
 
-      {/* Error */}
       {error && !loading && <div className="px-4 py-3"><ErrorBanner message={error} /></div>}
 
-      {/* Empty states */}
       {!loading && !error && results.length === 0 && (
         <div className="px-4 py-10 text-center text-sm text-muted-foreground">
           No models found matching the required capabilities ({requiresDesc}).
@@ -672,7 +836,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
         </div>
       )}
 
-      {/* Initial skeleton */}
       {loading && results.length === 0 && (
         <div className="px-4 py-3 space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -681,7 +844,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
         </div>
       )}
 
-      {/* Results table */}
       {displayed.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -717,8 +879,17 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
               {displayed.map((r) => (
                 <tr key={r.id} className="hover:bg-muted/40 transition-colors group">
                   <td className="px-4 py-2.5">
-                    <p className="font-medium text-sm truncate max-w-[180px]" title={r.name}>{r.name}</p>
-                    <p className="text-xs text-muted-foreground truncate max-w-[180px]" title={r.id}>{r.id}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate max-w-[160px]" title={r.name}>{r.name}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[160px]" title={r.id}>{r.id}</p>
+                      </div>
+                      {isImageTarget && r.supportsImages && (
+                        <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none">
+                          Vision
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">{fmt.tps(r.tpsP50)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">{fmt.latency(r.latencyP50)}</td>
@@ -745,7 +916,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
             </tbody>
           </table>
 
-          {/* Load more / end of results footer */}
           <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               {exhausted
@@ -795,7 +965,6 @@ export function SettingsView() {
   const [localUseSeparateMarkingModel, setLocalUseSeparateMarkingModel] = useState(useSeparateMarkingModel);
   const [localUseSeparateImageMarkingModel, setLocalUseSeparateImageMarkingModel] = useState(useSeparateImageMarkingModel);
 
-  // Per-slot custom model inputs (isolated so they don't clobber each other)
   const [showCustom, setShowCustom] = useState(false);
   const [customId, setCustomId] = useState("");
   const [showCustomMarking, setShowCustomMarking] = useState(false);
@@ -805,11 +974,9 @@ export function SettingsView() {
 
   const [keySaved, setKeySaved] = useState(false);
 
-  // Model search
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTarget, setSearchTarget] = useState<"generation" | "marking" | "imageMarking">("generation");
 
-  // Live stats
   const [modelStats, setModelStats] = useState<ModelStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -864,8 +1031,15 @@ export function SettingsView() {
   const fetchImageMarkingModelStats = useCallback(async (key: string, modelId: string) => {
     if (!key.trim() || !modelId.trim() || modelId === "custom") return;
     setImageMarkingStatsLoading(true); setImageMarkingStatsError(null); setImageMarkingModelStats(null);
-    try { const s = await invoke<ModelStats>("get_model_stats", { apiKey: key, modelId }); setImageMarkingModelStats(s); setImageMarkingStatsUpdatedAt(new Date()); }
-    catch (e) { setImageMarkingStatsError(readBackendError(e)); } finally { setImageMarkingStatsLoading(false); }
+    try {
+      const s = await invoke<ModelStats>("get_model_stats", { apiKey: key, modelId });
+      setImageMarkingModelStats(s);
+      setImageMarkingStatsUpdatedAt(new Date());
+      // Populate the image validation cache from this fetch too
+      setCachedImageValidation(key, modelId, s.supportsImages === true);
+    }
+    catch (e) { setImageMarkingStatsError(readBackendError(e)); }
+    finally { setImageMarkingStatsLoading(false); }
   }, []);
 
   const fetchCredits = useCallback(async (key: string) => {
@@ -884,8 +1058,6 @@ export function SettingsView() {
   useEffect(() => { if (apiKey && localUseSeparateMarkingModel && localMarkingModel && localMarkingModel !== "custom") fetchMarkingModelStats(apiKey, localMarkingModel); }, [localMarkingModel, apiKey, localUseSeparateMarkingModel, fetchMarkingModelStats]);
   useEffect(() => { if (apiKey && localUseSeparateImageMarkingModel && localImageMarkingModel && localImageMarkingModel !== "custom") fetchImageMarkingModelStats(apiKey, localImageMarkingModel); }, [localImageMarkingModel, apiKey, localUseSeparateImageMarkingModel, fetchImageMarkingModelStats]);
 
-  // These are passed directly to ModelSelectRow — it handles injecting out-of-list values.
-  // The showCustom* flags only control whether the CustomModelInput panel is visible.
   const selectValue = localModel;
   const markingValue = localMarkingModel;
   const imageValue = localImageMarkingModel;
@@ -1006,7 +1178,10 @@ export function SettingsView() {
                   <Image className="h-3 w-3" />Vision
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">Choose any model — ensure it supports image inputs. Use search to find vision-capable options.</p>
+              <p className="text-sm text-muted-foreground">
+                Only vision-capable models can process image answer uploads. The selector below shows
+                known vision models and verifies your chosen model with OpenRouter before accepting it.
+              </p>
               <ToggleRow
                 id="use-separate-image-marking-model" checked={localUseSeparateImageMarkingModel}
                 onChange={setLocalUseSeparateImageMarkingModel} label="Use a separate image marking model"
@@ -1015,9 +1190,11 @@ export function SettingsView() {
               {localUseSeparateImageMarkingModel && (
                 <>
                   <FieldGroup label="Image marking model" htmlFor="image-marking-model-select">
-                    <ModelSelectRow
-                      id="image-marking-model-select" value={imageValue} models={PRESET_MODELS} disabled={!apiKey}
-                      placeholder="Select a model"
+                    <ImageModelSelectRow
+                      id="image-marking-model-select"
+                      value={imageValue}
+                      apiKey={apiKey}
+                      disabled={!apiKey}
                       onSelect={(v) => v === "custom" ? setShowCustomImage(true) : (setShowCustomImage(false), setLocalImageMarkingModel(v))}
                       onSearch={() => openSearch("imageMarking")}
                     />
@@ -1025,8 +1202,12 @@ export function SettingsView() {
                   {showCustomImage && (
                     <CustomModelInput
                       id="custom-image-id" label="Custom Image Marking Model ID" value={customImageId} onChange={setCustomImageId}
-                      hint="Format: provider/model-name — must support vision inputs"
-                      onApply={() => { setLocalImageMarkingModel(customImageId.trim()); setShowCustomImage(false); }}
+                      hint="Format: provider/model-name — must support vision/image inputs"
+                      onApply={() => {
+                        const id = customImageId.trim();
+                        setLocalImageMarkingModel(id);
+                        setShowCustomImage(false);
+                      }}
                     />
                   )}
                 </>
