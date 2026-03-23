@@ -56,13 +56,14 @@ type Section = "api" | "models" | "credits" | "appearance" | "debug";
 const PRESET_MODELS = [
   { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
   { id: "google/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
-  { id: "google/gemma-3n-e2b-it:free", name: "Gemma 3n E2B IT (Free)" },
-  { id: "nvidia/nemotron-3-super-120b-a12b:nitro", name: "Nemotron 3 Super 120B (Nitro)" },
+  { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
   { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
-  { id: "qwen/qwen3.5-9b", name: "Qwen 3.5 9B" },
-  { id: "qwen/qwen3.5-35b-a3b", name: "Qwen 3.5 35B" },
+  { id: "inception/mercury-2", name: "Mercury 2" },
+  { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5" },
+  { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
+  { id: "qwen/qwen3.5-flash-02-23", name: "Qwen 3.5 Flash" },
   { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
   { id: "custom", name: "Custom…" },
 ];
