@@ -98,6 +98,8 @@ export function useAppContext() {
       setUseSeparateImageMarkingModel: s.setUseSeparateImageMarkingModel,
       debugMode: s.debugMode,
       setDebugMode: s.setDebugMode,
+      questionTextSize: s.questionTextSize,
+      setQuestionTextSize: s.setQuestionTextSize,
       questionMode: s.questionMode,
       setQuestionMode: s.setQuestionMode,
       questions: s.questions,
@@ -209,6 +211,8 @@ export function useAppSettings() {
       debugMode: s.debugMode,
       setDebugMode: s.setDebugMode,
       clearApiKey: s.clearApiKey,
+      questionTextSize: s.questionTextSize,
+      setQuestionTextSize: s.setQuestionTextSize,
     }))
   );
 }

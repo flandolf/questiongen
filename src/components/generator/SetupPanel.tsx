@@ -312,9 +312,9 @@ function GenerationTimeline({
             <div key={stage} className="flex items-start gap-2 pl-0.5">
               <TimelineDot phase={phase} />
               <span className={`text-[11px] font-mono leading-tight pt-0.5 ${phase === "active" ? "text-foreground font-semibold" :
-                  phase === "done" ? "text-muted-foreground" :
-                    phase === "error" ? "text-destructive" :
-                      "text-muted-foreground/40"
+                phase === "done" ? "text-muted-foreground" :
+                  phase === "error" ? "text-destructive" :
+                    "text-muted-foreground/40"
                 }`}>
                 {STAGE_LABELS[stage]}
               </span>
@@ -449,9 +449,9 @@ function BatchTimeline({
               {/* Label */}
               <div className="flex-1 min-w-0">
                 <span className={`text-[11px] font-mono leading-tight ${isActive ? "text-foreground font-semibold" :
-                    isDone ? "text-muted-foreground" :
-                      isError ? "text-destructive" :
-                        "text-muted-foreground/40"
+                  isDone ? "text-muted-foreground" :
+                    isError ? "text-destructive" :
+                      "text-muted-foreground/40"
                   }`}>
                   {entry.topic}
                   <span className="font-normal opacity-70"> ·{entry.questionCount}q</span>
@@ -913,25 +913,27 @@ export function SetupPanel({
                 </div>
               </button>
 
-              <button
-                type="button"
-                onClick={() => onSetShuffleQuestions(!shuffleQuestions)}
-                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
+              {selectedTopics.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onSetShuffleQuestions(!shuffleQuestions)}
+                  className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
                 ${shuffleQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
-              >
-                <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${shuffleQuestions ? "text-primary" : "text-muted-foreground"}`} />
-                <div className="min-w-0">
-                  <p className={`text-xs font-semibold ${shuffleQuestions ? "text-foreground" : "text-muted-foreground"}`}>
-                    Shuffle Questions
-                    <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${shuffleQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      {shuffleQuestions ? "On" : "Off"}
-                    </span>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                    Randomly shuffles the combined set after generating questions for each subject.
-                  </p>
-                </div>
-              </button>
+                >
+                  <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${shuffleQuestions ? "text-primary" : "text-muted-foreground"}`} />
+                  <div className="min-w-0">
+                    <p className={`text-xs font-semibold ${shuffleQuestions ? "text-foreground" : "text-muted-foreground"}`}>
+                      Shuffle Questions
+                      <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${shuffleQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                        {shuffleQuestions ? "On" : "Off"}
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                      Randomly shuffles the combined set after generating questions for each subject.
+                    </p>
+                  </div>
+                </button>
+              )}
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">

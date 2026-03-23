@@ -418,6 +418,7 @@ export type PersistedSettings = {
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
+  questionTextSize?: number;
 };
 
 export type PersistedGeneratorPreferences = {

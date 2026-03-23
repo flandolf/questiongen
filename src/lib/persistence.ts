@@ -40,6 +40,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   imageMarkingModel: "openrouter/healer-alpha",
   useSeparateImageMarkingModel: false,
   debugMode: false,
+  questionTextSize: 16,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -184,6 +185,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
     imageMarkingModel: asString(data.imageMarkingModel) || asString(data.markingModel) || asString(data.model) || DEFAULT_SETTINGS.imageMarkingModel,
     useSeparateImageMarkingModel: Boolean(data.useSeparateImageMarkingModel),
     debugMode: Boolean(data.debugMode),
+    questionTextSize: clampWholeNumber(data.questionTextSize, DEFAULT_SETTINGS.questionTextSize ?? 16, 12, 28),
   };
 }
 

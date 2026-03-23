@@ -79,8 +79,8 @@ function DeltaBadge({ delta, label }: { delta: number | null; label?: string }) 
   const isNeut = Math.abs(delta) < 0.5;
   return (
     <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isNeut ? "bg-muted text-muted-foreground"
-        : isPos ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-          : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+      : isPos ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+        : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
       }`}>
       {isNeut ? <Minus className="w-2.5 h-2.5" /> : isPos ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
       {isPos ? "+" : ""}{delta.toFixed(1)}%{label ? ` ${label}` : ""}
@@ -585,28 +585,6 @@ export function CompletionScreen({
                   <span className="shrink-0 text-muted-foreground w-10 text-right">{correct}/{attempts}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Lifetime criterion weak points (recent) ── */}
-        {recentCriterionWeakPoints.length > 0 && (
-          <div>
-            <SectionHeading>Recurring weak criteria (recent)</SectionHeading>
-            <div className="space-y-1.5">
-              {recentCriterionWeakPoints.slice(0, 3).map((c: { criterion: string; successPercent: number }, i: number) => {
-                const pct = c.successPercent ?? 0;
-                const { text, bg } = criterionColor(pct);
-                return (
-                  <div key={i} className={`flex items-center gap-3 rounded-lg px-3 py-2 ${bg}`}>
-                    <AlertTriangle className={`w-3 h-3 shrink-0 ${text}`} />
-                    <p className="flex-1 text-xs text-foreground line-clamp-1">{c.criterion}</p>
-                    <span className={`shrink-0 text-xs font-bold tabular-nums ${text}`}>
-                      {pct.toFixed(0)}%
-                    </span>
-                  </div>
-                );
-              })}
             </div>
           </div>
         )}

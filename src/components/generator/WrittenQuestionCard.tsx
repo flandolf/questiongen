@@ -1,5 +1,6 @@
 import { Bug, Copy, Download, BookOpen } from "lucide-react";
 import { useState } from "react";
+import { useAppSettings } from "@/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -59,7 +60,7 @@ export function WrittenQuestionCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed">
+        <div className="prose prose-slate dark:prose-invert max-w-none leading-relaxed" style={{ fontSize: `${useAppSettings().questionTextSize}px` }}>
           <MarkdownMath content={promptMarkdown} />
         </div>
         {showRawOutput && canShowRawOutput && (

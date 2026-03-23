@@ -244,7 +244,12 @@ ALL four options (what misconception each wrong option targets and why the corre
          - feedbackMarkdown: ≤{feedback_words} words — be specific and actionable, not generic.\n\
          - workedSolutionMarkdown: ≤{worked_words} words — show every step explicitly.\n\
          \n\
-         {LATEX_RULES}{chem_note}\n\n\
+        FEEDBACK STYLE:\n\
+         - Format `feedbackMarkdown` using Markdown (headings, bullet points, and short math/code fences where appropriate) so feedback is clear and scannable.\n\
+         - At the end of `feedbackMarkdown` include an \"Exemplar response\" subsection showing an ideal student answer (concise, directly aligned to the marking scheme) that would earn full marks.\n\
+         - Keep exemplar focused on the key steps or reasoning required for full credit.\n\
+        \n\
+        {LATEX_RULES}{chem_note}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
              \"verdict\": string,\n\

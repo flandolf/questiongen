@@ -72,20 +72,19 @@ export function WrittenFeedbackPanel({
       <CardContent className="pt-5 space-y-5 animate-in slide-in-from-bottom-2 duration-400">
 
         {/* Score banner — cleaner, ring-based */}
-        <div className={`flex items-center gap-5 bg-gradient-to-r ${scoreBg} to-transparent border border-border/40 p-4 rounded-2xl`}>
+        <div className={`flex items-center gap-5 bg-linear-to-r ${scoreBg} to-transparent border border-border/40 p-4 rounded-2xl`}>
           <ScoreRing achieved={feedback.achievedMarks} max={feedback.maxMarks} />
           <div className="flex-1 min-w-0">
             <div className={`text-2xl font-black tabular-nums ${scoreColor}`}>
-              {feedback.scoreOutOf10}<span className="text-base font-semibold text-muted-foreground">/10</span>
+              {feedback.scoreOutOf10} <span className="text-base font-semibold text-muted-foreground">/ 10</span>
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {feedback.achievedMarks} of {feedback.maxMarks} marks awarded
             </div>
-            <div className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-              isCorrect ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-              pct >= 0.5 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
-              "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-            }`}>
+            <div className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${isCorrect ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                pct >= 0.5 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                  "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+              }`}>
               {isCorrect ? "✓" : pct >= 0.5 ? "~" : "✗"} {feedback.verdict}
             </div>
           </div>
@@ -138,19 +137,17 @@ export function WrittenFeedbackPanel({
               return (
                 <div
                   key={idx}
-                  className={`flex gap-4 p-3.5 text-sm transition-colors ${
-                    isFullMarks ? "bg-emerald-50/50 dark:bg-emerald-950/15" : "bg-card hover:bg-muted/20"
-                  }`}
+                  className={`flex gap-4 p-3.5 text-sm transition-colors ${isFullMarks ? "bg-emerald-50/50 dark:bg-emerald-950/15" : "bg-card hover:bg-muted/20"
+                    }`}
                 >
                   {/* Score pill */}
                   <div className="shrink-0 pt-0.5">
-                    <span className={`inline-flex items-center justify-center w-12 text-center font-bold text-xs px-1.5 py-1 rounded-lg ${
-                      isFullMarks
+                    <span className={`inline-flex items-center justify-center w-12 text-center font-bold text-xs px-1.5 py-1 rounded-lg ${isFullMarks
                         ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
                         : itemPct >= 0.5
-                        ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
-                        : "bg-rose-100/70 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"
-                    }`}>
+                          ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+                          : "bg-rose-100/70 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"
+                      }`}>
                       {item.achievedMarks}/{item.maxMarks}
                     </span>
                   </div>

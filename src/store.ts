@@ -74,6 +74,7 @@ export interface AppState {
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
+  questionTextSize: number;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -135,6 +136,7 @@ export interface AppActions {
   setUseSeparateImageMarkingModel: (enabled: boolean) => void;
   setDebugMode: (enabled: boolean) => void;
   clearApiKey: () => void;
+  setQuestionTextSize: (size: number) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
@@ -247,6 +249,7 @@ const defaultState: AppState = {
   imageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.imageMarkingModel,
   useSeparateImageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
+  questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
 
   // Preferences
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -325,6 +328,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         imageMarkingModel: s.settings.imageMarkingModel,
         useSeparateImageMarkingModel: Boolean(s.settings.useSeparateImageMarkingModel),
         debugMode: s.settings.debugMode,
+        questionTextSize: typeof s.settings.questionTextSize === "number" ? s.settings.questionTextSize : 16,
 
         // Preferences
         selectedTopics: s.preferences.selectedTopics,
@@ -383,6 +387,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) =>
     set({ useSeparateImageMarkingModel }),
   setDebugMode: (debugMode) => set({ debugMode }),
+  setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   clearApiKey: () => set({ apiKey: "" }),
 
   // ── Preferences ────────────────────────────────────────────────────────────
@@ -653,6 +658,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       imageMarkingModel: s.imageMarkingModel,
       useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
       debugMode: s.debugMode,
+      questionTextSize: s.questionTextSize,
     },
     preferences: {
       selectedTopics: s.selectedTopics,
