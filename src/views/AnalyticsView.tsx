@@ -58,7 +58,8 @@ function accuracyBg(pct: number | undefined): string {
 }
 
 const trendChartConfig = {
-  overallAccuracy: { label: "Overall", color: "var(--color-chart-1)" },
+  firstAttemptAccuracy: { label: "First attempt", color: "var(--color-chart-1)" },
+  overallAccuracy: { label: "Overall (incl. reattempts)", color: "var(--color-chart-3)" },
   writtenAccuracy: { label: "Written", color: "var(--color-chart-2)" },
   mcAccuracy: { label: "Multiple choice", color: "var(--color-chart-4)" },
 } satisfies ChartConfig;
@@ -246,17 +247,24 @@ export function AnalyticsView() {
     recentWrittenAvg,
     earlyMcAccuracy,
     recentMcAccuracy,
+    earlyFirstAttemptAccuracy,
+    recentFirstAttemptAccuracy,
   } = useAnalyticsData();
 
   const hasAnyAttempts = allAttempts.length > 0;
 
+  const firstAttemptPct = summary.firstAttemptAccuracy;
+  const writtenFirstPct = summary.writtenFirstAttemptAverageScore;
+  const mcFirstPct      = summary.mcFirstAttemptTotal > 0 ? (summary.mcFirstAttemptCorrect / summary.mcFirstAttemptTotal) * 100 : 0;
   const overallPct = summary.overallAccuracy;
   const writtenPct = summary.writtenAverageScore;
   const mcPct      = summary.mcAttempts ? (summary.mcCorrect / summary.mcAttempts) * 100 : 0;
   const toAccent = (pct: number) =>
     pct >= 75 ? "success" : pct >= 50 ? "warning" : pct > 0 ? "danger" : "default";
 
-  // --- #9: Compute deltas (recent minus early); null if not enough data ---
+  const firstAttemptDelta = recentFirstAttemptAccuracy != null && earlyFirstAttemptAccuracy != null
+    ? recentFirstAttemptAccuracy - earlyFirstAttemptAccuracy
+    : null;
   const overallDelta = recentOverallAccuracy != null && earlyOverallAccuracy != null
     ? recentOverallAccuracy - earlyOverallAccuracy
     : null;
@@ -321,34 +329,90 @@ export function AnalyticsView() {
           {/* ── KPIs ── */}
           <section className="space-y-4">
             <SectionLabel>Performance at a glance</SectionLabel>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <KpiCard
-                title="Overall Accuracy"
-                value={formatPercent(overallPct)}
-                detail={`${summary.totalCorrect} / ${summary.totalAttempts} attempts correct`}
-                icon={Target}
-                accent={toAccent(overallPct)}
-                delta={overallDelta}
-                deltaLabel="vs early"
-              />
-              <KpiCard
-                title="Written Average"
-                value={formatPercent(writtenPct)}
-                detail={`${summary.writtenAttempts} written attempts`}
-                icon={TrendingUp}
-                accent={toAccent(writtenPct)}
-                delta={writtenDelta}
-                deltaLabel="vs early"
-              />
-              <KpiCard
-                title="MC Accuracy"
-                value={formatPercent(mcPct)}
-                detail={`${summary.mcCorrect} / ${summary.mcAttempts} multiple-choice`}
-                icon={Gauge}
-                accent={toAccent(mcPct)}
-                delta={mcDelta}
-                deltaLabel="vs early"
-              />
+
+            {/* First-attempt accuracy — primary signal */}
+            <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60 mb-2.5">
+                First-attempt accuracy
+                <span className="ml-1.5 normal-case font-normal tracking-normal text-muted-foreground/50">
+                  · excludes appeals, overrides &amp; reattempts
+                </span>
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <KpiCard
+                  title="Overall"
+                  value={formatPercent(firstAttemptPct)}
+                  detail={`${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal} first attempts`}
+                  icon={Target}
+                  accent={toAccent(firstAttemptPct)}
+                  delta={firstAttemptDelta}
+                  deltaLabel="vs early"
+                />
+                <KpiCard
+                  title="Written"
+                  value={formatPercent(writtenFirstPct)}
+                  detail={`${summary.writtenFirstAttemptCorrect} / ${summary.writtenFirstAttemptTotal} written`}
+                  icon={TrendingUp}
+                  accent={toAccent(writtenFirstPct)}
+                  delta={writtenDelta}
+                  deltaLabel="vs early"
+                />
+                <KpiCard
+                  title="Multiple Choice"
+                  value={formatPercent(mcFirstPct)}
+                  detail={`${summary.mcFirstAttemptCorrect} / ${summary.mcFirstAttemptTotal} MC`}
+                  icon={Gauge}
+                  accent={toAccent(mcFirstPct)}
+                  delta={mcDelta}
+                  deltaLabel="vs early"
+                />
+              </div>
+            </div>
+
+            {/* Overall accuracy (all attempts including reattempts) */}
+            <div className="rounded-xl border border-border/50 bg-muted/10 px-4 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60 mb-2.5">
+                Overall accuracy
+                <span className="ml-1.5 normal-case font-normal tracking-normal text-muted-foreground/50">
+                  · all attempts including reattempts &amp; interventions
+                </span>
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiCard
+                  title="Overall"
+                  value={formatPercent(overallPct)}
+                  detail={`${summary.totalCorrect} / ${summary.totalAttempts} total`}
+                  icon={Target}
+                  accent={toAccent(overallPct)}
+                  delta={overallDelta}
+                  deltaLabel="vs early"
+                />
+                <KpiCard
+                  title="Written Avg"
+                  value={formatPercent(writtenPct)}
+                  detail={`${summary.writtenAttempts} written attempts`}
+                  icon={TrendingUp}
+                  accent={toAccent(writtenPct)}
+                />
+                <KpiCard
+                  title="MC Accuracy"
+                  value={formatPercent(mcPct)}
+                  detail={`${summary.mcCorrect} / ${summary.mcAttempts} MC`}
+                  icon={Gauge}
+                  accent={toAccent(mcPct)}
+                />
+                <KpiCard
+                  title="Interventions"
+                  value={`${summary.appealCount + summary.overrideCount}`}
+                  detail={`${summary.appealCount} appeals · ${summary.overrideCount} overrides`}
+                  icon={AlertTriangle}
+                  accent={summary.appealCount + summary.overrideCount > 0 ? "warning" : "default"}
+                />
+              </div>
+            </div>
+
+            {/* System latency */}
+            <div className="grid gap-3 sm:grid-cols-2">
               <KpiCard
                 title="Marking Latency"
                 value={formatDurationMs(summary.averageMarkingLatencyMs)}
@@ -361,15 +425,6 @@ export function AnalyticsView() {
                 detail="Avg generation time"
                 icon={WandSparkles}
               />
-              <KpiCard
-                title="Interventions"
-                value={`${summary.appealCount + summary.overrideCount}`}
-                detail={`${summary.appealCount} appeals · ${summary.overrideCount} overrides`}
-                icon={AlertTriangle}
-                accent={
-                  summary.appealCount + summary.overrideCount > 0 ? "warning" : "default"
-                }
-              />
             </div>
           </section>
 
@@ -379,7 +434,7 @@ export function AnalyticsView() {
             <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
               <ChartCard
                 title="Accuracy Trend"
-                description="Cumulative accuracy across all attempts, separated by mode."
+                description="First-attempt accuracy (solid) vs overall including reattempts (dashed), by mode."
               >
                 <ChartContainer config={trendChartConfig} className="h-[50em] w-full mt-4">
                   <LineChart data={trendData} margin={{ left: 0, right: 12, top: 12, bottom: 0 }}>
@@ -388,9 +443,10 @@ export function AnalyticsView() {
                     <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
                     <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
                     <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-4" />
-                    <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={3} dot={false} />
-                    <Line type="monotone" dataKey="writtenAccuracy" stroke="var(--color-writtenAccuracy)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                    <Line type="monotone" dataKey="mcAccuracy" stroke="var(--color-mcAccuracy)" strokeWidth={2} strokeDasharray="3 3" dot={false} />
+                    <Line type="monotone" dataKey="firstAttemptAccuracy" stroke="var(--color-firstAttemptAccuracy)" strokeWidth={3} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={2} strokeDasharray="6 3" dot={false} />
+                    <Line type="monotone" dataKey="writtenAccuracy" stroke="var(--color-writtenAccuracy)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                    <Line type="monotone" dataKey="mcAccuracy" stroke="var(--color-mcAccuracy)" strokeWidth={1.5} strokeDasharray="2 3" dot={false} />
                   </LineChart>
                 </ChartContainer>
               </ChartCard>

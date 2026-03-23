@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark } from "lucide-react";
+import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark, CircleX } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 export function Sidebar() {
@@ -8,6 +8,7 @@ export function Sidebar() {
     { to: "/", label: "Generator", icon: Sparkles },
     { to: "/history", label: "History", icon: History },
     { to: "/analytics", label: "Analytics", icon: ChartColumnIncreasing },
+    { to: "/mistakes", label: "Mistakes", icon: CircleX },
     { to: "/saved", label: "Saved", icon: Bookmark },
     { to: "/settings", label: "Settings", icon: Settings },
   ];

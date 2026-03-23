@@ -16,6 +16,7 @@ export type AttemptRow = {
   topic: string;
   subtopic: string;
   isCorrect: boolean;
+  isFirstAttempt: boolean;
   scorePercent: number;
   responseLatencyMs?: number;
   markingLatencyMs?: number;
@@ -114,27 +115,32 @@ export function useAnalyticsData() {
   const [topicFilter, setTopicFilter] = useState<string>(ALL_TOPICS);
 
   const writtenAttempts = useMemo<AttemptRow[]>(() => {
-    return questionHistory.map((entry: QuestionHistoryEntry) => ({
-      id: entry.id,
-      mode: "written" as const,
-      createdAt: entry.createdAt,
-      topic: entry.question.topic,
-      subtopic: normalizeSubtopic(entry.question.subtopic),
-      isCorrect: entry.markResponse.verdict.toLowerCase() === "correct",
-      scorePercent: percent(entry.markResponse.achievedMarks, entry.markResponse.maxMarks),
-      responseLatencyMs: entry.analytics?.responseLatencyMs,
-      markingLatencyMs: entry.analytics?.markingLatencyMs,
-      attemptKind: entry.analytics?.attemptKind,
-      answerWordCount: entry.analytics?.answerWordCount,
-      answerCharacterCount: entry.analytics?.answerCharacterCount,
-      generationDurationMs: entry.generationTelemetry?.durationMs,
-    }));
+    return questionHistory.map((entry: QuestionHistoryEntry) => {
+      const attemptKind = entry.analytics?.attemptKind;
+      return {
+        id: entry.id,
+        mode: "written" as const,
+        createdAt: entry.createdAt,
+        topic: entry.question.topic,
+        subtopic: normalizeSubtopic(entry.question.subtopic),
+        isCorrect: entry.markResponse.verdict.toLowerCase() === "correct",
+        isFirstAttempt: !attemptKind || attemptKind === "initial",
+        scorePercent: percent(entry.markResponse.achievedMarks, entry.markResponse.maxMarks),
+        responseLatencyMs: entry.analytics?.responseLatencyMs,
+        markingLatencyMs: entry.analytics?.markingLatencyMs,
+        attemptKind,
+        answerWordCount: entry.analytics?.answerWordCount,
+        answerCharacterCount: entry.analytics?.answerCharacterCount,
+        generationDurationMs: entry.generationTelemetry?.durationMs,
+      };
+    });
   }, [questionHistory]);
 
   const mcAttempts = useMemo<AttemptRow[]>(() => {
     return mcHistory.map((entry: McHistoryEntry) => {
       const maxMarks = entry.maxMarks ?? 1;
       const achievedMarks = entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
+      const attemptKind = entry.analytics?.attemptKind;
 
       return {
         id: entry.id,
@@ -143,9 +149,10 @@ export function useAnalyticsData() {
         topic: entry.question.topic,
         subtopic: normalizeSubtopic(entry.question.subtopic),
         isCorrect: achievedMarks >= maxMarks,
+        isFirstAttempt: !attemptKind || attemptKind === "initial",
         scorePercent: percent(achievedMarks, maxMarks),
         responseLatencyMs: entry.analytics?.responseLatencyMs,
-        attemptKind: entry.analytics?.attemptKind,
+        attemptKind,
         answerWordCount: entry.analytics?.answerWordCount,
         answerCharacterCount: entry.analytics?.answerCharacterCount,
         generationDurationMs: entry.generationTelemetry?.durationMs,
@@ -162,12 +169,16 @@ export function useAnalyticsData() {
   const summary = useMemo(() => {
     const totalAttempts = allAttempts.length;
     let totalCorrect = 0;
+    let firstAttemptTotal = 0;
+    let firstAttemptCorrect = 0;
     let generationLatencyTotal = 0;
     let generationLatencyCount = 0;
 
     for (const attempt of allAttempts) {
-      if (attempt.isCorrect) {
-        totalCorrect += 1;
+      if (attempt.isCorrect) totalCorrect += 1;
+      if (attempt.isFirstAttempt) {
+        firstAttemptTotal += 1;
+        if (attempt.isCorrect) firstAttemptCorrect += 1;
       }
       if (attempt.generationDurationMs !== undefined) {
         generationLatencyTotal += attempt.generationDurationMs;
@@ -177,6 +188,9 @@ export function useAnalyticsData() {
 
     let writtenScoreTotal = 0;
     let writtenCorrect = 0;
+    let writtenFirstAttemptTotal = 0;
+    let writtenFirstAttemptCorrect = 0;
+    let writtenFirstAttemptScoreTotal = 0;
     let markingLatencyTotal = 0;
     let markingLatencyCount = 0;
     let appealCount = 0;
@@ -184,24 +198,28 @@ export function useAnalyticsData() {
 
     for (const attempt of writtenAttempts) {
       writtenScoreTotal += attempt.scorePercent;
-      if (attempt.isCorrect) {
-        writtenCorrect += 1;
+      if (attempt.isCorrect) writtenCorrect += 1;
+      if (attempt.isFirstAttempt) {
+        writtenFirstAttemptTotal += 1;
+        writtenFirstAttemptScoreTotal += attempt.scorePercent;
+        if (attempt.isCorrect) writtenFirstAttemptCorrect += 1;
       }
       if (attempt.markingLatencyMs !== undefined) {
         markingLatencyTotal += attempt.markingLatencyMs;
         markingLatencyCount += 1;
       }
-      if (attempt.attemptKind === "appeal") {
-        appealCount += 1;
-      } else if (attempt.attemptKind === "override") {
-        overrideCount += 1;
-      }
+      if (attempt.attemptKind === "appeal") appealCount += 1;
+      else if (attempt.attemptKind === "override") overrideCount += 1;
     }
 
     let mcCorrect = 0;
+    let mcFirstAttemptTotal = 0;
+    let mcFirstAttemptCorrect = 0;
     for (const attempt of mcAttempts) {
-      if (attempt.isCorrect) {
-        mcCorrect += 1;
+      if (attempt.isCorrect) mcCorrect += 1;
+      if (attempt.isFirstAttempt) {
+        mcFirstAttemptTotal += 1;
+        if (attempt.isCorrect) mcFirstAttemptCorrect += 1;
       }
     }
 
@@ -209,11 +227,20 @@ export function useAnalyticsData() {
       totalAttempts,
       totalCorrect,
       overallAccuracy: percent(totalCorrect, totalAttempts),
+      firstAttemptTotal,
+      firstAttemptCorrect,
+      firstAttemptAccuracy: percent(firstAttemptCorrect, firstAttemptTotal),
       writtenAttempts: writtenAttempts.length,
       writtenCorrect,
       writtenAverageScore: average(writtenScoreTotal, writtenAttempts.length),
+      writtenFirstAttemptTotal,
+      writtenFirstAttemptCorrect,
+      writtenFirstAttemptAverageScore: average(writtenFirstAttemptScoreTotal, writtenFirstAttemptTotal),
       mcAttempts: mcAttempts.length,
       mcCorrect,
+      mcFirstAttemptTotal,
+      mcFirstAttemptCorrect,
+      mcFirstAttemptAccuracy: percent(mcFirstAttemptCorrect, mcFirstAttemptTotal),
       averageMarkingLatencyMs: average(markingLatencyTotal, markingLatencyCount),
       averageGenerationLatencyMs: average(generationLatencyTotal, generationLatencyCount),
       appealCount,
@@ -224,6 +251,8 @@ export function useAnalyticsData() {
   const trendData = useMemo(() => {
     let overallCorrect = 0;
     let overallTotal = 0;
+    let firstAttemptCorrect = 0;
+    let firstAttemptTotal = 0;
     let writtenCorrect = 0;
     let writtenTotal = 0;
     let mcCorrect = 0;
@@ -231,25 +260,25 @@ export function useAnalyticsData() {
 
     return allAttempts.map((attempt, index) => {
       overallTotal += 1;
-      if (attempt.isCorrect) {
-        overallCorrect += 1;
+      if (attempt.isCorrect) overallCorrect += 1;
+
+      if (attempt.isFirstAttempt) {
+        firstAttemptTotal += 1;
+        if (attempt.isCorrect) firstAttemptCorrect += 1;
       }
 
       if (attempt.mode === "written") {
         writtenTotal += 1;
-        if (attempt.isCorrect) {
-          writtenCorrect += 1;
-        }
+        if (attempt.isCorrect) writtenCorrect += 1;
       } else {
         mcTotal += 1;
-        if (attempt.isCorrect) {
-          mcCorrect += 1;
-        }
+        if (attempt.isCorrect) mcCorrect += 1;
       }
 
       return {
         label: `#${index + 1}`,
         overallAccuracy: percent(overallCorrect, overallTotal),
+        firstAttemptAccuracy: firstAttemptTotal > 0 ? percent(firstAttemptCorrect, firstAttemptTotal) : null,
         writtenAccuracy: writtenTotal > 0 ? percent(writtenCorrect, writtenTotal) : null,
         mcAccuracy: mcTotal > 0 ? percent(mcCorrect, mcTotal) : null,
       };
@@ -589,27 +618,33 @@ export function useAnalyticsData() {
 
   // Early/recent accuracy splits for delta KPI badges
   // Split all attempts in half; compute accuracy for each half
-  const { earlyOverallAccuracy, recentOverallAccuracy, earlyWrittenAvg, recentWrittenAvg, earlyMcAccuracy, recentMcAccuracy } = useMemo(() => {
+  const { earlyOverallAccuracy, recentOverallAccuracy, earlyWrittenAvg, recentWrittenAvg, earlyMcAccuracy, recentMcAccuracy, earlyFirstAttemptAccuracy, recentFirstAttemptAccuracy } = useMemo(() => {
     if (allAttempts.length < 6) {
-      return { earlyOverallAccuracy: null, recentOverallAccuracy: null, earlyWrittenAvg: null, recentWrittenAvg: null, earlyMcAccuracy: null, recentMcAccuracy: null };
+      return { earlyOverallAccuracy: null, recentOverallAccuracy: null, earlyWrittenAvg: null, recentWrittenAvg: null, earlyMcAccuracy: null, recentMcAccuracy: null, earlyFirstAttemptAccuracy: null, recentFirstAttemptAccuracy: null };
     }
     const half = Math.floor(allAttempts.length / 2);
     const early = allAttempts.slice(0, half);
     const recent = allAttempts.slice(half);
 
     const calcOverall = (arr: AttemptRow[]) => arr.length > 0 ? percent(arr.filter(a => a.isCorrect).length, arr.length) : null;
+    const calcFirstAttempt = (arr: AttemptRow[]) => {
+      const fa = arr.filter(a => a.isFirstAttempt);
+      return fa.length > 0 ? percent(fa.filter(a => a.isCorrect).length, fa.length) : null;
+    };
     const calcWrittenAvg = (arr: AttemptRow[]) => {
-      const w = arr.filter(a => a.mode === "written");
+      const w = arr.filter(a => a.mode === "written" && a.isFirstAttempt);
       return w.length > 0 ? average(w.reduce((s, a) => s + a.scorePercent, 0), w.length) : null;
     };
     const calcMc = (arr: AttemptRow[]) => {
-      const mc = arr.filter(a => a.mode === "multiple-choice");
+      const mc = arr.filter(a => a.mode === "multiple-choice" && a.isFirstAttempt);
       return mc.length > 0 ? percent(mc.filter(a => a.isCorrect).length, mc.length) : null;
     };
 
     return {
       earlyOverallAccuracy: calcOverall(early),
       recentOverallAccuracy: calcOverall(recent),
+      earlyFirstAttemptAccuracy: calcFirstAttempt(early),
+      recentFirstAttemptAccuracy: calcFirstAttempt(recent),
       earlyWrittenAvg: calcWrittenAvg(early),
       recentWrittenAvg: calcWrittenAvg(recent),
       earlyMcAccuracy: calcMc(early),
@@ -641,5 +676,7 @@ export function useAnalyticsData() {
     recentWrittenAvg,
     earlyMcAccuracy,
     recentMcAccuracy,
+    earlyFirstAttemptAccuracy,
+    recentFirstAttemptAccuracy,
   };
 }

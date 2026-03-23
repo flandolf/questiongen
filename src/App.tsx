@@ -8,6 +8,7 @@ import { HistoryView } from "./views/HistoryView";
 import { AnalyticsView } from "./views/AnalyticsView";
 import { SavedView } from "./views/SavedView";
 import { SettingsView } from "./views/SettingsView";
+import WrongQuestionView from "./views/WrongQuestionView";
 
 function AppRoutes() {
   const { isHydrated } = useAppContext();
@@ -30,6 +31,7 @@ function AppRoutes() {
           <Route index element={<GeneratorView />} />
           <Route path="history" element={<HistoryView />} />
           <Route path="analytics" element={<AnalyticsView />} />
+          <Route path="mistakes" element={<WrongQuestionView />} />
           <Route path="saved" element={<SavedView />} />
           <Route path="settings" element={<SettingsView />} />
         </Route>

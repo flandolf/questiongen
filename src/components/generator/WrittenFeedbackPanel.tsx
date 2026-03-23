@@ -49,6 +49,8 @@ function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
   );
 }
 
+import { useState } from "react";
+
 export function WrittenFeedbackPanel({
   answer,
   image,
@@ -66,6 +68,8 @@ export function WrittenFeedbackPanel({
   const scoreBg = pct >= 0.75 ? "from-emerald-500/10" : pct >= 0.5 ? "from-amber-500/10" : "from-rose-500/10";
   const verdict = feedback.verdict?.toLowerCase();
   const isCorrect = verdict === "correct";
+
+  const [showExemplar, setShowExemplar] = useState(false);
 
   return (
     <Card className="shadow-md border-border/50">
@@ -90,11 +94,24 @@ export function WrittenFeedbackPanel({
           </div>
         </div>
 
-        {/* Submitted answer */}
+        {/* Submitted answer + Exemplar dropdown */}
         <div className="space-y-2">
-          <Label className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
-            <BookOpen className="w-4 h-4" /> Submitted Answer
-          </Label>
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-bold flex items-center gap-2 text-muted-foreground">
+              <BookOpen className="w-4 h-4" /> Submitted Answer
+            </Label>
+            <div className="ml-auto">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowExemplar((v) => !v)}
+                className="text-xs px-2 py-1"
+              >
+                {showExemplar ? "Hide" : "Show"} Exemplar Answer
+              </Button>
+            </div>
+          </div>
           {answer.trim().length > 0 ? (
             <div className="prose prose-slate dark:prose-invert max-w-none bg-muted/20 p-4 rounded-xl border border-border/50 text-sm">
               <MarkdownMath content={answer} />
@@ -111,6 +128,16 @@ export function WrittenFeedbackPanel({
                 alt="Submitted working"
                 className="w-full h-auto max-h-80 object-contain rounded-lg"
               />
+            </div>
+          )}
+          {showExemplar && (
+            <div className="mt-2">
+              <Label className="text-xs font-semibold flex items-center gap-2 text-muted-foreground mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Exemplar Answer
+              </Label>
+              <div className="prose prose-slate dark:prose-invert max-w-none bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-200 dark:border-amber-700 text-sm">
+                <MarkdownMath content={feedback.workedSolutionMarkdown || "No exemplar answer available."} />
+              </div>
             </div>
           )}
         </div>
