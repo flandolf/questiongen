@@ -651,22 +651,28 @@ export function HistoryView() {
       {/* Virtualised list */}
       <ScrollArea viewportRef={viewportRef} className="flex-1 pr-1">
         <div className="relative w-full" style={{ height: totalVirtualHeight }}>
-          {virtualItems.map((virtualRow) => {
+          {virtualItems.map((virtualRow, i) => {
             const item = visibleHistory[virtualRow.index];
             if (!item) return null;
             const entryKey = `${item.kind}-${item.id}`;
+            // For the last item, use block layout to ensure bottom padding is preserved
+            const isLast = i === virtualItems.length - 1;
             return (
               <div
                 key={entryKey}
                 data-index={virtualRow.index}
                 ref={listVirtualizer.measureElement}
-                className="pb-3"
-                style={{
+                className={isLast ? "pb-8" : "pb-3"}
+                style={isLast ? {
+                  position: "relative",
+                  width: "100%",
+                  minHeight: `${virtualRow.size}px`,
+                } : {
                   position: "absolute",
                   top: 0,
                   left: 0,
                   width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start}px)`
                 }}
               >
                 <HistoryEntryCard

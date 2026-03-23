@@ -52,6 +52,20 @@ import {
   GenerationTelemetry,
 } from "@/types";
 
+// ─── Batch progress type (exported for GeneratorView) ────────────────────────
+
+export interface BatchTopicProgress {
+  topic: Topic;
+  /** How many questions are being generated in this call */
+  questionCount: number;
+  status: "waiting" | "active" | "done" | "error";
+  /** Current backend stage for the active entry, e.g. "generating" */
+  stage?: string;
+  /** Latest human-readable message from the backend status event */
+  message?: string;
+  errorMessage?: string;
+}
+
 // ─── Topic icon map ──────────────────────────────────────────────────────────
 
 const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
@@ -74,17 +88,11 @@ const DIFFICULTY_META: Record<Difficulty, { label: string; color: string; desc: 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function CollapsibleStep({
-  number,
-  title,
-  subtitle,
-  chips,
-  children,
-  defaultOpen = true,
+  number, title, subtitle, chips, children, defaultOpen = true,
 }: {
   number: number;
   title: string;
   subtitle?: string;
-  /** Summary chips shown in the header when collapsed */
   chips?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
@@ -93,12 +101,10 @@ function CollapsibleStep({
   const innerRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<string | number>(defaultOpen ? "auto" : 0);
 
-  // Track natural size changes (e.g. subtopic pills expanding) via ResizeObserver
   useEffect(() => {
     const el = innerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      // Only update when open and already settled to px (avoid fighting "auto")
       setHeight((h) => {
         if (h === "auto" || h === 0) return h;
         return el.scrollHeight;
@@ -112,25 +118,18 @@ function CollapsibleStep({
     const el = innerRef.current;
     if (!el) return;
     if (open) {
-      // Snapshot px height before animating to 0
       setHeight(el.scrollHeight);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setHeight(0));
-      });
+      requestAnimationFrame(() => { requestAnimationFrame(() => setHeight(0)); });
     } else {
-      // Animate from 0 → px, then switch to "auto" so inner content can resize freely
       setHeight(el.scrollHeight);
     }
     setOpen((v) => !v);
   };
 
-  const handleTransitionEnd = () => {
-    if (open) setHeight("auto");
-  };
+  const handleTransitionEnd = () => { if (open) setHeight("auto"); };
 
   return (
     <div>
-      {/* Clickable header */}
       <button
         type="button"
         onClick={toggle}
@@ -141,35 +140,18 @@ function CollapsibleStep({
         </div>
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-semibold leading-tight">{title}</p>
-          {subtitle && open && (
-            <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
-          )}
+          {subtitle && open && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
-
-        {/* Summary chips — visible when collapsed */}
         {!open && chips && (
-          <div className="flex items-center gap-1 flex-wrap justify-end max-w-[55%]">
-            {chips}
-          </div>
+          <div className="flex items-center gap-1 flex-wrap justify-end max-w-[55%]">{chips}</div>
         )}
-
-        <ChevronDown
-          className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-250 ${open ? "" : "-rotate-90"}`}
-        />
+        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-250 ${open ? "" : "-rotate-90"}`} />
       </button>
-
-      {/* Animated content wrapper */}
       <div
-        style={{
-          height: typeof height === "number" ? `${height}px` : height,
-          overflow: "hidden",
-          transition: "height 250ms cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
+        style={{ height: typeof height === "number" ? `${height}px` : height, overflow: "hidden", transition: "height 250ms cubic-bezier(0.4, 0, 0.2, 1)" }}
         onTransitionEnd={handleTransitionEnd}
       >
-        <div ref={innerRef}>
-          {children}
-        </div>
+        <div ref={innerRef}>{children}</div>
       </div>
     </div>
   );
@@ -179,13 +161,7 @@ function SectionDivider() {
   return <div className="h-px bg-border/60 my-1" />;
 }
 
-function SubtopicGroup({
-  label,
-  hint,
-  items,
-  selected,
-  onToggle,
-}: {
+function SubtopicGroup({ label, hint, items, selected, onToggle }: {
   label: string;
   hint?: string;
   items: readonly string[];
@@ -221,39 +197,21 @@ function SubtopicGroup({
   );
 }
 
-// ─── Cost formatter ──────────────────────────────────────────────────────────
-
-// NOTE: cost formatting is provided by app-utils `formatCostUsd`.
-
 // ─── Last-generation stats strip ─────────────────────────────────────────────
 
 function LastGenerationStats({ telemetry }: { telemetry: GenerationTelemetry }) {
-  console.debug("[SetupPanel] LastGenerationStats rendering with:", telemetry);
   const items: { icon: React.ReactNode; label: string; value: string }[] = [];
 
   if (telemetry.estimatedCostUsd != null) {
-    items.push({
-      icon: <DollarSign className="w-3 h-3" />,
-      label: "Cost",
-      value: formatCostUsd(telemetry.estimatedCostUsd),
-    });
+    items.push({ icon: <DollarSign className="w-3 h-3" />, label: "Cost", value: formatCostUsd(telemetry.estimatedCostUsd) });
   }
-
   if (telemetry.totalTokens != null) {
-    items.push({
-      icon: <Coins className="w-3 h-3" />,
-      label: "Tokens",
-      value: telemetry.totalTokens.toLocaleString(),
-    });
+    items.push({ icon: <Coins className="w-3 h-3" />, label: "Tokens", value: telemetry.totalTokens.toLocaleString() });
   }
-
   if (telemetry.durationMs != null) {
     items.push({
-      icon: <Clock3 className="w-3 h-3" />,
-      label: "Time",
-      value: telemetry.durationMs < 1000
-        ? `${Math.round(telemetry.durationMs)}ms`
-        : `${(telemetry.durationMs / 1000).toFixed(1)}s`,
+      icon: <Clock3 className="w-3 h-3" />, label: "Time",
+      value: telemetry.durationMs < 1000 ? `${Math.round(telemetry.durationMs)}ms` : `${(telemetry.durationMs / 1000).toFixed(1)}s`,
     });
   }
 
@@ -261,9 +219,7 @@ function LastGenerationStats({ telemetry }: { telemetry: GenerationTelemetry }) 
 
   return (
     <div className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2">
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-        Last Generation
-      </p>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Last Generation</p>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {items.map(({ icon, label, value }) => (
           <div key={label} className="flex items-center gap-1 text-xs text-foreground">
@@ -277,18 +233,14 @@ function LastGenerationStats({ telemetry }: { telemetry: GenerationTelemetry }) 
   );
 }
 
-// ─── Generation timeline components ──────────────────────────────────────────
+// ─── Single-call generation timeline (1 topic) ───────────────────────────────
 
 type TimelinePhase = "waiting" | "active" | "done" | "error";
 
 const STAGE_ORDER = ["preparing", "generating", "parsing", "completed"] as const;
 type KnownStage = typeof STAGE_ORDER[number];
 
-function phaseForStage(
-  stage: KnownStage,
-  currentStage: string,
-  isFailed: boolean,
-): TimelinePhase {
+function phaseForStage(stage: KnownStage, currentStage: string, isFailed: boolean): TimelinePhase {
   const currentIdx = STAGE_ORDER.indexOf(currentStage as KnownStage);
   const thisIdx = STAGE_ORDER.indexOf(stage);
   if (isFailed && stage === currentStage) return "error";
@@ -298,16 +250,13 @@ function phaseForStage(
 }
 
 function TimelineDot({ phase }: { phase: TimelinePhase }) {
-  if (phase === "done")
-    return <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />;
-  if (phase === "error")
-    return <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />;
-  if (phase === "active")
-    return (
-      <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-      </span>
-    );
+  if (phase === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />;
+  if (phase === "error") return <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />;
+  if (phase === "active") return (
+    <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
+      <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+    </span>
+  );
   return <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center"><span className="w-2 h-2 rounded-full bg-border" /></span>;
 }
 
@@ -319,12 +268,9 @@ const STAGE_LABELS: Record<KnownStage, string> = {
 };
 
 function GenerationTimeline({
-  generationStatus,
-  formattedElapsedTime,
-  streamText,
-  isGenerating,
+  generationStatus, formattedElapsedTime, streamText, isGenerating,
 }: {
-  generationStatus: import("@/types").GenerationStatusEvent | null;
+  generationStatus: GenerationStatusEvent | null;
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
@@ -334,18 +280,14 @@ function GenerationTimeline({
   const isFailed = currentStage === "failed";
   const isDone = currentStage === "completed";
 
-  // Auto-scroll stream box as tokens arrive.
   useEffect(() => {
-    if (streamRef.current) {
-      streamRef.current.scrollTop = streamRef.current.scrollHeight;
-    }
+    if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
   }, [streamText]);
 
   const completedEvent = isDone ? generationStatus : null;
 
   return (
     <div className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 space-y-2">
-      {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           {isGenerating
@@ -354,34 +296,27 @@ function GenerationTimeline({
               ? <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
               : <XCircle className="w-3 h-3 text-destructive shrink-0" />
           }
-          <span className="text-xs font-medium text-foreground">
-            {generationStatus?.message ?? "Generating…"}
-          </span>
+          <span className="text-xs font-medium text-foreground">{generationStatus?.message ?? "Generating…"}</span>
         </div>
         <span className="text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1">
-          <Clock3 className="w-2.5 h-2.5" />
-          {formattedElapsedTime}
+          <Clock3 className="w-2.5 h-2.5" />{formattedElapsedTime}
         </span>
       </div>
 
-      {/* Timeline rows */}
       <div className="relative flex flex-col gap-1.5 pl-0.5">
-        {/* Vertical guide line */}
         <div className="absolute left-[6px] top-2 bottom-2 w-px bg-border/60" />
-
         {STAGE_ORDER.map((stage) => {
           const phase = phaseForStage(stage, currentStage, isFailed);
           if (phase === "waiting" && !isGenerating && !isDone && !isFailed) return null;
           return (
             <div key={stage} className="flex items-start gap-2 pl-0.5">
               <TimelineDot phase={phase} />
-              <span
-                className={`text-[11px] font-mono leading-tight pt-0.5 ${phase === "active" ? "text-foreground font-semibold" :
-                  phase === "done" ? "text-muted-foreground" :
-                    phase === "error" ? "text-destructive" :
-                      "text-muted-foreground/40"
-                  }`}
-              >
+              <span className={`text-[11px] font-mono leading-tight pt-0.5 ${
+                phase === "active" ? "text-foreground font-semibold" :
+                phase === "done" ? "text-muted-foreground" :
+                phase === "error" ? "text-destructive" :
+                "text-muted-foreground/40"
+              }`}>
                 {STAGE_LABELS[stage]}
               </span>
             </div>
@@ -389,7 +324,6 @@ function GenerationTimeline({
         })}
       </div>
 
-      {/* Stream box — shown while generating */}
       {(currentStage === "generating" || (isDone && streamText)) && (
         <div
           ref={streamRef}
@@ -405,15 +339,12 @@ function GenerationTimeline({
         </div>
       )}
 
-      {/* Completion summary */}
       {isDone && completedEvent && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40">
           {completedEvent.totalTokens != null && completedEvent.totalTokens > 0 && (
             <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
               <Coins className="w-3 h-3" />
-              <span className="tabular-nums font-semibold text-foreground">
-                {completedEvent.totalTokens.toLocaleString()}
-              </span>
+              <span className="tabular-nums font-semibold text-foreground">{completedEvent.totalTokens.toLocaleString()}</span>
               {" tok"}
               {completedEvent.promptTokens != null && completedEvent.completionTokens != null && (
                 <span className="text-muted-foreground/60">
@@ -426,14 +357,143 @@ function GenerationTimeline({
             <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
               <DollarSign className="w-3 h-3" />
               <span className="tabular-nums font-semibold text-foreground">
-                {completedEvent.estimatedCostUsd < 0.0001
-                  ? "<$0.0001"
-                  : `$${completedEvent.estimatedCostUsd.toFixed(4)}`}
+                {completedEvent.estimatedCostUsd < 0.0001 ? "<$0.0001" : `$${completedEvent.estimatedCostUsd.toFixed(4)}`}
               </span>
             </span>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Multi-topic batch timeline ───────────────────────────────────────────────
+
+function BatchTimeline({
+  entries, formattedElapsedTime, streamText, isGenerating,
+}: {
+  entries: BatchTopicProgress[];
+  formattedElapsedTime: string;
+  streamText: string;
+  isGenerating: boolean;
+}) {
+  const streamRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
+  }, [streamText]);
+
+  const doneCount = entries.filter((e) => e.status === "done").length;
+  const errorCount = entries.filter((e) => e.status === "error").length;
+  const activeEntry = entries.find((e) => e.status === "active");
+  const allDone = doneCount + errorCount === entries.length;
+
+  return (
+    <div className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          {isGenerating
+            ? <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
+            : allDone && errorCount === 0
+              ? <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+              : <XCircle className="w-3 h-3 text-destructive shrink-0" />
+          }
+          <span className="text-xs font-medium text-foreground">
+            {isGenerating
+              ? activeEntry
+                ? `Generating ${activeEntry.topic} (${activeEntry.questionCount}q)…`
+                : "Starting…"
+              : allDone && errorCount === 0
+                ? `Done — ${entries.length} subjects complete`
+                : `${errorCount} subject${errorCount !== 1 ? "s" : ""} failed`
+            }
+          </span>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1">
+          <Clock3 className="w-2.5 h-2.5" />{formattedElapsedTime}
+        </span>
+      </div>
+
+      {/* Per-topic rows */}
+      <div className="relative flex flex-col gap-1">
+        {/* Vertical guide line running along the dots */}
+        <div className="absolute left-[6px] top-2 bottom-2 w-px bg-border/60" />
+
+        {entries.map((entry, idx) => {
+          const isActive = entry.status === "active";
+          const isDone = entry.status === "done";
+          const isError = entry.status === "error";
+          const isWaiting = entry.status === "waiting";
+
+          // Current stage label for the active entry
+          const stageSuffix = isActive && entry.stage && entry.stage !== "completed"
+            ? ` — ${STAGE_LABELS[entry.stage as KnownStage] ?? entry.stage}`
+            : "";
+
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-0.5">
+              {/* Status dot */}
+              {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />}
+              {isError && <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />}
+              {isActive && (
+                <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                </span>
+              )}
+              {isWaiting && (
+                <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-border" />
+                </span>
+              )}
+
+              {/* Label */}
+              <div className="flex-1 min-w-0">
+                <span className={`text-[11px] font-mono leading-tight ${
+                  isActive ? "text-foreground font-semibold" :
+                  isDone ? "text-muted-foreground" :
+                  isError ? "text-destructive" :
+                  "text-muted-foreground/40"
+                }`}>
+                  {entry.topic}
+                  <span className="font-normal opacity-70"> ·{entry.questionCount}q</span>
+                  {stageSuffix && <span className="opacity-60">{stageSuffix}</span>}
+                </span>
+                {isError && entry.errorMessage && (
+                  <p className="text-[10px] text-destructive/80 mt-0.5 leading-tight truncate">{entry.errorMessage}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Stream box — only for the active entry's generating stage */}
+      {activeEntry?.stage === "generating" && (
+        <div
+          ref={streamRef}
+          className="max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all"
+        >
+          {streamText
+            ? streamText
+            : <span className="opacity-40">Waiting for tokens…</span>
+          }
+          <span className="inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse" />
+        </div>
+      )}
+
+      {/* Progress fraction */}
+      <div className="flex items-center gap-2 pt-0.5 border-t border-border/40">
+        <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: entries.length > 0 ? `${((doneCount + errorCount) / entries.length) * 100}%` : "0%" }}
+          />
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0">
+          {doneCount + errorCount}/{entries.length}
+        </span>
+      </div>
     </div>
   );
 }
@@ -465,6 +525,8 @@ type SetupPanelProps = {
   onSetMaxMarksPerQuestion: (marks: number) => void;
   avoidSimilarQuestions: boolean;
   onSetAvoidSimilarQuestions: (enabled: boolean) => void;
+  shuffleQuestions: boolean;
+  onSetShuffleQuestions: (enabled: boolean) => void;
   hasApiKey: boolean;
   canGenerate: boolean;
   isGenerating: boolean;
@@ -474,6 +536,8 @@ type SetupPanelProps = {
   onGenerate: () => void;
   lastGenerationTelemetry?: GenerationTelemetry | null;
   streamText?: string;
+  /** Non-empty only during/after a multi-topic sequential run */
+  batchProgress?: BatchTopicProgress[];
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -491,11 +555,13 @@ export function SetupPanel({
   questionCount, onSetQuestionCount,
   maxMarksPerQuestion, onSetMaxMarksPerQuestion,
   avoidSimilarQuestions, onSetAvoidSimilarQuestions,
+  shuffleQuestions, onSetShuffleQuestions,
   hasApiKey, canGenerate, isGenerating,
   generationStatus, generationStartedAt, formattedElapsedTime,
   onGenerate,
   lastGenerationTelemetry,
   streamText = "",
+  batchProgress = [],
 }: SetupPanelProps) {
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
@@ -510,11 +576,12 @@ export function SetupPanel({
     selectedTopics.includes("Chemistry") ||
     selectedTopics.includes("Physical Education");
 
+  // Whether to show the multi-topic batch timeline vs the single-topic timeline
+  const showBatchTimeline = batchProgress.length > 1;
 
   let stepNum = 0;
   const step = () => ++stepNum;
 
-  // Fetch model pricing (if available) to compute estimates
   useEffect(() => {
     let cancelled = false;
     async function fetchStats() {
@@ -524,20 +591,16 @@ export function SetupPanel({
         if (cancelled) return;
         setPromptPricePerToken(stats.promptPricePerToken ?? null);
         setCompletionPricePerToken(stats.completionPricePerToken ?? null);
-      } catch (err) {
-        // ignore failures — pricing is optional
+      } catch {
         setPromptPricePerToken(null);
         setCompletionPricePerToken(null);
       }
     }
-
     void fetchStats();
     return () => { cancelled = true; };
   }, [apiKey, model]);
 
-  // Heuristic token estimate per question based on mode/difficulty/marks
   const estimated = useMemo(() => {
-    // Base tokens by question mode
     let totalTokens = 0;
     let totalTokensPerQuestion = 0;
     let promptTokensPerQuestion = 0;
@@ -546,17 +609,14 @@ export function SetupPanel({
     let totalCompletionTokens = 0;
 
     if (questionMode === "multiple-choice") {
-      // MC: 2250 for first, +350 for each additional
       totalTokens = questionCount > 0 ? 2250 + (questionCount - 1) * 350 : 0;
       totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
-      // Use same prompt/completion split as before
       const ratios = { prompt: 0.6, completion: 0.4 };
       promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
       completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
       totalPromptTokens = promptTokensPerQuestion * questionCount;
       totalCompletionTokens = completionTokensPerQuestion * questionCount;
     } else {
-      // Written: 2000 for first, +350 for each additional (easy)
       totalTokens = questionCount > 0 ? 2000 + (questionCount - 1) * 350 : 0;
       totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
       const ratios = { prompt: 0.35, completion: 0.65 };
@@ -570,18 +630,13 @@ export function SetupPanel({
     const completionCost = completionPricePerToken != null ? completionPricePerToken * totalCompletionTokens : null;
     const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
 
-    return {
-      totalTokensPerQuestion,
-      promptTokensPerQuestion,
-      completionTokensPerQuestion,
-      totalTokens,
-      totalPromptTokens,
-      totalCompletionTokens,
-      promptCost,
-      completionCost,
-      totalCost,
-    };
-  }, [questionMode, difficulty, maxMarksPerQuestion, customFocusArea, avoidSimilarQuestions, questionCount, promptPricePerToken, completionPricePerToken])
+    return { totalTokensPerQuestion, promptTokensPerQuestion, completionTokensPerQuestion, totalTokens, totalPromptTokens, totalCompletionTokens, promptCost, completionCost, totalCost };
+  }, [questionMode, difficulty, maxMarksPerQuestion, customFocusArea, avoidSimilarQuestions, questionCount, promptPricePerToken, completionPricePerToken]);
+
+  // Derive "is the timeline visible" — same condition as before
+  const showTimeline =
+    (isGenerating || generationStatus?.stage === "completed" || generationStatus?.stage === "failed") &&
+    generationStartedAt !== null;
 
   return (
     <Card className="border shadow-lg overflow-hidden">
@@ -593,20 +648,15 @@ export function SetupPanel({
               <Sparkles className="w-4 h-4 text-primary shrink-0" />
               Practice Generator
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Configure your VCE revision session
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Configure your VCE revision session</p>
           </div>
 
-          {/* Mode toggle */}
           <div className="flex rounded-lg border bg-background p-0.5 gap-0.5 self-start sm:self-auto">
             <button
               type="button"
               onClick={() => onSetQuestionMode("written")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer
-                ${questionMode === "written"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"}`}
+                ${questionMode === "written" ? "bg-sky-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               <BookOpen className="w-3.5 h-3.5" /> Written
             </button>
@@ -614,16 +664,13 @@ export function SetupPanel({
               type="button"
               onClick={() => onSetQuestionMode("multiple-choice")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer
-                ${questionMode === "multiple-choice"
-                  ? "bg-violet-500 text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"}`}
+                ${questionMode === "multiple-choice" ? "bg-violet-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               <Target className="w-3.5 h-3.5" /> Multiple Choice
             </button>
           </div>
         </div>
       </div>
-
 
       <CardContent className="px-4 space-y-1">
 
@@ -676,46 +723,23 @@ export function SetupPanel({
                     Focus Areas
                     <span className="ml-2 font-normal normal-case">— leave blank to cover all</span>
                   </p>
-
                   {selectedTopics.includes("Mathematical Methods") && (
-                    <SubtopicGroup
-                      label="Mathematical Methods"
-                      items={MATH_METHODS_SUBTOPICS}
-                      selected={mathMethodsSubtopics}
-                      onToggle={onToggleMathMethodsSubtopic as (s: string) => void}
-                    />
+                    <SubtopicGroup label="Mathematical Methods" items={MATH_METHODS_SUBTOPICS} selected={mathMethodsSubtopics} onToggle={onToggleMathMethodsSubtopic as (s: string) => void} />
                   )}
                   {selectedTopics.includes("Specialist Mathematics") && (
-                    <SubtopicGroup
-                      label="Specialist Mathematics"
-                      items={SPECIALIST_MATH_SUBTOPICS}
-                      selected={specialistMathSubtopics}
-                      onToggle={onToggleSpecialistMathSubtopic as (s: string) => void}
-                    />
+                    <SubtopicGroup label="Specialist Mathematics" items={SPECIALIST_MATH_SUBTOPICS} selected={specialistMathSubtopics} onToggle={onToggleSpecialistMathSubtopic as (s: string) => void} />
                   )}
                   {selectedTopics.includes("Chemistry") && (
-                    <SubtopicGroup
-                      label="Chemistry"
-                      items={CHEMISTRY_SUBTOPICS}
-                      selected={chemistrySubtopics}
-                      onToggle={onToggleChemistrySubtopic as (s: string) => void}
-                    />
+                    <SubtopicGroup label="Chemistry" items={CHEMISTRY_SUBTOPICS} selected={chemistrySubtopics} onToggle={onToggleChemistrySubtopic as (s: string) => void} />
                   )}
                   {selectedTopics.includes("Physical Education") && (
-                    <SubtopicGroup
-                      label="Physical Education"
-                      hint="Based on the 2025 Study Design"
-                      items={PHYSICAL_EDUCATION_SUBTOPICS}
-                      selected={physicalEducationSubtopics}
-                      onToggle={onTogglePhysicalEducationSubtopic as (s: string) => void}
-                    />
+                    <SubtopicGroup label="Physical Education" hint="Based on the 2025 Study Design" items={PHYSICAL_EDUCATION_SUBTOPICS} selected={physicalEducationSubtopics} onToggle={onTogglePhysicalEducationSubtopic as (s: string) => void} />
                   )}
                 </div>
               </>
             )}
           </CollapsibleStep>
         </div>
-
 
         <SectionDivider />
 
@@ -740,14 +764,9 @@ export function SetupPanel({
                     type="button"
                     onClick={() => onSetDifficulty(level)}
                     className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-center transition-all duration-150 cursor-pointer
-                    ${isSelected
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border hover:border-primary/40 hover:bg-muted/30"
-                      }`}
+                    ${isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
                   >
-                    <span className={`text-xs font-semibold leading-tight ${isSelected ? meta.color : "text-foreground"}`}>
-                      {meta.label}
-                    </span>
+                    <span className={`text-xs font-semibold leading-tight ${isSelected ? meta.color : "text-foreground"}`}>{meta.label}</span>
                     <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">{meta.desc}</span>
                   </button>
                 );
@@ -784,16 +803,30 @@ export function SetupPanel({
                   </Label>
                   <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{questionCount}</Badge>
                 </div>
-                <Slider
-                  min={1} max={20} step={1}
-                  value={[questionCount]}
-                  onValueChange={(val) => onSetQuestionCount(val[0])}
-                  className="py-1"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>1</span><span>20</span>
-                </div>
+                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => onSetQuestionCount(val[0])} className="py-1" />
+                <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>20</span></div>
               </div>
+
+              {/* Per-topic preview — shown when >1 topic selected */}
+              {selectedTopics.length > 1 && (
+                <div className="rounded-lg border bg-muted/20 px-3 py-2 space-y-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Questions per subject</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                    {selectedTopics.map((topic, i) => {
+                      const base = Math.floor(questionCount / selectedTopics.length);
+                      const remainder = questionCount % selectedTopics.length;
+                      const count = base + (i < remainder ? 1 : 0);
+                      return (
+                        <span key={topic} className="text-[11px] text-foreground flex items-center gap-1">
+                          <span className="text-muted-foreground">{TOPIC_ICONS[topic]}</span>
+                          <span className="truncate max-w-[100px]">{topic.split(" ")[0]}</span>
+                          <span className="font-semibold tabular-nums text-primary">{count}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {questionMode === "written" && hasAnyMathTopic && (
                 <div className="space-y-2">
@@ -803,15 +836,8 @@ export function SetupPanel({
                     </Label>
                     <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{maxMarksPerQuestion}</Badge>
                   </div>
-                  <Slider
-                    min={1} max={30} step={1}
-                    value={[maxMarksPerQuestion]}
-                    onValueChange={(val) => onSetMaxMarksPerQuestion(val[0])}
-                    className="py-1"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>1</span><span>30</span>
-                  </div>
+                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => onSetMaxMarksPerQuestion(val[0])} className="py-1" />
+                  <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>30</span></div>
                 </div>
               )}
             </div>
@@ -820,7 +846,7 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 4: Calculator mode (math only) + options ── */}
+        {/* ── Step 4: Options ── */}
         <div>
           <CollapsibleStep
             number={step()}
@@ -843,8 +869,6 @@ export function SetupPanel({
             }
           >
             <div className="space-y-3">
-
-              {/* Calculator mode */}
               {hasAnyMathTopic && (
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground">Calculator Mode</p>
@@ -861,10 +885,7 @@ export function SetupPanel({
                           type="button"
                           onClick={() => onSetTechMode(value)}
                           className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border text-xs font-medium transition-all duration-150 cursor-pointer
-                          ${isActive
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                            }`}
+                          ${isActive ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
                         >
                           {icon} {label}
                         </button>
@@ -874,15 +895,11 @@ export function SetupPanel({
                 </div>
               )}
 
-              {/* Variation guardrail toggle */}
               <button
                 type="button"
                 onClick={() => onSetAvoidSimilarQuestions(!avoidSimilarQuestions)}
                 className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
-                ${avoidSimilarQuestions
-                    ? "bg-primary/5 border-primary/40"
-                    : "border-border hover:border-primary/30 hover:bg-muted/20"
-                  }`}
+                ${avoidSimilarQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
               >
                 <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${avoidSimilarQuestions ? "text-primary" : "text-muted-foreground"}`} />
                 <div className="min-w-0">
@@ -898,7 +915,26 @@ export function SetupPanel({
                 </div>
               </button>
 
-              {/* Custom focus area */}
+              <button
+                type="button"
+                onClick={() => onSetShuffleQuestions(!shuffleQuestions)}
+                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
+                ${shuffleQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
+              >
+                <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${shuffleQuestions ? "text-primary" : "text-muted-foreground"}`} />
+                <div className="min-w-0">
+                  <p className={`text-xs font-semibold ${shuffleQuestions ? "text-foreground" : "text-muted-foreground"}`}>
+                    Shuffle Questions
+                    <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${shuffleQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {shuffleQuestions ? "On" : "Off"}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                    Randomly shuffles the combined set after generating questions for each subject.
+                  </p>
+                </div>
+              </button>
+
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
                   <Crosshair className="w-3.5 h-3.5" />
@@ -931,42 +967,16 @@ export function SetupPanel({
             </div>
           </div>
         )}
-
-        {/* Estimated tokens & cost (live) */}
-        {/* <div className="w-full rounded-lg border bg-muted/20 px-3 py-2 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-3">
-            <div>
-              <p className="text-[11px] text-muted-foreground">Est. tokens / question</p>
-              <p className="font-semibold tabular-nums">{estimated.totalTokensPerQuestion.toLocaleString()} tok</p>
-            </div>
-            <div>
-              <p className="text-[11px] text-muted-foreground">Est. total tokens</p>
-              <p className="font-semibold tabular-nums">{estimated.totalTokens.toLocaleString()} tok</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] text-muted-foreground">Est. cost</p>
-            {promptPricePerToken == null && completionPricePerToken == null ? (
-              <p className="font-semibold">—</p>
-            ) : (
-              <div>
-                <p className="font-semibold">{formatCostUsd(estimated.totalCost)}</p>
-                <p className="text-[10px] text-muted-foreground">{promptPricePerToken != null ? `input ${formatCostUsd(estimated.promptCost)}` : ""}{promptPricePerToken != null && completionPricePerToken != null ? " • " : ""}{completionPricePerToken != null ? `output ${formatCostUsd(estimated.completionCost)}` : ""}</p>
-              </div>
-            )}
-          </div>
-        </div> */}
       </CardContent>
 
       {/* ── Footer / Generate ── */}
       <CardFooter className="px-4 py-3 border-t bg-muted/20 flex flex-col gap-2.5">
 
-        {/* ── Full config summary strip (always visible when idle) ── */}
+        {/* ── Full config summary strip (idle only) ── */}
         {!isGenerating && generationStatus?.stage !== "completed" && (
           <div className="w-full rounded-xl border border-border bg-background/60 px-3 py-2.5 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Session Summary</p>
 
-            {/* Subjects */}
             <div className="flex items-start gap-2">
               <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wide w-14 shrink-0 pt-0.5">Subjects</span>
               <div className="flex flex-wrap gap-1 flex-1">
@@ -985,7 +995,6 @@ export function SetupPanel({
               </div>
             </div>
 
-            {/* Difficulty · Questions · Marks · Mode */}
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
               <span className="flex items-center gap-1">
                 <span className="text-muted-foreground/60">Difficulty</span>
@@ -1011,7 +1020,6 @@ export function SetupPanel({
               </span>
             </div>
 
-            {/* Options row */}
             {(hasAnyMathTopic || avoidSimilarQuestions || customFocusArea.trim()) && (
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
                 {hasAnyMathTopic && (
@@ -1042,15 +1050,13 @@ export function SetupPanel({
               </div>
             )}
 
-            {/* Cost / token estimate */}
             <div className="flex items-center justify-between text-[11px] border-t border-border/40 pt-1.5">
               <span className="text-muted-foreground/70 tabular-nums flex items-center gap-1">
                 <Coins className="w-3 h-3" /> ~{estimated.totalTokens.toLocaleString()} tokens
               </span>
               {estimated.promptCost != null || estimated.completionCost != null ? (
                 <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
-                  <DollarSign className="w-3 h-3 text-muted-foreground" />
-                  {formatCostUsd(estimated.totalCost)}
+                  <DollarSign className="w-3 h-3 text-muted-foreground" />{formatCostUsd(estimated.totalCost)}
                 </span>
               ) : (
                 <span className="text-muted-foreground/50">cost unavailable</span>
@@ -1068,7 +1074,10 @@ export function SetupPanel({
           {isGenerating ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Crafting questions…
+              {showBatchTimeline
+                ? `Generating… (${batchProgress.filter(e => e.status === "done").length + batchProgress.filter(e => e.status === "error").length}/${batchProgress.length})`
+                : "Crafting questions…"
+              }
             </>
           ) : (
             <>
@@ -1078,18 +1087,26 @@ export function SetupPanel({
           )}
         </Button>
 
-        {/* Generation timeline — shown while generating or just after completion */}
-        {(isGenerating || generationStatus?.stage === "completed" || generationStatus?.stage === "failed") && generationStartedAt !== null && (
-          <GenerationTimeline
-            generationStatus={generationStatus}
-            formattedElapsedTime={formattedElapsedTime}
-            streamText={streamText}
-            isGenerating={isGenerating}
-          />
+        {/* Generation timeline — batch or single depending on run type */}
+        {showTimeline && (
+          showBatchTimeline ? (
+            <BatchTimeline
+              entries={batchProgress}
+              formattedElapsedTime={formattedElapsedTime}
+              streamText={streamText}
+              isGenerating={isGenerating}
+            />
+          ) : (
+            <GenerationTimeline
+              generationStatus={generationStatus}
+              formattedElapsedTime={formattedElapsedTime}
+              streamText={streamText}
+              isGenerating={isGenerating}
+            />
+          )
         )}
 
-        {/* Last generation stats — shown when idle and telemetry is available,
-            but only if the timeline isn't already showing a completed run */}
+        {/* Last generation stats — shown when idle and timeline isn't showing a completed run */}
         {!isGenerating && generationStatus?.stage !== "completed" && lastGenerationTelemetry && (
           <LastGenerationStats telemetry={lastGenerationTelemetry} />
         )}

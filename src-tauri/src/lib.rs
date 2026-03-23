@@ -199,7 +199,7 @@ fn mc_system() -> String {
                  {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
                ],\n\
                \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-               \"explanationMarkdown\": string (≤90 words — name the misconception each wrong option targets),\n\
+                                     \"explanationMarkdown\": string (≤300 words — name the misconception each wrong option targets),\n\
                \"techAllowed\": boolean\n\
              }}\n\
            ]\n\
@@ -215,10 +215,10 @@ fn mc_system() -> String {
 /// model always has enough room for a useful response.
 fn marking_system(max_marks: u8, chem_note: &str) -> String {
     // Scale word limits by marks, with sensible floors.
-    let worked_words = (max_marks as usize * 60).max(150).min(600);
-    let comparison_words = (max_marks as usize * 20).max(80).min(250);
-    let feedback_words = (max_marks as usize * 18).max(80).min(200);
-    let rationale_words = (max_marks as usize * 8).max(30).min(80);
+    let worked_words = (max_marks as usize * 200).max(500).min(2000);
+    let comparison_words = (max_marks as usize * 60).max(200).min(800);
+    let feedback_words = (max_marks as usize * 50).max(200).min(600);
+    let rationale_words = (max_marks as usize * 30).max(100).min(400);
 
     format!(
         "You are a strict but constructive VCE marker.\n\
@@ -517,7 +517,7 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
 
     let written_sys = written_system();
     let written_fmt = written_format();
-    let max_tokens = (request.question_count as u32) * 1_500 + 2_000;
+    let max_tokens = (request.question_count as u32) * 4000 + 4000;
 
     let (result, stats_result) = tokio::join!(
         call_openrouter_streaming(
@@ -676,9 +676,9 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
     let mc_sys = mc_system();
     let mc_fmt = mc_format();
     let max_tokens = if request.question_count > 0 {
-        2250 + ((request.question_count as u32 - 1) * 350) + 2000
+        6000 + ((request.question_count as u32 - 1) * 2000) + 4000
     } else {
-        2000
+        4000
     };
 
     let (result, stats_result) = tokio::join!(
@@ -863,7 +863,7 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
 
     // Scale token budget with mark count. MC option explanations (4 options × ~60 words each)
     // add ~400 tokens on top of the written-question budget.
-    let max_tokens = (max_marks as u32) * 400 + 1_500;
+    let max_tokens = (max_marks as u32) * 2000 + 4000;
 
     let result = call_openrouter(
         &request.api_key,

@@ -31,10 +31,9 @@ import {
   readBackendError,
 } from "@/lib/app-utils";
 
-
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
-import { SetupPanel } from "@/components/generator/SetupPanel";
+import { SetupPanel, BatchTopicProgress } from "@/components/generator/SetupPanel";
 import { CompletionScreen } from "@/components/generator/CompletionScreen";
 import { WrittenSessionHeader } from "@/components/generator/WrittenSessionHeader";
 import { WrittenQuestionCard } from "@/components/generator/WrittenQuestionCard";
@@ -50,6 +49,8 @@ function countWords(value: string) {
   const trimmed = value.trim();
   return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
 }
+
+const MC_MAX_EXPLANATION_WORDS = 300;
 
 function isMathTopic(topic?: string) {
   return topic === "Mathematical Methods" || topic === "Specialist Mathematics";
@@ -67,17 +68,25 @@ function getDifficultyBadgeClasses(level: Difficulty) {
 }
 
 // ─── Stopwatch persistence keys ───────────────────────────────────────────────
-// Stored outside the component so they're stable constants, not recreated on
-// every render. These let the timer survive tab closes, app suspensions, and
-// OS-level backgrounding — on cold mount we rehydrate from localStorage if the
-// context value is null.
 const LS_STOPWATCH_STARTED_KEY = "generator_stopwatch_startedAt";
 const LS_STOPWATCH_FINISHED_KEY = "generator_stopwatch_finishedAt";
+
+// ─── Batch distribution helper ────────────────────────────────────────────────
+// Distributes `total` questions across `n` topics as evenly as possible.
+// The remainder is spread across the first topics (not the last) so that
+// e.g. 10 questions over 3 topics → [4, 3, 3] rather than [3, 3, 4].
+function distributeQuestions(topics: Topic[], total: number): number[] {
+  if (topics.length === 0) return [];
+  const base = Math.floor(total / topics.length);
+  const remainder = total % topics.length;
+  return topics.map((_, i) => base + (i < remainder ? 1 : 0));
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GeneratorView() {
   // ── Local UI state ──────────────────────────────────────────────────────────
+  const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
@@ -91,9 +100,12 @@ export function GeneratorView() {
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<Record<string, number>>({});
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
 
+  // Per-topic batch progress — drives the multi-topic timeline in SetupPanel.
+  // Empty when only one topic is selected (single-call path shows normal timeline).
+  const [batchProgress, setBatchProgress] = useState<BatchTopicProgress[]>([]);
+
   // ── Context ─────────────────────────────────────────────────────────────────
   const { apiKey, model, markingModel, useSeparateMarkingModel, imageMarkingModel, useSeparateImageMarkingModel, debugMode } = useAppSettings();
-  // ...existing code...
   const {
     selectedTopics, setSelectedTopics,
     difficulty, setDifficulty,
@@ -150,17 +162,13 @@ export function GeneratorView() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [, setNow] = useState(Date.now());
 
-  // Accumulated SSE stream text shown in the generation timeline.
   const [streamText, setStreamText] = useState("");
 
-  // Telemetry from the most recently completed generation — survives handleStartOver
-  // so it stays visible on the SetupPanel when the user returns to configure a new set.
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
     import("@/types").GenerationTelemetry | null
   >(null);
 
   // ── Derived values ───────────────────────────────────────────────────────────
-  // Only declare these once, after all state is available
   const activeQuestion = questions[activeQuestionIndex];
   const activeQuestionAnswer = activeQuestion ? (answersByQuestionId[activeQuestion.id] ?? "") : "";
   const activeQuestionImage = activeQuestion ? imagesByQuestionId[activeQuestion.id] : undefined;
@@ -178,7 +186,6 @@ export function GeneratorView() {
     ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ?? (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ""))
     : "";
 
-  // Determine which model to use for marking: image, marking, or generation
   const markModel = (() => {
     if (activeQuestionImage && useSeparateImageMarkingModel && imageMarkingModel && imageMarkingModel.trim().length > 0) {
       return imageMarkingModel;
@@ -265,8 +272,6 @@ export function GeneratorView() {
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => { setShowCompletionScreen(false); }, [completionSetKey]);
-
-  // Clear lastSavedAt if the active saved id changes externally
   useEffect(() => { setLastSavedAt(null); }, [activeWrittenSavedSetId, activeMcSavedSetId]);
 
   useEffect(() => {
@@ -313,9 +318,8 @@ export function GeneratorView() {
     setSessionFinishedAt(null);
   }
 
-  // Rehydrate from localStorage on cold mount if context lost the value
   useEffect(() => {
-    if (generationStartedAt !== null) return; // context already has it
+    if (generationStartedAt !== null) return;
     const storedStart = localStorage.getItem(LS_STOPWATCH_STARTED_KEY);
     const storedFinish = localStorage.getItem(LS_STOPWATCH_FINISHED_KEY);
     if (storedStart) {
@@ -329,33 +333,23 @@ export function GeneratorView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep localStorage in sync whenever these values change
   useEffect(() => {
-    if (generationStartedAt !== null) {
-      localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(generationStartedAt));
-    }
+    if (generationStartedAt !== null) localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(generationStartedAt));
   }, [generationStartedAt]);
 
   useEffect(() => {
-    if (sessionFinishedAt !== null) {
-      localStorage.setItem(LS_STOPWATCH_FINISHED_KEY, String(sessionFinishedAt));
-    }
+    if (sessionFinishedAt !== null) localStorage.setItem(LS_STOPWATCH_FINISHED_KEY, String(sessionFinishedAt));
   }, [sessionFinishedAt]);
 
-  // Tick every second while the timer is running
   useEffect(() => {
     if (generationStartedAt === null || sessionFinishedAt !== null) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [generationStartedAt, sessionFinishedAt]);
 
-  // Snap the display correct the moment the user returns to the tab/window
-  // (the interval may have been throttled or frozen while hidden)
   useEffect(() => {
     if (generationStartedAt === null || sessionFinishedAt !== null) return;
-    function onVisibilityChange() {
-      if (!document.hidden) setNow(Date.now());
-    }
+    function onVisibilityChange() { if (!document.hidden) setNow(Date.now()); }
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [generationStartedAt, sessionFinishedAt]);
@@ -368,6 +362,29 @@ export function GeneratorView() {
     }).then((fn) => { unlisten = fn; });
     return () => { unlisten?.(); };
   }, []);
+
+  // ── SSE status listener — forwards stage updates into batchProgress ──────────
+  // When a multi-topic run is active, each backend status event for "stage" is
+  // reflected into the currently-active batch entry so the UI stays live.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<import("@/types").GenerationStatusEvent>("generation-status", (event) => {
+      setGenerationStatus(event.payload);
+      // Mirror stage into the active batch entry when a multi-topic run is in progress
+      setBatchProgress((prev) => {
+        const activeIdx = prev.findIndex((e) => e.status === "active");
+        if (activeIdx === -1) return prev;
+        const next = [...prev];
+        next[activeIdx] = {
+          ...next[activeIdx],
+          stage: event.payload.stage,
+          message: event.payload.message,
+        };
+        return next;
+      });
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [setGenerationStatus]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   function handleNextWrittenQuestion() {
@@ -444,6 +461,16 @@ export function GeneratorView() {
   function togglePhysicalEducationSubtopic(sub: PhysicalEducationSubtopic) { setPhysicalEducationSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
 
   // ── Subtopic / focus helpers ─────────────────────────────────────────────────
+  function getSubtopicsForTopic(topic: Topic): string[] {
+    switch (topic) {
+      case "Mathematical Methods": return mathMethodsSubtopics;
+      case "Specialist Mathematics": return specialistMathSubtopics;
+      case "Chemistry": return chemistrySubtopics;
+      case "Physical Education": return physicalEducationSubtopics;
+      default: return [];
+    }
+  }
+
   function getSelectedSubtopics() {
     return Array.from(new Set([
       ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
@@ -522,86 +549,298 @@ export function GeneratorView() {
     setQuestionHistory((prev: any) => [entry, ...prev].slice(0, 200));
   }
 
+  // ── ID re-keying ─────────────────────────────────────────────────────────────
+  // Each sequential backend call resets its own ID counter (q1, q2… / mc1, mc2…).
+  // After concatenating results from multiple calls we must assign globally unique
+  // IDs so that answer/feedback/image maps — keyed by question.id — don't collide
+  // across topics.
+  function rekeyWritten(
+    qs: import("@/types").GeneratedQuestion[],
+  ): import("@/types").GeneratedQuestion[] {
+    return qs.map((q, i) => ({ ...q, id: `q${i + 1}` }));
+  }
+
+  function rekeyMc(
+    qs: import("@/types").McQuestion[],
+  ): import("@/types").McQuestion[] {
+    return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
+  }
+
+  // ── Batch progress helpers ───────────────────────────────────────────────────
+
+  function initBatchProgress(topics: Topic[], counts: number[]): BatchTopicProgress[] {
+    return topics.map((topic, i) => ({
+      topic,
+      questionCount: counts[i],
+      status: "waiting" as const,
+      stage: undefined,
+      message: undefined,
+      errorMessage: undefined,
+    }));
+  }
+
+  function setBatchEntryActive(idx: number) {
+    setBatchProgress((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], status: "active", stage: "preparing", message: undefined, errorMessage: undefined };
+      return next;
+    });
+    // Clear stream text at the start of each new topic call
+    setStreamText("");
+  }
+
+  function setBatchEntryDone(idx: number) {
+    setBatchProgress((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], status: "done", stage: "completed" };
+      return next;
+    });
+  }
+
+  function setBatchEntryError(idx: number, message: string) {
+    setBatchProgress((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], status: "error", errorMessage: message };
+      return next;
+    });
+  }
+
   // ── Generation ───────────────────────────────────────────────────────────────
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
     const hasMath = selectedTopics.some((t) => isMathTopic(t));
-    startStopwatch(); setErrorMessage(null); setLastFailedAction(null); setStreamText("");
+    startStopwatch();
+    setErrorMessage(null);
+    setLastFailedAction(null);
+    setStreamText("");
     setGenerationStatus({ mode: "written", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
     setIsGenerating(true);
+
+    const counts = distributeQuestions(selectedTopics, questionCount);
+    // Only show batch UI when more than one topic is selected
+    const isMultiTopic = selectedTopics.length > 1;
+    if (isMultiTopic) {
+      setBatchProgress(initBatchProgress(selectedTopics, counts));
+    } else {
+      setBatchProgress([]);
+    }
+
     try {
-      const response = await invoke<GenerateQuestionsResponse>("generate_questions", {
-        request: {
-          topics: selectedTopics, difficulty, questionCount,
-          maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
-          model, apiKey, techMode,
-          subtopics: getSelectedSubtopics(), subtopicInstructions: getSelectedSubtopicInstructions(),
-          customFocusArea: getCustomFocusArea(), avoidSimilarQuestions,
-          priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
-        },
-      });
-      const telemetry = {
-        durationMs: response.durationMs,
-        promptTokens: response.promptTokens,
-        completionTokens: response.completionTokens,
-        totalTokens: response.totalTokens,
-        estimatedCostUsd: response.estimatedCostUsd,
-        distinctnessAvg: response.distinctnessAvg,
-        multiStepDepthAvg: response.multiStepDepthAvg,
-      };
-      console.debug("[GeneratorView] written telemetry received:", telemetry);
-      setQuestions(response.questions); setWrittenRawModelOutput("");
-      setWrittenGenerationTelemetry(telemetry);
-      setLastSessionTelemetry(telemetry);
-      setShowWrittenRawOutput(false); setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null);
+      let allQuestions: import("@/types").GeneratedQuestion[] = [];
+      let totalTelemetry = { durationMs: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: 0, distinctnessAvg: 0, multiStepDepthAvg: 0 };
+      const failedTopics: string[] = [];
+
+      for (let i = 0; i < selectedTopics.length; i++) {
+        const topic = selectedTopics[i];
+        const count = counts[i];
+        if (count === 0) {
+          if (isMultiTopic) setBatchEntryDone(i);
+          continue;
+        }
+
+        if (isMultiTopic) setBatchEntryActive(i);
+
+        try {
+          const response = await invoke<GenerateQuestionsResponse>("generate_questions", {
+            request: {
+              topics: [topic],
+              difficulty,
+              questionCount: count,
+              maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
+              model, apiKey, techMode,
+              subtopics: getSubtopicsForTopic(topic),
+              subtopicInstructions: getSelectedSubtopicInstructions(),
+              customFocusArea: getCustomFocusArea(),
+              avoidSimilarQuestions,
+              priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
+            },
+          });
+
+          allQuestions = allQuestions.concat(response.questions);
+          totalTelemetry.durationMs += response.durationMs || 0;
+          totalTelemetry.promptTokens += response.promptTokens || 0;
+          totalTelemetry.completionTokens += response.completionTokens || 0;
+          totalTelemetry.totalTokens += response.totalTokens || 0;
+          totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
+          totalTelemetry.distinctnessAvg += (response.distinctnessAvg || 0) * count;
+          totalTelemetry.multiStepDepthAvg += (response.multiStepDepthAvg || 0) * count;
+
+          if (isMultiTopic) setBatchEntryDone(i);
+        } catch (topicError) {
+          failedTopics.push(topic);
+          if (isMultiTopic) {
+            setBatchEntryError(i, readBackendError(topicError));
+          } else {
+            throw topicError;
+          }
+          setErrorMessage(`Failed to generate questions for ${topic}: ${readBackendError(topicError)}`);
+        }
+      }
+
+      if (allQuestions.length === 0) {
+        throw new Error("No questions were generated. Please try again.");
+      }
+
+      if (allQuestions.length > 0) {
+        totalTelemetry.distinctnessAvg /= allQuestions.length;
+        totalTelemetry.multiStepDepthAvg /= allQuestions.length;
+      }
+
+      if (failedTopics.length > 0) {
+        setErrorMessage(`Failed to generate questions for: ${failedTopics.join(", ")}. Other subjects loaded successfully.`);
+      }
+
+      // Re-assign sequential IDs across the merged batch so that per-question
+      // state maps (answers, feedback, images) never collide between topics.
+      const rekeyedQuestions = rekeyWritten(allQuestions);
+
+      let finalQuestions = rekeyedQuestions;
+      if (shuffleQuestions) {
+        finalQuestions = [...rekeyedQuestions];
+        for (let i = finalQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [finalQuestions[i], finalQuestions[j]] = [finalQuestions[j], finalQuestions[i]];
+        }
+      }
+
+      setQuestions(finalQuestions);
+      setWrittenRawModelOutput("");
+      setWrittenGenerationTelemetry(totalTelemetry);
+      setLastSessionTelemetry(totalTelemetry);
+      setShowWrittenRawOutput(false);
+      setActiveQuestionIndex(0);
+      setActiveWrittenSavedSetId(null);
       setLastSavedAt(null);
-      setWrittenQuestionPresentedAtById({}); setWrittenResponseEnteredAtById({});
-      setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
+      setWrittenQuestionPresentedAtById({});
+      setWrittenResponseEnteredAtById({});
+      setAnswersByQuestionId({});
+      setImagesByQuestionId({});
+      setFeedbackByQuestionId({});
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({ mode: "written", stage: "failed", message: "Generation failed.", attempt: generationStatus?.attempt ?? 1 });
       setErrorMessage(readBackendError(error));
       setLastFailedAction("generate-written");
-    } finally { setIsGenerating(false); }
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   async function handleGenerateMcQuestions() {
     if (!canGenerate) return;
-    startStopwatch(); setErrorMessage(null); setLastFailedAction(null); setStreamText("");
+    startStopwatch();
+    setErrorMessage(null);
+    setLastFailedAction(null);
+    setStreamText("");
     setGenerationStatus({ mode: "multiple-choice", stage: "preparing", message: "Preparing generation request.", attempt: 1 });
     setIsGenerating(true);
+
+    const counts = distributeQuestions(selectedTopics, questionCount);
+    const isMultiTopic = selectedTopics.length > 1;
+    if (isMultiTopic) {
+      setBatchProgress(initBatchProgress(selectedTopics, counts));
+    } else {
+      setBatchProgress([]);
+    }
+
     try {
-      const response = await invoke<GenerateMcQuestionsResponse>("generate_mc_questions", {
-        request: {
-          topics: selectedTopics, difficulty, questionCount, model, apiKey, techMode,
-          subtopics: getSelectedSubtopics(), subtopicInstructions: getSelectedSubtopicInstructions(),
-          customFocusArea: getCustomFocusArea(), avoidSimilarQuestions,
-          priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
-        },
-      });
-      const mcTelemetry = {
-        durationMs: response.durationMs,
-        promptTokens: response.promptTokens,
-        completionTokens: response.completionTokens,
-        totalTokens: response.totalTokens,
-        estimatedCostUsd: response.estimatedCostUsd,
-        distinctnessAvg: response.distinctnessAvg,
-        multiStepDepthAvg: response.multiStepDepthAvg,
-      };
-      console.debug("[GeneratorView] MC telemetry received:", mcTelemetry);
-      setMcQuestions(response.questions); setMcRawModelOutput("");
-      setMcGenerationTelemetry(mcTelemetry);
-      setLastSessionTelemetry(mcTelemetry);
-      setShowMcRawOutput(false); setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null);
+      let allQuestions: import("@/types").McQuestion[] = [];
+      let totalTelemetry = { durationMs: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: 0, distinctnessAvg: 0, multiStepDepthAvg: 0 };
+      const failedTopics: string[] = [];
+
+      for (let i = 0; i < selectedTopics.length; i++) {
+        const topic = selectedTopics[i];
+        const count = counts[i];
+        if (count === 0) {
+          if (isMultiTopic) setBatchEntryDone(i);
+          continue;
+        }
+
+        if (isMultiTopic) setBatchEntryActive(i);
+
+        try {
+          const response = await invoke<GenerateMcQuestionsResponse>("generate_mc_questions", {
+            request: {
+              topics: [topic],
+              difficulty,
+              questionCount: count,
+              model, apiKey, techMode,
+              subtopics: getSubtopicsForTopic(topic),
+              subtopicInstructions: getSelectedSubtopicInstructions(),
+              customFocusArea: getCustomFocusArea(),
+              avoidSimilarQuestions,
+              priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
+            },
+          });
+
+          allQuestions = allQuestions.concat(response.questions);
+          totalTelemetry.durationMs += response.durationMs || 0;
+          totalTelemetry.promptTokens += response.promptTokens || 0;
+          totalTelemetry.completionTokens += response.completionTokens || 0;
+          totalTelemetry.totalTokens += response.totalTokens || 0;
+          totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
+          totalTelemetry.distinctnessAvg += (response.distinctnessAvg || 0) * count;
+          totalTelemetry.multiStepDepthAvg += (response.multiStepDepthAvg || 0) * count;
+
+          if (isMultiTopic) setBatchEntryDone(i);
+        } catch (topicError) {
+          failedTopics.push(topic);
+          if (isMultiTopic) {
+            setBatchEntryError(i, readBackendError(topicError));
+          } else {
+            throw topicError;
+          }
+          setErrorMessage(`Failed to generate questions for ${topic}: ${readBackendError(topicError)}`);
+        }
+      }
+
+      if (allQuestions.length === 0) {
+        throw new Error("No questions were generated. Please try again.");
+      }
+
+      if (allQuestions.length > 0) {
+        totalTelemetry.distinctnessAvg /= allQuestions.length;
+        totalTelemetry.multiStepDepthAvg /= allQuestions.length;
+      }
+
+      if (failedTopics.length > 0) {
+        setErrorMessage(`Failed to generate questions for: ${failedTopics.join(", ")}. Other subjects loaded successfully.`);
+      }
+
+      // Re-assign sequential IDs across the merged batch so that per-question
+      // state maps (answers, feedback, images) never collide between topics.
+      const rekeyedQuestions = rekeyMc(allQuestions);
+
+      let finalQuestions = rekeyedQuestions;
+      if (shuffleQuestions) {
+        finalQuestions = [...rekeyedQuestions];
+        for (let i = finalQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [finalQuestions[i], finalQuestions[j]] = [finalQuestions[j], finalQuestions[i]];
+        }
+      }
+
+      setMcQuestions(finalQuestions);
+      setMcRawModelOutput("");
+      setMcGenerationTelemetry(totalTelemetry);
+      setLastSessionTelemetry(totalTelemetry);
+      setShowMcRawOutput(false);
+      setActiveMcQuestionIndex(0);
+      setActiveMcSavedSetId(null);
       setLastSavedAt(null);
-      setMcQuestionPresentedAtById({}); setMcAnswersByQuestionId({});
-      setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
+      setMcQuestionPresentedAtById({});
+      setMcAnswersByQuestionId({});
+      setMcMarkAppealByQuestionId({});
+      setMcMarkOverrideInputByQuestionId({});
+      setMcAwardedMarksByQuestionId({});
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({ mode: "multiple-choice", stage: "failed", message: "Generation failed.", attempt: generationStatus?.attempt ?? 1 });
       setErrorMessage(readBackendError(error));
       setLastFailedAction("generate-mc");
-    } finally { setIsGenerating(false); }
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   // ── Marking ──────────────────────────────────────────────────────────────────
@@ -623,13 +862,9 @@ export function GeneratorView() {
     finally { setIsMarking(false); }
   }
 
-  // Wrap saveCurrentSet to update UI state (saved timestamp) and ensure persistence
   function handleSave() {
     const id = saveCurrentSet();
-    if (id) {
-      const now = new Date().toISOString();
-      setLastSavedAt(now);
-    }
+    if (id) setLastSavedAt(new Date().toISOString());
     return id;
   }
 
@@ -722,6 +957,7 @@ export function GeneratorView() {
     if ((questionMode === "written" && questions.length > 0 && !activeWrittenSavedSetId) ||
       (questionMode === "multiple-choice" && mcQuestions.length > 0 && !activeMcSavedSetId)) saveCurrentSet();
     resetStopwatch();
+    setBatchProgress([]);
     setQuestions([]); setWrittenRawModelOutput(""); setWrittenGenerationTelemetry(null); setShowWrittenRawOutput(false);
     setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null); setWrittenQuestionPresentedAtById({});
     setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
@@ -786,6 +1022,7 @@ export function GeneratorView() {
           questionCount={questionCount} onSetQuestionCount={setQuestionCount}
           maxMarksPerQuestion={maxMarksPerQuestion} onSetMaxMarksPerQuestion={setMaxMarksPerQuestion}
           avoidSimilarQuestions={avoidSimilarQuestions} onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
+          shuffleQuestions={shuffleQuestions} onSetShuffleQuestions={setShuffleQuestions}
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}
           isGenerating={isGenerating}
@@ -795,6 +1032,7 @@ export function GeneratorView() {
           onGenerate={questionMode === "written" ? handleGenerateQuestions : handleGenerateMcQuestions}
           lastGenerationTelemetry={lastSessionTelemetry}
           streamText={streamText}
+          batchProgress={batchProgress}
         />
 
         /* ── Completion ── */
@@ -920,6 +1158,12 @@ export function GeneratorView() {
                 rawModelOutput={mcRawModelOutput}
                 onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
               />
+              {countWords(activeMcQuestion.explanationMarkdown) > MC_MAX_EXPLANATION_WORDS && (
+                <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-lg px-4 py-2 mb-2 text-sm">
+                  <strong>Warning:</strong> Explanation is {countWords(activeMcQuestion.explanationMarkdown)} words (max {MC_MAX_EXPLANATION_WORDS}).
+                  This may be rejected by the backend.
+                </div>
+              )}
               <McAnswerPanel
                 questionId={activeMcQuestion.id}
                 options={activeMcQuestion.options}
