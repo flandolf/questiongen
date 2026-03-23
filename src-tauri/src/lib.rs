@@ -104,7 +104,7 @@ fn marking_format() -> serde_json::Value {
             "additionalProperties": false,
             "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
                          "vcaaMarkingScheme","comparisonToSolutionMarkdown",
-                         "feedbackMarkdown","workedSolutionMarkdown"],
+                         "feedbackMarkdown","workedSolutionMarkdown","mcOptionExplanations"],
             "properties": {
                 "verdict":       { "type": "string" },
                 "achievedMarks": { "type": "integer", "minimum": 0 },
@@ -126,7 +126,21 @@ fn marking_format() -> serde_json::Value {
                 },
                 "comparisonToSolutionMarkdown": { "type": "string" },
                 "feedbackMarkdown":             { "type": "string" },
-                "workedSolutionMarkdown":       { "type": "string" }
+                "workedSolutionMarkdown":       { "type": "string" },
+                // Present for MC questions; empty array for written questions.
+                "mcOptionExplanations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["option","isCorrect","explanation"],
+                        "properties": {
+                            "option":      { "type": "string" },
+                            "isCorrect":   { "type": "boolean" },
+                            "explanation": { "type": "string" }
+                        }
+                    }
+                }
             }
         }),
     )
@@ -147,7 +161,8 @@ fn written_system() -> String {
          CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
          provided in the user prompt. Only test concepts that are explicitly listed in that key \
          knowledge. Do not introduce content that is not in the Study Design.\n\
-         {LATEX_RULES}\n\n\
+         {LATEX_RULES}\n\
+         {QUESTION_STYLE_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
            \"questions\": [\n\
@@ -171,7 +186,8 @@ fn mc_system() -> String {
          CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
          provided in the user prompt. Only test concepts that are explicitly listed in that key \
          knowledge. Do not introduce content that is not in the Study Design.\n\
-         {LATEX_RULES}\n\n\
+         {LATEX_RULES}\n\
+         {MC_DISTRACTOR_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
            \"questions\": [\n\
@@ -183,7 +199,7 @@ fn mc_system() -> String {
                  {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
                ],\n\
                \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-               \"explanationMarkdown\": string (≤90 words),\n\
+               \"explanationMarkdown\": string (≤90 words — name the misconception each wrong option targets),\n\
                \"techAllowed\": boolean\n\
              }}\n\
            ]\n\
@@ -192,29 +208,75 @@ fn mc_system() -> String {
     )
 }
 
-fn marking_system(chem_note: &str) -> String {
+/// Build the marking system prompt with word limits scaled to question size.
+///
+/// Limits scale with `max_marks` so a 10-mark question gets generous space for a
+/// worked solution while a 1-mark question stays concise. The minimum ensures the
+/// model always has enough room for a useful response.
+fn marking_system(max_marks: u8, chem_note: &str) -> String {
+    // Scale word limits by marks, with sensible floors.
+    let worked_words = (max_marks as usize * 60).max(150).min(600);
+    let comparison_words = (max_marks as usize * 20).max(80).min(250);
+    let feedback_words = (max_marks as usize * 18).max(80).min(200);
+    let rationale_words = (max_marks as usize * 8).max(30).min(80);
+
     format!(
-        "You are a strict but constructive VCE marker. Assess student answers fairly.\n\
+        "You are a strict but constructive VCE marker.\n\
+         \n\
+         MARKING PHILOSOPHY:\n\
+         - Apply VCAA criterion-based marking: award marks for correct, clearly demonstrated \
+steps — not for lucky final answers where working is absent or incorrect.\n\
+         - Do NOT award marks for: restating the question, vague statements without justification, \
+correct answers with wrong or missing method (unless the question is answer-only).\n\
+         - DO award marks for: correct method even if arithmetic slips, correct use of \
+relevant formulas with appropriate substitution, logical reasoning that reaches the right conclusion.\n\
+         - For 'show that' questions: every step of the proof must be explicitly shown; \
+a bald final line with no working scores zero.\n\
+         - For 'hence' questions: the student MUST use the result from the previous part; \
+a correct independent method scores zero for the 'hence' mark.\n\
+         - For 'explain/justify' questions: a bare numerical answer without explanation scores zero.\n\
+         - For MC: the student selected a single letter — mark it correct or incorrect, then explain \
+ALL four options (what misconception each wrong option targets and why the correct one is right).\n\
+         \n\
+         CONCISENESS LIMITS (scale with mark value):\n\
+         - Each criterion rationale: ≤{rationale_words} words — reference the student's specific wording.\n\
+         - comparisonToSolution: ≤{comparison_words} words.\n\
+         - feedbackMarkdown: ≤{feedback_words} words — be specific and actionable, not generic.\n\
+         - workedSolutionMarkdown: ≤{worked_words} words — show every step explicitly.\n\
+         \n\
          {LATEX_RULES}{chem_note}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
-           \"verdict\": string,\n\
-           \"achievedMarks\": integer ≥ 0,\n\
-           \"maxMarks\": integer ≥ 1,\n\
-           \"scoreOutOf10\": integer 0–10,\n\
-           \"vcaaMarkingScheme\": [\n\
-             {{\n\
-               \"criterion\": string,\n\
-               \"achievedMarks\": integer,\n\
-               \"maxMarks\": integer,\n\
-               \"rationale\": string (≤45 words)\n\
-             }}\n\
-           ],\n\
-           \"comparisonToSolutionMarkdown\": string (≤120 words),\n\
-           \"feedbackMarkdown\": string (≤120 words),\n\
-           \"workedSolutionMarkdown\": string (≤180 words)\n\
+             \"verdict\": string,\n\
+             \"achievedMarks\": integer ≥ 0,\n\
+             \"maxMarks\": integer ≥ 1,\n\
+             \"scoreOutOf10\": integer 0–10,\n\
+             \"vcaaMarkingScheme\": [\n\
+                 {{\n\
+                     \"criterion\": string (name the specific skill/knowledge being tested),\n\
+                     \"achievedMarks\": integer,\n\
+                     \"maxMarks\": integer,\n\
+                     \"rationale\": string (≤{rationale_words} words — quote or paraphrase \
+the student's answer to justify the mark)\n\
+                 }}\n\
+             ],\n\
+             \"comparisonToSolutionMarkdown\": string (≤{comparison_words} words),\n\
+             \"feedbackMarkdown\": string (≤{feedback_words} words — 2–3 specific, actionable improvements),\n\
+             \"workedSolutionMarkdown\": string (≤{worked_words} words — full step-by-step solution),\n\
+             \"mcOptionExplanations\": [\n\
+                 {{\n\
+                     \"option\": \"A\" | \"B\" | \"C\" | \"D\",\n\
+                     \"isCorrect\": boolean,\n\
+                     \"explanation\": string (for wrong options: name the misconception it targets; \
+for correct: why it is right)\n\
+                 }}\n\
+             ]  // empty array [] for written questions\n\
          }}\n\
-         No markdown fences, no extra keys, no commentary outside JSON."
+         No markdown fences, no extra keys, no commentary outside JSON.",
+        rationale_words = rationale_words,
+        comparison_words = comparison_words,
+        feedback_words = feedback_words,
+        worked_words = worked_words,
     )
 }
 
@@ -409,7 +471,6 @@ async fn generate_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
-    // ── Timeline stage: preparing ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -423,10 +484,11 @@ async fn generate_questions(
          Difficulty rules:\n{diff_rules}\n\n\
          Mark rules: assign maxMarks by command-term demand; cap at {max_marks_cap}.\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
-         Quality: distinct concepts/contexts/methods. No worked solutions in prompts.\
+         Quality: distinct concepts/contexts/methods per question — no two questions should \
+test the same skill in the same way. No worked solutions in prompts.\
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
-         key knowledge above. Do not introduce content outside the Study Design.\n\
+key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
          Output exactly {count} questions.",
         count       = request.question_count,
@@ -444,7 +506,6 @@ async fn generate_questions(
         ),
     );
 
-    // ── Timeline stage: generating — fetch model stats concurrently ───────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -456,8 +517,6 @@ async fn generate_questions(
 
     let written_sys = written_system();
     let written_fmt = written_format();
-    // 1 500 tokens per question + 1 000 token buffer.
-    // For written: keep previous logic but increase buffer to 2000
     let max_tokens = (request.question_count as u32) * 1_500 + 2_000;
 
     let (result, stats_result) = tokio::join!(
@@ -474,7 +533,6 @@ async fn generate_questions(
     );
     let result = result?;
 
-    // ── Timeline stage: parsing ───────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -511,7 +569,6 @@ async fn generate_questions(
 
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    // ── Timeline stage: completed ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -570,7 +627,6 @@ async fn generate_mc_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
-    // ── Timeline stage: preparing ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -584,11 +640,13 @@ async fn generate_mc_questions(
          Difficulty rules:\n{diff_rules}\n\n\
          Each question: 4 options (A–D), one correct answer.\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
-         Quality: distinct concepts, plausible distractors based on common misconceptions.\n\
-         Explanation: ≤90 words, final rationale only — no chain-of-thought or self-talk.\
+         Quality: distinct concepts and contexts across the batch. Each wrong option must \
+target a specific, named student misconception (not just a random wrong value).\n\
+         Explanation: ≤90 words — state the correct answer's reasoning and name the \
+misconception each wrong option targets. No chain-of-thought, no self-talk.\
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
-         key knowledge above. Do not introduce content outside the Study Design.\n\
+key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
          Output exactly {count} questions.",
         count       = request.question_count,
@@ -606,7 +664,6 @@ async fn generate_mc_questions(
         ),
     );
 
-    // ── Timeline stage: generating ────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -618,8 +675,6 @@ async fn generate_mc_questions(
 
     let mc_sys = mc_system();
     let mc_fmt = mc_format();
-    // 1 500 tokens per question + 1 000 token buffer.
-    // For MC: 2250 for first, +350 for each additional, plus 2000 buffer
     let max_tokens = if request.question_count > 0 {
         2250 + ((request.question_count as u32 - 1) * 350) + 2000
     } else {
@@ -640,7 +695,6 @@ async fn generate_mc_questions(
     );
     let result = result?;
 
-    // ── Timeline stage: parsing ───────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -685,7 +739,6 @@ async fn generate_mc_questions(
 
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    // ── Timeline stage: completed ─────────────────────────────────────────────
     let _ = app.emit(
         "generation-status",
         serde_json::json!({
@@ -762,14 +815,28 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         ""
     };
 
+    let max_marks = request.question.max_marks;
+
+    // Build a richer marking prompt that includes the full question context.
     let prompt = format!(
-        "Topic: {topic}\nQuestion: {question}\nMax marks: {max}\n\n\
+        "Topic: {topic}\n\
+         Subtopic: {subtopic}\n\
+         Question ({max} marks):\n{question}\n\n\
          Student answer:\n{answer}\n\n\
-         Mark using VCAA criterion marking. Only mark what is explicitly stated — do not infer unstated working.\n\
-         Conciseness limits: comparisonToSolution ≤120 words, feedback ≤120 words, workedSolution ≤180 words, each rationale ≤45 words.",
+         MARKING INSTRUCTIONS:\n\
+         - Apply VCAA criterion-based marking strictly.\n\
+         - Do not award marks for correct answers without correct supporting working or reasoning \
+(except for questions that are purely answer-only).\n\
+         - Do not credit vague restatements of the question as explanation.\n\
+         - For 'hence' sub-parts: the student must use the result from the immediately preceding part.\n\
+         - For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n\
+         - For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n\
+         - Produce one criterion per mark (or group closely related marks where natural).\n\
+         - The workedSolution must show every step a student would need to write to receive full marks.",
         topic    = request.question.topic,
+        subtopic = request.question.subtopic.as_deref().unwrap_or("—"),
         question = request.question.prompt_markdown,
-        max      = request.question.max_marks,
+        max      = max_marks,
         answer   = answer,
     );
 
@@ -794,14 +861,14 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         }
     };
 
-    // 300 tokens per mark covers verdict + criterion rationales + worked solution + feedback.
-    // 1 000 token buffer handles fixed-length fields and JSON structure overhead.
-    let max_tokens = (request.question.max_marks as u32) * 300 + 1_000;
+    // Scale token budget with mark count. MC option explanations (4 options × ~60 words each)
+    // add ~400 tokens on top of the written-question budget.
+    let max_tokens = (max_marks as u32) * 400 + 1_500;
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        &marking_system(chem_note),
+        &marking_system(max_marks, chem_note),
         user_content,
         &marking_format(),
         max_tokens,
@@ -822,11 +889,7 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Marking schema mismatch: {e}")))?;
 
     // Clamp / fix marks
-    parsed.max_marks = if request.question.max_marks > 0 {
-        request.question.max_marks
-    } else {
-        10
-    };
+    parsed.max_marks = if max_marks > 0 { max_marks } else { 10 };
     parsed.achieved_marks = parsed.achieved_marks.min(parsed.max_marks);
 
     if !parsed.vcaa_marking_scheme.is_empty() {
@@ -854,6 +917,9 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     for c in &mut parsed.vcaa_marking_scheme {
         c.criterion = clean_field(&c.criterion);
         c.rationale = clean_field(&c.rationale);
+    }
+    for opt in &mut parsed.mc_option_explanations {
+        opt.explanation = clean_field(&opt.explanation);
     }
 
     parsed.prompt_tokens = result.prompt_tokens;
@@ -1044,5 +1110,16 @@ mod tests {
             multi_step_depth: None,
         }];
         assert!(validate_mc(&questions, 1).is_err());
+    }
+
+    #[test]
+    fn marking_system_scales_word_limits_with_marks() {
+        // 1-mark question should hit the floors
+        let sys_1 = marking_system(1, "");
+        assert!(sys_1.contains("≤150 words"));
+
+        // 10-mark question should have generous limits
+        let sys_10 = marking_system(10, "");
+        assert!(sys_10.contains("≤600 words"));
     }
 }

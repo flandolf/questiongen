@@ -142,6 +142,9 @@ pub struct MarkAnswerResponse {
     pub comparison_to_solution_markdown: String,
     pub feedback_markdown: String,
     pub worked_solution_markdown: String,
+    /// Per-option explanations for MC questions; empty for written questions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mc_option_explanations: Vec<McOptionExplanation>,
     #[serde(default)]
     pub prompt_tokens: u32,
     #[serde(default)]
@@ -159,6 +162,17 @@ pub struct MarkingCriterion {
     #[serde(default)]
     pub max_marks: u8,
     pub rationale: String,
+}
+
+/// Explanation for a single MC option (A–D).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct McOptionExplanation {
+    /// "A", "B", "C", or "D"
+    pub option: String,
+    pub is_correct: bool,
+    /// Why this option is correct or what misconception it targets.
+    pub explanation: String,
 }
 
 // ─── Image analysis ───────────────────────────────────────────────────────────

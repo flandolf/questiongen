@@ -17,6 +17,40 @@ pub const LATEX_RULES: &str = " LaTeX (mandatory): \
 (5) Multi-line/matrix: $$\\begin{pmatrix}...\\end{pmatrix}$$. \
 (6) Chemistry formulas: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.";
 
+/// Injected into every question-generation system prompt to enforce VCAA exam style.
+pub const QUESTION_STYLE_RULES: &str = "
+QUESTION STYLE RULES (mandatory):
+(1) COMMAND VERB VARIETY — use a spread across: find, evaluate, show that, hence, sketch, determine, \
+prove, justify, calculate, explain, describe, compare. Do NOT default to 'find' for every question.
+(2) MULTI-PART STRUCTURE — questions worth ≥4 marks must have labelled parts (a), (b), (c)... \
+where earlier parts scaffold later ones. The final part should require synthesis or justification.
+(3) STIMULUS MATERIAL — for ≥6-mark questions, open with a brief scenario, data set, graph \
+description, or given equation that all parts draw from. Do not invent overly abstract setups.
+(4) ANTI-PATTERNS — never write:
+    - 'A particle moves along a straight line…' (overused template)
+    - Questions where every part is a direct substitution with no method choice
+    - Questions that test the same skill as another question in the batch
+    - Questions with trivially obvious distractors or single-step solutions dressed as multi-mark items
+(5) MARK ALLOCATION LOGIC — 1 mark: recall or single computation. 2 marks: method + answer. \
+3 marks: multi-step with shown reasoning. 4+ marks: synthesis, justification, or multi-part chain. \
+Never assign 3+ marks to a question solvable in a single algebraic step.
+(6) DIFFICULTY AUTHENTICITY — the difficulty label must be visible in the question's cognitive demand, \
+not just its topic. A 'hard' question on a simple topic requires a non-routine twist, \
+unexpected context, or requires the student to identify the method themselves.";
+
+/// Injected into MC question-generation prompts for distractor quality.
+pub const MC_DISTRACTOR_RULES: &str = "
+MC DISTRACTOR RULES (mandatory):
+(1) Each wrong option must correspond to a NAMED misconception or predictable error:
+    e.g. 'sign error in chain rule', 'forgot to convert units', 'confused mean with median', \
+'applied wrong formula for this context'. Do not write random wrong numbers.
+(2) All four options must be plausible to a student who has partial knowledge. \
+A student who knows nothing should not be able to eliminate two options immediately.
+(3) Numeric distractors must be arithmetically close to the correct answer OR result from \
+a specific procedural mistake — not arbitrary values.
+(4) The correct answer must not be systematically the longest, shortest, or most 'qualified' option.
+(5) Avoid 'all of the above' / 'none of the above' options.";
+
 // ─── Mathematical Methods ─────────────────────────────────────────────────────
 
 pub const MATHEMATICAL_METHODS_GUIDANCE: &str = "\n\

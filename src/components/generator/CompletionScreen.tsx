@@ -10,6 +10,8 @@ import {
   CardFooter,
 } from "../ui/card";
 import { Difficulty, QuestionMode } from "@/types";
+import { useAnalyticsData } from "@/views/useAnalyticsData";
+import { AccuracyTrendChart } from "./AccuracyTrendChart";
 
 type CompletionScreenProps = {
   questionMode: QuestionMode;
@@ -43,6 +45,10 @@ export function CompletionScreen({
   onSave,
   onStartOver,
 }: CompletionScreenProps) {
+  // Analytics
+  const { summary, trendData } = useAnalyticsData();
+  const prevAccuracy = trendData.length > completedCount ? trendData[trendData.length - completedCount - 1]?.overallAccuracy : null;
+  const accuracyChange = prevAccuracy !== null && prevAccuracy !== undefined ? (accuracyPercent - prevAccuracy) : null;
   const modeLabel =
     questionMode === "written" ? "Written Response" : "Multiple Choice";
   const { label: accuracyLabel, color: accuracyColor } =
@@ -76,32 +82,54 @@ export function CompletionScreen({
 
       {/* Stats */}
       <CardContent className="px-4 py-2 space-y-4">
+        {/* Lifetime stats */}
+        <div className="grid grid-cols-2 gap-4 mb-2">
+          <div className="rounded-lg border bg-muted/10 p-3 text-xs space-y-1">
+            <div className="font-semibold text-muted-foreground mb-1">Lifetime Stats</div>
+            <div>Total Attempts: <span className="font-bold text-foreground">{summary.totalAttempts}</span></div>
+            <div>Correct Answers: <span className="font-bold text-emerald-600">{summary.totalCorrect}</span></div>
+            <div>Overall Accuracy: <span className="font-bold">{summary.overallAccuracy.toFixed(1)}%</span></div>
+            <div>Written Attempts: <span className="font-bold">{summary.writtenAttempts}</span> (<span className="text-emerald-600">{summary.writtenCorrect}</span> correct)</div>
+            <div>MC Attempts: <span className="font-bold">{summary.mcAttempts}</span> (<span className="text-emerald-600">{summary.mcCorrect}</span> correct)</div>
+            <div>Avg. Written Score: <span className="font-bold">{summary.writtenAverageScore.toFixed(1)}%</span></div>
+            <div>Avg. Marking Latency: <span className="font-bold">{Math.round(summary.averageMarkingLatencyMs)} ms</span></div>
+            <div>Avg. Generation Latency: <span className="font-bold">{Math.round(summary.averageGenerationLatencyMs)} ms</span></div>
+            <div>Appeals: <span className="font-bold">{summary.appealCount}</span> &nbsp; Overrides: <span className="font-bold">{summary.overrideCount}</span></div>
+          </div>
+          <div className="rounded-lg border bg-muted/10 p-3 text-xs space-y-1">
+            <div className="font-semibold text-muted-foreground mb-1">Session Stats</div>
+            <div>Completed: <span className="font-bold">{completedCount}</span> / <span className="font-bold">{totalCount}</span></div>
+            <div>Session Accuracy: <span className="font-bold">{accuracyPercent.toFixed(1)}%</span></div>
+            <div>Session Type: <span className="font-bold">{modeLabel}</span></div>
+            <div>Difficulty: <span className="font-bold capitalize">{difficulty}</span></div>
+            <div>Elapsed Time: <span className="font-bold">{formattedElapsedTime}</span></div>
+          </div>
+        </div>
         <div className="grid grid-cols-3 gap-3">
           {/* Accuracy */}
           <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Target className="w-3.5 h-3.5" />
-              <span className="text-xs font-semibold uppercase tracking-wider">
-                Accuracy
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Accuracy</span>
             </div>
             <div className={`text-3xl font-bold tabular-nums ${accuracyColor}`}>
               {accuracyPercent.toFixed(1)}%
             </div>
             <div className="text-xs text-muted-foreground">{accuracyLabel}</div>
+            {accuracyChange !== null && (
+              <div className={`text-xs ${accuracyChange >= 0 ? "text-emerald-600" : "text-rose-600"} mt-1`}>
+                {accuracyChange >= 0 ? "+" : ""}{accuracyChange.toFixed(1)}% overall
+              </div>
+            )}
           </div>
 
           {/* Time */}
           <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Clock className="w-3.5 h-3.5" />
-              <span className="text-xs font-semibold uppercase tracking-wider">
-                Time
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Time</span>
             </div>
-            <div className="text-3xl font-bold tabular-nums">
-              {formattedElapsedTime}
-            </div>
+            <div className="text-3xl font-bold tabular-nums">{formattedElapsedTime}</div>
             <div className="text-xs text-muted-foreground">elapsed</div>
           </div>
 
@@ -109,9 +137,7 @@ export function CompletionScreen({
           <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <BarChart2 className="w-3.5 h-3.5" />
-              <span className="text-xs font-semibold uppercase tracking-wider">
-                Difficulty
-              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Difficulty</span>
             </div>
             <div className="text-3xl font-bold capitalize">{difficulty}</div>
             <div className="text-xs text-muted-foreground">{modeLabel}</div>
@@ -130,6 +156,12 @@ export function CompletionScreen({
               style={{ width: `${accuracyPercent}%` }}
             />
           </div>
+        </div>
+
+        {/* Accuracy trend graph */}
+        <div className="mt-4">
+          <div className="text-xs font-semibold mb-1 text-muted-foreground">Overall Accuracy Trend</div>
+          <AccuracyTrendChart data={trendData.slice(-20)} />
         </div>
       </CardContent>
 
