@@ -5,7 +5,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ProgressBar } from "@/components/generator/ProgressBar";
 import { Difficulty, GenerationTelemetry } from "../../types";
 import { formatDurationMs } from "../../lib/app-utils";
-import { formatDate } from "../../lib/app-utils";
 
 type WrittenSessionHeaderProps = {
   questionIndex: number;
@@ -38,7 +37,7 @@ export function WrittenSessionHeader({
   isAtLast, canAdvance, hasSavedSet,
   generationStartedAt, formattedElapsedTime, telemetry,
   getDifficultyBadgeClasses,
-  onPrev, onNext, onSave, onDelete, onExit, lastSavedAt,
+  onPrev, onNext, onSave, onDelete, onExit,
   onRegenerate,
 }: WrittenSessionHeaderProps) {
   return (
