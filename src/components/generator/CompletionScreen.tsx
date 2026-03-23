@@ -115,7 +115,7 @@ export function CompletionScreen({
   onStartOver,
 }: CompletionScreenProps) {
   const {
-    summary, trendData, topicPerformance, recentCriterionWeakPoints,
+    summary, trendData, topicPerformance,
   } = useAnalyticsData();
 
   const { questionHistory } = useWrittenSession();

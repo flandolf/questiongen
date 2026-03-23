@@ -1,4 +1,4 @@
-import { Loader2, Target, Sparkles, Check, BookOpen, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Loader2, Sparkles, Check, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
