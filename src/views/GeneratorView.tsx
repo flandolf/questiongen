@@ -952,6 +952,24 @@ useEffect(() => {
     appendWrittenHistoryEntry(activeQuestion, updated, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "override", responseEnteredAtMs: Date.now() });
   }
 
+  function handleOverrideCriterion(idx: number, achievedMarks: number, rationale: string) {
+    if (!activeQuestion || !activeFeedback) return;
+    const nextScheme = activeFeedback.vcaaMarkingScheme.map((it, i) => i === idx ? { ...it, achievedMarks, rationale } : it);
+    const totalAchieved = nextScheme.reduce((s, c) => s + (Number.isFinite(c.achievedMarks) ? c.achievedMarks : 0), 0);
+    const totalMax = nextScheme.reduce((s, c) => s + (Number.isFinite(c.maxMarks) ? c.maxMarks : 0), 0) || activeFeedback.maxMarks;
+    const nextFeedback = {
+      ...activeFeedback,
+      vcaaMarkingScheme: nextScheme,
+      achievedMarks: totalAchieved,
+      maxMarks: totalMax,
+      scoreOutOf10: Math.round((totalAchieved / Math.max(1, totalMax)) * 10),
+      verdict: totalAchieved === totalMax ? "Correct" : totalAchieved === 0 ? "Incorrect" : "Overridden",
+    };
+    setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: nextFeedback }));
+    setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(nextFeedback.achievedMarks) }));
+    appendWrittenHistoryEntry(activeQuestion, nextFeedback, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "override", responseEnteredAtMs: Date.now() });
+  }
+
   // ── MC answer / appeal / override ────────────────────────────────────────────
   function handleMcAnswer(selectedLabel: string) {
     if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
@@ -1169,7 +1187,8 @@ useEffect(() => {
                   onAppealChange={(v) => setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
                   onOverrideInputChange={(v) => setMarkOverrideInputByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
                   onArgueForMark={handleArgueForMark}
-                  onApplyOverride={handleOverrideMark}
+                    onApplyOverride={handleOverrideMark}
+                    onCriterionChange={handleOverrideCriterion}
                 />
               )}
             </div>
