@@ -1,5 +1,5 @@
 import { Bug, Copy, Download, BookOpen } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useAppSettings } from "@/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -15,7 +15,7 @@ type WrittenQuestionCardProps = {
   onToggleRawOutput: () => void;
 };
 
-export function WrittenQuestionCard({
+export const WrittenQuestionCard = memo(function WrittenQuestionCard({
   promptMarkdown,
   canShowRawOutput,
   showRawOutput,
@@ -87,4 +87,4 @@ export function WrittenQuestionCard({
       </CardContent>
     </Card>
   );
-}
+});
