@@ -8,7 +8,7 @@ import {
   Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Clock, Database,
   Settings, Key, Cpu, CreditCard, Palette, ChevronRight, CheckCircle2,
   AlertCircle, Search, Image, X, ArrowUpDown, ArrowUp, ArrowDown,
-  ShieldAlert,
+  ShieldAlert, TrendingUp, Calendar, BarChart2,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Slider } from "@/components/ui/slider";
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { readBackendError } from "../lib/app-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,6 @@ type SortKey = "speed" | "priceIn" | "priceOut" | "priceCombined" | "latency" | 
 type SortDir = "asc" | "desc";
 type Section = "api" | "models" | "credits" | "appearance" | "debug";
 
-// Validation result for image-capable models
 type ImageValidationState =
   | { status: "idle" }
   | { status: "loading" }
@@ -82,8 +82,6 @@ const PRESET_MODELS = [
   { id: "custom", name: "Custom…" },
 ];
 
-// Preset models known to support image/vision inputs.
-// These are shown in the image marking model select — all support multimodal input.
 const PRESET_IMAGE_MODELS = [
   { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
   { id: "qwen/qwen3.5-flash-02-23", name: "Qwen 3.5 Flash" },
@@ -93,20 +91,8 @@ const PRESET_IMAGE_MODELS = [
   { id: "custom", name: "Custom…" },
 ];
 
-// ─── Module-level image validation cache ──────────────────────────────────────
-//
-// Keyed by `${apiKey}:${modelId}`. Stores whether the model supports images so
-// re-selecting the same model is instant without another network round-trip.
-// The Rust backend has its own 15-minute TTL cache for the underlying API call,
-// so this frontend cache is effectively just session-level deduplication.
-
-interface ImageValidationCacheEntry {
-  supportsImages: boolean;
-  fetchedAt: number;
-}
-
-const IMAGE_VALIDATION_CACHE_TTL_MS = 15 * 60_000; // 15 minutes — mirrors Rust cache TTL
-const imageValidationCache = new Map<string, ImageValidationCacheEntry>();
+const IMAGE_VALIDATION_CACHE_TTL_MS = 15 * 60_000;
+const imageValidationCache = new Map<string, { supportsImages: boolean; fetchedAt: number }>();
 
 function getImageValidationCacheKey(apiKey: string, modelId: string): string {
   return `${apiKey}:${modelId}`;
@@ -130,8 +116,8 @@ function setCachedImageValidation(apiKey: string, modelId: string, supportsImage
   });
 }
 
-const SEARCH_MIN_TPS = 30;  // tok/s
-const SEARCH_MIN_UPTIME = 80;  // %
+const SEARCH_MIN_TPS = 30;
+const SEARCH_MIN_UPTIME = 80;
 
 const SORT_OPTIONS: { key: SortKey; label: string; description: string }[] = [
   { key: "speed", label: "Speed", description: "Tokens/sec (p50)" },
@@ -164,7 +150,45 @@ const fmt = {
   context(v: number | null) { return v == null ? "—" : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v); },
   uptime(v: number | null) { return v == null ? "—" : `${v.toFixed(1)}%`; },
   time(d: Date | null) { return d ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""; },
+  cost(v: number) {
+    if (v === 0) return "$0.00";
+    if (v < 0.00001) return "<$0.00001";
+    if (v < 0.01) return `$${v.toFixed(5)}`;
+    return `$${v.toFixed(4)}`;
+  },
+  tokens(v: number) {
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+    if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+    return v.toLocaleString();
+  },
 };
+
+// ─── Daily usage helpers ──────────────────────────────────────────────────────
+
+function getDayKey(isoString: string): string {
+  return isoString.slice(0, 10); // "YYYY-MM-DD"
+}
+
+function computeDailyUsage(
+  questionHistory: ReturnType<typeof useWrittenSession>["questionHistory"],
+  mcHistory: ReturnType<typeof useMultipleChoiceSession>["mcHistory"],
+) {
+  const byDay = new Map<string, { tokens: number; cost: number; questions: number }>();
+
+  const addEntry = (createdAt: string, telemetry?: { totalTokens?: number; estimatedCostUsd?: number } | null) => {
+    const day = getDayKey(createdAt);
+    const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
+    bucket.questions += 1;
+    if (telemetry?.totalTokens) bucket.tokens += telemetry.totalTokens;
+    if (telemetry?.estimatedCostUsd) bucket.cost += telemetry.estimatedCostUsd;
+    byDay.set(day, bucket);
+  };
+
+  for (const e of questionHistory) addEntry(e.createdAt, e.generationTelemetry);
+  for (const e of mcHistory) addEntry(e.createdAt, e.generationTelemetry);
+
+  return byDay;
+}
 
 // ─── Shared UI primitives ─────────────────────────────────────────────────────
 
@@ -275,13 +299,6 @@ function ModelSelectRow({ id, value, models, disabled, onSelect, onSearch, place
   );
 }
 
-// ─── ImageModelSelectRow ──────────────────────────────────────────────────────
-//
-// Like ModelSelectRow but also validates the selected model for vision/image
-// support via get_model_stats. Results are cached at module scope so re-selecting
-// a previously validated model is instant — the Rust backend also has a 15-minute
-// cache, so even a cache miss costs at most one lightweight API call.
-
 function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, placeholder = "Select a vision model" }: {
   id: string;
   value: string;
@@ -294,20 +311,16 @@ function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, 
   const [validation, setValidation] = useState<ImageValidationState>({ status: "idle" });
   const lastValidatedRef = useRef<string>("");
 
-  // Validate the selected model for image support
   const validateModel = useCallback(async (modelId: string) => {
     if (!modelId || modelId === "custom" || !apiKey.trim()) {
       setValidation({ status: "idle" });
       return;
     }
-
-    // Hit the frontend cache first
     const cached = getCachedImageValidation(apiKey, modelId);
     if (cached !== null) {
       setValidation({ status: cached ? "supported" : "unsupported" });
       return;
     }
-
     setValidation({ status: "loading" });
     try {
       const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId });
@@ -319,7 +332,6 @@ function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, 
     }
   }, [apiKey]);
 
-  // Re-validate whenever the value or API key changes
   useEffect(() => {
     if (value === lastValidatedRef.current) return;
     lastValidatedRef.current = value;
@@ -331,7 +343,6 @@ function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, 
     ? [{ id: value, name: value.includes("/") ? value.split("/").slice(1).join("/") : value }]
     : [];
   const selectVal = value && value !== "custom" ? value : (isKnown ? value : "");
-
 
   return (
     <div className="space-y-1.5">
@@ -364,7 +375,6 @@ function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, 
             ))}
           </SelectContent>
         </Select>
-
         {onSearch && (
           <Button
             variant="outline" size="sm" className="shrink-0"
@@ -374,20 +384,15 @@ function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, 
           </Button>
         )}
       </div>
-
-      {/* Warning banner when a model is confirmed not to support images */}
       {validation.status === "unsupported" && selectVal && selectVal !== "custom" && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
           <div>
             <span className="font-semibold">Vision support not detected.</span>{" "}
-            This model may not be able to process image uploads. Image-marked answers could fail or produce incorrect results.
-            Consider choosing a model from the list or searching for vision-capable alternatives.
+            This model may not be able to process image uploads.
           </div>
         </div>
       )}
-
-      {/* Error banner when validation itself failed */}
       {validation.status === "error" && (
         <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -473,6 +478,232 @@ function CreditBar({ used, total }: { used: number; total: number }) {
   );
 }
 
+// ─── DailyUsageChart ─────────────────────────────────────────────────────────
+
+function DailyUsageSection({
+  questionHistory,
+  mcHistory,
+}: {
+  questionHistory: ReturnType<typeof useWrittenSession>["questionHistory"];
+  mcHistory: ReturnType<typeof useMultipleChoiceSession>["mcHistory"];
+}) {
+  const dailyData = useMemo(() => {
+    const byDay = computeDailyUsage(questionHistory, mcHistory);
+
+    // Sort days ascending, take last 30
+    const sorted = Array.from(byDay.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-30);
+
+    return sorted.map(([day, data]) => ({
+      day,
+      label: new Date(day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      ...data,
+    }));
+  }, [questionHistory, mcHistory]);
+
+  const totalDays = dailyData.length;
+
+  const avgStats = useMemo(() => {
+    if (totalDays === 0) return { avgTokens: 0, avgCost: 0, avgQuestions: 0, totalTokens: 0, totalCost: 0, totalQuestions: 0 };
+    const totalTokens = dailyData.reduce((s, d) => s + d.tokens, 0);
+    const totalCost = dailyData.reduce((s, d) => s + d.cost, 0);
+    const totalQuestions = dailyData.reduce((s, d) => s + d.questions, 0);
+    return {
+      avgTokens: totalTokens / totalDays,
+      avgCost: totalCost / totalDays,
+      avgQuestions: totalQuestions / totalDays,
+      totalTokens,
+      totalCost,
+      totalQuestions,
+    };
+  }, [dailyData, totalDays]);
+
+  const maxTokens = Math.max(...dailyData.map(d => d.tokens), 1);
+  const maxQuestions = Math.max(...dailyData.map(d => d.questions), 1);
+
+  if (totalDays === 0) {
+    return (
+      <EmptyState message="No usage data yet. Token and cost tracking appears after your first generation." />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary KPI row */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          {
+            icon: <TrendingUp className="h-4 w-4 text-sky-500" />,
+            label: "Avg tokens / day",
+            value: fmt.tokens(Math.round(avgStats.avgTokens)),
+            sub: `${fmt.tokens(avgStats.totalTokens)} total · ${totalDays}d`,
+            accent: "sky",
+          },
+          {
+            icon: <DollarSign className="h-4 w-4 text-emerald-500" />,
+            label: "Avg cost / day",
+            value: fmt.cost(avgStats.avgCost),
+            sub: `${fmt.cost(avgStats.totalCost)} total`,
+            accent: "emerald",
+          },
+          {
+            icon: <BarChart2 className="h-4 w-4 text-violet-500" />,
+            label: "Avg questions / day",
+            value: avgStats.avgQuestions.toFixed(1),
+            sub: `${avgStats.totalQuestions} total`,
+            accent: "violet",
+          },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className={cn(
+              "rounded-xl border p-4 space-y-2",
+              stat.accent === "sky" && "bg-sky-500/5 border-sky-500/20",
+              stat.accent === "emerald" && "bg-emerald-500/5 border-emerald-500/20",
+              stat.accent === "violet" && "bg-violet-500/5 border-violet-500/20",
+            )}
+          >
+            <div className="flex items-center gap-2 text-muted-foreground">
+              {stat.icon}
+              <span className="text-[10px] font-bold uppercase tracking-wider">{stat.label}</span>
+            </div>
+            <div className={cn(
+              "text-2xl font-black tabular-nums leading-none",
+              stat.accent === "sky" && "text-sky-600 dark:text-sky-400",
+              stat.accent === "emerald" && "text-emerald-600 dark:text-emerald-400",
+              stat.accent === "violet" && "text-violet-600 dark:text-violet-400",
+            )}>
+              {stat.value}
+            </div>
+            <div className="text-[11px] text-muted-foreground">{stat.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Daily bar chart — tokens */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-3.5 w-3.5 text-sky-500" />
+            <span className="text-sm font-semibold">Daily token usage</span>
+          </div>
+          <span className="text-xs text-muted-foreground">Last {totalDays} active day{totalDays !== 1 ? "s" : ""}</span>
+        </div>
+        <div className="px-4 py-4">
+          {/* Bar chart */}
+          <div className="flex items-end gap-1 h-24">
+            {dailyData.map((d) => {
+              const pct = d.tokens / maxTokens;
+              return (
+                <div
+                  key={d.day}
+                  className="flex-1 flex flex-col items-center gap-1 group relative"
+                  title={`${d.label}: ${fmt.tokens(d.tokens)} tokens`}
+                >
+                  <div
+                    className="w-full rounded-t-sm bg-sky-500/70 hover:bg-sky-500 transition-colors cursor-default"
+                    style={{ height: `${Math.max(pct * 88, d.tokens > 0 ? 4 : 0)}px` }}
+                  />
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+                    <div className="rounded-lg border bg-popover px-2.5 py-1.5 shadow-lg text-[11px] text-foreground whitespace-nowrap">
+                      <div className="font-semibold">{d.label}</div>
+                      <div className="text-muted-foreground">{fmt.tokens(d.tokens)} tok · {d.questions}q · {fmt.cost(d.cost)}</div>
+                    </div>
+                    <div className="w-2 h-2 bg-popover border-r border-b rotate-45 -mt-1 border-border" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* X axis labels — show first, middle, last only */}
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[10px] text-muted-foreground/60">{dailyData[0]?.label}</span>
+            {dailyData.length > 2 && (
+              <span className="text-[10px] text-muted-foreground/60">{dailyData[Math.floor(dailyData.length / 2)]?.label}</span>
+            )}
+            <span className="text-[10px] text-muted-foreground/60">{dailyData[dailyData.length - 1]?.label}</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Daily questions bar chart */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-3.5 w-3.5 text-violet-500" />
+            <span className="text-sm font-semibold">Daily questions answered</span>
+          </div>
+          <span className="text-xs text-muted-foreground">Last {totalDays} active day{totalDays !== 1 ? "s" : ""}</span>
+        </div>
+        <div className="px-4 py-4">
+          <div className="flex items-end gap-1 h-24">
+            {dailyData.map((d) => {
+              const pct = d.questions / maxQuestions;
+              return (
+                <div
+                  key={d.day}
+                  className="flex-1 flex flex-col items-center gap-1 group relative"
+                  title={`${d.label}: ${d.questions} question${d.questions !== 1 ? "s" : ""}`}
+                >
+                  <div
+                    className="w-full rounded-t-sm bg-violet-500/70 hover:bg-violet-500 transition-colors cursor-default"
+                    style={{ height: `${Math.max(pct * 88, d.questions > 0 ? 4 : 0)}px` }}
+                  />
+                  <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+                    <div className="rounded-lg border bg-popover px-2.5 py-1.5 shadow-lg text-[11px] text-foreground whitespace-nowrap">
+                      <div className="font-semibold">{d.label}</div>
+                      <div className="text-muted-foreground">{d.questions} question{d.questions !== 1 ? "s" : ""} · {fmt.tokens(d.tokens)} tok</div>
+                    </div>
+                    <div className="w-2 h-2 bg-popover border-r border-b rotate-45 -mt-1 border-border" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[10px] text-muted-foreground/60">{dailyData[0]?.label}</span>
+            {dailyData.length > 2 && (
+              <span className="text-[10px] text-muted-foreground/60">{dailyData[Math.floor(dailyData.length / 2)]?.label}</span>
+            )}
+            <span className="text-[10px] text-muted-foreground/60">{dailyData[dailyData.length - 1]?.label}</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Recent days table */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm font-semibold">Recent daily breakdown</span>
+        </div>
+        <div className="divide-y divide-border">
+          <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/20">
+            <span>Date</span>
+            <span className="text-right">Questions</span>
+            <span className="text-right">Tokens</span>
+            <span className="text-right">Est. cost</span>
+          </div>
+          {[...dailyData].reverse().slice(0, 10).map((d) => (
+            <div key={d.day} className="grid grid-cols-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition-colors">
+              <span className="text-foreground font-medium">{d.label}</span>
+              <span className="text-right tabular-nums text-muted-foreground">{d.questions}</span>
+              <span className="text-right tabular-nums text-muted-foreground">{d.tokens > 0 ? fmt.tokens(d.tokens) : "—"}</span>
+              <span className="text-right tabular-nums text-muted-foreground">{d.cost > 0 ? fmt.cost(d.cost) : "—"}</span>
+            </div>
+          ))}
+        </div>
+        {dailyData.length > 10 && (
+          <div className="px-4 py-2.5 text-xs text-muted-foreground/60 border-t border-border bg-muted/10 text-center">
+            Showing 10 most recent days · {totalDays} total active days tracked
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 const SEARCH_MAX_RESULTS = 15;
 const SEARCH_LOAD_MORE = 10;
 const SEARCH_CACHE_TTL_MS = 45 * 60_000;
@@ -497,8 +728,6 @@ function getCachedEntry(apiKey: string, target: ModelSearchPanelProps["target"])
   if (Date.now() - entry.fetchedAt > SEARCH_CACHE_TTL_MS) { searchCache.delete(key); return null; }
   return entry;
 }
-
-// ─── ModelSearchPanel ─────────────────────────────────────────────────────────
 
 interface ModelSearchPanelProps {
   target: "generation" | "marking" | "imageMarking";
@@ -557,7 +786,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
             const stats = await invoke<ModelStats>("get_model_stats", { apiKey, modelId: m.id });
             if (signal.cancelled) return;
             if (modelPasses(stats, m.supportsImages)) {
-              // Also populate the image validation cache while we have the stats
               setCachedImageValidation(apiKey, m.id, stats.supportsImages === true);
               found.push({
                 id: m.id, name: stats.name ?? m.name ?? m.id,
@@ -571,7 +799,6 @@ function ModelSearchPanel({ target, onClose, onSelect, apiKey }: ModelSearchPane
               });
               setResults([...found]);
             } else if (stats.supportsImages !== undefined) {
-              // Cache even for models that don't pass the filter
               setCachedImageValidation(apiKey, m.id, stats.supportsImages === true);
             }
           } catch { /* skip */ }
@@ -956,6 +1183,9 @@ export function SettingsView() {
     questionTextSize, setQuestionTextSize,
   } = useAppSettings();
 
+  const { questionHistory } = useWrittenSession();
+  const { mcHistory } = useMultipleChoiceSession();
+
   const [activeSection, setActiveSection] = useState<Section>("api");
 
   const [localKey, setLocalKey] = useState(apiKey);
@@ -997,7 +1227,6 @@ export function SettingsView() {
   const [creditsError, setCreditsError] = useState<string | null>(null);
   const [creditsUpdatedAt, setCreditsUpdatedAt] = useState<Date | null>(null);
 
-  // ── Sync from context on mount ──────────────────────────────────────────────
   useEffect(() => { setLocalKey(apiKey); }, [apiKey]);
   useEffect(() => { setLocalModel(model); }, [model]);
   useEffect(() => { setLocalMarkingModel(markingModel); }, [markingModel]);
@@ -1005,14 +1234,11 @@ export function SettingsView() {
   useEffect(() => { setLocalImageMarkingModel(imageMarkingModel); }, [imageMarkingModel]);
   useEffect(() => { setLocalUseSeparateImageMarkingModel(useSeparateImageMarkingModel); }, [useSeparateImageMarkingModel]);
 
-  // ── Auto-persist model selections ──────────────────────────────────────────
   useEffect(() => { if (localModel && localModel !== model) setModel(localModel); }, [localModel, model, setModel]);
   useEffect(() => { if (localMarkingModel && localMarkingModel !== markingModel) setMarkingModel(localMarkingModel); }, [localMarkingModel, markingModel, setMarkingModel]);
   useEffect(() => { if (localUseSeparateMarkingModel !== useSeparateMarkingModel) setUseSeparateMarkingModel(localUseSeparateMarkingModel); }, [localUseSeparateMarkingModel, useSeparateMarkingModel, setUseSeparateMarkingModel]);
   useEffect(() => { if (localImageMarkingModel && localImageMarkingModel !== imageMarkingModel) setImageMarkingModel(localImageMarkingModel); }, [localImageMarkingModel, imageMarkingModel, setImageMarkingModel]);
   useEffect(() => { if (localUseSeparateImageMarkingModel !== useSeparateImageMarkingModel) setUseSeparateImageMarkingModel(localUseSeparateImageMarkingModel); }, [localUseSeparateImageMarkingModel, useSeparateImageMarkingModel, setUseSeparateImageMarkingModel]);
-
-  // ── Fetch helpers ───────────────────────────────────────────────────────────
 
   const fetchModelStats = useCallback(async (key: string, modelId: string) => {
     if (!key.trim() || !modelId.trim() || modelId === "custom") return;
@@ -1035,7 +1261,6 @@ export function SettingsView() {
       const s = await invoke<ModelStats>("get_model_stats", { apiKey: key, modelId });
       setImageMarkingModelStats(s);
       setImageMarkingStatsUpdatedAt(new Date());
-      // Populate the image validation cache from this fetch too
       setCachedImageValidation(key, modelId, s.supportsImages === true);
     }
     catch (e) { setImageMarkingStatsError(readBackendError(e)); }
@@ -1049,7 +1274,6 @@ export function SettingsView() {
     catch (e) { setCreditsError(readBackendError(e)); setCredits(null); } finally { setCreditsLoading(false); }
   }, []);
 
-  // Auto-fetch stats when relevant state changes
   useEffect(() => { if (apiKey && model) fetchModelStats(apiKey, model); }, [apiKey, model, fetchModelStats]);
   useEffect(() => { if (apiKey && useSeparateMarkingModel && markingModel) fetchMarkingModelStats(apiKey, markingModel); }, [apiKey, useSeparateMarkingModel, markingModel, fetchMarkingModelStats]);
   useEffect(() => { if (apiKey && useSeparateImageMarkingModel && imageMarkingModel) fetchImageMarkingModelStats(apiKey, imageMarkingModel); }, [apiKey, useSeparateImageMarkingModel, imageMarkingModel, fetchImageMarkingModelStats]);
@@ -1071,8 +1295,6 @@ export function SettingsView() {
   }
 
   const latestUpdate = statsUpdatedAt ?? markingStatsUpdatedAt ?? imageMarkingStatsUpdatedAt;
-
-  // ── Section renderer ────────────────────────────────────────────────────────
 
   function renderSection() {
     switch (activeSection) {
@@ -1112,8 +1334,6 @@ export function SettingsView() {
       case "models":
         return (
           <div className="space-y-6">
-
-            {/* Search panel — shared across all three model slots */}
             {searchOpen && (
               <ModelSearchPanel
                 target={searchTarget} apiKey={apiKey}
@@ -1121,7 +1341,6 @@ export function SettingsView() {
               />
             )}
 
-            {/* Generation model */}
             <section className="space-y-3">
               <SectionHeader title="Generation Model" description="Used to generate questions and content." />
               <FieldGroup label="Model" htmlFor="model-select">
@@ -1141,7 +1360,6 @@ export function SettingsView() {
 
             <Divider />
 
-            {/* Marking model */}
             <section className="space-y-3">
               <SectionHeader title="Marking Model" description="Optionally use a separate model for grading student answers." />
               <ToggleRow
@@ -1170,7 +1388,6 @@ export function SettingsView() {
 
             <Divider />
 
-            {/* Image marking model */}
             <section className="space-y-3">
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-lg font-semibold tracking-tight">Image Marking Model</h2>
@@ -1179,8 +1396,7 @@ export function SettingsView() {
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Only vision-capable models can process image answer uploads. The selector below shows
-                known vision models and verifies your chosen model with OpenRouter before accepting it.
+                Only vision-capable models can process image answer uploads.
               </p>
               <ToggleRow
                 id="use-separate-image-marking-model" checked={localUseSeparateImageMarkingModel}
@@ -1216,7 +1432,6 @@ export function SettingsView() {
 
             <Divider />
 
-            {/* Live Stats */}
             <section>
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -1263,6 +1478,7 @@ export function SettingsView() {
       case "credits":
         return (
           <div className="space-y-6">
+            {/* Credit balance */}
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Account Credits</h2>
@@ -1309,6 +1525,22 @@ export function SettingsView() {
                 </Card>
               </div>
             )}
+
+            <Divider />
+
+            {/* Daily usage section */}
+            <div>
+              <div className="mb-4">
+                <h2 className="text-base font-semibold tracking-tight flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  Daily Token & Cost Usage
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Based on generation telemetry stored locally in your history. Only sessions with token data are included.
+                </p>
+              </div>
+              <DailyUsageSection questionHistory={questionHistory} mcHistory={mcHistory} />
+            </div>
           </div>
         );
 
@@ -1365,8 +1597,6 @@ export function SettingsView() {
         );
     }
   }
-
-  // ── Layout ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full min-h-0">

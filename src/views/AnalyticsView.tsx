@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles, AlertTriangle, PlusCircle, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles, AlertTriangle, PlusCircle, Info, ChevronDown, ChevronUp, BarChart2, DollarSign, Calendar } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -28,7 +28,9 @@ import { formatDurationMs, formatPercent } from "../lib/app-utils";
 import { useAnalyticsData, ALL_TOPICS, LOW_SAMPLE_THRESHOLD, RECENT_WRITTEN_CRITERIA_WINDOW } from "./useAnalyticsData";
 import { useAppSettings } from "../AppContext";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
+import type { QuestionHistoryEntry, McHistoryEntry } from "../types";
 
 type KpiCardProps = {
   title: string;
@@ -36,7 +38,6 @@ type KpiCardProps = {
   detail: string;
   icon: typeof Target;
   accent?: "default" | "success" | "warning" | "danger";
-  // --- #9: Optional delta ---
   delta?: number | null;
   deltaLabel?: string;
 };
@@ -111,7 +112,6 @@ function ChartEmpty({ message }: { message: string }) {
   );
 }
 
-// --- #10: Simple tooltip component for technical terms ---
 function Tooltip({ content, children }: { content: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -136,19 +136,18 @@ function Tooltip({ content, children }: { content: string; children: React.React
   );
 }
 
-// --- #9: KPI card with delta indicator ---
 function KpiCard({ title, value, detail, icon: Icon, accent = "default", delta, deltaLabel }: KpiCardProps) {
   const accentStyles: Record<string, string> = {
     default: "bg-primary/10 text-primary border-primary/20",
     success: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
     warning: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    danger:  "bg-rose-500/10 text-rose-500 border-rose-500/20",
+    danger: "bg-rose-500/10 text-rose-500 border-rose-500/20",
   };
   const valueStyles: Record<string, string> = {
     default: "text-foreground",
     success: "text-emerald-500",
     warning: "text-amber-500",
-    danger:  "text-rose-500",
+    danger: "text-rose-500",
   };
 
   return (
@@ -163,15 +162,13 @@ function KpiCard({ title, value, detail, icon: Icon, accent = "default", delta, 
           </div>
           <div className="flex items-center gap-2">
             <div className="text-xs text-muted-foreground truncate">{detail}</div>
-            {/* --- #9: Delta badge --- */}
             {delta !== null && delta !== undefined && (
-              <span className={`shrink-0 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${
-                delta > 0
+              <span className={`shrink-0 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full ${delta > 0
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                   : delta < 0
-                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                  : "bg-muted/50 text-muted-foreground"
-              }`}>
+                    ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                    : "bg-muted/50 text-muted-foreground"
+                }`}>
                 {delta > 0 ? "+" : ""}{delta.toFixed(1)}%{deltaLabel ? ` ${deltaLabel}` : ""}
               </span>
             )}
@@ -200,9 +197,8 @@ function ChartCard({
 }) {
   return (
     <Card
-      className={`border border-border/50 bg-card/90 shadow-sm flex flex-col transition-all duration-200 hover:shadow-md ${
-        fixedHeight ? CARD_FIXED_HEIGHT : ""
-      } ${className}`}
+      className={`border border-border/50 bg-card/90 shadow-sm flex flex-col transition-all duration-200 hover:shadow-md ${fixedHeight ? CARD_FIXED_HEIGHT : ""
+        } ${className}`}
     >
       <CardHeader className="pb-2 shrink-0">
         <CardTitle className="text-base font-semibold leading-snug">{title}</CardTitle>
@@ -215,13 +211,78 @@ function ChartCard({
   );
 }
 
+// ─── Daily usage helpers ──────────────────────────────────────────────────────
+
+function getDayKey(isoString: string): string {
+  return isoString.slice(0, 10);
+}
+
+function formatCostShort(v: number) {
+  if (v === 0) return "$0";
+  if (v < 0.001) return "<$0.001";
+  if (v < 0.01) return `$${v.toFixed(3)}`;
+  return `$${v.toFixed(2)}`;
+}
+
+function formatTokensShort(v: number) {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return String(v);
+}
+
+function useDailyStats(
+  questionHistory: QuestionHistoryEntry[],
+  mcHistory: McHistoryEntry[],
+) {
+  return useMemo(() => {
+    const byDay = new Map<string, { tokens: number; cost: number; questions: number }>();
+
+    const addEntry = (createdAt: string, telemetry?: { totalTokens?: number; estimatedCostUsd?: number } | null) => {
+      const day = getDayKey(createdAt);
+      const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
+      bucket.questions += 1;
+      if (telemetry?.totalTokens) bucket.tokens += telemetry.totalTokens;
+      if (telemetry?.estimatedCostUsd) bucket.cost += telemetry.estimatedCostUsd;
+      byDay.set(day, bucket);
+    };
+
+    for (const e of questionHistory) addEntry(e.createdAt, e.generationTelemetry);
+    for (const e of mcHistory) addEntry(e.createdAt, e.generationTelemetry);
+
+    const sorted = Array.from(byDay.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-30);
+
+    const totalDays = sorted.length;
+    if (totalDays === 0) {
+      return { sorted: [], avgTokens: 0, avgCost: 0, avgQuestions: 0, totalDays: 0 };
+    }
+
+    const totalTokens = sorted.reduce((s, [, d]) => s + d.tokens, 0);
+    const totalCost = sorted.reduce((s, [, d]) => s + d.cost, 0);
+    const totalQuestions = sorted.reduce((s, [, d]) => s + d.questions, 0);
+
+    return {
+      sorted: sorted.map(([day, data]) => ({
+        day,
+        label: new Date(day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        ...data,
+      })),
+      avgTokens: totalTokens / totalDays,
+      avgCost: totalCost / totalDays,
+      avgQuestions: totalQuestions / totalDays,
+      totalDays,
+    };
+  }, [questionHistory, mcHistory]);
+}
+
 // ─── Main view ────────────────────────────────────────────────────────────────
 export function AnalyticsView() {
   const navigate = useNavigate();
   const { debugMode } = useAppSettings();
-
-  // --- #10: Debug diagnostics toggle ---
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const { questionHistory } = useWrittenSession();
+  const { mcHistory } = useMultipleChoiceSession();
 
   const {
     allAttempts,
@@ -251,14 +312,16 @@ export function AnalyticsView() {
     recentFirstAttemptAccuracy,
   } = useAnalyticsData();
 
+  const dailyStats = useDailyStats(questionHistory, mcHistory);
+
   const hasAnyAttempts = allAttempts.length > 0;
 
   const firstAttemptPct = summary.firstAttemptAccuracy;
   const writtenFirstPct = summary.writtenFirstAttemptAverageScore;
-  const mcFirstPct      = summary.mcFirstAttemptTotal > 0 ? (summary.mcFirstAttemptCorrect / summary.mcFirstAttemptTotal) * 100 : 0;
+  const mcFirstPct = summary.mcFirstAttemptTotal > 0 ? (summary.mcFirstAttemptCorrect / summary.mcFirstAttemptTotal) * 100 : 0;
   const overallPct = summary.overallAccuracy;
   const writtenPct = summary.writtenAverageScore;
-  const mcPct      = summary.mcAttempts ? (summary.mcCorrect / summary.mcAttempts) * 100 : 0;
+  const mcPct = summary.mcAttempts ? (summary.mcCorrect / summary.mcAttempts) * 100 : 0;
   const toAccent = (pct: number) =>
     pct >= 75 ? "success" : pct >= 50 ? "warning" : pct > 0 ? "danger" : "default";
 
@@ -314,7 +377,6 @@ export function AnalyticsView() {
             title="No analytics yet"
             description="Complete some written or multiple-choice questions and this page will build trend lines, topic breakdowns, and generation diagnostics automatically."
             className="h-auto py-16"
-            // --- #13: CTA ---
             actions={
               <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/")}>
                 <PlusCircle className="h-4 w-4" />
@@ -330,7 +392,6 @@ export function AnalyticsView() {
           <section className="space-y-4">
             <SectionLabel>Performance at a glance</SectionLabel>
 
-            {/* First-attempt accuracy — primary signal */}
             <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-2.5">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60 mb-2.5">
                 First-attempt accuracy
@@ -369,7 +430,6 @@ export function AnalyticsView() {
               </div>
             </div>
 
-            {/* Overall accuracy (all attempts including reattempts) */}
             <div className="rounded-xl border border-border/50 bg-muted/10 px-4 py-2.5">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60 mb-2.5">
                 Overall accuracy
@@ -428,6 +488,96 @@ export function AnalyticsView() {
             </div>
           </section>
 
+          {/* ── Daily usage KPIs ── */}
+          {dailyStats.totalDays > 0 && (
+            <section className="space-y-4">
+              <SectionLabel>Daily usage</SectionLabel>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border bg-violet-500/5 border-violet-500/20 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <BarChart2 className="h-4 w-4 text-violet-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Avg questions / day</span>
+                  </div>
+                  <div className="text-3xl font-black tabular-nums leading-none text-violet-600 dark:text-violet-400">
+                    {dailyStats.avgQuestions.toFixed(1)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    over {dailyStats.totalDays} active day{dailyStats.totalDays !== 1 ? "s" : ""}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-sky-500/5 border-sky-500/20 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <TrendingUp className="h-4 w-4 text-sky-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Avg tokens / day</span>
+                  </div>
+                  <div className="text-3xl font-black tabular-nums leading-none text-sky-600 dark:text-sky-400">
+                    {formatTokensShort(Math.round(dailyStats.avgTokens))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {dailyStats.avgTokens === 0 ? "No token data recorded yet" : `${formatTokensShort(dailyStats.sorted.reduce((s, d) => s + d.tokens, 0))} total`}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-emerald-500/5 border-emerald-500/20 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <DollarSign className="h-4 w-4 text-emerald-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Avg cost / day</span>
+                  </div>
+                  <div className="text-3xl font-black tabular-nums leading-none text-emerald-600 dark:text-emerald-400">
+                    {dailyStats.avgCost === 0 ? "—" : formatCostShort(dailyStats.avgCost)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {dailyStats.avgCost === 0
+                      ? "No cost data recorded yet"
+                      : `${formatCostShort(dailyStats.sorted.reduce((s, d) => s + d.cost, 0))} total · ${dailyStats.totalDays}d`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mini sparkline chart for daily questions */}
+              {dailyStats.sorted.length > 1 && (
+                <div className="rounded-xl border border-border/50 bg-card/90 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm font-semibold">Questions per active day</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">Last {dailyStats.totalDays} active day{dailyStats.totalDays !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="flex items-end gap-1 h-16">
+                    {(() => {
+                      const maxQ = Math.max(...dailyStats.sorted.map(d => d.questions), 1);
+                      return dailyStats.sorted.map((d) => (
+                        <div
+                          key={d.day}
+                          className="flex-1 relative group"
+                          title={`${d.label}: ${d.questions} question${d.questions !== 1 ? "s" : ""}`}
+                        >
+                          <div
+                            className="w-full rounded-t-sm bg-violet-500/60 hover:bg-violet-500 transition-colors cursor-default"
+                            style={{ height: `${Math.max((d.questions / maxQ) * 60, d.questions > 0 ? 4 : 0)}px` }}
+                          />
+                          <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 pointer-events-none">
+                            <div className="rounded-md border bg-popover px-2 py-1 shadow text-[10px] text-foreground whitespace-nowrap">
+                              {d.label}: {d.questions}q
+                              {d.cost > 0 && ` · ${formatCostShort(d.cost)}`}
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[10px] text-muted-foreground/60">{dailyStats.sorted[0]?.label}</span>
+                    {dailyStats.sorted.length > 2 && (
+                      <span className="text-[10px] text-muted-foreground/60">{dailyStats.sorted[Math.floor(dailyStats.sorted.length / 2)]?.label}</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground/60">{dailyStats.sorted[dailyStats.sorted.length - 1]?.label}</span>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* ── Trend + Topic performance ── */}
           <section className="space-y-4">
             <SectionLabel>Trends &amp; topic breakdown</SectionLabel>
@@ -464,7 +614,6 @@ export function AnalyticsView() {
                     <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} barSize={20} />
                   </BarChart>
                 </ChartContainer>
-                {/* Topic filter badges */}
                 <div className="flex flex-wrap gap-1.5 mt-4 pt-3 border-t border-border/40">
                   <Badge
                     variant={topicFilter === ALL_TOPICS ? "default" : "outline"}
@@ -492,7 +641,6 @@ export function AnalyticsView() {
           <section className="space-y-4">
             <SectionLabel>Subtopic detail</SectionLabel>
             <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-              {/* Subtopic drilldown */}
               <ChartCard
                 title="Subtopic Drilldown"
                 description={
@@ -535,7 +683,6 @@ export function AnalyticsView() {
                 )}
               </ChartCard>
 
-              {/* --- #8: Actionable flags — now includes "Practice this" CTA, not just a duplicate list --- */}
               <ChartCard
                 title="Actionable Flags"
                 description="Weak areas where targeted practice would help most."
@@ -562,7 +709,6 @@ export function AnalyticsView() {
                               </span>
                             </div>
                           </div>
-                          {/* --- #8: Practice CTA that pre-fills generator --- */}
                           <Button
                             type="button"
                             variant="outline"
@@ -592,7 +738,6 @@ export function AnalyticsView() {
           <section className="space-y-4">
             <SectionLabel>Written analytics</SectionLabel>
             <div className="grid gap-6 xl:grid-cols-2">
-              {/* Score distribution */}
               <ChartCard
                 title="Written Score Distribution"
                 description="Score distribution for marked written responses."
@@ -618,7 +763,6 @@ export function AnalyticsView() {
                 )}
               </ChartCard>
 
-              {/* Criterion weak points */}
               <ChartCard
                 title="Criterion Weak Points"
                 description={`Marks most often dropped across the last ${Math.min(questionHistoryLength, RECENT_WRITTEN_CRITERIA_WINDOW)} written marking passes.`}
@@ -658,7 +802,6 @@ export function AnalyticsView() {
               </ChartCard>
             </div>
 
-            {/* Effort vs score + Interventions */}
             <div className="grid gap-6 xl:grid-cols-2">
               <ChartCard
                 title="Answer Effort vs Score"
@@ -754,8 +897,7 @@ export function AnalyticsView() {
             </div>
           </section>
 
-          {/* ── Generation diagnostics — gated behind debug mode or manual expand ── */}
-          {/* --- #10: Hidden from casual users unless debugMode or manually expanded --- */}
+          {/* ── Generation diagnostics ── */}
           <section className="space-y-4">
             <div className="flex items-center gap-3 pt-2">
               <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
@@ -826,7 +968,6 @@ export function AnalyticsView() {
                               <span className="font-semibold tabular-nums">{row.avgDurationSeconds.toFixed(1)}s</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              {/* --- #10: Tooltip on technical term --- */}
                               <Tooltip content="How many times the AI had to retry generating a valid question before succeeding.">
                                 <span className="text-muted-foreground">Repairs</span>
                               </Tooltip>
@@ -890,7 +1031,6 @@ export function AnalyticsView() {
                           key={attempt.id}
                           className={`group flex flex-col overflow-hidden rounded-xl border bg-card p-4 text-left transition-all hover:shadow-md ${accuracyBg(scorePct)}`}
                         >
-                          {/* Top Row */}
                           <div className="mb-3 flex items-start justify-between gap-3">
                             <div className="space-y-1 min-w-0">
                               <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-rose-500">
@@ -913,7 +1053,6 @@ export function AnalyticsView() {
                             </div>
                           </div>
 
-                          {/* Bottom Row */}
                           <div className="mt-auto flex items-center gap-4 border-t border-border/40 pt-2.5 text-[11px] text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Type className="h-3.5 w-3.5 opacity-60" />
