@@ -1,10 +1,12 @@
+import { memo } from "react";
+
 type ProgressBarProps = {
   current: number;
   total: number;
   completed: number;
 };
 
-export function ProgressBar({ current, total, completed }: ProgressBarProps) {
+export const ProgressBar = memo(function ProgressBar({ current, total, completed }: ProgressBarProps) {
   if (total === 0) return null;
   const percent          = Math.min(100, Math.round((current   / total) * 100));
   const completedPercent = Math.min(100, Math.round((completed / total) * 100));
@@ -59,4 +61,4 @@ export function ProgressBar({ current, total, completed }: ProgressBarProps) {
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -86,6 +86,33 @@ function distributeQuestions(topics: Topic[], total: number): number[] {
   const base = Math.floor(total / topics.length);
   const remainder = total % topics.length;
   return topics.map((_, i) => base + (i < remainder ? 1 : 0));
+}
+
+// ─── Pure helpers (moved outside component) ───────────────────────────────────
+
+function removeKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
+function generateEntryId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function rekeyWritten(
+  qs: import("@/types").GeneratedQuestion[],
+): import("@/types").GeneratedQuestion[] {
+  return qs.map((q, i) => ({ ...q, id: `q${i + 1}` }));
+}
+
+function rekeyMc(
+  qs: import("@/types").McQuestion[],
+): import("@/types").McQuestion[] {
+  return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -439,35 +466,32 @@ useEffect(() => {
 }, [setGenerationStatus]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
-  function handleNextWrittenQuestion() {
+  const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
     if (isAtLastWrittenQuestion) { setSessionFinishedAt(Date.now()); setShowCompletionScreen(true); return; }
     setActiveQuestionIndex(Math.min(questions.length - 1, activeQuestionIndex + 1));
-  }
-  function handleNextMcQuestion() {
+  }, [canAdvanceWritten, isAtLastWrittenQuestion, questions.length, activeQuestionIndex, setActiveQuestionIndex]);
+
+  const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
     if (isAtLastMcQuestion) { setSessionFinishedAt(Date.now()); setShowCompletionScreen(true); return; }
     setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1));
-  }
+  }, [canAdvanceMc, isAtLastMcQuestion, mcQuestions.length, activeMcQuestionIndex, setActiveMcQuestionIndex]);
 
   // ── Cancel question ──────────────────────────────────────────────────────────
-  function removeKey<T>(record: Record<string, T>, key: string) {
-    const next = { ...record }; delete next[key]; return next;
-  }
-
-  function handleCancelWrittenQuestion() {
+  const handleCancelWrittenQuestion = useCallback(() => {
     if (!activeQuestion) return;
     setConfirmMessage(`Remove question ${activeQuestionIndex + 1} ("${activeQuestion.topic}")? It will be taken out of your current set.`);
     setPendingCancelType("written");
     setConfirmOpen(true);
-  }
+  }, [activeQuestion, activeQuestionIndex]);
 
-  function handleCancelMcQuestion() {
+  const handleCancelMcQuestion = useCallback(() => {
     if (!activeMcQuestion) return;
     setConfirmMessage(`Remove question ${activeMcQuestionIndex + 1} ("${activeMcQuestion.topic}")? It will be taken out of your current set.`);
     setPendingCancelType("mc");
     setConfirmOpen(true);
-  }
+  }, [activeMcQuestion, activeMcQuestionIndex]);
 
   function performConfirmedCancel() {
     if (pendingCancelType === "written" && activeQuestion) {
@@ -506,11 +530,25 @@ useEffect(() => {
   }
 
   // ── Topic / subtopic toggles ─────────────────────────────────────────────────
-  function toggleTopic(topic: Topic) { setSelectedTopics((p) => p.includes(topic) ? p.filter((t) => t !== topic) : [...p, topic]); }
-  function toggleMathMethodsSubtopic(sub: MathMethodsSubtopic) { setMathMethodsSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
-  function toggleSpecialistMathSubtopic(sub: SpecialistMathSubtopic) { setSpecialistMathSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
-  function toggleChemistrySubtopic(sub: ChemistrySubtopic) { setChemistrySubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
-  function togglePhysicalEducationSubtopic(sub: PhysicalEducationSubtopic) { setPhysicalEducationSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]); }
+  const toggleTopic = useCallback((topic: Topic) => {
+    setSelectedTopics((p) => p.includes(topic) ? p.filter((t) => t !== topic) : [...p, topic]);
+  }, [setSelectedTopics]);
+
+  const toggleMathMethodsSubtopic = useCallback((sub: MathMethodsSubtopic) => {
+    setMathMethodsSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]);
+  }, [setMathMethodsSubtopics]);
+
+  const toggleSpecialistMathSubtopic = useCallback((sub: SpecialistMathSubtopic) => {
+    setSpecialistMathSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]);
+  }, [setSpecialistMathSubtopics]);
+
+  const toggleChemistrySubtopic = useCallback((sub: ChemistrySubtopic) => {
+    setChemistrySubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]);
+  }, [setChemistrySubtopics]);
+
+  const togglePhysicalEducationSubtopic = useCallback((sub: PhysicalEducationSubtopic) => {
+    setPhysicalEducationSubtopics((p) => p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]);
+  }, [setPhysicalEducationSubtopics]);
 
   // ── Subtopic / focus helpers ─────────────────────────────────────────────────
   function getSubtopicsForTopic(topic: Topic): string[] {
@@ -563,13 +601,6 @@ useEffect(() => {
     return prompts;
   }
 
-  function generateEntryId() {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
-    }
-    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
-
   function appendMcHistoryEntry(question: typeof activeMcQuestion, selectedAnswer: string, awardedMarks: number, attemptKind: McAttemptKind, responseEnteredAtMs?: number) {
     if (!question) return;
     const questionStartedAt = mcQuestionPresentedAtById[question.id];
@@ -608,23 +639,6 @@ useEffect(() => {
       },
     };
     setQuestionHistory((prev: any) => [entry, ...prev].slice(0, 200));
-  }
-
-  // ── ID re-keying ─────────────────────────────────────────────────────────────
-  // Each sequential backend call resets its own ID counter (q1, q2… / mc1, mc2…).
-  // After concatenating results from multiple calls we must assign globally unique
-  // IDs so that answer/feedback/image maps — keyed by question.id — don't collide
-  // across topics.
-  function rekeyWritten(
-    qs: import("@/types").GeneratedQuestion[],
-  ): import("@/types").GeneratedQuestion[] {
-    return qs.map((q, i) => ({ ...q, id: `q${i + 1}` }));
-  }
-
-  function rekeyMc(
-    qs: import("@/types").McQuestion[],
-  ): import("@/types").McQuestion[] {
-    return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
   }
 
   // ── Batch progress helpers ───────────────────────────────────────────────────
@@ -923,11 +937,11 @@ useEffect(() => {
     finally { setIsMarking(false); }
   }
 
-  function handleSave() {
+  const handleSave = useCallback(() => {
     const id = saveCurrentSet();
     if (id) setLastSavedAt(new Date().toISOString());
     return id;
-  }
+  }, [saveCurrentSet]);
 
   async function handleArgueForMark() {
     if (!activeQuestion || !activeFeedback) return;
@@ -1032,7 +1046,7 @@ useEffect(() => {
   }
 
   // ── Start over ───────────────────────────────────────────────────────────────
-  function handleStartOver() {
+  const handleStartOver = useCallback(() => {
     if ((questionMode === "written" && questions.length > 0 && !activeWrittenSavedSetId) ||
       (questionMode === "multiple-choice" && mcQuestions.length > 0 && !activeMcSavedSetId)) saveCurrentSet();
     resetStopwatch();
@@ -1044,10 +1058,10 @@ useEffect(() => {
     setMcQuestions([]); setMcRawModelOutput(""); setMcGenerationTelemetry(null); setShowMcRawOutput(false);
     setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
-  }
+  }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);
 
   // ── Image drop ───────────────────────────────────────────────────────────────
-  async function handleDropDropzone(acceptedFiles: File[]) {
+  const handleDropDropzone = useCallback(async (acceptedFiles: File[]) => {
     if (!activeQuestion || acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
     try {
@@ -1059,7 +1073,7 @@ useEffect(() => {
         return { ...prev, [activeQuestion.id]: Date.now() };
       });
     } catch { setErrorMessage("Could not read image file. Try a different file."); }
-  }
+  }, [activeQuestion, setImagesByQuestionId, setWrittenResponseEnteredAtById]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (

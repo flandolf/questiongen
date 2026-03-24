@@ -75,43 +75,46 @@ function getRelativeTime(isoString: string): string {
 // Stats bar
 // ---------------------------------------------------------------------------
 
-function StatsBar({
+const StatsBar = memo(function StatsBar({
   entries,
 }: {
   entries: AnyEntry[];
 }) {
-  const written = entries.filter((e) => e.kind === "written");
-  const mc = entries.filter((e) => e.kind === "mc");
-  const writtenCorrect = written.filter((e) => e.kind === "written" && e.markResponse.verdict.toLowerCase() === "correct").length;
-  const mcCorrect = mc.filter((e) => e.kind === "mc" && (e.awardedMarks ?? (e.correct ? 1 : 0)) >= 1).length;
-  const totalCorrect = writtenCorrect + mcCorrect;
-  const total = entries.length;
-  const pct = total > 0 ? Math.round((totalCorrect / total) * 100) : 0;
+  const stats = useMemo(() => {
+    const written = entries.filter((e) => e.kind === "written");
+    const mc = entries.filter((e) => e.kind === "mc");
+    const writtenCorrect = written.filter((e) => e.kind === "written" && e.markResponse.verdict.toLowerCase() === "correct").length;
+    const mcCorrect = mc.filter((e) => e.kind === "mc" && (e.awardedMarks ?? (e.correct ? 1 : 0)) >= 1).length;
+    const totalCorrect = writtenCorrect + mcCorrect;
+    const total = entries.length;
+    const pct = total > 0 ? Math.round((totalCorrect / total) * 100) : 0;
+    return { written: written.length, mc: mc.length, pct, total };
+  }, [entries]);
 
   return (
     <div className="grid grid-cols-4 gap-3 py-3 px-1">
       {[
         {
           label: "Total attempts",
-          value: total,
+          value: stats.total,
           icon: <BarChart3 className="h-3.5 w-3.5" />,
           color: "text-foreground",
         },
         {
           label: "Accuracy",
-          value: `${pct}%`,
+          value: `${stats.pct}%`,
           icon: <TrendingUp className="h-3.5 w-3.5" />,
-          color: pct >= 75 ? "text-emerald-500" : pct >= 50 ? "text-amber-500" : "text-rose-500",
+          color: stats.pct >= 75 ? "text-emerald-500" : stats.pct >= 50 ? "text-amber-500" : "text-rose-500",
         },
         {
           label: "Written",
-          value: written.length,
+          value: stats.written,
           icon: <BookOpen className="h-3.5 w-3.5" />,
           color: "text-sky-500",
         },
         {
           label: "Multiple choice",
-          value: mc.length,
+          value: stats.mc,
           icon: <Target className="h-3.5 w-3.5" />,
           color: "text-violet-500",
         },
@@ -131,7 +134,7 @@ function StatsBar({
       ))}
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // ExpandableCardSection — smooth CSS height animation
