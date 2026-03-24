@@ -165,10 +165,32 @@ async function withTimeout<T>(operation: Promise<T>, label: string, timeoutMs = 
   });
 }
 
+const FIRESTORE_RETRY_MAX_ATTEMPTS = 5;
+const FIRESTORE_RETRY_BASE_DELAY_MS = 1000;
+const FIRESTORE_RETRY_MAX_DELAY_MS = 30000;
+
+function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return true;
+  const message = error.message.toLowerCase();
+  const retryablePatterns = [
+    "network",
+    "timeout",
+    "timed out",
+    "unavailable",
+    "deadline exceeded",
+    "resource exhausted",
+    "internal error",
+    "aborted",
+    "failed to fetch",
+    "fetch failed",
+  ];
+  return retryablePatterns.some((pattern) => message.includes(pattern));
+}
+
 async function withRetry<T>(
   operation: () => Promise<T>,
   label: string,
-  maxAttempts = 3,
+  maxAttempts = FIRESTORE_RETRY_MAX_ATTEMPTS,
 ): Promise<T> {
   let lastError: unknown;
 
@@ -177,17 +199,101 @@ async function withRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error;
-      if (attempt >= maxAttempts) {
+      if (attempt >= maxAttempts || !isRetryableError(error)) {
         break;
       }
-      console.warn(`[Firebase] ${label} failed on attempt ${attempt}, retrying...`, error);
+      const jitter = Math.random() * 500;
+      const exponentialDelay = Math.min(
+        FIRESTORE_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1) + jitter,
+        FIRESTORE_RETRY_MAX_DELAY_MS,
+      );
+      console.warn(
+        `[Firebase] ${label} failed on attempt ${attempt}/${maxAttempts}, retrying in ${Math.round(exponentialDelay)}ms`,
+        error instanceof Error ? error.message : error,
+      );
       await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, attempt * 750);
+        window.setTimeout(resolve, exponentialDelay);
       });
     }
   }
 
   throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
+}
+
+export interface DeltaSyncResult {
+  changedItems: string[];
+  totalChecked: number;
+}
+
+export async function getDeltaSyncData(
+  userId: string,
+  localData: SyncableData,
+): Promise<DeltaSyncResult> {
+  const changedItems: string[] = [];
+  let totalChecked = 0;
+
+  const checkCollection = async (
+    type: "questionHistory" | "mcHistory" | "savedSets",
+  ) => {
+    const localItems = localData[type] as Record<string, unknown>[];
+    if (!localItems?.length) return;
+
+    const collectionRef = type === "savedSets"
+      ? getSavedSetsCollectionRef(userId)
+      : getHistoryCollectionRef(userId, type);
+
+    const localIdToModified = new Map<string, number>();
+    for (const item of localItems) {
+      if (typeof item.id === "string") {
+        const lastMod = typeof item.lastModified === "number" ? item.lastModified
+          : typeof item.updatedAt === "string" ? Date.parse(item.updatedAt)
+          : typeof item.createdAt === "string" ? Date.parse(item.createdAt)
+          : 0;
+        localIdToModified.set(item.id, lastMod);
+      }
+    }
+
+    const remoteIds = new Set<string>();
+    try {
+      const snapshot = await withTimeout(
+        getDocs(query(collectionRef, limit(500))),
+        `checking delta for ${type}`,
+        30000,
+      );
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const remoteId = doc.id;
+        remoteIds.add(remoteId);
+        totalChecked++;
+
+        const remoteLastMod = typeof data._lastModified === "object" && data._lastModified?.toMillis
+          ? data._lastModified.toMillis()
+          : typeof data.lastModified === "number" ? data.lastModified
+          : 0;
+
+        const localLastMod = localIdToModified.get(remoteId) ?? 0;
+        if (remoteLastMod > localLastMod) {
+          changedItems.push(`${type}/${remoteId}`);
+        }
+      });
+
+      for (const [localId] of localIdToModified) {
+        if (!remoteIds.has(localId)) {
+          changedItems.push(`${type}/${localId}`);
+        }
+      }
+    } catch (error) {
+      console.warn(`[Firebase] Delta sync check for ${type} failed:`, error);
+    }
+  };
+
+  await Promise.all([
+    checkCollection("questionHistory"),
+    checkCollection("mcHistory"),
+    checkCollection("savedSets"),
+  ]);
+
+  return { changedItems, totalChecked };
 }
 
 function estimateDocSizeBytes(value: unknown): number {
@@ -528,14 +634,17 @@ export async function saveUserData(userId: string, data: SyncableData): Promise<
   let totalWrites = 0;
 
   try {
-    // Save settings
+    // Save settings (with retry)
     console.log("[Firebase] Saving settings...");
     const cleanedSettings = removeUndefined(data.settings) as Record<string, unknown>;
-    await withTimeout(
-      setDoc(getUserSettingsRef(userId), {
-      settings: cleanedSettings,
-      _lastModified: serverTimestamp(),
-      }, { merge: true }),
+    await withRetry(
+      () => withTimeout(
+        setDoc(getUserSettingsRef(userId), {
+          settings: cleanedSettings,
+          _lastModified: serverTimestamp(),
+        }, { merge: true }),
+        "saving settings"
+      ),
       "saving settings"
     );
     totalWrites++;
@@ -566,7 +675,10 @@ export async function saveUserData(userId: string, data: SyncableData): Promise<
           totalWrites++;
         }
         
-        await withTimeout(batch.commit(), `committing questionHistory batch ${Math.floor(i / batchSize) + 1}`);
+        await withRetry(
+          () => withTimeout(batch.commit(), `committing questionHistory batch ${Math.floor(i / batchSize) + 1}`),
+          `questionHistory batch ${Math.floor(i / batchSize) + 1}`
+        );
         console.log(`[Firebase] questionHistory batch ${Math.floor(i/batchSize) + 1} committed (${Math.min(i+batchSize, data.questionHistory.length)}/${data.questionHistory.length})`);
       }
       console.log("[Firebase] questionHistory saved", { skippedQuestionHistory });
@@ -597,7 +709,10 @@ export async function saveUserData(userId: string, data: SyncableData): Promise<
           totalWrites++;
         }
         
-        await withTimeout(batch.commit(), `committing mcHistory batch ${Math.floor(i / batchSize) + 1}`);
+        await withRetry(
+          () => withTimeout(batch.commit(), `committing mcHistory batch ${Math.floor(i / batchSize) + 1}`),
+          `mcHistory batch ${Math.floor(i / batchSize) + 1}`
+        );
         console.log(`[Firebase] mcHistory batch ${Math.floor(i/batchSize) + 1} committed (${Math.min(i+batchSize, data.mcHistory.length)}/${data.mcHistory.length})`);
       }
       console.log("[Firebase] mcHistory saved", { skippedMcHistory });
@@ -789,6 +904,46 @@ export async function migrateUserDataForCompaction(
     mcHistoryCount: rewritePayload.mcHistory.length,
     savedSetsCount: rewritePayload.savedSets.length,
   };
+}
+
+export async function deleteArchivedItems(
+  userId: string,
+  type: "questionHistory" | "mcHistory",
+  keepIds: Set<string>,
+): Promise<number> {
+  const collectionRef = getHistoryCollectionRef(userId, type);
+  let deleted = 0;
+  try {
+    const snapshot = await withTimeout(
+      getDocs(query(collectionRef, limit(500))),
+      `loading ${type} for archiving`,
+    );
+    const batch = writeBatch(db);
+    let batchSize = 0;
+    for (const docSnap of snapshot.docs) {
+      if (!keepIds.has(docSnap.id)) {
+        batch.delete(docSnap.ref);
+        batchSize++;
+        deleted++;
+        if (batchSize >= 400) {
+          await withRetry(
+            () => withTimeout(batch.commit(), `archiving ${type} batch`),
+            `archiving ${type}`,
+          );
+          break;
+        }
+      }
+    }
+    if (batchSize > 0 && batchSize < 400) {
+      await withRetry(
+        () => withTimeout(batch.commit(), `archiving ${type} batch`),
+        `archiving ${type}`,
+      );
+    }
+  } catch (error) {
+    console.warn(`[Firebase] Failed to archive old ${type} items:`, error);
+  }
+  return deleted;
 }
 
 export function subscribeToUserData(

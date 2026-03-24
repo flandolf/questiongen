@@ -1611,6 +1611,7 @@ export function SettingsView() {
           isLoading: syncLoading,
           isSyncing,
           isOnline,
+          syncStatus,
           lastSyncTime,
           syncError,
           syncEvents,
@@ -1671,17 +1672,24 @@ export function SettingsView() {
                     "h-10 w-10 rounded-full flex items-center justify-center",
                     syncEnabled ? "bg-emerald-500/10" : "bg-muted"
                   )}>
-                    {syncLoading || syncIsSubmitting ? (
+                    {syncLoading || syncIsSubmitting || syncStatus === "connecting" ? (
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : syncStatus === "syncing" ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
                     ) : syncEnabled ? (
                       <Cloud className="h-5 w-5 text-emerald-500" />
+                    ) : syncStatus === "error" ? (
+                      <AlertCircle className="h-5 w-5 text-destructive" />
                     ) : (
                       <CloudOff className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
                   <div>
                     <p className="text-sm font-medium">
-                      {syncLoading || syncIsSubmitting ? "Connecting..." : syncEnabled ? "Connected to Cloud" : "Not Connected"}
+                      {syncStatus === "connecting" ? "Connecting..."
+                        : syncStatus === "syncing" ? "Syncing..."
+                        : syncEnabled ? "Connected to Cloud"
+                        : "Not Connected"}
                     </p>
                     {user && (
                       <p className="text-xs text-muted-foreground">
@@ -1794,10 +1802,6 @@ export function SettingsView() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                    Settings (API key, model preferences, debug mode)
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                     Generator preferences (topics, difficulty, question count)
                   </li>
                   <li className="flex items-center gap-2">
@@ -1834,7 +1838,9 @@ export function SettingsView() {
                         event.type === "upload" && "bg-emerald-500",
                         event.type === "download" && "bg-sky-500",
                         event.type === "error" && "bg-destructive",
-                        event.type === "conflict" && "bg-amber-500"
+                        event.type === "conflict" && "bg-amber-500",
+                        event.type === "archive" && "bg-violet-500",
+                        event.type === "retry" && "bg-orange-500",
                       )} />
                       <div className="flex-1 min-w-0">
                         <p className="text-foreground">{event.description}</p>
