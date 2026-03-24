@@ -8,6 +8,7 @@ import {
   saveUserData,
   loadUserData,
   migrateUserDataForCompaction,
+  deleteArchivedItems,
   SyncableData,
 } from "./useFirebase";
 import { useAppStore, AppState } from "../../store";
@@ -18,6 +19,21 @@ import type {
 } from "../../types";
 
 const SYNC_DEBUG = true;
+
+// Data archiving limits
+const ARCHIVE_QUESTION_HISTORY_LIMIT = 100;
+const ARCHIVE_MC_HISTORY_LIMIT = 100;
+const ARCHIVE_SAVED_SETS_LIMIT = 50;
+
+// Debug log / sync event memory limits
+const DEBUG_LOG_LIMIT = 50;
+const SYNC_EVENT_LIMIT = 30;
+
+// Operation queue for preventing race conditions
+interface QueuedOperation {
+  id: string;
+  execute: () => Promise<void>;
+}
 
 function getUserId(user: FirebaseUser | null): string {
   return user?.uid ?? "anonymous";
@@ -47,11 +63,23 @@ function mergeSyncableData(
   }
 
   const merged: SyncableData = {
-    settings: { ...local.settings, ...remote.settings },
+    // Settings sync is intentionally disabled due to cross-device instability.
+    settings: {},
     questionHistory: mergeById(local.questionHistory, remote.questionHistory),
     mcHistory: mergeById(local.mcHistory, remote.mcHistory),
     savedSets: mergeById(local.savedSets, remote.savedSets),
   };
+
+  // Archive old history items to keep in-memory and sync sizes bounded
+  if (merged.questionHistory.length > ARCHIVE_QUESTION_HISTORY_LIMIT) {
+    merged.questionHistory = merged.questionHistory.slice(0, ARCHIVE_QUESTION_HISTORY_LIMIT);
+  }
+  if (merged.mcHistory.length > ARCHIVE_MC_HISTORY_LIMIT) {
+    merged.mcHistory = merged.mcHistory.slice(0, ARCHIVE_MC_HISTORY_LIMIT);
+  }
+  if (merged.savedSets.length > ARCHIVE_SAVED_SETS_LIMIT) {
+    merged.savedSets = merged.savedSets.slice(0, ARCHIVE_SAVED_SETS_LIMIT);
+  }
 
   return merged;
 }
@@ -127,16 +155,8 @@ function getItemLastModified(item: HasId): number {
 
 function extractSyncableData(state: AppState): SyncableData {
   return {
-    settings: {
-      apiKey: state.apiKey,
-      model: state.model,
-      markingModel: state.markingModel,
-      useSeparateMarkingModel: state.useSeparateMarkingModel,
-      imageMarkingModel: state.imageMarkingModel,
-      useSeparateImageMarkingModel: state.useSeparateImageMarkingModel,
-      debugMode: state.debugMode,
-      questionTextSize: state.questionTextSize,
-    },
+    // Keep settings out of cloud payloads; sync only content/history.
+    settings: {},
     questionHistory: state.questionHistory,
     mcHistory: state.mcHistory,
     savedSets: state.savedSets,
@@ -145,25 +165,19 @@ function extractSyncableData(state: AppState): SyncableData {
 
 function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
   return {
-    apiKey: (data.settings?.apiKey as string) ?? "",
-    model: (data.settings?.model as string) ?? "openrouter/healer-alpha",
-    markingModel: (data.settings?.markingModel as string) ?? "openrouter/healer-alpha",
-    useSeparateMarkingModel: Boolean(data.settings?.useSeparateMarkingModel),
-    imageMarkingModel: (data.settings?.imageMarkingModel as string) ?? "openrouter/healer-alpha",
-    useSeparateImageMarkingModel: Boolean(data.settings?.useSeparateImageMarkingModel),
-    debugMode: Boolean(data.settings?.debugMode),
-    questionTextSize: Number(data.settings?.questionTextSize) || 16,
-    
+    // Settings are intentionally not applied from cloud.
     questionHistory: (data.questionHistory as QuestionHistoryEntry[]) ?? [],
     mcHistory: (data.mcHistory as McHistoryEntry[]) ?? [],
     savedSets: (data.savedSets as SavedQuestionSet[]) ?? [],
   };
 }
 
+export type SyncStatus = "idle" | "connecting" | "syncing" | "error" | "offline";
+
 export interface SyncEvent {
   id: string;
   timestamp: number;
-  type: "upload" | "download" | "error" | "conflict";
+  type: "upload" | "download" | "error" | "conflict" | "archive" | "retry";
   description: string;
 }
 
@@ -179,6 +193,7 @@ export interface UseFirebaseSyncReturn {
   isLoading: boolean;
   isSyncing: boolean;
   isOnline: boolean;
+  syncStatus: SyncStatus;
   lastSyncTime: number | null;
   syncError: string | null;
   syncEvents: SyncEvent[];
@@ -198,6 +213,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncEvents, setSyncEvents] = useState<SyncEvent[]>([]);
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   
   const debugLog = useCallback((message: string, data?: unknown) => {
     if (SYNC_DEBUG) {
@@ -208,7 +224,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         message: data ? `${message} ${JSON.stringify(data)}` : message,
         data,
       };
-      setDebugLogs((prev) => [entry, ...prev].slice(0, 100));
+      setDebugLogs((prev) => [entry, ...prev].slice(0, DEBUG_LOG_LIMIT));
     }
   }, []);
   
@@ -220,7 +236,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       description,
     };
     debugLog(`Sync event: ${type} - ${description}`);
-    setSyncEvents((prev) => [event, ...prev].slice(0, 50));
+    setSyncEvents((prev) => [event, ...prev].slice(0, SYNC_EVENT_LIMIT));
   }, []);
   
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -229,6 +245,30 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const isFirstSyncRef = useRef(true);
   const suppressAutoSaveRef = useRef(false);
   const suppressAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Operation queue for serializing sync writes
+  const operationQueueRef = useRef<QueuedOperation[]>([]);
+  const isProcessingQueueRef = useRef(false);
+
+  const processQueue = useCallback(async () => {
+    if (isProcessingQueueRef.current) return;
+    isProcessingQueueRef.current = true;
+    while (operationQueueRef.current.length > 0) {
+      const op = operationQueueRef.current.shift();
+      if (!op) break;
+      try {
+        await op.execute();
+      } catch (error) {
+        console.error(`[FirebaseSync] Queued operation ${op.id} failed:`, error);
+      }
+    }
+    isProcessingQueueRef.current = false;
+  }, []);
+
+  const enqueueOperation = useCallback((id: string, execute: () => Promise<void>) => {
+    operationQueueRef.current.push({ id, execute });
+    void processQueue();
+  }, [processQueue]);
 
   const suppressAutoSaveTemporarily = useCallback((ms = 1200) => {
     suppressAutoSaveRef.current = true;
@@ -242,8 +282,14 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   }, []);
   
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSyncStatus((prev) => prev === "offline" ? "idle" : prev);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncStatus("offline");
+    };
     
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -261,6 +307,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       if (!firebaseUser) {
         setIsSyncEnabled(false);
         isInitializedRef.current = false;
+        setSyncStatus("idle");
       }
       setIsLoading(false);
     });
@@ -277,6 +324,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       if (!isInitializedRef.current) return;
       
       setIsSyncing(true);
+      setSyncStatus("syncing");
       
       try {
         if (remoteData && isFirstSyncRef.current) {
@@ -297,9 +345,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         }
         
         setLastSyncTime(Date.now());
+        setSyncStatus("idle");
       } catch (error) {
         console.error("Sync error:", error);
         setSyncError(error instanceof Error ? error.message : "Sync failed");
+        setSyncStatus("error");
         addSyncEvent("error", `Sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
       } finally {
         setIsSyncing(false);
@@ -328,28 +378,33 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       
       if (saveTimer) clearTimeout(saveTimer);
       
-      saveTimer = setTimeout(async () => {
-        try {
-          setIsSyncing(true);
-          const syncableData = extractSyncableData(state);
-          debugLog("Auto-saving user data", {
-            userId,
-            settings: syncableData.settings,
-            questionHistory: syncableData.questionHistory?.length,
-            mcHistory: syncableData.mcHistory?.length,
-            savedSets: syncableData.savedSets?.length,
-          });
-          await saveUserData(userId, syncableData);
-          setLastSyncTime(Date.now());
-          setSyncError(null);
-          addSyncEvent("upload", "Data uploaded to cloud");
-        } catch (error) {
-          console.error("Failed to save to Firebase:", error);
-          setSyncError(error instanceof Error ? error.message : "Save failed");
-          addSyncEvent("error", `Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-        } finally {
-          setIsSyncing(false);
-        }
+      saveTimer = setTimeout(() => {
+        enqueueOperation(`auto-save-${Date.now()}`, async () => {
+          try {
+            setIsSyncing(true);
+            setSyncStatus("syncing");
+            const syncableData = extractSyncableData(state);
+            debugLog("Auto-saving user data", {
+              userId,
+              settings: syncableData.settings,
+              questionHistory: syncableData.questionHistory?.length,
+              mcHistory: syncableData.mcHistory?.length,
+              savedSets: syncableData.savedSets?.length,
+            });
+            await saveUserData(userId, syncableData);
+            setLastSyncTime(Date.now());
+            setSyncError(null);
+            setSyncStatus("idle");
+            addSyncEvent("upload", "Data uploaded to cloud");
+          } catch (error) {
+            console.error("Failed to save to Firebase:", error);
+            setSyncError(error instanceof Error ? error.message : "Save failed");
+            setSyncStatus("error");
+            addSyncEvent("error", `Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+          } finally {
+            setIsSyncing(false);
+          }
+        });
       }, 1000);
     });
     
@@ -361,11 +416,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         suppressAutoSaveTimerRef.current = null;
       }
     };
-  }, [user, isSyncEnabled, addSyncEvent, debugLog]);
+  }, [user, isSyncEnabled, addSyncEvent, debugLog, enqueueOperation]);
   
   const enableSync = useCallback(async (email: string, password: string, isSignUp = false) => {
     debugLog("enableSync called", { email, isSignUp });
     setSyncError(null);
+    setSyncStatus("connecting");
     
     try {
       let firebaseUser: FirebaseUser | null = null;
@@ -436,6 +492,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         useAppStore.setState(storeUpdates);
         localDataRef.current = merged;
         addSyncEvent("download", `Synced ${remoteData?.questionHistory?.length || 0} question history items`);
+
+        // Archive old items from Firestore after merge
+        const qhKeepIds = new Set(merged.questionHistory.map((item) => String(item.id ?? "")));
+        const mcKeepIds = new Set(merged.mcHistory.map((item) => String(item.id ?? "")));
+        void deleteArchivedItems(userId, "questionHistory", qhKeepIds).then((deleted) => {
+          if (deleted > 0) addSyncEvent("archive", `Archived ${deleted} old question history items`);
+        });
+        void deleteArchivedItems(userId, "mcHistory", mcKeepIds).then((deleted) => {
+          if (deleted > 0) addSyncEvent("archive", `Archived ${deleted} old MC history items`);
+        });
       }
 
       if (!hasRemoteData(remoteData)) {
@@ -446,12 +512,14 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       isFirstSyncRef.current = !hasRemoteData(remoteData);
       setIsSyncEnabled(true);
       setSyncError(null);
+      setSyncStatus("idle");
     } catch (error: unknown) {
       console.error("Failed to enable sync:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to enable sync";
       setSyncError(errorMessage);
       addSyncEvent("error", `Connection failed: ${errorMessage}`);
       setIsSyncEnabled(false);
+      setSyncStatus("error");
     }
   }, []);
   
@@ -460,6 +528,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     isInitializedRef.current = false;
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
+    setSyncStatus("idle");
     addSyncEvent("upload", "Disconnected from cloud sync");
   }, []);
   
@@ -471,65 +540,71 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     
     debugLog("Manual sync started");
     setIsSyncing(true);
+    setSyncStatus("syncing");
     
     const userId = getUserId(user);
     
-    try {
-      const state = useAppStore.getState();
-      const localData = extractSyncableData(state);
-      debugLog("Manual sync local snapshot", {
-        settings: localData.settings,
-        questionHistory: localData.questionHistory?.length,
-        mcHistory: localData.mcHistory?.length,
-        savedSets: localData.savedSets?.length,
-      });
+    enqueueOperation(`force-sync-${Date.now()}`, async () => {
+      try {
+        const state = useAppStore.getState();
+        const localData = extractSyncableData(state);
+        debugLog("Manual sync local snapshot", {
+          settings: localData.settings,
+          questionHistory: localData.questionHistory?.length,
+          mcHistory: localData.mcHistory?.length,
+          savedSets: localData.savedSets?.length,
+        });
 
-      const remoteData = await loadUserData(userId);
-      const remoteHasData = hasRemoteData(remoteData);
-      debugLog("Manual sync remote snapshot", {
-        hasData: remoteHasData,
-        questionHistory: remoteData?.questionHistory?.length ?? 0,
-        mcHistory: remoteData?.mcHistory?.length ?? 0,
-        savedSets: remoteData?.savedSets?.length ?? 0,
-      });
+        const remoteData = await loadUserData(userId);
+        const remoteHasData = hasRemoteData(remoteData);
+        debugLog("Manual sync remote snapshot", {
+          hasData: remoteHasData,
+          questionHistory: remoteData?.questionHistory?.length ?? 0,
+          mcHistory: remoteData?.mcHistory?.length ?? 0,
+          savedSets: remoteData?.savedSets?.length ?? 0,
+        });
 
-      const merged = remoteHasData
-        ? mergeSyncableData(localData, remoteData)
-        : localData;
+        const merged = remoteHasData
+          ? mergeSyncableData(localData, remoteData)
+          : localData;
 
-      if (remoteHasData) {
-        const storeUpdates = applySyncableDataToStore(merged);
-        suppressAutoSaveTemporarily();
-        useAppStore.setState(storeUpdates);
-        addSyncEvent("download", "Manual sync pulled remote updates");
+        if (remoteHasData) {
+          const storeUpdates = applySyncableDataToStore(merged);
+          suppressAutoSaveTemporarily();
+          useAppStore.setState(storeUpdates);
+          addSyncEvent("download", "Manual sync pulled remote updates");
+        }
+
+        debugLog("Uploading merged data to cloud", {
+          questionHistory: merged.questionHistory?.length,
+          mcHistory: merged.mcHistory?.length,
+          savedSets: merged.savedSets?.length,
+        });
+        await saveUserData(userId, merged);
+        localDataRef.current = merged;
+        setLastSyncTime(Date.now());
+        setSyncError(null);
+        setSyncStatus("idle");
+        addSyncEvent("upload", "Manual sync completed");
+        debugLog("Manual sync completed successfully");
+      } catch (error) {
+        console.error("Force sync failed:", error);
+        setSyncError(error instanceof Error ? error.message : "Force sync failed");
+        setSyncStatus("error");
+        addSyncEvent("error", `Manual sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        debugLog("Manual sync failed", error);
+      } finally {
+        setIsSyncing(false);
       }
-
-      debugLog("Uploading merged data to cloud", {
-        questionHistory: merged.questionHistory?.length,
-        mcHistory: merged.mcHistory?.length,
-        savedSets: merged.savedSets?.length,
-      });
-      await saveUserData(userId, merged);
-      localDataRef.current = merged;
-      setLastSyncTime(Date.now());
-      setSyncError(null);
-      addSyncEvent("upload", "Manual sync completed");
-      debugLog("Manual sync completed successfully");
-    } catch (error) {
-      console.error("Force sync failed:", error);
-      setSyncError(error instanceof Error ? error.message : "Force sync failed");
-      addSyncEvent("error", `Manual sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-      debugLog("Manual sync failed", error);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [user]);
+    });
+  }, [user, enqueueOperation]);
   
   return {
     user,
     isLoading,
     isSyncing,
     isOnline,
+    syncStatus,
     lastSyncTime,
     syncError,
     syncEvents,
