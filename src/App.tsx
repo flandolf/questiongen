@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { MathJaxContext } from "better-react-mathjax";
 import { AppProvider } from "./AppContext";
 import { useAppContext } from "./AppContext";
+import { FirebaseSyncProvider } from "./context/FirebaseSyncContext";
 import { Layout } from "./components/layout/Layout";
 import { GeneratorView } from "./views/GeneratorView";
 import { HistoryView } from "./views/HistoryView";
@@ -52,7 +53,9 @@ export default function App() {
       }}
     >
       <AppProvider>
-        <AppRoutes />
+        <FirebaseSyncProvider>
+          <AppRoutes />
+        </FirebaseSyncProvider>
       </AppProvider>
     </MathJaxContext>
   );

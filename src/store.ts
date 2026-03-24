@@ -461,6 +461,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   saveCurrentSet: () => {
     const s = get();
     const now = new Date().toISOString();
+    const nowMs = Date.now();
 
     if (s.questionMode === "written") {
       if (s.questions.length === 0) return null;
@@ -501,6 +502,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: "written",
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
+        lastModified: nowMs,
         preferences: preferencesSnapshot,
         writtenSession,
       };
@@ -558,6 +560,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       questionMode: "multiple-choice",
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
+      lastModified: nowMs,
       preferences: preferencesSnapshot,
       mcSession,
     };

@@ -286,6 +286,13 @@ function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
   const id = asString(data.id);
   const createdAt = asString(data.createdAt) || new Date(0).toISOString();
   const updatedAt = asString(data.updatedAt) || createdAt;
+  const createdAtMs = Date.parse(createdAt);
+  const updatedAtMs = Date.parse(updatedAt);
+  const fallbackLastModified = Number.isFinite(updatedAtMs)
+    ? updatedAtMs
+    : Number.isFinite(createdAtMs)
+      ? createdAtMs
+      : 0;
 
   if (!id) {
     return null;
@@ -297,6 +304,7 @@ function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
     questionMode,
     createdAt,
     updatedAt,
+    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
     preferences: normalizePreferences(data.preferences),
     writtenSession: questionMode === "written" ? normalizeWrittenSession(data.writtenSession) : undefined,
     mcSession: questionMode === "multiple-choice" ? normalizeMcSession(data.mcSession) : undefined,
@@ -324,9 +332,22 @@ function normalizeQuestionHistoryEntry(raw: unknown): QuestionHistoryEntry | nul
     return null;
   }
 
+  const createdAt = asString(data.createdAt) || new Date(0).toISOString();
+  const fallbackId = deterministicId("qh", {
+    createdAt,
+    questionId: question.id,
+    topic: question.topic,
+    promptMarkdown: question.promptMarkdown,
+    uploadedAnswer: asString(data.uploadedAnswer),
+    workedSolutionMarkdown: asString(data.workedSolutionMarkdown),
+  });
+  const createdAtMs = Date.parse(createdAt);
+  const fallbackLastModified = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+
   return {
-    id: asString(data.id) || `${question.id}-${Date.now()}`,
-    createdAt: asString(data.createdAt) || new Date(0).toISOString(),
+    id: asString(data.id) || fallbackId,
+    createdAt,
+    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
     question,
     uploadedAnswer: asString(data.uploadedAnswer),
     uploadedAnswerImage: normalizeImage(data.uploadedAnswerImage) ?? undefined,
@@ -358,10 +379,23 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
     return null;
   }
 
+  const createdAt = asString(data.createdAt) || new Date(0).toISOString();
+  const fallbackId = deterministicId("mch", {
+    createdAt,
+    questionId: question.id,
+    topic: question.topic,
+    promptMarkdown: question.promptMarkdown,
+    selectedAnswer: asString(data.selectedAnswer),
+    correct: Boolean(data.correct),
+  });
+  const createdAtMs = Date.parse(createdAt);
+  const fallbackLastModified = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+
   return {
     type: "multiple-choice",
-    id: asString(data.id) || `${question.id}-${Date.now()}`,
-    createdAt: asString(data.createdAt) || new Date(0).toISOString(),
+    id: asString(data.id) || fallbackId,
+    createdAt,
+    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
     question,
     selectedAnswer: asString(data.selectedAnswer),
     correct: Boolean(data.correct),
@@ -650,6 +684,24 @@ function asFiniteNumber(value: unknown): number | undefined {
     return undefined;
   }
   return value;
+}
+
+function asFiniteNonNegativeNumber(value: unknown): number | undefined {
+  const parsed = asFiniteNumber(value);
+  if (parsed === undefined || parsed < 0) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function deterministicId(prefix: string, payload: Record<string, unknown>): string {
+  const input = JSON.stringify(payload);
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${prefix}-${(hash >>> 0).toString(36)}`;
 }
 
 function isDifficulty(value: unknown): value is PersistedGeneratorPreferences["difficulty"] {
