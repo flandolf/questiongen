@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppSettings } from "../AppContext";
+import { useFirebaseSyncContext } from "../context/FirebaseSyncContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -8,7 +9,7 @@ import {
   Eye, EyeOff, Bug, RefreshCw, Zap, DollarSign, Clock, Database,
   Settings, Key, Cpu, CreditCard, Palette, ChevronRight, CheckCircle2,
   AlertCircle, Search, Image, X, ArrowUpDown, ArrowUp, ArrowDown,
-  ShieldAlert, TrendingUp, Calendar, BarChart2,
+  ShieldAlert, TrendingUp, Calendar, BarChart2, Cloud, CloudOff, Loader2,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Slider } from "@/components/ui/slider";
@@ -53,7 +54,7 @@ interface ModelSearchResult {
 
 type SortKey = "speed" | "priceIn" | "priceOut" | "priceCombined" | "latency" | "context";
 type SortDir = "asc" | "desc";
-type Section = "api" | "models" | "credits" | "appearance" | "debug";
+type Section = "api" | "models" | "credits" | "appearance" | "debug" | "sync";
 
 type ImageValidationState =
   | { status: "idle" }
@@ -134,6 +135,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "credits", label: "Credits", icon: <CreditCard className="h-4 w-4" /> },
   { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
   { id: "debug", label: "Debug", icon: <Bug className="h-4 w-4" /> },
+  { id: "sync", label: "Cloud Sync", icon: <Cloud className="h-4 w-4" /> },
 ];
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
@@ -1186,6 +1188,13 @@ export function SettingsView() {
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
 
+  const firebaseSync = useFirebaseSyncContext();
+
+  const [syncAuthMode, setSyncAuthMode] = useState<"signin" | "signup">("signin");
+  const [syncAuthEmail, setSyncAuthEmail] = useState("");
+  const [syncAuthPassword, setSyncAuthPassword] = useState("");
+  const [syncIsSubmitting, setSyncIsSubmitting] = useState(false);
+
   const [activeSection, setActiveSection] = useState<Section>("api");
 
   const [localKey, setLocalKey] = useState(apiKey);
@@ -1595,6 +1604,279 @@ export function SettingsView() {
             </Card>
           </div>
         );
+
+      case "sync": {
+        const {
+          user,
+          isLoading: syncLoading,
+          isSyncing,
+          isOnline,
+          lastSyncTime,
+          syncError,
+          syncEvents,
+          debugLogs,
+          enableSync,
+          disableSync,
+          forceSync,
+        } = firebaseSync;
+
+        const syncEnabled = !!user;
+
+        const handleAuth = async () => {
+          if (!syncAuthEmail.trim() || !syncAuthPassword) return;
+          setSyncIsSubmitting(true);
+          try {
+            await enableSync(syncAuthEmail, syncAuthPassword, syncAuthMode === "signup");
+          } finally {
+            setSyncIsSubmitting(false);
+          }
+        };
+
+        const handleForceSync = async () => {
+          console.log("[FirebaseSync] Manual sync initiated by user");
+          await forceSync();
+        };
+
+        return (
+          <div className="space-y-6">
+            <SectionHeader 
+              title="Cloud Sync" 
+              description="Sync your settings, preferences, history, and saved question sets across multiple devices."
+            />
+
+            {!isOnline && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold">You are offline.</span>{" "}
+                  Cloud sync requires an internet connection.
+                </div>
+              </div>
+            )}
+
+            {syncError && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold">Error:</span>{" "}
+                  {syncError}
+                </div>
+              </div>
+            )}
+
+            <Card className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center",
+                    syncEnabled ? "bg-emerald-500/10" : "bg-muted"
+                  )}>
+                    {syncLoading || syncIsSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : syncEnabled ? (
+                      <Cloud className="h-5 w-5 text-emerald-500" />
+                    ) : (
+                      <CloudOff className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {syncLoading || syncIsSubmitting ? "Connecting..." : syncEnabled ? "Connected to Cloud" : "Not Connected"}
+                    </p>
+                    {user && (
+                      <p className="text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {syncEnabled && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={handleForceSync}
+                      disabled={isSyncing || !isOnline}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+                      {isSyncing ? "Syncing..." : "Sync Now"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-destructive hover:text-destructive"
+                      onClick={disableSync}
+                    >
+                      Disconnect
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {!syncEnabled && (
+                <div className="space-y-4 pt-2">
+                  <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => { setSyncAuthMode("signin"); setSyncAuthEmail(""); setSyncAuthPassword(""); }}
+                      className={cn(
+                        "flex-1 py-1.5 px-3 text-sm rounded-md transition-colors",
+                        syncAuthMode === "signin" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSyncAuthMode("signup"); setSyncAuthEmail(""); setSyncAuthPassword(""); }}
+                      className={cn(
+                        "flex-1 py-1.5 px-3 text-sm rounded-md transition-colors",
+                        syncAuthMode === "signup" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <FieldGroup label="Email" htmlFor="sync-email">
+                      <Input
+                        id="sync-email"
+                        type="email"
+                        value={syncAuthEmail}
+                        onChange={(e) => setSyncAuthEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        disabled={!isOnline}
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Password" htmlFor="sync-password">
+                      <Input
+                        id="sync-password"
+                        type="password"
+                        value={syncAuthPassword}
+                        onChange={(e) => setSyncAuthPassword(e.target.value)}
+                        placeholder="Password"
+                        disabled={!isOnline}
+                        onKeyDown={(e) => e.key === "Enter" && syncAuthEmail && syncAuthPassword && handleAuth()}
+                      />
+                    </FieldGroup>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleAuth}
+                      disabled={!syncAuthEmail.trim() || !syncAuthPassword || !isOnline || syncIsSubmitting}
+                    >
+                      <Cloud className="h-4 w-4" />
+                      {syncAuthMode === "signin" ? "Sign In" : "Create Account"}
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    {syncAuthMode === "signin" 
+                      ? "Sign in with your existing account to sync data."
+                      : "Create an account to start syncing your data across devices."}
+                  </p>
+                </div>
+              )}
+
+              {syncEnabled && lastSyncTime && (
+                <div className="pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    Last synced: {new Date(lastSyncTime).toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </Card>
+
+            {syncEnabled && (
+              <Card className="p-5">
+                <h3 className="text-sm font-medium mb-3">What gets synced</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    Settings (API key, model preferences, debug mode)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    Generator preferences (topics, difficulty, question count)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    Question history and analytics
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    Saved question sets
+                  </li>
+                </ul>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Data is stored securely in Firebase. When you sign in on another device, 
+                  your data will be automatically merged with any local changes.
+                </p>
+              </Card>
+            )}
+
+            {syncEnabled && syncEvents.length > 0 && (
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium">Sync Activity</h3>
+                  {debugMode && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                      Debug
+                    </span>
+                  )}
+                </div>
+                <div className={cn("space-y-3", !debugMode && "max-h-64 overflow-y-auto")}>
+                  {syncEvents.slice(0, debugMode ? 50 : 20).map((event) => (
+                    <div key={event.id} className="flex items-start gap-3 text-sm">
+                      <div className={cn(
+                        "mt-0.5 h-2 w-2 rounded-full shrink-0",
+                        event.type === "upload" && "bg-emerald-500",
+                        event.type === "download" && "bg-sky-500",
+                        event.type === "error" && "bg-destructive",
+                        event.type === "conflict" && "bg-amber-500"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground">{event.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(event.timestamp).toLocaleString()}
+                          {debugMode && <span className="ml-2 font-mono text-[10px]">{event.id}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {!debugMode && syncEvents.length > 20 && (
+                  <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+                    Enable Debug Mode to see more sync activity
+                  </p>
+                )}
+              </Card>
+            )}
+
+            {debugMode && syncEnabled && debugLogs.length > 0 && (
+              <Card className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium">Debug Logs</h3>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                    Live
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-80 overflow-y-auto font-mono text-[11px]">
+                  {debugLogs.slice(0, 50).map((log) => (
+                    <div key={log.id} className="flex gap-2">
+                      <span className="text-muted-foreground shrink-0">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                      <span className="text-foreground break-all">{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
+        );
+      }
     }
   }
 

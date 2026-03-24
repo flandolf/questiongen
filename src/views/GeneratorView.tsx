@@ -563,12 +563,20 @@ useEffect(() => {
     return prompts;
   }
 
+  function generateEntryId() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
   function appendMcHistoryEntry(question: typeof activeMcQuestion, selectedAnswer: string, awardedMarks: number, attemptKind: McAttemptKind, responseEnteredAtMs?: number) {
     if (!question) return;
     const questionStartedAt = mcQuestionPresentedAtById[question.id];
     const responseAt = responseEnteredAtMs ?? Date.now();
+    const now = Date.now();
     const entry: McHistoryEntry = {
-      type: "multiple-choice", id: `${question.id}-${Date.now()}`, createdAt: new Date().toISOString(),
+      type: "multiple-choice", id: generateEntryId(), createdAt: new Date(now).toISOString(), lastModified: now,
       question, selectedAnswer, correct: awardedMarks >= 1, awardedMarks, maxMarks: 1,
       generationTelemetry: mcGenerationTelemetry ?? undefined,
       analytics: {
@@ -585,8 +593,9 @@ useEffect(() => {
     const uploadedAnswer = options?.uploadedAnswerOverride ?? (answersByQuestionId[question.id] ?? "");
     const questionStartedAt = writtenQuestionPresentedAtById[question.id];
     const responseAt = options?.responseEnteredAtMs ?? writtenResponseEnteredAtById[question.id] ?? Date.now();
+    const now = Date.now();
     const entry: QuestionHistoryEntry = {
-      id: `${question.id}-${Date.now()}`, createdAt: new Date().toISOString(),
+      id: generateEntryId(), createdAt: new Date(now).toISOString(), lastModified: now,
       question, uploadedAnswer, uploadedAnswerImage: imagesByQuestionId[question.id],
       workedSolutionMarkdown: response.workedSolutionMarkdown, markResponse: response,
       generationTelemetry: writtenGenerationTelemetry ?? undefined,

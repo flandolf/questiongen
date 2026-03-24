@@ -1167,6 +1167,7 @@ export type McAnswerAnalytics = AnswerAnalytics & {
 export type QuestionHistoryEntry = {
   id: string;
   createdAt: string;
+  lastModified?: number;
   question: GeneratedQuestion;
   uploadedAnswer: string;
   uploadedAnswerImage?: StudentAnswerImage;
@@ -1232,6 +1233,7 @@ export type McHistoryEntry = {
   type: "multiple-choice";
   id: string;
   createdAt: string;
+  lastModified?: number;
   question: McQuestion;
   selectedAnswer: string;
   correct: boolean;
@@ -1295,6 +1297,7 @@ export type SavedQuestionSet = {
   questionMode: QuestionMode;
   createdAt: string;
   updatedAt: string;
+  lastModified?: number;
   preferences: PersistedGeneratorPreferences;
   writtenSession?: PersistedWrittenSession;
   mcSession?: PersistedMcSession;
