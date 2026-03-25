@@ -29,6 +29,7 @@ import {
   SPECIALIST_MATH_SUBTOPICS,
   StudyGoals,
   StreakData,
+  ExamRecord,
 } from "../types";
 import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
@@ -131,7 +132,6 @@ export async function persistNow(state: PersistedAppState): Promise<void> {
 
 export function normalizePersistedAppState(raw: unknown): PersistedAppState {
   const data = isRecord(raw) ? raw : {};
-
   return {
     version: PERSISTED_APP_STATE_VERSION,
     settings: normalizeSettings(data.settings),
@@ -143,7 +143,19 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     savedSets: normalizeSavedSets(data.savedSets),
     studyGoals: normalizeStudyGoals(data.studyGoals),
     streakData: normalizeStreakData(data.streakData),
+    examHistory: normalizeExamHistory(data.examHistory),
   };
+}
+
+function normalizeExamHistory(raw: unknown): ExamRecord[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is ExamRecord =>
+    isRecord(item) &&
+    typeof item.id === "string" &&
+    typeof item.createdAt === "string" &&
+    typeof item.topic === "string" &&
+    Array.isArray(item.questionResults)
+  );
 }
 
 function applyLegacyMigration(state: PersistedAppState): PersistedAppState {

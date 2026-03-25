@@ -1080,7 +1080,7 @@ useEffect(() => {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-full w-full p-3 sm:p-4 lg:p-6 flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className="min-h-full w-full flex flex-col gap-6 animate-in fade-in duration-500">
 
       {errorMessage && (
         <div role="alert" aria-live="assertive" className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm">
@@ -1148,7 +1148,7 @@ useEffect(() => {
 
         /* ── Written Question View ── */
       ) : questionMode === "written" ? (
-        <div className="flex min-h-full flex-col gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
           <WrittenSessionHeader
             questionIndex={activeQuestionIndex}
             totalQuestions={questions.length}
@@ -1173,57 +1173,59 @@ useEffect(() => {
             onExit={handleStartOver}
           />
           {activeQuestion && (
-            <div className="flex flex-col space-y-2">
-              <WrittenQuestionCard
-                promptMarkdown={activeQuestion.promptMarkdown}
-                canShowRawOutput={canShowWrittenRawOutput}
-                showRawOutput={showWrittenRawOutput}
-                rawModelOutput={writtenRawModelOutput}
-                onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
-              />
-              {!activeFeedback ? (
-                <WrittenAnswerCard
-                  questionId={activeQuestion.id}
-                  answer={activeQuestionAnswer}
-                  image={activeQuestionImage}
-                  isMarking={isMarking}
-                  canSubmit={canSubmitAnswer}
-                  onAnswerChange={(value) => {
-                    setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: value }));
-                    if (value.trim().length > 0) {
-                      setWrittenResponseEnteredAtById((prev) => {
-                        if (prev[activeQuestion.id] !== undefined) return prev;
-                        return { ...prev, [activeQuestion.id]: Date.now() };
-                      });
-                    }
-                  }}
-                  onImageDrop={handleDropDropzone}
-                  onImageRemove={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}
-                  onSubmit={handleSubmitForMarking}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+              <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
+                <WrittenQuestionCard
+                  promptMarkdown={activeQuestion.promptMarkdown}
+                  canShowRawOutput={canShowWrittenRawOutput}
+                  showRawOutput={showWrittenRawOutput}
+                  rawModelOutput={writtenRawModelOutput}
+                  onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
                 />
-              ) : (
-                <WrittenFeedbackPanel
-                  questionId={activeQuestion.id}
-                  answer={activeQuestionAnswer}
-                  image={activeQuestionImage}
-                  feedback={activeFeedback}
-                  appealText={activeMarkAppeal}
-                  overrideInput={activeOverrideInput}
-                  isMarking={isMarking}
-                  onAppealChange={(v) => setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
-                  onOverrideInputChange={(v) => setMarkOverrideInputByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
-                  onArgueForMark={handleArgueForMark}
-                    onApplyOverride={handleOverrideMark}
-                    onCriterionChange={handleOverrideCriterion}
-                />
-              )}
+                {!activeFeedback ? (
+                  <WrittenAnswerCard
+                    questionId={activeQuestion.id}
+                    answer={activeQuestionAnswer}
+                    image={activeQuestionImage}
+                    isMarking={isMarking}
+                    canSubmit={canSubmitAnswer}
+                    onAnswerChange={(value) => {
+                      setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: value }));
+                      if (value.trim().length > 0) {
+                        setWrittenResponseEnteredAtById((prev) => {
+                          if (prev[activeQuestion.id] !== undefined) return prev;
+                          return { ...prev, [activeQuestion.id]: Date.now() };
+                        });
+                      }
+                    }}
+                    onImageDrop={handleDropDropzone}
+                    onImageRemove={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}
+                    onSubmit={handleSubmitForMarking}
+                  />
+                ) : (
+                  <WrittenFeedbackPanel
+                    questionId={activeQuestion.id}
+                    answer={activeQuestionAnswer}
+                    image={activeQuestionImage}
+                    feedback={activeFeedback}
+                    appealText={activeMarkAppeal}
+                    overrideInput={activeOverrideInput}
+                    isMarking={isMarking}
+                    onAppealChange={(v) => setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
+                    onOverrideInputChange={(v) => setMarkOverrideInputByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
+                    onArgueForMark={handleArgueForMark}
+                      onApplyOverride={handleOverrideMark}
+                      onCriterionChange={handleOverrideCriterion}
+                  />
+                )}
+              </div>
             </div>
           )}
         </div>
 
         /* ── MC Question View ── */
       ) : (
-        <div className="flex flex-col h-full gap-6 pb-20 animate-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-500">
           <McSessionHeader
             questionIndex={activeMcQuestionIndex}
             totalQuestions={mcQuestions.length}
@@ -1247,36 +1249,38 @@ useEffect(() => {
             onExit={handleStartOver}
           />
           {activeMcQuestion && (
-            <div className="flex flex-col space-y-2">
-              <McQuestionCard
-                promptMarkdown={activeMcQuestion.promptMarkdown}
-                canShowRawOutput={canShowMcRawOutput}
-                showRawOutput={showMcRawOutput}
-                rawModelOutput={mcRawModelOutput}
-                onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
-              />
-              {countWords(activeMcQuestion.explanationMarkdown) > MC_MAX_EXPLANATION_WORDS && (
-                <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-lg px-4 py-2 mb-2 text-sm">
-                  <strong>Warning:</strong> Explanation is {countWords(activeMcQuestion.explanationMarkdown)} words (max {MC_MAX_EXPLANATION_WORDS}).
-                  This may be rejected by the backend.
-                </div>
-              )}
-              <McAnswerPanel
-                questionId={activeMcQuestion.id}
-                options={activeMcQuestion.options}
-                correctAnswer={activeMcQuestion.correctAnswer}
-                explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                selectedAnswer={activeMcAnswer}
-                awardedMarks={activeMcAwardedMarks}
-                appealText={activeMcMarkAppeal}
-                overrideInput={activeMcOverrideInput}
-                isMarking={isMarking}
-                onSelectAnswer={handleMcAnswer}
-                onAppealChange={(v) => setMcMarkAppealByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
-                onOverrideInputChange={(v) => setMcMarkOverrideInputByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
-                onArgueForMark={handleArgueForMcMark}
-                onApplyOverride={handleOverrideMcMark}
-              />
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+              <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
+                <McQuestionCard
+                  promptMarkdown={activeMcQuestion.promptMarkdown}
+                  canShowRawOutput={canShowMcRawOutput}
+                  showRawOutput={showMcRawOutput}
+                  rawModelOutput={mcRawModelOutput}
+                  onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
+                />
+                {countWords(activeMcQuestion.explanationMarkdown) > MC_MAX_EXPLANATION_WORDS && (
+                  <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-lg px-4 py-2 mb-2 text-sm">
+                    <strong>Warning:</strong> Explanation is {countWords(activeMcQuestion.explanationMarkdown)} words (max {MC_MAX_EXPLANATION_WORDS}).
+                    This may be rejected by the backend.
+                  </div>
+                )}
+                <McAnswerPanel
+                  questionId={activeMcQuestion.id}
+                  options={activeMcQuestion.options}
+                  correctAnswer={activeMcQuestion.correctAnswer}
+                  explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                  selectedAnswer={activeMcAnswer}
+                  awardedMarks={activeMcAwardedMarks}
+                  appealText={activeMcMarkAppeal}
+                  overrideInput={activeMcOverrideInput}
+                  isMarking={isMarking}
+                  onSelectAnswer={handleMcAnswer}
+                  onAppealChange={(v) => setMcMarkAppealByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
+                  onOverrideInputChange={(v) => setMcMarkOverrideInputByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
+                  onArgueForMark={handleArgueForMcMark}
+                  onApplyOverride={handleOverrideMcMark}
+                />
+              </div>
             </div>
           )}
         </div>

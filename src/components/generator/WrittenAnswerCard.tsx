@@ -1,11 +1,9 @@
 import { Loader2, Trash2, CheckCircle2, ImageIcon, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dropzone } from "@/components/ui/dropzone";
-import { Target } from "lucide-react";
 import { StudentAnswerImage } from "../../types";
+import { UnifiedWrittenResponseCard } from "@/components/question/UnifiedQuestionBlocks";
 
 type WrittenAnswerCardProps = {
   questionId: string;
@@ -38,32 +36,22 @@ export function WrittenAnswerCard({
   const hasContent = answer.trim().length > 0 || Boolean(image);
 
   return (
-    <Card className="shadow-md border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="w-4.5 h-4.5 text-primary" /> Your Response
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <UnifiedWrittenResponseCard
+      value={answer}
+      onChange={onAnswerChange}
+      disabled={isMarking}
+      headerRight={words > 0 ? (
+        <span className="text-xs font-medium text-muted-foreground tabular-nums">
+          {words} {words === 1 ? "word" : "words"}
+        </span>
+      ) : undefined}
+      footerNote="Your answer is marked immediately using the configured marking model."
+    >
         {/* Text answer */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-semibold flex items-center gap-1.5">
-              <Type className="w-3.5 h-3.5 text-muted-foreground" /> Written answer
-            </Label>
-            {words > 0 && (
-              <span className="text-[11px] text-muted-foreground tabular-nums">
-                {words} {words === 1 ? "word" : "words"}
-              </span>
-            )}
-          </div>
-          <Textarea
-            placeholder="Write your answer here..."
-            className="min-h-[180px] resize-y text-sm p-3.5 focus-visible:ring-primary/30 leading-relaxed"
-            value={answer}
-            onChange={(e) => onAnswerChange(e.target.value)}
-            disabled={isMarking}
-          />
+          <Label className="text-sm font-semibold flex items-center gap-1.5">
+            <Type className="w-3.5 h-3.5 text-muted-foreground" /> Add supporting working
+          </Label>
         </div>
 
         {/* Divider with "or" */}
@@ -101,7 +89,7 @@ export function WrittenAnswerCard({
         {/* Submit */}
         <Button
           size="lg"
-          className={`w-full h-12 text-sm font-bold gap-2 transition-all duration-200 ${
+          className={`w-full h-12 text-sm font-bold gap-2 transition-all duration-200 rounded-full ${
             hasContent && !isMarking ? "shadow-md hover:shadow-primary/20 hover:-translate-y-0.5" : ""
           }`}
           onClick={onSubmit}
@@ -113,7 +101,6 @@ export function WrittenAnswerCard({
             <><CheckCircle2 className="w-4 h-4" /> Submit for Marking</>
           )}
         </Button>
-      </CardContent>
-    </Card>
+    </UnifiedWrittenResponseCard>
   );
 }

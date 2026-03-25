@@ -7,6 +7,11 @@ import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
 import { Input } from "../components/ui/input";
 import { MarkdownMath } from "../components/MarkdownMath";
+import {
+    UnifiedMcqOptionsGrid,
+    UnifiedQuestionPromptCard,
+    UnifiedWrittenResponseCard,
+} from "../components/question/UnifiedQuestionBlocks";
 import { normalizeMarkResponse, readBackendError } from "../lib/app-utils";
 import { isDue, daysUntilReview, qualityLabel, binaryToQuality, scoreToQuality } from "../lib/spaced-repetition";
 import {
@@ -52,10 +57,6 @@ function criterionScoreClass(pct: number) {
     if (pct >= 0.5) return "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300";
     return "bg-rose-100/70 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400";
 }
-
-const OPTION_COLORS: Record<string, string> = {
-    A: "#3b82f6", B: "#8b5cf6", C: "#f59e0b", D: "#ec4899",
-};
 
 // ─── Convert file to base64 data URL ─────────────────────────────────────────
 
@@ -136,32 +137,14 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
 function McExpandedBody({ entry }: { entry: McWrongEntry }) {
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-                {entry.question.options.map((opt) => {
-                    const isChosen = entry.selectedAnswer === opt.label;
-                    const isCorrect = opt.label === entry.question.correctAnswer;
-                    const color = OPTION_COLORS[opt.label] ?? "#6b7280";
-                    let border = "border-border/40 opacity-50";
-                    let labelBg = "";
-                    if (isCorrect) { border = "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/25"; labelBg = "bg-emerald-500 text-white"; }
-                    else if (isChosen) { border = "border-rose-400 bg-rose-50/50 dark:bg-rose-950/20"; labelBg = "bg-rose-500 text-white"; }
-                    return (
-                        <div key={opt.label} className={`flex gap-3 items-start p-3 rounded-xl border-2 ${border}`}>
-                            <div
-                                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm ${labelBg || "bg-muted text-foreground"}`}
-                                style={!isCorrect && !isChosen ? { backgroundColor: `${color}20`, color } : undefined}
-                            >
-                                {opt.label}
-                            </div>
-                            <div className="text-sm leading-relaxed pt-0.5 prose prose-sm dark:prose-invert max-w-none flex-1">
-                                <MarkdownMath content={opt.text} />
-                            </div>
-                            {isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5 ml-auto" />}
-                            {isChosen && !isCorrect && <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 ml-auto" />}
-                        </div>
-                    );
-                })}
-            </div>
+            <UnifiedMcqOptionsGrid
+                options={entry.question.options}
+                selectedAnswer={entry.selectedAnswer}
+                correctAnswer={entry.question.correctAnswer}
+                answered
+                revealCorrectness
+                onSelect={undefined}
+            />
             <div className="space-y-1.5">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Explanation</p>
                 <div className="rounded-lg border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
@@ -707,17 +690,14 @@ function ReattemptView({
                 <div className="h-full bg-primary/70 rounded-full transition-all duration-400" style={{ width: `${progressPct}%` }} />
             </div>
 
-            {/* Question card */}
-            <div className="rounded-xl border border-border/50 bg-card overflow-hidden shrink-0">
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-border/30 bg-muted/20">
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center ${isWritten ? "bg-sky-500/10" : "bg-violet-500/10"}`}>
-                        {isWritten ? <BookOpen className="w-3 h-3 text-sky-500" /> : <Target className="w-3 h-3 text-violet-500" />}
-                    </div>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{entry.question.topic}</Badge>
-                    {entry.question.subtopic && <span className="text-[10px] text-muted-foreground/60 truncate">{entry.question.subtopic}</span>}
-                    <Badge variant="outline" className={`ml-auto text-[10px] px-1.5 py-0 ${isWritten ? "border-sky-400/30 text-sky-500" : "border-violet-400/30 text-violet-500"}`}>
-                        {isWritten ? "Written" : "Multiple Choice"}
-                    </Badge>
+            <UnifiedQuestionPromptCard
+                promptMarkdown={entry.question.promptMarkdown}
+                topic={entry.question.topic}
+                subtopic={entry.question.subtopic ?? undefined}
+                maxMarks={isWritten ? entry.question.maxMarks : undefined}
+                modeLabel={isWritten ? "Written" : "Multiple Choice"}
+                modeTone={isWritten ? "written" : "mc"}
+                rightSlot={(
                     <button
                         type="button"
                         onClick={handleDeleteCurrent}
@@ -726,43 +706,20 @@ function ReattemptView({
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                </div>
-                <div className="px-4 py-4">
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-base leading-relaxed">
-                        <MarkdownMath content={entry.question.promptMarkdown} />
-                    </div>
-                </div>
-            </div>
+                )}
+            />
 
             {/* MC options */}
             {isMc && mcEntry && (
-                <div className="grid grid-cols-2 gap-2 shrink-0">
-                    {mcEntry.question.options.map((opt) => {
-                        const isChosen = mcSelected === opt.label;
-                        const isCorrect = opt.label === mcEntry.question.correctAnswer;
-                        const color = OPTION_COLORS[opt.label] ?? "#6b7280";
-                        const answered = Boolean(mcSelected);
-                        let cls = "border-border/60 hover:border-primary/40 hover:bg-muted/20 cursor-pointer hover:-translate-y-0.5";
-                        let lblBg = "";
-                        if (answered) {
-                            if (isCorrect) { cls = "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/25 cursor-default"; lblBg = "bg-emerald-500 text-white"; }
-                            else if (isChosen) { cls = "border-rose-400 bg-rose-50/50 dark:bg-rose-950/20 cursor-default opacity-80"; lblBg = "bg-rose-500 text-white"; }
-                            else { cls = "border-border/30 opacity-40 cursor-default grayscale"; }
-                        }
-                        return (
-                            <button key={opt.label} disabled={answered} onClick={() => handleMcSelect(opt.label)}
-                                className={`w-full text-left p-3 rounded-xl border-2 flex gap-3 items-start transition-all duration-200 ${cls}`}>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm ${lblBg || "bg-muted text-foreground"}`}
-                                    style={!isCorrect && !isChosen ? { backgroundColor: `${color}20`, color } : undefined}>
-                                    {opt.label}
-                                </div>
-                                <div className="flex-1 text-sm leading-relaxed pt-0.5 prose prose-sm dark:prose-invert max-w-none">
-                                    <MarkdownMath content={opt.text} />
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+                <UnifiedMcqOptionsGrid
+                    options={mcEntry.question.options}
+                    selectedAnswer={mcSelected ?? undefined}
+                    correctAnswer={mcEntry.question.correctAnswer}
+                    answered={Boolean(mcSelected)}
+                    revealCorrectness={Boolean(mcSelected)}
+                    onSelect={handleMcSelect}
+                    className="shrink-0"
+                />
             )}
 
             {/* MC result + explanation */}
@@ -790,94 +747,79 @@ function ReattemptView({
 
             {/* Written answer area — redesigned with mode switching + image upload */}
             {isWritten && writtenEntry && (
-                <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
-                    <div className="px-4 pt-4 pb-4 space-y-3">
-                        {/* Mode toggle + header */}
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
-                                Your answer
-                                {writtenEntry.question.maxMarks > 0 && (
-                                    <span className="ml-1.5 normal-case font-medium text-muted-foreground/50">
-                                        ({writtenEntry.question.maxMarks} mark{writtenEntry.question.maxMarks !== 1 ? "s" : ""})
-                                    </span>
-                                )}
-                            </p>
-                            <AnswerModeToggle
-                                mode={answerMode}
-                                onChange={(m) => {
-                                    if (!isMarking && !isDone && !showAnswer) setAnswerMode(m);
-                                }}
-                                disabled={isMarking || isDone || showAnswer}
-                            />
+                <UnifiedWrittenResponseCard
+                    value={writtenAnswer}
+                    maxMarks={writtenEntry.question.maxMarks}
+                    headerRight={(
+                        <AnswerModeToggle
+                            mode={answerMode}
+                            onChange={(m) => {
+                                if (!isMarking && !isDone && !showAnswer) setAnswerMode(m);
+                            }}
+                            disabled={isMarking || isDone || showAnswer}
+                        />
+                    )}
+                    inputSlot={answerMode === "text" ? (
+                        <Textarea
+                            value={writtenAnswer}
+                            onChange={(e) => setWrittenAnswer(e.target.value)}
+                            disabled={showAnswer || isMarking || isDone}
+                            placeholder="Type your answer here…"
+                            className="min-h-[180px] resize-y text-sm leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                    ) : (
+                        <ImageAnswerInput
+                            imageDataUrl={imageDataUrl}
+                            onImageChange={setImageDataUrl}
+                            disabled={showAnswer || isMarking || isDone}
+                        />
+                    )}
+                    footerNote={answerMode === "image" && isIdle && !showAnswer
+                        ? "Upload a photo of your handwritten work — AI will read and mark it directly."
+                        : undefined}
+                >
+                    {/* Action row */}
+                    {isIdle && !showAnswer && (
+                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                            <Button
+                                variant="outline" size="sm"
+                                onClick={() => setShowAnswer(true)}
+                                className="gap-2 h-8 text-xs"
+                            >
+                                <Eye className="w-3.5 h-3.5" /> Reveal answer
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => doMark()}
+                                disabled={!canMark}
+                                className="gap-2 h-8 text-xs"
+                                title={!apiKey || !model ? "Configure API key in Settings" : !hasAnswer ? "Provide an answer first" : undefined}
+                            >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                {(!apiKey || !model) ? "Configure API key" : "Mark with AI"}
+                            </Button>
+                            {!hasAnswer && (
+                                <p className="text-[11px] text-muted-foreground/50">
+                                    {answerMode === "text" ? "Write" : "Upload"} your answer to mark.
+                                </p>
+                            )}
                         </div>
+                    )}
 
-                        {/* Answer input area */}
-                        {answerMode === "text" ? (
-                            <Textarea
-                                value={writtenAnswer}
-                                onChange={(e) => setWrittenAnswer(e.target.value)}
-                                disabled={showAnswer || isMarking || isDone}
-                                placeholder="Type your answer here…"
-                                className="min-h-[180px] resize-y text-sm leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
-                            />
-                        ) : (
-                            <ImageAnswerInput
-                                imageDataUrl={imageDataUrl}
-                                onImageChange={setImageDataUrl}
-                                disabled={showAnswer || isMarking || isDone}
-                            />
-                        )}
+                    {/* Marking result */}
+                    {markingState.phase !== "idle" && (
+                        <AiMarkingResult
+                            markingState={markingState}
+                            maxMarks={writtenEntry.question.maxMarks}
+                            onMark={() => doMark()}
+                            onOverride={handleOverride}
+                            onAppeal={(t) => doMark(t)}
+                        />
+                    )}
 
-                        {/* Photo mode info tip */}
-                        {answerMode === "image" && isIdle && !showAnswer && (
-                            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-sky-500/8 border border-sky-500/15 text-xs text-sky-700 dark:text-sky-300">
-                                <Camera className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                                <span>Upload a photo of your handwritten work — AI will read and mark it directly.</span>
-                            </div>
-                        )}
-
-                        {/* Action row */}
-                        {isIdle && !showAnswer && (
-                            <div className="flex items-center gap-2 flex-wrap pt-1">
-                                <Button
-                                    variant="outline" size="sm"
-                                    onClick={() => setShowAnswer(true)}
-                                    className="gap-2 h-8 text-xs"
-                                >
-                                    <Eye className="w-3.5 h-3.5" /> Reveal answer
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={() => doMark()}
-                                    disabled={!canMark}
-                                    className="gap-2 h-8 text-xs"
-                                    title={!apiKey || !model ? "Configure API key in Settings" : !hasAnswer ? "Provide an answer first" : undefined}
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    {(!apiKey || !model) ? "Configure API key" : "Mark with AI"}
-                                </Button>
-                                {!hasAnswer && (
-                                    <p className="text-[11px] text-muted-foreground/50">
-                                        {answerMode === "text" ? "Write" : "Upload"} your answer to mark.
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Marking result */}
-                        {markingState.phase !== "idle" && (
-                            <AiMarkingResult
-                                markingState={markingState}
-                                maxMarks={writtenEntry.question.maxMarks}
-                                onMark={() => doMark()}
-                                onOverride={handleOverride}
-                                onAppeal={(t) => doMark(t)}
-                            />
-                        )}
-
-                        {/* Revealed answer + self-rate */}
-                        {showAnswer && isIdle && (
-                            <div className="space-y-4 animate-in fade-in duration-250">
+                    {/* Revealed answer + self-rate */}
+                    {showAnswer && isIdle && (
+                        <div className="space-y-4 animate-in fade-in duration-250">
                                 <div className="rounded-xl border border-border/40 overflow-hidden">
                                     <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
                                         <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
@@ -947,10 +889,9 @@ function ReattemptView({
                                         )}
                                     </div>
                                 )}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                        </div>
+                    )}
+                </UnifiedWrittenResponseCard>
             )}
         </div>
     );
