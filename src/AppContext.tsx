@@ -187,6 +187,10 @@ export function useAppPreferences() {
       setQuestionMode: s.setQuestionMode,
       subtopicInstructions: s.subtopicInstructions,
       setSubtopicInstructions: s.setSubtopicInstructions,
+      aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
+      setAiDifficultyScalingEnabled: s.setAiDifficultyScalingEnabled,
+      difficultyThresholds: s.difficultyThresholds,
+      setDifficultyThresholds: s.setDifficultyThresholds,
     }))
   );
 }

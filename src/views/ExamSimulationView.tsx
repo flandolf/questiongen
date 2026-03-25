@@ -18,7 +18,7 @@ import {
   UnifiedQuestionPromptCard,
   UnifiedWrittenResponseCard,
 } from "../components/question/UnifiedQuestionBlocks";
-import { normalizeMarkResponse, readBackendError, formatCostUsd } from "../lib/app-utils";
+import { normalizeMarkResponse, readBackendError, formatCostUsd, estimateTokensAndCost } from "../lib/app-utils";
 import {
   Clock, ChevronRight, ChevronLeft, Flag,
   CheckCircle2, XCircle, Trophy, BookOpen, Target, Loader2, Sparkles,
@@ -341,9 +341,10 @@ function FileTextIcon({ className }: { className?: string }) {
 
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 
-function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
+  function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   const { apiKey, model } = useAppSettings();
   const [topic, setTopic] = useState<Topic>("Mathematical Methods");
+  const generationHistory = useAppStore((s) => s.generationHistory);
   const [questionCount, setQuestionCount] = useState(5);
   const [timeLimit, setTimeLimit] = useState(30);
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
@@ -377,37 +378,19 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   }, [apiKey, model]);
 
   const estimated = useMemo(() => {
-    let totalTokens = 0;
-    let totalTokensPerQuestion = 0;
-    let promptTokensPerQuestion = 0;
-    let completionTokensPerQuestion = 0;
-    let totalPromptTokens = 0;
-    let totalCompletionTokens = 0;
-
-    if (questionMode === "multiple-choice") {
-      totalTokens = questionCount > 0 ? 2250 + (questionCount - 1) * 350 : 0;
-      totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
-      const ratios = { prompt: 0.6, completion: 0.4 };
-      promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
-      completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
-      totalPromptTokens = promptTokensPerQuestion * questionCount;
-      totalCompletionTokens = completionTokensPerQuestion * questionCount;
-    } else {
-      totalTokens = questionCount > 0 ? 2000 + (questionCount - 1) * 350 : 0;
-      totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
-      const ratios = { prompt: 0.35, completion: 0.65 };
-      promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
-      completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
-      totalPromptTokens = promptTokensPerQuestion * questionCount;
-      totalCompletionTokens = completionTokensPerQuestion * questionCount;
-    }
-
-    const promptCost = promptPricePerToken != null ? promptPricePerToken * totalPromptTokens : null;
-    const completionCost = completionPricePerToken != null ? completionPricePerToken * totalCompletionTokens : null;
-    const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
-
-    return { totalTokensPerQuestion, promptTokensPerQuestion, completionTokensPerQuestion, totalTokens, totalPromptTokens, totalCompletionTokens, promptCost, completionCost, totalCost };
-  }, [questionMode, questionCount, promptPricePerToken, completionPricePerToken]);
+    // Use stored generation history to refine estimates; fallback to static formula inside estimator
+    return estimateTokensAndCost(
+      generationHistory,
+      topic,
+      difficulty,
+      questionCount,
+      questionMode,
+      techMode,
+      undefined,
+      promptPricePerToken,
+      completionPricePerToken
+    );
+  }, [generationHistory, topic, difficulty, questionCount, questionMode, techMode, promptPricePerToken, completionPricePerToken]);
 
   const toggleSubtopic = (sub: string) =>
     setSelectedSubtopics(prev => prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]);
@@ -996,6 +979,7 @@ export default function ExamSimulationView() {
   const setQuestionHistory = useAppStore((s) => s.setQuestionHistory);
   const setMcHistory = useAppStore((s) => s.setMcHistory);
   const addExamRecord = useAppStore((s) => s.addExamRecord);
+  const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
 
   const [phase, setPhase] = useState<ExamPhase>("setup");
   const [config, setConfig] = useState<ExamConfig | null>(null);
@@ -1017,7 +1001,7 @@ export default function ExamSimulationView() {
 
     try {
       if (cfg.questionMode === "written") {
-        const response = await invoke<{ questions: GeneratedQuestion[]; durationMs: number }>("generate_questions", {
+        const response = await invoke<{ questions: GeneratedQuestion[]; durationMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number; estimatedCostUsd?: number }>("generate_questions", {
           request: {
             topics: [cfg.topic], difficulty: cfg.difficulty, questionCount: cfg.questionCount,
             maxMarksPerQuestion: isMath ? 10 : undefined, model, apiKey, techMode: cfg.techMode,
@@ -1027,9 +1011,31 @@ export default function ExamSimulationView() {
           },
         });
         setQuestions(response.questions.map((q, i) => ({ ...q, id: `exam-${i + 1}` })));
+
+        // Record this generation for cost estimation
+        addGenerationRecord({
+          id: `exam-gen-${cfg.topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date().toISOString(),
+          inputs: {
+            topic: cfg.topic,
+            difficulty: cfg.difficulty,
+            questionCount: cfg.questionCount,
+            questionMode: "written",
+            techMode: cfg.techMode,
+            maxMarksPerQuestion: isMath ? 10 : undefined,
+          },
+          outputs: {
+            durationMs: response.durationMs || 0,
+            promptTokens: response.promptTokens,
+            completionTokens: response.completionTokens,
+            totalTokens: response.totalTokens,
+            estimatedCostUsd: response.estimatedCostUsd,
+          },
+        });
       } else {
         const response = await invoke<{
           questions: Array<GeneratedQuestion & { options: Array<{ label: string; text: string }>; correctAnswer: string; explanationMarkdown: string }>;
+          durationMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number; estimatedCostUsd?: number;
         }>("generate_mc_questions", {
           request: {
             topics: [cfg.topic], difficulty: cfg.difficulty, questionCount: cfg.questionCount,
@@ -1040,6 +1046,26 @@ export default function ExamSimulationView() {
           },
         });
         setQuestions(response.questions.map((q, i) => ({ ...q, id: `exam-mc-${i + 1}` })));
+
+        // Record this generation for cost estimation
+        addGenerationRecord({
+          id: `exam-gen-${cfg.topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date().toISOString(),
+          inputs: {
+            topic: cfg.topic,
+            difficulty: cfg.difficulty,
+            questionCount: cfg.questionCount,
+            questionMode: "multiple-choice",
+            techMode: cfg.techMode,
+          },
+          outputs: {
+            durationMs: response.durationMs || 0,
+            promptTokens: response.promptTokens,
+            completionTokens: response.completionTokens,
+            totalTokens: response.totalTokens,
+            estimatedCostUsd: response.estimatedCostUsd,
+          },
+        });
       }
     } catch (error) {
       setErrorMessage(readBackendError(error));

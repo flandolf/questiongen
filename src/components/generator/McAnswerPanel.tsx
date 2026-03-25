@@ -1,6 +1,5 @@
 import { Loader2, CheckCircle2, XCircle, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -45,12 +44,12 @@ export function McAnswerPanel({
   const isCorrect = selectedAnswer === correctAnswer;
 
   return (
-    <Card className="overflow-hidden rounded-3xl border border-border/40 shadow-sm bg-card flex-col">
-      <div className="px-6 py-4 bg-muted/20 border-b border-border/30 flex items-center gap-2">
+    <div className="overflow-hidden flex-col">
+      <div className="flex items-center gap-2">
         <Target className="w-4 h-4 text-muted-foreground" />
         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select an Answer</span>
       </div>
-      <CardContent className="p-6 space-y-3">
+      <div className="my-2 space-y-3">
         {/* Options */}
         <UnifiedMcqOptionsGrid
           options={options}
@@ -138,7 +137,7 @@ export function McAnswerPanel({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

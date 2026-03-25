@@ -36,6 +36,7 @@ import {
   TechMode,
   Topic,
   ExamRecord,
+  GenerationRecord,
 } from "./types";
 import {
   EMPTY_PERSISTED_APP_STATE,
@@ -87,10 +88,14 @@ export interface AppState {
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
   maxMarksPerQuestion: number;
-  questionMode: QuestionMode;
-  subtopicInstructions: Record<string, string>;
+   questionMode: QuestionMode;
+   subtopicInstructions: Record<string, string>;
 
-  // ── Written session ────────────────────────────────────────────────────────
+   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
+   aiDifficultyScalingEnabled: boolean;
+   difficultyThresholds: { increase: number; decrease: number };
+
+   // ── Written session ────────────────────────────────────────────────────────
   questions: GeneratedQuestion[];
   activeQuestionIndex: number;
   writtenQuestionPresentedAtById: Record<string, number>;
@@ -130,6 +135,7 @@ export interface AppState {
   streakData: StreakData;
 
   examHistory: ExamRecord[];
+  generationHistory: GenerationRecord[];
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -171,13 +177,17 @@ export interface AppActions {
   setQuestionCount: (count: number) => void;
   setMaxMarksPerQuestion: (marks: number) => void;
   setQuestionMode: (mode: QuestionMode) => void;
-  setSubtopicInstructions: (
-    instructions:
-      | Record<string, string>
-      | ((prev: Record<string, string>) => Record<string, string>)
-  ) => void;
+   setSubtopicInstructions: (
+     instructions:
+       | Record<string, string>
+       | ((prev: Record<string, string>) => Record<string, string>)
+   ) => void;
 
-  // Written session
+   // AI Difficulty Scaling
+   setAiDifficultyScalingEnabled: (enabled: boolean) => void;
+   setDifficultyThresholds: (thresholds: { increase: number; decrease: number }) => void;
+
+   // Written session
   setQuestions: (questions: GeneratedQuestion[]) => void;
   setActiveQuestionIndex: (idx: number) => void;
   setWrittenQuestionPresentedAtById: (
@@ -255,6 +265,7 @@ export interface AppActions {
   addExamRecord: (record: ExamRecord) => void;
   deleteExamRecord: (id: string) => void;
   clearExamHistory: () => void;
+  addGenerationRecord: (record: GenerationRecord) => void;
 }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -284,10 +295,14 @@ const defaultState: AppState = {
   physicalEducationSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   maxMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion,
-  questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
-  subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
+   questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
+   subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
 
-  // Written session
+   // AI Difficulty Scaling
+   aiDifficultyScalingEnabled: false,
+   difficultyThresholds: { increase: 85, decrease: 70 },
+
+   // Written session
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
   activeQuestionIndex: EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
   writtenQuestionPresentedAtById:
@@ -339,6 +354,7 @@ const defaultState: AppState = {
   },
 
   examHistory: [],
+  generationHistory: [],
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -384,6 +400,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         maxMarksPerQuestion: s.preferences.maxMarksPerQuestion,
         questionMode: s.preferences.questionMode,
         subtopicInstructions: s.preferences.subtopicInstructions,
+        aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? false,
+        difficultyThresholds: s.preferences.difficultyThresholds ?? { increase: 85, decrease: 70 },
 
         // Written session
         questions: s.writtenSession.questions,
@@ -419,6 +437,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
         isHydrated: true,
         examHistory: s.examHistory ?? [],
+        generationHistory: s.generationHistory ?? [],
       });
     } catch {
       set({ errorMessage: "Could not load saved app data.", isHydrated: true });
@@ -432,6 +451,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   deleteExamRecord: (id) =>
     set((s) => ({ examHistory: s.examHistory.filter((r) => r.id !== id) })),
   clearExamHistory: () => set({ examHistory: [] }),
+  addGenerationRecord: (record) =>
+    set((s) => ({ generationHistory: [record, ...s.generationHistory].slice(0, 1000) })),
 
   setApiKey: (key) => set({ apiKey: key }),
   setShowApiKey: (show) => set({ showApiKey: show }),
@@ -465,6 +486,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setQuestionMode: (questionMode) => set({ questionMode }),
   setSubtopicInstructions: (update) =>
     set((s) => ({ subtopicInstructions: resolve(update, s.subtopicInstructions) })),
+
+  // ── AI Difficulty Scaling ──────────────────────────────────────────────────
+  setAiDifficultyScalingEnabled: (enabled) => set({ aiDifficultyScalingEnabled: enabled }),
+  setDifficultyThresholds: (thresholds) => set({ difficultyThresholds: thresholds }),
 
   // ── Written session ────────────────────────────────────────────────────────
 
@@ -800,6 +825,8 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       maxMarksPerQuestion: s.maxMarksPerQuestion,
       questionMode: s.questionMode,
       subtopicInstructions: s.subtopicInstructions,
+      aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
+      difficultyThresholds: s.difficultyThresholds,
     },
     writtenSession: {
       questions: s.questions,
@@ -828,6 +855,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
     studyGoals: s.studyGoals,
     streakData: s.streakData,
     examHistory: s.examHistory,
+    generationHistory: s.generationHistory,
   };
 }
 

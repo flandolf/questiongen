@@ -123,7 +123,7 @@ export function UnifiedMcqOptionsGrid({
             >
               {opt.label}
             </div>
-            <div className="flex-1 text-sm leading-snug">
+            <div className="flex-1 text-base leading-snug">
               <MarkdownMath content={opt.text} />
             </div>
           </button>

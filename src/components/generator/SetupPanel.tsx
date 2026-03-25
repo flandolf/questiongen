@@ -26,13 +26,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAppSettings } from "@/AppContext";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { formatCostUsd } from "@/lib/app-utils";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { formatCostUsd, estimateTokensAndCost } from "@/lib/app-utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   TOPICS,
   Topic,
@@ -51,6 +52,7 @@ import {
   GenerationTelemetry,
 } from "@/types";
 import { PageHeader, FilterGroup, FilterButton } from "@/components/layout/primitives";
+import { useAppStore } from "@/store";
 
 // ─── Batch progress type (exported for GeneratorView) ────────────────────────
 
@@ -525,6 +527,10 @@ type SetupPanelProps = {
   onSetAvoidSimilarQuestions: (enabled: boolean) => void;
   shuffleQuestions: boolean;
   onSetShuffleQuestions: (enabled: boolean) => void;
+  aiDifficultyScalingEnabled: boolean;
+  onSetAiDifficultyScalingEnabled: (enabled: boolean) => void;
+  difficultyThresholds: { increase: number; decrease: number };
+  onSetDifficultyThresholds: (thresholds: { increase: number; decrease: number }) => void;
   hasApiKey: boolean;
   canGenerate: boolean;
   isGenerating: boolean;
@@ -554,6 +560,8 @@ export function SetupPanel({
   maxMarksPerQuestion, onSetMaxMarksPerQuestion,
   avoidSimilarQuestions, onSetAvoidSimilarQuestions,
   shuffleQuestions, onSetShuffleQuestions,
+  aiDifficultyScalingEnabled, onSetAiDifficultyScalingEnabled,
+  difficultyThresholds, onSetDifficultyThresholds,
   hasApiKey, canGenerate, isGenerating,
   generationStatus, generationStartedAt, formattedElapsedTime,
   onGenerate,
@@ -563,6 +571,7 @@ export function SetupPanel({
 }: SetupPanelProps) {
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
+  const generationHistory = useAppStore((s) => s.generationHistory);
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(null);
   const [completionPricePerToken, setCompletionPricePerToken] = useState<number | null>(null);
   const hasAnyMathTopic = selectedTopics.some(
@@ -599,37 +608,20 @@ export function SetupPanel({
   }, [apiKey, model]);
 
   const estimated = useMemo(() => {
-    let totalTokens = 0;
-    let totalTokensPerQuestion = 0;
-    let promptTokensPerQuestion = 0;
-    let completionTokensPerQuestion = 0;
-    let totalPromptTokens = 0;
-    let totalCompletionTokens = 0;
-
-    if (questionMode === "multiple-choice") {
-      totalTokens = questionCount > 0 ? 2250 + (questionCount - 1) * 350 : 0;
-      totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
-      const ratios = { prompt: 0.6, completion: 0.4 };
-      promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
-      completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
-      totalPromptTokens = promptTokensPerQuestion * questionCount;
-      totalCompletionTokens = completionTokensPerQuestion * questionCount;
-    } else {
-      totalTokens = questionCount > 0 ? 2000 + (questionCount - 1) * 350 : 0;
-      totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
-      const ratios = { prompt: 0.35, completion: 0.65 };
-      promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
-      completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
-      totalPromptTokens = promptTokensPerQuestion * questionCount;
-      totalCompletionTokens = completionTokensPerQuestion * questionCount;
-    }
-
-    const promptCost = promptPricePerToken != null ? promptPricePerToken * totalPromptTokens : null;
-    const completionCost = completionPricePerToken != null ? completionPricePerToken * totalCompletionTokens : null;
-    const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
-
-    return { totalTokensPerQuestion, promptTokensPerQuestion, completionTokensPerQuestion, totalTokens, totalPromptTokens, totalCompletionTokens, promptCost, completionCost, totalCost };
-  }, [questionMode, difficulty, maxMarksPerQuestion, customFocusArea, avoidSimilarQuestions, questionCount, promptPricePerToken, completionPricePerToken]);
+    // Use the first selected topic for estimation, or a default
+    const primaryTopic = selectedTopics[0] || "Mathematical Methods";
+    return estimateTokensAndCost(
+      generationHistory,
+      primaryTopic as Topic,
+      difficulty,
+      questionCount,
+      questionMode,
+      techMode,
+      hasAnyMathTopic ? maxMarksPerQuestion : undefined,
+      promptPricePerToken,
+      completionPricePerToken
+    );
+  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, hasAnyMathTopic, promptPricePerToken, completionPricePerToken]);
 
   // Derive "is the timeline visible" — same condition as before
   const showTimeline =
@@ -767,6 +759,77 @@ export function SetupPanel({
 
         <SectionDivider />
 
+        {/* ── Step 2.5: AI Difficulty Scaling ── */}
+        <div>
+          <CollapsibleStep
+            number={step()}
+            title="AI Difficulty Scaling"
+            chips={
+              aiDifficultyScalingEnabled ? (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                  Enabled
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  Disabled
+                </span>
+              )
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="ai-scaling"
+                  checked={aiDifficultyScalingEnabled}
+                  onCheckedChange={(checked) => onSetAiDifficultyScalingEnabled(!!checked)}
+                />
+                <Label htmlFor="ai-scaling" className="text-sm font-medium">
+                  Enable AI-driven difficulty adjustment
+                </Label>
+              </div>
+              {aiDifficultyScalingEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Increase threshold (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={difficultyThresholds.increase}
+                      onChange={(e) => onSetDifficultyThresholds({
+                        ...difficultyThresholds,
+                        increase: parseInt(e.target.value) || 85
+                      })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Decrease threshold (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={difficultyThresholds.decrease}
+                      onChange={(e) => onSetDifficultyThresholds({
+                        ...difficultyThresholds,
+                        decrease: parseInt(e.target.value) || 70
+                      })}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                When enabled, the AI will adjust question difficulty based on your recent performance.
+                If your average score exceeds the increase threshold, difficulty will rise.
+                If below the decrease threshold, difficulty will lower.
+              </p>
+            </div>
+          </CollapsibleStep>
+        </div>
+
+        <SectionDivider />
+
         {/* ── Step 3: Questions + Marks ── */}
         <div>
           <CollapsibleStep
@@ -793,7 +856,7 @@ export function SetupPanel({
                   </Label>
                   <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{questionCount}</Badge>
                 </div>
-                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => onSetQuestionCount(val[0])} className="py-1" />
+                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => onSetQuestionCount(val[0])} className="px-1 py-1" />
                 <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>20</span></div>
               </div>
 
@@ -965,7 +1028,7 @@ export function SetupPanel({
       <div className="pt-6 border-t space-y-4">
 
         {/* ── Full config summary strip (idle only) ── */}
-        {!isGenerating && generationStatus?.stage !== "completed" && (
+        {!isGenerating && (
           <div className="w-full px-6 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Session Summary</p>
 

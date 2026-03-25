@@ -178,6 +178,8 @@ export function GeneratorView() {
     maxMarksPerQuestion, setMaxMarksPerQuestion,
     questionMode, setQuestionMode,
     subtopicInstructions,
+    aiDifficultyScalingEnabled, setAiDifficultyScalingEnabled,
+    difficultyThresholds, setDifficultyThresholds,
   } = useAppPreferences();
 
   const {
@@ -213,6 +215,8 @@ export function GeneratorView() {
     errorMessage, setErrorMessage,
   } = useAppContext();
 
+  const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
+
   const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
@@ -222,6 +226,17 @@ export function GeneratorView() {
   const [, setNow] = useState(Date.now());
 
   const [streamText, setStreamText] = useState("");
+
+  // Calculate recent average score for AI scaling
+  const recentAverageScore = useMemo(() => {
+    const examHistory = useAppStore.getState().examHistory;
+    if (examHistory.length === 0) return null;
+
+    // Take last 5 exams
+    const recentExams = examHistory.slice(0, 5);
+    const totalScore = recentExams.reduce((sum, exam) => sum + (exam.totalScore / exam.totalMax * 100), 0);
+    return totalScore / recentExams.length;
+  }, []); // Recalculate when needed, but for now static
 
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
     import("@/types").GenerationTelemetry | null
@@ -729,6 +744,9 @@ useEffect(() => {
               customFocusArea: getCustomFocusArea(),
               avoidSimilarQuestions,
               priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("written") : [],
+              aiDifficultyScalingEnabled,
+              recentAverageScore,
+              recentDifficulty: difficulty, // Use current as recent
             },
           });
 
@@ -740,6 +758,29 @@ useEffect(() => {
           totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
           totalTelemetry.distinctnessAvg += (response.distinctnessAvg || 0) * count;
           totalTelemetry.multiStepDepthAvg += (response.multiStepDepthAvg || 0) * count;
+
+          // Record this generation for cost estimation
+          addGenerationRecord({
+            id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: new Date().toISOString(),
+            inputs: {
+              topic,
+              difficulty,
+              questionCount: count,
+              questionMode: "written",
+              techMode,
+              maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
+            },
+            outputs: {
+              durationMs: response.durationMs || 0,
+              promptTokens: response.promptTokens,
+              completionTokens: response.completionTokens,
+              totalTokens: response.totalTokens,
+              estimatedCostUsd: response.estimatedCostUsd,
+              distinctnessAvg: response.distinctnessAvg,
+              multiStepDepthAvg: response.multiStepDepthAvg,
+            },
+          });
 
           if (isMultiTopic) setBatchEntryDone(i);
         } catch (topicError) {
@@ -846,6 +887,9 @@ useEffect(() => {
               customFocusArea: getCustomFocusArea(),
               avoidSimilarQuestions,
               priorQuestionPrompts: avoidSimilarQuestions ? getRecentSameTopicQuestionPrompts("multiple-choice") : [],
+              aiDifficultyScalingEnabled,
+              recentAverageScore,
+              recentDifficulty: difficulty,
             },
           });
 
@@ -857,6 +901,28 @@ useEffect(() => {
           totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
           totalTelemetry.distinctnessAvg += (response.distinctnessAvg || 0) * count;
           totalTelemetry.multiStepDepthAvg += (response.multiStepDepthAvg || 0) * count;
+
+          // Record this generation for cost estimation
+          addGenerationRecord({
+            id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: new Date().toISOString(),
+            inputs: {
+              topic,
+              difficulty,
+              questionCount: count,
+              questionMode: "multiple-choice",
+              techMode,
+            },
+            outputs: {
+              durationMs: response.durationMs || 0,
+              promptTokens: response.promptTokens,
+              completionTokens: response.completionTokens,
+              totalTokens: response.totalTokens,
+              estimatedCostUsd: response.estimatedCostUsd,
+              distinctnessAvg: response.distinctnessAvg,
+              multiStepDepthAvg: response.multiStepDepthAvg,
+            },
+          });
 
           if (isMultiTopic) setBatchEntryDone(i);
         } catch (topicError) {
@@ -1054,6 +1120,8 @@ useEffect(() => {
       (questionMode === "multiple-choice" && mcQuestions.length > 0 && !activeMcSavedSetId)) saveCurrentSet();
     resetStopwatch();
     setBatchProgress([]);
+    setGenerationStatus(null); // Reset status so summary shows
+    setGenerationStartedAt(null);
     setQuestions([]); setWrittenRawModelOutput(""); setWrittenGenerationTelemetry(null); setShowWrittenRawOutput(false);
     setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null); setWrittenQuestionPresentedAtById({});
     setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
@@ -1119,6 +1187,8 @@ useEffect(() => {
           maxMarksPerQuestion={maxMarksPerQuestion} onSetMaxMarksPerQuestion={setMaxMarksPerQuestion}
           avoidSimilarQuestions={avoidSimilarQuestions} onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
           shuffleQuestions={shuffleQuestions} onSetShuffleQuestions={setShuffleQuestions}
+          aiDifficultyScalingEnabled={aiDifficultyScalingEnabled} onSetAiDifficultyScalingEnabled={setAiDifficultyScalingEnabled}
+          difficultyThresholds={difficultyThresholds} onSetDifficultyThresholds={setDifficultyThresholds}
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}
           isGenerating={isGenerating}

@@ -15,6 +15,38 @@ use tauri::Emitter;
 
 use constants::*;
 use difficulty::difficulty_guidance;
+
+fn adjust_difficulty(
+    base_difficulty: &str,
+    scaling_enabled: bool,
+    recent_average_score: Option<f64>,
+    recent_difficulty: Option<&str>,
+) -> String {
+    if !scaling_enabled || recent_average_score.is_none() {
+        return base_difficulty.to_string();
+    }
+
+    let score = recent_average_score.unwrap();
+    let levels = ["Essential Skills", "Easy", "Medium", "Hard", "Extreme"];
+    let mut current_index = levels.iter().position(|&r| r == base_difficulty).unwrap_or(2); // default Medium
+
+    // If recent difficulty was different, adjust baseline
+    if let Some(recent_diff) = recent_difficulty {
+        if let Some(recent_idx) = levels.iter().position(|&r| r == recent_diff) {
+            current_index = recent_idx;
+        }
+    }
+
+    let new_index = if score > 85.0 {
+        (current_index + 1).min(4)
+    } else if score < 70.0 {
+        current_index.saturating_sub(1)
+    } else {
+        current_index
+    };
+
+    levels[new_index].to_string()
+}
 use models::*;
 use openrouter::{call_openrouter, call_openrouter_streaming, json_schema_format};
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
@@ -466,6 +498,15 @@ async fn generate_questions(
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+
+    // Adjust difficulty based on AI scaling
+    let adjusted_difficulty = adjust_difficulty(
+        &request.difficulty,
+        request.ai_difficulty_scaling_enabled.unwrap_or(false),
+        request.recent_average_score,
+        request.recent_difficulty.as_deref(),
+    );
+
     let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
     let custom_note = request
         .custom_focus_area
@@ -490,21 +531,21 @@ async fn generate_questions(
          Mark rules: assign maxMarks by command-term demand; cap at {max_marks_cap}.\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts/contexts/methods per question — no two questions should \
-test the same skill in the same way. No worked solutions in prompts.\
+ test the same skill in the same way. No worked solutions in prompts.\
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
-key knowledge above. Do not introduce content outside the Study Design.\n\
+ key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
          Output exactly {count} questions.",
         count       = request.question_count,
         topics      = request.topics.join(", "),
-        difficulty  = request.difficulty,
-        diff_rules  = difficulty_guidance(&request.difficulty),
+        difficulty  = adjusted_difficulty,
+        diff_rules  = difficulty_guidance(&adjusted_difficulty),
         subs_note   = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note = custom_note,
         tech        = tech_note(tech_mode),
         topic_notes = topic_notes(&request.topics),
-        math_diff   = math_difficulty_note(&request.difficulty, &request.topics),
+        math_diff   = math_difficulty_note(&adjusted_difficulty, &request.topics),
         sim_note    = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
@@ -623,6 +664,15 @@ async fn generate_mc_questions(
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+
+    // Adjust difficulty based on AI scaling
+    let adjusted_difficulty = adjust_difficulty(
+        &request.difficulty,
+        request.ai_difficulty_scaling_enabled.unwrap_or(false),
+        request.recent_average_score,
+        request.recent_difficulty.as_deref(),
+    );
+
     let custom_note = request
         .custom_focus_area
         .as_deref()
@@ -656,13 +706,13 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
          Output exactly {count} questions.",
         count       = request.question_count,
         topics      = request.topics.join(", "),
-        difficulty  = request.difficulty,
-        diff_rules  = difficulty_guidance(&request.difficulty),
+        difficulty  = adjusted_difficulty,
+        diff_rules  = difficulty_guidance(&adjusted_difficulty),
         subs_note   = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note = custom_note,
         tech        = tech_note(tech_mode),
         topic_notes = topic_notes(&request.topics),
-        math_diff   = math_difficulty_note(&request.difficulty, &request.topics),
+        math_diff   = math_difficulty_note(&adjusted_difficulty, &request.topics),
         sim_note    = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),

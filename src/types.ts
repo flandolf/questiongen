@@ -1085,6 +1085,20 @@ export type GenerationTelemetry = {
   multiStepDepthAvg?: number;
 };
 
+export type GenerationRecord = {
+  id: string;
+  timestamp: string;
+  inputs: {
+    topic: Topic;
+    difficulty: Difficulty;
+    questionCount: number;
+    questionMode: QuestionMode;
+    techMode: TechMode;
+    maxMarksPerQuestion?: number;
+  };
+  outputs: GenerationTelemetry;
+};
+
 export type GenerationStatusStage =
   | "preparing"
   | "generating"
@@ -1266,6 +1280,8 @@ export type PersistedGeneratorPreferences = {
   maxMarksPerQuestion: number;
   questionMode: QuestionMode;
   subtopicInstructions: Record<string, string>;
+  aiDifficultyScalingEnabled?: boolean;
+  difficultyThresholds?: { increase: number; decrease: number };
 };
 
 export type PersistedWrittenSession = {
@@ -1315,6 +1331,7 @@ export type PersistedAppState = {
   studyGoals?: StudyGoals;
   streakData?: StreakData;
   examHistory?: ExamRecord[];
+  generationHistory?: GenerationRecord[];
 };
 
 // ─── ExamRecord ─────────────────────────────────────────────────────────────
