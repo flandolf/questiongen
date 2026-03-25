@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "../store";
+import { useAppSettings } from "../AppContext";
 import {
   Topic, Difficulty, TechMode, GeneratedQuestion, MarkAnswerResponse, TOPICS,
   MATH_METHODS_SUBTOPICS, SPECIALIST_MATH_SUBTOPICS, CHEMISTRY_SUBTOPICS,
@@ -17,13 +18,17 @@ import {
   UnifiedQuestionPromptCard,
   UnifiedWrittenResponseCard,
 } from "../components/question/UnifiedQuestionBlocks";
-import { normalizeMarkResponse, readBackendError } from "../lib/app-utils";
+import { normalizeMarkResponse, readBackendError, formatCostUsd } from "../lib/app-utils";
 import {
-  Clock, Play, ChevronRight, ChevronLeft, Flag,
+  Clock, ChevronRight, ChevronLeft, Flag,
   CheckCircle2, XCircle, Trophy, BookOpen, Target, Loader2, Sparkles,
   RotateCcw, Timer, Gauge,
   History, CheckCheck,
+  DollarSign, Coins,
+  FunctionSquare, SigmaSquare, FlaskConical, Dumbbell,
 } from "lucide-react";
+import { PageContainer, PageHeader } from "@/components/layout/primitives";
+import { CollapsibleStep, SectionDivider } from "@/components/generator/SetupPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,17 +62,6 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function getDifficultyBadgeClasses(level: Difficulty) {
-  switch (level) {
-    case "Essential Skills": return "border-green-300/50 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300";
-    case "Easy": return "border-emerald-300/50 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300";
-    case "Medium": return "border-amber-300/50 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300";
-    case "Hard": return "border-orange-300/50 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300";
-    case "Extreme": return "border-rose-300/50 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300";
-    default: return "";
-  }
-}
-
 function getSubtopicsForTopic(topic: Topic): readonly string[] {
   switch (topic) {
     case "Mathematical Methods": return MATH_METHODS_SUBTOPICS;
@@ -77,6 +71,21 @@ function getSubtopicsForTopic(topic: Topic): readonly string[] {
     default: return [];
   }
 }
+
+const DIFFICULTY_META: Record<Difficulty, { label: string; color: string; desc: string }> = {
+  "Essential Skills": { label: "Essential", color: "text-emerald-600 dark:text-emerald-400", desc: "Core concepts" },
+  Easy: { label: "Easy", color: "text-sky-600 dark:text-sky-400", desc: "Straightforward" },
+  Medium: { label: "Medium", color: "text-amber-600 dark:text-amber-400", desc: "Balanced challenge" },
+  Hard: { label: "Hard", color: "text-orange-600 dark:text-orange-400", desc: "Complex problems" },
+  Extreme: { label: "Extreme", color: "text-rose-600 dark:text-rose-400", desc: "Exam edge cases" },
+};
+
+const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
+  "Mathematical Methods": <FunctionSquare className="w-3.5 h-3.5" />,
+  "Specialist Mathematics": <SigmaSquare className="w-3.5 h-3.5" />,
+  Chemistry: <FlaskConical className="w-3.5 h-3.5" />,
+  "Physical Education": <Dumbbell className="w-3.5 h-3.5" />,
+};
 
 // ─── Generating Screen ────────────────────────────────────────────────────────
 
@@ -297,11 +306,10 @@ function ExamMarkingScreen({
                   <span className="text-[11px] text-muted-foreground font-mono shrink-0">{i + 1}</span>
                   <div className="flex-1 min-w-0 text-sm line-clamp-1 text-foreground/80">{q.topic}</div>
                   {isMarked && fb && (
-                    <span className={`shrink-0 text-xs font-bold tabular-nums px-1.5 py-0.5 rounded ${
-                      pct !== null && pct >= 100 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" :
-                      pct !== null && pct >= 50 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600" :
-                      "bg-rose-100 dark:bg-rose-900/40 text-rose-600"
-                    }`}>
+                    <span className={`shrink-0 text-xs font-bold tabular-nums px-1.5 py-0.5 rounded ${pct !== null && pct >= 100 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" :
+                        pct !== null && pct >= 50 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600" :
+                          "bg-rose-100 dark:bg-rose-900/40 text-rose-600"
+                      }`}>
                       {fb.achievedMarks}/{fb.maxMarks}
                     </span>
                   )}
@@ -334,6 +342,7 @@ function FileTextIcon({ className }: { className?: string }) {
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 
 function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
+  const { apiKey, model } = useAppSettings();
   const [topic, setTopic] = useState<Topic>("Mathematical Methods");
   const [questionCount, setQuestionCount] = useState(5);
   const [timeLimit, setTimeLimit] = useState(30);
@@ -342,8 +351,63 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   const [questionMode, setQuestionMode] = useState<ExamQuestionMode>("written");
   const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
   const [customFocusArea] = useState("");
+  const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(null);
+  const [completionPricePerToken, setCompletionPricePerToken] = useState<number | null>(null);
 
   const availableSubtopics = getSubtopicsForTopic(topic);
+
+  const hasAnyMathTopic = topic === "Mathematical Methods" || topic === "Specialist Mathematics";
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchStats() {
+      if (!apiKey || !model || model === "custom") return;
+      try {
+        const stats = await invoke<any>("get_model_stats", { apiKey, modelId: model });
+        if (cancelled) return;
+        setPromptPricePerToken(stats.promptPricePerToken ?? null);
+        setCompletionPricePerToken(stats.completionPricePerToken ?? null);
+      } catch {
+        setPromptPricePerToken(null);
+        setCompletionPricePerToken(null);
+      }
+    }
+    void fetchStats();
+    return () => { cancelled = true; };
+  }, [apiKey, model]);
+
+  const estimated = useMemo(() => {
+    let totalTokens = 0;
+    let totalTokensPerQuestion = 0;
+    let promptTokensPerQuestion = 0;
+    let completionTokensPerQuestion = 0;
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+
+    if (questionMode === "multiple-choice") {
+      totalTokens = questionCount > 0 ? 2250 + (questionCount - 1) * 350 : 0;
+      totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
+      const ratios = { prompt: 0.6, completion: 0.4 };
+      promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
+      completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
+      totalPromptTokens = promptTokensPerQuestion * questionCount;
+      totalCompletionTokens = completionTokensPerQuestion * questionCount;
+    } else {
+      totalTokens = questionCount > 0 ? 2000 + (questionCount - 1) * 350 : 0;
+      totalTokensPerQuestion = questionCount > 0 ? Math.round(totalTokens / questionCount) : 0;
+      const ratios = { prompt: 0.35, completion: 0.65 };
+      promptTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.prompt);
+      completionTokensPerQuestion = Math.round(totalTokensPerQuestion * ratios.completion);
+      totalPromptTokens = promptTokensPerQuestion * questionCount;
+      totalCompletionTokens = completionTokensPerQuestion * questionCount;
+    }
+
+    const promptCost = promptPricePerToken != null ? promptPricePerToken * totalPromptTokens : null;
+    const completionCost = completionPricePerToken != null ? completionPricePerToken * totalCompletionTokens : null;
+    const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
+
+    return { totalTokensPerQuestion, promptTokensPerQuestion, completionTokensPerQuestion, totalTokens, totalPromptTokens, totalCompletionTokens, promptCost, completionCost, totalCost };
+  }, [questionMode, questionCount, promptPricePerToken, completionPricePerToken]);
 
   const toggleSubtopic = (sub: string) =>
     setSelectedSubtopics(prev => prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]);
@@ -358,145 +422,264 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   ];
 
   return (
-    <div className="min-h-full px-4 sm:px-6 py-6 space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Exam Simulator</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Timed practice with AI marking</p>
-        </div>
-        <Button
-          size="lg"
-          className="gap-2 h-10 px-6 font-semibold"
-          onClick={() => onStart({ topic, questionCount, timeLimitMinutes: timeLimit, difficulty, techMode, questionMode, selectedSubtopics, customFocusArea })}
+    <PageContainer>
+      <PageHeader
+        title="Exam Simulator"
+        description="Timed practice with AI marking"
+      />
+
+      <div className="space-y-2">
+        {/* Subject */}
+        <CollapsibleStep
+          number={1}
+          title="Subject"
+          subtitle={topic}
+          chips={
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
+              {TOPIC_ICONS[topic] && <span className="opacity-70">{TOPIC_ICONS[topic]}</span>}
+              {topic.split(" ")[0]}
+            </span>
+          }
         >
-          <Play className="w-4 h-4 fill-current" />
-          Start
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-        <div className="space-y-6">
-          {/* Subject */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground/80">Subject</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {TOPICS.map((t) => (
-                <button key={t} type="button" onClick={() => handleTopicChange(t)}
-                  className={`p-3 text-left text-sm font-medium rounded-lg border transition-colors ${topic === t ? "border-violet-500 bg-violet-500/10 text-violet-700" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
-                  {t}
+          <div className="grid grid-cols-2 gap-2">
+            {TOPICS.map((t) => {
+              const isSelected = topic === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => handleTopicChange(t)}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-left transition-all duration-150 cursor-pointer
+                    ${isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"
+                    }`}
+                >
+                  <span className="shrink-0">{TOPIC_ICONS[t] ?? <BookOpen className="w-3.5 h-3.5" />}</span>
+                  <span className="leading-tight">{t}</span>
+                  {isSelected && <CheckCheck className="w-3.5 h-3.5 ml-auto shrink-0 opacity-80" />}
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
-            {availableSubtopics.length > 0 && (
-              <div className="p-4 rounded-lg border border-border/40 bg-muted/20 space-y-3">
+          {availableSubtopics.length > 0 && (
+            <>
+              <SectionDivider />
+              <div className="rounded-lg border border-border/40 bg-muted/20 p-4 space-y-3">
                 <p className="text-xs font-medium text-muted-foreground">Focus areas <span className="opacity-60">(optional)</span></p>
                 <div className="flex flex-wrap gap-1.5">
                   {availableSubtopics.map((sub) => (
                     <button key={sub} type="button" onClick={() => toggleSubtopic(sub)}
-                      className={`text-xs px-2 py-1 rounded-full border transition-colors cursor-pointer select-none ${selectedSubtopics.includes(sub) ? "bg-violet-500 text-white border-violet-500" : "border-border/50 text-muted-foreground hover:border-violet-500/50 hover:text-foreground"}`}>
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-150 cursor-pointer select-none ${selectedSubtopics.includes(sub) ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"}`}>
                       {sub}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-          </section>
+            </>
+          )}
+        </CollapsibleStep>
 
-          {/* Format */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground/80">Format</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Response</p>
-                <div className="flex flex-col gap-2">
-                  <button type="button" onClick={() => setQuestionMode("written")}
-                    className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors ${questionMode === "written" ? "border-sky-500 bg-sky-500/10 text-sky-700" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
-                    <BookOpen className="w-4 h-4" /> Written
-                  </button>
-                  <button type="button" onClick={() => setQuestionMode("multiple-choice")}
-                    className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors ${questionMode === "multiple-choice" ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-700" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
-                    <Target className="w-4 h-4" /> Multiple Choice
-                  </button>
-                </div>
+        <SectionDivider />
+
+        {/* Format */}
+        <CollapsibleStep
+          number={2}
+          title="Format"
+          subtitle={questionMode === "written" ? "Written" : "Multiple Choice"}
+        >
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Response</p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setQuestionMode("written")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${questionMode === "written" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}>
+                  <BookOpen className="w-3.5 h-3.5" /> Written
+                </button>
+                <button type="button" onClick={() => setQuestionMode("multiple-choice")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${questionMode === "multiple-choice" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}>
+                  <Target className="w-3.5 h-3.5" /> Multiple Choice
+                </button>
               </div>
+            </div>
+
+            {hasAnyMathTopic && (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Technology</p>
-                <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium text-muted-foreground">Technology</p>
+                <div className="flex gap-2">
                   {(["tech-free", "tech-active", "mix"] as TechMode[]).map((m) => (
                     <button key={m} type="button" onClick={() => setTechMode(m)}
-                      className={`rounded-lg border p-3 text-sm font-medium transition-colors text-left ${techMode === m ? "border-foreground bg-foreground/5 text-foreground" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${techMode === m ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}>
                       {m === "tech-free" ? "Tech-Free" : m === "tech-active" ? "Tech-Active" : "Mixed"}
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
-          </section>
+            )}
+          </div>
+        </CollapsibleStep>
 
-          {/* Difficulty */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground/80">Difficulty</h3>
-            <div className="flex flex-wrap gap-2">
-              {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((d) => (
+        <SectionDivider />
+
+        {/* Difficulty */}
+        <CollapsibleStep
+          number={3}
+          title="Difficulty"
+          subtitle={difficulty}
+        >
+          <div className="grid grid-cols-5 gap-1.5">
+            {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((d) => {
+              const isSelected = difficulty === d;
+              const meta = DIFFICULTY_META[d];
+              return (
                 <button key={d} type="button" onClick={() => setDifficulty(d)}
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${getDifficultyBadgeClasses(d)} ${difficulty === d ? "ring-2 ring-offset-1 ring-offset-background" : "opacity-60 hover:opacity-100"}`}>
-                  {d}
+                  className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-center transition-all duration-150 cursor-pointer
+                    ${isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}>
+                  <span className={`text-xs font-semibold leading-tight ${isSelected ? meta.color : "text-foreground"}`}>{meta.label}</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">{meta.desc}</span>
                 </button>
-              ))}
-            </div>
-          </section>
+              );
+            })}
+          </div>
+        </CollapsibleStep>
 
-          {/* Length */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground/80">Length & Duration</h3>
-            <div className="flex gap-8">
-              <div className="space-y-2 flex-1">
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-muted-foreground">Questions</p>
-                  <span className="text-lg font-bold text-foreground">{questionCount}</span>
-                </div>
-                <Slider min={1} max={20} value={[questionCount]} onValueChange={([v]) => setQuestionCount(v)} />
-              </div>
-              <div className="space-y-2 flex-1">
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-muted-foreground">Time</p>
-                  <span className="text-lg font-bold text-foreground">{timeLimit} min</span>
-                </div>
-                <Slider min={5} max={120} step={5} value={[timeLimit]} onValueChange={([v]) => setTimeLimit(v)} />
-              </div>
-            </div>
-          </section>
-        </div>
+        <SectionDivider />
 
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg border border-border/40">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Presets</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {presets.map((p) => (
-                <button key={p.label} type="button"
-                  onClick={() => { setQuestionCount(p.count); setTimeLimit(p.time); }}
-                  className={`group p-3 text-left rounded-lg border transition-colors ${questionCount === p.count && timeLimit === p.time ? "border-violet-500 bg-violet-500/10" : "border-border/40 hover:border-violet-500/30"}`}>
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium">{p.label}</p>
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{p.count}Q / {p.time}m</span>
-                  </div>
-                </button>
-              ))}
+        {/* Length & Duration */}
+        <CollapsibleStep
+          number={4}
+          title="Length & Duration"
+          subtitle={`${questionCount} questions · ${timeLimit} min`}
+        >
+          <div className="flex gap-8 pb-2">
+            <div className="space-y-2 flex-1">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">Questions</p>
+                <span className="text-lg font-bold text-foreground">{questionCount}</span>
+              </div>
+              <Slider min={1} max={20} value={[questionCount]} onValueChange={([v]) => setQuestionCount(v)} />
+            </div>
+            <div className="space-y-2 flex-1">
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">Time</p>
+                <span className="text-lg font-bold text-foreground">{timeLimit} min</span>
+              </div>
+              <Slider min={5} max={120} step={5} value={[timeLimit]} onValueChange={([v]) => setTimeLimit(v)} />
             </div>
           </div>
+        </CollapsibleStep>
 
-          <div className="p-4 rounded-lg border border-border/40 bg-muted/20">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Rules</h3>
-            <div className="space-y-2 text-xs text-muted-foreground">
-              <p>Auto-submit when timer ends</p>
-              <p>Sequential question order</p>
-              <p>AI marking for written responses</p>
-            </div>
+        <SectionDivider />
+
+        {/* Presets */}
+        <CollapsibleStep
+          number={5}
+          title="Presets"
+          subtitle="Quick configurations"
+          chips={
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-foreground">
+              {questionCount}Q / {timeLimit}m
+            </span>
+          }
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {presets.map((p) => (
+              <button key={p.label} type="button"
+                onClick={() => { setQuestionCount(p.count); setTimeLimit(p.time); }}
+                className={`group p-3 text-left rounded-lg border transition-all duration-150 cursor-pointer ${questionCount === p.count && timeLimit === p.time ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-medium">{p.label}</p>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{p.count}Q / {p.time}m</span>
+                </div>
+              </button>
+            ))}
           </div>
-        </div>
+        </CollapsibleStep>
       </div>
-    </div>
+
+      {/* Footer / Start */}
+      <div className="pt-6 border-t space-y-4">
+        {/* Session Summary */}
+        <div className="w-full space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Exam Summary</p>
+
+          <div className="flex items-start gap-2">
+            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wide w-14 shrink-0 pt-0.5">Subject</span>
+            <div className="flex flex-wrap gap-1 flex-1">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[11px]">
+                {TOPIC_ICONS[topic] && <span className="opacity-70">{TOPIC_ICONS[topic]}</span>}
+                {topic}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
+            <span className="flex items-center gap-1">
+              <span className="text-muted-foreground/60">Difficulty</span>
+              <span className={`font-semibold ${DIFFICULTY_META[difficulty].color}`}>{DIFFICULTY_META[difficulty].label}</span>
+            </span>
+            <span className="text-border">·</span>
+            <span className="flex items-center gap-1">
+              <span className="text-muted-foreground/60">Questions</span>
+              <span className="font-semibold text-foreground tabular-nums">{questionCount}</span>
+            </span>
+            <span className="text-border">·</span>
+            <span className="flex items-center gap-1">
+              <span className="text-muted-foreground/60">Time</span>
+              <span className="font-semibold text-foreground tabular-nums">{timeLimit} min</span>
+            </span>
+            <span className="text-border">·</span>
+            <span className={`font-semibold ${questionMode === "written" ? "text-sky-600 dark:text-sky-400" : "text-violet-600 dark:text-violet-400"}`}>
+              {questionMode === "written" ? "Written" : "Multiple Choice"}
+            </span>
+          </div>
+
+          {(selectedSubtopics.length > 0 || techMode !== "mix") && (
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
+              {selectedSubtopics.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground/60">Focus</span>
+                  <span className="font-semibold text-foreground truncate max-w-[140px]">{selectedSubtopics[0]}{selectedSubtopics.length > 1 && ` +${selectedSubtopics.length - 1}`}</span>
+                </span>
+              )}
+              {selectedSubtopics.length > 0 && techMode !== "mix" && <span className="text-border">·</span>}
+              {techMode !== "mix" && (
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground/60">Calculator</span>
+                  <span className="font-semibold text-foreground">
+                    {techMode === "tech-free" ? "Tech-Free" : "Tech-Active"}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between text-[11px] border-t border-border/40 pt-1.5">
+            <span className="text-muted-foreground/70 tabular-nums flex items-center gap-1">
+              <Coins className="w-3 h-3" /> ~{estimated.totalTokens.toLocaleString()} tokens
+            </span>
+            {estimated.promptCost != null || estimated.completionCost != null ? (
+              <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
+                <DollarSign className="w-3 h-3 text-muted-foreground" />{formatCostUsd(estimated.totalCost)}
+              </span>
+            ) : (
+              <span className="text-muted-foreground/50">cost unavailable</span>
+            )}
+          </div>
+        </div>
+
+        <Button
+          size="lg"
+          className="w-full h-10 text-sm font-bold gap-2 transition-all duration-200"
+          onClick={() => onStart({ topic, questionCount, timeLimitMinutes: timeLimit, difficulty, techMode, questionMode, selectedSubtopics, customFocusArea })}
+        >
+          <Sparkles className="w-4 h-4" />
+          Start Exam
+        </Button>
+      </div>
+
+    </PageContainer>
   );
 }
 
@@ -578,11 +761,10 @@ function ExamActive({
           </div>
         </div>
 
-        <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-1.5 rounded-full shadow-sm border transition-colors ${
-          isTimeCritical ? "bg-rose-500/10 text-rose-600 border-rose-500/20 animate-pulse" :
-          isTimeWarning ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-          "bg-card text-foreground border-border/50"
-        }`}>
+        <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-1.5 rounded-full shadow-sm border transition-colors ${isTimeCritical ? "bg-rose-500/10 text-rose-600 border-rose-500/20 animate-pulse" :
+            isTimeWarning ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+              "bg-card text-foreground border-border/50"
+          }`}>
           <Clock className="w-4 h-4" />
           {formatTime(timeRemaining)}
         </div>

@@ -29,7 +29,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatCostUsd } from "@/lib/app-utils";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +50,7 @@ import {
   GenerationStatusEvent,
   GenerationTelemetry,
 } from "@/types";
+import { PageHeader, FilterGroup, FilterButton } from "@/components/layout/primitives";
 
 // ─── Batch progress type (exported for GeneratorView) ────────────────────────
 
@@ -87,7 +87,7 @@ const DIFFICULTY_META: Record<Difficulty, { label: string; color: string; desc: 
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function CollapsibleStep({
+export function CollapsibleStep({
   number, title, subtitle, chips, children, defaultOpen = true,
 }: {
   number: number;
@@ -157,7 +157,7 @@ function CollapsibleStep({
   );
 }
 
-function SectionDivider() {
+export function SectionDivider() {
   return <div className="h-px bg-border/60 my-1" />;
 }
 
@@ -637,40 +637,32 @@ export function SetupPanel({
     generationStartedAt !== null;
 
   return (
-    <Card className="border shadow-lg overflow-hidden">
+    <div>
       {/* ── Header ── */}
-      <div className="px-4 pb-2 border-b">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold flex items-center gap-2 leading-tight">
-              <Sparkles className="w-4 h-4 text-primary shrink-0" />
-              Practice Generator
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Configure your VCE revision session</p>
-          </div>
-
-          <div className="flex rounded-lg border bg-background p-0.5 gap-0.5 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => onSetQuestionMode("written")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer
-                ${questionMode === "written" ? "bg-sky-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <BookOpen className="w-3.5 h-3.5" /> Written
-            </button>
-            <button
-              type="button"
-              onClick={() => onSetQuestionMode("multiple-choice")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer
-                ${questionMode === "multiple-choice" ? "bg-violet-500 text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Target className="w-3.5 h-3.5" /> Multiple Choice
-            </button>
-          </div>
-        </div>
+      <div className="p-6 pb-4">
+        <PageHeader
+          title="Practice Generator"
+          description="Configure your VCE revision session"
+          actions={
+            <FilterGroup>
+              <FilterButton
+                active={questionMode === "written"}
+                onClick={() => onSetQuestionMode("written")}
+              >
+                <BookOpen className="w-3.5 h-3.5 mr-1.5" /> Written
+              </FilterButton>
+              <FilterButton
+                active={questionMode === "multiple-choice"}
+                onClick={() => onSetQuestionMode("multiple-choice")}
+              >
+                <Target className="w-3.5 h-3.5 mr-1.5" /> Multiple Choice
+              </FilterButton>
+            </FilterGroup>
+          }
+        />
       </div>
 
-      <CardContent className="px-4 space-y-1">
+      <div className="p-6 pt-4 space-y-6">
 
         {/* ── Step 1: Subjects ── */}
         <div>
@@ -967,14 +959,14 @@ export function SetupPanel({
             </div>
           </div>
         )}
-      </CardContent>
+      </div>
 
       {/* ── Footer / Generate ── */}
-      <CardFooter className="px-4 py-3 border-t bg-muted/20 flex flex-col gap-2.5">
+      <div className="pt-6 border-t space-y-4">
 
         {/* ── Full config summary strip (idle only) ── */}
         {!isGenerating && generationStatus?.stage !== "completed" && (
-          <div className="w-full rounded-xl border border-border bg-background/60 px-3 py-2.5 space-y-2">
+          <div className="w-full px-6 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Session Summary</p>
 
             <div className="flex items-start gap-2">
@@ -1065,27 +1057,29 @@ export function SetupPanel({
           </div>
         )}
 
-        <Button
-          size="lg"
-          className="w-full h-11 text-sm font-bold gap-2 transition-all duration-200 disabled:opacity-50"
-          onClick={onGenerate}
-          disabled={!canGenerate}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {showBatchTimeline
-                ? `Generating… (${batchProgress.filter(e => e.status === "done").length + batchProgress.filter(e => e.status === "error").length}/${batchProgress.length})`
-                : "Crafting questions…"
-              }
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              Generate Revision Set
-            </>
-          )}
-        </Button>
+        <div className="px-6">
+          <Button
+            size="lg"
+            className="w-full h-10 text-sm font-bold gap-2 transition-all duration-200 disabled:opacity-50"
+            onClick={onGenerate}
+            disabled={!canGenerate}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {showBatchTimeline
+                  ? `Generating… (${batchProgress.filter(e => e.status === "done").length + batchProgress.filter(e => e.status === "error").length}/${batchProgress.length})`
+                  : "Crafting questions…"
+                }
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                Generate Revision Set
+              </>
+            )}
+          </Button>
+        </div>
 
         {/* Generation timeline — batch or single depending on run type */}
         {showTimeline && (
@@ -1110,7 +1104,7 @@ export function SetupPanel({
         {!isGenerating && generationStatus?.stage !== "completed" && lastGenerationTelemetry && (
           <LastGenerationStats telemetry={lastGenerationTelemetry} />
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

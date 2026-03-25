@@ -30,6 +30,7 @@ import { McHistoryEntry, QuestionHistoryEntry, Topic, TOPICS } from "../types";
 import { EmptyState } from "../components/EmptyState";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { useNavigate } from "react-router-dom";
+import { PageContainer, PageHeader } from "@/components/layout/primitives";
 
 type AnyEntry =
   | ({ kind: "written" } & QuestionHistoryEntry)
@@ -92,7 +93,7 @@ const StatsBar = memo(function StatsBar({
   }, [entries]);
 
   return (
-    <div className="grid grid-cols-4 gap-3 py-3 px-1">
+    <div className="grid grid-cols-4 gap-3 py-3">
       {[
         {
           label: "Total attempts",
@@ -285,7 +286,7 @@ const McEntryCard = memo(function McEntryCard({
                 <span className="font-semibold text-sm leading-tight">{item.question.topic}</span>
                 <Badge
                   variant="secondary"
-                  className="shrink-0 text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 px-1.5 py-0.5 h-auto"
+                  className="shrink-0 text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 py-0.5 h-auto"
                 >
                   MC
                 </Badge>
@@ -426,7 +427,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                 <span className="font-semibold text-sm leading-tight">{item.question.topic}</span>
                 <Badge
                   variant="secondary"
-                  className="shrink-0 text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 px-1.5 py-0.5 h-auto"
+                  className="shrink-0 text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 py-0.5 h-auto"
                 >
                   Written
                 </Badge>
@@ -748,31 +749,28 @@ export function HistoryView() {
   }
 
   return (
-    <div className="px-4 py-4 min-w-full mx-auto h-full flex flex-col gap-3">
-      {/* ── Page header ── */}
-      <div className="flex items-start justify-between gap-3 px-1">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight leading-none">History</h1>
-          <p className="text-muted-foreground mt-1.5 text-sm">
-            {combined.length} attempt{combined.length !== 1 ? "s" : ""} recorded
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleClear}
-          className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 mt-1"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Clear All
-        </Button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="History"
+        description={`${combined.length} attempt${combined.length !== 1 ? "s" : ""} recorded`}
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear All
+          </Button>
+        }
+      />
 
       {/* ── Stats bar ── */}
       <StatsBar entries={combined} />
 
       {/* ── Search + filter toolbar ── */}
-      <div className="flex flex-col gap-2 px-1">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="relative flex-1">
@@ -894,7 +892,7 @@ export function HistoryView() {
 
       {/* ── Results summary ── */}
       {filteredHistory.length !== combined.length && (
-        <p className="text-xs text-muted-foreground px-1">
+        <p className="text-xs text-muted-foreground">
           Showing{" "}
           <span className="font-semibold text-foreground">{filteredHistory.length}</span> of{" "}
           {combined.length} entries
@@ -918,7 +916,7 @@ export function HistoryView() {
 
       {/* ── Entry list ── */}
       <ScrollArea className="flex-1 pr-1">
-        <div className="space-y-3 pb-8 px-1">
+        <div className="space-y-3 pb-8">
           {filteredHistory.map((item) => {
             const entryKey = `${item.kind}-${item.id}`;
             return (
@@ -959,6 +957,6 @@ export function HistoryView() {
         onConfirm={performSingleDeleteConfirmed}
         onCancel={() => { setDeleteConfirmOpen(false); setPendingDeleteEntry(null); }}
       />
-    </div>
+    </PageContainer>
   );
 }

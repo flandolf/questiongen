@@ -9,6 +9,7 @@ import { formatDate } from "../lib/app-utils";
 import { EmptyState } from "../components/EmptyState";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { useState, useMemo } from "react";
+import { PageContainer, PageHeader, Toolbar, FilterGroup, FilterButton } from "@/components/layout/primitives";
 
 type SortKey = "updatedAt" | "title" | "progress";
 type ModeFilter = "all" | "written" | "mc";
@@ -124,18 +125,13 @@ export function SavedView() {
   }
 
   return (
-    <div className="min-w-full px-4 py-4 h-full flex flex-col gap-4">
-      {/* Page header */}
-      <div className="px-1">
-        <h1 className="text-3xl font-bold tracking-tight">Saved Sets</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Reopen saved written and multiple-choice sets with your progress intact.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Saved Sets"
+        description="Reopen saved written and multiple-choice sets with your progress intact."
+      />
 
-      {/* --- #1: Search + filter + sort toolbar --- */}
-      <div className="flex flex-wrap gap-2 items-center px-1">
-        {/* Search */}
+      <Toolbar>
         <div className="relative flex-1 min-w-[160px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -147,25 +143,18 @@ export function SavedView() {
           />
         </div>
 
-        {/* Mode filter */}
-        <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5">
+        <FilterGroup>
           {(["all", "written", "mc"] as ModeFilter[]).map((mode) => (
-            <button
+            <FilterButton
               key={mode}
-              type="button"
+              active={modeFilter === mode}
               onClick={() => setModeFilter(mode)}
-              className={`px-2.5 py-1 text-xs rounded font-medium transition-colors ${
-                modeFilter === mode
-                  ? "bg-background shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
             >
               {mode === "all" ? "All" : mode === "written" ? "Written" : "MC"}
-            </button>
+            </FilterButton>
           ))}
-        </div>
+        </FilterGroup>
 
-        {/* Sort */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <SortAsc className="h-3.5 w-3.5 shrink-0" />
           <select
@@ -178,7 +167,7 @@ export function SavedView() {
             <option value="progress">Progress</option>
           </select>
         </div>
-      </div>
+      </Toolbar>
 
       {filteredSets.length === 0 && (
         <p className="text-sm text-muted-foreground px-1">No sets match your filters.</p>
@@ -351,6 +340,6 @@ export function SavedView() {
         onConfirm={performLoadConfirmed}
         onCancel={() => { setLoadConfirmOpen(false); setPendingLoadId(null); }}
       />
-    </div>
+    </PageContainer>
   );
 }

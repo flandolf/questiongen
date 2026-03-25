@@ -12,6 +12,7 @@ import { MarkdownMath } from "../components/MarkdownMath";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { EmptyState } from "../components/EmptyState";
 import { ExamRecord } from "../types";
+import { PageContainer, PageHeader, StatCard, FilterGroup, FilterButton } from "@/components/layout/primitives";
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -272,21 +273,11 @@ export default function ExamHistoryView() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border/40 px-4 sm:px-6 py-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight leading-none flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Trophy className="w-4 h-4 text-amber-500" />
-              </div>
-              Exam History
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {examHistory.length} exam{examHistory.length !== 1 ? "s" : ""} completed
-            </p>
-          </div>
+    <PageContainer>
+      <PageHeader
+        title="Exam History"
+        description={`${examHistory.length} exam${examHistory.length !== 1 ? "s" : ""} completed`}
+        actions={
           <Button
             variant="ghost" size="sm"
             onClick={() => setClearConfirmOpen(true)}
@@ -294,52 +285,33 @@ export default function ExamHistoryView() {
           >
             <Trash2 className="h-3.5 w-3.5" /> Clear All
           </Button>
-        </div>
+        }
+      />
 
-        {/* Summary KPIs */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur -mx-6 px-6 -mt-6 pb-4 pt-6 border-b border-border/40 space-y-3">
         {stats && (
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 space-y-0.5">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <BarChart2 className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Exams</span>
-              </div>
-              <div className="text-lg font-black tabular-nums">{stats.totalExams}</div>
-            </div>
-            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 space-y-0.5">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <TrendingUp className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Avg Score</span>
-              </div>
-              <div className={`text-lg font-black tabular-nums ${scoreColor(stats.avgScore)}`}>
-                {stats.avgScore.toFixed(1)}%
-              </div>
-            </div>
-            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 space-y-0.5">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Award className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Best</span>
-              </div>
-              <div className={`text-lg font-black tabular-nums ${scoreColor(stats.bestPct)}`}>
-                {stats.bestPct.toFixed(1)}%
-              </div>
-            </div>
+            <StatCard label="Exams" value={stats.totalExams} icon={<BarChart2 className="w-3 h-3" />} />
+            <StatCard label="Avg Score" value={`${stats.avgScore.toFixed(1)}%`} icon={<TrendingUp className="w-3 h-3" />} />
+            <StatCard label="Best" value={`${stats.bestPct.toFixed(1)}%`} icon={<Award className="w-3 h-3" />} />
           </div>
         )}
 
-        {/* Mode filter */}
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-0.5 self-start">
+        <FilterGroup>
           {(["all", "written", "mc"] as const).map((m) => (
-            <button key={m} type="button" onClick={() => setModeFilter(m)}
-              className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${modeFilter === m ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            <FilterButton
+              key={m}
+              active={modeFilter === m}
+              onClick={() => setModeFilter(m)}
+            >
               {m === "all" ? `All (${examHistory.length})` : m === "written" ? `Written (${examHistory.filter(r => r.questionMode === "written").length})` : `MC (${examHistory.filter(r => r.questionMode !== "written").length})`}
-            </button>
+            </FilterButton>
           ))}
-        </div>
+        </FilterGroup>
       </div>
 
       {/* List */}
-      <div className="flex-1 px-4 sm:px-6 py-4 space-y-3 pb-8">
+      <div className="flex-1 space-y-3 pb-8">
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No exams match this filter.</p>
         ) : (
@@ -377,6 +349,6 @@ export default function ExamHistoryView() {
         onConfirm={() => { clearExamHistory(); setClearConfirmOpen(false); }}
         onCancel={() => setClearConfirmOpen(false)}
       />
-    </div>
+    </PageContainer>
   );
 }
