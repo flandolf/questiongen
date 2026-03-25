@@ -1095,6 +1095,8 @@ export type GenerationRecord = {
     questionMode: QuestionMode;
     techMode: TechMode;
     maxMarksPerQuestion?: number;
+    subtopics?: string[]; // Array of selected subtopics
+    customFocusArea?: string; // Custom focus area text
   };
   outputs: GenerationTelemetry;
 };
