@@ -1,18 +1,19 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store";
-import { McHistoryEntry, QuestionHistoryEntry } from "../types";
+import { McHistoryEntry, QuestionHistoryEntry, ReviewQuality, SpacedRepetitionCard } from "../types";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
 import { Input } from "../components/ui/input";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { normalizeMarkResponse, readBackendError } from "../lib/app-utils";
+import { isDue, daysUntilReview, qualityLabel, binaryToQuality, scoreToQuality } from "../lib/spaced-repetition";
 import {
     ChevronDown, ChevronUp, Shuffle, List, BookOpen, Target,
     CheckCircle2, XCircle, RotateCcw, Eye, ChevronLeft, ChevronRight,
     Lightbulb, Trophy, Frown, Trash2, Loader2, Sparkles, Check, AlertCircle,
-    ImagePlus, X, FileImage, PenLine, Camera,
+    ImagePlus, X, FileImage, PenLine, Camera, Brain,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -174,9 +175,10 @@ function McExpandedBody({ entry }: { entry: McWrongEntry }) {
 // ─── List entry card ──────────────────────────────────────────────────────────
 
 function ListEntryCard({
-    entry, index, isExpanded, onToggle, onDelete,
+    entry, index, isExpanded, onToggle, onDelete, srCard,
 }: {
     entry: WrongEntry; index: number; isExpanded: boolean; onToggle: () => void; onDelete: () => void;
+    srCard?: SpacedRepetitionCard;
 }) {
     const isWritten = entry.kind === "written";
     let scoreLabel = "";
@@ -219,6 +221,17 @@ function ListEntryCard({
                         </div>
                     </div>
                     <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
+                        {srCard && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                                daysUntilReview(srCard) < 0 ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400" :
+                                daysUntilReview(srCard) === 0 ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400" :
+                                "bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400"
+                            }`}>
+                                {daysUntilReview(srCard) < 0 ? `${Math.abs(daysUntilReview(srCard))}d overdue` :
+                                 daysUntilReview(srCard) === 0 ? "Due" :
+                                 `${daysUntilReview(srCard)}d`}
+                            </span>
+                        )}
                         {isWritten && scoreLabel && (
                             <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${scoreBg(pct)}`}>{scoreLabel}</span>
                         )}
@@ -546,6 +559,10 @@ function ReattemptView({
     const [selfRated, setSelfRated] = useState<boolean | null>(null);
     const [markingState, setMarkingState] = useState<MarkingState>({ phase: "idle" });
 
+    // Spaced repetition quality rating
+    const reviewSpacedCard = useAppStore((s) => s.reviewSpacedCard);
+    const [srQuality, setSrQuality] = useState<ReviewQuality | null>(null);
+
     const entry = questions[idx];
     const isWritten = entry.kind === "written";
     const isMc = !isWritten;
@@ -556,6 +573,14 @@ function ReattemptView({
     const correctSoFar = results.filter((r) => r.correct).length;
     const attemptedSoFar = results.length;
     const progressPct = (idx / questions.length) * 100;
+
+    // Record SR when MC answer is selected
+    const handleMcSelect = (label: string) => {
+        if (!mcEntry) return;
+        setMcSelected(label);
+        const correct = label === mcEntry.question.correctAnswer;
+        reviewSpacedCard(entry.id, binaryToQuality(correct));
+    };
 
     const hasTextAnswer = writtenAnswer.trim().length > 0;
     const hasImageAnswer = imageDataUrl !== null;
@@ -583,7 +608,11 @@ function ReattemptView({
                         : {}),
                 },
             });
-            setMarkingState({ phase: "done", response: normalizeMarkResponse(raw, writtenEntry.question.maxMarks) });
+            const response = normalizeMarkResponse(raw, writtenEntry.question.maxMarks);
+            setMarkingState({ phase: "done", response });
+            // Record SR based on score
+            const scorePct = response.maxMarks > 0 ? response.achievedMarks / response.maxMarks : 0;
+            reviewSpacedCard(entry.id, scoreToQuality(scorePct));
         } catch (err) {
             setMarkingState({ phase: "error", message: readBackendError(err) });
         }
@@ -615,6 +644,7 @@ function ReattemptView({
         setMcSelected(null);
         setWrittenAnswer(""); setImageDataUrl(null); setAnswerMode("text");
         setShowAnswer(false); setSelfRated(null); setMarkingState({ phase: "idle" });
+        setSrQuality(null);
     };
 
     const handleNext = () => {
@@ -720,7 +750,7 @@ function ReattemptView({
                             else { cls = "border-border/30 opacity-40 cursor-default grayscale"; }
                         }
                         return (
-                            <button key={opt.label} disabled={answered} onClick={() => setMcSelected(opt.label)}
+                            <button key={opt.label} disabled={answered} onClick={() => handleMcSelect(opt.label)}
                                 className={`w-full text-left p-3 rounded-xl border-2 flex gap-3 items-start transition-all duration-200 ${cls}`}>
                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm ${lblBg || "bg-muted text-foreground"}`}
                                     style={!isCorrect && !isChosen ? { backgroundColor: `${color}20`, color } : undefined}>
@@ -872,9 +902,49 @@ function ReattemptView({
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${selfRated ? "bg-emerald-500/10 border-emerald-500/25" : "bg-rose-500/10 border-rose-400/25"}`}>
-                                        {selfRated ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-                                        <p className="text-sm font-medium">{selfRated ? "Marked as correct — great work!" : "Marked as still incorrect."}</p>
+                                    <div className="space-y-3">
+                                        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${selfRated ? "bg-emerald-500/10 border-emerald-500/25" : "bg-rose-500/10 border-rose-400/25"}`}>
+                                            {selfRated ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                                            <p className="text-sm font-medium">{selfRated ? "Marked as correct — great work!" : "Marked as still incorrect."}</p>
+                                        </div>
+                                        {/* Spaced repetition quality rating */}
+                                        {srQuality === null ? (
+                                            <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Brain className="w-4 h-4 text-sky-500" />
+                                                    <p className="text-sm font-semibold">Rate your confidence for future review scheduling</p>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {([1, 2, 3, 4, 5] as ReviewQuality[]).map((q) => (
+                                                        <button
+                                                            key={q}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSrQuality(q);
+                                                                reviewSpacedCard(entry.id, q);
+                                                            }}
+                                                            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all hover:scale-105 ${
+                                                                q <= 2 ? "border-rose-400/40 text-rose-600 hover:bg-rose-500/10" :
+                                                                q === 3 ? "border-amber-400/40 text-amber-600 hover:bg-amber-500/10" :
+                                                                "border-emerald-400/40 text-emerald-600 hover:bg-emerald-500/10"
+                                                            }`}
+                                                        >
+                                                            {q} — {qualityLabel(q).split(" ").slice(0, 3).join(" ")}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-sky-500/20 bg-sky-500/5">
+                                                <Brain className="w-4 h-4 text-sky-500 shrink-0" />
+                                                <p className="text-sm text-sky-700 dark:text-sky-300">
+                                                    Review scheduled — next review in{" "}
+                                                    <span className="font-bold">
+                                                        {srQuality >= 3 ? (srQuality === 3 ? "1 day" : srQuality === 4 ? "6 days" : "longer") : "1 day"}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -946,6 +1016,8 @@ export default function WrongQuestionView() {
     const markingModel = useAppStore((s) => s.markingModel);
     const useSeparateMarkingModel = useAppStore((s) => s.useSeparateMarkingModel);
     const effectiveModel = useSeparateMarkingModel && markingModel?.trim() ? markingModel : model;
+    const spacedRepetitionCards = useAppStore((s) => s.spacedRepetitionCards);
+    const reviewSpacedCard = useAppStore((s) => s.reviewSpacedCard);
 
     const allWrong = useMemo<WrongEntry[]>(() => {
         const written: WrittenWrongEntry[] = questionHistory
@@ -960,6 +1032,27 @@ export default function WrongQuestionView() {
             .map((e) => ({ ...e, kind: "multiple-choice" as const }));
         return [...written, ...mc].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     }, [questionHistory, mcHistory]);
+
+    // Due for review cards
+    const dueCards = useMemo(() => {
+        return allWrong.filter((entry) => {
+            const card = spacedRepetitionCards[entry.id];
+            return card && isDue(card);
+        }).sort((a, b) => {
+            const cardA = spacedRepetitionCards[a.id];
+            const cardB = spacedRepetitionCards[b.id];
+            if (!cardA || !cardB) return 0;
+            return new Date(cardA.nextReviewDate).getTime() - new Date(cardB.nextReviewDate).getTime();
+        });
+    }, [allWrong, spacedRepetitionCards]);
+
+    // Overdue cards (subset of due)
+    const overdueCards = useMemo(() => {
+        return dueCards.filter((entry) => {
+            const card = spacedRepetitionCards[entry.id];
+            return card && daysUntilReview(card) < 0;
+        });
+    }, [dueCards, spacedRepetitionCards]);
 
     const [isShuffled, setIsShuffled] = useState(false);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -996,12 +1089,16 @@ export default function WrongQuestionView() {
                     markResponse: { ...e.markResponse, verdict: "correct" },
                 })
             );
+            // Record SR with quality 4 (correct)
+            reviewSpacedCard(entry.id, 4);
         } else {
             setMcHistory((prev: McHistoryEntry[]) =>
                 prev.map((e) => e.id !== entry.id ? e : { ...e, correct: true })
             );
+            // Record SR with quality 4 (correct)
+            reviewSpacedCard(entry.id, 4);
         }
-    }, [setQuestionHistory, setMcHistory]);
+    }, [setQuestionHistory, setMcHistory, reviewSpacedCard]);
 
     const startReattempt = (shuffle: boolean) => {
         setReattemptQueue(shuffle ? shuffleArray(filteredQuestions) : [...filteredQuestions]);
@@ -1046,6 +1143,12 @@ export default function WrongQuestionView() {
                             {allWrong.length}
                         </Badge>
                     )}
+                    {dueCards.length > 0 && (
+                        <Badge className="text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1">
+                            <Brain className="w-3 h-3" />
+                            {dueCards.length} due
+                        </Badge>
+                    )}
                     <p className="hidden sm:block text-xs text-muted-foreground ml-1">
                         Review and reattempt questions you got wrong.
                     </p>
@@ -1080,16 +1183,92 @@ export default function WrongQuestionView() {
             <div className="flex-1 px-3 sm:px-5 py-3">
                 {allWrong.length === 0 ? (
                     <EmptyState />
-                ) : filteredQuestions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No questions match this filter.</p>
                 ) : (
-                    <div className="space-y-1.5">
-                        {filteredQuestions.map((entry, i) => (
-                            <ListEntryCard key={entry.id} entry={entry} index={i}
-                                isExpanded={expandedIds.has(entry.id)}
-                                onToggle={() => toggleExpand(entry.id)}
-                                onDelete={() => handleDelete(entry)} />
-                        ))}
+                    <div className="space-y-6">
+                        {/* Due for Review section */}
+                        {dueCards.length > 0 && (
+                            <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 overflow-hidden">
+                                <div className="flex items-center gap-2 px-4 py-3 border-b border-sky-500/15 bg-sky-500/5">
+                                    <Brain className="w-4 h-4 text-sky-500" />
+                                    <span className="text-sm font-bold text-sky-700 dark:text-sky-300">Due for Review</span>
+                                    <Badge className="ml-auto text-[10px] font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400">
+                                        {dueCards.length} item{dueCards.length !== 1 ? "s" : ""}
+                                    </Badge>
+                                    {overdueCards.length > 0 && (
+                                        <Badge className="text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                                            {overdueCards.length} overdue
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div className="divide-y divide-sky-500/10">
+                                    {dueCards.slice(0, 5).map((entry) => {
+                                        const card = spacedRepetitionCards[entry.id];
+                                        const days = card ? daysUntilReview(card) : 0;
+                                        const isOverdue = days < 0;
+                                        const isWritten = entry.kind === "written";
+                                        return (
+                                            <div key={entry.id} className="flex items-center gap-3 px-4 py-3 hover:bg-sky-500/5 transition-colors">
+                                                <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${isWritten ? "bg-sky-500/10" : "bg-violet-500/10"}`}>
+                                                    {isWritten ? <BookOpen className="w-3 h-3 text-sky-500" /> : <Target className="w-3 h-3 text-violet-500" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-medium truncate">
+                                                        <MarkdownMath content={entry.question.promptMarkdown.slice(0, 120)} />
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-[10px] text-muted-foreground">{entry.question.topic}</span>
+                                                        {entry.question.subtopic && (
+                                                            <span className="text-[10px] text-muted-foreground/50">· {entry.question.subtopic.slice(0, 30)}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                                    isOverdue ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" :
+                                                    days === 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                                                    "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                                                }`}>
+                                                    {isOverdue ? `${Math.abs(days)}d overdue` : days === 0 ? "Due today" : `Due in ${days}d`}
+                                                </div>
+                                                {card && (
+                                                    <div className="shrink-0 text-[10px] text-muted-foreground">
+                                                        EF: {card.easinessFactor.toFixed(1)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {dueCards.length > 5 && (
+                                    <div className="px-4 py-2 border-t border-sky-500/15 text-center">
+                                        <span className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                                            +{dueCards.length - 5} more items due
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="px-4 py-2 border-t border-sky-500/15">
+                                    <Button size="sm" className="w-full gap-2 h-8 bg-sky-500/90 hover:bg-sky-600 text-white"
+                                        onClick={() => startReattempt(true)}>
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                        Review due items
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* All wrong answers list */}
+                        {filteredQuestions.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">No questions match this filter.</p>
+                        ) : (
+                            <div className="space-y-1.5">
+                                {filteredQuestions.map((entry, i) => (
+                                    <ListEntryCard key={entry.id} entry={entry} index={i}
+                                        isExpanded={expandedIds.has(entry.id)}
+                                        onToggle={() => toggleExpand(entry.id)}
+                                        onDelete={() => handleDelete(entry)}
+                                        srCard={spacedRepetitionCards[entry.id]} />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

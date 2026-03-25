@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppSettings } from "../AppContext";
 import { useFirebaseSyncContext } from "../context/FirebaseSyncContext";
+import { useAppStore } from "../store";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -54,7 +55,7 @@ interface ModelSearchResult {
 
 type SortKey = "speed" | "priceIn" | "priceOut" | "priceCombined" | "latency" | "context";
 type SortDir = "asc" | "desc";
-type Section = "api" | "models" | "credits" | "appearance" | "debug" | "sync";
+type Section = "api" | "models" | "credits" | "appearance" | "goals" | "debug" | "sync";
 
 type ImageValidationState =
   | { status: "idle" }
@@ -134,6 +135,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "models", label: "Models", icon: <Cpu className="h-4 w-4" /> },
   { id: "credits", label: "Credits", icon: <CreditCard className="h-4 w-4" /> },
   { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
+  { id: "goals", label: "Study Goals", icon: <TrendingUp className="h-4 w-4" /> },
   { id: "debug", label: "Debug", icon: <Bug className="h-4 w-4" /> },
   { id: "sync", label: "Cloud Sync", icon: <Cloud className="h-4 w-4" /> },
 ];
@@ -1188,6 +1190,11 @@ export function SettingsView() {
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
 
+  // Study goals & streaks
+  const studyGoals = useAppStore((s) => s.studyGoals);
+  const setStudyGoals = useAppStore((s) => s.setStudyGoals);
+  const streakData = useAppStore((s) => s.streakData);
+
   const firebaseSync = useFirebaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<"signin" | "signup">("signin");
@@ -1587,6 +1594,94 @@ export function SettingsView() {
           </div>
         );
 
+      case "goals":
+        return (
+          <div className="space-y-6">
+            <SectionHeader title="Study Goals" description="Set daily targets and track your study streaks." />
+            <Card className="p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium">Daily question goal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Target number of questions to complete each day.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Slider
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={[studyGoals.dailyQuestionGoal]}
+                  onValueChange={(v) => setStudyGoals({ dailyQuestionGoal: v[0] })}
+                  className="flex-1"
+                />
+                <span className="text-sm font-bold tabular-nums w-8 text-center">{studyGoals.dailyQuestionGoal}</span>
+              </div>
+            </Card>
+            <Card className="p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium">Daily written goal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Target number of written questions per day.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Slider
+                  min={0}
+                  max={20}
+                  step={1}
+                  value={[studyGoals.dailyWrittenGoal]}
+                  onValueChange={(v) => setStudyGoals({ dailyWrittenGoal: v[0] })}
+                  className="flex-1"
+                />
+                <span className="text-sm font-bold tabular-nums w-8 text-center">{studyGoals.dailyWrittenGoal}</span>
+              </div>
+            </Card>
+            <Card className="p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium">Daily MC goal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Target number of multiple-choice questions per day.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Slider
+                  min={0}
+                  max={20}
+                  step={1}
+                  value={[studyGoals.dailyMcGoal]}
+                  onValueChange={(v) => setStudyGoals({ dailyMcGoal: v[0] })}
+                  className="flex-1"
+                />
+                <span className="text-sm font-bold tabular-nums w-8 text-center">{studyGoals.dailyMcGoal}</span>
+              </div>
+            </Card>
+            <Card className="p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium">Weekly streak goal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Target number of active days per week.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Slider
+                  min={1}
+                  max={7}
+                  step={1}
+                  value={[studyGoals.weeklyStreakGoal]}
+                  onValueChange={(v) => setStudyGoals({ weeklyStreakGoal: v[0] })}
+                  className="flex-1"
+                />
+                <span className="text-sm font-bold tabular-nums w-8 text-center">{studyGoals.weeklyStreakGoal}</span>
+              </div>
+            </Card>
+            {/* Streak stats */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Current streak</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Consecutive days with at least one question completed.</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black tabular-nums text-amber-500">{streakData.currentStreak}</p>
+                  <p className="text-xs text-muted-foreground">Best: {streakData.longestStreak}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+
       case "debug":
         return (
           <div className="space-y-6">
@@ -1610,6 +1705,7 @@ export function SettingsView() {
           user,
           isLoading: syncLoading,
           isSyncing,
+          isSyncEnabled,
           isOnline,
           syncStatus,
           lastSyncTime,
@@ -1618,10 +1714,12 @@ export function SettingsView() {
           debugLogs,
           enableSync,
           disableSync,
+          toggleSync,
           forceSync,
         } = firebaseSync;
 
-        const syncEnabled = !!user;
+        const syncEnabled = isSyncEnabled;
+        const isSignedIn = !!user;
 
         const handleAuth = async () => {
           if (!syncAuthEmail.trim() || !syncAuthPassword) return;
@@ -1670,7 +1768,7 @@ export function SettingsView() {
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "h-10 w-10 rounded-full flex items-center justify-center",
-                    syncEnabled ? "bg-emerald-500/10" : "bg-muted"
+                    syncEnabled ? "bg-emerald-500/10" : isSignedIn ? "bg-amber-500/10" : "bg-muted"
                   )}>
                     {syncLoading || syncIsSubmitting || syncStatus === "connecting" ? (
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1678,6 +1776,8 @@ export function SettingsView() {
                       <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
                     ) : syncEnabled ? (
                       <Cloud className="h-5 w-5 text-emerald-500" />
+                    ) : isSignedIn ? (
+                      <CloudOff className="h-5 w-5 text-amber-500" />
                     ) : syncStatus === "error" ? (
                       <AlertCircle className="h-5 w-5 text-destructive" />
                     ) : (
@@ -1689,6 +1789,7 @@ export function SettingsView() {
                       {syncStatus === "connecting" ? "Connecting..."
                         : syncStatus === "syncing" ? "Syncing..."
                         : syncEnabled ? "Connected to Cloud"
+                        : isSignedIn ? "Sync Paused"
                         : "Not Connected"}
                     </p>
                     {user && (
@@ -1713,6 +1814,15 @@ export function SettingsView() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="gap-1.5"
+                      onClick={toggleSync}
+                    >
+                      <CloudOff className="h-3.5 w-3.5" />
+                      Pause Sync
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="gap-1.5 text-destructive hover:text-destructive"
                       onClick={disableSync}
                     >
@@ -1720,9 +1830,21 @@ export function SettingsView() {
                     </Button>
                   </div>
                 )}
+                {isSignedIn && !syncEnabled && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={toggleSync}
+                    disabled={!isOnline}
+                  >
+                    <Cloud className="h-3.5 w-3.5" />
+                    Resume Sync
+                  </Button>
+                )}
               </div>
 
-              {!syncEnabled && (
+              {!isSignedIn && (
                 <div className="space-y-4 pt-2">
                   <div className="flex gap-1 p-1 bg-muted rounded-lg">
                     <button
@@ -1787,7 +1909,7 @@ export function SettingsView() {
                 </div>
               )}
 
-              {syncEnabled && lastSyncTime && (
+              {isSignedIn && lastSyncTime && (
                 <div className="pt-3 border-t border-border">
                   <p className="text-xs text-muted-foreground">
                     Last synced: {new Date(lastSyncTime).toLocaleString()}
@@ -1796,7 +1918,7 @@ export function SettingsView() {
               )}
             </Card>
 
-            {syncEnabled && (
+            {isSignedIn && (
               <Card className="p-5">
                 <h3 className="text-sm font-medium mb-3">What gets synced</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -1820,7 +1942,7 @@ export function SettingsView() {
               </Card>
             )}
 
-            {syncEnabled && syncEvents.length > 0 && (
+            {isSignedIn && syncEvents.length > 0 && (
               <Card className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium">Sync Activity</h3>
@@ -1860,7 +1982,7 @@ export function SettingsView() {
               </Card>
             )}
 
-            {debugMode && syncEnabled && debugLogs.length > 0 && (
+            {debugMode && isSignedIn && debugLogs.length > 0 && (
               <Card className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium">Debug Logs</h3>

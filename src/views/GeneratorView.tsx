@@ -10,6 +10,7 @@ import {
   useMultipleChoiceSession,
   useWrittenSession,
 } from "@/AppContext";
+import { useAppStore } from "@/store";
 import {
   Topic,
   MathMethodsSubtopic,
@@ -933,6 +934,7 @@ useEffect(() => {
       setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
       setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(response.achievedMarks) }));
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "initial", markingLatencyMs, responseEnteredAtMs });
+      useAppStore.getState().recordCompletion("written");
     } catch (error) { setErrorMessage(readBackendError(error)); setLastFailedAction("mark-written"); }
     finally { setIsMarking(false); }
   }
@@ -1002,6 +1004,7 @@ useEffect(() => {
     setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: awardedMarks }));
     setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: String(awardedMarks) }));
     appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial", responseEnteredAtMs);
+    useAppStore.getState().recordCompletion("multiple-choice");
   }
 
   function buildMcMarkingPrompt(question: typeof activeMcQuestion) {

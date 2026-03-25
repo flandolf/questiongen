@@ -12,6 +12,7 @@ const AnalyticsView = lazy(() => import("./views/AnalyticsView").then((m) => ({ 
 const SavedView = lazy(() => import("./views/SavedView").then((m) => ({ default: m.SavedView })));
 const SettingsView = lazy(() => import("./views/SettingsView").then((m) => ({ default: m.SettingsView })));
 const WrongQuestionView = lazy(() => import("./views/WrongQuestionView"));
+const ExamSimulationView = lazy(() => import("./views/ExamSimulationView"));
 
 function RouteFallback() {
   return (
@@ -42,14 +43,15 @@ function AppRoutes() {
     <HashRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<GeneratorView />} />
-            <Route path="history" element={<HistoryView />} />
-            <Route path="analytics" element={<AnalyticsView />} />
-            <Route path="mistakes" element={<WrongQuestionView />} />
-            <Route path="saved" element={<SavedView />} />
-            <Route path="settings" element={<SettingsView />} />
-          </Route>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<GeneratorView />} />
+              <Route path="history" element={<HistoryView />} />
+              <Route path="analytics" element={<AnalyticsView />} />
+              <Route path="mistakes" element={<WrongQuestionView />} />
+              <Route path="exam" element={<ExamSimulationView />} />
+              <Route path="saved" element={<SavedView />} />
+              <Route path="settings" element={<SettingsView />} />
+            </Route>
         </Routes>
       </Suspense>
     </HashRouter>

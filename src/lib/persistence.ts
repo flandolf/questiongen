@@ -5,7 +5,6 @@ import {
   APP_STATE_STORAGE_KEY,
   CHEMISTRY_SUBTOPICS,
   DEBUG_MODE_STORAGE_KEY,
-  HISTORY_ENTRY_LIMIT,
   McAnswerAnalytics,
   MC_HISTORY_STORAGE_KEY,
   MATH_METHODS_SUBTOPICS,
@@ -22,13 +21,14 @@ import {
   QUESTION_HISTORY_STORAGE_KEY,
   QuestionHistoryEntry,
   QuestionMode,
-  SAVED_SET_LIMIT,
   SavedQuestionSet,
   SUBTOPIC_INSTRUCTIONS,
   StudentAnswerImage,
   TOPICS,
   WrittenAnswerAnalytics,
   SPECIALIST_MATH_SUBTOPICS,
+  StudyGoals,
+  StreakData,
 } from "../types";
 import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
@@ -80,6 +80,20 @@ const DEFAULT_MC_SESSION: PersistedMcSession = {
   savedSetId: null,
 };
 
+const DEFAULT_STUDY_GOALS: StudyGoals = {
+  dailyQuestionGoal: 10,
+  dailyWrittenGoal: 5,
+  dailyMcGoal: 5,
+  weeklyStreakGoal: 5,
+};
+
+const DEFAULT_STREAK_DATA: StreakData = {
+  currentStreak: 0,
+  longestStreak: 0,
+  lastActiveDate: "",
+  dailyCompletions: {},
+};
+
 export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   version: PERSISTED_APP_STATE_VERSION,
   settings: DEFAULT_SETTINGS,
@@ -89,6 +103,8 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   questionHistory: [],
   mcHistory: [],
   savedSets: [],
+  studyGoals: DEFAULT_STUDY_GOALS,
+  streakData: DEFAULT_STREAK_DATA,
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
@@ -122,9 +138,11 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     preferences: normalizePreferences(data.preferences),
     writtenSession: normalizeWrittenSession(data.writtenSession),
     mcSession: normalizeMcSession(data.mcSession),
-    questionHistory: normalizeQuestionHistory(data.questionHistory).slice(0, HISTORY_ENTRY_LIMIT),
-    mcHistory: normalizeMcHistory(data.mcHistory).slice(0, HISTORY_ENTRY_LIMIT),
-    savedSets: normalizeSavedSets(data.savedSets).slice(0, SAVED_SET_LIMIT),
+    questionHistory: normalizeQuestionHistory(data.questionHistory),
+    mcHistory: normalizeMcHistory(data.mcHistory),
+    savedSets: normalizeSavedSets(data.savedSets),
+    studyGoals: normalizeStudyGoals(data.studyGoals),
+    streakData: normalizeStreakData(data.streakData),
   };
 }
 
@@ -142,12 +160,12 @@ function applyLegacyMigration(state: PersistedAppState): PersistedAppState {
 
   const legacyWrittenHistory = parseJsonArray(window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY));
   if (legacyWrittenHistory.length > 0) {
-    next.questionHistory = normalizeQuestionHistory(legacyWrittenHistory).slice(0, HISTORY_ENTRY_LIMIT);
+    next.questionHistory = normalizeQuestionHistory(legacyWrittenHistory);
   }
 
   const legacyMcHistory = parseJsonArray(window.localStorage.getItem(MC_HISTORY_STORAGE_KEY));
   if (legacyMcHistory.length > 0) {
-    next.mcHistory = normalizeMcHistory(legacyMcHistory).slice(0, HISTORY_ENTRY_LIMIT);
+    next.mcHistory = normalizeMcHistory(legacyMcHistory);
   }
 
   return next;
@@ -723,4 +741,36 @@ function filterStringLiterals<T extends readonly string[]>(value: unknown, allow
 
   const allowedSet = new Set<string>(allowed);
   return value.filter((item): item is T[number] => typeof item === "string" && allowedSet.has(item));
+}
+
+function normalizeStudyGoals(raw: unknown): StudyGoals {
+  if (!isRecord(raw)) return DEFAULT_STUDY_GOALS;
+  return {
+    dailyQuestionGoal: clampWholeNumber(raw.dailyQuestionGoal, DEFAULT_STUDY_GOALS.dailyQuestionGoal, 1, 50),
+    dailyWrittenGoal: clampWholeNumber(raw.dailyWrittenGoal, DEFAULT_STUDY_GOALS.dailyWrittenGoal, 0, 20),
+    dailyMcGoal: clampWholeNumber(raw.dailyMcGoal, DEFAULT_STUDY_GOALS.dailyMcGoal, 0, 20),
+    weeklyStreakGoal: clampWholeNumber(raw.weeklyStreakGoal, DEFAULT_STUDY_GOALS.weeklyStreakGoal, 1, 7),
+  };
+}
+
+function normalizeStreakData(raw: unknown): StreakData {
+  if (!isRecord(raw)) return DEFAULT_STREAK_DATA;
+  const completions: Record<string, { total: number; written: number; mc: number }> = {};
+  if (isRecord(raw.dailyCompletions)) {
+    for (const [key, val] of Object.entries(raw.dailyCompletions)) {
+      if (isRecord(val)) {
+        completions[key] = {
+          total: typeof val.total === "number" && val.total >= 0 ? Math.floor(val.total) : 0,
+          written: typeof val.written === "number" && val.written >= 0 ? Math.floor(val.written) : 0,
+          mc: typeof val.mc === "number" && val.mc >= 0 ? Math.floor(val.mc) : 0,
+        };
+      }
+    }
+  }
+  return {
+    currentStreak: typeof raw.currentStreak === "number" && raw.currentStreak >= 0 ? Math.floor(raw.currentStreak) : 0,
+    longestStreak: typeof raw.longestStreak === "number" && raw.longestStreak >= 0 ? Math.floor(raw.longestStreak) : 0,
+    lastActiveDate: typeof raw.lastActiveDate === "string" ? raw.lastActiveDate : "",
+    dailyCompletions: completions,
+  };
 }
