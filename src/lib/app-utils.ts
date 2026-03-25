@@ -45,19 +45,16 @@ export function clampWholeNumber(value: unknown, fallback: number, min: number, 
 
 export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): MarkAnswerResponse {
   const data = (raw ?? {}) as Partial<MarkAnswerResponse>;
-  // Always use the authoritative question max marks; the model sometimes
-  // returns maxMarks:10 (copied from the example in the prompt) regardless
-  // of the actual question value.
   const maxMarks = questionMaxMarks > 0 ? questionMaxMarks : clampWholeNumber(data.maxMarks, 10, 1, 30);
   const achievedMarks = clampWholeNumber(data.achievedMarks, 0, 0, maxMarks);
   const scoreOutOf10 = clampWholeNumber(data.scoreOutOf10, Math.round((achievedMarks / maxMarks) * 10), 0, 10);
   const vcaaMarkingScheme = Array.isArray(data.vcaaMarkingScheme)
     ? data.vcaaMarkingScheme.map((item) => ({
-        criterion: item.criterion || "Criterion",
-        achievedMarks: clampWholeNumber(item.achievedMarks, 0, 0, maxMarks),
-        maxMarks: clampWholeNumber(item.maxMarks, maxMarks, 1, maxMarks),
-        rationale: item.rationale || "No rationale provided.",
-      }))
+      criterion: item.criterion || "Criterion",
+      achievedMarks: clampWholeNumber(item.achievedMarks, 0, 0, maxMarks),
+      maxMarks: clampWholeNumber(item.maxMarks, maxMarks, 1, maxMarks),
+      rationale: item.rationale || "No rationale provided.",
+    }))
     : [];
 
   return {
@@ -74,24 +71,27 @@ export function normalizeMarkResponse(raw: unknown, questionMaxMarks: number): M
 }
 
 /**
- * Normalise math delimiters and fix LaTeX rendering issues for MathJax 3.
+ * Prepare a string field from the Rust backend for MathJax rendering.
  *
- * Pipeline (applied outside code spans/fences):
+ * The Rust backend (`parsing.rs`) now owns the full sanitization pipeline:
+ *   - `protect_latex_in_raw_json`  — preserves \frac, \text, \beta etc. through JSON parsing
+ *   - `decode_escapes`             — resolves literal \n artefacts
+ *   - `sanitise_latex`             — converts \(...\)/\[...\] → $/$$ delimiters, protects \$
+ *   - `normalise_typography`       — smart quotes, em-dashes, ellipsis → ASCII
  *
- * 1. normalizePseudoMathDelimiters  — \(...\) → $...$, \[...\] → $$...$$
- *    Kept for backwards-compat with data stored before the Rust sanitise_latex
- *    pass was added. New data arriving from the backend is already normalised.
+ * By the time a field reaches the frontend it is already clean. This function
+ * handles two residual cases that only arise for data written to the database
+ * *before* the Rust pipeline was updated (backwards compatibility):
  *
- * 2. renderCurrencyEscapes  — \$ → $ outside math spans.
- *    The Rust backend emits \$ for currency dollar signs so they don't confuse
- *    the MathJax delimiter scanner. This step converts them back to a visible $
- *    for display. Must run AFTER step 1 so pseudo-delimiters are resolved first,
- *    and BEFORE steps 3–4 so math spans are correctly identified.
+ *   1. renderCurrencyEscapes  — converts \$ (Rust-emitted currency escape) back
+ *      to a visible $ for display, skipping over real math spans.
  *
- * 3. normalizeEscapedLatexCommandsInMath  — \\sin → \sin inside math spans.
- *    Fixes double-escaped backslashes that survive JSON decode.
+ *   2. escapeBarePercentInMath — adds \% inside math spans so MathJax doesn't
+ *      treat % as a comment character.
  *
- * 4. escapeBarePercentInMath  — % → \% inside math spans.
+ * Everything else (form feed recovery, \t tab recovery, pseudo-delimiter
+ * conversion, double-backslash normalisation) is handled by Rust and is
+ * intentionally removed here to avoid double-processing.
  */
 export function normalizeMathDelimiters(content: string): string {
   const cached = normalizedMathCache.get(content);
@@ -100,15 +100,7 @@ export function normalizeMathDelimiters(content: string): string {
   }
 
   const normalized = transformOutsideCode(content, (segment) => {
-    // Fix any form feed characters that may have resulted from JavaScript \f interpretation
-    const fixedSegment = segment.replace(/\f\s*([a-zA-Z]+)/g, "\\$1");
-    return escapeBarePercentInMath(
-      normalizeEscapedLatexCommandsInMath(
-        renderCurrencyEscapes(
-          normalizePseudoMathDelimiters(fixedSegment),
-        ),
-      ),
-    );
+    return escapeBarePercentInMath(renderCurrencyEscapes(segment));
   });
 
   if (normalizedMathCache.size >= NORMALIZED_MATH_CACHE_MAX_ENTRIES) {
@@ -122,6 +114,10 @@ export function normalizeMathDelimiters(content: string): string {
   return normalized;
 }
 
+/**
+ * Apply `transform` to every segment of `content` that is not inside a
+ * fenced code block (``` ... ```) or an inline code span (` ... `).
+ */
 function transformOutsideCode(content: string, transform: (segment: string) => string): string {
   return content
     .split(/(```[\s\S]*?```)/g)
@@ -129,7 +125,6 @@ function transformOutsideCode(content: string, transform: (segment: string) => s
       if (fencedOrPlainChunk.startsWith("```")) {
         return fencedOrPlainChunk;
       }
-
       return fencedOrPlainChunk
         .split(/(`[^`\n]*`)/g)
         .map((inlineCodeOrPlain) => {
@@ -143,29 +138,14 @@ function transformOutsideCode(content: string, transform: (segment: string) => s
     .join("");
 }
 
-// Backwards-compat: convert \[...\] and \(...\) delimiters to $$...$$ / $...$
-// that MathJax 3 understands. New data from the backend is already normalised by
-// the Rust sanitise_latex pass, but stored history may predate that.
-function normalizePseudoMathDelimiters(content: string): string {
-  return content
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_match, expression: string) => `$$${expression.trim()}$$`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_match, expression: string) => `$${expression.trim()}$`);
-}
-
 /**
- * Convert \$ (escaped dollar, emitted by the Rust backend for currency amounts)
- * back to a literal $ outside math spans, so it renders correctly on screen.
+ * Convert `\$` (escaped dollar, emitted by the Rust backend for currency
+ * amounts) back to a literal `$` outside math spans, so it renders correctly.
  *
- * Must run after normalizePseudoMathDelimiters (so all math spans use $ delimiters)
- * and before escapeBarePercentInMath / normalizeEscapedLatexCommandsInMath
- * (which identify math spans by their $ delimiters).
- *
- * A \$ inside a math span is left untouched — LaTeX itself uses \$ to render
- * a literal dollar sign in math mode, so MathJax handles it correctly already.
+ * A `\$` inside a math span is left untouched — LaTeX itself uses `\$` to
+ * render a literal dollar sign in math mode, so MathJax handles it correctly.
  */
 function renderCurrencyEscapes(content: string): string {
-  // Walk the string, replacing \$ that falls outside a math span.
-  // We identify math spans ($...$ and $$...$$) to skip over them.
   let result = "";
   let i = 0;
   while (i < content.length) {
@@ -199,6 +179,10 @@ function renderCurrencyEscapes(content: string): string {
   return result;
 }
 
+/**
+ * Ensure `%` inside math spans is escaped as `\%` so MathJax does not treat
+ * it as a LaTeX comment character, discarding the rest of the math expression.
+ */
 function escapeBarePercentInMath(content: string): string {
   return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
     const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
@@ -207,39 +191,20 @@ function escapeBarePercentInMath(content: string): string {
   });
 }
 
-function normalizeEscapedLatexCommandsInMath(content: string): string {
-  return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
-    const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
-    const inner = mathSegment.slice(delimiter.length, -delimiter.length);
-    // Some model outputs provide "\text" with a single slash in JSON strings.
-    // JSON decoding interprets "\t" as a tab, so recover that tab + command pattern.
-    const recoveredTabEscapes = inner.replace(/\t(?=[A-Za-z])/g, "\\t");
-    // Model responses sometimes include JSON-escaped LaTeX commands (e.g. \\sin).
-    const normalizedInner = recoveredTabEscapes.replace(/\\\\([A-Za-z]+)/g, "\\$1");
-    // Fix form feed characters that may result from JavaScript string literal \f interpretation
-    const fixedFormFeeds = normalizedInner.replace(/\f\s*([a-zA-Z]+)/g, "\\$1");
-    return `${delimiter}${fixedFormFeeds}${delimiter}`;
-  });
-}
-
 function escapeUnescapedPercent(content: string): string {
   let result = "";
-
   for (let i = 0; i < content.length; i += 1) {
     const char = content[i];
     if (char !== "%") {
       result += char;
       continue;
     }
-
     let backslashCount = 0;
     for (let j = i - 1; j >= 0 && content[j] === "\\"; j -= 1) {
       backslashCount += 1;
     }
-
     result += backslashCount % 2 === 0 ? "\\%" : "%";
   }
-
   return result;
 }
 
@@ -276,8 +241,6 @@ export function confirmAction(message: string): boolean {
     return true;
   }
 
-  // Native confirm dialogs can be unavailable or return unreliable values in Tauri WebViews.
-  // In that runtime, prefer non-blocking behavior so destructive actions still execute.
   if (isTauriRuntime()) {
     return true;
   }
@@ -321,10 +284,9 @@ export interface EstimatedTokensAndCost {
   promptCost: number | null;
   completionCost: number | null;
   totalCost: number;
-  confidence?: number; // Optional confidence score (0-1)
+  confidence?: number;
 }
 
-// Constants for advanced estimation
 const TOPIC_BASE_TOKENS: Record<string, number> = {
   "Mathematical Methods": 1800,
   "Specialist Mathematics": 2200,
@@ -351,7 +313,6 @@ const QUESTION_MODE_RATIOS = {
   "written": { prompt: 0.35, completion: 0.65 },
 };
 
-// Parameter weights for fuzzy matching
 const PARAMETER_WEIGHTS = {
   topic: 0.4,
   difficulty: 0.3,
@@ -359,7 +320,6 @@ const PARAMETER_WEIGHTS = {
   techMode: 0.1,
 };
 
-// Calculate similarity score between current params and historical record
 function calculateSimilarity(
   record: GenerationRecord,
   topic: Topic,
@@ -377,29 +337,25 @@ function calculateSimilarity(
   if (record.inputs.questionMode === questionMode) score += PARAMETER_WEIGHTS.questionMode;
   if (record.inputs.techMode === techMode) score += PARAMETER_WEIGHTS.techMode;
 
-  // For maxMarksPerQuestion, consider it matching if both are undefined or equal
   const marksMatch = (maxMarksPerQuestion == null && record.inputs.maxMarksPerQuestion == null) ||
-                     (maxMarksPerQuestion != null && record.inputs.maxMarksPerQuestion === maxMarksPerQuestion);
-  if (marksMatch) score += 0.1; // Small weight for marks matching
+    (maxMarksPerQuestion != null && record.inputs.maxMarksPerQuestion === maxMarksPerQuestion);
+  if (marksMatch) score += 0.1;
 
-  // Subtopics similarity (if both have subtopics, check overlap)
   if (subtopics && record.inputs.subtopics) {
     const overlap = subtopics.filter(s => record.inputs.subtopics!.includes(s)).length;
     const maxLength = Math.max(subtopics.length, record.inputs.subtopics!.length);
     if (maxLength > 0) {
-      score += 0.05 * (overlap / maxLength); // Small weight for subtopic overlap
+      score += 0.05 * (overlap / maxLength);
     }
   }
 
-  // Custom focus area similarity (simple presence check)
   const focusMatch = (customFocusArea && record.inputs.customFocusArea) ||
-                     (!customFocusArea && !record.inputs.customFocusArea);
-  if (focusMatch) score += 0.05; // Small weight for focus area matching
+    (!customFocusArea && !record.inputs.customFocusArea);
+  if (focusMatch) score += 0.05;
 
   return score;
 }
 
-// Advanced estimation with fuzzy matching and sophisticated static model
 function estimateTokensAdvanced(
   generationHistory: GenerationRecord[],
   topic: Topic,
@@ -411,7 +367,6 @@ function estimateTokensAdvanced(
   subtopics?: string[],
   customFocusArea?: string
 ): { totalTokensPerQuestion: number; promptRatio: number; completionRatio: number; confidence: number } {
-  // Filter valid historical records
   const validRecords = generationHistory.filter(record =>
     record.outputs.totalTokens != null &&
     record.outputs.promptTokens != null &&
@@ -419,28 +374,22 @@ function estimateTokensAdvanced(
   );
 
   if (validRecords.length === 0) {
-    // No historical data, use sophisticated static model
     return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, subtopics, customFocusArea);
   }
 
-  // Calculate similarities and find best matches
   const recordsWithSimilarity = validRecords.map(record => ({
     record,
     similarity: calculateSimilarity(record, topic, difficulty, questionMode, techMode, maxMarksPerQuestion, subtopics, customFocusArea),
-    // Calculate recency weight (exponential decay over time)
     ageInDays: (Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24),
-    recencyWeight: Math.exp(-0.1 * ((Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24))), // Decay over days
-  })).filter(item => item.similarity > 0.3); // Minimum similarity threshold
+    recencyWeight: Math.exp(-0.1 * ((Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24))),
+  })).filter(item => item.similarity > 0.3);
 
   if (recordsWithSimilarity.length === 0) {
-    // No similar records, fallback to static
     return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, subtopics, customFocusArea);
   }
 
-  // Sort by combined score (similarity * recency weight) descending
   recordsWithSimilarity.sort((a, b) => (b.similarity * b.recencyWeight) - (a.similarity * a.recencyWeight));
 
-  // Use weighted average of top matches (up to 5)
   const topMatches = recordsWithSimilarity.slice(0, 5);
   let totalWeight = 0;
   let weightedTotalTokens = 0;
@@ -461,7 +410,6 @@ function estimateTokensAdvanced(
   const avgPromptRatio = weightedPromptRatio / totalWeight;
   const avgCompletionRatio = weightedCompletionRatio / totalWeight;
 
-  // Calculate confidence based on number of matches, average similarity, and recency
   const avgSimilarity = topMatches.reduce((sum, m) => sum + m.similarity, 0) / topMatches.length;
   const avgRecency = topMatches.reduce((sum, m) => sum + m.recencyWeight, 0) / topMatches.length;
   const confidence = Math.min(1.0, (topMatches.length / 3) * avgSimilarity * avgRecency);
@@ -474,7 +422,6 @@ function estimateTokensAdvanced(
   };
 }
 
-// Sophisticated static estimation model
 function estimateStaticTokens(
   topic: Topic,
   difficulty: Difficulty,
@@ -484,27 +431,17 @@ function estimateStaticTokens(
   subtopics?: string[],
   customFocusArea?: string
 ): { totalTokensPerQuestion: number; promptRatio: number; completionRatio: number; confidence: number } {
-  // Base tokens for topic
   const baseTokens = TOPIC_BASE_TOKENS[topic] ?? 1800;
-
-  // Apply multipliers
   const difficultyMultiplier = DIFFICULTY_MULTIPLIERS[difficulty] ?? 1.0;
   const techMultiplier = TECH_MODE_MULTIPLIERS[techMode] ?? 1.0;
-
-  // Subtopics complexity multiplier (more subtopics = more complex)
   const subtopicsMultiplier = subtopics && subtopics.length > 0 ? 1 + (subtopics.length - 1) * 0.1 : 1.0;
-
-  // Custom focus area multiplier (additional complexity)
   const focusMultiplier = customFocusArea && customFocusArea.trim().length > 0 ? 1.15 : 1.0;
 
-  // Calculate base tokens per question with multipliers
   let tokensPerQuestion = baseTokens * difficultyMultiplier * techMultiplier * subtopicsMultiplier * focusMultiplier;
 
-  // Apply question count scaling (diminishing returns)
-  // For multiple questions, there's overhead but less per additional question
   if (questionCount > 1) {
-    const baseOverhead = tokensPerQuestion * 0.3; // 30% overhead for first question
-    const additionalPerQuestion = tokensPerQuestion * 0.2; // 20% of base for each additional
+    const baseOverhead = tokensPerQuestion * 0.3;
+    const additionalPerQuestion = tokensPerQuestion * 0.2;
     tokensPerQuestion = (baseOverhead + (questionCount - 1) * additionalPerQuestion) / questionCount;
   }
 
@@ -514,7 +451,7 @@ function estimateStaticTokens(
     totalTokensPerQuestion: tokensPerQuestion,
     promptRatio: ratios.prompt,
     completionRatio: ratios.completion,
-    confidence: 0.5, // Lower confidence for static estimates
+    confidence: 0.5,
   };
 }
 
@@ -531,7 +468,6 @@ export function estimateTokensAndCost(
   promptPricePerToken?: number | null,
   completionPricePerToken?: number | null
 ): EstimatedTokensAndCost {
-  // Use the advanced estimation
   const advancedResult = estimateTokensAdvanced(
     generationHistory,
     topic,

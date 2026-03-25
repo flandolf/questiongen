@@ -271,24 +271,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }, ms);
   }, []);
   
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setSyncStatus((prev) => prev === "offline" ? "idle" : prev);
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      setSyncStatus("offline");
-    };
-    
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  // (moved below forceSync definition)
+// (removed duplicate/broken code)
   
   useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
@@ -311,14 +295,14 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     const userId = getUserId(user);
     
     const unsubscribe = subscribeToUserData(userId, async (remoteData) => {
-      if (!isInitializedRef.current) return;
-      
-      setIsSyncing(true);
-      setSyncStatus("syncing");
-      
-      try {
-        if (remoteData && isFirstSyncRef.current) {
-          isFirstSyncRef.current = false;
+        if (!isInitializedRef.current) return;
+        
+        setIsSyncing(true);
+        setSyncStatus("syncing");
+        
+        try {
+          if (remoteData && isFirstSyncRef.current) {
+            isFirstSyncRef.current = false;
           const merged = mergeSyncableData(localDataRef.current, remoteData);
           const storeUpdates = applySyncableDataToStore(merged);
           suppressAutoSaveTemporarily();
@@ -357,18 +341,19 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   
   useEffect(() => {
     if (!user || !isSyncEnabled) return;
-    
+
     const userId = getUserId(user);
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
-    
-    const unsubscribe = useAppStore.subscribe(async (state) => {
+    let isDirty = false;
+
+    const trySave = (state: AppState) => {
       if (!state.isHydrated || !isSyncEnabled || suppressAutoSaveRef.current) return;
-      
       localDataRef.current = extractSyncableData(state);
-      
+      isDirty = true;
       if (saveTimer) clearTimeout(saveTimer);
-      
       saveTimer = setTimeout(() => {
+        if (!isDirty) return;
+        isDirty = false;
         enqueueOperation(`auto-save-${Date.now()}`, async () => {
           try {
             setIsSyncing(true);
@@ -394,10 +379,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           } finally {
             setIsSyncing(false);
           }
-          });
-        }, 5000);
-    });
-    
+        });
+      }, 60000); // 60s debounce
+    };
+
+    const unsubscribe = useAppStore.subscribe(trySave);
+
     return () => {
       unsubscribe();
       if (saveTimer) clearTimeout(saveTimer);
@@ -603,6 +590,33 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       }
     });
   }, [user, enqueueOperation]);
+
+  // Sync on focus/visibility change (must be after forceSync is defined)
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSyncStatus((prev) => prev === "offline" ? "idle" : prev);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncStatus("offline");
+    };
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && user && isSyncEnabled && !isSyncing) {
+        forceSync();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [user, isSyncEnabled, isSyncing, forceSync]);
   
   return {
     user,

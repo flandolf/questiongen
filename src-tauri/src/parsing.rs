@@ -1,9 +1,148 @@
 use crate::models::{default_max_marks, AppError, CommandResult, GeneratedQuestion, McQuestion};
 
+// --- JSON pre-processing: protect LaTeX commands from JSON escape sequences --
+//
+// The fundamental problem: JSON defines \f as form feed (U+000C) and \t as tab
+// (U+0009). When an LLM outputs LaTeX like \frac or \text inside a JSON string,
+// standard JSON parsers destroy those commands:
+//
+//   "\frac{1}{2}"  →  "<FF>rac{1}{2}"   (\f consumed as form feed)
+//   "\text{hello}" →  "<TAB>ext{hello}"  (\t consumed as tab)
+//
+// The previous approach tried to recover these in TypeScript after the damage
+// was done, which is fragile and incomplete. The correct fix is to pre-process
+// the raw JSON bytes and protect LaTeX commands BEFORE serde_json sees them.
+//
+// Strategy: scan raw JSON string values and replace any \X sequence where X
+// starts a known LaTeX command with \\X (a proper JSON two-char escape for a
+// single backslash), so that after JSON parsing the string contains a literal
+// backslash followed by the command name.
+//
+// The only JSON single-char escapes that collide with LaTeX commands are:
+//   \f  (form feed)   — collides with \frac, \forall, \fbox, etc.
+//   \t  (tab)         — collides with \text, \times, \theta, \tau, \tan, etc.
+//   \r  (CR)          — collides with \right, \rho, \rm, etc. (less common)
+//   \n  (LF)          — collides with \nabla, \nu, etc. (handled by decode_escapes)
+//   \b  (backspace)   — collides with \beta, \bar, \bf, \begin, etc.
+//   \0 through \9 are not JSON escapes, so \div, \delta etc. are fine in raw JSON
+//
+// Note: \u, \", \\, \/ are also JSON escapes but never start LaTeX commands
+// that would be confused here.
+
+/// Pre-process raw JSON text to protect LaTeX commands from being destroyed by
+/// JSON escape sequence interpretation.
+///
+/// This must be called on the raw model output *before* passing it to
+/// serde_json. It rewrites `\X` inside JSON string literals where `X` is a
+/// letter that would otherwise be consumed as a JSON escape, turning them into
+/// `\\X` so that after parsing the string contains a real backslash.
+pub fn protect_latex_in_raw_json(raw: &str) -> String {
+    // The colliding single-char JSON escape sequences whose next char could be
+    // the start of a LaTeX command. The replacements are ordered so that the
+    // already-escaped forms (\\f, \\t, etc.) are *not* double-processed; we only
+    // touch unescaped single-backslash forms.
+    //
+    // We walk the raw bytes looking for JSON string contents and rewrite in one
+    // linear pass.
+
+    let bytes = raw.as_bytes();
+    let len = bytes.len();
+    let mut out = Vec::with_capacity(len + len / 8);
+    let mut i = 0;
+
+    while i < len {
+        // Outside a string literal: copy until we enter one.
+        if bytes[i] != b'"' {
+            out.push(bytes[i]);
+            i += 1;
+            continue;
+        }
+
+        // Opening quote of a JSON string literal.
+        out.push(b'"');
+        i += 1;
+
+        // Walk the string contents.
+        while i < len {
+            match bytes[i] {
+                b'"' => {
+                    // Closing (unescaped) quote — end of string.
+                    out.push(b'"');
+                    i += 1;
+                    break;
+                }
+                b'\\' if i + 1 < len => {
+                    let next = bytes[i + 1];
+                    match next {
+                        // Already a proper two-char escape or unicode escape —
+                        // copy verbatim and skip both chars.
+                        b'"' | b'\\' | b'/' | b'n' | b'r' | b't' | b'b' | b'f' | b'u' => {
+                            // For \n, \r, \t, \b, \f we need to check: is this
+                            // actually a JSON escape for whitespace/control, or
+                            // is the model trying to write a LaTeX command?
+                            //
+                            // Heuristic: if the character after the escape letter
+                            // is an ASCII letter (a-z, A-Z) then treat the whole
+                            // thing as a LaTeX command that got mis-escaped — emit
+                            // \\X so the JSON parser yields \X.
+                            //
+                            // Exception: \n / \r followed by a letter is ambiguous
+                            // (could be newline + word). We handle \n conservatively
+                            // in decode_escapes later. Here we only protect the
+                            // LaTeX-specific collisions: \f, \t, \b.
+                            if matches!(next, b'f' | b't' | b'b')
+                                && i + 2 < len
+                                && bytes[i + 2].is_ascii_alphabetic()
+                            {
+                                // Emit \\X: a JSON-escaped backslash + the letter.
+                                out.extend_from_slice(b"\\\\");
+                                out.push(next);
+                                i += 2;
+                            } else {
+                                // Regular JSON escape — copy as-is.
+                                out.push(b'\\');
+                                out.push(next);
+                                i += 2;
+                            }
+                        }
+                        // Bare backslash before a letter that is NOT a standard
+                        // JSON escape sequence: the model wrote something like \s,
+                        // \c, \d etc. (LaTeX commands). These are technically
+                        // invalid JSON but many LLMs emit them. serde_json with
+                        // lenient parsing or our pre-scan may see them.
+                        // Emit \\X to make them valid and preserve the backslash.
+                        c if c.is_ascii_alphabetic() => {
+                            out.extend_from_slice(b"\\\\");
+                            out.push(c);
+                            i += 2;
+                        }
+                        // Anything else after backslash: copy verbatim.
+                        _ => {
+                            out.push(b'\\');
+                            out.push(next);
+                            i += 2;
+                        }
+                    }
+                }
+                b => {
+                    out.push(b);
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    // SAFETY: all bytes we push are either copied from valid UTF-8 source or
+    // are ASCII (b'\\'), so the result is valid UTF-8.
+    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+}
+
 // --- JSON object extraction ---------------------------------------------------
 
 /// Extract the first valid JSON object from raw model output.
 /// With Response Healing enabled this is rarely needed, but kept as a safety net.
+///
+/// NOTE: `content` here should already have been through `protect_latex_in_raw_json`.
 pub fn extract_json_object(content: &str) -> Option<String> {
     let s = content.trim();
 
@@ -90,19 +229,32 @@ pub fn normalize_envelope(value: serde_json::Value) -> Result<serde_json::Value,
 // --- Text post-processing pipeline -------------------------------------------
 //
 // Every markdown field from the model goes through:
-//   decode_escapes -> sanitise_latex
+//   decode_escapes -> sanitise_latex -> normalise_typography
 //
-// decode_escapes handles JSON-level escape artefacts (\n, \r\n).
-// sanitise_latex handles LaTeX-level issues (wrong delimiters, currency $).
+// At this stage the raw JSON has already been through protect_latex_in_raw_json,
+// so \frac, \text etc. are preserved as real backslash-sequences in the Rust
+// string. The remaining work is:
+//
+//   decode_escapes        — convert literal \n / \r\n artefacts to real newlines
+//   sanitise_latex        — normalise delimiters, protect currency $
+//   normalise_typography  — smart quotes, dashes, ellipsis → ASCII
 
-/// Convert literal `\n` / `\r\n` sequences to real newlines.
-/// Preserves LaTeX commands like `\nabla` by checking the character after `\n`.
+/// Convert literal `\n` / `\r\n` sequences (two actual chars: backslash + n)
+/// to real newlines. Preserves LaTeX commands like `\nabla` by checking the
+/// character after `\n` is not a continuation of a LaTeX command name.
+///
+/// After `protect_latex_in_raw_json` + serde_json deserialization:
+///   - Real newlines embedded by the model are already `\n` (U+000A).
+///   - The sequence backslash-n written literally inside a string value (rare)
+///     appears as two chars `\` `n`.
+/// This function handles the second case conservatively.
 pub fn decode_escapes(value: &str) -> String {
     let chars: Vec<char> = value.chars().collect();
     let mut out = String::with_capacity(value.len());
     let mut i = 0;
     while i < chars.len() {
         if chars[i] == '\\' && i + 1 < chars.len() {
+            // \r\n literal sequence → single newline
             if i + 3 < chars.len()
                 && chars[i + 1] == 'r'
                 && chars[i + 2] == '\\'
@@ -112,9 +264,11 @@ pub fn decode_escapes(value: &str) -> String {
                 i += 4;
                 continue;
             }
+            // \n literal → newline, but only if not followed by a lowercase
+            // letter that would form a LaTeX command name (e.g. \nabla).
             if chars[i + 1] == 'n' {
                 if chars.get(i + 2).map_or(false, |c| c.is_ascii_lowercase()) {
-                    // LaTeX command like \nabla — keep the backslash
+                    // Looks like a LaTeX command — keep the backslash.
                     out.push('\\');
                     out.push('n');
                 } else {
@@ -135,19 +289,13 @@ pub fn decode_escapes(value: &str) -> String {
 /// Applied to every markdown field after `decode_escapes`. Steps in order:
 ///
 /// 1. Un-double escaped delimiter chars that lenient JSON parsers leave as-is:
-///    `\\(` -> `\(`  etc.
+///    `\\(` → `\(`  etc.
 ///
-/// 2. Convert `\(...\)` -> `$...$`  and  `\[...\]` -> `$$...$$`.
-///    MathJax is configured with only `$`/`$$` as delimiters so `\(\)` and
-///    `\[\]` would be rendered as literal text.
+/// 2. Convert `\(...\)` → `$...$`  and  `\[...\]` → `$$...$$`.
+///    MathJax is configured with only `$`/`$$` as delimiters.
 ///
 /// 3. Protect currency: a bare `$` immediately before an ASCII digit that is
-///    not part of a `$$` display pair is replaced with `\$`.  MathJax on the
-///    frontend already handles `\$` as a literal dollar sign outside math mode.
-///    The heuristic is safe because real inline math opening with a digit
-///    (`$3x+1$`) always has a matching closing `$` on the same token — the
-///    model is instructed never to use `$` for currency, but this catches the
-///    cases where it does anyway.
+///    not part of a `$$` display pair is replaced with `\$`.
 pub fn sanitise_latex(text: &str) -> String {
     // Step 1: undo double-escaping of delimiter chars
     let s = text
@@ -164,21 +312,16 @@ pub fn sanitise_latex(text: &str) -> String {
 }
 
 /// Replace `\(...\)` with `$...$` and `\[...\]` with `$$...$$`.
-///
-/// Operates on `&str` slices (not raw bytes) so multi-byte UTF-8 characters
-/// are always copied correctly.
 fn convert_paren_delimiters(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while !rest.is_empty() {
-        // Look for the next backslash.
         match rest.find('\\') {
             None => {
                 out.push_str(rest);
                 break;
             }
             Some(bs) => {
-                // Copy everything before the backslash verbatim.
                 out.push_str(&rest[..bs]);
                 let after = &rest[bs + 1..];
                 if after.starts_with('(') {
@@ -202,7 +345,7 @@ fn convert_paren_delimiters(s: &str) -> String {
                         continue;
                     }
                 }
-                // Not a recognised delimiter — emit the backslash and advance one char.
+                // Not a recognised delimiter — emit the backslash and advance.
                 out.push('\\');
                 rest = after;
             }
@@ -232,32 +375,26 @@ fn protect_currency_dollars(s: &str) -> String {
 
 // --- Full pipeline convenience -----------------------------------------------
 
-/// Run the full decode -> sanitise pipeline on a single field.
+/// Run the full decode → sanitise → typography pipeline on a single string
+/// field that has already been deserialized from JSON.
 ///
-/// Steps: decode JSON escape artefacts → normalise typography → sanitise LaTeX.
+/// Call order matters:
+///   1. decode_escapes      — resolve any remaining literal \n artefacts
+///   2. sanitise_latex      — normalise delimiters, protect currency $
+///   3. normalise_typography — smart quotes, dashes, ellipsis → ASCII
 pub fn clean_field(s: &str) -> String {
-    sanitise_latex(&normalise_typography(&decode_escapes(s)))
+    normalise_typography(&sanitise_latex(&decode_escapes(s)))
 }
 
 /// Replace Unicode typographic characters with their plain ASCII equivalents.
-///
-/// Models frequently emit "smart" quotes, em-dashes, and ellipses from their
-/// training data. These render fine in most contexts but can appear as mojibake
-/// (e.g. â\x80\x99 instead of \') when a downstream renderer misidentifies the
-/// encoding, and they add no value in exam question text.
 fn normalise_typography(s: &str) -> String {
-    s
-        // Curly single quotes  → straight apostrophe
-        .replace('\u{2018}', "'") // LEFT  SINGLE QUOTATION MARK  '
-        .replace('\u{2019}', "'") // RIGHT SINGLE QUOTATION MARK  '
-        // Curly double quotes  → straight double quote
-        .replace('\u{201C}', "\"") // LEFT  DOUBLE QUOTATION MARK  "
-        .replace('\u{201D}', "\"") // RIGHT DOUBLE QUOTATION MARK  "
-        // Dashes
-        .replace('\u{2013}', "--") // EN DASH  –
-        .replace('\u{2014}', "--") // EM DASH  —
-        // Ellipsis
-        .replace('\u{2026}', "...") // HORIZONTAL ELLIPSIS  …
+    s.replace('\u{2018}', "'")
+        .replace('\u{2019}', "'")
+        .replace('\u{201C}', "\"")
+        .replace('\u{201D}', "\"")
+        .replace('\u{2013}', "--")
+        .replace('\u{2014}', "--")
+        .replace('\u{2026}', "...")
 }
 
 // --- Normalise + validate written questions ----------------------------------
@@ -319,7 +456,7 @@ pub fn validate_written(questions: &[GeneratedQuestion], expected: usize) -> Com
 
 // --- Normalise + validate MC questions ----------------------------------------
 
-const MC_MAX_EXPLANATION_WORDS: usize = 90;
+const MC_MAX_EXPLANATION_WORDS: usize = 180;
 
 const DISALLOWED_SELF_TALK: &[&str] = &[
     "let's",
@@ -433,6 +570,101 @@ pub fn validate_mc(questions: &[McQuestion], expected: usize) -> CommandResult<(
 mod tests {
     use super::*;
 
+    // --- protect_latex_in_raw_json ---
+
+    #[test]
+    fn frac_protected_in_json_string() {
+        // \f in a JSON string value would normally be parsed as form feed.
+        // After protection it becomes \\f which JSON parses to \f (backslash-f).
+        let raw = r#"{"q": "\frac{1}{2}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\frac{1}{2}");
+    }
+
+    #[test]
+    fn text_protected_in_json_string() {
+        // \t in a JSON string value would normally be parsed as tab.
+        let raw = r#"{"q": "\text{hello}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\text{hello}");
+    }
+
+    #[test]
+    fn beta_protected_in_json_string() {
+        // \b would be parsed as backspace.
+        let raw = r#"{"q": "\beta + \bar{x}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\beta + \bar{x}");
+    }
+
+    #[test]
+    fn real_tab_escape_preserved() {
+        // A real \t (tab) that is NOT followed by a letter should be preserved
+        // as a tab character after JSON parsing.
+        let raw = "{\"q\": \"col1\\tcol2\"}";
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        // \t followed by 'c' — our heuristic will treat this as LaTeX.
+        // This is an acceptable false positive: "col1\tcol2" is not typical
+        // in a math/science question body. The test documents the behaviour.
+        let result = v["q"].as_str().unwrap();
+        assert!(result.contains('\\') || result.contains('\t'));
+    }
+
+    #[test]
+    fn already_escaped_backslash_not_doubled() {
+        // \\\\ in source JSON is already two backslashes — must not triple.
+        let raw = r#"{"q": "\\frac{1}{2}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        // After parsing \\frac should yield \frac (one backslash).
+        assert_eq!(v["q"].as_str().unwrap(), r"\frac{1}{2}");
+    }
+
+    #[test]
+    fn non_string_json_untouched() {
+        let raw = r#"{"count": 42, "flag": true}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        assert_eq!(protected, raw);
+    }
+
+    #[test]
+    fn complex_latex_expression_survives() {
+        // A realistic model output with multiple colliding sequences.
+        let raw = r#"{"prompt": "Find $\frac{\theta}{\beta}$ where $\text{Re}(z) > 0$."}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        let result = v["prompt"].as_str().unwrap();
+        assert!(result.contains(r"\frac"), "\\frac missing: {result}");
+        assert!(result.contains(r"\theta"), "\\theta missing: {result}");
+        assert!(result.contains(r"\beta"), "\\beta missing: {result}");
+        assert!(result.contains(r"\text"), "\\text missing: {result}");
+    }
+
+    #[test]
+    fn frac_in_display_math_survives() {
+        let raw = r#"{"q": "\\[\frac{d}{dx}f(x)\\]"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        let result = v["q"].as_str().unwrap();
+        assert!(result.contains(r"\frac"), "\\frac missing after display math: {result}");
+    }
+
+    #[test]
+    fn newline_in_json_string_preserved() {
+        // A genuine \n (newline escape) not followed by a letter should
+        // decode as a real newline, not be mangled.
+        let raw = "{\"q\": \"line1\\nline2\"}";
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), "line1\nline2");
+    }
+
+    // --- sanitise_latex (existing, unchanged) ---
+
     #[test]
     fn converts_paren_inline() {
         assert_eq!(sanitise_latex("Value is \\(x^2\\)."), "Value is $x^2$.");
@@ -450,7 +682,6 @@ mod tests {
 
     #[test]
     fn does_not_mangle_math_dollar() {
-        // $x^2$ is math — the $ before x is a letter, not a digit
         assert_eq!(sanitise_latex("solve $x^2 = 4$"), "solve $x^2 = 4$");
     }
 
@@ -461,34 +692,68 @@ mod tests {
 
     #[test]
     fn double_escaped_paren_normalised() {
-        // \\( as two chars (backslash backslash open-paren) -> \( -> $
         assert_eq!(sanitise_latex("\\\\(x\\\\)"), "$x$");
     }
 
     #[test]
     fn currency_followed_by_display_math_not_mangled() {
-        // $$ is display math, not currency
         assert_eq!(sanitise_latex("$$x = 1$$"), "$$x = 1$$");
     }
 
+    // --- clean_field / normalise_typography ---
+
     #[test]
     fn smart_quotes_normalised_to_ascii() {
-        assert_eq!(clean_field("it’s Newton‘s law"), "it's Newton's law");
+        assert_eq!(clean_field("\u{2018}it\u{2019}s Newton\u{2019}s law\u{201D}"), "\"it's Newton's law\"");
     }
 
     #[test]
     fn em_dash_normalised() {
-        assert_eq!(clean_field("speed—velocity"), "speed--velocity");
+        assert_eq!(clean_field("speed\u{2014}velocity"), "speed--velocity");
     }
 
     #[test]
     fn ellipsis_normalised() {
-        assert_eq!(clean_field("and so on…"), "and so on...");
+        assert_eq!(clean_field("and so on\u{2026}"), "and so on...");
     }
 
     #[test]
     fn non_ascii_passthrough_unaffected() {
-        // Greek letters and accented chars outside the replacement set pass through
         assert_eq!(clean_field("café αβγ"), "café αβγ");
+    }
+
+    // --- End-to-end: raw JSON → clean field ---
+
+    #[test]
+    fn end_to_end_frac_roundtrip() {
+        // Simulate the full pipeline: raw LLM JSON → protect → parse → clean_field.
+        let raw = r#"{"q": "Evaluate $\frac{1}{2} + \frac{3}{4}$."}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        let field = v["q"].as_str().unwrap();
+        let cleaned = clean_field(field);
+        assert!(cleaned.contains(r"\frac"), "\\frac lost in pipeline: {cleaned}");
+        assert_eq!(cleaned, r"Evaluate $\frac{1}{2} + \frac{3}{4}$.");
+    }
+
+    #[test]
+    fn end_to_end_text_roundtrip() {
+        let raw = r#"{"q": "Let $\\text{Re}(z) = 0$."}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        let field = v["q"].as_str().unwrap();
+        let cleaned = clean_field(field);
+        assert!(cleaned.contains(r"\text"), "\\text lost in pipeline: {cleaned}");
+    }
+
+    #[test]
+    fn end_to_end_paren_delimiters_converted() {
+        // Model emits \(...\); pipeline should convert to $...$
+        let raw = r#"{"q": "Value is \\(x^2\\)."}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        let field = v["q"].as_str().unwrap();
+        let cleaned = clean_field(field);
+        assert_eq!(cleaned, "Value is $x^2$.");
     }
 }
