@@ -358,7 +358,7 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   ];
 
   return (
-    <div className="min-h-full px-4 sm:px-6 py-10 max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500">
+    <div className="min-h-full px-4 sm:px-6 py-10 space-y-10 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/40">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center border border-violet-500/20 shadow-inner">
@@ -476,15 +476,15 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
               <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">4</span>
               Length & Duration
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-card border border-border/40 rounded-3xl p-6 shadow-sm">
-              <div className="space-y-4">
+            <div className="flex flex-row items-center justify-between gap-20">
+              <div className="space-y-4 w-1/2">
                 <div className="flex justify-between items-center">
                   <p className="text-xs font-semibold text-muted-foreground">Total Questions</p>
                   <span className="text-lg font-black text-foreground">{questionCount}</span>
                 </div>
                 <Slider min={1} max={20} value={[questionCount]} onValueChange={([v]) => setQuestionCount(v)} />
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 w-1/2">
                 <div className="flex justify-between items-center">
                   <p className="text-xs font-semibold text-muted-foreground">Time Limit</p>
                   <span className="text-lg font-black text-foreground">{timeLimit} min</span>
