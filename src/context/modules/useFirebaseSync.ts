@@ -20,10 +20,7 @@ import type {
 
 const SYNC_DEBUG = true;
 
-// Data archiving limits
-const ARCHIVE_QUESTION_HISTORY_LIMIT = 100;
-const ARCHIVE_MC_HISTORY_LIMIT = 100;
-const ARCHIVE_SAVED_SETS_LIMIT = 50;
+
 
 // Debug log / sync event memory limits
 const DEBUG_LOG_LIMIT = 50;
@@ -70,16 +67,7 @@ function mergeSyncableData(
     savedSets: mergeById(local.savedSets, remote.savedSets),
   };
 
-  // Archive old history items to keep in-memory and sync sizes bounded
-  if (merged.questionHistory.length > ARCHIVE_QUESTION_HISTORY_LIMIT) {
-    merged.questionHistory = merged.questionHistory.slice(0, ARCHIVE_QUESTION_HISTORY_LIMIT);
-  }
-  if (merged.mcHistory.length > ARCHIVE_MC_HISTORY_LIMIT) {
-    merged.mcHistory = merged.mcHistory.slice(0, ARCHIVE_MC_HISTORY_LIMIT);
-  }
-  if (merged.savedSets.length > ARCHIVE_SAVED_SETS_LIMIT) {
-    merged.savedSets = merged.savedSets.slice(0, ARCHIVE_SAVED_SETS_LIMIT);
-  }
+
 
   return merged;
 }
@@ -192,6 +180,7 @@ export interface UseFirebaseSyncReturn {
   user: FirebaseUser | null;
   isLoading: boolean;
   isSyncing: boolean;
+  isSyncEnabled: boolean;
   isOnline: boolean;
   syncStatus: SyncStatus;
   lastSyncTime: number | null;
@@ -200,6 +189,7 @@ export interface UseFirebaseSyncReturn {
   debugLogs: DebugLogEntry[];
   enableSync: (email: string, password: string, isSignUp?: boolean) => Promise<void>;
   disableSync: () => Promise<void>;
+  toggleSync: () => void;
   forceSync: () => Promise<void>;
 }
 
@@ -404,8 +394,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           } finally {
             setIsSyncing(false);
           }
-        });
-      }, 1000);
+          });
+        }, 5000);
     });
     
     return () => {
@@ -531,6 +521,21 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     setSyncStatus("idle");
     addSyncEvent("upload", "Disconnected from cloud sync");
   }, []);
+
+  const toggleSync = useCallback(() => {
+    if (isSyncEnabled) {
+      setIsSyncEnabled(false);
+      isInitializedRef.current = false;
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      setSyncStatus("idle");
+      addSyncEvent("upload", "Cloud sync paused");
+    } else if (user) {
+      setIsSyncEnabled(true);
+      setSyncStatus("idle");
+      addSyncEvent("download", "Cloud sync resumed");
+    }
+  }, [isSyncEnabled, user, addSyncEvent]);
   
   const forceSync = useCallback(async () => {
     if (!user) {
@@ -603,6 +608,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     user,
     isLoading,
     isSyncing,
+    isSyncEnabled,
     isOnline,
     syncStatus,
     lastSyncTime,
@@ -611,6 +617,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     debugLogs,
     enableSync,
     disableSync,
+    toggleSync,
     forceSync,
   };
 }

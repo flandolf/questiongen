@@ -13,7 +13,6 @@ import {
   doc, 
   getDoc, 
   getDocs, 
-  onSnapshot, 
   collection,
   query,
   orderBy,
@@ -178,7 +177,6 @@ function isRetryableError(error: unknown): boolean {
     "timed out",
     "unavailable",
     "deadline exceeded",
-    "resource exhausted",
     "internal error",
     "aborted",
     "failed to fetch",
@@ -634,21 +632,24 @@ export async function saveUserData(userId: string, data: SyncableData): Promise<
   let totalWrites = 0;
 
   try {
-    // Save settings (with retry)
-    console.log("[Firebase] Saving settings...");
+    // Save settings (with retry) — skip when settings are empty to avoid
+    // triggering the onSnapshot listener and causing unnecessary reloads.
     const cleanedSettings = removeUndefined(data.settings) as Record<string, unknown>;
-    await withRetry(
-      () => withTimeout(
-        setDoc(getUserSettingsRef(userId), {
-          settings: cleanedSettings,
-          _lastModified: serverTimestamp(),
-        }, { merge: true }),
+    if (Object.keys(cleanedSettings).length > 0) {
+      console.log("[Firebase] Saving settings...");
+      await withRetry(
+        () => withTimeout(
+          setDoc(getUserSettingsRef(userId), {
+            settings: cleanedSettings,
+            _lastModified: serverTimestamp(),
+          }, { merge: true }),
+          "saving settings"
+        ),
         "saving settings"
-      ),
-      "saving settings"
-    );
-    totalWrites++;
-    console.log("[Firebase] Settings saved");
+      );
+      totalWrites++;
+      console.log("[Firebase] Settings saved");
+    }
 
     // Save question history - use parallel writes instead of batch
     if (data.questionHistory && data.questionHistory.length > 0) {
@@ -950,8 +951,6 @@ export function subscribeToUserData(
   userId: string,
   callback: (data: SyncableData | null) => void
 ): () => void {
-  const settingsRef = getUserSettingsRef(userId);
-
   let isRefreshing = false;
   let refreshQueued = false;
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -979,25 +978,18 @@ export function subscribeToUserData(
 
   void refresh("initial");
 
-  const scheduleRefresh = (reason: string) => {
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-    }
-    refreshTimer = setTimeout(() => {
-      refreshTimer = null;
-      void refresh(reason);
-    }, 350);
-  };
-
-  const unsubscribeSettings = onSnapshot(settingsRef, () => {
-    scheduleRefresh("settings");
-  });
+  // Use polling instead of onSnapshot — the streaming listener fails in
+  // Tauri's webview due to CORS on the Firestore Listen endpoint.
+  const POLL_INTERVAL_MS = 30_000;
+  const pollTimer = setInterval(() => {
+    void refresh("poll");
+  }, POLL_INTERVAL_MS);
 
   return () => {
+    clearInterval(pollTimer);
     if (refreshTimer) {
       clearTimeout(refreshTimer);
       refreshTimer = null;
     }
-    unsubscribeSettings();
   };
 }

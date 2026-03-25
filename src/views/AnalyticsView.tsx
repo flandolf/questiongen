@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles, AlertTriangle, PlusCircle, Info, ChevronDown, ChevronUp, BarChart2, DollarSign, Calendar } from "lucide-react";
+import { Clock3, FileText, Gauge, Target, TrendingUp, Type, WandSparkles, AlertTriangle, PlusCircle, Info, ChevronDown, ChevronUp, BarChart2, DollarSign, Calendar, Sparkles } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -730,9 +730,51 @@ export function AnalyticsView() {
                     ))}
                   </div>
                 )}
-              </ChartCard>
-            </div>
-          </section>
+                </ChartCard>
+              </div>
+
+              {/* Practice all weak areas */}
+              {displayedSubtopics.length > 0 && (
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+                        <Target className="w-5 h-5 text-violet-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold">Practice All Weak Areas</p>
+                        <p className="text-xs text-muted-foreground">
+                          Generate a set focused on your {displayedSubtopics.slice(0, 3).length} weakest subtopics
+                          {displayedSubtopics.length > 3 ? ` (and ${displayedSubtopics.length - 3} more)` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="gap-2 h-9 bg-violet-500 hover:bg-violet-600 shrink-0"
+                      onClick={() => {
+                        const weakTopics = new Map<string, string[]>();
+                        for (const row of displayedSubtopics.slice(0, 5)) {
+                          const existing = weakTopics.get(row.topic) ?? [];
+                          existing.push(row.subtopic);
+                          weakTopics.set(row.topic, existing);
+                        }
+                        const params = new URLSearchParams();
+                        const topics = Array.from(weakTopics.keys());
+                        params.set("topic", topics[0]);
+                        const subtopics = weakTopics.get(topics[0]) ?? [];
+                        if (subtopics.length > 0) params.set("subtopic", subtopics[0]);
+                        params.set("weakAreas", "true");
+                        navigate(`/?${params.toString()}`);
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Generate practice set
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
 
           {/* ── Written analytics ── */}
           <section className="space-y-4">

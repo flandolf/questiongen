@@ -11,7 +11,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
   const lastExitSyncAtRef = useRef(0);
 
   useEffect(() => {
-    if (!firebaseSync.user) {
+    if (!firebaseSync.user || !firebaseSync.isSyncEnabled) {
       startupSyncedUserRef.current = null;
       return;
     }
@@ -25,7 +25,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
     }
     startupSyncedUserRef.current = userId;
     void firebaseSync.forceSync();
-  }, [isHydrated, firebaseSync.user, firebaseSync.isOnline, firebaseSync.isSyncing, firebaseSync.forceSync]);
+  }, [isHydrated, firebaseSync.user, firebaseSync.isSyncEnabled, firebaseSync.isOnline, firebaseSync.isSyncing, firebaseSync.forceSync]);
 
   useEffect(() => {
     const maybeSyncOnExit = () => {
@@ -33,7 +33,7 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
       if (now - lastExitSyncAtRef.current < 5000) {
         return;
       }
-      if (!isHydrated || !firebaseSync.user || !firebaseSync.isOnline || firebaseSync.isSyncing) {
+      if (!isHydrated || !firebaseSync.user || !firebaseSync.isSyncEnabled || !firebaseSync.isOnline || firebaseSync.isSyncing) {
         return;
       }
       lastExitSyncAtRef.current = now;

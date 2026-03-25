@@ -15,7 +15,6 @@ import {
   GeneratedQuestion,
   GenerationStatusEvent,
   GenerationTelemetry,
-  HISTORY_ENTRY_LIMIT,
   MarkAnswerResponse,
   MathMethodsSubtopic,
   McHistoryEntry,
@@ -27,10 +26,13 @@ import {
   PhysicalEducationSubtopic,
   QuestionHistoryEntry,
   QuestionMode,
-  SAVED_SET_LIMIT,
+  ReviewQuality,
   SavedQuestionSet,
+  SpacedRepetitionCard,
   SpecialistMathSubtopic,
   StudentAnswerImage,
+  StudyGoals,
+  StreakData,
   TechMode,
   Topic,
 } from "./types";
@@ -39,16 +41,13 @@ import {
   loadPersistedAppState,
   savePersistedAppState,
 } from "./lib/persistence";
+import {
+  createCard,
+  reviewCard,
+  isDue,
+} from "./lib/spaced-repetition";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function applyHistoryLimit<T>(entries: T[]): T[] {
-  return entries.slice(0, HISTORY_ENTRY_LIMIT);
-}
-
-function applySavedSetLimit(entries: SavedQuestionSet[]): SavedQuestionSet[] {
-  return entries.slice(0, SAVED_SET_LIMIT);
-}
 
 function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
   const leadTopic = topics[0] ?? "Mixed Topics";
@@ -121,6 +120,13 @@ export interface AppState {
   generationStartedAt: number | null;
   isMarking: boolean;
   errorMessage: string | null;
+
+  // ── Spaced repetition ─────────────────────────────────────────────────────
+  spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
+
+  // ── Study goals & streaks ─────────────────────────────────────────────────
+  studyGoals: StudyGoals;
+  streakData: StreakData;
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -231,6 +237,15 @@ export interface AppActions {
   needsSaveBeforeLoad: (savedSetId: string) => boolean;
   deleteSavedSet: (savedSetId: string) => void;
 
+  // Spaced repetition
+  reviewSpacedCard: (questionId: string, quality: ReviewQuality) => void;
+  getDueCards: () => Array<{ questionId: string; card: SpacedRepetitionCard }>;
+
+  // Study goals & streaks
+  setStudyGoals: (goals: Partial<StudyGoals>) => void;
+  recordCompletion: (mode: QuestionMode) => void;
+  getTodayCompletions: () => { total: number; written: number; mc: number };
+
   // Persistence
   hydrate: () => Promise<void>;
 }
@@ -298,6 +313,23 @@ const defaultState: AppState = {
   generationStartedAt: null,
   isMarking: false,
   errorMessage: null,
+
+  // Spaced repetition
+  spacedRepetitionCards: {},
+
+  // Study goals & streaks
+  studyGoals: {
+    dailyQuestionGoal: 10,
+    dailyWrittenGoal: 5,
+    dailyMcGoal: 5,
+    weeklyStreakGoal: 5,
+  },
+  streakData: {
+    currentStreak: 0,
+    longestStreak: 0,
+    lastActiveDate: "",
+    dailyCompletions: {},
+  },
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -369,6 +401,13 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         mcHistory: s.mcHistory,
         savedSets: s.savedSets,
 
+        // Spaced repetition
+        spacedRepetitionCards: s.spacedRepetition ?? {},
+
+        // Study goals & streaks
+        studyGoals: s.studyGoals ?? defaultState.studyGoals,
+        streakData: s.streakData ?? defaultState.streakData,
+
         isHydrated: true,
       });
     } catch {
@@ -427,7 +466,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({ feedbackByQuestionId: resolve(update, s.feedbackByQuestionId) })),
   setQuestionHistory: (update) =>
     set((s) => ({
-      questionHistory: applyHistoryLimit(resolve(update, s.questionHistory)),
+      questionHistory: resolve(update, s.questionHistory),
     })),
   setWrittenRawModelOutput: (writtenRawModelOutput) => set({ writtenRawModelOutput }),
   setWrittenGenerationTelemetry: (writtenGenerationTelemetry) =>
@@ -443,7 +482,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setMcAnswersByQuestionId: (update) =>
     set((s) => ({ mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId) })),
   setMcHistory: (update) =>
-    set((s) => ({ mcHistory: applyHistoryLimit(resolve(update, s.mcHistory)) })),
+    set((s) => ({ mcHistory: resolve(update, s.mcHistory) })),
   setMcRawModelOutput: (mcRawModelOutput) => set({ mcRawModelOutput }),
   setMcGenerationTelemetry: (mcGenerationTelemetry) => set({ mcGenerationTelemetry }),
   setActiveMcSavedSetId: (activeMcSavedSetId) => set({ activeMcSavedSetId }),
@@ -507,10 +546,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         writtenSession,
       };
 
-      const nextSavedSets = applySavedSetLimit([
+      const nextSavedSets = [
         nextEntry,
         ...s.savedSets.filter((e) => e.id !== savedSetId),
-      ]);
+      ];
 
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
 
@@ -565,10 +604,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       mcSession,
     };
 
-    const nextSavedSets = applySavedSetLimit([
+    const nextSavedSets = [
       nextEntry,
       ...s.savedSets.filter((e) => e.id !== savedSetId),
-    ]);
+    ];
 
     set({ savedSets: nextSavedSets, activeMcSavedSetId: savedSetId });
 
@@ -646,6 +685,75 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       activeMcSavedSetId: s.activeMcSavedSetId === savedSetId ? null : s.activeMcSavedSetId,
     }));
   },
+
+  // ── Spaced repetition ─────────────────────────────────────────────────────
+
+  reviewSpacedCard: (questionId, quality) => {
+    set((s) => {
+      const existing = s.spacedRepetitionCards[questionId];
+      const updated = existing ? reviewCard(existing, quality) : reviewCard(createCard(), quality);
+      return {
+        spacedRepetitionCards: { ...s.spacedRepetitionCards, [questionId]: updated },
+      };
+    });
+  },
+
+  getDueCards: () => {
+    const cards = get().spacedRepetitionCards;
+    return Object.entries(cards)
+      .filter(([, card]) => isDue(card))
+      .map(([questionId, card]) => ({ questionId, card }))
+      .sort((a, b) => new Date(a.card.nextReviewDate).getTime() - new Date(b.card.nextReviewDate).getTime());
+  },
+
+  // ── Study goals & streaks ─────────────────────────────────────────────────
+
+  setStudyGoals: (goals) => {
+    set((s) => ({ studyGoals: { ...s.studyGoals, ...goals } }));
+  },
+
+  recordCompletion: (mode) => {
+    const today = new Date().toISOString().slice(0, 10);
+    set((s) => {
+      const todayData = s.streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
+      const updatedDay = {
+        total: todayData.total + 1,
+        written: todayData.written + (mode === "written" ? 1 : 0),
+        mc: todayData.mc + (mode === "multiple-choice" ? 1 : 0),
+      };
+
+      // Calculate streak
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayKey = yesterday.toISOString().slice(0, 10);
+      const hadYesterday = s.streakData.dailyCompletions[yesterdayKey]?.total > 0;
+      const hadToday = todayData.total > 0;
+
+      let newStreak = s.streakData.currentStreak;
+      if (!hadToday) {
+        // First completion today
+        newStreak = hadYesterday ? s.streakData.currentStreak + 1 : 1;
+      }
+
+      return {
+        streakData: {
+          ...s.streakData,
+          currentStreak: newStreak,
+          longestStreak: Math.max(s.streakData.longestStreak, newStreak),
+          lastActiveDate: today,
+          dailyCompletions: {
+            ...s.streakData.dailyCompletions,
+            [today]: updatedDay,
+          },
+        },
+      };
+    });
+  },
+
+  getTodayCompletions: () => {
+    const today = new Date().toISOString().slice(0, 10);
+    return get().streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
+  },
 }));
 
 // ─── Persistence snapshot builder ────────────────────────────────────────────
@@ -697,9 +805,12 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       generationTelemetry: s.mcGenerationTelemetry,
       savedSetId: s.activeMcSavedSetId,
     },
-    questionHistory: applyHistoryLimit(s.questionHistory),
-    mcHistory: applyHistoryLimit(s.mcHistory),
-    savedSets: applySavedSetLimit(s.savedSets),
+    questionHistory: s.questionHistory,
+    mcHistory: s.mcHistory,
+    savedSets: s.savedSets,
+    spacedRepetition: s.spacedRepetitionCards,
+    studyGoals: s.studyGoals,
+    streakData: s.streakData,
   };
 }
 

@@ -1194,8 +1194,7 @@ export const QUESTION_HISTORY_STORAGE_KEY = "questiongen.history";
 export const MC_HISTORY_STORAGE_KEY = "questiongen.mcHistory";
 export const DEBUG_MODE_STORAGE_KEY = "questiongen.debugMode";
 export const APP_STATE_STORAGE_KEY = "questiongen.appState";
-export const HISTORY_ENTRY_LIMIT = 200;
-export const SAVED_SET_LIMIT = 100;
+
 export const PERSISTED_APP_STATE_VERSION = 2;
 
 export type QuestionMode = "written" | "multiple-choice";
@@ -1312,4 +1311,77 @@ export type PersistedAppState = {
   questionHistory: QuestionHistoryEntry[];
   mcHistory: McHistoryEntry[];
   savedSets: SavedQuestionSet[];
+  spacedRepetition?: Record<string, SpacedRepetitionCard>;
+  studyGoals?: StudyGoals;
+  streakData?: StreakData;
+};
+
+// ─── Spaced Repetition (SM-2) ─────────────────────────────────────────────────
+
+export type SpacedRepetitionCard = {
+  /** SM-2 easiness factor (≥ 1.3, starts at 2.5) */
+  easinessFactor: number;
+  /** Current interval in days */
+  intervalDays: number;
+  /** Number of consecutive correct reviews */
+  repetitions: number;
+  /** ISO date of the next scheduled review */
+  nextReviewDate: string;
+  /** ISO date of the last review */
+  lastReviewDate: string;
+  /** Quality of last review (0-5 SM-2 scale) */
+  lastQuality: number;
+  /** Total number of reviews */
+  totalReviews: number;
+  /** Number of correct reviews */
+  correctReviews: number;
+};
+
+export type ReviewQuality = 0 | 1 | 2 | 3 | 4 | 5;
+
+// ─── Study Goals & Streaks ────────────────────────────────────────────────────
+
+export type StudyGoals = {
+  dailyQuestionGoal: number;
+  dailyWrittenGoal: number;
+  dailyMcGoal: number;
+  weeklyStreakGoal: number;
+};
+
+export type StreakData = {
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDate: string;
+  /** Map of date string (YYYY-MM-DD) → questions completed that day */
+  dailyCompletions: Record<string, { total: number; written: number; mc: number }>;
+};
+
+// ─── Exam Simulation ──────────────────────────────────────────────────────────
+
+export type ExamConfig = {
+  topic: Topic;
+  questionCount: number;
+  /** Time limit in minutes */
+  timeLimitMinutes: number;
+  difficulty: Difficulty;
+  techMode: TechMode;
+  /** Whether questions must be answered sequentially (no skipping) */
+  sequentialMode: boolean;
+  /** Whether to show results only at the end */
+  hideResultsUntilEnd: boolean;
+};
+
+export type ExamSessionState = {
+  config: ExamConfig;
+  questions: GeneratedQuestion[];
+  answersByQuestionId: Record<string, string>;
+  imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
+  feedbackByQuestionId: Record<string, MarkAnswerResponse>;
+  currentQuestionIndex: number;
+  startedAt: number;
+  /** null means time is still running */
+  finishedAt: number | null;
+  /** Seconds remaining */
+  timeRemainingSeconds: number;
+  isActive: boolean;
 };
