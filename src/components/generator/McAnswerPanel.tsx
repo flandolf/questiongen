@@ -1,13 +1,13 @@
 import { Loader2, CheckCircle2, XCircle, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownMath } from "@/components/MarkdownMath";
 import { McOption } from "@/types";
-import { useRef } from "react";
+import { UnifiedMcqOptionsGrid } from "@/components/question/UnifiedQuestionBlocks";
 
 type McAnswerPanelProps = {
   questionId: string;
@@ -43,93 +43,28 @@ export function McAnswerPanel({
 }: McAnswerPanelProps) {
   const answered = Boolean(selectedAnswer);
   const isCorrect = selectedAnswer === correctAnswer;
-  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  function focusOption(idx: number) {
-    optionRefs.current[idx]?.focus();
-  }
-
-  function handleOptionsKeyDown(e: React.KeyboardEvent) {
-    const key = e.key;
-    const activeIndex = optionRefs.current.findIndex((el) => el === document.activeElement);
-    if (key === "ArrowDown" || key === "ArrowRight") {
-      e.preventDefault();
-      focusOption((activeIndex + 1) % options.length);
-    } else if (key === "ArrowUp" || key === "ArrowLeft") {
-      e.preventDefault();
-      focusOption((activeIndex - 1 + options.length) % options.length);
-    } else if (key === "Home") { e.preventDefault(); focusOption(0); }
-    else if (key === "End") { e.preventDefault(); focusOption(options.length - 1); }
-  }
-
-  // Option label colors
-  const optionColors: Record<string, string> = { A: "#3b82f6", B: "#8b5cf6", C: "#f59e0b", D: "#ec4899" };
 
   return (
-    <Card className="flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="w-4.5 h-4.5 text-primary" /> Select an Answer
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Card className="overflow-hidden rounded-3xl border border-border/40 shadow-sm bg-card flex-col">
+      <div className="px-6 py-4 bg-muted/20 border-b border-border/30 flex items-center gap-2">
+        <Target className="w-4 h-4 text-muted-foreground" />
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select an Answer</span>
+      </div>
+      <CardContent className="p-6 space-y-3">
         {/* Options */}
-        <div
-          className="grid sm:grid-cols-2 gap-2.5"
-          role="listbox"
-          aria-label="Answer options"
-          onKeyDown={handleOptionsKeyDown}
-        >
-          {options.map((opt, idx) => {
-            const isChosen = selectedAnswer === opt.label;
-            const optCorrect = opt.label === correctAnswer;
-            const color = optionColors[opt.label] ?? "#6b7280";
-
-            let borderClass = "border-border/60 hover:border-primary/40 hover:bg-muted/30";
-            let labelBg = "bg-muted text-foreground";
-
-            if (answered) {
-              if (optCorrect) {
-                borderClass = "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-sm";
-                labelBg = "bg-emerald-500 text-white";
-              } else if (isChosen) {
-                borderClass = "border-rose-400 bg-rose-50/60 dark:bg-rose-950/20 opacity-80";
-                labelBg = "bg-rose-500 text-white";
-              } else {
-                borderClass = "border-border/40 bg-muted/20 opacity-45 grayscale";
-              }
-            }
-
-            return (
-              <button
-                key={opt.label}
-                ref={(el) => { optionRefs.current[idx] = el; }}
-                role="option"
-                aria-selected={isChosen}
-                tabIndex={answered ? -1 : 0}
-                disabled={answered}
-                className={`w-full text-left p-3 rounded-xl border-2 flex gap-3 items-start transition-all duration-200 ${borderClass} ${
-                  !answered ? "cursor-pointer hover:-translate-y-0.5 active:translate-y-0" : "cursor-default"
-                }`}
-                onClick={() => onSelectAnswer(opt.label)}
-              >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm transition-colors ${labelBg}`}
-                  style={!answered ? { backgroundColor: `${color}20`, color } : undefined}
-                >
-                  {opt.label}
-                </div>
-                <div className="flex-1 text-sm leading-relaxed pt-0.5">
-                  <MarkdownMath content={opt.text} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <UnifiedMcqOptionsGrid
+          options={options}
+          selectedAnswer={selectedAnswer}
+          correctAnswer={correctAnswer}
+          answered={answered}
+          revealCorrectness={answered}
+          onSelect={onSelectAnswer}
+        />
 
         {/* Result + explanation */}
         {answered && (
           <div className="mt-2 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className={`p-4 rounded-xl border flex gap-3 items-start ${
+            <div className={`p-4 rounded-2xl border flex gap-3 items-start ${
               isCorrect
                 ? "bg-emerald-50/80 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-900/40"
                 : "bg-rose-50/70 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40"

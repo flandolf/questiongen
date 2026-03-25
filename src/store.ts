@@ -35,6 +35,7 @@ import {
   StreakData,
   TechMode,
   Topic,
+  ExamRecord,
 } from "./types";
 import {
   EMPTY_PERSISTED_APP_STATE,
@@ -127,6 +128,8 @@ export interface AppState {
   // ── Study goals & streaks ─────────────────────────────────────────────────
   studyGoals: StudyGoals;
   streakData: StreakData;
+
+  examHistory: ExamRecord[];
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -248,6 +251,10 @@ export interface AppActions {
 
   // Persistence
   hydrate: () => Promise<void>;
+
+  addExamRecord: (record: ExamRecord) => void;
+  deleteExamRecord: (id: string) => void;
+  clearExamHistory: () => void;
 }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -330,6 +337,8 @@ const defaultState: AppState = {
     lastActiveDate: "",
     dailyCompletions: {},
   },
+
+  examHistory: [],
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -409,6 +418,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         streakData: s.streakData ?? defaultState.streakData,
 
         isHydrated: true,
+        examHistory: s.examHistory ?? [],
       });
     } catch {
       set({ errorMessage: "Could not load saved app data.", isHydrated: true });
@@ -416,6 +426,12 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   },
 
   // ── Settings ───────────────────────────────────────────────────────────────
+
+  addExamRecord: (record) =>
+    set((s) => ({ examHistory: [record, ...s.examHistory].slice(0, 100) })),
+  deleteExamRecord: (id) =>
+    set((s) => ({ examHistory: s.examHistory.filter((r) => r.id !== id) })),
+  clearExamHistory: () => set({ examHistory: [] }),
 
   setApiKey: (key) => set({ apiKey: key }),
   setShowApiKey: (show) => set({ showApiKey: show }),
@@ -811,6 +827,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
     spacedRepetition: s.spacedRepetitionCards,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
+    examHistory: s.examHistory,
   };
 }
 

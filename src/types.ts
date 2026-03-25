@@ -1314,6 +1314,23 @@ export type PersistedAppState = {
   spacedRepetition?: Record<string, SpacedRepetitionCard>;
   studyGoals?: StudyGoals;
   streakData?: StreakData;
+  examHistory?: ExamRecord[];
+};
+
+// ─── ExamRecord ─────────────────────────────────────────────────────────────
+
+export type ExamRecord = {
+  id: string;
+  createdAt: string;
+  topic: string;
+  difficulty: Difficulty;
+  questionMode: "written" | "multiple-choice";
+  techMode: TechMode;
+  questionCount: number;
+  timeUsedSeconds: number;
+  totalScore: number;
+  totalMax: number;
+  questionResults: ExamQuestionResult[];
 };
 
 // ─── Spaced Repetition (SM-2) ─────────────────────────────────────────────────
@@ -1385,3 +1402,18 @@ export type ExamSessionState = {
   timeRemainingSeconds: number;
   isActive: boolean;
 };
+
+export type ExamQuestionResult = {
+  questionId: string;
+  topic: string;
+  subtopic?: string;
+  promptMarkdown: string;
+  achievedMarks: number;
+  maxMarks: number;
+  correct: boolean;
+  /** MC only */
+  selectedAnswer?: string;
+  /** MC only */
+  correctAnswer?: string;
+};
+ 

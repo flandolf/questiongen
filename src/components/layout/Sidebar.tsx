@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark, CircleX, Timer, Flame } from "lucide-react";
+import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark, CircleX, Timer, Flame, Trophy } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store";
 import { useMemo } from "react";
@@ -22,6 +22,7 @@ export function Sidebar() {
     { to: "/", label: "Generator", icon: Sparkles },
     { to: "/exam", label: "Exam Sim", icon: Timer },
     { to: "/history", label: "History", icon: History },
+    { to: "/exam-history", label: "Exam History", icon: Trophy },
     { to: "/analytics", label: "Analytics", icon: ChartColumnIncreasing },
     { to: "/mistakes", label: "Mistakes", icon: CircleX },
     { to: "/saved", label: "Saved", icon: Bookmark },

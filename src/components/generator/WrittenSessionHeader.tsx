@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Clock, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,47 +40,54 @@ export function WrittenSessionHeader({
   onPrev, onNext, onSave, onDelete, onExit,
   onRegenerate,
 }: WrittenSessionHeaderProps) {
+  const progressPct = totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
+
   return (
-    <div className="sticky top-0 z-10 flex flex-col gap-2.5 border-b bg-background/90 pb-3 pt-2.5 px-1 backdrop-blur-xl">
-      {/* Top row: title + actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {/* Left: question counter + badges */}
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div className="flex items-baseline gap-1.5 shrink-0">
-            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">
-              Q{questionIndex + 1}
-            </h2>
-            <span className="text-sm text-muted-foreground font-medium">of {totalQuestions}</span>
+    <div className="sticky top-0 z-20 border-b border-border/40 bg-background/90 backdrop-blur-md">
+      <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onExit} className="gap-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 h-9">
+            <Flag className="w-4 h-4" /> End Session
+          </Button>
+          <div className="h-4 w-px bg-border hidden sm:block" />
+          <div className="hidden sm:flex items-center gap-2 text-sm font-medium">
+            <span className="text-foreground">Q {questionIndex + 1}</span>
+            <span className="text-muted-foreground">of {totalQuestions}</span>
           </div>
-          {topic && (
-            <Badge variant="secondary" className="shrink-0 border-primary/20 bg-primary/10 text-primary text-[11px]">
-              {topic}
-            </Badge>
-          )}
-          <Badge variant="outline" className={`shrink-0 font-semibold text-[11px] ${getDifficultyBadgeClasses(difficulty)}`}>
-            {difficulty}
-          </Badge>
-          {maxMarks !== undefined && (
-            <Badge variant="outline" className="shrink-0 text-[11px]">
-              {maxMarks}mk
-            </Badge>
-          )}
-          {isMathTopic && techAllowed !== undefined && (
-            <Badge variant={techAllowed ? "default" : "destructive"} className="shrink-0 text-[11px]">
-              {techAllowed ? "CAS" : "No CAS"}
-            </Badge>
-          )}
         </div>
 
-        {/* Right: action buttons */}
-        <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="hidden lg:flex items-center gap-1.5 text-xs bg-muted/50 px-3 py-1.5 rounded-full">
+            {topic && (
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium border-border/50">
+                {topic}
+              </Badge>
+            )}
+            <Badge variant="outline" className={`h-5 px-1.5 text-[10px] font-semibold ${getDifficultyBadgeClasses(difficulty)}`}>
+              {difficulty}
+            </Badge>
+            {maxMarks !== undefined && (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20">
+                {maxMarks} marks
+              </Badge>
+            )}
+            {isMathTopic && techAllowed !== undefined && (
+              <Badge variant={techAllowed ? "default" : "destructive"} className="h-5 px-1.5 text-[10px]">
+                {techAllowed ? "CAS" : "No CAS"}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2 font-mono text-sm font-bold px-3 py-1.5 rounded-full shadow-sm border border-border/50 bg-card text-foreground">
+            <Clock className="w-3.5 h-3.5" />
+            {formattedElapsedTime}
+          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="shrink-0 rounded-full text-muted-foreground hover:text-foreground h-7 w-7"
+                  className="shrink-0 rounded-full text-muted-foreground hover:text-foreground h-9 w-9"
                   aria-label="Question details"
                 >
                   <Info className="h-3.5 w-3.5" />
@@ -96,34 +103,33 @@ export function WrittenSessionHeader({
             </Tooltip>
           </TooltipProvider>
 
-          <Button variant={hasSavedSet ? "default" : "outline"} size="sm" onClick={onSave} className="h-7 gap-1.5 text-xs px-2.5">
+          <Button variant={hasSavedSet ? "default" : "outline"} size="sm" onClick={onSave} className="h-9 gap-1.5 text-xs px-3 rounded-full">
             <Bookmark className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{hasSavedSet ? "Saved" : "Save"}</span>
           </Button>
           {onRegenerate && (
-            <Button variant="ghost" size="sm" onClick={onRegenerate} className="h-7 px-2">
+            <Button variant="ghost" size="sm" onClick={onRegenerate} className="h-9 w-9 p-0 rounded-full">
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={onDelete} disabled={totalQuestions === 0} className="h-7 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+          <Button variant="ghost" size="sm" onClick={onDelete} disabled={totalQuestions === 0} className="h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10">
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={onExit} className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground">
-            Exit
-          </Button>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" onClick={onPrev} disabled={questionIndex === 0} className="h-7 w-7 p-0">
+            <Button variant="outline" size="sm" onClick={onPrev} disabled={questionIndex === 0} className="h-9 w-9 p-0 rounded-full">
               <ArrowLeft className="w-3.5 h-3.5" />
             </Button>
-            <Button variant={isAtLast && canAdvance ? "default" : "outline"} size="sm" onClick={onNext} disabled={!canAdvance} className="h-7 gap-1 px-2.5 text-xs">
-              <span className="hidden sm:inline">{isAtLast ? "Finish" : "Next"}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+            <Button variant={isAtLast && canAdvance ? "default" : "secondary"} size="sm" onClick={onNext} disabled={!canAdvance} className="h-9 rounded-full px-4 gap-1.5 shadow-sm">
+              <span>{isAtLast ? "Complete" : "Next"}</span>
+              <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </div>
 
-      <ProgressBar current={questionIndex + 1} total={totalQuestions} completed={completedCount} />
+      <div className="h-1 w-full bg-muted/30">
+        <div className="h-full bg-violet-500 transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
+      </div>
     </div>
   );
 }
