@@ -949,7 +949,8 @@ export async function deleteArchivedItems(
 
 export function subscribeToUserData(
   userId: string,
-  callback: (data: SyncableData | null) => void
+  callback: (data: SyncableData | null) => void,
+  getLocalData?: () => SyncableData | null
 ): () => void {
   let isRefreshing = false;
   let refreshQueued = false;
@@ -963,6 +964,30 @@ export function subscribeToUserData(
     isRefreshing = true;
     try {
       console.log(`[Firebase] Remote refresh triggered by ${reason}`);
+
+      if (getLocalData) {
+        const localData = getLocalData();
+        if (localData) {
+          console.log("[Firebase] Running delta sync check...");
+          const deltaResult = await getDeltaSyncData(userId, localData);
+          console.log("[Firebase] Delta sync result:", {
+            changedItems: deltaResult.changedItems.length,
+            totalChecked: deltaResult.totalChecked,
+          });
+
+          if (deltaResult.changedItems.length === 0) {
+            console.log("[Firebase] No changes detected, skipping full load");
+            isRefreshing = false;
+            if (refreshQueued) {
+              refreshQueued = false;
+              void refresh("queued");
+            }
+            return;
+          }
+          console.log("[Firebase] Changes detected, loading full data");
+        }
+      }
+
       const data = await loadUserData(userId);
       callback(data);
     } catch (error) {
@@ -978,9 +1003,7 @@ export function subscribeToUserData(
 
   void refresh("initial");
 
-  // Use polling instead of onSnapshot — the streaming listener fails in
-  // Tauri's webview due to CORS on the Firestore Listen endpoint.
-  const POLL_INTERVAL_MS = 30_000;
+  const POLL_INTERVAL_MS = 300_000; // 5 minutes instead of 30s
   const pollTimer = setInterval(() => {
     void refresh("poll");
   }, POLL_INTERVAL_MS);

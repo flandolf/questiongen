@@ -28,7 +28,10 @@ fn adjust_difficulty(
 
     let score = recent_average_score.unwrap();
     let levels = ["Essential Skills", "Easy", "Medium", "Hard", "Extreme"];
-    let mut current_index = levels.iter().position(|&r| r == base_difficulty).unwrap_or(2); // default Medium
+    let mut current_index = levels
+        .iter()
+        .position(|&r| r == base_difficulty)
+        .unwrap_or(2); // default Medium
 
     // If recent difficulty was different, adjust baseline
     if let Some(recent_diff) = recent_difficulty {
@@ -52,7 +55,7 @@ use openrouter::{call_openrouter, call_openrouter_streaming, json_schema_format}
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
     clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
-    validate_mc, validate_written,
+    protect_latex_in_raw_json, validate_mc, validate_written,
 };
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
@@ -445,7 +448,10 @@ fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
 
 /// Extract + deserialise a `{"questions":[...]}` payload from a raw model string.
 fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> CommandResult<T> {
-    let json_str = extract_json_object(raw)
+    // Protect LaTeX commands (\frac, \text, \beta, etc.) from being destroyed
+    // by JSON escape-sequence interpretation before any parsing occurs.
+    let protected = protect_latex_in_raw_json(raw);
+    let json_str = extract_json_object(&protected)
         .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object in response."))?;
     let value: serde_json::Value = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
@@ -483,10 +489,16 @@ async fn generate_questions(
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
     if request.topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
     }
     if request.question_count == 0 || request.question_count > 20 {
-        return Err(AppError::new("VALIDATION_ERROR", "Question count must be 1–20."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Question count must be 1–20.",
+        ));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -649,10 +661,16 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     if request.topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
     }
     if request.question_count == 0 || request.question_count > 20 {
-        return Err(AppError::new("VALIDATION_ERROR", "Question count must be 1–20."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Question count must be 1–20.",
+        ));
     }
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
@@ -930,7 +948,9 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     )
     .await?;
 
-    let json_str = extract_json_object(&result.content).ok_or_else(|| {
+    // Protect LaTeX commands before JSON parsing — same pipeline as question generation.
+    let protected_marking = protect_latex_in_raw_json(&result.content);
+    let json_str = extract_json_object(&protected_marking).ok_or_else(|| {
         AppError::new(
             "MODEL_PARSE_ERROR",
             format!(
@@ -961,7 +981,8 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
 
     // Always compute score_out_of_10 from achieved_marks and max_marks, do not use LLM value
     if parsed.max_marks > 0 {
-        parsed.score_out_of_10 = ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
+        parsed.score_out_of_10 =
+            ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
         parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
     } else {
         parsed.score_out_of_10 = 0;
