@@ -695,8 +695,6 @@ function ReattemptView({
                 topic={entry.question.topic}
                 subtopic={entry.question.subtopic ?? undefined}
                 maxMarks={isWritten ? entry.question.maxMarks : undefined}
-                modeLabel={isWritten ? "Written" : "Multiple Choice"}
-                modeTone={isWritten ? "written" : "mc"}
                 rightSlot={(
                     <button
                         type="button"

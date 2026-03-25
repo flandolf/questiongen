@@ -209,8 +209,11 @@ function normalizeEscapedLatexCommandsInMath(content: string): string {
   return content.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g, (mathSegment: string) => {
     const delimiter = mathSegment.startsWith("$$") ? "$$" : "$";
     const inner = mathSegment.slice(delimiter.length, -delimiter.length);
+    // Some model outputs provide "\text" with a single slash in JSON strings.
+    // JSON decoding interprets "\t" as a tab, so recover that tab + command pattern.
+    const recoveredTabEscapes = inner.replace(/\t(?=[A-Za-z])/g, "\\t");
     // Model responses sometimes include JSON-escaped LaTeX commands (e.g. \\sin).
-    const normalizedInner = inner.replace(/\\\\([A-Za-z]+)/g, "\\$1");
+    const normalizedInner = recoveredTabEscapes.replace(/\\\\([A-Za-z]+)/g, "\\$1");
     return `${delimiter}${normalizedInner}${delimiter}`;
   });
 }
