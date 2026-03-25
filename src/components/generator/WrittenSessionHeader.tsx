@@ -2,7 +2,6 @@ import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Clock, Flag }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ProgressBar } from "@/components/generator/ProgressBar";
 import { Difficulty, GenerationTelemetry } from "../../types";
 import { formatDurationMs } from "../../lib/app-utils";
 
@@ -32,7 +31,7 @@ type WrittenSessionHeaderProps = {
 };
 
 export function WrittenSessionHeader({
-  questionIndex, totalQuestions, completedCount,
+  questionIndex, totalQuestions,
   topic, difficulty, maxMarks, techAllowed, isMathTopic,
   isAtLast, canAdvance, hasSavedSet,
   generationStartedAt, formattedElapsedTime, telemetry,
