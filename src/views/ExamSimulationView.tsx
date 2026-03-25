@@ -685,12 +685,12 @@ function ExamActive({
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [mcSelected, setMcSelected] = useState<Record<string, string>>({});
-  const [timeRemaining, setTimeRemaining] = useState(config.timeLimitMinutes * 60);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const endTimeRef = useRef<number>(Date.now() + config.timeLimitMinutes * 60 * 1000);
+  const startTimeRef = useRef<number>(Date.now());
   const pauseTimeRef = useRef<number | null>(null);
   const answersRef = useRef(answers);
   const mcSelectedRef = useRef(mcSelected);
@@ -707,16 +707,16 @@ function ExamActive({
   const isLast = currentIdx === questions.length - 1;
   const answeredCount = isWritten ? Object.keys(answers).length : Object.keys(mcSelected).length;
   const progressPct = ((currentIdx + 1) / questions.length) * 100;
-  const isTimeWarning = timeRemaining < 300;
-  const isTimeCritical = timeRemaining < 60;
+  const timeLimitSeconds = config.timeLimitMinutes * 60;
+  const isTimeWarning = elapsedSeconds > timeLimitSeconds - 300;
+  const isTimeCritical = elapsedSeconds > timeLimitSeconds - 60;
 
   const canAdvance = isWritten
     ? (answers[question?.id]?.trim().length ?? 0) > 0 || showAnswer[question?.id]
     : Boolean(question && mcSelected[question.id]);
 
   const getElapsedSeconds = () => {
-    const totalPossible = config.timeLimitMinutes * 60;
-    return totalPossible - timeRemaining;
+    return elapsedSeconds;
   };
 
   useEffect(() => {
@@ -724,13 +724,14 @@ function ExamActive({
       if (isPaused) return;
 
       const now = Date.now();
-      const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
+      const elapsed = Math.floor((now - startTimeRef.current) / 1000);
 
-      setTimeRemaining(remaining);
+      setElapsedSeconds(elapsed);
 
-      if (remaining <= 0) {
+      const timeLimitSeconds = config.timeLimitMinutes * 60;
+      if (elapsed >= timeLimitSeconds) {
         if (timerRef.current) clearInterval(timerRef.current);
-        onFinishRef.current(answersRef.current, mcSelectedRef.current, config.timeLimitMinutes * 60);
+        onFinishRef.current(answersRef.current, mcSelectedRef.current, elapsed);
       }
     };
 
@@ -743,7 +744,7 @@ function ExamActive({
       // Resuming
       if (pauseTimeRef.current) {
         const pausedDuration = Date.now() - pauseTimeRef.current;
-        endTimeRef.current += pausedDuration;
+        startTimeRef.current += pausedDuration;
         pauseTimeRef.current = null;
       }
       setIsPaused(false);
@@ -801,7 +802,7 @@ function ExamActive({
                   "bg-card text-foreground border-border/50"
             }`}>
             <Clock className={`w-4 h-4 ${isPaused ? "" : "animate-pulse"}`} />
-            {formatTime(timeRemaining)}
+            {formatTime(elapsedSeconds)}
           </div>
         </div>
 

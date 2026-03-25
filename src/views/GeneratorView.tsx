@@ -385,17 +385,23 @@ export function GeneratorView() {
       return { ...prev, [activeMcQuestion.id]: Date.now() };
     });
   }, [activeMcQuestion, setMcQuestionPresentedAtById]);
-
+ 
   // ── Stopwatch ────────────────────────────────────────────────────────────────
   function startStopwatch() {
-    const now = Date.now();
-    localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(now));
+    // Initialize stopwatch state but don't start timing yet
+    localStorage.removeItem(LS_STOPWATCH_STARTED_KEY);
     localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
     localStorage.removeItem(LS_STOPWATCH_PAUSED_TIME_KEY);
-    setGenerationStartedAt(now);
+    setGenerationStartedAt(null);
     setSessionFinishedAt(null);
     setIsPaused(false);
     setPausedDuration(0);
+  }
+
+  function startTiming() {
+    const now = Date.now();
+    localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(now));
+    setGenerationStartedAt(now);
   }
 
   function resetStopwatch() {
@@ -865,6 +871,7 @@ useEffect(() => {
       }
 
       setQuestions(finalQuestions);
+      startTiming();
       setWrittenRawModelOutput("");
       setWrittenGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -1007,6 +1014,7 @@ useEffect(() => {
       }
 
       setMcQuestions(finalQuestions);
+      startTiming();
       setMcRawModelOutput("");
       setMcGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
