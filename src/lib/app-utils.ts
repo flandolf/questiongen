@@ -1,4 +1,4 @@
-import { MarkAnswerResponse, BackendError } from "../types"
+import { MarkAnswerResponse, BackendError, GenerationRecord, Topic, Difficulty, QuestionMode, TechMode } from "../types"
 
 const NORMALIZED_MATH_CACHE_MAX_ENTRIES = 200;
 const normalizedMathCache = new Map<string, string>();
@@ -305,4 +305,88 @@ export function formatCostUsd(costUsd: number | null | undefined): string {
   if (costUsd < 0.00001) return "<$0.00001";
   if (costUsd < 0.01) return `$${costUsd.toFixed(5)}`;
   return `$${costUsd.toFixed(4)}`;
+}
+
+export interface EstimatedTokensAndCost {
+  totalTokensPerQuestion: number;
+  promptTokensPerQuestion: number;
+  completionTokensPerQuestion: number;
+  totalTokens: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  promptCost: number | null;
+  completionCost: number | null;
+  totalCost: number;
+}
+
+export function estimateTokensAndCost(
+  generationHistory: GenerationRecord[],
+  topic: Topic,
+  difficulty: Difficulty,
+  questionCount: number,
+  questionMode: QuestionMode,
+  techMode: TechMode,
+  maxMarksPerQuestion?: number,
+  promptPricePerToken?: number | null,
+  completionPricePerToken?: number | null
+): EstimatedTokensAndCost {
+  // Try to find historical data for similar parameters
+  const matchingRecords = generationHistory.filter(record =>
+    record.inputs.topic === topic &&
+    record.inputs.difficulty === difficulty &&
+    record.inputs.questionMode === questionMode &&
+    record.inputs.techMode === techMode &&
+    (maxMarksPerQuestion == null || record.inputs.maxMarksPerQuestion == null || record.inputs.maxMarksPerQuestion === maxMarksPerQuestion) &&
+    record.outputs.totalTokens != null &&
+    record.outputs.promptTokens != null &&
+    record.outputs.completionTokens != null
+  );
+
+  let totalTokensPerQuestion = 0;
+  let promptRatio = 0.5;
+  let completionRatio = 0.5;
+
+  if (matchingRecords.length > 0) {
+    // Use average from historical data
+    const totalTokensSum = matchingRecords.reduce((sum, r) => sum + r.outputs.totalTokens!, 0);
+    const promptTokensSum = matchingRecords.reduce((sum, r) => sum + r.outputs.promptTokens!, 0);
+    const completionTokensSum = matchingRecords.reduce((sum, r) => sum + r.outputs.completionTokens!, 0);
+
+    totalTokensPerQuestion = totalTokensSum / matchingRecords.length;
+    promptRatio = promptTokensSum / totalTokensSum;
+    completionRatio = completionTokensSum / totalTokensSum;
+  } else {
+    // Fallback to static formulas
+    if (questionMode === "multiple-choice") {
+      totalTokensPerQuestion = questionCount > 0 ? (2250 + (questionCount - 1) * 350) / questionCount : 0;
+      promptRatio = 0.6;
+      completionRatio = 0.4;
+    } else {
+      totalTokensPerQuestion = questionCount > 0 ? (2000 + (questionCount - 1) * 350) / questionCount : 0;
+      promptRatio = 0.35;
+      completionRatio = 0.65;
+    }
+  }
+
+  const promptTokensPerQuestion = Math.round(totalTokensPerQuestion * promptRatio);
+  const completionTokensPerQuestion = Math.round(totalTokensPerQuestion * completionRatio);
+  const totalTokens = Math.round(totalTokensPerQuestion * questionCount);
+  const totalPromptTokens = promptTokensPerQuestion * questionCount;
+  const totalCompletionTokens = completionTokensPerQuestion * questionCount;
+
+  const promptCost = promptPricePerToken != null ? promptPricePerToken * totalPromptTokens : null;
+  const completionCost = completionPricePerToken != null ? completionPricePerToken * totalCompletionTokens : null;
+  const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
+
+  return {
+    totalTokensPerQuestion: Math.round(totalTokensPerQuestion),
+    promptTokensPerQuestion,
+    completionTokensPerQuestion,
+    totalTokens,
+    totalPromptTokens,
+    totalCompletionTokens,
+    promptCost,
+    completionCost,
+    totalCost,
+  };
 }

@@ -27,9 +27,10 @@ import {
   TOPICS,
   WrittenAnswerAnalytics,
   SPECIALIST_MATH_SUBTOPICS,
-  StudyGoals,
-  StreakData,
-  ExamRecord,
+   StudyGoals,
+   StreakData,
+   ExamRecord,
+   GenerationRecord,
 } from "../types";
 import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
@@ -57,6 +58,8 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   maxMarksPerQuestion: 10,
   questionMode: "written",
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
+  aiDifficultyScalingEnabled: false,
+  difficultyThresholds: { increase: 85, decrease: 70 },
 };
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
@@ -106,6 +109,7 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   savedSets: [],
   studyGoals: DEFAULT_STUDY_GOALS,
   streakData: DEFAULT_STREAK_DATA,
+  generationHistory: [],
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
@@ -144,6 +148,7 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     studyGoals: normalizeStudyGoals(data.studyGoals),
     streakData: normalizeStreakData(data.streakData),
     examHistory: normalizeExamHistory(data.examHistory),
+    generationHistory: normalizeGenerationHistory(data.generationHistory),
   };
 }
 
@@ -155,6 +160,23 @@ function normalizeExamHistory(raw: unknown): ExamRecord[] {
     typeof item.createdAt === "string" &&
     typeof item.topic === "string" &&
     Array.isArray(item.questionResults)
+  );
+}
+
+function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is GenerationRecord =>
+    isRecord(item) &&
+    typeof item.id === "string" &&
+    typeof item.timestamp === "string" &&
+    isRecord(item.inputs) &&
+    typeof item.inputs.topic === "string" &&
+    typeof item.inputs.difficulty === "string" &&
+    typeof item.inputs.questionCount === "number" &&
+    typeof item.inputs.questionMode === "string" &&
+    typeof item.inputs.techMode === "string" &&
+    isRecord(item.outputs) &&
+    typeof item.outputs.durationMs === "number"
   );
 }
 
@@ -198,10 +220,24 @@ async function loadRawPersistedState(): Promise<unknown> {
   }
 
   try {
-    return JSON.parse(serialized);
+  return JSON.parse(serialized);
   } catch {
     window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
     return {};
+  }
+}
+
+// Expose a helper to persist generation history when saving entire state
+export function persistGenerationHistory(history: GenerationRecord[]) {
+  try {
+    // Best-effort localStorage write for non-Tauri runtime
+    if (typeof window !== "undefined") {
+      const existing = JSON.parse(window.localStorage.getItem(APP_STATE_STORAGE_KEY) || "{}");
+      existing.generationHistory = history;
+      window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(existing));
+    }
+  } catch {
+    // best-effort only
   }
 }
 

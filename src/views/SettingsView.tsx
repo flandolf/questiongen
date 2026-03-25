@@ -69,6 +69,7 @@ type ImageValidationState =
 const PRESET_MODELS = [
   { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
   { id: "google/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
+  { id: "x-ai/grok-4.1-fast", name: "Grok 4.1 Fast" },
   { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
@@ -90,6 +91,7 @@ const PRESET_IMAGE_MODELS = [
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
   { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
   { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
+  { id: "x-ai/grok-4.1-fast", name: "Grok 4.1 Fast" },
   { id: "custom", name: "Custom…" },
 ];
 
@@ -1738,8 +1740,8 @@ export function SettingsView() {
 
         return (
           <div className="space-y-6">
-            <SectionHeader 
-              title="Cloud Sync" 
+            <SectionHeader
+              title="Cloud Sync"
               description="Sync your settings, preferences, history, and saved question sets across multiple devices."
             />
 
@@ -1788,9 +1790,9 @@ export function SettingsView() {
                     <p className="text-sm font-medium">
                       {syncStatus === "connecting" ? "Connecting..."
                         : syncStatus === "syncing" ? "Syncing..."
-                        : syncEnabled ? "Connected to Cloud"
-                        : isSignedIn ? "Sync Paused"
-                        : "Not Connected"}
+                          : syncEnabled ? "Connected to Cloud"
+                            : isSignedIn ? "Sync Paused"
+                              : "Not Connected"}
                     </p>
                     {user && (
                       <p className="text-xs text-muted-foreground">
@@ -1902,7 +1904,7 @@ export function SettingsView() {
                   </div>
 
                   <p className="text-xs text-muted-foreground text-center">
-                    {syncAuthMode === "signin" 
+                    {syncAuthMode === "signin"
                       ? "Sign in with your existing account to sync data."
                       : "Create an account to start syncing your data across devices."}
                   </p>
@@ -1936,7 +1938,7 @@ export function SettingsView() {
                   </li>
                 </ul>
                 <p className="mt-4 text-xs text-muted-foreground">
-                  Data is stored securely in Firebase. When you sign in on another device, 
+                  Data is stored securely in Firebase. When you sign in on another device,
                   your data will be automatically merged with any local changes.
                 </p>
               </Card>
