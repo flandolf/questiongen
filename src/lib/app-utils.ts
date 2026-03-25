@@ -317,6 +317,201 @@ export interface EstimatedTokensAndCost {
   promptCost: number | null;
   completionCost: number | null;
   totalCost: number;
+  confidence?: number; // Optional confidence score (0-1)
+}
+
+// Constants for advanced estimation
+const TOPIC_BASE_TOKENS: Record<string, number> = {
+  "Mathematical Methods": 1800,
+  "Specialist Mathematics": 2200,
+  "Chemistry": 1600,
+  "Physical Education": 1200,
+};
+
+const DIFFICULTY_MULTIPLIERS: Record<string, number> = {
+  "Essential Skills": 0.7,
+  "Easy": 0.85,
+  "Medium": 1.0,
+  "Hard": 1.25,
+  "Extreme": 1.5,
+};
+
+const TECH_MODE_MULTIPLIERS: Record<string, number> = {
+  "tech-free": 0.9,
+  "mix": 1.0,
+  "tech-active": 1.1,
+};
+
+const QUESTION_MODE_RATIOS = {
+  "multiple-choice": { prompt: 0.6, completion: 0.4 },
+  "written": { prompt: 0.35, completion: 0.65 },
+};
+
+// Parameter weights for fuzzy matching
+const PARAMETER_WEIGHTS = {
+  topic: 0.4,
+  difficulty: 0.3,
+  questionMode: 0.2,
+  techMode: 0.1,
+};
+
+// Calculate similarity score between current params and historical record
+function calculateSimilarity(
+  record: GenerationRecord,
+  topic: Topic,
+  difficulty: Difficulty,
+  questionMode: QuestionMode,
+  techMode: TechMode,
+  maxMarksPerQuestion?: number,
+  subtopics?: string[],
+  customFocusArea?: string
+): number {
+  let score = 0;
+
+  if (record.inputs.topic === topic) score += PARAMETER_WEIGHTS.topic;
+  if (record.inputs.difficulty === difficulty) score += PARAMETER_WEIGHTS.difficulty;
+  if (record.inputs.questionMode === questionMode) score += PARAMETER_WEIGHTS.questionMode;
+  if (record.inputs.techMode === techMode) score += PARAMETER_WEIGHTS.techMode;
+
+  // For maxMarksPerQuestion, consider it matching if both are undefined or equal
+  const marksMatch = (maxMarksPerQuestion == null && record.inputs.maxMarksPerQuestion == null) ||
+                     (maxMarksPerQuestion != null && record.inputs.maxMarksPerQuestion === maxMarksPerQuestion);
+  if (marksMatch) score += 0.1; // Small weight for marks matching
+
+  // Subtopics similarity (if both have subtopics, check overlap)
+  if (subtopics && record.inputs.subtopics) {
+    const overlap = subtopics.filter(s => record.inputs.subtopics!.includes(s)).length;
+    const maxLength = Math.max(subtopics.length, record.inputs.subtopics!.length);
+    if (maxLength > 0) {
+      score += 0.05 * (overlap / maxLength); // Small weight for subtopic overlap
+    }
+  }
+
+  // Custom focus area similarity (simple presence check)
+  const focusMatch = (customFocusArea && record.inputs.customFocusArea) ||
+                     (!customFocusArea && !record.inputs.customFocusArea);
+  if (focusMatch) score += 0.05; // Small weight for focus area matching
+
+  return score;
+}
+
+// Advanced estimation with fuzzy matching and sophisticated static model
+function estimateTokensAdvanced(
+  generationHistory: GenerationRecord[],
+  topic: Topic,
+  difficulty: Difficulty,
+  questionCount: number,
+  questionMode: QuestionMode,
+  techMode: TechMode,
+  maxMarksPerQuestion?: number,
+  subtopics?: string[],
+  customFocusArea?: string
+): { totalTokensPerQuestion: number; promptRatio: number; completionRatio: number; confidence: number } {
+  // Filter valid historical records
+  const validRecords = generationHistory.filter(record =>
+    record.outputs.totalTokens != null &&
+    record.outputs.promptTokens != null &&
+    record.outputs.completionTokens != null
+  );
+
+  if (validRecords.length === 0) {
+    // No historical data, use sophisticated static model
+    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, subtopics, customFocusArea);
+  }
+
+  // Calculate similarities and find best matches
+  const recordsWithSimilarity = validRecords.map(record => ({
+    record,
+    similarity: calculateSimilarity(record, topic, difficulty, questionMode, techMode, maxMarksPerQuestion, subtopics, customFocusArea),
+    // Calculate recency weight (exponential decay over time)
+    ageInDays: (Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24),
+    recencyWeight: Math.exp(-0.1 * ((Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24))), // Decay over days
+  })).filter(item => item.similarity > 0.3); // Minimum similarity threshold
+
+  if (recordsWithSimilarity.length === 0) {
+    // No similar records, fallback to static
+    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, subtopics, customFocusArea);
+  }
+
+  // Sort by combined score (similarity * recency weight) descending
+  recordsWithSimilarity.sort((a, b) => (b.similarity * b.recencyWeight) - (a.similarity * a.recencyWeight));
+
+  // Use weighted average of top matches (up to 5)
+  const topMatches = recordsWithSimilarity.slice(0, 5);
+  let totalWeight = 0;
+  let weightedTotalTokens = 0;
+  let weightedPromptRatio = 0;
+  let weightedCompletionRatio = 0;
+
+  for (const { record, similarity, recencyWeight } of topMatches) {
+    const combinedWeight = similarity * recencyWeight;
+    totalWeight += combinedWeight;
+    weightedTotalTokens += record.outputs.totalTokens! * combinedWeight;
+    const recordPromptRatio = record.outputs.promptTokens! / record.outputs.totalTokens!;
+    const recordCompletionRatio = record.outputs.completionTokens! / record.outputs.totalTokens!;
+    weightedPromptRatio += recordPromptRatio * combinedWeight;
+    weightedCompletionRatio += recordCompletionRatio * combinedWeight;
+  }
+
+  const avgTotalTokens = weightedTotalTokens / totalWeight;
+  const avgPromptRatio = weightedPromptRatio / totalWeight;
+  const avgCompletionRatio = weightedCompletionRatio / totalWeight;
+
+  // Calculate confidence based on number of matches, average similarity, and recency
+  const avgSimilarity = topMatches.reduce((sum, m) => sum + m.similarity, 0) / topMatches.length;
+  const avgRecency = topMatches.reduce((sum, m) => sum + m.recencyWeight, 0) / topMatches.length;
+  const confidence = Math.min(1.0, (topMatches.length / 3) * avgSimilarity * avgRecency);
+
+  return {
+    totalTokensPerQuestion: avgTotalTokens,
+    promptRatio: avgPromptRatio,
+    completionRatio: avgCompletionRatio,
+    confidence,
+  };
+}
+
+// Sophisticated static estimation model
+function estimateStaticTokens(
+  topic: Topic,
+  difficulty: Difficulty,
+  questionCount: number,
+  questionMode: QuestionMode,
+  techMode: TechMode,
+  subtopics?: string[],
+  customFocusArea?: string
+): { totalTokensPerQuestion: number; promptRatio: number; completionRatio: number; confidence: number } {
+  // Base tokens for topic
+  const baseTokens = TOPIC_BASE_TOKENS[topic] ?? 1800;
+
+  // Apply multipliers
+  const difficultyMultiplier = DIFFICULTY_MULTIPLIERS[difficulty] ?? 1.0;
+  const techMultiplier = TECH_MODE_MULTIPLIERS[techMode] ?? 1.0;
+
+  // Subtopics complexity multiplier (more subtopics = more complex)
+  const subtopicsMultiplier = subtopics && subtopics.length > 0 ? 1 + (subtopics.length - 1) * 0.1 : 1.0;
+
+  // Custom focus area multiplier (additional complexity)
+  const focusMultiplier = customFocusArea && customFocusArea.trim().length > 0 ? 1.15 : 1.0;
+
+  // Calculate base tokens per question with multipliers
+  let tokensPerQuestion = baseTokens * difficultyMultiplier * techMultiplier * subtopicsMultiplier * focusMultiplier;
+
+  // Apply question count scaling (diminishing returns)
+  // For multiple questions, there's overhead but less per additional question
+  if (questionCount > 1) {
+    const baseOverhead = tokensPerQuestion * 0.3; // 30% overhead for first question
+    const additionalPerQuestion = tokensPerQuestion * 0.2; // 20% of base for each additional
+    tokensPerQuestion = (baseOverhead + (questionCount - 1) * additionalPerQuestion) / questionCount;
+  }
+
+  const ratios = QUESTION_MODE_RATIOS[questionMode];
+
+  return {
+    totalTokensPerQuestion: tokensPerQuestion,
+    promptRatio: ratios.prompt,
+    completionRatio: ratios.completion,
+    confidence: 0.5, // Lower confidence for static estimates
+  };
 }
 
 export function estimateTokensAndCost(
@@ -327,46 +522,25 @@ export function estimateTokensAndCost(
   questionMode: QuestionMode,
   techMode: TechMode,
   maxMarksPerQuestion?: number,
+  subtopics?: string[],
+  customFocusArea?: string,
   promptPricePerToken?: number | null,
   completionPricePerToken?: number | null
 ): EstimatedTokensAndCost {
-  // Try to find historical data for similar parameters
-  const matchingRecords = generationHistory.filter(record =>
-    record.inputs.topic === topic &&
-    record.inputs.difficulty === difficulty &&
-    record.inputs.questionMode === questionMode &&
-    record.inputs.techMode === techMode &&
-    (maxMarksPerQuestion == null || record.inputs.maxMarksPerQuestion == null || record.inputs.maxMarksPerQuestion === maxMarksPerQuestion) &&
-    record.outputs.totalTokens != null &&
-    record.outputs.promptTokens != null &&
-    record.outputs.completionTokens != null
+  // Use the advanced estimation
+  const advancedResult = estimateTokensAdvanced(
+    generationHistory,
+    topic,
+    difficulty,
+    questionCount,
+    questionMode,
+    techMode,
+    maxMarksPerQuestion,
+    subtopics,
+    customFocusArea
   );
 
-  let totalTokensPerQuestion = 0;
-  let promptRatio = 0.5;
-  let completionRatio = 0.5;
-
-  if (matchingRecords.length > 0) {
-    // Use average from historical data
-    const totalTokensSum = matchingRecords.reduce((sum, r) => sum + r.outputs.totalTokens!, 0);
-    const promptTokensSum = matchingRecords.reduce((sum, r) => sum + r.outputs.promptTokens!, 0);
-    const completionTokensSum = matchingRecords.reduce((sum, r) => sum + r.outputs.completionTokens!, 0);
-
-    totalTokensPerQuestion = totalTokensSum / matchingRecords.length;
-    promptRatio = promptTokensSum / totalTokensSum;
-    completionRatio = completionTokensSum / totalTokensSum;
-  } else {
-    // Fallback to static formulas
-    if (questionMode === "multiple-choice") {
-      totalTokensPerQuestion = questionCount > 0 ? (2250 + (questionCount - 1) * 350) / questionCount : 0;
-      promptRatio = 0.6;
-      completionRatio = 0.4;
-    } else {
-      totalTokensPerQuestion = questionCount > 0 ? (2000 + (questionCount - 1) * 350) / questionCount : 0;
-      promptRatio = 0.35;
-      completionRatio = 0.65;
-    }
-  }
+  const { totalTokensPerQuestion, promptRatio, completionRatio } = advancedResult;
 
   const promptTokensPerQuestion = Math.round(totalTokensPerQuestion * promptRatio);
   const completionTokensPerQuestion = Math.round(totalTokensPerQuestion * completionRatio);
@@ -388,5 +562,6 @@ export function estimateTokensAndCost(
     promptCost,
     completionCost,
     totalCost,
+    confidence: advancedResult.confidence,
   };
 }

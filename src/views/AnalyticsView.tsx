@@ -30,7 +30,8 @@ import { useAppSettings } from "../AppContext";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
-import type { QuestionHistoryEntry, McHistoryEntry } from "../types";
+import { useAppStore } from "../store";
+import type { QuestionHistoryEntry, McHistoryEntry, GenerationRecord } from "../types";
 
 // ─── Chart configs ────────────────────────────────────────────────────────────
 
@@ -205,21 +206,30 @@ function formatTokensShort(v: number) {
 function useDailyStats(
   questionHistory: QuestionHistoryEntry[],
   mcHistory: McHistoryEntry[],
+  generationHistory: GenerationRecord[],
 ) {
   return useMemo(() => {
     const byDay = new Map<string, { tokens: number; cost: number; questions: number }>();
 
-    const addEntry = (createdAt: string, telemetry?: { totalTokens?: number; estimatedCostUsd?: number } | null) => {
+    // Count questions answered per day from history
+    const addQuestion = (createdAt: string) => {
       const day = getDayKey(createdAt);
       const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
       bucket.questions += 1;
-      if (telemetry?.totalTokens) bucket.tokens += telemetry.totalTokens;
-      if (telemetry?.estimatedCostUsd) bucket.cost += telemetry.estimatedCostUsd;
       byDay.set(day, bucket);
     };
 
-    for (const e of questionHistory) addEntry(e.createdAt, e.generationTelemetry);
-    for (const e of mcHistory) addEntry(e.createdAt, e.generationTelemetry);
+    for (const e of questionHistory) addQuestion(e.createdAt);
+    for (const e of mcHistory) addQuestion(e.createdAt);
+
+    // Add generation costs per day from generation records
+    for (const record of generationHistory) {
+      const day = getDayKey(record.timestamp);
+      const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
+      if (record.outputs?.totalTokens) bucket.tokens += record.outputs.totalTokens;
+      if (record.outputs?.estimatedCostUsd) bucket.cost += record.outputs.estimatedCostUsd;
+      byDay.set(day, bucket);
+    }
 
     const sorted = Array.from(byDay.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -245,7 +255,7 @@ function useDailyStats(
       avgQuestions: totalQuestions / totalDays,
       totalDays,
     };
-  }, [questionHistory, mcHistory]);
+  }, [questionHistory, mcHistory, generationHistory]);
 }
 
 // ─── Main view ────────────────────────────────────────────────────────────────
@@ -255,6 +265,7 @@ export function AnalyticsView() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
+  const generationHistory = useAppStore((s) => s.generationHistory);
 
   const {
     allAttempts,
@@ -284,7 +295,7 @@ export function AnalyticsView() {
     recentFirstAttemptAccuracy,
   } = useAnalyticsData();
 
-  const dailyStats = useDailyStats(questionHistory, mcHistory);
+  const dailyStats = useDailyStats(questionHistory, mcHistory, generationHistory);
 
   const hasAnyAttempts = allAttempts.length > 0;
 

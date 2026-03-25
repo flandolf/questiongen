@@ -299,7 +299,7 @@ const defaultState: AppState = {
    subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
 
    // AI Difficulty Scaling
-   aiDifficultyScalingEnabled: false,
+   aiDifficultyScalingEnabled: true,
    difficultyThresholds: { increase: 85, decrease: 70 },
 
    // Written session

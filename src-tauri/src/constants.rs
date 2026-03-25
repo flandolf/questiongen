@@ -36,7 +36,9 @@ description, or given equation that all parts draw from. Do not invent overly ab
 Never assign 3+ marks to a question solvable in a single algebraic step.
 (6) DIFFICULTY AUTHENTICITY — the difficulty label must be visible in the question's cognitive demand, \
 not just its topic. A 'hard' question on a simple topic requires a non-routine twist, \
-unexpected context, or requires the student to identify the method themselves.";
+unexpected context, or requires the student to identify the method themselves. \
+(7) NEVER USE HTML TAGS IN THE QUESTION TEXT — the frontend will handle formatting.
+";
 
 /// Injected into MC question-generation prompts for distractor quality.
 pub const MC_DISTRACTOR_RULES: &str = "

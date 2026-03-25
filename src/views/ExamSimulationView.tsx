@@ -22,7 +22,7 @@ import { normalizeMarkResponse, readBackendError, formatCostUsd, estimateTokensA
 import {
   Clock, ChevronRight, ChevronLeft, Flag,
   CheckCircle2, XCircle, Trophy, BookOpen, Target, Loader2, Sparkles,
-  RotateCcw, Timer, Gauge,
+  RotateCcw, Timer, Gauge, Pause, Play,
   History, CheckCheck,
   DollarSign, Coins,
   FunctionSquare, SigmaSquare, FlaskConical, Dumbbell,
@@ -387,10 +387,12 @@ function FileTextIcon({ className }: { className?: string }) {
       questionMode,
       techMode,
       undefined,
+      selectedSubtopics.length > 0 ? selectedSubtopics : undefined,
+      customFocusArea.trim() || undefined,
       promptPricePerToken,
       completionPricePerToken
     );
-  }, [generationHistory, topic, difficulty, questionCount, questionMode, techMode, promptPricePerToken, completionPricePerToken]);
+  }, [generationHistory, topic, difficulty, questionCount, questionMode, techMode, selectedSubtopics, customFocusArea, promptPricePerToken, completionPricePerToken]);
 
   const toggleSubtopic = (sub: string) =>
     setSelectedSubtopics(prev => prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]);
@@ -641,6 +643,11 @@ function FileTextIcon({ className }: { className?: string }) {
           <div className="flex items-center justify-between text-[11px] border-t border-border/40 pt-1.5">
             <span className="text-muted-foreground/70 tabular-nums flex items-center gap-1">
               <Coins className="w-3 h-3" /> ~{estimated.totalTokens.toLocaleString()} tokens
+              {estimated.confidence != null && (
+                <span className={`text-[10px] px-1 rounded ${estimated.confidence > 0.7 ? 'bg-green-100 text-green-700' : estimated.confidence > 0.4 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                  {Math.round(estimated.confidence * 100)}%
+                </span>
+              )}
             </span>
             {estimated.promptCost != null || estimated.completionCost != null ? (
               <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
@@ -679,9 +686,20 @@ function ExamActive({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [mcSelected, setMcSelected] = useState<Record<string, string>>({});
   const [timeRemaining, setTimeRemaining] = useState(config.timeLimitMinutes * 60);
+  const [isPaused, setIsPaused] = useState(false);
   const [showAnswer, setShowAnswer] = useState<Record<string, boolean>>({});
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef(Date.now());
+  const endTimeRef = useRef<number>(Date.now() + config.timeLimitMinutes * 60 * 1000);
+  const pauseTimeRef = useRef<number | null>(null);
+  const answersRef = useRef(answers);
+  const mcSelectedRef = useRef(mcSelected);
+  const onFinishRef = useRef(onFinish);
+
+  // Keep refs in sync to avoid closure staleness in timer
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { mcSelectedRef.current = mcSelected; }, [mcSelected]);
+  useEffect(() => { onFinishRef.current = onFinish; }, [onFinish]);
 
   const question = questions[currentIdx];
   const isWritten = config.questionMode === "written";
@@ -696,26 +714,50 @@ function ExamActive({
     ? (answers[question?.id]?.trim().length ?? 0) > 0 || showAnswer[question?.id]
     : Boolean(question && mcSelected[question.id]);
 
+  const getElapsedSeconds = () => {
+    const totalPossible = config.timeLimitMinutes * 60;
+    return totalPossible - timeRemaining;
+  };
+
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-          onFinish(answers, mcSelected, elapsed);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      if (isPaused) return;
+
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
+
+      setTimeRemaining(remaining);
+
+      if (remaining <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        onFinishRef.current(answersRef.current, mcSelectedRef.current, config.timeLimitMinutes * 60);
+      }
+    };
+
+    timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isPaused, config.timeLimitMinutes]);
+
+  const togglePause = () => {
+    if (isPaused) {
+      // Resuming
+      if (pauseTimeRef.current) {
+        const pausedDuration = Date.now() - pauseTimeRef.current;
+        endTimeRef.current += pausedDuration;
+        pauseTimeRef.current = null;
+      }
+      setIsPaused(false);
+    } else {
+      // Pausing
+      pauseTimeRef.current = Date.now();
+      setIsPaused(true);
+    }
+  };
 
   const handleNext = () => {
     if (isLast) {
       if (timerRef.current) clearInterval(timerRef.current);
-      const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-      onFinish(answers, mcSelected, elapsed);
+      onFinishRef.current(answers, mcSelected, getElapsedSeconds());
       return;
     }
     setCurrentIdx((i) => i + 1);
@@ -723,8 +765,7 @@ function ExamActive({
 
   const handleFinish = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-    onFinish(answers, mcSelected, elapsed);
+    onFinishRef.current(answers, mcSelected, getElapsedSeconds());
   };
 
   if (!question) return null;
@@ -744,12 +785,24 @@ function ExamActive({
           </div>
         </div>
 
-        <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-1.5 rounded-full shadow-sm border transition-colors ${isTimeCritical ? "bg-rose-500/10 text-rose-600 border-rose-500/20 animate-pulse" :
-            isTimeWarning ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-              "bg-card text-foreground border-border/50"
-          }`}>
-          <Clock className="w-4 h-4" />
-          {formatTime(timeRemaining)}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={togglePause}
+            className={`h-9 w-9 rounded-full ${isPaused ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20" : "text-muted-foreground hover:bg-muted"}`}
+          >
+            {isPaused ? <Play className="w-4 h-4 fill-current" /> : <Pause className="w-4 h-4 fill-current" />}
+          </Button>
+
+          <div className={`flex items-center gap-2 font-mono text-lg font-bold px-4 py-1.5 rounded-full shadow-sm border transition-colors ${isPaused ? "bg-muted text-muted-foreground border-border" :
+              isTimeCritical ? "bg-rose-500/10 text-rose-600 border-rose-500/20 animate-pulse" :
+                isTimeWarning ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                  "bg-card text-foreground border-border/50"
+            }`}>
+            <Clock className={`w-4 h-4 ${isPaused ? "" : "animate-pulse"}`} />
+            {formatTime(timeRemaining)}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -772,8 +825,23 @@ function ExamActive({
         <div className="h-full bg-violet-500 transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 relative">
+        {isPaused && (
+          <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+            <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
+              <Pause className="w-10 h-10 text-emerald-500 fill-current" />
+            </div>
+            <h2 className="text-3xl font-black tracking-tight mb-2">Exam Paused</h2>
+            <p className="text-muted-foreground max-w-xs mb-8">
+              Take a breath! The timer has stopped. Resume when you're ready to continue.
+            </p>
+            <Button size="lg" onClick={togglePause} className="gap-2 px-8 rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20">
+              <Play className="w-4 h-4 fill-current" /> Resume Exam
+            </Button>
+          </div>
+        )}
+
+        <div className={`max-w-4xl mx-auto space-y-6 transition-all duration-300 ${isPaused ? "blur-md opacity-20 scale-[0.98] pointer-events-none" : "blur-0 opacity-100 scale-100"}`}>
           <UnifiedQuestionPromptCard
             promptMarkdown={question.promptMarkdown}
             topic={question.topic}
@@ -1023,6 +1091,8 @@ export default function ExamSimulationView() {
             questionMode: "written",
             techMode: cfg.techMode,
             maxMarksPerQuestion: isMath ? 10 : undefined,
+            subtopics: cfg.selectedSubtopics,
+            customFocusArea: cfg.customFocusArea.trim() || undefined,
           },
           outputs: {
             durationMs: response.durationMs || 0,
@@ -1057,6 +1127,8 @@ export default function ExamSimulationView() {
             questionCount: cfg.questionCount,
             questionMode: "multiple-choice",
             techMode: cfg.techMode,
+            subtopics: cfg.selectedSubtopics,
+            customFocusArea: cfg.customFocusArea.trim() || undefined,
           },
           outputs: {
             durationMs: response.durationMs || 0,

@@ -77,6 +77,7 @@ function getDifficultyBadgeClasses(level: Difficulty) {
 // ─── Stopwatch persistence keys ───────────────────────────────────────────────
 const LS_STOPWATCH_STARTED_KEY = "generator_stopwatch_startedAt";
 const LS_STOPWATCH_FINISHED_KEY = "generator_stopwatch_finishedAt";
+const LS_STOPWATCH_PAUSED_TIME_KEY = "generator_stopwatch_pausedTime";
 
 // ─── Batch distribution helper ────────────────────────────────────────────────
 // Distributes `total` questions across `n` topics as evenly as possible.
@@ -223,7 +224,11 @@ export function GeneratorView() {
   const [pendingCancelType, setPendingCancelType] = useState<null | "written" | "mc">(null);
 
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedDuration, setPausedDuration] = useState(0);
   const [, setNow] = useState(Date.now());
+
+  const pauseStartedAtRef = useRef<number | null>(null);
 
   const [streamText, setStreamText] = useState("");
 
@@ -332,9 +337,14 @@ export function GeneratorView() {
 
   const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
 
-  const elapsedSeconds = generationStartedAt === null
-    ? 0
-    : Math.max(0, Math.floor(((sessionFinishedAt ?? Date.now()) - generationStartedAt) / 1000));
+  const elapsedSeconds = useMemo(() => {
+    if (generationStartedAt === null) return 0;
+    const end = sessionFinishedAt ?? Date.now();
+    const currentPauseOverlap = (isPaused && pauseStartedAtRef.current)
+      ? (Date.now() - pauseStartedAtRef.current)
+      : 0;
+    return Math.max(0, Math.floor((end - generationStartedAt - pausedDuration - currentPauseOverlap) / 1000));
+  }, [generationStartedAt, sessionFinishedAt, pausedDuration, isPaused, Date.now()]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formattedElapsedTime = useMemo(() => {
     const h = Math.floor(elapsedSeconds / 3600);
@@ -381,21 +391,45 @@ export function GeneratorView() {
     const now = Date.now();
     localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(now));
     localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
+    localStorage.removeItem(LS_STOPWATCH_PAUSED_TIME_KEY);
     setGenerationStartedAt(now);
     setSessionFinishedAt(null);
+    setIsPaused(false);
+    setPausedDuration(0);
   }
 
   function resetStopwatch() {
     localStorage.removeItem(LS_STOPWATCH_STARTED_KEY);
     localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
+    localStorage.removeItem(LS_STOPWATCH_PAUSED_TIME_KEY);
     setGenerationStartedAt(null);
     setSessionFinishedAt(null);
+    setIsPaused(false);
+    setPausedDuration(0);
+  }
+
+  function togglePause() {
+    if (isPaused) {
+      // Resume: subtract the paused duration from the total
+      if (pauseStartedAtRef.current) {
+        const pausedNow = Date.now();
+        setPausedDuration(prev => prev + (pausedNow - pauseStartedAtRef.current!));
+        localStorage.setItem(LS_STOPWATCH_PAUSED_TIME_KEY, String(pausedDuration + (pausedNow - pauseStartedAtRef.current!)));
+      }
+      pauseStartedAtRef.current = null;
+      setIsPaused(false);
+    } else {
+      // Pause: record the start time
+      pauseStartedAtRef.current = Date.now();
+      setIsPaused(true);
+    }
   }
 
   useEffect(() => {
     if (generationStartedAt !== null) return;
     const storedStart = localStorage.getItem(LS_STOPWATCH_STARTED_KEY);
     const storedFinish = localStorage.getItem(LS_STOPWATCH_FINISHED_KEY);
+    const storedPaused = localStorage.getItem(LS_STOPWATCH_PAUSED_TIME_KEY);
     if (storedStart) {
       const parsed = Number(storedStart);
       if (Number.isFinite(parsed) && parsed > 0) setGenerationStartedAt(parsed);
@@ -403,6 +437,10 @@ export function GeneratorView() {
     if (storedFinish) {
       const parsed = Number(storedFinish);
       if (Number.isFinite(parsed) && parsed > 0) setSessionFinishedAt(parsed);
+    }
+    if (storedPaused) {
+      const parsed = Number(storedPaused);
+      if (Number.isFinite(parsed) && parsed > 0) setPausedDuration(parsed);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -414,6 +452,10 @@ export function GeneratorView() {
   useEffect(() => {
     if (sessionFinishedAt !== null) localStorage.setItem(LS_STOPWATCH_FINISHED_KEY, String(sessionFinishedAt));
   }, [sessionFinishedAt]);
+
+  useEffect(() => {
+    if (pausedDuration > 0) localStorage.setItem(LS_STOPWATCH_PAUSED_TIME_KEY, String(pausedDuration));
+  }, [pausedDuration]);
 
   useEffect(() => {
     if (generationStartedAt === null || sessionFinishedAt !== null) return;
@@ -770,6 +812,8 @@ useEffect(() => {
               questionMode: "written",
               techMode,
               maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
+              subtopics: getSubtopicsForTopic(topic),
+              customFocusArea: getCustomFocusArea(),
             },
             outputs: {
               durationMs: response.durationMs || 0,
@@ -1111,6 +1155,11 @@ useEffect(() => {
     setErrorMessage(null);
     setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: clamped }));
     setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: String(clamped) }));
+    if (clamped === 1) {
+      const updated = [...mcQuestions];
+      updated[activeMcQuestionIndex] = { ...updated[activeMcQuestionIndex], correctAnswer: activeMcAnswer };
+      setMcQuestions(updated);
+    }
     appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, clamped, "override", Date.now());
   }
 
@@ -1192,6 +1241,8 @@ useEffect(() => {
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}
           isGenerating={isGenerating}
+          isPaused={isPaused}
+          onTogglePause={togglePause}
           generationStatus={generationStatus}
           generationStartedAt={generationStartedAt}
           formattedElapsedTime={formattedElapsedTime}

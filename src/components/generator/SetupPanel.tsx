@@ -22,6 +22,8 @@ import {
   CheckCircle2,
   XCircle,
   ChevronDown,
+  Pause,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppSettings } from "@/AppContext";
@@ -220,7 +222,7 @@ function LastGenerationStats({ telemetry }: { telemetry: GenerationTelemetry }) 
   if (items.length === 0) return null;
 
   return (
-    <div className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2">
+    <div className="w-full px-6 py-2">
       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Last Generation</p>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {items.map(({ icon, label, value }) => (
@@ -270,12 +272,14 @@ const STAGE_LABELS: Record<KnownStage, string> = {
 };
 
 function GenerationTimeline({
-  generationStatus, formattedElapsedTime, streamText, isGenerating,
+  generationStatus, formattedElapsedTime, streamText, isGenerating, isPaused, onTogglePause,
 }: {
   generationStatus: GenerationStatusEvent | null;
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
+  isPaused: boolean;
+  onTogglePause: () => void;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
   const currentStage = generationStatus?.stage ?? "preparing";
@@ -289,7 +293,7 @@ function GenerationTimeline({
   const completedEvent = isDone ? generationStatus : null;
 
   return (
-    <div className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 space-y-2">
+    <div className="w-full px-6 py-2.5 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           {isGenerating
@@ -302,11 +306,20 @@ function GenerationTimeline({
         </div>
         <span className="text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1">
           <Clock3 className="w-2.5 h-2.5" />{formattedElapsedTime}
+          {isGenerating && (
+            <button
+              type="button"
+              onClick={onTogglePause}
+              className="ml-1 p-0.5 rounded hover:bg-muted transition-colors"
+              title={isPaused ? "Resume" : "Pause"}
+            >
+              {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+            </button>
+          )}
         </span>
       </div>
 
       <div className="relative flex flex-col gap-1.5 pl-0.5">
-        <div className="absolute left-[6px] top-2 bottom-2 w-px bg-border/60" />
         {STAGE_ORDER.map((stage) => {
           const phase = phaseForStage(stage, currentStage, isFailed);
           if (phase === "waiting" && !isGenerating && !isDone && !isFailed) return null;
@@ -371,12 +384,14 @@ function GenerationTimeline({
 // ─── Multi-topic batch timeline ───────────────────────────────────────────────
 
 function BatchTimeline({
-  entries, formattedElapsedTime, streamText, isGenerating,
+  entries, formattedElapsedTime, streamText, isGenerating, isPaused, onTogglePause,
 }: {
   entries: BatchTopicProgress[];
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
+  isPaused: boolean;
+  onTogglePause: () => void;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
 
@@ -390,7 +405,7 @@ function BatchTimeline({
   const allDone = doneCount + errorCount === entries.length;
 
   return (
-    <div className="w-full rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 space-y-2">
+    <div className="w-full px-6 py-2.5 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
@@ -413,13 +428,21 @@ function BatchTimeline({
         </div>
         <span className="text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1">
           <Clock3 className="w-2.5 h-2.5" />{formattedElapsedTime}
+          {isGenerating && (
+            <button
+              type="button"
+              onClick={onTogglePause}
+              className="ml-1 p-0.5 rounded hover:bg-muted transition-colors"
+              title={isPaused ? "Resume" : "Pause"}
+            >
+              {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+            </button>
+          )}
         </span>
       </div>
 
       {/* Per-topic rows */}
       <div className="relative flex flex-col gap-1">
-        {/* Vertical guide line running along the dots */}
-        <div className="absolute left-[6px] top-2 bottom-2 w-px bg-border/60" />
 
         {entries.map((entry, idx) => {
           const isActive = entry.status === "active";
@@ -534,6 +557,8 @@ type SetupPanelProps = {
   hasApiKey: boolean;
   canGenerate: boolean;
   isGenerating: boolean;
+  isPaused: boolean;
+  onTogglePause: () => void;
   generationStatus: GenerationStatusEvent | null;
   generationStartedAt: number | null;
   formattedElapsedTime: string;
@@ -562,7 +587,7 @@ export function SetupPanel({
   shuffleQuestions, onSetShuffleQuestions,
   aiDifficultyScalingEnabled, onSetAiDifficultyScalingEnabled,
   difficultyThresholds, onSetDifficultyThresholds,
-  hasApiKey, canGenerate, isGenerating,
+  hasApiKey, canGenerate, isGenerating, isPaused, onTogglePause,
   generationStatus, generationStartedAt, formattedElapsedTime,
   onGenerate,
   lastGenerationTelemetry,
@@ -610,6 +635,19 @@ export function SetupPanel({
   const estimated = useMemo(() => {
     // Use the first selected topic for estimation, or a default
     const primaryTopic = selectedTopics[0] || "Mathematical Methods";
+
+    // Get selected subtopics for the primary topic
+    let selectedSubtopics: string[] | undefined;
+    if (primaryTopic === "Mathematical Methods") {
+      selectedSubtopics = mathMethodsSubtopics.length > 0 ? mathMethodsSubtopics : undefined;
+    } else if (primaryTopic === "Specialist Mathematics") {
+      selectedSubtopics = specialistMathSubtopics.length > 0 ? specialistMathSubtopics : undefined;
+    } else if (primaryTopic === "Chemistry") {
+      selectedSubtopics = chemistrySubtopics.length > 0 ? chemistrySubtopics : undefined;
+    } else if (primaryTopic === "Physical Education") {
+      selectedSubtopics = physicalEducationSubtopics.length > 0 ? physicalEducationSubtopics : undefined;
+    }
+
     return estimateTokensAndCost(
       generationHistory,
       primaryTopic as Topic,
@@ -618,10 +656,12 @@ export function SetupPanel({
       questionMode,
       techMode,
       hasAnyMathTopic ? maxMarksPerQuestion : undefined,
+      selectedSubtopics,
+      customFocusArea.trim() || undefined,
       promptPricePerToken,
       completionPricePerToken
     );
-  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, hasAnyMathTopic, promptPricePerToken, completionPricePerToken]);
+  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, hasAnyMathTopic, mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics, physicalEducationSubtopics, customFocusArea, promptPricePerToken, completionPricePerToken]);
 
   // Derive "is the timeline visible" — same condition as before
   const showTimeline =
@@ -1108,6 +1148,11 @@ export function SetupPanel({
             <div className="flex items-center justify-between text-[11px] border-t border-border/40 pt-1.5">
               <span className="text-muted-foreground/70 tabular-nums flex items-center gap-1">
                 <Coins className="w-3 h-3" /> ~{estimated.totalTokens.toLocaleString()} tokens
+                {estimated.confidence != null && (
+                  <span className={`text-[10px] px-1 rounded ${estimated.confidence > 0.7 ? 'bg-green-100 text-green-700' : estimated.confidence > 0.4 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                    {Math.round(estimated.confidence * 100)}%
+                  </span>
+                )}
               </span>
               {estimated.promptCost != null || estimated.completionCost != null ? (
                 <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
@@ -1152,6 +1197,8 @@ export function SetupPanel({
               formattedElapsedTime={formattedElapsedTime}
               streamText={streamText}
               isGenerating={isGenerating}
+              isPaused={isPaused}
+              onTogglePause={onTogglePause}
             />
           ) : (
             <GenerationTimeline
@@ -1159,6 +1206,8 @@ export function SetupPanel({
               formattedElapsedTime={formattedElapsedTime}
               streamText={streamText}
               isGenerating={isGenerating}
+              isPaused={isPaused}
+              onTogglePause={onTogglePause}
             />
           )
         )}
