@@ -43,8 +43,6 @@ export const WrittenQuestionCard = memo(function WrittenQuestionCard({
     <div className="space-y-3">
       <UnifiedQuestionPromptCard
         promptMarkdown={promptMarkdown}
-        modeLabel="Written Prompt"
-        modeTone="written"
         rightSlot={canShowRawOutput ? (
           <Button type="button" variant="ghost" size="sm" className="gap-1.5 h-7 text-xs text-muted-foreground" onClick={onToggleRawOutput}>
             <Bug className="h-3.5 w-3.5" />

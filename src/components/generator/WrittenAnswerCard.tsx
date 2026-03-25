@@ -1,6 +1,5 @@
-import { Loader2, Trash2, CheckCircle2, ImageIcon, Type } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Dropzone } from "@/components/ui/dropzone";
 import { StudentAnswerImage } from "../../types";
 import { UnifiedWrittenResponseCard } from "@/components/question/UnifiedQuestionBlocks";
@@ -47,60 +46,53 @@ export function WrittenAnswerCard({
       ) : undefined}
       footerNote="Your answer is marked immediately using the configured marking model."
     >
-        {/* Text answer */}
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold flex items-center gap-1.5">
-            <Type className="w-3.5 h-3.5 text-muted-foreground" /> Add supporting working
-          </Label>
-        </div>
+      {/* Divider with "or" */}
+      <div className="flex items-center gap-3 py-3">
+        <div className="flex-1 h-px bg-border/60" />
+        <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">or</span>
+        <div className="flex-1 h-px bg-border/60" />
+      </div>
 
-        {/* Divider with "or" */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-border/60" />
-          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">or</span>
-          <div className="flex-1 h-px bg-border/60" />
+      {/* Image upload */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-muted-foreground/70">
+          <ImageIcon className="w-4 h-4" />
+          <span className="text-xs uppercase tracking-wide">Upload Image</span>
         </div>
-
-        {/* Image upload */}
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" /> Upload working
-          </Label>
-          {image ? (
-            <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
-              <img
-                src={image.dataUrl}
-                alt="Uploaded working"
-                className="w-full h-auto max-h-72 object-contain rounded-lg"
-              />
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl">
-                <Button variant="destructive" size="sm" className="gap-1.5 shadow-lg" onClick={onImageRemove}>
-                  <Trash2 className="w-3.5 h-3.5" /> Remove
-                </Button>
-              </div>
+        {image ? (
+          <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
+            <img
+              src={image.dataUrl}
+              alt="Uploaded working"
+              className="w-full h-auto max-h-72 object-contain rounded-lg"
+            />
+            <div className="absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl">
+              <Button variant="destructive" size="sm" className="gap-1.5 shadow-lg" onClick={onImageRemove}>
+                <Trash2 className="w-3.5 h-3.5" /> Remove
+              </Button>
             </div>
-          ) : (
-            <div className="border-2 border-dashed border-border/60 rounded-xl hover:border-primary/40 hover:bg-muted/20 transition-colors">
-              <Dropzone onDrop={onImageDrop} />
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="border-2 border-dashed border-border/60 rounded-xl hover:border-primary/40 hover:bg-muted/20 transition-colors">
+            <Dropzone onDrop={onImageDrop} />
+          </div>
+        )}
+      </div>
 
-        {/* Submit */}
-        <Button
-          size="lg"
-          className={`w-full h-12 text-sm font-bold gap-2 transition-all duration-200 rounded-full ${
-            hasContent && !isMarking ? "shadow-md hover:shadow-primary/20 hover:-translate-y-0.5" : ""
+      {/* Submit */}
+      <Button
+        size="lg"
+        className={`mt-4 w-full h-12 text-sm font-bold gap-2 transition-all duration-200 rounded-full ${hasContent && !isMarking ? "shadow-md hover:shadow-primary/20 hover:-translate-y-0.5" : ""
           }`}
-          onClick={onSubmit}
-          disabled={!canSubmit || isMarking}
-        >
-          {isMarking ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Evaluating…</>
-          ) : (
-            <><CheckCircle2 className="w-4 h-4" /> Submit for Marking</>
-          )}
-        </Button>
+        onClick={onSubmit}
+        disabled={!canSubmit || isMarking}
+      >
+        {isMarking ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> Evaluating…</>
+        ) : (
+          <><CheckCircle2 className="w-4 h-4" /> Submit for Marking</>
+        )}
+      </Button>
     </UnifiedWrittenResponseCard>
   );
 }

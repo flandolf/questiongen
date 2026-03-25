@@ -21,7 +21,7 @@ import { normalizeMarkResponse, readBackendError } from "../lib/app-utils";
 import {
   Clock, Play, ChevronRight, ChevronLeft, Flag,
   CheckCircle2, XCircle, Trophy, BookOpen, Target, Loader2, Sparkles,
-  RotateCcw, Timer, Gauge, Zap, LayoutDashboard,
+  RotateCcw, Timer, Gauge,
   History, CheckCheck,
 } from "lucide-react";
 
@@ -341,7 +341,7 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   const [techMode, setTechMode] = useState<TechMode>("mix");
   const [questionMode, setQuestionMode] = useState<ExamQuestionMode>("written");
   const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
-  const [customFocusArea, setCustomFocusArea] = useState("");
+  const [customFocusArea] = useState("");
 
   const availableSubtopics = getSubtopicsForTopic(topic);
 
@@ -358,95 +358,75 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
   ];
 
   return (
-    <div className="min-h-full px-4 sm:px-6 py-10 space-y-10 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/40">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center border border-violet-500/20 shadow-inner">
-            <LayoutDashboard className="w-7 h-7 text-violet-600 dark:text-violet-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight">Exam Simulator</h1>
-            <p className="text-muted-foreground mt-1">Configure your environment for timed, realistic VCAA practice.</p>
-          </div>
+    <div className="min-h-full px-4 sm:px-6 py-6 space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Exam Simulator</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Timed practice with AI marking</p>
         </div>
         <Button
           size="lg"
-          className="gap-2 h-12 px-8 text-base font-bold shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 transition-all"
+          className="gap-2 h-10 px-6 font-semibold"
           onClick={() => onStart({ topic, questionCount, timeLimitMinutes: timeLimit, difficulty, techMode, questionMode, selectedSubtopics, customFocusArea })}
         >
           <Play className="w-4 h-4 fill-current" />
-          Initialize Exam
+          Start
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-8">
-        <div className="space-y-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+        <div className="space-y-6">
           {/* Subject */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground/80">
-              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">1</span>
-              Select Subject
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground/80">Subject</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {TOPICS.map((t) => (
                 <button key={t} type="button" onClick={() => handleTopicChange(t)}
-                  className={`relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200 ${topic === t ? "border-violet-500 bg-violet-500/5 shadow-md" : "border-border/40 bg-card hover:border-violet-500/30 hover:bg-muted/20"}`}>
-                  <span className={`block text-sm font-semibold ${topic === t ? "text-violet-700 dark:text-violet-300" : "text-foreground"}`}>{t}</span>
+                  className={`p-3 text-left text-sm font-medium rounded-lg border transition-colors ${topic === t ? "border-violet-500 bg-violet-500/10 text-violet-700" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
+                  {t}
                 </button>
               ))}
             </div>
 
             {availableSubtopics.length > 0 && (
-              <div className="rounded-2xl border border-border/40 bg-card p-5 space-y-3 shadow-sm">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Focus Areas</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Select specific subtopics or leave blank to cover all</p>
-                </div>
+              <div className="p-4 rounded-lg border border-border/40 bg-muted/20 space-y-3">
+                <p className="text-xs font-medium text-muted-foreground">Focus areas <span className="opacity-60">(optional)</span></p>
                 <div className="flex flex-wrap gap-1.5">
                   {availableSubtopics.map((sub) => (
                     <button key={sub} type="button" onClick={() => toggleSubtopic(sub)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer select-none ${selectedSubtopics.includes(sub) ? "bg-violet-500 text-white border-violet-500 shadow-sm" : "border-border/50 text-muted-foreground hover:border-violet-500/50 hover:text-foreground"}`}>
+                      className={`text-xs px-2 py-1 rounded-full border transition-colors cursor-pointer select-none ${selectedSubtopics.includes(sub) ? "bg-violet-500 text-white border-violet-500" : "border-border/50 text-muted-foreground hover:border-violet-500/50 hover:text-foreground"}`}>
                       {sub}
                     </button>
                   ))}
-                </div>
-                <div className="space-y-1.5 pt-1 border-t border-border/30">
-                  <p className="text-xs font-medium text-muted-foreground">Custom Focus Area <span className="font-normal opacity-70">— optional</span></p>
-                  <input type="text" value={customFocusArea} onChange={(e) => setCustomFocusArea(e.target.value)} maxLength={160}
-                    placeholder="e.g. projectile motion with optimisation constraints"
-                    className="w-full text-xs h-8 rounded-lg border border-border/50 bg-background px-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-500" />
                 </div>
               </div>
             )}
           </section>
 
           {/* Format */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground/80">
-              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">2</span>
-              Question Format & Parameters
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-card border border-border/40 rounded-3xl p-6 shadow-sm">
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground">Response Type</p>
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground/80">Format</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Response</p>
                 <div className="flex flex-col gap-2">
                   <button type="button" onClick={() => setQuestionMode("written")}
-                    className={`flex items-center gap-3 rounded-xl border p-3 text-sm font-medium transition-all ${questionMode === "written" ? "border-sky-500 bg-sky-500/5 text-sky-700 dark:text-sky-300" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
-                    <BookOpen className="w-4 h-4" /> Written Solutions
+                    className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors ${questionMode === "written" ? "border-sky-500 bg-sky-500/10 text-sky-700" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
+                    <BookOpen className="w-4 h-4" /> Written
                   </button>
                   <button type="button" onClick={() => setQuestionMode("multiple-choice")}
-                    className={`flex items-center gap-3 rounded-xl border p-3 text-sm font-medium transition-all ${questionMode === "multiple-choice" ? "border-fuchsia-500 bg-fuchsia-500/5 text-fuchsia-700 dark:text-fuchsia-300" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
+                    className={`flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors ${questionMode === "multiple-choice" ? "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-700" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
                     <Target className="w-4 h-4" /> Multiple Choice
                   </button>
                 </div>
               </div>
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground">Technology Mode</p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Technology</p>
                 <div className="flex flex-col gap-2">
                   {(["tech-free", "tech-active", "mix"] as TechMode[]).map((m) => (
                     <button key={m} type="button" onClick={() => setTechMode(m)}
-                      className={`rounded-xl border p-3 text-sm font-medium transition-all text-left ${techMode === m ? "border-foreground bg-foreground/5 text-foreground" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
-                      {m === "tech-free" ? "Tech-Free (No Calculator)" : m === "tech-active" ? "Tech-Active (Calculator)" : "Mixed Allocation"}
+                      className={`rounded-lg border p-3 text-sm font-medium transition-colors text-left ${techMode === m ? "border-foreground bg-foreground/5 text-foreground" : "border-border/40 hover:bg-muted/30 text-muted-foreground"}`}>
+                      {m === "tech-free" ? "Tech-Free" : m === "tech-active" ? "Tech-Active" : "Mixed"}
                     </button>
                   ))}
                 </div>
@@ -455,15 +435,12 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
           </section>
 
           {/* Difficulty */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground/80">
-              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">3</span>
-              Difficulty Level
-            </h3>
-            <div className="flex flex-wrap gap-3">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground/80">Difficulty</h3>
+            <div className="flex flex-wrap gap-2">
               {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((d) => (
                 <button key={d} type="button" onClick={() => setDifficulty(d)}
-                  className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all shadow-sm ${getDifficultyBadgeClasses(d)} ${difficulty === d ? "ring-2 ring-offset-2 ring-offset-background ring-foreground/20 scale-[1.02]" : "opacity-70 hover:opacity-100 hover:scale-[1.02]"}`}>
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${getDifficultyBadgeClasses(d)} ${difficulty === d ? "ring-2 ring-offset-1 ring-offset-background" : "opacity-60 hover:opacity-100"}`}>
                   {d}
                 </button>
               ))}
@@ -471,23 +448,20 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
           </section>
 
           {/* Length */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground/80">
-              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">4</span>
-              Length & Duration
-            </h3>
-            <div className="flex flex-row items-center justify-between gap-20">
-              <div className="space-y-4 w-1/2">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground/80">Length & Duration</h3>
+            <div className="flex gap-8">
+              <div className="space-y-2 flex-1">
                 <div className="flex justify-between items-center">
-                  <p className="text-xs font-semibold text-muted-foreground">Total Questions</p>
-                  <span className="text-lg font-black text-foreground">{questionCount}</span>
+                  <p className="text-xs text-muted-foreground">Questions</p>
+                  <span className="text-lg font-bold text-foreground">{questionCount}</span>
                 </div>
                 <Slider min={1} max={20} value={[questionCount]} onValueChange={([v]) => setQuestionCount(v)} />
               </div>
-              <div className="space-y-4 w-1/2">
+              <div className="space-y-2 flex-1">
                 <div className="flex justify-between items-center">
-                  <p className="text-xs font-semibold text-muted-foreground">Time Limit</p>
-                  <span className="text-lg font-black text-foreground">{timeLimit} min</span>
+                  <p className="text-xs text-muted-foreground">Time</p>
+                  <span className="text-lg font-bold text-foreground">{timeLimit} min</span>
                 </div>
                 <Slider min={5} max={120} step={5} value={[timeLimit]} onValueChange={([v]) => setTimeLimit(v)} />
               </div>
@@ -495,42 +469,29 @@ function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
           </section>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-card border border-border/40 rounded-3xl p-6 space-y-5 shadow-sm">
-            <div className="flex items-center gap-2 text-violet-500 mb-2">
-              <Zap className="w-5 h-5 fill-current" />
-              <h3 className="font-bold">Quick Configurations</h3>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg border border-border/40">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Presets</h3>
+            <div className="grid grid-cols-1 gap-2">
               {presets.map((p) => (
                 <button key={p.label} type="button"
                   onClick={() => { setQuestionCount(p.count); setTimeLimit(p.time); }}
-                  className={`group rounded-2xl border p-4 text-left transition-all duration-200 ${questionCount === p.count && timeLimit === p.time ? "border-violet-500 bg-violet-500/10 shadow-md" : "border-border/40 bg-background hover:border-violet-500/40"}`}>
-                  <div className="flex justify-between items-center mb-1">
-                    <p className={`font-bold ${questionCount === p.count && timeLimit === p.time ? "text-violet-700 dark:text-violet-300" : ""}`}>{p.label}</p>
-                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md">{p.count}Q / {p.time}m</span>
+                  className={`group p-3 text-left rounded-lg border transition-colors ${questionCount === p.count && timeLimit === p.time ? "border-violet-500 bg-violet-500/10" : "border-border/40 hover:border-violet-500/30"}`}>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm font-medium">{p.label}</p>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{p.count}Q / {p.time}m</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{p.desc}</p>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="bg-muted/30 border border-border/40 rounded-3xl p-6">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4">Simulation Rules</h3>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <Clock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed"><strong className="text-foreground">Strict Timing:</strong> The exam auto-submits when the timer reaches zero.</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <LayoutDashboard className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed"><strong className="text-foreground">Sequential Flow:</strong> Answer questions in order. You can skip, but completion is tracked.</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Flag className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed"><strong className="text-foreground">Written Questions:</strong> Submitted individually for AI marking after time ends.</p>
-              </div>
+          <div className="p-4 rounded-lg border border-border/40 bg-muted/20">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Rules</h3>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p>Auto-submit when timer ends</p>
+              <p>Sequential question order</p>
+              <p>AI marking for written responses</p>
             </div>
           </div>
         </div>
@@ -654,8 +615,6 @@ function ExamActive({
             subtopic={question.subtopic}
             difficulty={config.difficulty}
             maxMarks={isWritten ? question.maxMarks : undefined}
-            modeLabel={isWritten ? "Written" : "Multiple Choice"}
-            modeTone={isWritten ? "written" : "mc"}
           />
 
           {/* MC options */}

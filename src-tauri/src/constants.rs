@@ -167,7 +167,7 @@ respiratory and muscular systems, producing improvements in:\n\
 
 pub const CHEMISTRY_LATEX_GUIDANCE: &str =
     " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, \
-$\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. Do NOT write chemical formulas in plain text. Do NOT put prefixes such as ext in front of chemical formulas.";
+$\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ";
 
 // ─── Per-subtopic key knowledge ───────────────────────────────────────────────
 //

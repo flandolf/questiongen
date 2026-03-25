@@ -64,10 +64,17 @@ export default function App() {
   return (
     <MathJaxContext
       version={3}
+      src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"
       config={{
         tex: {
           inlineMath: [["$", "$"]],
           displayMath: [["$$", "$$"]],
+          packages: {
+            "[+]": ["textmacros"],
+          },
+        },
+        loader: {
+          load: ["[tex]/textmacros"],
         },
       }}
     >
