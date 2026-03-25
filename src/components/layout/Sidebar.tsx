@@ -10,7 +10,7 @@ export function Sidebar() {
   const studyGoals = useAppStore((s) => s.studyGoals);
 
   const todayCompletions = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
     return streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
   }, [streakData.dailyCompletions]);
 

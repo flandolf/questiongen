@@ -99,15 +99,17 @@ export function normalizeMathDelimiters(content: string): string {
     return cached;
   }
 
-  const normalized = transformOutsideCode(content, (segment) =>
-    escapeBarePercentInMath(
+  const normalized = transformOutsideCode(content, (segment) => {
+    // Fix any form feed characters that may have resulted from JavaScript \f interpretation
+    const fixedSegment = segment.replace(/\f\s*([a-zA-Z]+)/g, "\\$1");
+    return escapeBarePercentInMath(
       normalizeEscapedLatexCommandsInMath(
         renderCurrencyEscapes(
-          normalizePseudoMathDelimiters(segment),
+          normalizePseudoMathDelimiters(fixedSegment),
         ),
       ),
-    ),
-  );
+    );
+  });
 
   if (normalizedMathCache.size >= NORMALIZED_MATH_CACHE_MAX_ENTRIES) {
     const firstKey = normalizedMathCache.keys().next().value;
@@ -214,7 +216,9 @@ function normalizeEscapedLatexCommandsInMath(content: string): string {
     const recoveredTabEscapes = inner.replace(/\t(?=[A-Za-z])/g, "\\t");
     // Model responses sometimes include JSON-escaped LaTeX commands (e.g. \\sin).
     const normalizedInner = recoveredTabEscapes.replace(/\\\\([A-Za-z]+)/g, "\\$1");
-    return `${delimiter}${normalizedInner}${delimiter}`;
+    // Fix form feed characters that may result from JavaScript string literal \f interpretation
+    const fixedFormFeeds = normalizedInner.replace(/\f\s*([a-zA-Z]+)/g, "\\$1");
+    return `${delimiter}${fixedFormFeeds}${delimiter}`;
   });
 }
 

@@ -178,20 +178,29 @@ function getDayKey(isoString: string): string {
 function computeDailyUsage(
   questionHistory: ReturnType<typeof useWrittenSession>["questionHistory"],
   mcHistory: ReturnType<typeof useMultipleChoiceSession>["mcHistory"],
+  generationHistory: any,
 ) {
   const byDay = new Map<string, { tokens: number; cost: number; questions: number }>();
 
-  const addEntry = (createdAt: string, telemetry?: { totalTokens?: number; estimatedCostUsd?: number } | null) => {
+  // Count questions answered per day from history
+  const addQuestion = (createdAt: string) => {
     const day = getDayKey(createdAt);
     const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
     bucket.questions += 1;
-    if (telemetry?.totalTokens) bucket.tokens += telemetry.totalTokens;
-    if (telemetry?.estimatedCostUsd) bucket.cost += telemetry.estimatedCostUsd;
     byDay.set(day, bucket);
   };
 
-  for (const e of questionHistory) addEntry(e.createdAt, e.generationTelemetry);
-  for (const e of mcHistory) addEntry(e.createdAt, e.generationTelemetry);
+  for (const e of questionHistory) addQuestion(e.createdAt);
+  for (const e of mcHistory) addQuestion(e.createdAt);
+
+  // Add generation costs per day from generation records
+  for (const record of generationHistory) {
+    const day = getDayKey(record.timestamp);
+    const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
+    if (record.outputs?.totalTokens) bucket.tokens += record.outputs.totalTokens;
+    if (record.outputs?.estimatedCostUsd) bucket.cost += record.outputs.estimatedCostUsd;
+    byDay.set(day, bucket);
+  }
 
   return byDay;
 }
@@ -489,12 +498,14 @@ function CreditBar({ used, total }: { used: number; total: number }) {
 function DailyUsageSection({
   questionHistory,
   mcHistory,
+  generationHistory,
 }: {
   questionHistory: ReturnType<typeof useWrittenSession>["questionHistory"];
   mcHistory: ReturnType<typeof useMultipleChoiceSession>["mcHistory"];
+  generationHistory: any;
 }) {
   const dailyData = useMemo(() => {
-    const byDay = computeDailyUsage(questionHistory, mcHistory);
+    const byDay = computeDailyUsage(questionHistory, mcHistory, generationHistory);
 
     // Sort days ascending, take last 30
     const sorted = Array.from(byDay.entries())
@@ -506,7 +517,7 @@ function DailyUsageSection({
       label: new Date(day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
       ...data,
     }));
-  }, [questionHistory, mcHistory]);
+  }, [questionHistory, mcHistory, generationHistory]);
 
   const totalDays = dailyData.length;
 
@@ -1191,6 +1202,7 @@ export function SettingsView() {
 
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
+  const generationHistory = useAppStore((s) => s.generationHistory);
 
   // Study goals & streaks
   const studyGoals = useAppStore((s) => s.studyGoals);
@@ -1557,7 +1569,7 @@ export function SettingsView() {
                   Based on generation telemetry stored locally in your history. Only sessions with token data are included.
                 </p>
               </div>
-              <DailyUsageSection questionHistory={questionHistory} mcHistory={mcHistory} />
+              <DailyUsageSection questionHistory={questionHistory} mcHistory={mcHistory} generationHistory={generationHistory} />
             </div>
           </div>
         );
