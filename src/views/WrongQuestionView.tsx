@@ -20,6 +20,7 @@ import {
     Lightbulb, Trophy, Frown, Trash2, Loader2, Sparkles, Check, AlertCircle,
     ImagePlus, X, FileImage, PenLine, Camera, Brain,
 } from "lucide-react";
+import { PageContainer, PageHeader, Toolbar, FilterGroup, FilterButton } from "@/components/layout/primitives";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1072,54 +1073,56 @@ export default function WrongQuestionView() {
     const mcCount = allWrong.filter((e) => e.kind === "multiple-choice").length;
 
     return (
-        <div className="flex flex-col min-h-full">
-            {/* Sticky header + toolbar */}
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border/40 px-3 sm:px-5 py-3 space-y-2.5">
-                <div className="flex items-center gap-2.5">
-                    <h1 className="text-xl font-black tracking-tight">Wrong Answers</h1>
-                    {allWrong.length > 0 && (
-                        <Badge variant="secondary" className="text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                            {allWrong.length}
-                        </Badge>
-                    )}
-                    {dueCards.length > 0 && (
-                        <Badge className="text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1">
-                            <Brain className="w-3 h-3" />
-                            {dueCards.length} due
-                        </Badge>
-                    )}
-                    <p className="hidden sm:block text-xs text-muted-foreground ml-1">
-                        Review and reattempt questions you got wrong.
-                    </p>
-                </div>
-
-                {allWrong.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5">
-                            {(["all", "written", "mc"] as const).map((m) => (
-                                <button key={m} type="button" onClick={() => setFilterMode(m)}
-                                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${filterMode === m ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                                    {m === "all" ? `All (${allWrong.length})` : m === "written" ? `Written (${writtenCount})` : `MC (${mcCount})`}
-                                </button>
-                            ))}
-                        </div>
-                        <button type="button" onClick={() => setIsShuffled((s) => !s)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${isShuffled ? "bg-primary/10 border-primary/30 text-primary" : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"}`}>
-                            <Shuffle className="w-3.5 h-3.5" />
-                            {isShuffled ? "Shuffled" : "Shuffle"}
-                        </button>
-                        {filteredQuestions.length > 0 && (
-                            <Button size="sm" className="ml-auto gap-2 h-8 px-4 shadow-sm" onClick={() => startReattempt(isShuffled)}>
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                Reattempt {filteredQuestions.length > 1 ? `all ${filteredQuestions.length}` : ""}
-                            </Button>
+        <PageContainer>
+            <PageHeader
+                title="Wrong Answers"
+                description="Review and reattempt questions you got wrong."
+                actions={
+                    <div className="flex items-center gap-2">
+                        {allWrong.length > 0 && (
+                            <Badge variant="secondary" className="text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                {allWrong.length}
+                            </Badge>
+                        )}
+                        {dueCards.length > 0 && (
+                            <Badge className="text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1">
+                                <Brain className="w-3 h-3" />
+                                {dueCards.length} due
+                            </Badge>
                         )}
                     </div>
-                )}
-            </div>
+                }
+            />
+
+            {allWrong.length > 0 && (
+                <Toolbar>
+                    <FilterGroup>
+                        {(["all", "written", "mc"] as const).map((m) => (
+                            <FilterButton
+                                key={m}
+                                active={filterMode === m}
+                                onClick={() => setFilterMode(m)}
+                            >
+                                {m === "all" ? `All (${allWrong.length})` : m === "written" ? `Written (${writtenCount})` : `MC (${mcCount})`}
+                            </FilterButton>
+                        ))}
+                    </FilterGroup>
+                    <button type="button" onClick={() => setIsShuffled((s) => !s)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${isShuffled ? "bg-primary/10 border-primary/30 text-primary" : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"}`}>
+                        <Shuffle className="w-3.5 h-3.5" />
+                        {isShuffled ? "Shuffled" : "Shuffle"}
+                    </button>
+                    {filteredQuestions.length > 0 && (
+                        <Button size="sm" className="ml-auto gap-2 h-8 px-4 shadow-sm" onClick={() => startReattempt(isShuffled)}>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reattempt {filteredQuestions.length > 1 ? `all ${filteredQuestions.length}` : ""}
+                        </Button>
+                    )}
+                </Toolbar>
+            )}
 
             {/* Content */}
-            <div className="flex-1 px-3 sm:px-5 py-3">
+            <div className="flex-1 py-3">
                 {allWrong.length === 0 ? (
                     <EmptyState />
                 ) : (
@@ -1211,6 +1214,6 @@ export default function WrongQuestionView() {
                     </div>
                 )}
             </div>
-        </div>
+        </PageContainer>
     );
 }
