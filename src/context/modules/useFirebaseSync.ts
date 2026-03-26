@@ -10,6 +10,8 @@ import {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   SyncableData,
+  SyncMetadata,
+  buildVersionMap,
 } from "./useFirebase";
 import { useAppStore, AppState } from "../../store";
 import type {
@@ -20,7 +22,10 @@ import type {
 
 const SYNC_DEBUG = true;
 
-
+// Optimized constants for better sync performance
+const AUTO_SAVE_DEBOUNCE_MS = 10000; // Reduced from 60000ms (10s instead of 60s)
+const SYNC_STALE_THRESHOLD_MS = 60000; // Force full sync if stale for > 1 minute
+const STORE_CHANGE_THROTTLE_MS = 2000; // Throttle store subscriptions to avoid excessive saves
 
 // Debug log / sync event memory limits
 const DEBUG_LOG_LIMIT = 50;
@@ -235,6 +240,22 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const isFirstSyncRef = useRef(true);
   const suppressAutoSaveRef = useRef(false);
   const suppressAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Track sync metadata for delta sync
+  const syncMetadataRef = useRef<SyncMetadata>({
+    lastSyncTime: 0,
+    questionHistorySyncTime: 0,
+    mcHistorySyncTime: 0,
+    savedSetsSyncTime: 0,
+    lastSyncVersions: {
+      questionHistory: {},
+      mcHistory: {},
+      savedSets: {},
+    },
+  });
+  
+  // Track last store update time for throttling
+  const lastStoreUpdateRef = useRef<number>(0);
 
   // Operation queue for serializing sync writes
   const operationQueueRef = useRef<QueuedOperation[]>([]);
@@ -345,11 +366,39 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     const userId = getUserId(user);
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
     let isDirty = false;
+    let lastSavedSnapshot = "";
 
     const trySave = (state: AppState) => {
       if (!state.isHydrated || !isSyncEnabled || suppressAutoSaveRef.current) return;
-      localDataRef.current = extractSyncableData(state);
+      
+      // Throttle: skip if we just saved recently
+      const now = Date.now();
+      if (now - lastStoreUpdateRef.current < STORE_CHANGE_THROTTLE_MS) {
+        // Mark dirty but don't trigger save immediately
+        isDirty = true;
+        lastStoreUpdateRef.current = now;
+        return;
+      }
+      lastStoreUpdateRef.current = now;
+      
+      // Create snapshot to detect actual changes
+      const syncableData = extractSyncableData(state);
+      const snapshot = JSON.stringify({
+        qh: syncableData.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q) })),
+        mch: syncableData.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q) })),
+        ss: syncableData.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q) })),
+      });
+      
+      // Skip if nothing changed since last save
+      if (snapshot === lastSavedSnapshot) {
+        debugLog("No changes detected, skipping save");
+        return;
+      }
+      
+      lastSavedSnapshot = snapshot;
+      localDataRef.current = syncableData;
       isDirty = true;
+      
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         if (!isDirty) return;
@@ -358,19 +407,54 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           try {
             setIsSyncing(true);
             setSyncStatus("syncing");
-            const syncableData = extractSyncableData(state);
+            const currentData = extractSyncableData(useAppStore.getState());
             debugLog("Auto-saving user data", {
               userId,
-              settings: syncableData.settings,
-              questionHistory: syncableData.questionHistory?.length,
-              mcHistory: syncableData.mcHistory?.length,
-              savedSets: syncableData.savedSets?.length,
+              settings: currentData.settings,
+              questionHistory: currentData.questionHistory?.length,
+              mcHistory: currentData.mcHistory?.length,
+              savedSets: currentData.savedSets?.length,
             });
-            await saveUserData(userId, syncableData);
+            
+            // Check if sync is stale (force full sync)
+            const timeSinceLastSync = now - syncMetadataRef.current.lastSyncTime;
+            const isStale = timeSinceLastSync > SYNC_STALE_THRESHOLD_MS;
+            
+            // Use delta sync - only save changed items
+            const result = await saveUserData(userId, currentData, {
+              deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
+              fullSync: isStale,
+            });
+            
+            // Update sync metadata after successful save
+            syncMetadataRef.current.lastSyncTime = Date.now();
+            syncMetadataRef.current.questionHistorySyncTime = Date.now();
+            syncMetadataRef.current.mcHistorySyncTime = Date.now();
+            syncMetadataRef.current.savedSetsSyncTime = Date.now();
+            syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
+              currentData.questionHistory as Array<Record<string, unknown>>,
+              syncMetadataRef.current.lastSyncVersions.questionHistory
+            );
+            syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+              currentData.mcHistory as Array<Record<string, unknown>>,
+              syncMetadataRef.current.lastSyncVersions.mcHistory
+            );
+            syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+              currentData.savedSets as Array<Record<string, unknown>>,
+              syncMetadataRef.current.lastSyncVersions.savedSets
+            );
+            
+            debugLog("Auto-save completed", {
+              totalWrites: result.totalWrites,
+              deltaSavings: result.deltaSavings,
+              skippedUnchanged: result.skippedUnchanged,
+              wasFullSync: isStale,
+            });
+            
             setLastSyncTime(Date.now());
             setSyncError(null);
             setSyncStatus("idle");
-            addSyncEvent("upload", "Data uploaded to cloud");
+            addSyncEvent("upload", `Data uploaded to cloud (${result.totalWrites} writes, ${result.deltaSavings} delta savings)`);
           } catch (error) {
             console.error("Failed to save to Firebase:", error);
             setSyncError(error instanceof Error ? error.message : "Save failed");
@@ -380,7 +464,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             setIsSyncing(false);
           }
         });
-      }, 60000); // 60s debounce
+      }, AUTO_SAVE_DEBOUNCE_MS); // Reduced from 60000ms
     };
 
     const unsubscribe = useAppStore.subscribe(trySave);
@@ -468,6 +552,32 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         suppressAutoSaveTemporarily();
         useAppStore.setState(storeUpdates);
         localDataRef.current = merged;
+        
+        // Initialize sync metadata from merged data (for delta sync tracking)
+        const now = Date.now();
+        syncMetadataRef.current.lastSyncTime = now;
+        syncMetadataRef.current.questionHistorySyncTime = now;
+        syncMetadataRef.current.mcHistorySyncTime = now;
+        syncMetadataRef.current.savedSetsSyncTime = now;
+        syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
+          merged.questionHistory as Array<Record<string, unknown>>,
+          {}
+        );
+        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+          merged.mcHistory as Array<Record<string, unknown>>,
+          {}
+        );
+        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+          merged.savedSets as Array<Record<string, unknown>>,
+          {}
+        );
+        
+        debugLog("Sync metadata initialized", {
+          questionHistoryVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.questionHistory).length,
+          mcHistoryVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.mcHistory).length,
+          savedSetsVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.savedSets).length,
+        });
+        
         addSyncEvent("download", `Synced ${remoteData?.questionHistory?.length || 0} question history items`);
 
         // Archive old items from Firestore after merge
@@ -482,7 +592,27 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       }
 
       if (!hasRemoteData(remoteData)) {
-        await saveUserData(userId, localDataRef.current);
+        // Initialize sync metadata for first-time sync
+        const now = Date.now();
+        syncMetadataRef.current.lastSyncTime = now;
+        syncMetadataRef.current.questionHistorySyncTime = now;
+        syncMetadataRef.current.mcHistorySyncTime = now;
+        syncMetadataRef.current.savedSetsSyncTime = now;
+        syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
+          localDataRef.current.questionHistory as Array<Record<string, unknown>>,
+          {}
+        );
+        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+          localDataRef.current.mcHistory as Array<Record<string, unknown>>,
+          {}
+        );
+        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+          localDataRef.current.savedSets as Array<Record<string, unknown>>,
+          {}
+        );
+        
+        // Full sync for first upload
+        await saveUserData(userId, localDataRef.current, { fullSync: true });
         addSyncEvent("upload", "Initial data uploaded to cloud");
       }
       isInitializedRef.current = true;
@@ -567,13 +697,35 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           addSyncEvent("download", "Manual sync pulled remote updates");
         }
 
-        debugLog("Uploading merged data to cloud", {
+        debugLog("Uploading merged data to cloud (full sync)", {
           questionHistory: merged.questionHistory?.length,
           mcHistory: merged.mcHistory?.length,
           savedSets: merged.savedSets?.length,
         });
-        await saveUserData(userId, merged);
+        
+        // Force full sync for manual sync
+        await saveUserData(userId, merged, { fullSync: true });
         localDataRef.current = merged;
+        
+        // Update sync metadata after full sync
+        const now = Date.now();
+        syncMetadataRef.current.lastSyncTime = now;
+        syncMetadataRef.current.questionHistorySyncTime = now;
+        syncMetadataRef.current.mcHistorySyncTime = now;
+        syncMetadataRef.current.savedSetsSyncTime = now;
+        syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
+          merged.questionHistory as Array<Record<string, unknown>>,
+          {}
+        );
+        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+          merged.mcHistory as Array<Record<string, unknown>>,
+          {}
+        );
+        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+          merged.savedSets as Array<Record<string, unknown>>,
+          {}
+        );
+        
         setLastSyncTime(Date.now());
         setSyncError(null);
         setSyncStatus("idle");
