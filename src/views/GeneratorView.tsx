@@ -932,7 +932,6 @@ useEffect(() => {
               topics: [topic],
               difficulty,
               questionCount: count,
-              averageMarksPerQuestion,
               model, apiKey, techMode,
               includeExamContext,
               subtopics: getSubtopicsForTopic(topic),

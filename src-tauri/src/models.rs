@@ -210,6 +210,7 @@ pub struct AnalyzeImageResponse {
 
 // ─── Multiple-choice ──────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateMcQuestionsRequest {
@@ -234,7 +235,6 @@ pub struct GenerateMcQuestionsRequest {
     pub top_p: Option<f32>,
     pub seed: Option<u64>,
 }
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct McOption {

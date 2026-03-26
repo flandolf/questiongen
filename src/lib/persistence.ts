@@ -253,6 +253,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
     useSeparateImageMarkingModel: Boolean(data.useSeparateImageMarkingModel),
     debugMode: Boolean(data.debugMode),
     questionTextSize: clampWholeNumber(data.questionTextSize, DEFAULT_SETTINGS.questionTextSize ?? 16, 12, 28),
+    includeExamContext: data.includeExamContext !== undefined ? Boolean(data.includeExamContext) : DEFAULT_SETTINGS.includeExamContext,
   };
 }
 
