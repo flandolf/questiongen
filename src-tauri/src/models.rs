@@ -88,10 +88,14 @@ pub struct GenerateQuestionsRequest {
     pub custom_focus_area: Option<String>,
     pub avoid_similar_questions: Option<bool>,
     pub prior_question_prompts: Option<Vec<String>>,
-    pub max_marks_per_question: Option<u8>,
+    pub average_marks_per_question: Option<u8>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
+    // Model generation parameters
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub seed: Option<u64>,
 }
 
 /// Deserialised directly from the model's JSON output.
@@ -128,6 +132,10 @@ pub struct MarkAnswerRequest {
     pub student_answer_image_data_url: Option<String>,
     pub model: String,
     pub api_key: String,
+    // Model generation parameters
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -188,6 +196,10 @@ pub struct AnalyzeImageRequest {
     pub model: String,
     pub api_key: String,
     pub prompt: Option<String>,
+    // Model generation parameters
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -216,6 +228,11 @@ pub struct GenerateMcQuestionsRequest {
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
+    pub average_marks_per_question: Option<u8>,
+    // Model generation parameters
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

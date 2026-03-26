@@ -39,8 +39,8 @@ export function usePreferencesState() {
   const [questionCount, setQuestionCount] = useState(
     EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   );
-  const [maxMarksPerQuestion, setMaxMarksPerQuestion] = useState(
-    EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion,
+  const [averageMarksPerQuestion, setAverageMarksPerQuestion] = useState(
+    EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
   );
   const [questionMode, setQuestionMode] = useState<QuestionMode>(
     EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
@@ -68,8 +68,8 @@ export function usePreferencesState() {
     setPhysicalEducationSubtopics,
     questionCount,
     setQuestionCount,
-    maxMarksPerQuestion,
-    setMaxMarksPerQuestion,
+    averageMarksPerQuestion,
+    setAverageMarksPerQuestion,
     questionMode,
     setQuestionMode,
     subtopicInstructions,

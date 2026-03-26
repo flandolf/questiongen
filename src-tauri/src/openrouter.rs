@@ -22,18 +22,25 @@ pub async fn call_openrouter(
     user_content: serde_json::Value,
     response_format: &serde_json::Value,
     max_tokens: u32,
+    temperature: f32,
+    top_p: f32,
+    seed: Option<u64>,
 ) -> CommandResult<OpenRouterResult> {
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
         "messages": [
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": user_content  },
         ],
-        "temperature": 0.5,
+        "temperature": temperature,
+        "top_p": top_p,
         "max_tokens": max_tokens,
         "response_format": response_format,
         "plugins": [{ "id": "response-healing" }],
     });
+    if let Some(seed) = seed {
+        body["seed"] = serde_json::json!(seed);
+    }
 
     let response = reqwest::Client::new()
         .post(OPENROUTER_CHAT_URL)
@@ -124,14 +131,18 @@ pub async fn call_openrouter_streaming(
     user_content: serde_json::Value,
     response_format: &serde_json::Value,
     max_tokens: u32,
+    temperature: f32,
+    top_p: f32,
+    seed: Option<u64>,
 ) -> CommandResult<OpenRouterResult> {
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "model": model,
         "messages": [
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": user_content  },
         ],
-        "temperature": 0.5,
+        "temperature": temperature,
+        "top_p": top_p,
         "max_tokens": max_tokens,
         "response_format": response_format,
         "plugins": [{ "id": "response-healing" }],
@@ -139,6 +150,9 @@ pub async fn call_openrouter_streaming(
         // Request usage in the final stream chunk (supported by most providers).
         "stream_options": { "include_usage": true },
     });
+    if let Some(seed) = seed {
+        body["seed"] = serde_json::json!(seed);
+    }
 
     let http = reqwest::Client::new();
     let response = http

@@ -176,7 +176,7 @@ export function GeneratorView() {
     chemistrySubtopics, setChemistrySubtopics,
     physicalEducationSubtopics, setPhysicalEducationSubtopics,
     questionCount, setQuestionCount,
-    maxMarksPerQuestion, setMaxMarksPerQuestion,
+    averageMarksPerQuestion, setAverageMarksPerQuestion,
     questionMode, setQuestionMode,
     subtopicInstructions,
     aiDifficultyScalingEnabled, setAiDifficultyScalingEnabled,
@@ -747,7 +747,6 @@ useEffect(() => {
   // ── Generation ───────────────────────────────────────────────────────────────
   async function handleGenerateQuestions() {
     if (!canGenerate) return;
-    const hasMath = selectedTopics.some((t) => isMathTopic(t));
     startStopwatch();
     setErrorMessage(null);
     setLastFailedAction(null);
@@ -785,7 +784,7 @@ useEffect(() => {
               topics: [topic],
               difficulty,
               questionCount: count,
-              maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
+              averageMarksPerQuestion,
               model, apiKey, techMode,
               includeExamContext,
               subtopics: getSubtopicsForTopic(topic),
@@ -818,7 +817,7 @@ useEffect(() => {
               questionCount: count,
               questionMode: "written",
               techMode,
-              maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
+              averageMarksPerQuestion,
               subtopics: getSubtopicsForTopic(topic),
               customFocusArea: getCustomFocusArea(),
             },
@@ -933,6 +932,7 @@ useEffect(() => {
               topics: [topic],
               difficulty,
               questionCount: count,
+              averageMarksPerQuestion,
               model, apiKey, techMode,
               includeExamContext,
               subtopics: getSubtopicsForTopic(topic),
@@ -965,6 +965,7 @@ useEffect(() => {
               questionCount: count,
               questionMode: "multiple-choice",
               techMode,
+              averageMarksPerQuestion,
             },
             outputs: {
               durationMs: response.durationMs || 0,
@@ -1243,7 +1244,7 @@ useEffect(() => {
           customFocusArea={customFocusArea} onSetCustomFocusArea={setCustomFocusArea}
           difficulty={difficulty} onSetDifficulty={setDifficulty}
           questionCount={questionCount} onSetQuestionCount={setQuestionCount}
-          maxMarksPerQuestion={maxMarksPerQuestion} onSetMaxMarksPerQuestion={setMaxMarksPerQuestion}
+          averageMarksPerQuestion={averageMarksPerQuestion} onSetAverageMarksPerQuestion={setAverageMarksPerQuestion}
           avoidSimilarQuestions={avoidSimilarQuestions} onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
           shuffleQuestions={shuffleQuestions} onSetShuffleQuestions={setShuffleQuestions}
           aiDifficultyScalingEnabled={aiDifficultyScalingEnabled} onSetAiDifficultyScalingEnabled={setAiDifficultyScalingEnabled}
