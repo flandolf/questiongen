@@ -210,6 +210,42 @@ fn written_system() -> String {
              }}\n\
            ]\n\
          }}\n\
+         ADDITIONAL EXAM ALIGNMENT:\n\
+         - For Mathematical Methods: Questions should include graphing on provided axes, solving equations, \
+         differentiation/integration with proper notation, probability distributions with tables/graphs.\n\
+         - For Specialist Mathematics: Include vectors, complex numbers, kinematics with diagrams, \
+         proofs using induction, differential equations.\n\
+         - Structure multi-part questions like VCAA exams: stem followed by (a), (b), etc., with mark allocations.\n\
+         - Require exact answers unless specified, show working for multi-mark questions.\n\
+         - Match difficulty to VCAA levels: Essential Skills (direct), Easy (method choice), Medium (multi-concept), \
+         Hard (non-routine), Extreme (multi-part proofs).\n\
+         - For tech-free: no calculators; for tech-active: allow CAS/software but questions still require method.\n\n\
+         Examples of high-quality VCAA written-response questions:\n\
+         {{\n\
+           \"questions\": [\n\
+             {{\n\
+               \"topic\": \"Mathematical Methods\",\n\
+               \"subtopic\": \"Functions and graphs\",\n\
+               \"promptMarkdown\": \"Let $f(x) = \\\\cos(2x + 1)$.\n(a) State the range of f. [1 mark]\n\n(b) Sketch the graph of y = f(x) for x ∈ [0, π]. Label the endpoints. [2 marks]\",\n\
+               \"maxMarks\": 3,\n\
+               \"techAllowed\": false\n\
+             }},\n\
+             {{\n\
+               \"topic\": \"Mathematical Methods\",\n\
+               \"subtopic\": \"Probability\",\n\
+               \"promptMarkdown\": \"A random variable X has the probability distribution shown in the table below.\n\nx | 1 | 2 | 3\nPr(X = x) | 0.2 | k | 0.5\n\n(a) Show that k = 0.3. [2 marks]\n\n(b) Find E(X). [1 mark]\",\n\
+               \"maxMarks\": 3,\n\
+               \"techAllowed\": false\n\
+             }},\n\
+             {{\n\
+               \"topic\": \"Specialist Mathematics\",\n\
+               \"subtopic\": \"Complex numbers\",\n\
+               \"promptMarkdown\": \"Solve $z^2 + 4z + 5 = 0$ for z ∈ C.\",\n\
+               \"maxMarks\": 2,\n\
+               \"techAllowed\": false\n\
+             }}\n\
+           ]\n\
+         }}\n\
          No markdown fences, no extra keys, no commentary outside JSON."
     )
 }
@@ -236,6 +272,44 @@ fn mc_system() -> String {
                \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
                                      \"explanationMarkdown\": string (≤300 words — name the misconception each wrong option targets),\n\
                \"techAllowed\": boolean\n\
+             }}\n\
+           ]\n\
+         }}\n\
+         ADDITIONAL EXAM ALIGNMENT:\n\
+         - For Mathematical Methods Exam 2: Questions are multiple-choice with 4 options, often involving calculations, graphs, or interpretations. Distractors are common mistakes.\n\
+         - For Specialist Mathematics Exam 2: Similar, but with more complex topics like vectors, complex numbers, kinematics.\n\
+         - Options should be presented clearly with LaTeX for math. Explanation should name misconceptions without chain-of-thought.\n\
+         - Match VCAA difficulty: questions test understanding, not just recall.\n\n\
+         Examples of high-quality VCAA multiple-choice questions:\n\
+         {{\n\
+           \"questions\": [\n\
+             {{\n\
+               \"topic\": \"Mathematical Methods\",\n\
+               \"subtopic\": \"Functions and graphs\",\n\
+               \"promptMarkdown\": \"The graph of $y = f(x)$ is shown below. Which of the following could be the graph of $y = f'(x)$?\\nA. [graph description]\\nB. [graph description]\\nC. [graph description]\\nD. [graph description]\",\n\
+               \"options\": [\n\
+                 {{\"label\": \"A\", \"text\": \"Option A description\"}},\n\
+                 {{\"label\": \"B\", \"text\": \"Option B description\"}},\n\
+                 {{\"label\": \"C\", \"text\": \"Option C description\"}},\n\
+                 {{\"label\": \"D\", \"text\": \"Option D description\"}}\n\
+               ],\n\
+               \"correctAnswer\": \"C\",\n\
+               \"explanationMarkdown\": \"C is correct as it shows the derivative graph. A is wrong due to incorrect slope interpretation, B misses inflection, D has wrong maxima.\",\n\
+               \"techAllowed\": true\n\
+             }},\n\
+             {{\n\
+               \"topic\": \"Specialist Mathematics\",\n\
+               \"subtopic\": \"Complex numbers\",\n\
+               \"promptMarkdown\": \"If $z = 2 + 3i$, then $\\\\overline{{z}}$ is\\\\nA. $2 - 3i$\\\\nB. $-2 + 3i$\\\\nC. $2 + 3i$\\\\nD. $-2 - 3i$\",\n\
+               \"options\": [\n\
+                 {{\"label\": \"A\", \"text\": \"$2 - 3i$\"}},\n\
+                 {{\"label\": \"B\", \"text\": \"$-2 + 3i$\"}},\n\
+                 {{\"label\": \"C\", \"text\": \"$2 + 3i$\"}},\n\
+                 {{\"label\": \"D\", \"text\": \"$-2 - 3i$\"}}\n\
+               ],\n\
+               \"correctAnswer\": \"A\",\n\
+               \"explanationMarkdown\": \"A is correct. The conjugate negates the imaginary part. B negates the real part, C is unchanged, D negates both.\",\n\
+               \"techAllowed\": true\n\
              }}\n\
            ]\n\
          }}\n\
