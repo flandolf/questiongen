@@ -1134,7 +1134,7 @@ export default function ExamSimulationView() {
             questionCount: cfg.questionCount,
             questionMode: "written",
             techMode: cfg.techMode,
-            maxMarksPerQuestion: isMath ? 10 : undefined,
+            averageMarksPerQuestion: isMath ? 10 : undefined,
             subtopics: cfg.selectedSubtopics,
             customFocusArea: cfg.customFocusArea.trim() || undefined,
           },

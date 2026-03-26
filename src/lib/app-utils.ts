@@ -351,7 +351,7 @@ const PARAMETER_WEIGHTS = {
  */
 const TOKENS_PER_MARK = 40;
 
-/** Default assumed marks when maxMarksPerQuestion is not specified. */
+/** Default assumed marks when averageMarksPerQuestion is not specified. */
 const DEFAULT_MARKS = 4;
 
 // =============================================================================
@@ -507,7 +507,7 @@ export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
  */
 function extractLogRegressionFeatures(
   questionCount: number,
-  maxMarksPerQuestion: number | undefined,
+  averageMarksPerQuestion: number | undefined,
   topic: Topic,
   difficulty: Difficulty,
   questionMode: QuestionMode,
@@ -515,7 +515,7 @@ function extractLogRegressionFeatures(
   subtopics?: string[],
   customFocusArea?: string
 ): Record<string, number> {
-  const totalMarks = (maxMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
+  const totalMarks = (averageMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
   const logQuestionCount = Math.log(Math.max(questionCount, 1));
   const logTotalMarks = Math.log(Math.max(totalMarks, 1));
 
@@ -585,7 +585,7 @@ export function trainLogRegressionModel(
   const trainingData = validRecords.map(record => {
     const features = extractLogRegressionFeatures(
       record.inputs.questionCount,
-      record.inputs.maxMarksPerQuestion,
+      record.inputs.averageMarksPerQuestion,
       record.inputs.topic,
       record.inputs.difficulty,
       record.inputs.questionMode,
@@ -707,7 +707,7 @@ export function trainLogRegressionModel(
  */
 function estimateTokensLogRegression(
   questionCount: number,
-  maxMarksPerQuestion: number | undefined,
+  averageMarksPerQuestion: number | undefined,
   topic: Topic,
   difficulty: Difficulty,
   questionMode: QuestionMode,
@@ -731,7 +731,7 @@ function estimateTokensLogRegression(
   // Extract features and predict
   const features = extractLogRegressionFeatures(
     questionCount,
-    maxMarksPerQuestion,
+    averageMarksPerQuestion,
     topic,
     difficulty,
     questionMode,
@@ -760,7 +760,7 @@ function calculateSimilarity(
   difficulty: Difficulty,
   questionMode: QuestionMode,
   techMode: TechMode,
-  maxMarksPerQuestion?: number,
+  averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string
 ): number {
@@ -772,8 +772,8 @@ function calculateSimilarity(
   if (record.inputs.techMode === techMode) score += PARAMETER_WEIGHTS.techMode;
 
   const marksMatch =
-    (maxMarksPerQuestion == null && record.inputs.maxMarksPerQuestion == null) ||
-    (maxMarksPerQuestion != null && record.inputs.maxMarksPerQuestion === maxMarksPerQuestion);
+    (averageMarksPerQuestion == null && record.inputs.averageMarksPerQuestion == null) ||
+    (averageMarksPerQuestion != null && record.inputs.averageMarksPerQuestion === averageMarksPerQuestion);
   if (marksMatch) score += 0.1;
 
   if (subtopics && record.inputs.subtopics) {
@@ -820,14 +820,14 @@ function estimateTokensAdvanced(
   questionCount: number,
   questionMode: QuestionMode,
   techMode: TechMode,
-  maxMarksPerQuestion?: number,
+  averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string
 ): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
   // Primary: Use log regression model if available (trained or has defaults)
   const logRegResult = estimateTokensLogRegression(
     questionCount,
-    maxMarksPerQuestion,
+    averageMarksPerQuestion,
     topic,
     difficulty,
     questionMode,
@@ -851,13 +851,13 @@ function estimateTokensAdvanced(
   );
 
   if (validRecords.length === 0) {
-    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, subtopics, customFocusArea);
+    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, subtopics, customFocusArea);
   }
 
   const recordsWithSimilarity = validRecords
     .map(record => ({
       record,
-      similarity: calculateSimilarity(record, topic, difficulty, questionMode, techMode, maxMarksPerQuestion, subtopics, customFocusArea),
+      similarity: calculateSimilarity(record, topic, difficulty, questionMode, techMode, averageMarksPerQuestion, subtopics, customFocusArea),
       recencyWeight: Math.exp(
         -0.1 * ((Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24))
       ),
@@ -865,7 +865,7 @@ function estimateTokensAdvanced(
     .filter(item => item.similarity > 0.3);
 
   if (recordsWithSimilarity.length === 0) {
-    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, subtopics, customFocusArea);
+    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, subtopics, customFocusArea);
   }
 
   recordsWithSimilarity.sort(
@@ -937,7 +937,7 @@ function estimateStaticTokens(
   questionCount: number,
   questionMode: QuestionMode,
   techMode: TechMode,
-  maxMarksPerQuestion?: number,
+  averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string
 ): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
@@ -946,7 +946,7 @@ function estimateStaticTokens(
   const techMultiplier = TECH_MODE_MULTIPLIERS[techMode] ?? 1.0;
 
   // More marks = longer question stem, worked solution, and marking criteria
-  const marks = maxMarksPerQuestion ?? DEFAULT_MARKS;
+  const marks = averageMarksPerQuestion ?? DEFAULT_MARKS;
   const marksTokens = marks * TOKENS_PER_MARK;
 
   // Each additional subtopic adds a small routing context overhead
@@ -988,7 +988,7 @@ export function estimateTokensAndCost(
   questionCount: number,
   questionMode: QuestionMode,
   techMode: TechMode,
-  maxMarksPerQuestion?: number,
+  averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string,
   promptPricePerToken?: number | null,
@@ -1001,7 +1001,7 @@ export function estimateTokensAndCost(
     questionCount,
     questionMode,
     techMode,
-    maxMarksPerQuestion,
+    averageMarksPerQuestion,
     subtopics,
     customFocusArea
   );

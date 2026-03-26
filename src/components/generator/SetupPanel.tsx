@@ -567,8 +567,8 @@ type SetupPanelProps = {
   onSetDifficulty: (level: Difficulty) => void;
   questionCount: number;
   onSetQuestionCount: (count: number) => void;
-  maxMarksPerQuestion: number;
-  onSetMaxMarksPerQuestion: (marks: number) => void;
+  averageMarksPerQuestion: number;
+  onSetAverageMarksPerQuestion: (marks: number) => void;
   avoidSimilarQuestions: boolean;
   onSetAvoidSimilarQuestions: (enabled: boolean) => void;
   shuffleQuestions: boolean;
@@ -607,10 +607,10 @@ export function SetupPanel({
   customFocusArea, onSetCustomFocusArea,
   difficulty, onSetDifficulty,
   questionCount, onSetQuestionCount,
-  maxMarksPerQuestion, onSetMaxMarksPerQuestion,
+  averageMarksPerQuestion, onSetAverageMarksPerQuestion,
   avoidSimilarQuestions, onSetAvoidSimilarQuestions,
   shuffleQuestions, onSetShuffleQuestions,
-  aiDifficultyScalingEnabled, onSetAiDifficultyScalingEnabled,
+  aiDifficultyScalingEnabled = true, onSetAiDifficultyScalingEnabled,
   difficultyThresholds, onSetDifficultyThresholds,
   hasApiKey, canGenerate, isGenerating, isPaused, onTogglePause,
   generationStatus, formattedElapsedTime,
@@ -640,6 +640,13 @@ export function SetupPanel({
   let stepNum = 0;
   const step = () => ++stepNum;
 
+  const getSelectedSubtopics = () => Array.from(new Set([
+    ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
+    ...(selectedTopics.includes("Specialist Mathematics") ? specialistMathSubtopics : []),
+    ...(selectedTopics.includes("Chemistry") ? chemistrySubtopics : []),
+    ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
+  ]));
+
   useEffect(() => {
     let cancelled = false;
     async function fetchStats() {
@@ -659,55 +666,26 @@ export function SetupPanel({
   }, [apiKey, model]);
 
   const estimated = useMemo(() => {
-    // Use the first selected topic for estimation, or a default
     const primaryTopic = selectedTopics[0] || "Mathematical Methods";
-
-    // Get selected subtopics for the primary topic
-    let selectedSubtopics: string[] | undefined;
-    if (primaryTopic === "Mathematical Methods") {
-      selectedSubtopics = mathMethodsSubtopics.length > 0 ? mathMethodsSubtopics : undefined;
-    } else if (primaryTopic === "Specialist Mathematics") {
-      selectedSubtopics = specialistMathSubtopics.length > 0 ? specialistMathSubtopics : undefined;
-    } else if (primaryTopic === "Chemistry") {
-      selectedSubtopics = chemistrySubtopics.length > 0 ? chemistrySubtopics : undefined;
-    } else if (primaryTopic === "Physical Education") {
-      selectedSubtopics = physicalEducationSubtopics.length > 0 ? physicalEducationSubtopics : undefined;
-    }
-
+    const selectedSubtopics = getSelectedSubtopics();
     return estimateTokensAndCost(
       generationHistory,
-      primaryTopic as Topic,
+      primaryTopic,
       difficulty,
       questionCount,
       questionMode,
       techMode,
-      hasAnyMathTopic ? maxMarksPerQuestion : undefined,
-      selectedSubtopics,
+      averageMarksPerQuestion,
+      selectedSubtopics.length > 0 ? selectedSubtopics : undefined,
       customFocusArea.trim() || undefined,
-      promptPricePerToken,
-      completionPricePerToken
+      promptPricePerToken ?? undefined,
+      completionPricePerToken ?? undefined,
     );
-  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, hasAnyMathTopic, mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics, physicalEducationSubtopics, customFocusArea, promptPricePerToken, completionPricePerToken]);
+  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, customFocusArea, promptPricePerToken, completionPricePerToken]);
 
-  // Timeline visibility: show when generate is clicked, hide when finished
-  const [timelineVisible, setTimelineVisible] = useState(false);
-
-  // Show timeline when generate is clicked
   const handleGenerate = () => {
-    setTimelineVisible(true);
     onGenerate();
   };
-
-  // Hide timeline when generation finishes (completed or failed)
-  useEffect(() => {
-    if (
-      timelineVisible &&
-      generationStatus &&
-      (generationStatus.stage === "completed" || generationStatus.stage === "failed")
-    ) {
-      setTimelineVisible(false);
-    }
-  }, [generationStatus, timelineVisible]);
 
   return (
     <div className="pb-12">
@@ -938,9 +916,9 @@ export function SetupPanel({
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-foreground">
                   {questionCount} questions
                 </span>
-                {questionMode === "written" && hasAnyMathTopic && (
+                {questionMode === "written" && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                    ≤{maxMarksPerQuestion}mk
+                    ≤{averageMarksPerQuestion}mk
                   </span>
                 )}
               </>
@@ -979,16 +957,28 @@ export function SetupPanel({
                 </div>
               )}
 
-              {questionMode === "written" && hasAnyMathTopic && (
+              {questionMode === "written" ? (
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs font-medium flex items-center gap-1.5">
-                      <BarChart3 className="w-3.5 h-3.5" /> Max marks per question
+                      <BarChart3 className="w-3.5 h-3.5" /> Avg marks per question
                     </Label>
-                    <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{maxMarksPerQuestion}</Badge>
+                    <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{averageMarksPerQuestion}</Badge>
                   </div>
-                  <Slider min={1} max={30} step={1} value={[maxMarksPerQuestion]} onValueChange={(val) => onSetMaxMarksPerQuestion(val[0])} className="py-1" />
-                  <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>30</span></div>
+                  <Slider min={1} max={15} step={1} value={[averageMarksPerQuestion]} onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])} className="py-1" />
+                  <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>15</span></div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                      <BarChart3 className="w-3.5 h-3.5" /> Avg marks per question
+                    </Label>
+                    <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums bg-muted text-muted-foreground">1 mark (fixed)</Badge>
+                  </div>
+                  <div className="h-6 bg-muted/30 rounded-md border border-border flex items-center px-3">
+                    <span className="text-xs text-muted-foreground">Multiple choice questions are always worth 1 mark each</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1158,12 +1148,12 @@ export function SetupPanel({
                 <span className="text-muted-foreground/60">Questions</span>
                 <span className="font-semibold text-foreground tabular-nums">{questionCount}</span>
               </span>
-              {questionMode === "written" && hasAnyMathTopic && (
+              {questionMode === "written" && (
                 <>
                   <span className="text-border">·</span>
                   <span className="flex items-center gap-1">
-                    <span className="text-muted-foreground/60">Max marks</span>
-                    <span className="font-semibold text-foreground tabular-nums">{maxMarksPerQuestion}</span>
+                    <span className="text-muted-foreground/60">Avg marks</span>
+                    <span className="font-semibold text-foreground tabular-nums">{averageMarksPerQuestion}</span>
                   </span>
                 </>
               )}
@@ -1248,7 +1238,7 @@ export function SetupPanel({
         </div>
 
         {/* Generation timeline — batch or single depending on run type */}
-        {timelineVisible && (
+        {isGenerating && (
           showBatchTimeline ? (
             <BatchTimeline
               entries={batchProgress}

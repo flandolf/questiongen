@@ -53,6 +53,7 @@ fn adjust_difficulty(
 use models::*;
 use openrouter::{call_openrouter, call_openrouter_streaming, json_schema_format};
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use parsing::{
     clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
     protect_latex_in_raw_json, validate_mc, validate_written,
@@ -525,9 +526,12 @@ fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&
         }
     }
     lines.push(
-        "Generate questions that test ONLY these focus areas. \
-         The PDF was for formatting style only — do NOT draw any content, topics, or question \
-         ideas from it. Every question must map to the Study Design key knowledge listed above."
+        "IMPORTANT: The PDF was provided for formatting style ONLY.\n\
+         - DO NOT copy, paraphrase, or reuse any scenario, context, numbers, or question ideas from the PDF.\n\
+         - Every question you generate must use a new, original scenario and context, and must map exclusively to the Study Design key knowledge listed above.\n\
+         - If you cannot invent a new scenario, skip that question and try a different concept.\n\
+         - Do NOT use the same names, settings, or numbers as the PDF.\n\
+         - The PDF is NOT a source of content, only a style reference."
             .to_string(),
     );
     lines.join("\n")
@@ -535,7 +539,7 @@ fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&
 
 fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     if !enabled {
-        return String::new();
+        return String::from("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any previous question's scenario, numbers, or context. Use new names, settings, and details for every question.");
     }
     let examples: Vec<String> = prior
         .unwrap_or(&[])
@@ -552,7 +556,7 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
         .take(6)
         .collect();
     if examples.is_empty() {
-        return "\nSimilarity guardrail: avoid repeating recent question contexts or solving methods.".into();
+        return String::from("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any previous question's scenario, numbers, or context. Use new names, settings, and details for every question.");
     }
     let list = examples
         .iter()
@@ -560,7 +564,7 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
         .map(|(i, p)| format!("{}. {p}", i + 1))
         .collect::<Vec<_>>()
         .join("\n");
-    format!("\nSimilarity guardrail — do not reuse scenario/method from:\n{list}")
+    format!("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any of the following recent questions. Use new names, settings, and details for every question.\nRecent questions to avoid:\n{list}")
 }
 
 fn topic_exam_pdf_files(topic: &str) -> &'static [&'static str] {
@@ -614,32 +618,71 @@ fn resolve_exam_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathB
     None
 }
 
-fn build_exam_context_parts(
+
+/// Calls Cloudflare-AI PDF extraction API and returns extracted text.
+async fn extract_pdf_text_cloudflare_ai(api_key: &str, pdf_bytes: &[u8]) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = "https://api.cloudflare.com/client/v4/ai/run/@cf/pdf-extract-text";
+    let resp = client
+        .post(url)
+        .header(AUTHORIZATION, format!("Bearer {}", api_key))
+        .header(CONTENT_TYPE, "application/pdf")
+        .body(pdf_bytes.to_vec())
+        .send()
+        .await
+        .map_err(|e| format!("Cloudflare-AI request failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("Cloudflare-AI returned {}", resp.status()));
+    }
+    let json: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid JSON: {e}"))?;
+    let text = json.get("result").and_then(|r| r.get("text")).and_then(|t| t.as_str()).unwrap_or("").to_string();
+    Ok(text)
+}
+
+/// Build exam context parts, using Cloudflare-AI if model does not support PDFs.
+async fn build_exam_context_parts_conditional(
     app: &tauri::AppHandle,
     topics: &[String],
+    api_key: &str,
+    model: &str,
 ) -> CommandResult<Vec<serde_json::Value>> {
+    let stats = get_model_stats(api_key.to_string(), model.to_string()).await?;
+    let supports_files = stats.supports_files;
     let mut parts = Vec::new();
     for filename in exam_pdf_names_for_topics(topics) {
-        let Some(path) = resolve_exam_pdf_path(app, filename) else {
-            continue;
-        };
+        let Some(path) = resolve_exam_pdf_path(app, filename) else { continue; };
         let bytes = std::fs::read(&path).map_err(|e| {
-            AppError::new(
-                "IO_ERROR",
-                format!("Failed to read exam PDF '{}': {e}", path.display()),
-            )
+            AppError::new("IO_ERROR", format!("Failed to read exam PDF '{}': {e}", path.display()))
         })?;
-        let data_url = format!(
-            "data:application/pdf;base64,{}",
-            general_purpose::STANDARD.encode(bytes)
-        );
-        parts.push(serde_json::json!({
-            "type": "file",
-            "file": {
-                "filename": filename,
-                "file_data": data_url,
+        if supports_files {
+            let data_url = format!(
+                "data:application/pdf;base64,{}",
+                general_purpose::STANDARD.encode(&bytes)
+            );
+            parts.push(serde_json::json!({
+                "type": "file",
+                "file": {
+                    "filename": filename,
+                    "file_data": data_url,
+                }
+            }));
+        } else {
+            // Use Cloudflare-AI to extract text
+            match extract_pdf_text_cloudflare_ai(api_key, &bytes).await {
+                Ok(text) => {
+                    parts.push(serde_json::json!({
+                        "type": "text",
+                        "text": format!("[Extracted from exam PDF '{}']\n{}", filename, text),
+                    }));
+                }
+                Err(e) => {
+                    parts.push(serde_json::json!({
+                        "type": "text",
+                        "text": format!("[Failed to extract text from '{}': {}]", filename, e),
+                    }));
+                }
             }
-        }));
+        }
     }
     Ok(parts)
 }
@@ -745,7 +788,7 @@ async fn generate_questions(
         request.recent_difficulty.as_deref(),
     );
 
-    let max_marks_cap = request.max_marks_per_question.unwrap_or(30);
+    let average_marks = request.average_marks_per_question.unwrap_or(10);
     let custom_note = request
         .custom_focus_area
         .as_deref()
@@ -778,7 +821,7 @@ async fn generate_questions(
     let prompt = format!(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
-         Mark rules: assign maxMarks by command-term demand; cap at {max_marks_cap}.\
+         Mark rules: assign maxMarks by command-term demand; the average mark value across all questions should be close to {average_marks}.\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts/contexts/methods per question — no two questions should \
  test the same skill in the same way. No worked solutions in prompts.\
@@ -799,6 +842,7 @@ async fn generate_questions(
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
         focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
         exam_context_preamble = exam_context_preamble,
+        average_marks         = average_marks,
         sim_note              = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
@@ -819,14 +863,26 @@ async fn generate_questions(
     let max_tokens = (request.question_count as u32) * 4000 + 4000;
     let user_content = if include_exam_context {
         let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
-        parts.extend(build_exam_context_parts(&app, &request.topics)?);
-        // Post-PDF re-anchor: reassert focus constraints after the model has processed the PDF
+        let exam_parts = build_exam_context_parts_conditional(&app, &request.topics, &request.api_key, &request.model).await?;
+        parts.extend(exam_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
     } else {
         serde_json::Value::String(prompt.clone())
     };
+
+    // Determine temperature, top_p, seed (difficulty-aware tuning)
+    let (temperature, top_p) = match adjusted_difficulty.as_str() {
+        "Essential Skills" | "Easy" => (0.4, 0.9),
+        "Medium" => (0.5, 0.9),
+        "Hard" => (0.6, 0.9),
+        "Extreme" => (0.65, 0.9),
+        _ => (0.5, 0.9),
+    };
+    let temperature = request.temperature.unwrap_or(temperature);
+    let top_p = request.top_p.unwrap_or(top_p);
+    let seed = request.seed;
 
     let (result, stats_result) = tokio::join!(
         call_openrouter_streaming(
@@ -837,6 +893,9 @@ async fn generate_questions(
             user_content,
             &written_fmt,
             max_tokens,
+            temperature,
+            top_p,
+            seed,
         ),
         get_model_stats(request.api_key.clone(), request.model.clone()),
     );
@@ -975,17 +1034,17 @@ async fn generate_mc_questions(
     let prompt = format!(
         "Generate exactly {count} VCE multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
-         Each question: 4 options (A–D), one correct answer.\
+         Each question: 4 options (A–D), one correct answer, worth 1 mark each.\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts and contexts across the batch. Each wrong option must \
-target a specific, named student misconception (not just a random wrong value).\n\
+ target a specific, named student misconception (not just a random wrong value).\n\
          Explanation: ≤90 words — state the correct answer's reasoning and name the \
-misconception each wrong option targets. No chain-of-thought, no self-talk.\
+ misconception each wrong option targets. No chain-of-thought, no self-talk.\
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
-key knowledge above. Do not introduce content outside the Study Design.\n\
-         Subtopic: choose only from provided list; omit if none fits.\n\
-         {focus_lock}{exam_context_preamble}\n\
+ key knowledge above. Do not introduce content outside the Study Design.\
+         Subtopic: choose only from provided list; omit if none fits.\
+         {focus_lock}{exam_context_preamble}\
          Output exactly {count} questions.",
         count                 = request.question_count,
         topics                = request.topics.join(", "),
@@ -1022,14 +1081,26 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
     };
     let user_content = if include_exam_context {
         let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
-        parts.extend(build_exam_context_parts(&app, &request.topics)?);
-        // Post-PDF re-anchor: reassert focus constraints after the model has processed the PDF
+        let exam_parts = build_exam_context_parts_conditional(&app, &request.topics, &request.api_key, &request.model).await?;
+        parts.extend(exam_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
     } else {
         serde_json::Value::String(prompt.clone())
     };
+
+    // MC: τ = 0.6, top-p = 0.9 by default, difficulty-aware tuning
+    let (temperature, top_p) = match adjusted_difficulty.as_str() {
+        "Essential Skills" | "Easy" => (0.4, 0.9),
+        "Medium" => (0.5, 0.9),
+        "Hard" => (0.6, 0.9),
+        "Extreme" => (0.65, 0.9),
+        _ => (0.6, 0.9),
+    };
+    let temperature = request.temperature.unwrap_or(temperature);
+    let top_p = request.top_p.unwrap_or(top_p);
+    let seed = request.seed;
 
     let (result, stats_result) = tokio::join!(
         call_openrouter_streaming(
@@ -1040,6 +1111,9 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
             user_content,
             &mc_fmt,
             max_tokens,
+            temperature,
+            top_p,
+            seed,
         ),
         get_model_stats(request.api_key.clone(), request.model.clone()),
     );
@@ -1215,6 +1289,10 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     // add ~400 tokens on top of the written-question budget.
     let max_tokens = (max_marks as u32) * 2000 + 4000;
 
+    // Marking: τ = 0.2, top-p = 0.8, seed = fixed (unless overridden)
+    let temperature = request.temperature.unwrap_or(0.2);
+    let top_p = request.top_p.unwrap_or(0.8);
+    let seed = request.seed;
     let result = call_openrouter(
         &request.api_key,
         &request.model,
@@ -1222,6 +1300,9 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         user_content,
         &marking_format(),
         max_tokens,
+        temperature,
+        top_p,
+        seed,
     )
     .await?;
 
@@ -1342,6 +1423,9 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         }),
     );
 
+    let temperature = request.temperature.unwrap_or(0.2);
+    let top_p = request.top_p.unwrap_or(0.8);
+    let seed = request.seed;
     let result = call_openrouter(
         &request.api_key,
         &request.model,
@@ -1352,6 +1436,9 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         ]),
         &free_text_format,
         4_500,
+        temperature,
+        top_p,
+        seed,
     )
     .await?;
 

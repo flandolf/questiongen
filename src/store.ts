@@ -88,7 +88,7 @@ export interface AppState {
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
-  maxMarksPerQuestion: number;
+  averageMarksPerQuestion: number;
    questionMode: QuestionMode;
    subtopicInstructions: Record<string, string>;
 
@@ -177,7 +177,7 @@ export interface AppActions {
       | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])
   ) => void;
   setQuestionCount: (count: number) => void;
-  setMaxMarksPerQuestion: (marks: number) => void;
+  setAverageMarksPerQuestion: (marks: number) => void;
   setQuestionMode: (mode: QuestionMode) => void;
    setSubtopicInstructions: (
      instructions:
@@ -297,7 +297,7 @@ const defaultState: AppState = {
   chemistrySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
   physicalEducationSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
-  maxMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.maxMarksPerQuestion,
+  averageMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
    questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
    subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
 
@@ -401,7 +401,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         chemistrySubtopics: s.preferences.chemistrySubtopics,
         physicalEducationSubtopics: s.preferences.physicalEducationSubtopics,
         questionCount: s.preferences.questionCount,
-        maxMarksPerQuestion: s.preferences.maxMarksPerQuestion,
+        averageMarksPerQuestion: s.preferences.averageMarksPerQuestion,
         questionMode: s.preferences.questionMode,
         subtopicInstructions: s.preferences.subtopicInstructions,
         aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? false,
@@ -487,7 +487,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setPhysicalEducationSubtopics: (update) =>
     set((s) => ({ physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics) })),
   setQuestionCount: (questionCount) => set({ questionCount }),
-  setMaxMarksPerQuestion: (maxMarksPerQuestion) => set({ maxMarksPerQuestion }),
+  setAverageMarksPerQuestion: (averageMarksPerQuestion) => set({ averageMarksPerQuestion }),
   setQuestionMode: (questionMode) => set({ questionMode }),
   setSubtopicInstructions: (update) =>
     set((s) => ({ subtopicInstructions: resolve(update, s.subtopicInstructions) })),
@@ -564,7 +564,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         chemistrySubtopics: s.chemistrySubtopics,
         physicalEducationSubtopics: s.physicalEducationSubtopics,
         questionCount: s.questionCount,
-        maxMarksPerQuestion: s.maxMarksPerQuestion,
+        averageMarksPerQuestion: s.averageMarksPerQuestion,
         questionMode: s.questionMode,
         subtopicInstructions: s.subtopicInstructions,
       };
@@ -624,7 +624,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       chemistrySubtopics: s.chemistrySubtopics,
       physicalEducationSubtopics: s.physicalEducationSubtopics,
       questionCount: s.questionCount,
-      maxMarksPerQuestion: s.maxMarksPerQuestion,
+      averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
       subtopicInstructions: s.subtopicInstructions,
     };
@@ -839,7 +839,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       chemistrySubtopics: s.chemistrySubtopics,
       physicalEducationSubtopics: s.physicalEducationSubtopics,
       questionCount: s.questionCount,
-      maxMarksPerQuestion: s.maxMarksPerQuestion,
+      averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
       subtopicInstructions: s.subtopicInstructions,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,

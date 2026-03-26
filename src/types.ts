@@ -1105,7 +1105,7 @@ export type GenerationRecord = {
     questionCount: number;
     questionMode: QuestionMode;
     techMode: TechMode;
-    maxMarksPerQuestion?: number;
+    averageMarksPerQuestion?: number;
     subtopics?: string[]; // Array of selected subtopics
     customFocusArea?: string; // Custom focus area text
   };
@@ -1291,7 +1291,7 @@ export type PersistedGeneratorPreferences = {
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
-  maxMarksPerQuestion: number;
+  averageMarksPerQuestion: number;
   questionMode: QuestionMode;
   subtopicInstructions: Record<string, string>;
   aiDifficultyScalingEnabled?: boolean;

@@ -56,7 +56,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
   questionCount: 3,
-  maxMarksPerQuestion: 10,
+  averageMarksPerQuestion: 10,
   questionMode: "written",
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
   aiDifficultyScalingEnabled: false,
@@ -269,7 +269,7 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
     physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
-    maxMarksPerQuestion: clampWholeNumber(data.maxMarksPerQuestion, DEFAULT_PREFERENCES.maxMarksPerQuestion, 1, 30),
+    averageMarksPerQuestion: clampWholeNumber(data.averageMarksPerQuestion, DEFAULT_PREFERENCES.averageMarksPerQuestion, 1, 30),
     questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
     subtopicInstructions: normalizeSubtopicInstructions(data.subtopicInstructions),
   };
