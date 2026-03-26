@@ -63,6 +63,10 @@ QUESTION STYLE RULES (STRICT — violation produces zero marks):
 
 /// Injected into MC question-generation prompts for distractor quality.
 pub const MC_DISTRACTOR_RULES: &str = "
+MC RULES (STRICT):
+(1) Each option MUST be a complete, standalone answer to the question — never sentence fragments or single words.
+(2) Options MUST be parallel in structure and style (e.g. all full sentences, or all mathematical expressions).
+(3) NEVER put the responses in the question field — options MUST be in the choices field for proper formatting and parsing.
 MC DISTRACTOR RULES (STRICT):
 (1) Each wrong option MUST correspond to a NAMED misconception or predictable error: \
 'sign error in chain rule', 'incorrect domain assumption', 'misapplied formula for this context'. NO random wrong numbers.
@@ -148,6 +152,7 @@ Newton's 3 laws of linear motion (inertia, acceleration, action-reaction); \
 projectile motion (height, angle, speed of release); anatomical third-class levers \
 (axis, force, resistance, mechanical advantage); equilibrium/stability (centre of gravity, \
 base of support, line of gravity)\n\
+Summation of forces, conservation of momentum, impulse-momentum relationship\n\
 - Qualitative movement analysis stages: preparation, observation, evaluation, error correction\n\n\
 UNIT 3 AREA OF STUDY 2 — How does the body produce energy?\n\
 - Oxygen uptake at rest and during exercise/recovery: oxygen deficit, steady state, EPOC\n\
