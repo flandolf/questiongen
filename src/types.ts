@@ -368,6 +368,7 @@ export type WrittenAnswerAnalytics = AnswerAnalytics & {
 
 export type McAnswerAnalytics = AnswerAnalytics & {
   attemptKind?: McAttemptKind;
+  finalAnswerChangedAtMs?: number;
 };
 
 export type QuestionHistoryEntry = {

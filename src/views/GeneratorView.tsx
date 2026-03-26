@@ -151,6 +151,7 @@ export function GeneratorView() {
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
+  const [hasShownCompletionScreen, setHasShownCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState("");
@@ -315,7 +316,7 @@ export function GeneratorView() {
   const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && completedCount === questions.length;
   const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && mcCompletedCount === mcQuestions.length;
   const isSetComplete = isWrittenSetComplete || isMcSetComplete;
-  const isReviewingCompletedSet = generationMode === "exam" && isSetComplete && !showCompletionScreen;
+  const isReviewingCompletedSet = generationMode === "exam" && isSetComplete && !showCompletionScreen && hasShownCompletionScreen;
   const isAtLastWrittenQuestion = activeQuestionIndex === questions.length - 1;
   const isAtLastMcQuestion = activeMcQuestionIndex === mcQuestions.length - 1;
   const canAdvanceWritten = questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
@@ -386,7 +387,14 @@ export function GeneratorView() {
   }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, showCompletionScreen]);
 
   // ── Effects ──────────────────────────────────────────────────────────────────
-  useEffect(() => { setShowCompletionScreen(false); }, [completionSetKey]);
+  useEffect(() => {
+    setShowCompletionScreen(false);
+    setHasShownCompletionScreen(false);
+  }, [completionSetKey]);
+
+  useEffect(() => {
+    if (showCompletionScreen) setHasShownCompletionScreen(true);
+  }, [showCompletionScreen]);
   useEffect(() => { setLastSavedAt(null); }, [activeWrittenSavedSetId, activeMcSavedSetId]);
   useEffect(() => { setExamRecordSaved(false); }, [completionSetKey, generationMode]);
 
@@ -710,15 +718,15 @@ useEffect(() => {
         attemptKind, attemptSequence: getMcAttemptSequence(question.id),
         answerCharacterCount: 0, answerWordCount: 0, usedImageUpload: false,
         responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt) ? Math.max(0, responseAt - questionStartedAt) : undefined,
+        finalAnswerChangedAtMs: responseAt,
       },
     };
     setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
   }
 
   function updateLatestMcHistoryEntry(questionId: string, selectedAnswer: string, awardedMarks: number, responseEnteredAtMs?: number) {
-    const questionStartedAt = mcQuestionPresentedAtById[questionId];
-    const responseAt = responseEnteredAtMs ?? Date.now();
     const now = Date.now();
+    const responseAt = responseEnteredAtMs ?? now;
     setMcHistory((prev: any) => {
       const idx = prev.findIndex((e: McHistoryEntry) => e.question.id === questionId && (e.analytics?.attemptKind ?? "initial") === "initial");
       if (idx === -1) return prev;
@@ -732,9 +740,8 @@ useEffect(() => {
         lastModified: now,
         analytics: {
           ...entry.analytics,
-          responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt)
-            ? Math.max(0, responseAt - questionStartedAt)
-            : entry.analytics?.responseLatencyMs,
+          responseLatencyMs: entry.analytics?.responseLatencyMs,
+          finalAnswerChangedAtMs: responseAt,
         },
       };
       return next;
