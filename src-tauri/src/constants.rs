@@ -25,7 +25,7 @@ QUESTION STYLE RULES (STRICT — violation produces zero marks):
 - Blank lines (\n\n) are MANDATORY between stem and (a), and between every part.
 - Part labels MUST be lowercase: (a), (b), (c) ONLY — never (A), (i), or numbered.
 - Mark allocations MUST be inline as [X marks] at end of each part.
-- NO HTML tags anywhere. NO markdown for structure (only *italic*, **bold**, inline code).
+- NO HTML tags anywhere.
 
 (2) FOCUS AREA ENFORCEMENT (HIGHEST PRIORITY)
 - When subtopics are specified, EVERY part of EVERY question MUST draw exclusively from those areas.
