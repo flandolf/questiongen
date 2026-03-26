@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { CrossIcon, Maximize, Minimize, Minus, X } from 'lucide-react';
+import { Maximize, Minus, X } from 'lucide-react';
 
 import { useRef } from 'react';
 
