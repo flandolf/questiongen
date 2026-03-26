@@ -17,27 +17,69 @@ pub const LATEX_RULES: &str = " LaTeX (mandatory): \
 (5) Multi-line/matrix: $$\\begin{pmatrix}...\\end{pmatrix}$$. \
 (6) Chemistry formulas: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.";
 
-/// Injected into every question-generation system prompt to enforce VCAA exam style.
 pub const QUESTION_STYLE_RULES: &str = "
 QUESTION STYLE RULES (mandatory):
-(1) COMMAND VERB VARIETY — use a spread across: find, evaluate, show that, hence, sketch, determine, \
-prove, justify, calculate, explain, describe, compare. Do NOT default to 'find' for every question.
-(2) MULTI-PART STRUCTURE — questions worth ≥4 marks must have labelled parts (a), (b), (c)... \
-where earlier parts scaffold later ones. The final part should require synthesis or justification.
-(3) STIMULUS MATERIAL — for ≥6-mark questions, open with a brief scenario, data set, graph \
-description, or given equation that all parts draw from. Do not invent overly abstract setups.
-(4) ANTI-PATTERNS — never write:
-    - 'A particle moves along a straight line…' (overused template)
-    - Questions where every part is a direct substitution with no method choice
-    - Questions that test the same skill as another question in the batch
-    - Questions with trivially obvious distractors or single-step solutions dressed as multi-mark items
-(5) MARK ALLOCATION LOGIC — 1 mark: recall or single computation. 2 marks: method + answer. \
-3 marks: multi-step with shown reasoning. 4+ marks: synthesis, justification, or multi-part chain. \
-Never assign 3+ marks to a question solvable in a single algebraic step.
-(6) DIFFICULTY AUTHENTICITY — the difficulty label must be visible in the question's cognitive demand, \
-not just its topic. A 'hard' question on a simple topic requires a non-routine twist, \
-unexpected context, or requires the student to identify the method themselves. \
-(7) NEVER USE HTML TAGS IN THE QUESTION TEXT — the frontend will handle formatting.
+
+(1) OUTPUT FORMAT
+- Markdown is permitted for emphasis (*italic*, **bold**) and inline code, but never for structure.
+- Never use HTML tags anywhere in question text, stems, or part labels.
+
+(2) STRUCTURAL FORMAT
+- Every multi-part question must follow this exact layout:
+    <stem>\\n\\n(a) <part text> [X marks]\\n\\n(b) <part text> [X marks]\\n\\n(c) <part text> [X marks]
+- A blank line (\\n\\n) is mandatory between the stem and part (a), and between every subsequent part.
+- Part labels must be lowercase: (a), (b), (c) — never (A), (i), or 1.
+- Mark allocations are written inline at the end of each part as [X marks], never separately.
+
+(3) FOCUS AREA DISCIPLINE
+- If focus areas are specified, every part of every question must draw exclusively from those areas.
+- Do not introduce supporting concepts from outside the focus areas, even as scaffolding steps.
+- Command verbs must match the focus area: only use 'sketch' if graphing is a focus area, \
+only use 'prove' if proof is a focus area, etc.
+
+(4) COMMAND VERB VARIETY
+- Distribute across: find, evaluate, show that, hence, sketch, determine, prove, justify, \
+calculate, explain, describe, compare.
+- 'find' must not appear in more than one question per batch.
+- 'hence' must follow a part that produced a result directly usable in the next step.
+
+(5) SCAFFOLDING STRUCTURE
+- For questions worth ≥4 marks, earlier parts must produce intermediate results used in later parts.
+- The final part must require synthesis, justification, or a non-routine application — never mere substitution.
+- Parts must strictly increase in cognitive demand: recall → method → synthesis.
+- Never write a part that is solvable without engaging the previous part's result.
+
+(6) STIMULUS MATERIAL
+- Questions worth ≥6 marks must open with a scenario, data set, graph description, or given \
+equation that all parts draw from.
+- The stimulus must be mathematically concrete (real numbers, a defined function, a described system).
+- Do not invent abstract or physically implausible setups.
+
+(7) MARK ALLOCATION LOGIC
+- 1 mark: single recall or direct substitution.
+- 2 marks: method selection + execution.
+- 3 marks: multi-step chain with all reasoning shown.
+- 4+ marks: reserved for multi-part synthesis or justification chains only.
+- Never assign 3+ marks to any question solvable in a single algebraic step.
+- Total marks per question must equal the sum of its parts — never assign marks to the stem.
+
+(8) DIFFICULTY CALIBRATION
+- The difficulty label must be reflected in cognitive demand, not topic complexity alone.
+- Easy: method is directly implied by the question; single concept; no ambiguity in approach.
+- Medium: student must select a method; at least two concepts combined; intermediate results required.
+- Hard: method is not signposted; requires non-routine setup, reversal of a standard process, \
+or identification of a constraint the question does not name explicitly.
+- A hard question on a routine topic must contain a deliberate non-routine twist. \
+If no such twist exists, downgrade the difficulty label.
+
+(9) ANTI-PATTERNS — never produce:
+- 'A particle moves along a straight line…' as an opening.
+- Any question where every part is direct substitution with no method choice.
+- Two questions in the same batch testing the same underlying skill, even under different surface contexts.
+- Multi-mark questions with a single algebraic step dressed across multiple parts.
+- Trivially obvious distractors or setups where the method is unambiguous from the question structure.
+- Parts labelled (a), (b), (c) that could be answered in any order (true scaffolding is order-dependent).
+- Stimuli that are decorative — every element of the stimulus must be used by at least one part.
 ";
 
 /// Injected into MC question-generation prompts for distractor quality.

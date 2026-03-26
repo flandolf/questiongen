@@ -588,7 +588,7 @@ export function SetupPanel({
   aiDifficultyScalingEnabled, onSetAiDifficultyScalingEnabled,
   difficultyThresholds, onSetDifficultyThresholds,
   hasApiKey, canGenerate, isGenerating, isPaused, onTogglePause,
-  generationStatus, generationStartedAt, formattedElapsedTime,
+  generationStatus, formattedElapsedTime,
   onGenerate,
   lastGenerationTelemetry,
   streamText = "",
@@ -663,10 +663,25 @@ export function SetupPanel({
     );
   }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, maxMarksPerQuestion, hasAnyMathTopic, mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics, physicalEducationSubtopics, customFocusArea, promptPricePerToken, completionPricePerToken]);
 
-  // Derive "is the timeline visible" — same condition as before
-  const showTimeline =
-    (isGenerating || generationStatus?.stage === "completed" || generationStatus?.stage === "failed") &&
-    generationStartedAt !== null;
+  // Timeline visibility: show when generate is clicked, hide when finished
+  const [timelineVisible, setTimelineVisible] = useState(false);
+
+  // Show timeline when generate is clicked
+  const handleGenerate = () => {
+    setTimelineVisible(true);
+    onGenerate();
+  };
+
+  // Hide timeline when generation finishes (completed or failed)
+  useEffect(() => {
+    if (
+      timelineVisible &&
+      generationStatus &&
+      (generationStatus.stage === "completed" || generationStatus.stage === "failed")
+    ) {
+      setTimelineVisible(false);
+    }
+  }, [generationStatus, timelineVisible]);
 
   return (
     <div>
@@ -1169,7 +1184,7 @@ export function SetupPanel({
           <Button
             size="lg"
             className="w-full h-10 text-sm font-bold gap-2 transition-all duration-200 disabled:opacity-50"
-            onClick={onGenerate}
+            onClick={handleGenerate}
             disabled={!canGenerate}
           >
             {isGenerating ? (
@@ -1190,7 +1205,7 @@ export function SetupPanel({
         </div>
 
         {/* Generation timeline — batch or single depending on run type */}
-        {showTimeline && (
+        {timelineVisible && (
           showBatchTimeline ? (
             <BatchTimeline
               entries={batchProgress}
