@@ -51,6 +51,7 @@ import {
   PhysicalEducationSubtopic,
   Difficulty,
   QuestionMode,
+  GenerationMode,
   GenerationStatusEvent,
   GenerationTelemetry,
 } from "@/types";
@@ -185,7 +186,7 @@ export function CollapsibleStep({
 }
 
 export function SectionDivider() {
-  return <div className="h-px bg-border/60 my-1" />;
+  return <div className="h-px bg-border/60 my-3" />;
 }
 
 function SubtopicGroup({ label, hint, items, selected, onToggle }: {
@@ -549,6 +550,10 @@ function BatchTimeline({
 type SetupPanelProps = {
   questionMode: QuestionMode;
   onSetQuestionMode: (mode: QuestionMode) => void;
+  generationMode: GenerationMode;
+  onSetGenerationMode: (mode: GenerationMode) => void;
+  examTimeLimitMinutes: number;
+  onSetExamTimeLimitMinutes: (minutes: number) => void;
   selectedTopics: Topic[];
   onToggleTopic: (topic: Topic) => void;
   mathMethodsSubtopics: MathMethodsSubtopic[];
@@ -598,6 +603,8 @@ type SetupPanelProps = {
 
 export function SetupPanel({
   questionMode, onSetQuestionMode,
+  generationMode, onSetGenerationMode,
+  examTimeLimitMinutes, onSetExamTimeLimitMinutes,
   selectedTopics, onToggleTopic,
   mathMethodsSubtopics, onToggleMathMethodsSubtopic,
   specialistMathSubtopics, onToggleSpecialistMathSubtopic,
@@ -636,6 +643,12 @@ export function SetupPanel({
 
   // Whether to show the multi-topic batch timeline vs the single-topic timeline
   const showBatchTimeline = batchProgress.length > 1;
+  const examPresets = [
+    { label: "Quick Sprint", count: 5, time: 15 },
+    { label: "Standard Practice", count: 10, time: 30 },
+    { label: "Deep Dive", count: 15, time: 60 },
+    { label: "Marathon", count: 20, time: 90 },
+  ];
 
   let stepNum = 0;
   const step = () => ++stepNum;
@@ -713,9 +726,79 @@ export function SetupPanel({
         />
       </div>
 
-      <div className="p-6 pt-4 space-y-6">
+      <div className="px-6 pt-0 pb-2">
 
         {/* ── Step 1: Subjects ── */}
+        <div>
+          <CollapsibleStep
+            number={step()}
+            title="Generation Mode"
+            subtitle={generationMode === "exam" ? "Timed exam simulation" : "Untimed practice session"}
+            chips={
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${generationMode === "exam" ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"}`}>
+                {generationMode === "exam" ? "Exam" : "Practice"}
+              </span>
+            }
+          >
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onSetGenerationMode("practice")}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === "practice" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" /> Practice
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSetGenerationMode("exam")}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === "exam" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}
+                >
+                  <Clock3 className="w-3.5 h-3.5" /> Exam
+                </button>
+              </div>
+
+              {generationMode === "exam" && (
+                <div className="mb-2">
+                  <SectionDivider />
+                  <div className="space-y-4 rounded-lg border bg-muted/20 px-3 py-3 mt-2">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-medium flex items-center gap-1.5">
+                          <Clock3 className="w-3.5 h-3.5" /> Time allocation
+                        </Label>
+                        <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{examTimeLimitMinutes} min</Badge>
+                      </div>
+                      <Slider min={5} max={180} step={5} value={[examTimeLimitMinutes]} onValueChange={(val) => onSetExamTimeLimitMinutes(val[0])} className="px-1 py-1" />
+                      <div className="flex justify-between text-[10px] text-muted-foreground"><span>5m</span><span>180m</span></div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Presets</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {examPresets.map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => { onSetQuestionCount(preset.count); onSetExamTimeLimitMinutes(preset.time); }}
+                            className={`group p-2.5 text-left rounded-lg border transition-all duration-150 cursor-pointer ${questionCount === preset.count && examTimeLimitMinutes === preset.time ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+                          >
+                            <p className="text-xs font-semibold leading-tight">{preset.label}</p>
+                            <span className="text-[10px] text-muted-foreground">{preset.count}Q / {preset.time}m</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleStep>
+        </div>
+
+        <SectionDivider />
+
+        {/* ── Step 2: Subjects ── */}
         <div>
           <CollapsibleStep
             number={step()}
@@ -757,7 +840,7 @@ export function SetupPanel({
               })}
             </div>
             {includeExamContext && selectedTopics.length > 0 && (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 mb-2">
                 <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
@@ -776,7 +859,7 @@ export function SetupPanel({
             {hasSubtopicSection && (
               <>
                 <SectionDivider />
-                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-4">
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-4 mt-2 mb-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Focus Areas
                     <span className="ml-2 font-normal normal-case">— leave blank to cover all</span>
@@ -801,7 +884,7 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 2: Difficulty ── */}
+        {/* ── Step 3: Difficulty ── */}
         <div>
           <CollapsibleStep
             number={step()}
@@ -835,7 +918,7 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 2.5: AI Difficulty Scaling ── */}
+        {/* ── Step 4: AI Difficulty Scaling ── */}
         <div>
           <CollapsibleStep
             number={step()}
@@ -852,7 +935,7 @@ export function SetupPanel({
               )
             }
           >
-            <div className="space-y-4">
+            <div className="space-y-4 mb-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="ai-scaling"
@@ -906,7 +989,7 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 3: Questions + Marks ── */}
+        {/* ── Step 5: Questions + Marks ── */}
         <div>
           <CollapsibleStep
             number={step()}
@@ -924,7 +1007,7 @@ export function SetupPanel({
               </>
             }
           >
-            <div className="space-y-4">
+            <div className="space-y-4 mb-2">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-medium flex items-center gap-1.5">
@@ -987,7 +1070,7 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 4: Options ── */}
+        {/* ── Step 6: Options ── */}
         <div>
           <CollapsibleStep
             number={step()}
@@ -1078,7 +1161,7 @@ export function SetupPanel({
                 </button>
               )}
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 mb-2">
                 <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
                   <Crosshair className="w-3.5 h-3.5" />
                   Custom Focus Area
@@ -1158,6 +1241,10 @@ export function SetupPanel({
                 </>
               )}
               <span className="text-border">·</span>
+              <span className={`font-semibold ${generationMode === "exam" ? "text-violet-600 dark:text-violet-400" : "text-sky-600 dark:text-sky-400"}`}>
+                {generationMode === "exam" ? `Exam (${examTimeLimitMinutes}m)` : "Practice"}
+              </span>
+              <span className="text-border">·</span>
               <span className={`font-semibold ${questionMode === "written" ? "text-sky-600 dark:text-sky-400" : "text-violet-600 dark:text-violet-400"}`}>
                 {questionMode === "written" ? "Written" : "Multiple Choice"}
               </span>
@@ -1231,7 +1318,7 @@ export function SetupPanel({
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                Generate Revision Set
+                {generationMode === "exam" ? "Generate Exam Set" : "Generate Revision Set"}
               </>
             )}
           </Button>

@@ -404,6 +404,7 @@ export const APP_STATE_STORAGE_KEY = "questiongen.appState";
 export const PERSISTED_APP_STATE_VERSION = 2;
 
 export type QuestionMode = "written" | "multiple-choice";
+export type GenerationMode = "practice" | "exam";
 
 export type McOption = {
   label: string;
@@ -472,6 +473,8 @@ export type PersistedGeneratorPreferences = {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
+  generationMode?: GenerationMode;
+  examTimeLimitMinutes?: number;
   subtopicInstructions: Record<string, string>;
   aiDifficultyScalingEnabled?: boolean;
   difficultyThresholds?: { increase: number; decrease: number };

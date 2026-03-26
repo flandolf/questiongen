@@ -12,6 +12,7 @@ import { startTransition } from "react";
 import {
   ChemistrySubtopic,
   Difficulty,
+  GenerationMode,
   GeneratedQuestion,
   GenerationStatusEvent,
   GenerationTelemetry,
@@ -89,8 +90,10 @@ export interface AppState {
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
   questionCount: number;
   averageMarksPerQuestion: number;
-   questionMode: QuestionMode;
-   subtopicInstructions: Record<string, string>;
+  questionMode: QuestionMode;
+  generationMode: GenerationMode;
+  examTimeLimitMinutes: number;
+  subtopicInstructions: Record<string, string>;
 
    // ── AI Difficulty Scaling ──────────────────────────────────────────────────
    aiDifficultyScalingEnabled: boolean;
@@ -179,11 +182,13 @@ export interface AppActions {
   setQuestionCount: (count: number) => void;
   setAverageMarksPerQuestion: (marks: number) => void;
   setQuestionMode: (mode: QuestionMode) => void;
-   setSubtopicInstructions: (
-     instructions:
-       | Record<string, string>
-       | ((prev: Record<string, string>) => Record<string, string>)
-   ) => void;
+  setGenerationMode: (mode: GenerationMode) => void;
+  setExamTimeLimitMinutes: (minutes: number) => void;
+  setSubtopicInstructions: (
+    instructions:
+      | Record<string, string>
+      | ((prev: Record<string, string>) => Record<string, string>)
+  ) => void;
 
    // AI Difficulty Scaling
    setAiDifficultyScalingEnabled: (enabled: boolean) => void;
@@ -298,8 +303,10 @@ const defaultState: AppState = {
   physicalEducationSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   averageMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
-   questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
-   subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
+  questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
+  generationMode: EMPTY_PERSISTED_APP_STATE.preferences.generationMode ?? "practice",
+  examTimeLimitMinutes: EMPTY_PERSISTED_APP_STATE.preferences.examTimeLimitMinutes ?? 30,
+  subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
 
    // AI Difficulty Scaling
    aiDifficultyScalingEnabled: true,
@@ -403,6 +410,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionCount: s.preferences.questionCount,
         averageMarksPerQuestion: s.preferences.averageMarksPerQuestion,
         questionMode: s.preferences.questionMode,
+        generationMode: s.preferences.generationMode ?? "practice",
+        examTimeLimitMinutes: s.preferences.examTimeLimitMinutes ?? 30,
         subtopicInstructions: s.preferences.subtopicInstructions,
         aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? false,
         difficultyThresholds: s.preferences.difficultyThresholds ?? { increase: 85, decrease: 70 },
@@ -489,6 +498,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setQuestionCount: (questionCount) => set({ questionCount }),
   setAverageMarksPerQuestion: (averageMarksPerQuestion) => set({ averageMarksPerQuestion }),
   setQuestionMode: (questionMode) => set({ questionMode }),
+  setGenerationMode: (generationMode) => set({ generationMode }),
+  setExamTimeLimitMinutes: (examTimeLimitMinutes) => set({ examTimeLimitMinutes }),
   setSubtopicInstructions: (update) =>
     set((s) => ({ subtopicInstructions: resolve(update, s.subtopicInstructions) })),
 
@@ -566,6 +577,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionCount: s.questionCount,
         averageMarksPerQuestion: s.averageMarksPerQuestion,
         questionMode: s.questionMode,
+        generationMode: s.generationMode,
+        examTimeLimitMinutes: s.examTimeLimitMinutes,
         subtopicInstructions: s.subtopicInstructions,
       };
 
@@ -626,6 +639,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
+      generationMode: s.generationMode,
+      examTimeLimitMinutes: s.examTimeLimitMinutes,
       subtopicInstructions: s.subtopicInstructions,
     };
 
@@ -700,6 +715,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         physicalEducationSubtopics: entry.preferences.physicalEducationSubtopics,
         questionCount: entry.preferences.questionCount,
         questionMode: entry.questionMode,
+        generationMode: entry.preferences.generationMode ?? "practice",
+        examTimeLimitMinutes: entry.preferences.examTimeLimitMinutes ?? 30,
         subtopicInstructions: entry.preferences.subtopicInstructions,
         ...(entry.questionMode === "written" && entry.writtenSession
           ? {
@@ -850,6 +867,8 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
+      generationMode: s.generationMode,
+      examTimeLimitMinutes: s.examTimeLimitMinutes,
       subtopicInstructions: s.subtopicInstructions,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,

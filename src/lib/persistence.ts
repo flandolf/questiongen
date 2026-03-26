@@ -58,6 +58,8 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   questionCount: 3,
   averageMarksPerQuestion: 10,
   questionMode: "written",
+  generationMode: "practice",
+  examTimeLimitMinutes: 30,
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
   aiDifficultyScalingEnabled: false,
   difficultyThresholds: { increase: 85, decrease: 70 },
@@ -272,6 +274,8 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
     averageMarksPerQuestion: clampWholeNumber(data.averageMarksPerQuestion, DEFAULT_PREFERENCES.averageMarksPerQuestion, 1, 30),
     questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
+    generationMode: isGenerationMode(data.generationMode) ? data.generationMode : DEFAULT_PREFERENCES.generationMode,
+    examTimeLimitMinutes: clampWholeNumber(data.examTimeLimitMinutes, DEFAULT_PREFERENCES.examTimeLimitMinutes ?? 30, 5, 180),
     subtopicInstructions: normalizeSubtopicInstructions(data.subtopicInstructions),
   };
 }
@@ -771,6 +775,10 @@ function isTechMode(value: unknown): value is PersistedGeneratorPreferences["tec
 
 function isQuestionMode(value: unknown): value is QuestionMode {
   return value === "written" || value === "multiple-choice";
+}
+
+function isGenerationMode(value: unknown): value is "practice" | "exam" {
+  return value === "practice" || value === "exam";
 }
 
 function filterStringLiterals<T extends readonly string[]>(value: unknown, allowed: T): T[number][] {
