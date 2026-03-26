@@ -522,7 +522,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
               </div>
 
               {/* Feedback */}
-              <div className="space-y-2">
+              <div className="space-y-2 mt-2">
                 <SectionLabel>AI Feedback</SectionLabel>
                 <div className="text-sm bg-muted/20 rounded-md border border-border/30 px-3 py-2.5">
                   <MarkdownMath content={item.markResponse.feedbackMarkdown} />
