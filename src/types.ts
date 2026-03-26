@@ -36,7 +36,7 @@ export type SpecialistMathSubtopic = typeof SPECIALIST_MATH_SUBTOPICS[number];
 export const PHYSICAL_EDUCATION_SUBTOPICS = [
   "Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling",
   "Coaching and Feedback: Theories of Acquisition and Psychological Strategies",
-  "Applied Biomechanics: Newton’s Laws, Projectile Motion, and Levers",
+  "Applied Biomechanics: Forces, Momentum, Impulse, Newton’s Laws, Projectile Motion, and Levers",
   "Movement Analysis: Qualitative Analysis and Equilibrium in Sport",
   "Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems",
   "Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP",
@@ -532,15 +532,14 @@ SCOPE
 
 FEEDBACK TYPES
 - Intrinsic: sensory feedback from the movement itself (proprioception,
-  vision, audition). Always available; forms the basis for error detection at the
+  vision, auditory, touch). Always available; forms the basis for error detection at the
   autonomous stage.
 - Extrinsic (augmented): provided externally by a coach, video, or timing device.
   - Knowledge of Results (KR): information about the outcome (e.g. "your shot landed
     2 m left of the target"). Withdrawn as learner becomes autonomous.
   - Knowledge of Performance (KP): information about the movement pattern/technique
     (e.g. "your elbow dropped on release"). More useful at cognitive/associative stages.
-- Timing: concurrent (during movement), terminal (immediately after), delayed, summary
-  (after a set of trials), bandwidth (only when error exceeds a threshold).
+- Timing: concurrent (during movement), terminal (immediately after).
 - Fading feedback: gradually reduce extrinsic feedback frequency to promote
   intrinsic error-detection and avoid feedback dependency.
 
@@ -595,6 +594,18 @@ FORCE SUMMATION
 - Questions may ask students to identify the type of force summation and explain its
   importance in a given sport skill.
 
+MOMENTUM
+- Momentum (M) = mass × velocity. Conservation of momentum applies in collisions.
+- Impulse (I) = change in momentum = F·Δt. Longer contact time or greater force increases impulse.
+- Apply to: catching a ball (increasing Δt reduces required force), collisions in football.
+- Questions may ask for momentum calculations or to explain how impulse can be manipulated
+  to achieve a desired outcome (e.g. reducing impact force).
+
+SPORT APPLICATIONS
+- Newton's Laws: sprinting (acceleration), jumping (action-reaction), throwing (force-acceleration).
+- Force summation: tennis serve, baseball pitch, javelin throw.
+- Momentum: football tackle, catching a cricket ball, collisions in rugby.
+
 PROJECTILE MOTION
 - Factors affecting horizontal distance (range): angle of release, speed of release,
   height of release.
@@ -626,7 +637,7 @@ QUESTION DESIGN GUIDANCE
 - Projectile questions should specify a sport context and ask students to explain
   the effect of changing one variable (e.g. "how does increasing release height affect
   range?") with reference to the underlying principle.
-- Lever questions should include a labelled diagram or description; ask for class
+- Lever questions should include a description; ask for class
   identification, component labelling, MA calculation, and advantage/disadvantage.
 - Avoid purely definitional questions — all questions must require application to sport.
 `,
@@ -1435,4 +1446,3 @@ export type ExamQuestionResult = {
   /** MC only */
   correctAnswer?: string;
 };
- 
