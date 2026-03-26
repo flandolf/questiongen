@@ -202,7 +202,7 @@ export function Sidebar() {
           )}
         </AnimatePresence>
 
-        <div className="pb-2">
+        <div className="pb-4">
           {renderLink({ to: "/settings", label: "Settings", icon: Settings })}
         </div>
       </div>
