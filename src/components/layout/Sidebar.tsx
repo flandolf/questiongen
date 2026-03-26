@@ -17,7 +17,6 @@ import { useAppStore } from "../../store";
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
 
@@ -48,7 +47,7 @@ export function Sidebar() {
       className={({ isActive }) =>
         cn(
           "flex items-center gap-3 rounded-xl transition-colors relative group",
-          isCollapsed || isAndroid
+          isCollapsed
             ? "w-10 h-10 justify-center px-0 mx-auto"
             : "px-3 py-2.5 min-h-[2.8rem]",
           isActive
@@ -59,7 +58,7 @@ export function Sidebar() {
     >
       <link.icon className="h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
       <AnimatePresence mode="wait">
-        {!isCollapsed && !isAndroid && (
+        {!isCollapsed && (
           <motion.span
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -77,11 +76,10 @@ export function Sidebar() {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isAndroid ? "3.4rem" : isCollapsed ? "4rem" : "15rem" }}
+      animate={{ width: isCollapsed ? "4rem" : "15rem" }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="flex flex-col h-full border-r border-border/60 bg-background/50 backdrop-blur-xl relative"
     >
-      {/* Allow expand/collapse on all platforms, including Android */}
       <div className="p-4 flex items-center justify-center">
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -112,10 +110,10 @@ export function Sidebar() {
 
       <div className={cn(
         "mt-auto pt-4 border-t border-border/40 space-y-4 pb-[env(safe-area-inset-bottom,1rem)]",
-        (isCollapsed || isAndroid) ? "px-1" : "px-3"
+        isCollapsed ? "px-1" : "px-3"
       )}>
         <AnimatePresence>
-          {!isAndroid && !isCollapsed && (
+          {!isCollapsed && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

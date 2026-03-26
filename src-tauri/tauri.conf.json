@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "decorations": false,
         "title": "questiongen",
         "width": 1200,
         "height": 900
