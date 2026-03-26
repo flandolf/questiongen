@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useMemo as useReactMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -38,7 +38,14 @@ export function Sidebar() {
     { to: "/saved", label: "Saved", icon: Bookmark },
   ];
 
-  const renderLink = (link: typeof topLinks[0]) => (
+  // Memoize motion variants for performance
+  const labelVariants = useReactMemo(() => ({
+    hidden: { opacity: 0, x: -10 },
+    visible: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -10 },
+  }), []);
+
+  const renderLink = useCallback((link: typeof topLinks[0]) => (
     <NavLink
       key={link.to}
       to={link.to}
@@ -57,13 +64,14 @@ export function Sidebar() {
       }
     >
       <link.icon className="h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         {!isCollapsed && (
           <motion.span
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
+            variants={labelVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={{ duration: 0.15, ease: "easeOut" }}
             className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-light"
           >
             {link.label}
@@ -71,23 +79,23 @@ export function Sidebar() {
         )}
       </AnimatePresence>
     </NavLink>
-  );
+  ), [isCollapsed, labelVariants]);
 
   return (
     <motion.aside
       initial={false}
       animate={{ width: isCollapsed ? "4rem" : "15rem" }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      transition={{ duration: 0.22, ease: "easeInOut" }}
       className="flex flex-col h-full border-r border-border/60 bg-background/50 backdrop-blur-xl relative"
     >
       <div className="p-4 flex items-center justify-center">
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={() => setIsCollapsed((v) => !v)}
           className="flex items-center justify-center w-full gap-2 p-2 rounded-lg hover:bg-muted/80 text-muted-foreground transition-all border border-transparent hover:border-border/50 group"
         >
           <motion.div
             animate={{ rotate: isCollapsed ? 180 : 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            transition={{ duration: 0.18, ease: "linear" }}
           >
             <ChevronLeft className="w-5 h-5" />
           </motion.div>
@@ -96,6 +104,7 @@ export function Sidebar() {
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: "auto" }}
               exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.13, ease: "easeOut" }}
               className="text-xs font-bold uppercase tracking-widest overflow-hidden"
             >
               Collapse
@@ -112,12 +121,13 @@ export function Sidebar() {
         "mt-auto pt-4 border-t border-border/40 space-y-4 pb-[env(safe-area-inset-bottom,1rem)]",
         isCollapsed ? "px-1" : "px-3"
       )}>
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {!isCollapsed && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
               className="space-y-4 px-1"
             >
               {streakData.currentStreak > 0 && (
@@ -139,6 +149,7 @@ export function Sidebar() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${dailyProgress}%` }}
+                      transition={{ duration: 0.18, ease: "linear" }}
                       className={cn(
                         "h-full rounded-full",
                         dailyProgress >= 100 ? "bg-emerald-500" : "bg-primary"
@@ -158,6 +169,7 @@ export function Sidebar() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(100, (todayCompletions.mc / studyGoals.dailyMcGoal) * 100)}%` }}
+                      transition={{ duration: 0.18, ease: "linear" }}
                       className={cn(
                         "h-full rounded-full",
                         todayCompletions.mc >= studyGoals.dailyMcGoal ? "bg-violet-500" : "bg-primary"
@@ -177,6 +189,7 @@ export function Sidebar() {
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(100, (todayCompletions.written / studyGoals.dailyWrittenGoal) * 100)}%` }}
+                      transition={{ duration: 0.18, ease: "linear" }}
                       className={cn(
                         "h-full rounded-full",
                         todayCompletions.written >= studyGoals.dailyWrittenGoal ? "bg-blue-500" : "bg-primary"
