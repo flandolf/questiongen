@@ -217,6 +217,8 @@ export function useAppSettings() {
       clearApiKey: s.clearApiKey,
       questionTextSize: s.questionTextSize,
       setQuestionTextSize: s.setQuestionTextSize,
+      includeExamContext: s.includeExamContext,
+      setIncludeExamContext: s.setIncludeExamContext,
     }))
   );
 }

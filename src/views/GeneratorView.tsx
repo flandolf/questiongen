@@ -165,7 +165,7 @@ export function GeneratorView() {
   const [batchProgress, setBatchProgress] = useState<BatchTopicProgress[]>([]);
 
   // ── Context ─────────────────────────────────────────────────────────────────
-  const { apiKey, model, markingModel, useSeparateMarkingModel, imageMarkingModel, useSeparateImageMarkingModel, debugMode } = useAppSettings();
+  const { apiKey, model, markingModel, useSeparateMarkingModel, imageMarkingModel, useSeparateImageMarkingModel, debugMode, includeExamContext } = useAppSettings();
   const {
     selectedTopics, setSelectedTopics,
     difficulty, setDifficulty,
@@ -787,6 +787,7 @@ useEffect(() => {
               questionCount: count,
               maxMarksPerQuestion: hasMath ? maxMarksPerQuestion : undefined,
               model, apiKey, techMode,
+              includeExamContext,
               subtopics: getSubtopicsForTopic(topic),
               subtopicInstructions: getSelectedSubtopicInstructions(),
               customFocusArea: getCustomFocusArea(),
@@ -933,6 +934,7 @@ useEffect(() => {
               difficulty,
               questionCount: count,
               model, apiKey, techMode,
+              includeExamContext,
               subtopics: getSubtopicsForTopic(topic),
               subtopicInstructions: getSelectedSubtopicInstructions(),
               customFocusArea: getCustomFocusArea(),
@@ -1255,6 +1257,7 @@ useEffect(() => {
           generationStartedAt={generationStartedAt}
           formattedElapsedTime={formattedElapsedTime}
           onGenerate={questionMode === "written" ? handleGenerateQuestions : handleGenerateMcQuestions}
+          includeExamContext={includeExamContext}
           lastGenerationTelemetry={lastSessionTelemetry}
           streamText={streamText}
           batchProgress={batchProgress}

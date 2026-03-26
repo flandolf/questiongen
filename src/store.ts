@@ -76,6 +76,7 @@ export interface AppState {
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
   questionTextSize: number;
+  includeExamContext: boolean;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -152,6 +153,7 @@ export interface AppActions {
   setDebugMode: (enabled: boolean) => void;
   clearApiKey: () => void;
   setQuestionTextSize: (size: number) => void;
+  setIncludeExamContext: (enabled: boolean) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
@@ -283,6 +285,7 @@ const defaultState: AppState = {
   useSeparateImageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
+  includeExamContext: EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
 
   // Preferences
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -386,6 +389,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         useSeparateImageMarkingModel: Boolean(s.settings.useSeparateImageMarkingModel),
         debugMode: s.settings.debugMode,
         questionTextSize: typeof s.settings.questionTextSize === "number" ? s.settings.questionTextSize : 16,
+        includeExamContext: Boolean(s.settings.includeExamContext),
 
         // Preferences
         selectedTopics: s.preferences.selectedTopics,
@@ -464,6 +468,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({ useSeparateImageMarkingModel }),
   setDebugMode: (debugMode) => set({ debugMode }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
+  setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
   clearApiKey: () => set({ apiKey: "" }),
 
   // ── Preferences ────────────────────────────────────────────────────────────
@@ -664,6 +669,16 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const entry = get().savedSets.find((c) => c.id === savedSetId);
     if (!entry) return;
 
+    // Timer state: resume from saved session start time
+    let generationStartedAt: number | null = null;
+    if (entry.questionMode === "written" && entry.writtenSession) {
+      const presented = entry.writtenSession.presentedAtByQuestionId;
+      generationStartedAt = presented && Object.values(presented).length > 0 ? Math.min(...Object.values(presented)) : Date.now();
+    } else if (entry.questionMode === "multiple-choice" && entry.mcSession) {
+      const presented = entry.mcSession.presentedAtByQuestionId;
+      generationStartedAt = presented && Object.values(presented).length > 0 ? Math.min(...Object.values(presented)) : Date.now();
+    }
+
     startTransition(() => {
       set({
         selectedTopics: entry.preferences.selectedTopics,
@@ -701,6 +716,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
               activeMcSavedSetId: entry.id,
             }
           : {}),
+        generationStartedAt,
       });
     });
   },
@@ -811,6 +827,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
       debugMode: s.debugMode,
       questionTextSize: s.questionTextSize,
+      includeExamContext: s.includeExamContext,
     },
     preferences: {
       selectedTopics: s.selectedTopics,

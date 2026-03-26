@@ -8,10 +8,10 @@ mod persistence;
 mod quality;
 
 use base64::{engine::general_purpose, Engine as _};
-use std::collections::HashMap;
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 use constants::*;
 use difficulty::difficulty_guidance;
@@ -196,6 +196,12 @@ fn written_system() -> String {
          CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
          provided in the user prompt. Only test concepts that are explicitly listed in that key \
          knowledge. Do not introduce content that is not in the Study Design.\n\
+         PDF REFERENCE RULE: If a PDF exam paper is attached, it is provided SOLELY as a \
+         formatting and style reference — question wording patterns, command verbs, and layout. \
+         You MUST NOT: use it to select topics, copy its questions, draw content from it, or \
+         interpret it as an expansion of the permitted scope. The selected subtopics and focus \
+         areas in the user prompt are the ONLY authority on what content to test. If the PDF \
+         contains topics outside the selected focus areas, IGNORE that content entirely.\n\
          {LATEX_RULES}\n\
          {QUESTION_STYLE_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
@@ -257,6 +263,12 @@ fn mc_system() -> String {
          CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
          provided in the user prompt. Only test concepts that are explicitly listed in that key \
          knowledge. Do not introduce content that is not in the Study Design.\n\
+         PDF REFERENCE RULE: If a PDF exam paper is attached, it is provided SOLELY as a \
+         formatting and style reference — question wording patterns, command verbs, and layout. \
+         You MUST NOT: use it to select topics, copy its questions, draw content from it, or \
+         interpret it as an expansion of the permitted scope. The selected subtopics and focus \
+         areas in the user prompt are the ONLY authority on what content to test. If the PDF \
+         contains topics outside the selected focus areas, IGNORE that content entirely.\n\
          {LATEX_RULES}\n\
          {MC_DISTRACTOR_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
@@ -463,6 +475,64 @@ fn subtopics_note(
     s
 }
 
+fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
+    let mut constraints = Vec::<String>::new();
+    if let Some(subs) = selected {
+        if !subs.is_empty() {
+            constraints.push(format!("Selected subtopics: {}.", subs.join(", ")));
+        }
+    }
+    if let Some(area) = custom_focus_area {
+        let trimmed = area.trim();
+        if !trimmed.is_empty() {
+            constraints.push(format!("Custom focus area: \"{trimmed}\"."));
+        }
+    }
+
+    if constraints.is_empty() {
+        return String::new();
+    }
+
+    format!(
+        "\nFOCUS LOCK (HIGHEST PRIORITY):\n\
+         - {} \n\
+         - Every question part must map directly to the focus constraints above.\n\
+         - Do NOT introduce outside concepts, even if they appear in attached exam PDFs.\n\
+         - If there is any conflict, prioritize these focus constraints over PDF content.",
+        constraints.join(" ")
+    )
+}
+
+/// Builds a post-PDF re-anchor text block that is appended AFTER the PDF bytes in the message
+/// array. After processing a large PDF the model's attention drifts toward the PDF content;
+/// this block immediately reasserts the user-specified focus constraints so the model generates
+/// from those constraints rather than from whatever was last prominent in context.
+fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
+    let mut lines = vec![
+        "── PDF STYLE REFERENCE ENDS HERE ──".to_string(),
+        "You have now seen the exam PDF(s). Return to the focus constraints specified earlier:"
+            .to_string(),
+    ];
+    if let Some(subs) = selected {
+        if !subs.is_empty() {
+            lines.push(format!("• Selected subtopics: {}.", subs.join(", ")));
+        }
+    }
+    if let Some(area) = custom_focus_area {
+        let trimmed = area.trim();
+        if !trimmed.is_empty() {
+            lines.push(format!("• Custom focus area: \"{trimmed}\"."));
+        }
+    }
+    lines.push(
+        "Generate questions that test ONLY these focus areas. \
+         The PDF was for formatting style only — do NOT draw any content, topics, or question \
+         ideas from it. Every question must map to the Study Design key knowledge listed above."
+            .to_string(),
+    );
+    lines.join("\n")
+}
+
 fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     if !enabled {
         return String::new();
@@ -491,6 +561,87 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!("\nSimilarity guardrail — do not reuse scenario/method from:\n{list}")
+}
+
+fn topic_exam_pdf_files(topic: &str) -> &'static [&'static str] {
+    if topic.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC) {
+        &["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"]
+    } else if topic.trim().eq_ignore_ascii_case("Specialist Mathematics") {
+        &["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"]
+    } else if topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC) {
+        &["2025-Chemistry.pdf"]
+    } else if topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC) {
+        &["2025-PhysicalEducation.pdf"]
+    } else {
+        &[]
+    }
+}
+
+fn exam_pdf_names_for_topics(topics: &[String]) -> Vec<&'static str> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for topic in topics {
+        for name in topic_exam_pdf_files(topic) {
+            if seen.insert(*name) {
+                out.push(*name);
+            }
+        }
+    }
+    out
+}
+
+fn resolve_exam_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathBuf> {
+    let mut dirs = Vec::<PathBuf>::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        dirs.push(cwd.join("exams"));
+        dirs.push(cwd.join("../exams"));
+    }
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        dirs.push(resource_dir.clone());
+        dirs.push(resource_dir.join("exams"));
+    }
+
+    let mut seen = HashSet::<PathBuf>::new();
+    for dir in dirs {
+        if !seen.insert(dir.clone()) {
+            continue;
+        }
+        let candidate = dir.join(filename);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+fn build_exam_context_parts(
+    app: &tauri::AppHandle,
+    topics: &[String],
+) -> CommandResult<Vec<serde_json::Value>> {
+    let mut parts = Vec::new();
+    for filename in exam_pdf_names_for_topics(topics) {
+        let Some(path) = resolve_exam_pdf_path(app, filename) else {
+            continue;
+        };
+        let bytes = std::fs::read(&path).map_err(|e| {
+            AppError::new(
+                "IO_ERROR",
+                format!("Failed to read exam PDF '{}': {e}", path.display()),
+            )
+        })?;
+        let data_url = format!(
+            "data:application/pdf;base64,{}",
+            general_purpose::STANDARD.encode(bytes)
+        );
+        parts.push(serde_json::json!({
+            "type": "file",
+            "file": {
+                "filename": filename,
+                "file_data": data_url,
+            }
+        }));
+    }
+    Ok(parts)
 }
 
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
@@ -584,6 +735,7 @@ async fn generate_questions(
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+    let include_exam_context = request.include_exam_context.unwrap_or(false);
 
     // Adjust difficulty based on AI scaling
     let adjusted_difficulty = adjust_difficulty(
@@ -611,6 +763,18 @@ async fn generate_questions(
         }),
     );
 
+    let exam_context_preamble = if include_exam_context {
+        "\n\n⚠ EXAM PDF ATTACHED — READ THIS FIRST:\n\
+         The PDF(s) below are style references ONLY. Extract: question layout, command-verb \
+         phrasing, and formatting conventions.\n\
+         You MUST NOT extract: topic choices, specific question content, or any concept not \
+         already listed in the focus constraints above.\n\
+         After reading the PDF, re-read the focus constraints above and confirm every question \
+         you generate maps exclusively to those constraints."
+    } else {
+        ""
+    };
+
     let prompt = format!(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
@@ -622,17 +786,20 @@ async fn generate_questions(
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
  key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
+         {focus_lock}{exam_context_preamble}\n\
          Output exactly {count} questions.",
-        count       = request.question_count,
-        topics      = request.topics.join(", "),
-        difficulty  = adjusted_difficulty,
-        diff_rules  = difficulty_guidance(&adjusted_difficulty),
-        subs_note   = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
-        custom_note = custom_note,
-        tech        = tech_note(tech_mode),
-        topic_notes = topic_notes(&request.topics),
-        math_diff   = math_difficulty_note(&adjusted_difficulty, &request.topics),
-        sim_note    = similarity_note(
+        count                 = request.question_count,
+        topics                = request.topics.join(", "),
+        difficulty            = adjusted_difficulty,
+        diff_rules            = difficulty_guidance(&adjusted_difficulty),
+        subs_note             = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
+        custom_note           = custom_note,
+        tech                  = tech_note(tech_mode),
+        topic_notes           = topic_notes(&request.topics),
+        math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
+        focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
+        exam_context_preamble = exam_context_preamble,
+        sim_note              = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
         ),
@@ -650,6 +817,16 @@ async fn generate_questions(
     let written_sys = written_system();
     let written_fmt = written_format();
     let max_tokens = (request.question_count as u32) * 4000 + 4000;
+    let user_content = if include_exam_context {
+        let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
+        parts.extend(build_exam_context_parts(&app, &request.topics)?);
+        // Post-PDF re-anchor: reassert focus constraints after the model has processed the PDF
+        let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
+        parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+        serde_json::Value::Array(parts)
+    } else {
+        serde_json::Value::String(prompt.clone())
+    };
 
     let (result, stats_result) = tokio::join!(
         call_openrouter_streaming(
@@ -657,7 +834,7 @@ async fn generate_questions(
             &request.api_key,
             &request.model,
             &written_sys,
-            serde_json::Value::String(prompt),
+            user_content,
             &written_fmt,
             max_tokens,
         ),
@@ -756,6 +933,7 @@ async fn generate_mc_questions(
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+    let include_exam_context = request.include_exam_context.unwrap_or(false);
 
     // Adjust difficulty based on AI scaling
     let adjusted_difficulty = adjust_difficulty(
@@ -782,6 +960,18 @@ async fn generate_mc_questions(
         }),
     );
 
+    let exam_context_preamble = if include_exam_context {
+        "\n\n⚠ EXAM PDF ATTACHED — READ THIS FIRST:\n\
+         The PDF(s) below are style references ONLY. Extract: question layout, command-verb \
+         phrasing, and formatting conventions.\n\
+         You MUST NOT extract: topic choices, specific question content, or any concept not \
+         already listed in the focus constraints above.\n\
+         After reading the PDF, re-read the focus constraints above and confirm every question \
+         you generate maps exclusively to those constraints."
+    } else {
+        ""
+    };
+
     let prompt = format!(
         "Generate exactly {count} VCE multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
@@ -795,17 +985,20 @@ misconception each wrong option targets. No chain-of-thought, no self-talk.\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
 key knowledge above. Do not introduce content outside the Study Design.\n\
          Subtopic: choose only from provided list; omit if none fits.\n\
+         {focus_lock}{exam_context_preamble}\n\
          Output exactly {count} questions.",
-        count       = request.question_count,
-        topics      = request.topics.join(", "),
-        difficulty  = adjusted_difficulty,
-        diff_rules  = difficulty_guidance(&adjusted_difficulty),
-        subs_note   = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
-        custom_note = custom_note,
-        tech        = tech_note(tech_mode),
-        topic_notes = topic_notes(&request.topics),
-        math_diff   = math_difficulty_note(&adjusted_difficulty, &request.topics),
-        sim_note    = similarity_note(
+        count                 = request.question_count,
+        topics                = request.topics.join(", "),
+        difficulty            = adjusted_difficulty,
+        diff_rules            = difficulty_guidance(&adjusted_difficulty),
+        subs_note             = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
+        custom_note           = custom_note,
+        tech                  = tech_note(tech_mode),
+        topic_notes           = topic_notes(&request.topics),
+        math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
+        focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
+        exam_context_preamble = exam_context_preamble,
+        sim_note              = similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
         ),
@@ -827,6 +1020,16 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
     } else {
         4000
     };
+    let user_content = if include_exam_context {
+        let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
+        parts.extend(build_exam_context_parts(&app, &request.topics)?);
+        // Post-PDF re-anchor: reassert focus constraints after the model has processed the PDF
+        let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
+        parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+        serde_json::Value::Array(parts)
+    } else {
+        serde_json::Value::String(prompt.clone())
+    };
 
     let (result, stats_result) = tokio::join!(
         call_openrouter_streaming(
@@ -834,7 +1037,7 @@ key knowledge above. Do not introduce content outside the Study Design.\n\
             &request.api_key,
             &request.model,
             &mc_sys,
-            serde_json::Value::String(prompt),
+            user_content,
             &mc_fmt,
             max_tokens,
         ),
