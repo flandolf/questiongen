@@ -31,6 +31,8 @@ import {
   SPECIALIST_MATH_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
+  ExamRecord,
+  ExamQuestionResult,
 } from "@/types";
 import {
   fileToDataUrl,
@@ -152,6 +154,7 @@ export function GeneratorView() {
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState("");
+  const [examRecordSaved, setExamRecordSaved] = useState(false);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
@@ -178,6 +181,8 @@ export function GeneratorView() {
     questionCount, setQuestionCount,
     averageMarksPerQuestion, setAverageMarksPerQuestion,
     questionMode, setQuestionMode,
+    generationMode, setGenerationMode,
+    examTimeLimitMinutes, setExamTimeLimitMinutes,
     subtopicInstructions,
     aiDifficultyScalingEnabled, setAiDifficultyScalingEnabled,
     difficultyThresholds, setDifficultyThresholds,
@@ -217,6 +222,7 @@ export function GeneratorView() {
   } = useAppContext();
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
+  const addExamRecord = useAppStore((s) => s.addExamRecord);
 
   const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -357,6 +363,7 @@ export function GeneratorView() {
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => { setShowCompletionScreen(false); }, [completionSetKey]);
   useEffect(() => { setLastSavedAt(null); }, [activeWrittenSavedSetId, activeMcSavedSetId]);
+  useEffect(() => { setExamRecordSaved(false); }, [completionSetKey, generationMode]);
 
   useEffect(() => {
     const prev = lastWrittenCompletedCountRef.current;
@@ -1188,7 +1195,93 @@ useEffect(() => {
     setMcQuestions([]); setMcRawModelOutput(""); setMcGenerationTelemetry(null); setShowMcRawOutput(false);
     setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
+    setExamRecordSaved(false);
   }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);
+
+  useEffect(() => {
+    if (generationMode !== "exam" || !showCompletionScreen || !isSetComplete || examRecordSaved) return;
+
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const timeUsedSeconds = Math.max(0, Math.min(elapsedSeconds, examTimeLimitMinutes * 60));
+
+    if (questionMode === "written") {
+      const totalScore = questions.reduce((s, q) => s + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0), 0);
+      const totalMax = questions.reduce((s, q) => s + (feedbackByQuestionId[q.id]?.maxMarks ?? q.maxMarks), 0);
+      const questionResults: ExamQuestionResult[] = questions.map((q) => {
+        const fb = feedbackByQuestionId[q.id];
+        return {
+          questionId: q.id,
+          topic: q.topic,
+          subtopic: q.subtopic,
+          promptMarkdown: q.promptMarkdown,
+          achievedMarks: fb?.achievedMarks ?? 0,
+          maxMarks: fb?.maxMarks ?? q.maxMarks,
+          correct: Boolean(fb && fb.achievedMarks >= fb.maxMarks),
+        };
+      });
+      const record: ExamRecord = {
+        id: `exam-record-${now}`,
+        createdAt: nowIso,
+        topic: selectedTopics.length > 1 ? "Mixed" : (selectedTopics[0] ?? "Mixed"),
+        difficulty,
+        questionMode: "written",
+        techMode,
+        questionCount: questions.length,
+        timeUsedSeconds,
+        totalScore,
+        totalMax,
+        questionResults,
+      };
+      addExamRecord(record);
+      setExamRecordSaved(true);
+      return;
+    }
+
+    const totalScore = mcQuestions.reduce((s, q) => s + getMcAwardedMarks(q.id, mcAnswersByQuestionId[q.id] ?? "", q.correctAnswer), 0);
+    const questionResults: ExamQuestionResult[] = mcQuestions.map((q) => ({
+      questionId: q.id,
+      topic: q.topic,
+      subtopic: q.subtopic,
+      promptMarkdown: q.promptMarkdown,
+      achievedMarks: getMcAwardedMarks(q.id, mcAnswersByQuestionId[q.id] ?? "", q.correctAnswer),
+      maxMarks: 1,
+      correct: (mcAnswersByQuestionId[q.id] ?? "") === q.correctAnswer,
+      selectedAnswer: mcAnswersByQuestionId[q.id],
+      correctAnswer: q.correctAnswer,
+    }));
+    const record: ExamRecord = {
+      id: `exam-record-${now}`,
+      createdAt: nowIso,
+      topic: selectedTopics.length > 1 ? "Mixed" : (selectedTopics[0] ?? "Mixed"),
+      difficulty,
+      questionMode: "multiple-choice",
+      techMode,
+      questionCount: mcQuestions.length,
+      timeUsedSeconds,
+      totalScore,
+      totalMax: mcQuestions.length,
+      questionResults,
+    };
+    addExamRecord(record);
+    setExamRecordSaved(true);
+  }, [
+    generationMode,
+    showCompletionScreen,
+    isSetComplete,
+    examRecordSaved,
+    elapsedSeconds,
+    examTimeLimitMinutes,
+    questionMode,
+    questions,
+    feedbackByQuestionId,
+    mcQuestions,
+    mcAnswersByQuestionId,
+    selectedTopics,
+    difficulty,
+    techMode,
+    addExamRecord,
+  ]);
 
   // ── Image drop ───────────────────────────────────────────────────────────────
   const handleDropDropzone = useCallback(async (acceptedFiles: File[]) => {
@@ -1234,6 +1327,8 @@ useEffect(() => {
       {showSetup ? (
         <SetupPanel
           questionMode={questionMode} onSetQuestionMode={setQuestionMode}
+          generationMode={generationMode} onSetGenerationMode={setGenerationMode}
+          examTimeLimitMinutes={examTimeLimitMinutes} onSetExamTimeLimitMinutes={setExamTimeLimitMinutes}
           selectedTopics={selectedTopics} onToggleTopic={toggleTopic}
           mathMethodsSubtopics={mathMethodsSubtopics} onToggleMathMethodsSubtopic={toggleMathMethodsSubtopic}
           specialistMathSubtopics={specialistMathSubtopics} onToggleSpecialistMathSubtopic={toggleSpecialistMathSubtopic}

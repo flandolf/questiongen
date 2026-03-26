@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store";
 import { McHistoryEntry, QuestionHistoryEntry, SpacedRepetitionCard, Difficulty } from "../types";
@@ -23,6 +24,8 @@ import { WrittenFeedbackPanel } from "@/components/generator/WrittenFeedbackPane
 import { McQuestionCard } from "@/components/generator/McQuestionCard";
 import { McAnswerPanel } from "@/components/generator/McAnswerPanel";
 
+// --- Generator parity reattempt view (restored full UI) ---
+import type { MarkAnswerResponse } from "../types";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type WrittenWrongEntry = QuestionHistoryEntry & { kind: "written" };
@@ -78,6 +81,156 @@ function EmptyState() {
                 <p className="text-sm text-muted-foreground max-w-xs">
                     Complete some questions and any incorrect answers will appear here for review.
                 </p>
+            </div>
+        </div>
+    );
+}
+
+// ─── List entry card ──────────────────────────────────────────────────────────
+
+function ListEntryCard({
+    entry, index, isExpanded, onToggle, onDelete, srCard,
+}: {
+    entry: WrongEntry; index: number; isExpanded: boolean; onToggle: () => void; onDelete: () => void;
+    srCard?: SpacedRepetitionCard;
+}) {
+    const isWritten = entry.kind === "written";
+    let scoreLabel = "";
+    let pct = 0;
+    if (isWritten) {
+        const w = entry as WrittenWrongEntry;
+        pct = w.markResponse.maxMarks > 0 ? w.markResponse.achievedMarks / w.markResponse.maxMarks : 0;
+        scoreLabel = `${w.markResponse.achievedMarks}/${w.markResponse.maxMarks}`;
+    }
+
+    return (
+        <div className="rounded-lg border border-border/50 overflow-hidden transition-shadow hover:shadow-md bg-muted/30">
+            <div className="flex items-stretch">
+                <button
+                    type="button"
+                    className="flex-1 text-left px-3.5 py-3 flex items-start gap-3 group min-w-0"
+                    onClick={onToggle}
+                >
+                    <span className="shrink-0 w-5 h-5 mt-0.5 rounded-md bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums">
+                        {index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant="outline" className={`text-[10px] font-semibold px-1.5 py-0 gap-0.5 ${isWritten ? "border-sky-400/40 text-sky-600 dark:text-sky-400" : "border-violet-400/40 text-violet-600 dark:text-violet-400"}`}>
+                                {isWritten ? <BookOpen className="w-2.5 h-2.5" /> : <Target className="w-2.5 h-2.5" />}
+                                {isWritten ? "Written" : "MC"}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground">
+                                {entry.question.topic}
+                            </Badge>
+                            {entry.question.subtopic && (
+                                <span className="text-[10px] text-muted-foreground/50 truncate max-w-[8rem]">{entry.question.subtopic}</span>
+                            )}
+                        </div>
+                        <div className="py-3 overflow-hidden relative">
+                            <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+                                <MarkdownMath content={entry.question.promptMarkdown} />
+                            </div>
+                            <div className="absolute bottom-0 inset-x-0 h-5 bg-linear-to-t pointer-events-none" />
+                        </div>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
+                        {srCard && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${daysUntilReview(srCard) < 0 ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400" :
+                                daysUntilReview(srCard) === 0 ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400" :
+                                    "bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400"
+                                }`}>
+                                {daysUntilReview(srCard) < 0 ? `${Math.abs(daysUntilReview(srCard))}d overdue` :
+                                    daysUntilReview(srCard) === 0 ? "Due" :
+                                        `${daysUntilReview(srCard)}d`}
+                            </span>
+                        )}
+                        {isWritten && scoreLabel && (
+                            <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${scoreBg(pct)}`}>{scoreLabel}</span>
+                        )}
+                        {!isWritten && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400">✗</span>
+                        )}
+                        <div className="text-muted-foreground group-hover:text-foreground transition-colors">
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
+                    </div>
+                </button>
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    className="shrink-0 flex items-center justify-center w-8 border-l border-border/30 text-muted-foreground/40 hover:text-rose-500 hover:bg-rose-500/5 transition-colors"
+                    aria-label="Delete entry"
+                    title="Remove from wrong answers"
+                >
+                    <Trash2 className="w-3.5 h-3.5" />
+                </button>
+            </div>
+            {isExpanded && (
+                <div className="border-t border-border/40 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {isWritten ? <WrittenExpandedBody entry={entry as WrittenWrongEntry} /> : <McExpandedBody entry={entry as McWrongEntry} />}
+                </div>
+            )}
+        </div>
+    );
+}
+export function VirtualizedWrongList({
+    entries,
+    expandedIds,
+    onToggle,
+    onDelete,
+    spacedRepetitionCards,
+}: {
+    entries: any[];
+    expandedIds: Set<string>;
+    onToggle: (id: string) => void;
+    onDelete: (entry: any) => void;
+    spacedRepetitionCards: Record<string, any>;
+}) {
+    const parentRef = useRef<HTMLDivElement>(null);
+    const rowVirtualizer = useVirtualizer({
+        count: entries.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 120,
+        measureElement: (el) => el.getBoundingClientRect().height,
+    });
+
+    return (
+        <div ref={parentRef} style={{ height: "100vh", overflow: "auto" }}>
+            <div
+                style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: "100%",
+                    position: "relative",
+                }}
+            >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const entry = entries[virtualRow.index];
+                    return (
+                        <div
+                            key={entry.id}
+                            data-index={virtualRow.index}
+                            ref={rowVirtualizer.measureElement}
+                            style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                transform: `translateY(${virtualRow.start}px)`,
+                                paddingBottom: 16,
+                            }}
+                        >
+                            <ListEntryCard
+                                entry={entry}
+                                index={virtualRow.index}
+                                isExpanded={expandedIds.has(entry.id)}
+                                onToggle={() => onToggle(entry.id)}
+                                onDelete={() => onDelete(entry)}
+                                srCard={spacedRepetitionCards[entry.id]}
+                            />
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -151,99 +304,9 @@ function McExpandedBody({ entry }: { entry: McWrongEntry }) {
     );
 }
 
-// ─── List entry card ──────────────────────────────────────────────────────────
-
-function ListEntryCard({
-    entry, index, isExpanded, onToggle, onDelete, srCard,
-}: {
-    entry: WrongEntry; index: number; isExpanded: boolean; onToggle: () => void; onDelete: () => void;
-    srCard?: SpacedRepetitionCard;
-}) {
-    const isWritten = entry.kind === "written";
-    let scoreLabel = "";
-    let pct = 0;
-    if (isWritten) {
-        const w = entry as WrittenWrongEntry;
-        pct = w.markResponse.maxMarks > 0 ? w.markResponse.achievedMarks / w.markResponse.maxMarks : 0;
-        scoreLabel = `${w.markResponse.achievedMarks}/${w.markResponse.maxMarks}`;
-    }
-
-    return (
-        <div className="rounded-lg border border-border/50 bg-card overflow-hidden transition-shadow hover:shadow-md">
-            <div className="flex items-stretch">
-                <button
-                    type="button"
-                    className="flex-1 text-left px-3.5 py-3 flex items-start gap-3 group min-w-0"
-                    onClick={onToggle}
-                >
-                    <span className="shrink-0 w-5 h-5 mt-0.5 rounded-md bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums">
-                        {index + 1}
-                    </span>
-                    <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-1">
-                            <Badge variant="outline" className={`text-[10px] font-semibold px-1.5 py-0 gap-0.5 ${isWritten ? "border-sky-400/40 text-sky-600 dark:text-sky-400" : "border-violet-400/40 text-violet-600 dark:text-violet-400"}`}>
-                                {isWritten ? <BookOpen className="w-2.5 h-2.5" /> : <Target className="w-2.5 h-2.5" />}
-                                {isWritten ? "Written" : "MC"}
-                            </Badge>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground">
-                                {entry.question.topic}
-                            </Badge>
-                            {entry.question.subtopic && (
-                                <span className="text-[10px] text-muted-foreground/50 truncate max-w-[8rem]">{entry.question.subtopic}</span>
-                            )}
-                        </div>
-                        <div className="py-3 overflow-hidden relative">
-                            <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
-                                <MarkdownMath content={entry.question.promptMarkdown} />
-                            </div>
-                            <div className="absolute bottom-0 inset-x-0 h-5 bg-linear-to-t from-card to-transparent pointer-events-none" />
-                        </div>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
-                        {srCard && (
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${daysUntilReview(srCard) < 0 ? "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400" :
-                                daysUntilReview(srCard) === 0 ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400" :
-                                    "bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400"
-                                }`}>
-                                {daysUntilReview(srCard) < 0 ? `${Math.abs(daysUntilReview(srCard))}d overdue` :
-                                    daysUntilReview(srCard) === 0 ? "Due" :
-                                        `${daysUntilReview(srCard)}d`}
-                            </span>
-                        )}
-                        {isWritten && scoreLabel && (
-                            <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${scoreBg(pct)}`}>{scoreLabel}</span>
-                        )}
-                        {!isWritten && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400">✗</span>
-                        )}
-                        <div className="text-muted-foreground group-hover:text-foreground transition-colors">
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </div>
-                    </div>
-                </button>
-                <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    className="shrink-0 flex items-center justify-center w-8 border-l border-border/30 text-muted-foreground/40 hover:text-rose-500 hover:bg-rose-500/5 transition-colors"
-                    aria-label="Delete entry"
-                    title="Remove from wrong answers"
-                >
-                    <Trash2 className="w-3.5 h-3.5" />
-                </button>
-            </div>
-            {isExpanded && (
-                <div className="border-t border-border/40 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                    {isWritten ? <WrittenExpandedBody entry={entry as WrittenWrongEntry} /> : <McExpandedBody entry={entry as McWrongEntry} />}
-                </div>
-            )}
-        </div>
-    );
-}
 
 // ─── Reattempt view ───────────────────────────────────────────────────────────
 
-// --- Generator parity reattempt view (restored full UI) ---
-import type { MarkAnswerResponse } from "../types";
 interface ReattemptViewProps {
     questions: WrongEntry[];
     apiKey: string;
@@ -447,7 +510,7 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
                                     isMarking={isMarking}
                                     onAppealChange={setAppealText}
                                     onOverrideInputChange={setOverrideInput}
-                                    onArgueForMark={() => {}}
+                                    onArgueForMark={() => { }}
                                     onApplyOverride={handleApplyOverride}
                                     onCriterionChange={handleCriterionChange}
                                 />
@@ -795,15 +858,13 @@ export default function WrongQuestionView() {
                         {filteredQuestions.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">No questions match this filter.</p>
                         ) : (
-                            <div className="space-y-1.5">
-                                {filteredQuestions.map((entry, i) => (
-                                    <ListEntryCard key={entry.id} entry={entry} index={i}
-                                        isExpanded={expandedIds.has(entry.id)}
-                                        onToggle={() => toggleExpand(entry.id)}
-                                        onDelete={() => handleDelete(entry)}
-                                        srCard={spacedRepetitionCards[entry.id]} />
-                                ))}
-                            </div>
+                            <VirtualizedWrongList
+                                entries={filteredQuestions}
+                                expandedIds={expandedIds}
+                                onToggle={toggleExpand}
+                                onDelete={handleDelete}
+                                spacedRepetitionCards={spacedRepetitionCards}
+                            />
                         )}
                     </div>
                 )}

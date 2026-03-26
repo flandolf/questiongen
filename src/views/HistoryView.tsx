@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMultipleChoiceSession, useWrittenSession } from "../AppContext";
 import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDate } from "../lib/app-utils";
-import { ScrollArea } from "../components/ui/scroll-area";
 
 import { Badge } from "../components/ui/badge";
 import {
@@ -122,13 +122,13 @@ const StatsBar = memo(function StatsBar({
       ].map((stat) => (
         <div
           key={stat.label}
-          className="rounded-xl border border-border/40 bg-muted/20 px-3 py-2.5 flex flex-col gap-1"
+          className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3 flex flex-col gap-1"
         >
           <div className={`flex items-center gap-1.5 text-muted-foreground/70`}>
             {stat.icon}
-            <span className="text-[10px] font-semibold uppercase tracking-wider truncate">{stat.label}</span>
+            <span className="text-[10px] font-light uppercase tracking-wider truncate">{stat.label}</span>
           </div>
-          <span className={`text-xl font-black tabular-nums leading-none ${stat.color}`}>
+          <span className={`text-xl font-light tabular-nums leading-none ${stat.color}`}>
             {stat.value}
           </span>
         </div>
@@ -170,7 +170,7 @@ function ExpandableCardSection({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-2">
+    <h3 className="text-[10px] font-light uppercase tracking-widest text-muted-foreground/70 mb-2">
       {children}
     </h3>
   );
@@ -187,15 +187,15 @@ const ToggleButton = memo(function ToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 border ${isExpanded
-          ? "bg-primary/10 text-primary border-primary/20"
-          : "text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40"
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light transition-all duration-150 border ${isExpanded
+        ? "bg-primary/10 text-primary border-primary/20"
+        : "text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40"
         }`}
     >
       {isExpanded ? (
         <><ChevronUp className="h-3 w-3" /> Hide</>
       ) : (
-          <><ChevronDown className="h-3 w-3" /> Details</>
+        <><ChevronDown className="h-3 w-3" /> Details</>
       )}
     </button>
   );
@@ -226,15 +226,15 @@ function ScorePill({ awarded, max }: { awarded: number; max: number }) {
   const isCorrect = awarded >= max;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-full text-[11px] leading-none ${isCorrect
-          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-          : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+      className={`inline-flex items-center gap-1.5 font-light px-2.5 py-1 rounded-full text-[11px] leading-none ${isCorrect
+        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+        : "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
         }`}
     >
       {isCorrect ? (
         <CheckCircle2 className="w-3 h-3 shrink-0" />
       ) : (
-          <XCircle className="w-3 h-3 shrink-0" />
+        <XCircle className="w-3 h-3 shrink-0" />
       )}
       {awarded.toFixed(0)}/{max}
     </span>
@@ -262,17 +262,19 @@ const McEntryCard = memo(function McEntryCard({
 
   return (
     <Card
-      className={`overflow-hidden border transition-all duration-200 hover:shadow-md ${isExpanded ? "shadow-md border-violet-500/20" : "shadow-sm border-border/50"
-        }`}
+      className={`overflow-hidden border transition-all duration-200 hover:shadow-lg 
+        bg-muted/40 dark:bg-muted/20 border-border/80 dark:border-border/70
+        ${isExpanded ? "shadow-lg border-violet-700/40 dark:border-violet-400/30" : "shadow border-border/80 dark:border-border/70"}
+      `}
     >
-      <CardHeader className="px-4 py-3 border-b border-border/40">
+      <CardHeader className="px-4 py-2 border-b border-border/40">
         <div className="flex items-start justify-between gap-3">
           {/* Left: topic + meta */}
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div
-              className={`mt-0.5 shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isCorrect
-                  ? "bg-emerald-100 dark:bg-emerald-950/50"
-                  : "bg-red-100 dark:bg-red-950/50"
+              className={`mt-0.5 shrink-0 w-7 h-7 rounded-md flex items-center justify-center ${isCorrect
+                ? "bg-emerald-100 dark:bg-emerald-950/50"
+                : "bg-red-100 dark:bg-red-950/50"
                 }`}
             >
               {isCorrect ? (
@@ -283,10 +285,10 @@ const McEntryCard = memo(function McEntryCard({
             </div>
             <div className="space-y-0.5 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-sm leading-tight">{item.question.topic}</span>
+                <span className="font-light text-sm leading-tight">{item.question.topic}</span>
                 <Badge
                   variant="secondary"
-                  className="shrink-0 text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 py-0.5 h-auto"
+                  className="shrink-0 text-[10px] font-light bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 py-0.5 h-auto"
                 >
                   MC
                 </Badge>
@@ -323,9 +325,9 @@ const McEntryCard = memo(function McEntryCard({
           <span>
             Selected{" "}
             <strong
-              className={`font-bold ${item.selectedAnswer === item.question.correctAnswer
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-red-600 dark:text-red-400"
+              className={`font-light ${item.selectedAnswer === item.question.correctAnswer
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-red-600 dark:text-red-400"
                 }`}
             >
               {item.selectedAnswer}
@@ -334,7 +336,7 @@ const McEntryCard = memo(function McEntryCard({
           <span className="text-border">·</span>
           <span>
             Answer{" "}
-            <strong className="text-emerald-600 dark:text-emerald-400 font-bold">
+            <strong className="text-emerald-600 dark:text-emerald-400 font-light">
               {item.question.correctAnswer}
             </strong>
           </span>
@@ -344,7 +346,7 @@ const McEntryCard = memo(function McEntryCard({
 
         <ExpandableCardSection isExpanded={isExpanded}>
           <div className="space-y-4">
-            <div className="bg-muted/40 px-4 py-3 rounded-xl border border-border/30 text-sm">
+            <div className="bg-muted/40 px-4 py-3 rounded-md border border-border/30 text-sm">
               <MarkdownMath content={item.question.promptMarkdown} />
             </div>
             <div className="grid sm:grid-cols-2 gap-2">
@@ -352,7 +354,7 @@ const McEntryCard = memo(function McEntryCard({
                 const isChosen = item.selectedAnswer === opt.label;
                 const isCorrOpt = opt.label === item.question.correctAnswer;
                 let cls =
-                  "px-3 py-2.5 rounded-xl border flex gap-2.5 items-start text-sm transition-colors";
+                  "px-3 py-2.5 rounded-md border flex gap-2.5 items-start text-sm transition-colors";
                 if (isCorrOpt)
                   cls += " border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/30";
                 else if (isChosen)
@@ -362,11 +364,11 @@ const McEntryCard = memo(function McEntryCard({
                 return (
                   <div key={opt.label} className={cls}>
                     <span
-                      className={`font-bold shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-[11px] mt-0.5 ${isCorrOpt
-                          ? "bg-emerald-500 text-white"
-                          : isChosen
-                            ? "bg-red-500 text-white"
-                            : "bg-muted text-muted-foreground"
+                      className={`font-light shrink-0 w-5 h-5 flex items-center justify-center rounded-md text-[11px] mt-0.5 ${isCorrOpt
+                        ? "bg-emerald-500 text-white"
+                        : isChosen
+                          ? "bg-red-500 text-white"
+                          : "bg-muted text-muted-foreground"
                         }`}
                     >
                       {opt.label}
@@ -378,7 +380,7 @@ const McEntryCard = memo(function McEntryCard({
                 );
               })}
             </div>
-            <div className="rounded-xl border border-border/30 bg-muted/10 px-4 py-3">
+            <div className="rounded-md border border-border/30 bg-muted/10 px-4 py-3">
               <SectionLabel>Explanation</SectionLabel>
               <div className="text-sm">
                 <MarkdownMath content={item.question.explanationMarkdown} />
@@ -414,8 +416,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
 
   return (
     <Card
-      className={`overflow-hidden border transition-all duration-200 hover:shadow-md ${isExpanded ? "shadow-md border-sky-500/20" : "shadow-sm border-border/50"
-        }`}
+      className={`overflow-hidden border transition-all duration-200 hover:shadow-lg 
+        bg-muted/30 dark:bg-muted/20 border-border/80 dark:border-border/70
+        ${isExpanded ? "shadow-lg border-sky-700/40 dark:border-sky-400/30" : "shadow border-border/80 dark:border-border/70"}
+      `}
     >
       <CardHeader className="px-4 py-3 border-b border-border/40">
         <div className="flex items-start justify-between gap-3">
@@ -424,7 +428,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             <AccuracyArc pct={pct} />
             <div className="space-y-0.5 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-sm leading-tight">{item.question.topic}</span>
+                <span className="font-light text-sm leading-tight">{item.question.topic}</span>
                 <Badge
                   variant="secondary"
                   className="shrink-0 text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 py-0.5 h-auto"
@@ -444,7 +448,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
 
           {/* Right: score + actions */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`font-bold px-2.5 py-1 rounded-full text-[11px] leading-none ${colorClass}`}>
+            <span className={`font-bold px-2.5 py-1 rounded-md text-[11px] leading-none ${colorClass}`}>
               {score}/10
             </span>
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
@@ -463,19 +467,25 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
       <CardContent className="px-4 py-3">
         {/* Quick summary row */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
+          <span className="gap-1">
             {item.uploadedAnswerImage ? (
-              <><ImageIcon className="h-3 w-3" /> Image answer</>
+              <div className="flex flex-row items-center">
+                <ImageIcon className="h-3 w-3" />
+                <span className="ml-1">Image answer</span>
+              </div>
             ) : (
-              <><FileText className="h-3 w-3" /> Text answer</>
+              <div className="flex flex-row items-center">
+                <FileText className="h-3 w-3" />
+                <span className="ml-1">Text answer</span>
+              </div>
             )}
           </span>
           <span className="text-border">·</span>
           <span>{item.markResponse.vcaaMarkingScheme.length} criteria</span>
           <span className="text-border">·</span>
           <span className={`font-semibold ${pct >= 75 ? "text-emerald-600 dark:text-emerald-400" :
-              pct >= 50 ? "text-amber-600 dark:text-amber-400" :
-                "text-red-600 dark:text-red-400"
+            pct >= 50 ? "text-amber-600 dark:text-amber-400" :
+              "text-red-600 dark:text-red-400"
             }`}>
             {item.markResponse.achievedMarks}/{item.markResponse.maxMarks} marks
           </span>
@@ -484,7 +494,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
         <ExpandableCardSection isExpanded={isExpanded}>
           <div className="space-y-4">
             {/* Question prompt */}
-            <div className="bg-muted/40 px-4 py-3 rounded-xl border border-border/30 text-sm">
+            <div className="bg-muted/40 px-4 py-3 rounded-md border border-border/30 text-sm">
               <MarkdownMath content={item.question.promptMarkdown} />
             </div>
 
@@ -498,12 +508,14 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                     alt="Uploaded Answer"
                     loading="lazy"
                     decoding="async"
-                    className="rounded-xl border max-w-full h-auto"
+                    className="rounded-md border max-w-full h-auto"
                   />
                 ) : (
-                    <div className="whitespace-pre-wrap text-sm bg-muted/20 rounded-xl border border-border/30 px-3 py-2.5 min-h-[4rem]">
-                    {item.uploadedAnswer || (
-                        <span className="italic opacity-40">No text answer provided</span>
+                  <div className="whitespace-pre-wrap text-sm bg-muted/20 rounded-md border border-border/30 px-3 py-2.5 min-h-[4rem]">
+                    {item.uploadedAnswer ? (
+                      <MarkdownMath content={item.uploadedAnswer} />
+                    ) : (
+                      <span className="p-2 text-muted-foreground">No answer provided / Image file not available</span>
                     )}
                   </div>
                 )}
@@ -512,7 +524,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
               {/* Feedback */}
               <div className="space-y-2">
                 <SectionLabel>AI Feedback</SectionLabel>
-                <div className="text-sm bg-muted/20 rounded-xl border border-border/30 px-3 py-2.5">
+                <div className="text-sm bg-muted/20 rounded-md border border-border/30 px-3 py-2.5">
                   <MarkdownMath content={item.markResponse.feedbackMarkdown} />
                 </div>
               </div>
@@ -527,23 +539,23 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-3 justify-between rounded-xl border px-3 py-2.5 text-sm transition-colors ${isFullMarks
-                          ? "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20"
-                          : "border-border/30 bg-card"
+                      className={`flex gap-3 justify-between rounded-md border px-3 py-2.5 text-sm transition-colors ${isFullMarks
+                        ? "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+                        : "border-border/30 bg-card"
                         }`}
                     >
                       <div className="flex-1 space-y-1.5 min-w-0">
                         <MarkdownMath content={criterion.criterion} />
                         {criterion.rationale?.trim() && (
-                          <div className="rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
+                          <div className="rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
                             <MarkdownMath content={criterion.rationale} />
                           </div>
                         )}
                       </div>
                       <span
                         className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-md ${isFullMarks
-                            ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300"
-                            : "bg-muted text-muted-foreground"
+                          ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300"
+                          : "bg-muted text-muted-foreground"
                           }`}
                       >
                         {criterion.achievedMarks}/{criterion.maxMarks}
@@ -659,6 +671,15 @@ export function HistoryView() {
   const handleSubjectBadgeClick = useCallback((subject: string | null) => {
     setSubjectFilter((cur) => (cur === subject ? null : subject));
   }, []);
+
+  // Virtualizer setup
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredHistory.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 140,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
     setExpandedEntryKeys((cur) => {
@@ -797,8 +818,8 @@ export function HistoryView() {
             type="button"
             onClick={() => setShowFilters((p) => !p)}
             className={`flex items-center gap-1.5 px-3 h-9 rounded-lg border text-sm font-medium transition-all ${showFilters || hasActiveFilters
-                ? "bg-primary/10 border-primary/30 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              ? "bg-primary/10 border-primary/30 text-primary"
+              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
               }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -836,8 +857,8 @@ export function HistoryView() {
                     type="button"
                     onClick={() => setModeFilter(mode)}
                     className={`px-3 py-1.5 text-xs rounded-md font-medium transition-all duration-150 ${modeFilter === mode
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       }`}
                   >
                     {mode === "all" ? "All" : mode === "written" ? "Written" : "Multiple Choice"}
@@ -854,8 +875,8 @@ export function HistoryView() {
                   type="button"
                   onClick={() => handleSubjectBadgeClick(null)}
                   className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-all ${activeSubject === null
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                     }`}
                 >
                   All topics
@@ -866,8 +887,8 @@ export function HistoryView() {
                     type="button"
                     onClick={() => handleSubjectBadgeClick(subject)}
                     className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-all ${activeSubject === subject
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
                       }`}
                   >
                     {subject} <span className="opacity-60">({subjectCounts.get(subject) ?? 0})</span>
@@ -914,24 +935,52 @@ export function HistoryView() {
         </div>
       )}
 
-      {/* ── Entry list ── */}
-      <ScrollArea className="flex-1 pr-1">
-        <div className="space-y-3 pb-8">
-          {filteredHistory.map((item) => {
-            const entryKey = `${item.kind}-${item.id}`;
-            return (
-              <div key={entryKey}>
-                <HistoryEntryCard
-                  item={item}
-                  isExpanded={expandedEntryKeys.has(entryKey)}
-                  onToggle={toggleCallbacks.get(entryKey)!}
-                  onDelete={deleteCallbacks.get(entryKey)!}
-                />
-              </div>
-            );
-          })}
+      {/* ── Entry list (virtualized) ── */}
+      <div className="flex-1 pr-1" style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div
+          ref={parentRef}
+          style={{
+            height: '100%',
+            overflow: 'auto',
+            flex: 1,
+          }}
+        >
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = filteredHistory[virtualRow.index];
+              const entryKey = `${item.kind}-${item.id}`;
+              return (
+                <div
+                  key={entryKey}
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <HistoryEntryCard
+                    item={item}
+                    isExpanded={expandedEntryKeys.has(entryKey)}
+                    onToggle={toggleCallbacks.get(entryKey)!}
+                    onDelete={deleteCallbacks.get(entryKey)!}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* ── Modals ── */}
       <ConfirmModal

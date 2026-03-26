@@ -27,7 +27,7 @@ interface SectionLabelProps {
 export function SectionLabel({ children }: SectionLabelProps) {
   return (
     <div className="flex items-center gap-3 pt-2">
-      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+      <span className="text-[10px] font-light uppercase tracking-[0.18em] text-muted-foreground/70">
         {children}
       </span>
       <div className="flex-1 border-t border-border/40" />
@@ -66,7 +66,7 @@ export function StatCard({ label, value, subValue, icon, accentColor }: StatCard
     <div className={cn("rounded-xl border bg-muted/20 px-4 py-3 space-y-0.5", accentColor)}>
       <div className="flex items-center gap-1.5 text-muted-foreground">
         {icon && <span className="h-3 w-3">{icon}</span>}
-        <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] font-light uppercase tracking-wider">{label}</span>
       </div>
       <div className="text-xl font-black tabular-nums">{value}</div>
       {subValue && <div className="text-[11px] text-muted-foreground">{subValue}</div>}
@@ -91,7 +91,7 @@ export function EmptyState({ title, description, icon, actions, className }: Emp
         </div>
       )}
       <div>
-        <h3 className="text-lg font-bold mb-1">{title}</h3>
+        <h3 className="text-lg font-light mb-1">{title}</h3>
         <p className="text-sm text-muted-foreground max-w-xs">{description}</p>
       </div>
       {actions && <div>{actions}</div>}

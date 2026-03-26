@@ -1,16 +1,28 @@
+import { useState, useMemo } from "react";
 import { NavLink } from "react-router-dom";
-import { Sparkles, History, ChartColumnIncreasing, Settings, Bookmark, CircleX, Timer, Flame, Trophy } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Sparkles,
+  History,
+  ChartColumnIncreasing,
+  Settings,
+  Bookmark,
+  CircleX,
+  Flame,
+  Trophy,
+  ChevronLeft,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store";
-import { useMemo } from "react";
 
 export function Sidebar() {
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
 
   const todayCompletions = useMemo(() => {
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+    const today = new Date().toLocaleDateString('en-CA');
     return streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
   }, [streakData.dailyCompletions]);
 
@@ -18,80 +30,171 @@ export function Sidebar() {
     ? Math.min(100, (todayCompletions.total / studyGoals.dailyQuestionGoal) * 100)
     : 0;
 
-  const links = [
+  const topLinks = [
     { to: "/", label: "Generator", icon: Sparkles },
-    { to: "/exam", label: "Exam Sim", icon: Timer },
     { to: "/history", label: "History", icon: History },
     { to: "/exam-history", label: "Exam History", icon: Trophy },
     { to: "/analytics", label: "Analytics", icon: ChartColumnIncreasing },
     { to: "/mistakes", label: "Mistakes", icon: CircleX },
     { to: "/saved", label: "Saved", icon: Bookmark },
-    { to: "/settings", label: "Settings", icon: Settings },
   ];
 
-  return (
-    <aside className={cn(
-      "flex flex-col font-medium min-h-full border-r border-border/80 backdrop-blur-md transition-all",
-      isAndroid 
-        ? "w-[3.4rem] pt-[0.9rem] pb-[max(0.85rem,env(safe-area-inset-bottom,0px))]" 
-        : "pt-[1.35rem] pb-4 w-56 max-[1100px]:w-[10.5rem]"
-    )}>
-      <nav className={cn(
-        "flex-1 space-y-1 sm:px-3 grid content-start gap-[0.35rem]",
-        isAndroid && "justify-items-center px-[0.35rem] sm:px-[0.35rem]"
-      )}>
-        {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            aria-label={link.label}
-            title={link.label}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 rounded-xl transition-all duration-200 hover:translate-x-px",
-                isAndroid 
-                  ? "w-[2.5rem] min-h-[2.5rem] justify-center px-0" 
-                  : "px-3 py-3 min-h-[3rem]",
-                isActive
-                  ? "bg-primary/15 text-foreground ring-1 ring-inset ring-primary/20"
-                  : "text-muted-foreground hover:bg-muted/50"
-              )
-            }
+  const renderLink = (link: typeof topLinks[0]) => (
+    <NavLink
+      key={link.to}
+      to={link.to}
+      aria-label={link.label}
+      title={isCollapsed ? link.label : ""}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center gap-3 rounded-xl transition-colors relative group",
+          isCollapsed || isAndroid
+            ? "w-10 h-10 justify-center px-0 mx-auto"
+            : "px-3 py-2.5 min-h-[2.8rem]",
+          isActive
+            ? "bg-primary/15 text-primary"
+            : "text-muted-foreground hover:bg-muted/50"
+        )
+      }
+    >
+      <link.icon className="h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+      <AnimatePresence mode="wait">
+        {!isCollapsed && !isAndroid && (
+          <motion.span
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-light"
           >
-            <link.icon className="h-5 w-5 shrink-0" />
-            {!isAndroid && <span className="overflow-hidden text-ellipsis whitespace-nowrap">{link.label}</span>}
-          </NavLink>
-        ))}
+            {link.label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </NavLink>
+  );
+
+  return (
+    <motion.aside
+      initial={false}
+      animate={{ width: isAndroid ? "3.4rem" : isCollapsed ? "4rem" : "15rem" }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="flex flex-col h-full border-r border-border/60 bg-background/50 backdrop-blur-xl relative"
+    >
+      {/* Allow expand/collapse on all platforms, including Android */}
+      <div className="p-4 flex items-center justify-center">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex items-center justify-center w-full gap-2 p-2 rounded-lg hover:bg-muted/80 text-muted-foreground transition-all border border-transparent hover:border-border/50 group"
+        >
+          <motion.div
+            animate={{ rotate: isCollapsed ? 180 : 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </motion.div>
+          {!isCollapsed && (
+            <motion.span
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: "auto" }}
+              exit={{ opacity: 0, width: 0 }}
+              className="text-xs font-bold uppercase tracking-widest overflow-hidden"
+            >
+              Collapse
+            </motion.span>
+          )}
+        </button>
+      </div>
+
+      <nav className="flex-1 px-3 space-y-1 mt-2 overflow-y-auto no-scrollbar">
+        {topLinks.map(renderLink)}
       </nav>
 
-      {/* Streak & daily progress */}
-      {!isAndroid && (
-        <div className="mx-3 mt-auto pt-3 border-t border-border/40 space-y-2">
-          {streakData.currentStreak > 0 && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5">
-              <Flame className="w-4 h-4 text-amber-500" />
-              <div>
-                <p className="text-xs font-bold text-amber-600 dark:text-amber-400">{streakData.currentStreak} day streak</p>
-                <p className="text-[10px] text-muted-foreground">Best: {streakData.longestStreak} days</p>
-              </div>
-            </div>
+      <div className={cn(
+        "mt-auto pt-4 border-t border-border/40 space-y-4 pb-[env(safe-area-inset-bottom,1rem)]",
+        (isCollapsed || isAndroid) ? "px-1" : "px-3"
+      )}>
+        <AnimatePresence>
+          {!isAndroid && !isCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="space-y-4 px-1"
+            >
+              {streakData.currentStreak > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-linear-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 shadow-sm">
+                  <Flame className="w-4 h-4 text-amber-500 animate-pulse" />
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                    {streakData.currentStreak} day streak
+                  </span>
+                </div>
+              )}
+
+              {studyGoals.dailyQuestionGoal > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Daily Goal</p>
+                    <p className="text-[10px] font-bold tabular-nums">{todayCompletions.total}/{studyGoals.dailyQuestionGoal}</p>
+                  </div>
+                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${dailyProgress}%` }}
+                      className={cn(
+                        "h-full rounded-full",
+                        dailyProgress >= 100 ? "bg-emerald-500" : "bg-primary"
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {studyGoals.dailyMcGoal > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">MC Goal</p>
+                    <p className="text-[10px] font-bold tabular-nums">{todayCompletions.mc}/{studyGoals.dailyMcGoal}</p>
+                  </div>
+                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (todayCompletions.mc / studyGoals.dailyMcGoal) * 100)}%` }}
+                      className={cn(
+                        "h-full rounded-full",
+                        todayCompletions.mc >= studyGoals.dailyMcGoal ? "bg-violet-500" : "bg-primary"
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {studyGoals.dailyWrittenGoal > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Written Goal</p>
+                    <p className="text-[10px] font-bold tabular-nums">{todayCompletions.written}/{studyGoals.dailyWrittenGoal}</p>
+                  </div>
+                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (todayCompletions.written / studyGoals.dailyWrittenGoal) * 100)}%` }}
+                      className={cn(
+                        "h-full rounded-full",
+                        todayCompletions.written >= studyGoals.dailyWrittenGoal ? "bg-blue-500" : "bg-primary"
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
+            </motion.div>
           )}
-          {studyGoals.dailyQuestionGoal > 0 && (
-            <div className="px-3 py-2">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] font-semibold text-muted-foreground">Daily goal</p>
-                <p className="text-[10px] font-bold tabular-nums">{todayCompletions.total}/{studyGoals.dailyQuestionGoal}</p>
-              </div>
-              <div className="h-1.5 w-full bg-muted/40 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${dailyProgress >= 100 ? "bg-emerald-500" : "bg-primary/70"}`}
-                  style={{ width: `${dailyProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
+        </AnimatePresence>
+
+        <div className="pb-2">
+          {renderLink({ to: "/settings", label: "Settings", icon: Settings })}
         </div>
-      )}
-    </aside>
+      </div>
+    </motion.aside>
   );
 }

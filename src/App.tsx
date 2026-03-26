@@ -13,7 +13,6 @@ const SavedView = lazy(() => import("./views/SavedView").then((m) => ({ default:
 const SettingsView = lazy(() => import("./views/SettingsView").then((m) => ({ default: m.SettingsView })));
 const ExamHistoryView = lazy(() => import("./views/ExamHistoryView"));
 const WrongQuestionView = lazy(() => import("./views/WrongQuestionView"));
-const ExamSimulationView = lazy(() => import("./views/ExamSimulationView"));
 
 function RouteFallback() {
   return (
@@ -50,7 +49,6 @@ function AppRoutes() {
               <Route path="exam-history" element={<ExamHistoryView />} />
               <Route path="analytics" element={<AnalyticsView />} />
               <Route path="mistakes" element={<WrongQuestionView />} />
-              <Route path="exam" element={<ExamSimulationView />} />
               <Route path="saved" element={<SavedView />} />
               <Route path="settings" element={<SettingsView />} />
             </Route>

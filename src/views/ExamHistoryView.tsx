@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Trophy, Clock, Target, BookOpen, ChevronDown, ChevronUp,
   Trash2, BarChart2, CheckCircle2, XCircle, Calendar,
@@ -13,6 +13,7 @@ import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { EmptyState } from "../components/EmptyState";
 import { ExamRecord } from "../types";
 import { PageContainer, PageHeader, StatCard, FilterGroup, FilterButton } from "@/components/layout/primitives";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -78,7 +79,7 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
   const pct = record.totalMax > 0 ? (record.totalScore / record.totalMax) * 100 : 0;
 
   return (
-    <div className={`rounded-xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-md ${isExpanded ? "border-primary/20 shadow-md" : "border-border/50 shadow-sm"}`}>
+    <div className={`rounded-xl border bg-muted/30 dark:bg-muted/20 overflow-hidden transition-all duration-200 hover:shadow-md ${isExpanded ? "border-primary/20 shadow-md" : "border-border/50 shadow-sm"}`}>
       {/* Header */}
       <button
         type="button"
@@ -88,20 +89,20 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
         <div className="relative shrink-0">
           <ScoreRing pct={pct} size={56} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-sm font-black tabular-nums ${scoreColor(pct)}`}>{Math.round(pct)}%</span>
+            <span className={`text-sm font-light tabular-nums ${scoreColor(pct)}`}>{Math.round(pct)}%</span>
           </div>
         </div>
 
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-bold text-base leading-tight">{record.topic}</span>
-            <Badge variant="outline" className={`text-[10px] font-bold px-1.5 py-0 h-4 ${isWritten
+            <span className="font-light text-base leading-tight">{record.topic}</span>
+            <Badge variant="outline" className={`text-[10px] font-light px-1.5 py-0 h-4 ${isWritten
               ? "border-sky-400/40 text-sky-600 dark:text-sky-400"
               : "border-violet-400/40 text-violet-600 dark:text-violet-400"
             }`}>
               {isWritten ? <><BookOpen className="w-2.5 h-2.5 mr-0.5" />Written</> : <><Target className="w-2.5 h-2.5 mr-0.5" />MC</>}
             </Badge>
-            <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-4 text-muted-foreground">
+            <Badge variant="outline" className="text-[10px] font-light px-1.5 py-0 h-4 text-muted-foreground">
               {record.difficulty}
             </Badge>
           </div>
@@ -115,14 +116,14 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />{formatTime(record.timeUsedSeconds)}
             </span>
-            <span className={`font-semibold ${scoreColor(pct)}`}>
+            <span className={`font-light ${scoreColor(pct)}`}>
               {record.totalScore}/{record.totalMax} {isWritten ? "marks" : "correct"}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <div className={`text-xs font-bold px-2.5 py-1 rounded-full border ${scoreBg(pct)}`}>
+          <div className={`text-xs font-light px-2.5 py-1 rounded-full border ${scoreBg(pct)}`}>
             {pct >= 80 ? "Excellent" : pct >= 60 ? "Good" : pct >= 40 ? "Fair" : "Keep Practicing"}
           </div>
           <div className="text-muted-foreground group-hover:text-foreground transition-colors">
@@ -146,17 +147,17 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
             <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <BarChart2 className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Score</span>
+                <span className="text-[10px] font-light uppercase tracking-wider">Score</span>
               </div>
-              <div className={`text-xl font-black tabular-nums ${scoreColor(pct)}`}>{Math.round(pct)}%</div>
+              <div className={`text-xl font-light tabular-nums ${scoreColor(pct)}`}>{Math.round(pct)}%</div>
               <div className="text-[11px] text-muted-foreground">{record.totalScore}/{record.totalMax}</div>
             </div>
             <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Time</span>
+                <span className="text-[10px] font-light uppercase tracking-wider">Time</span>
               </div>
-              <div className="text-xl font-black tabular-nums">{formatTime(record.timeUsedSeconds)}</div>
+              <div className="text-xl font-light tabular-nums">{formatTime(record.timeUsedSeconds)}</div>
               <div className="text-[11px] text-muted-foreground">
                 {record.questionCount > 0 ? `~${formatTime(Math.round(record.timeUsedSeconds / record.questionCount))}/q` : ""}
               </div>
@@ -164,9 +165,9 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
             <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Target className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Accuracy</span>
+                <span className="text-[10px] font-light uppercase tracking-wider">Accuracy</span>
               </div>
-              <div className={`text-xl font-black tabular-nums ${scoreColor(pct)}`}>
+              <div className={`text-xl font-light tabular-nums ${scoreColor(pct)}`}>
                 {record.totalScore}/{record.totalMax}
               </div>
               <div className="text-[11px] text-muted-foreground capitalize">{record.difficulty}</div>
@@ -174,16 +175,16 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
             <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Zap className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Mode</span>
+                <span className="text-[10px] font-light uppercase tracking-wider">Mode</span>
               </div>
-              <div className="text-xl font-black">{record.techMode === "tech-free" ? "No CAS" : record.techMode === "tech-active" ? "CAS" : "Mixed"}</div>
+              <div className="text-xl font-light">{record.techMode === "tech-free" ? "No CAS" : record.techMode === "tech-active" ? "CAS" : "Mixed"}</div>
               <div className="text-[11px] text-muted-foreground">{record.questionCount} questions</div>
             </div>
           </div>
 
           {/* Question breakdown */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-2">Question Results</p>
+            <p className="text-[10px] font-light uppercase tracking-wider text-muted-foreground/60 mb-2">Question Results</p>
             <div className="rounded-xl border border-border/40 divide-y divide-border/30 overflow-hidden">
               {record.questionResults.map((qr, i) => {
                 const qPct = qr.maxMarks > 0 ? (qr.achievedMarks / qr.maxMarks) * 100 : (qr.correct ? 100 : 0);
@@ -199,7 +200,7 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
                     <div className="shrink-0 flex items-center gap-2">
                       {isWritten ? (
                         <>
-                          <span className={`text-xs font-bold tabular-nums px-1.5 py-0.5 rounded-md ${qPct >= 100 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" : qPct >= 50 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700" : "bg-rose-100 dark:bg-rose-900/40 text-rose-600"}`}>
+                          <span className={`text-xs font-light tabular-nums px-1.5 py-0.5 rounded-md ${qPct >= 100 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300" : qPct >= 50 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700" : "bg-rose-100 dark:bg-rose-900/40 text-rose-600"}`}>
                             {qr.achievedMarks}/{qr.maxMarks}
                           </span>
                           {qPct >= 100 ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-rose-500" />}
@@ -207,7 +208,7 @@ function ExamRecordCard({ record, isExpanded, onToggle, onDelete }: {
                       ) : (
                         <>
                           {qr.selectedAnswer && (
-                            <span className={`text-[11px] font-mono font-bold px-1.5 py-0.5 rounded ${qr.correct ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700" : "bg-rose-100 dark:bg-rose-900/40 text-rose-600"}`}>
+                            <span className={`text-[11px] font-mono font-light px-1.5 py-0.5 rounded ${qr.correct ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700" : "bg-rose-100 dark:bg-rose-900/40 text-rose-600"}`}>
                               {qr.correct ? "" : `${qr.selectedAnswer}→`}{qr.correctAnswer}
                             </span>
                           )}
@@ -232,10 +233,19 @@ export default function ExamHistoryView() {
   const deleteExamRecord = useAppStore((s) => s.deleteExamRecord);
   const clearExamHistory = useAppStore((s) => s.clearExamHistory);
 
+
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [modeFilter, setModeFilter] = useState<"all" | "written" | "mc">("all");
+
+
+
+  // Virtualizer setup (must be after filtered)
+  const parentRef = useRef<HTMLDivElement>(null);
+  // rowVirtualizer must be declared after filtered
+
+
 
   const filtered = useMemo(() => {
     let list = [...examHistory].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -243,6 +253,13 @@ export default function ExamHistoryView() {
     if (modeFilter === "mc") list = list.filter(r => r.questionMode !== "written");
     return list;
   }, [examHistory, modeFilter]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 120,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
 
   const stats = useMemo(() => {
     if (examHistory.length === 0) return null;
@@ -263,9 +280,9 @@ export default function ExamHistoryView() {
         description="Complete an Exam Simulation to see your results recorded here."
         icon={Trophy}
         actions={
-          <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/exam")}>
+          <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/")}>
             <PlusCircle className="h-4 w-4" />
-            Start your first exam
+            Start your first exam set
           </Button>
         }
       />
@@ -310,24 +327,57 @@ export default function ExamHistoryView() {
         </FilterGroup>
       </div>
 
-      {/* List */}
-      <div className="flex-1 space-y-3 pb-8">
+      {/* List (virtualized) */}
+      <div className="flex-1 pr-1" style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No exams match this filter.</p>
         ) : (
-          filtered.map((record) => (
-            <ExamRecordCard
-              key={record.id}
-              record={record}
-              isExpanded={expandedIds.has(record.id)}
-              onToggle={() => setExpandedIds(prev => {
-                const next = new Set(prev);
-                next.has(record.id) ? next.delete(record.id) : next.add(record.id);
-                return next;
+          <div
+            ref={parentRef}
+            style={{
+              height: '100%',
+              overflow: 'auto',
+              flex: 1,
+            }}
+          >
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const record = filtered[virtualRow.index];
+                return (
+                  <div
+                    key={record.id}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                      paddingBottom: 12,
+                    }}
+                  >
+                    <ExamRecordCard
+                      record={record}
+                      isExpanded={expandedIds.has(record.id)}
+                      onToggle={() => setExpandedIds(prev => {
+                        const next = new Set(prev);
+                        next.has(record.id) ? next.delete(record.id) : next.add(record.id);
+                        return next;
+                      })}
+                      onDelete={() => setDeleteId(record.id)}
+                    />
+                  </div>
+                );
               })}
-              onDelete={() => setDeleteId(record.id)}
-            />
-          ))
+            </div>
+          </div>
         )}
       </div>
 
