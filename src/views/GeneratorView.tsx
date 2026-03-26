@@ -163,6 +163,8 @@ export function GeneratorView() {
   const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<Record<string, number>>({});
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
+  const [writtenPausedAtByQuestionId, setWrittenPausedAtByQuestionId] = useState<Record<string, number>>({});
+  const [mcPausedAtByQuestionId, setMcPausedAtByQuestionId] = useState<Record<string, number>>({});
 
   // Per-topic batch progress — drives the multi-topic timeline in SetupPanel.
   // Empty when only one topic is selected (single-call path shows normal timeline).
@@ -381,10 +383,11 @@ export function GeneratorView() {
     if (generationMode !== "exam") return;
     if (!generationStartedAt) return;
     if (showCompletionScreen || isSetComplete) return;
+    if (sessionFinishedAt !== null) return;
     if (remainingSeconds > 0) return;
     setSessionFinishedAt(Date.now());
     setShowCompletionScreen(true);
-  }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, showCompletionScreen]);
+  }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, sessionFinishedAt, showCompletionScreen]);
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -410,11 +413,24 @@ export function GeneratorView() {
     lastMcCompletedCountRef.current = mcCompletedCount;
   }, [activeMcSavedSetId, mcCompletedCount, mcQuestions.length, questionMode, saveCurrentSet]);
 
+  function getPausedTotalAt(timeMs: number) {
+    if (!generationStartedAt) return 0;
+    let total = pausedDuration;
+    if (isPaused && pauseStartedAtRef.current) {
+      total += Math.max(0, timeMs - pauseStartedAtRef.current);
+    }
+    return total;
+  }
+
   useEffect(() => {
     if (!activeQuestion) return;
     setWrittenQuestionPresentedAtById((prev) => {
       if (prev[activeQuestion.id] !== undefined) return prev;
       return { ...prev, [activeQuestion.id]: Date.now() };
+    });
+    setWrittenPausedAtByQuestionId((prev) => {
+      if (prev[activeQuestion.id] !== undefined) return prev;
+      return { ...prev, [activeQuestion.id]: getPausedTotalAt(Date.now()) };
     });
   }, [activeQuestion, setWrittenQuestionPresentedAtById]);
 
@@ -423,6 +439,10 @@ export function GeneratorView() {
     setMcQuestionPresentedAtById((prev) => {
       if (prev[activeMcQuestion.id] !== undefined) return prev;
       return { ...prev, [activeMcQuestion.id]: Date.now() };
+    });
+    setMcPausedAtByQuestionId((prev) => {
+      if (prev[activeMcQuestion.id] !== undefined) return prev;
+      return { ...prev, [activeMcQuestion.id]: getPausedTotalAt(Date.now()) };
     });
   }, [activeMcQuestion, setMcQuestionPresentedAtById]);
  
@@ -612,6 +632,7 @@ useEffect(() => {
       setMarkAppealByQuestionId((p) => removeKey(p, id));
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
+      setWrittenPausedAtByQuestionId((p) => removeKey(p, id));
       setErrorMessage(null);
     }
     if (pendingCancelType === "mc" && activeMcQuestion) {
@@ -626,6 +647,7 @@ useEffect(() => {
       setMcMarkAppealByQuestionId((p) => removeKey(p, id));
       setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
+      setMcPausedAtByQuestionId((p) => removeKey(p, id));
       setErrorMessage(null);
     }
     setPendingCancelType(null);
@@ -708,7 +730,9 @@ useEffect(() => {
   function appendMcHistoryEntry(question: typeof activeMcQuestion, selectedAnswer: string, awardedMarks: number, attemptKind: McAttemptKind, responseEnteredAtMs?: number) {
     if (!question) return;
     const questionStartedAt = mcQuestionPresentedAtById[question.id];
+    const pausedAtStart = mcPausedAtByQuestionId[question.id] ?? 0;
     const responseAt = responseEnteredAtMs ?? Date.now();
+    const pausedAtResponse = getPausedTotalAt(responseAt);
     const now = Date.now();
     const entry: McHistoryEntry = {
       type: "multiple-choice", id: generateEntryId(), createdAt: new Date(now).toISOString(), lastModified: now,
@@ -717,7 +741,9 @@ useEffect(() => {
       analytics: {
         attemptKind, attemptSequence: getMcAttemptSequence(question.id),
         answerCharacterCount: 0, answerWordCount: 0, usedImageUpload: false,
-        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt) ? Math.max(0, responseAt - questionStartedAt) : undefined,
+        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt)
+          ? Math.max(0, responseAt - questionStartedAt - Math.max(0, pausedAtResponse - pausedAtStart))
+          : undefined,
         finalAnswerChangedAtMs: responseAt,
       },
     };
@@ -753,6 +779,8 @@ useEffect(() => {
     const uploadedAnswer = options?.uploadedAnswerOverride ?? (answersByQuestionId[question.id] ?? "");
     const questionStartedAt = writtenQuestionPresentedAtById[question.id];
     const responseAt = options?.responseEnteredAtMs ?? writtenResponseEnteredAtById[question.id] ?? Date.now();
+    const pausedAtStart = writtenPausedAtByQuestionId[question.id] ?? 0;
+    const pausedAtResponse = getPausedTotalAt(responseAt);
     const now = Date.now();
     const entry: QuestionHistoryEntry = {
       id: generateEntryId(), createdAt: new Date(now).toISOString(), lastModified: now,
@@ -763,7 +791,9 @@ useEffect(() => {
         attemptKind: options?.attemptKind ?? "initial", attemptSequence: getWrittenAttemptSequence(question.id),
         answerCharacterCount: uploadedAnswer.length, answerWordCount: countWords(uploadedAnswer),
         usedImageUpload: Boolean(imagesByQuestionId[question.id]),
-        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt) ? Math.max(0, responseAt - questionStartedAt) : undefined,
+        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt)
+          ? Math.max(0, responseAt - questionStartedAt - Math.max(0, pausedAtResponse - pausedAtStart))
+          : undefined,
         markingLatencyMs: options?.markingLatencyMs,
       },
     };
@@ -945,6 +975,7 @@ useEffect(() => {
       setActiveWrittenSavedSetId(null);
       setLastSavedAt(null);
       setWrittenQuestionPresentedAtById({});
+      setWrittenPausedAtByQuestionId({});
       setWrittenResponseEnteredAtById({});
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
@@ -1090,6 +1121,7 @@ useEffect(() => {
       setActiveMcSavedSetId(null);
       setLastSavedAt(null);
       setMcQuestionPresentedAtById({});
+      setMcPausedAtByQuestionId({});
       setMcAnswersByQuestionId({});
       setMcMarkAppealByQuestionId({});
       setMcMarkOverrideInputByQuestionId({});
@@ -1258,11 +1290,11 @@ useEffect(() => {
     setGenerationStatus(null); // Reset status so summary shows
     setGenerationStartedAt(null);
     setQuestions([]); setWrittenRawModelOutput(""); setWrittenGenerationTelemetry(null); setShowWrittenRawOutput(false);
-    setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null); setWrittenQuestionPresentedAtById({});
+    setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null); setWrittenQuestionPresentedAtById({}); setWrittenPausedAtByQuestionId({});
     setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
     setWrittenResponseEnteredAtById({}); setMarkAppealByQuestionId({}); setMarkOverrideInputByQuestionId({});
     setMcQuestions([]); setMcRawModelOutput(""); setMcGenerationTelemetry(null); setShowMcRawOutput(false);
-    setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({});
+    setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({}); setMcPausedAtByQuestionId({});
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
     setExamRecordSaved(false);
   }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);
