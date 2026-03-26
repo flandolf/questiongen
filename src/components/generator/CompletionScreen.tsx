@@ -19,6 +19,7 @@ import { useAnalyticsData, percent } from "@/views/useAnalyticsData";
 import { useWrittenSession, useMultipleChoiceSession } from "@/AppContext";
 import { AccuracyTrendChart } from "./AccuracyTrendChart";
 import { formatDurationMs } from "@/lib/app-utils";
+import { MarkdownMath } from "../MarkdownMath";
 
 type CompletionScreenProps = {
   questionMode: QuestionMode;
@@ -263,7 +264,7 @@ export function CompletionScreen({
   }, [questionMode, writtenResults, mcResults]);
 
   return (
-    <Card className="border shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <Card className="border shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 m-2">
 
       {/* ── Header ── */}
       <CardHeader className="border-b px-5 py-3">
@@ -455,7 +456,7 @@ export function CompletionScreen({
                   <div key={i} className={`flex items-start gap-3 rounded-xl border px-3.5 py-2.5 ${bg} border-transparent`}>
                     <AlertTriangle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${text}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">{c.criterion}</p>
+                      <p className="text-xs font-medium text-foreground leading-snug line-clamp-2"><MarkdownMath content={c.criterion} /></p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <MiniBar pct={c.successPct} />
                         <span className={`text-[11px] font-bold tabular-nums shrink-0 ${text}`}>

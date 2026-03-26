@@ -669,6 +669,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const entry = get().savedSets.find((c) => c.id === savedSetId);
     if (!entry) return;
 
+    // Reset updatedAt timestamp on load so it moves to top of "Last saved" sort
+    const now = new Date().toISOString();
+
     // Timer state: resume from saved session start time
     let generationStartedAt: number | null = null;
     if (entry.questionMode === "written" && entry.writtenSession) {
@@ -679,8 +682,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       generationStartedAt = presented && Object.values(presented).length > 0 ? Math.min(...Object.values(presented)) : Date.now();
     }
 
+    // Update the saved set's updatedAt in the store for persistence
+    const updatedSets = get().savedSets.map((ss) =>
+      ss.id === savedSetId ? { ...ss, updatedAt: now } : ss
+    );
+
     startTransition(() => {
       set({
+        savedSets: updatedSets,
         selectedTopics: entry.preferences.selectedTopics,
         difficulty: entry.preferences.difficulty,
         techMode: entry.preferences.techMode,
