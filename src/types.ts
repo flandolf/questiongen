@@ -640,6 +640,8 @@ QUESTION DESIGN GUIDANCE
 - Lever questions should include a description; ask for class
   identification, component labelling, MA calculation, and advantage/disadvantage.
 - Avoid purely definitional questions — all questions must require application to sport.
+- Avoid pure calculations. Questions can refer to formulas, but should focus on conceptual understanding and application rather than numerical computation.
+- Formulas taught in VCAA are F = ma, M = mv, I = F·Δt, and MA = effort arm / resistance arm. Do not introduce additional formulas or require algebraic manipulation of formulas in questions.
 `,
 
   "Movement Analysis: Qualitative Analysis and Equilibrium in Sport": `
