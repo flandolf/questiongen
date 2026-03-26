@@ -11,6 +11,7 @@ import {
   Settings, Key, Cpu, CreditCard, Palette, ChevronRight, CheckCircle2,
   AlertCircle, Search, Image, X, ArrowUpDown, ArrowUp, ArrowDown,
   ShieldAlert, TrendingUp, Calendar, BarChart2, Cloud, CloudOff, Loader2,
+  File,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Slider } from "@/components/ui/slider";
@@ -32,6 +33,7 @@ interface ModelStats {
   latencyP50: number | null;
   uptimeLast30m: number | null;
   supportsImages: boolean | null;
+  supportsFiles: boolean | null;
 }
 
 interface CreditsInfo {
@@ -68,17 +70,17 @@ type ImageValidationState =
 
 const PRESET_MODELS = [
   { id: "google/gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite" },
+  { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash" },
   { id: "google/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
+  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
   { id: "x-ai/grok-4.1-fast", name: "Grok 4.1 Fast" },
   { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
   { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
-  { id: "inception/mercury-2", name: "Mercury 2" },
   { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5" },
   { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
   { id: "qwen/qwen3.5-flash-02-23", name: "Qwen 3.5 Flash" },
-  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
   { id: "arcee-ai/trinity-large-preview:free", name: "Trinity Large (Preview)" },
   { id: "arcee-ai/trinity-mini:free", name: "Trinity Mini" },
   { id: "arcee-ai/trinity-mini", name: "Trinity Mini (Paid)" },
@@ -447,6 +449,7 @@ const STAT_ROWS: { icon: React.ReactNode; label: string; get: (s: ModelStats) =>
   { icon: <Clock className="h-3.5 w-3.5" />, label: "Uptime (30 m)", get: s => fmt.uptime(s.uptimeLast30m) },
   { icon: <Settings className="h-3.5 w-3.5" />, label: "Structured output", get: s => s.supportsStructuredOutput },
   { icon: <Image className="h-3.5 w-3.5" />, label: "Vision / images", get: s => s.supportsImages ?? null },
+  { icon: <File className="h-3.5 w-3.5" />, label: "Files / documents", get: s => s.supportsFiles ?? null },
 ];
 
 interface StatsColumn { stats: ModelStats | null; label: string; loading: boolean; }
@@ -1198,6 +1201,7 @@ export function SettingsView() {
     clearApiKey, showApiKey, setShowApiKey,
     debugMode, setDebugMode,
     questionTextSize, setQuestionTextSize,
+    includeExamContext, setIncludeExamContext,
   } = useAppSettings();
 
   const { questionHistory } = useWrittenSession();
@@ -1385,6 +1389,34 @@ export function SettingsView() {
                   id="custom-model-id" label="Custom Model ID" value={customId} onChange={setCustomId}
                   onApply={() => { setLocalModel(customId.trim()); setShowCustom(false); }}
                 />
+              )}
+            </section>
+
+            <Divider />
+
+            <section className="space-y-3">
+              <SectionHeader
+                title="Exam Context"
+                description="Include exam PDF files as context when generating questions."
+              />
+              <ToggleRow
+                id="include-exam-context"
+                checked={includeExamContext}
+                onChange={setIncludeExamContext}
+                label="Include exam PDFs in prompts"
+                description="When enabled, exam files from the exams/ folder will be sent to the LLM to inform question generation."
+              />
+              {includeExamContext && (
+                <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">Available exam files:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["MathMethods1", "MathMethods2", "SpecialistMaths1", "SpecialistMaths2", "Chemistry", "PhysicalEducation"].map((name) => (
+                      <span key={name} className="inline-flex items-center px-2 py-0.5 rounded bg-background text-xs font-mono border border-border">
+                        2025-{name}.pdf
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
             </section>
 

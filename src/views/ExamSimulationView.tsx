@@ -26,6 +26,7 @@ import {
   History, CheckCheck,
   DollarSign, Coins,
   FunctionSquare, SigmaSquare, FlaskConical, Dumbbell,
+  FileText,
 } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/layout/primitives";
 import { CollapsibleStep, SectionDivider } from "@/components/generator/SetupPanel";
@@ -86,6 +87,28 @@ const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
   Chemistry: <FlaskConical className="w-3.5 h-3.5" />,
   "Physical Education": <Dumbbell className="w-3.5 h-3.5" />,
 };
+
+// ─── Exam PDF mapping ────────────────────────────────────────────────────────
+
+const TOPIC_EXAM_PDFS: Record<Topic, string[]> = {
+  "Mathematical Methods": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+  "Specialist Mathematics": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+  "Chemistry": ["2025-Chemistry.pdf"],
+  "Physical Education": ["2025-PhysicalEducation.pdf"],
+};
+
+function getExamPdfsForTopics(topics: Topic[]): string[] {
+  const pdfs = new Set<string>();
+  for (const topic of topics) {
+    const topicPdfs = TOPIC_EXAM_PDFS[topic];
+    if (topicPdfs) {
+      for (const pdf of topicPdfs) {
+        pdfs.add(pdf);
+      }
+    }
+  }
+  return Array.from(pdfs);
+}
 
 // ─── Generating Screen ────────────────────────────────────────────────────────
 
@@ -342,7 +365,7 @@ function FileTextIcon({ className }: { className?: string }) {
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
 
   function ExamSetup({ onStart }: { onStart: (config: ExamConfig) => void }) {
-  const { apiKey, model } = useAppSettings();
+  const { apiKey, model, includeExamContext } = useAppSettings();
   const [topic, setTopic] = useState<Topic>("Mathematical Methods");
   const generationHistory = useAppStore((s) => s.generationHistory);
   const [questionCount, setQuestionCount] = useState(5);
@@ -444,9 +467,27 @@ function FileTextIcon({ className }: { className?: string }) {
                   <span className="leading-tight">{t}</span>
                   {isSelected && <CheckCheck className="w-3.5 h-3.5 ml-auto shrink-0 opacity-80" />}
                 </button>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {includeExamContext && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+                <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                    Using exam PDF for context
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {getExamPdfsForTopics([topic]).map((pdf) => (
+                      <span key={pdf} className="inline-flex items-center px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[10px] font-mono">
+                        {pdf}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
           {availableSubtopics.length > 0 && (
             <>
@@ -1039,6 +1080,7 @@ export default function ExamSimulationView() {
   const navigate = useNavigate();
   const apiKey = useAppStore((s) => s.apiKey);
   const model = useAppStore((s) => s.model);
+  const includeExamContext = useAppStore((s) => s.includeExamContext);
   const markingModel = useAppStore((s) => s.markingModel);
   const useSeparateMarkingModel = useAppStore((s) => s.useSeparateMarkingModel);
   const isGenerating = useAppStore((s) => s.isGenerating);
@@ -1074,6 +1116,7 @@ export default function ExamSimulationView() {
           request: {
             topics: [cfg.topic], difficulty: cfg.difficulty, questionCount: cfg.questionCount,
             maxMarksPerQuestion: isMath ? 10 : undefined, model, apiKey, techMode: cfg.techMode,
+            includeExamContext,
             subtopics: cfg.selectedSubtopics, subtopicInstructions: {},
             customFocusArea: cfg.customFocusArea.trim() || undefined,
             avoidSimilarQuestions: false, priorQuestionPrompts: [],
@@ -1111,6 +1154,7 @@ export default function ExamSimulationView() {
           request: {
             topics: [cfg.topic], difficulty: cfg.difficulty, questionCount: cfg.questionCount,
             model, apiKey, techMode: cfg.techMode,
+            includeExamContext,
             subtopics: cfg.selectedSubtopics, subtopicInstructions: {},
             customFocusArea: cfg.customFocusArea.trim() || undefined,
             avoidSimilarQuestions: false, priorQuestionPrompts: [],
@@ -1146,7 +1190,7 @@ export default function ExamSimulationView() {
     } finally {
       setIsGenerating(false);
     }
-  }, [apiKey, model, setIsGenerating, setErrorMessage]);
+  }, [apiKey, model, includeExamContext, setIsGenerating, setErrorMessage]);
 
   const handleExamFinish = useCallback((answers: Record<string, string>, mcSelected: Record<string, string>, elapsed: number) => {
     setFinalAnswers(answers);

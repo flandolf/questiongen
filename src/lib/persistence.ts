@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   useSeparateImageMarkingModel: false,
   debugMode: false,
   questionTextSize: 16,
+  includeExamContext: true,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -638,19 +639,12 @@ function normalizeGenerationTelemetry(raw: unknown) {
     return null;
   }
 
-  const difficulty = asString(data.difficulty);
-  if (!difficulty) {
-    return null;
-  }
-
   return {
-    difficulty,
-    totalAttempts: clampWholeNumber(data.totalAttempts, 1, 1, 999),
-    repairAttempts: clampWholeNumber(data.repairAttempts, 0, 0, 999),
-    constrainedRegenerationUsed: Boolean(data.constrainedRegenerationUsed),
-    repairPath: Array.isArray(data.repairPath) ? data.repairPath.filter((item): item is string => typeof item === "string") : [],
     durationMs: clampWholeNumber(data.durationMs, 0, 0, Number.MAX_SAFE_INTEGER),
-    structuredOutputStatus: isStructuredOutputStatus(data.structuredOutputStatus) ? data.structuredOutputStatus : undefined,
+    promptTokens: clampWholeNumber(data.promptTokens, 0, 0, Number.MAX_SAFE_INTEGER),
+    completionTokens: clampWholeNumber(data.completionTokens, 0, 0, Number.MAX_SAFE_INTEGER),
+    totalTokens: clampWholeNumber(data.totalTokens, 0, 0, Number.MAX_SAFE_INTEGER),
+    estimatedCostUsd: asFiniteNumber(data.estimatedCostUsd),
     distinctnessAvg: asFiniteNumber(data.distinctnessAvg),
     multiStepDepthAvg: asFiniteNumber(data.multiStepDepthAvg),
   };
@@ -695,10 +689,6 @@ function normalizeAnswerAnalytics(raw: unknown): AnswerAnalytics | null {
 
 function isWrittenAttemptKind(raw: unknown): raw is WrittenAnswerAnalytics["attemptKind"] {
   return raw === "initial" || raw === "appeal" || raw === "override";
-}
-
-function isStructuredOutputStatus(raw: unknown): raw is "used" | "not-supported-fallback" | "not-requested" {
-  return raw === "used" || raw === "not-supported-fallback" || raw === "not-requested";
 }
 
 function clampIndex(raw: unknown, length: number): number {

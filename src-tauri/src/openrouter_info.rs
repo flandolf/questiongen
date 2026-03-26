@@ -23,6 +23,8 @@ pub struct ModelStats {
     pub uptime_last_30m: Option<f64>,
     /// Derived from `architecture.input_modalities` in the /api/v1/models catalogue.
     pub supports_images: bool,
+    /// Derived from `architecture.input_modalities` in the /api/v1/models catalogue.
+    pub supports_files: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -51,7 +53,9 @@ const CATALOGUE_CACHE_TTL_SECS: u64 = 60 * 30; // 30 minutes
 
 struct CatalogueCache {
     /// model_id → supports_images
-    map: HashMap<String, bool>,
+    supports_images_map: HashMap<String, bool>,
+    /// model_id → supports_files
+    supports_files_map: HashMap<String, bool>,
     fetched_at: u64,
 }
 
@@ -156,6 +160,13 @@ fn modalities_include_image(modalities: &[String]) -> bool {
         .any(|m| m.eq_ignore_ascii_case("image") || m.eq_ignore_ascii_case("vision"))
 }
 
+/// True if any of the input_modalities strings indicate file/document support.
+fn modalities_include_file(modalities: &[String]) -> bool {
+    modalities
+        .iter()
+        .any(|m| m.eq_ignore_ascii_case("file") || m.eq_ignore_ascii_case("document"))
+}
+
 fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -165,25 +176,27 @@ fn now_secs() -> u64 {
 
 // ─── Catalogue fetch / cache ──────────────────────────────────────────────────
 
-/// Look up image support for `model_id` from the in-memory catalogue cache.
+/// Look up image/file support for `model_id` from the in-memory catalogue cache.
 /// Returns `None` if the cache is absent or stale (caller should re-fetch).
-fn catalogue_lookup(api_key: &str, model_id: &str) -> Option<bool> {
+fn catalogue_lookup(api_key: &str, model_id: &str) -> Option<(bool, bool)> {
     let cache = CATALOGUE_CACHE.lock().ok()?;
     let entry = cache.get(api_key)?;
     if now_secs().saturating_sub(entry.fetched_at) > CATALOGUE_CACHE_TTL_SECS {
         return None; // stale — let caller trigger a refresh
     }
     // A missing key means the model wasn't in the catalogue (unknown → false).
-    Some(entry.map.get(model_id).copied().unwrap_or(false))
+    let supports_images = entry.supports_images_map.get(model_id).copied().unwrap_or(false);
+    let supports_files = entry.supports_files_map.get(model_id).copied().unwrap_or(false);
+    Some((supports_images, supports_files))
 }
 
-/// Fetch `GET /api/v1/models`, build a model_id → supports_images map, store
-/// it in the catalogue cache, and return the image-support value for `model_id`.
+/// Fetch `GET /api/v1/models`, build model_id → supports_images/files maps, store
+/// them in the catalogue cache, and return the support values for `model_id`.
 async fn fetch_catalogue_and_lookup(
     client: &reqwest::Client,
     api_key: &str,
     model_id: &str,
-) -> bool {
+) -> (bool, bool) {
     let url = format!("{OPENROUTER_BASE}/models");
 
     let resp = match client
@@ -193,38 +206,46 @@ async fn fetch_catalogue_and_lookup(
         .await
     {
         Ok(r) if r.status().is_success() => r,
-        _ => return false,
+        _ => return (false, false),
     };
 
     let parsed: ModelsListResponse = match resp.json().await {
         Ok(p) => p,
-        Err(_) => return false,
+        Err(_) => return (false, false),
     };
 
-    let mut map: HashMap<String, bool> = HashMap::with_capacity(parsed.data.len());
+    let mut supports_images_map: HashMap<String, bool> = HashMap::with_capacity(parsed.data.len());
+    let mut supports_files_map: HashMap<String, bool> = HashMap::with_capacity(parsed.data.len());
     for entry in &parsed.data {
-        let supports = entry
+        let modalities = entry
             .architecture
             .as_ref()
-            .and_then(|a| a.input_modalities.as_deref())
+            .and_then(|a| a.input_modalities.as_deref());
+        let supports_images = modalities
             .map(modalities_include_image)
             .unwrap_or(false);
-        map.insert(entry.id.clone(), supports);
+        let supports_files = modalities
+            .map(modalities_include_file)
+            .unwrap_or(false);
+        supports_images_map.insert(entry.id.clone(), supports_images);
+        supports_files_map.insert(entry.id.clone(), supports_files);
     }
 
-    let result = map.get(model_id).copied().unwrap_or(false);
+    let supports_images = supports_images_map.get(model_id).copied().unwrap_or(false);
+    let supports_files = supports_files_map.get(model_id).copied().unwrap_or(false);
 
     if let Ok(mut cache) = CATALOGUE_CACHE.lock() {
         cache.insert(
             api_key.to_string(),
             CatalogueCache {
-                map,
+                supports_images_map,
+                supports_files_map,
                 fetched_at: now_secs(),
             },
         );
     }
 
-    result
+    (supports_images, supports_files)
 }
 
 // ─── Tauri commands ───────────────────────────────────────────────────────────
@@ -263,30 +284,30 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
     let endpoints_url = format!("{OPENROUTER_BASE}/models/{author}/{slug}/endpoints");
     let client = reqwest::Client::new();
 
-    // ── Resolve image support ─────────────────────────────────────────────────
+    // ── Resolve image/file support ─────────────────────────────────────────────
     // Try the catalogue cache first (no I/O). On a miss, run both fetches in
     // parallel so we don't serialise two network calls.
-    let (endpoints_res, image_support) =
+    let (endpoints_res, (image_support, file_support)) =
         match catalogue_lookup(api_key.trim(), model_id.trim()) {
-            Some(cached_support) => {
+            Some((cached_images, cached_files)) => {
                 // Catalogue cache hit — only need the endpoints call.
                 let ep = client
                     .get(&endpoints_url)
                     .header(AUTHORIZATION, format!("Bearer {api_key}"))
                     .send()
                     .await;
-                (ep, cached_support)
+                (ep, (cached_images, cached_files))
             }
             None => {
                 // Catalogue cache miss — fetch both in parallel.
-                let (ep, img) = tokio::join!(
+                let (ep, (img, files)) = tokio::join!(
                     client
                         .get(&endpoints_url)
                         .header(AUTHORIZATION, format!("Bearer {api_key}"))
                         .send(),
                     fetch_catalogue_and_lookup(&client, api_key.trim(), model_id.trim()),
                 );
-                (ep, img)
+                (ep, (img, files))
             }
         };
 
@@ -365,6 +386,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         latency_p50: best_latency,
         uptime_last_30m: best_uptime,
         supports_images: image_support,
+        supports_files: file_support,
     };
 
     // ── Cache result ──────────────────────────────────────────────────────────

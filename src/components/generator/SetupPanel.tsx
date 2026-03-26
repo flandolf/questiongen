@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Pause,
   Play,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppSettings } from "@/AppContext";
@@ -78,6 +79,28 @@ const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
   Chemistry: <FlaskConical className="w-3.5 h-3.5" />,
   "Physical Education": <Dumbbell className="w-3.5 h-3.5" />,
 };
+
+// ─── Exam PDF mapping ────────────────────────────────────────────────────────
+
+const TOPIC_EXAM_PDFS: Record<Topic, string[]> = {
+  "Mathematical Methods": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+  "Specialist Mathematics": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+  "Chemistry": ["2025-Chemistry.pdf"],
+  "Physical Education": ["2025-PhysicalEducation.pdf"],
+};
+
+function getExamPdfsForTopics(topics: Topic[]): string[] {
+  const pdfs = new Set<string>();
+  for (const topic of topics) {
+    const topicPdfs = TOPIC_EXAM_PDFS[topic];
+    if (topicPdfs) {
+      for (const pdf of topicPdfs) {
+        pdfs.add(pdf);
+      }
+    }
+  }
+  return Array.from(pdfs);
+}
 
 // ─── Difficulty metadata ─────────────────────────────────────────────────────
 
@@ -567,6 +590,8 @@ type SetupPanelProps = {
   streamText?: string;
   /** Non-empty only during/after a multi-topic sequential run */
   batchProgress?: BatchTopicProgress[];
+  /** Whether exam PDF files will be included in generation prompts */
+  includeExamContext?: boolean;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -593,6 +618,7 @@ export function SetupPanel({
   lastGenerationTelemetry,
   streamText = "",
   batchProgress = [],
+  includeExamContext = false,
 }: SetupPanelProps) {
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
@@ -684,7 +710,7 @@ export function SetupPanel({
   }, [generationStatus, timelineVisible]);
 
   return (
-    <div>
+    <div className="pb-12">
       {/* ── Header ── */}
       <div className="p-6 pb-4">
         <PageHeader
@@ -752,6 +778,23 @@ export function SetupPanel({
                 );
               })}
             </div>
+            {includeExamContext && selectedTopics.length > 0 && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+                <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                    Using exam PDFs for context
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {getExamPdfsForTopics(selectedTopics).map((pdf) => (
+                      <span key={pdf} className="inline-flex items-center px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[10px] font-mono">
+                        {pdf}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {hasSubtopicSection && (
               <>
                 <SectionDivider />
