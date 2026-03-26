@@ -137,6 +137,8 @@ const SORT_OPTIONS: { key: SortKey; label: string; description: string }[] = [
   { key: "context", label: "Context", description: "Context window size" },
 ];
 
+export const APP_VERSION = "1.0.2";
+
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "api", label: "API Key", icon: <Key className="h-4 w-4" /> },
   { id: "models", label: "Models", icon: <Cpu className="h-4 w-4" /> },
@@ -2076,6 +2078,9 @@ export function SettingsView() {
             {activeSection === item.id && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-primary/60" />}
           </button>
         ))}
+        <div className="mt-auto pt-4 px-3">
+          <p className="text-[10px] text-muted-foreground/40 font-mono">v{APP_VERSION}</p>
+        </div>
       </nav>
       <main className="flex-1 min-w-0 overflow-y-auto p-8">
         <div className="max-w-screen">{renderSection()}</div>
