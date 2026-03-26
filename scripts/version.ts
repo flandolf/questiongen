@@ -30,6 +30,14 @@ function bumpVersion(current: Version, type: "major" | "minor" | "patch"): Versi
   }
 }
 
+function setVersion(version: Version): void {
+  const versionStr = formatVersion(version);
+  updatePackageJson(versionStr);
+  updateCargoToml(versionStr);
+  updateTauriConfJson(versionStr);
+  updateSettingsView(versionStr);
+}
+
 function readJson(path: string): any {
   return JSON.parse(readFileSync(path, "utf-8"));
 }
@@ -79,9 +87,6 @@ const versionStr = formatVersion(next);
 
 console.log(`Bumping version: ${formatVersion(current)} → ${versionStr}\n`);
 
-updatePackageJson(versionStr);
-updateCargoToml(versionStr);
-updateTauriConfJson(versionStr);
-updateSettingsView(versionStr);
+setVersion(next);
 
 console.log("\nVersion updated successfully.");

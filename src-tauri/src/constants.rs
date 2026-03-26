@@ -9,92 +9,68 @@ pub const CHEMISTRY_TOPIC: &str = "Chemistry";
 pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 
 /// Injected into every system prompt.
-pub const LATEX_RULES: &str = " LaTeX (mandatory): \
-(1) Wrap every math expression in delimiters — single vars ($x$), numbers ($3$), exponents ($n$). \
-(2) Inline: $...$. Display: $$...$$. \
-(3) Never use \\(...\\) or \\[...\\]. \
-(4) All subscripts, superscripts, fractions, radicals, Greek letters, vectors, operators must be inside delimiters. \
-(5) Multi-line/matrix: $$\\begin{pmatrix}...\\end{pmatrix}$$. \
-(6) Chemistry formulas: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.
-(7) Punctuation: Do NOT add commas after LaTeX expressions (e.g., write $x = 3$ not $x = 3$, or $f(x)$ not $f(x)$,). Commas belong only between natural language words.";
+pub const LATEX_RULES: &str = " LaTeX (STRICT):
+(1) ALL math expressions MUST be wrapped in delimiters: single vars ($x$), numbers ($3$), all operators.
+(2) Inline: $...$; Display: $$...$$. NEVER use \\(...\\) or \\[...\\].
+(3) Subscripts, superscripts, fractions, radicals, Greek letters, vectors, operators MUST be inside delimiters.
+(4) Multi-line/matrix: $$\\begin{pmatrix}...\\end{pmatrix}$$.
+(5) Chemistry: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.
+(6) NO commas after LaTeX: write $x = 3$ NOT $x = 3,$. Commas only between natural language words.";
 
 pub const QUESTION_STYLE_RULES: &str = "
-QUESTION STYLE RULES (mandatory): 
+QUESTION STYLE RULES (STRICT — violation produces zero marks):
 
-(1) OUTPUT FORMAT
-- Markdown is permitted for emphasis (*italic*, **bold**) and inline code, but never for structure.
-- Never use HTML tags anywhere in question text, stems, or part labels.
+(1) STRUCTURE — BREAK THESE RULES AND THE QUESTION IS INVALID
+- Multi-part format MUST be exactly: <stem>\n\n(a) <text> [X marks]\n\n(b) <text> [X marks]\n\n(c) <text> [X marks]
+- Blank lines (\n\n) are MANDATORY between stem and (a), and between every part.
+- Part labels MUST be lowercase: (a), (b), (c) ONLY — never (A), (i), or numbered.
+- Mark allocations MUST be inline as [X marks] at end of each part.
+- NO HTML tags anywhere. NO markdown for structure (only *italic*, **bold**, inline code).
 
-(2) STRUCTURAL FORMAT
-- Every multi-part question must follow this exact layout:
-    <stem>\\n\\n(a) <part text> [X marks]\\n\\n(b) <part text> [X marks]\\n\\n(c) <part text> [X marks]
-- A blank line (\\n\\n) is mandatory between the stem and part (a), and between every subsequent part.
-- Part labels must be lowercase: (a), (b), (c) — never (A), (i), or 1.
-- Mark allocations are written inline at the end of each part as [X marks], never separately.
+(2) FOCUS AREA ENFORCEMENT (HIGHEST PRIORITY)
+- When subtopics are specified, EVERY part of EVERY question MUST draw exclusively from those areas.
+- DO NOT introduce supporting concepts from outside the specified subtopics, even as scaffolding.
+- Command verbs MUST match the focus area: 'sketch' ONLY if graphing is specified; 'prove' ONLY if proof is specified.
 
-(3) FOCUS AREA DISCIPLINE
-- If focus areas are specified, every part of every question must draw exclusively from those areas.
-- Do not introduce supporting concepts from outside the focus areas, even as scaffolding steps.
-- Command verbs must match the focus area: only use 'sketch' if graphing is a focus area, \
-only use 'prove' if proof is a focus area, etc.
+(3) SCAFFOLDING (non-negotiable for ≥4 marks)
+- Earlier parts MUST produce intermediate results used in later parts.
+- Final part MUST require synthesis, justification, or non-routine application — NOT mere substitution.
+- Parts MUST strictly increase in cognitive demand: recall → method → synthesis.
+- ANY part that can be solved WITHOUT using the previous part's result invalidates the scaffolding.
 
-(4) COMMAND VERB VARIETY
-- Distribute across: find, evaluate, show that, hence, sketch, determine, prove, justify, \
-calculate, explain, describe, compare.
-- 'find' must not appear in more than one question per batch.
-- 'hence' must follow a part that produced a result directly usable in the next step.
-
-(5) SCAFFOLDING STRUCTURE
-- For questions worth ≥4 marks, earlier parts must produce intermediate results used in later parts.
-- The final part must require synthesis, justification, or a non-routine application — never mere substitution.
-- Parts must strictly increase in cognitive demand: recall → method → synthesis.
-- Never write a part that is solvable without engaging the previous part's result.
-
-(6) STIMULUS MATERIAL
-- Questions worth ≥6 marks must open with a scenario, data set, graph description, or given \
-equation that all parts draw from.
-- The stimulus must be mathematically concrete (real numbers, a defined function, a described system).
-- Do not invent abstract or physically implausible setups.
-
-(7) MARK ALLOCATION LOGIC
-- 1 mark: single recall or direct substitution.
+(4) MARK ALLOCATION (enforced strictly)
+- 1 mark: single recall or direct substitution only.
 - 2 marks: method selection + execution.
 - 3 marks: multi-step chain with all reasoning shown.
-- 4+ marks: reserved for multi-part synthesis or justification chains only.
-- Never assign 3+ marks to any question solvable in a single algebraic step.
-- Total marks per question must equal the sum of its parts — never assign marks to the stem.
+- 4+ marks: multi-part synthesis or justification chains ONLY.
+- NEVER assign 3+ marks to any question solvable in a single algebraic step.
+- Total marks = sum of part marks; stem NEVER receives marks.
 
-(8) DIFFICULTY CALIBRATION
-- The difficulty label must be reflected in cognitive demand, not topic complexity alone.
-- Easy: method is directly implied by the question; single concept; no ambiguity in approach.
-- Medium: student must select a method; at least two concepts combined; intermediate results required.
-- Hard: method is not signposted; requires non-routine setup, reversal of a standard process, \
-or identification of a constraint the question does not name explicitly.
-- A hard question on a routine topic must contain a deliberate non-routine twist. \
-If no such twist exists, downgrade the difficulty label.
+(5) DIFFICULTY (must match label, not topic)
+- Easy: method directly implied; single concept; no ambiguity.
+- Medium: student selects method; two+ concepts combined; intermediate results required.
+- Hard: method NOT signposted; requires non-routine setup OR reversal of standard process OR constraint identification not named in question.
+- HARD ROUTINE TOPICS MUST contain a deliberate non-routine twist — downgrade difficulty if no twist exists.
 
-(9) ANTI-PATTERNS — never produce:
-- 'A particle moves along a straight line…' as an opening.
-- Any question where every part is direct substitution with no method choice.
-- Two questions in the same batch testing the same underlying skill, even under different surface contexts.
-- Multi-mark questions with a single algebraic step dressed across multiple parts.
-- Trivially obvious distractors or setups where the method is unambiguous from the question structure.
-- Parts labelled (a), (b), (c) that could be answered in any order (true scaffolding is order-dependent).
-- Stimuli that are decorative — every element of the stimulus must be used by at least one part.
+(6) ANTI-PATTERNS (instant rejection)
+- ABSOLUTELY FORBIDDEN: 'A particle moves along a straight line…' openings.
+- FORBIDDEN: any question where every part is direct substitution with no method choice.
+- FORBIDDEN: two questions testing the same underlying skill in the same batch.
+- FORBIDDEN: multi-mark questions with single algebraic step dressed across parts.
+- FORBIDDEN: parts labelled (a), (b), (c) that could be answered in any order.
+- FORBIDDEN: decorative stimuli — every stimulus element must be used by at least one part.
 ";
 
 /// Injected into MC question-generation prompts for distractor quality.
 pub const MC_DISTRACTOR_RULES: &str = "
-MC DISTRACTOR RULES (mandatory):
-(1) Each wrong option must correspond to a NAMED misconception or predictable error:
-    e.g. 'sign error in chain rule', 'forgot to convert units', 'confused mean with median', \
-'applied wrong formula for this context'. Do not write random wrong numbers.
-(2) All four options must be plausible to a student who has partial knowledge. \
-A student who knows nothing should not be able to eliminate two options immediately.
-(3) Numeric distractors must be arithmetically close to the correct answer OR result from \
-a specific procedural mistake — not arbitrary values.
-(4) The correct answer must not be systematically the longest, shortest, or most 'qualified' option.
-(5) Avoid 'all of the above' / 'none of the above' options.";
+MC DISTRACTOR RULES (STRICT):
+(1) Each wrong option MUST correspond to a NAMED misconception or predictable error: \
+'sign error in chain rule', 'incorrect domain assumption', 'misapplied formula for this context'. NO random wrong numbers.
+(2) All options must be plausible to a student with partial knowledge — a student knowing nothing \
+must NOT be able to eliminate two options immediately.
+(3) Numeric distractors must be arithmetically close to correct OR result from a specific procedural mistake.
+(4) Correct answer must NOT be systematically longest/shortest/most qualified.
+(5) FORBIDDEN: 'all of the above' / 'none of the above' options.";
 
 // ─── Mathematical Methods ─────────────────────────────────────────────────────
 

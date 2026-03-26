@@ -4,10 +4,7 @@ import {
   Sparkles,
   Check,
   BookOpen,
-  Minus,
-  Plus,
   MessageSquareDiff,
-  PenLine,
   ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +73,6 @@ export function WrittenFeedbackPanel({
 }: WrittenFeedbackPanelProps) {
   const pct = feedback.maxMarks > 0 ? feedback.achievedMarks / feedback.maxMarks : 0;
   const scoreColor = pct >= 0.75 ? "text-emerald-500" : pct >= 0.5 ? "text-amber-500" : "text-rose-500";
-  const scoreBg = pct >= 0.75 ? "bg-emerald-500/5 border-emerald-500/20" : pct >= 0.5 ? "bg-amber-500/5 border-amber-500/20" : "bg-rose-500/5 border-rose-500/20";
   const verdict = feedback.verdict?.toLowerCase();
   const isCorrect = verdict === "correct";
 
@@ -87,7 +83,7 @@ export function WrittenFeedbackPanel({
       {/* HEADER BANNER
         Moves away from generic gradient fills to a structured, technical report look 
       */}
-      <div className={`flex items-center gap-6 p-6 border-b border-border/40 ${scoreBg}`}>
+      <div className={`flex items-center gap-6 px-6 py-2 border-b border-border/40`}>
         <ScoreRing achieved={feedback.achievedMarks} max={feedback.maxMarks} />
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
@@ -101,8 +97,8 @@ export function WrittenFeedbackPanel({
           </div>
           <div className="flex items-center gap-3 mt-2">
             <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isCorrect ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
-                pct >= 0.5 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
-                  "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+              pct >= 0.5 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+                "bg-rose-500/15 text-rose-600 dark:text-rose-400"
               }`}>
               {isCorrect ? <Check className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
               {feedback.verdict}
@@ -115,7 +111,7 @@ export function WrittenFeedbackPanel({
       </div>
 
       <CardContent className="p-0 animate-in fade-in duration-500">
-        <div className="p-6 space-y-8">
+        <div className="px-6 py-2 space-y-8">
 
           {/* SUBMISSION & EXEMPLAR */}
           <section className="space-y-4">
@@ -182,7 +178,7 @@ export function WrittenFeedbackPanel({
           </section>
 
           {/* MARKING SCHEME (The Core Redesign) */}
-          <section className="space-y-4 pt-4">
+          <section className="space-y-4 pt-4 pb-4">
             <div className="border-b border-border/30 pb-2">
               <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
                 <Check className="w-4 h-4 text-muted-foreground" /> Interactive Rubric
@@ -192,69 +188,71 @@ export function WrittenFeedbackPanel({
             <div className="flex flex-col gap-3">
               {feedback.vcaaMarkingScheme.map((item, idx) => {
                 const isFullMarks = item.achievedMarks === item.maxMarks;
+                const pct = item.maxMarks > 0 ? item.achievedMarks / item.maxMarks : 0;
+                const isPartial = item.achievedMarks > 0 && !isFullMarks;
 
                 return (
                   <div
                     key={idx}
-                    className={`group relative flex flex-col md:flex-row gap-5 p-4 rounded-xl border transition-all duration-200 ${isFullMarks
-                        ? "bg-emerald-500/5 border-emerald-500/20"
-                        : "bg-muted/10 border-border/40 hover:border-border/80"
+                    className={`group relative flex flex-col xl:flex-row gap-4 xl:gap-6 p-4 xl:p-5 rounded-xl border transition-all duration-200 ${isFullMarks
+                      ? "bg-emerald-500/5 border-emerald-500/30"
+                      : isPartial
+                      ? "bg-amber-500/5 border-amber-500/30"
+                      : "bg-muted/10 border-border/40 hover:border-border/80"
                       }`}
                   >
-                    {/* Replaced clunky input with a slick Stepper Control */}
-                    <div className="flex flex-row md:flex-col justify-between md:justify-start items-center gap-3 md:w-24 shrink-0">
-                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold md:w-full md:text-center">
-                        Marks
+                    {/* Mark Stepper - Now more prominent with color feedback */}
+                    <div className="flex flex-row items-center gap-3 xl:w-28 shrink-0">
+                      <div className={`flex items-center justify-center w-12 h-12 rounded-lg font-mono font-bold text-lg ${isFullMarks ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : isPartial ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground"}`}>
+                        {item.achievedMarks}
                       </div>
-
-                      <div className="flex items-center bg-background border border-border/60 rounded-lg shadow-sm overflow-hidden transition-colors group-hover:border-border">
-                        <button
-                          onClick={() => onCriterionChange?.(idx, Math.max(0, item.achievedMarks - 1), item.rationale || "")}
-                          disabled={item.achievedMarks <= 0}
-                          className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-
-                        <div className="w-8 text-center font-mono font-bold text-sm">
-                          {item.achievedMarks}
-                        </div>
-
+                      <div className="flex flex-col gap-1">
                         <button
                           onClick={() => onCriterionChange?.(idx, Math.min(item.maxMarks, item.achievedMarks + 1), item.rationale || "")}
                           disabled={item.achievedMarks >= item.maxMarks}
-                          className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                          className="w-6 h-4 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors text-xs"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => onCriterionChange?.(idx, Math.max(0, item.achievedMarks - 1), item.rationale || "")}
+                          disabled={item.achievedMarks <= 0}
+                          className="w-6 h-4 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors text-xs"
+                        >
+                          ▼
                         </button>
                       </div>
-
-                      <div className="text-[10px] text-muted-foreground font-medium md:w-full md:text-center">
-                        OUT OF {item.maxMarks}
-                      </div>
+                      <span className={`text-xs font-medium ${isFullMarks ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                        /{item.maxMarks}
+                      </span>
                     </div>
 
+                    {/* Criterion & Rationale */}
                     <div className="flex-1 min-w-0 flex flex-col gap-3">
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium">
-                        <MarkdownMath content={item.criterion} />
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
+                          {idx + 1}
+                        </div>
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium">
+                          <MarkdownMath content={item.criterion} />
+                        </div>
                       </div>
 
-                      {/* Replaced permanent textarea block with a subtle seamless editor */}
-                      <div className="relative mt-auto group/editor">
-                        <div className="absolute top-2.5 left-2.5 text-muted-foreground/40 group-focus-within/editor:text-primary transition-colors">
-                          <PenLine className="w-3.5 h-3.5" />
+                      {item.rationale && (
+                        <div className={`ml-8 pl-3 border-l-2 ${isFullMarks ? "border-emerald-500/40" : isPartial ? "border-amber-500/40" : "border-border/40"}`}>
+                          <p className="text-xs text-muted-foreground italic">
+                            <MarkdownMath content={item.rationale} />
+                          </p>
                         </div>
-                        <Textarea
-                          className="min-h-[44px] text-xs pl-8 py-2.5 bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/20 rounded-md transition-all resize-none shadow-none text-muted-foreground focus:text-foreground"
-                          value={item.rationale || ""}
-                          placeholder="Add a rationale for this mark..."
-                          onChange={(e) => {
-                            e.target.style.height = 'inherit';
-                            e.target.style.height = `${Math.max(44, e.target.scrollHeight)}px`;
-                            onCriterionChange?.(idx, item.achievedMarks, e.target.value);
-                          }}
-                        />
-                      </div>
+                      )}
+                    </div>
+
+                    {/* Visual indicator bar */}
+                    <div className="hidden xl:block w-1.5 self-stretch rounded-full bg-muted/30 overflow-hidden">
+                      <div 
+                        className={`w-full rounded-full transition-all duration-500 ${isFullMarks ? "bg-emerald-500" : isPartial ? "bg-amber-500" : "bg-muted-foreground/30"}`}
+                        style={{ height: `${pct * 100}%` }}
+                      />
                     </div>
                   </div>
                 );

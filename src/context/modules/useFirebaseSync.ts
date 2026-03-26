@@ -24,7 +24,7 @@ const SYNC_DEBUG = true;
 
 // Optimized constants for better sync performance
 const AUTO_SAVE_DEBOUNCE_MS = 10000; // Reduced from 60000ms (10s instead of 60s)
-const SYNC_STALE_THRESHOLD_MS = 60000; // Force full sync if stale for > 1 minute
+const SYNC_STALE_THRESHOLD_MS = 300000; // Force full sync if stale for > 5 minutes
 const STORE_CHANGE_THROTTLE_MS = 2000; // Throttle store subscriptions to avoid excessive saves
 
 // Debug log / sync event memory limits
