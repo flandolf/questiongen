@@ -36,10 +36,10 @@ import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: "",
-  model: "openrouter/healer-alpha",
-  markingModel: "openrouter/healer-alpha",
+  model: "google/gemini-3.1-flash-lite-preview",
+  markingModel: "google/gemini-3.1-flash-lite-preview",
   useSeparateMarkingModel: false,
-  imageMarkingModel: "openrouter/healer-alpha",
+  imageMarkingModel: "google/gemini-3.1-flash-lite-preview",
   useSeparateImageMarkingModel: false,
   debugMode: false,
   questionTextSize: 16,

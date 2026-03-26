@@ -21,8 +21,8 @@ import {
   writeBatch,
   setDoc,
 } from "firebase/firestore";
-import { firebaseConfig } from "../../firebaseConfig";
-import { SUBTOPIC_INSTRUCTIONS } from "../../types";
+import { firebaseConfig } from "@/firebaseConfig";
+import { SUBTOPIC_INSTRUCTIONS } from "@/types";
 
 let app = getApps()[0];
 if (!app) {
@@ -101,6 +101,102 @@ export interface SyncableData {
   savedSets: Record<string, unknown>[];
 }
 
+// Track last sync timestamps per collection to enable delta sync
+export interface SyncMetadata {
+  lastSyncTime: number;
+  questionHistorySyncTime: number;
+  mcHistorySyncTime: number;
+  savedSetsSyncTime: number;
+  lastSyncVersions: {
+    questionHistory: Record<string, number>;
+    mcHistory: Record<string, number>;
+    savedSets: Record<string, number>;
+  };
+}
+
+const DEFAULT_SYNC_METADATA: SyncMetadata = {
+  lastSyncTime: 0,
+  questionHistorySyncTime: 0,
+  mcHistorySyncTime: 0,
+  savedSetsSyncTime: 0,
+  lastSyncVersions: {
+    questionHistory: {},
+    mcHistory: {},
+    savedSets: {},
+  },
+};
+
+export function createInitialSyncMetadata(): SyncMetadata {
+  return { ...DEFAULT_SYNC_METADATA, lastSyncVersions: { questionHistory: {}, mcHistory: {}, savedSets: {} } };
+}
+
+// Helper to get item's lastModified timestamp
+function getItemLastModified(item: Record<string, unknown>): number {
+  if (typeof item.lastModified === "number" && Number.isFinite(item.lastModified)) {
+    return item.lastModified;
+  }
+  if (typeof item.updatedAt === "string") {
+    const parsed = Date.parse(item.updatedAt);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof item.createdAt === "string") {
+    const parsed = Date.parse(item.createdAt);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+// Check which items have changed since last sync
+export function getChangedItems<T extends { id?: string; lastModified?: number; updatedAt?: string; createdAt?: string }>(
+  items: T[],
+  lastSyncVersions: Record<string, number>
+): T[] {
+  return items.filter((item) => {
+    if (!item.id) return false;
+    const itemModified = getItemLastModified(item as Record<string, unknown>);
+    const lastKnownVersion = lastSyncVersions[item.id] ?? 0;
+    return itemModified > lastKnownVersion;
+  });
+}
+
+// Get changed items by comparing with remote versions
+export function getDeltaItems<T extends { id?: string }>(
+  localItems: T[],
+  lastSyncVersions: Record<string, number>
+): { changed: T[]; unchanged: T[] } {
+  const changed: T[] = [];
+  const unchanged: T[] = [];
+  
+  for (const item of localItems) {
+    if (!item.id) {
+      unchanged.push(item);
+      continue;
+    }
+    // If item was not previously synced, consider it changed
+    if (!(item.id in lastSyncVersions)) {
+      changed.push(item);
+    } else {
+      unchanged.push(item);
+    }
+  }
+  
+  return { changed, unchanged };
+}
+
+// Build new version map after sync
+export function buildVersionMap<T extends { id?: string; lastModified?: number; updatedAt?: string; createdAt?: string }>(
+  items: T[],
+  existingVersions: Record<string, number>
+): Record<string, number> {
+  const versions = { ...existingVersions };
+  for (const item of items) {
+    if (item.id) {
+      versions[item.id] = getItemLastModified(item as Record<string, unknown>);
+    }
+  }
+  return versions;
+}
+
 export interface CompactionMigrationResult {
   migrated: boolean;
   fromVersion: number;
@@ -142,8 +238,7 @@ function removeUndefined(obj: unknown): unknown {
 }
 
 const FIRESTORE_OP_TIMEOUT_MS = 60000;
-const FIRESTORE_DOC_MAX_BYTES = 1_048_576;
-const FIRESTORE_DOC_SAFE_BYTES = 950_000;
+const FIRESTORE_DOC_SAFE_BYTES = 950_000; // Safe limit below Firestore's 1MB max
 const CLOUD_COMPACTION_VERSION = 1;
 
 async function withTimeout<T>(operation: Promise<T>, label: string, timeoutMs = FIRESTORE_OP_TIMEOUT_MS): Promise<T> {
@@ -619,17 +714,65 @@ function prepareMcHistoryEntryForFirestore(rawItem: Record<string, unknown>): Re
   return null;
 }
 
-export async function saveUserData(userId: string, data: SyncableData): Promise<void> {
-  console.log("[Firebase] saveUserData started", {
-    userId,
-    settings: !!data.settings,
-    questionHistory: data.questionHistory?.length,
-    mcHistory: data.mcHistory?.length,
-    savedSets: data.savedSets?.length,
-  });
+// Optimized batch sizes for better throughput
+const BATCH_SIZE_QH = 50;  // Increased from 40
+const BATCH_SIZE_MC = 50;   // Increased from 40
+const CONCURRENT_SAVESETS_WRITES = 10;  // Increased from 8
+const PARALLEL_COLLECTION_SAVES = true; // Save collections in parallel
 
+export interface SaveOptions {
+  /** Only save items that have changed since lastSyncVersions */
+  deltaSyncVersions?: {
+    questionHistory: Record<string, number>;
+    mcHistory: Record<string, number>;
+    savedSets: Record<string, number>;
+  };
+  /** Save all data (full sync), ignoring delta check */
+  fullSync?: boolean;
+}
+
+export async function saveUserData(
+  userId: string, 
+  data: SyncableData, 
+  options: SaveOptions = {}
+): Promise<{ totalWrites: number; skippedUnchanged: number; deltaSavings: number }> {
+  const { deltaSyncVersions, fullSync = false } = options;
   const startTime = Date.now();
   let totalWrites = 0;
+  let skippedUnchanged = 0;
+  let deltaSavings = 0;
+
+  // Determine which items need saving based on delta sync
+  let questionHistoryToSave = data.questionHistory || [];
+  let mcHistoryToSave = data.mcHistory || [];
+  let savedSetsToSave = data.savedSets || [];
+
+  if (!fullSync && deltaSyncVersions) {
+    const qhChanged = getChangedItems(questionHistoryToSave, deltaSyncVersions.questionHistory);
+    const mcChanged = getChangedItems(mcHistoryToSave, deltaSyncVersions.mcHistory);
+    const ssChanged = getChangedItems(savedSetsToSave, deltaSyncVersions.savedSets);
+    
+    skippedUnchanged = (
+      (questionHistoryToSave.length - qhChanged.length) +
+      (mcHistoryToSave.length - mcChanged.length) +
+      (savedSetsToSave.length - ssChanged.length)
+    );
+    deltaSavings = skippedUnchanged;
+    
+    questionHistoryToSave = qhChanged;
+    mcHistoryToSave = mcChanged;
+    savedSetsToSave = ssChanged;
+  }
+
+  console.log("[Firebase] saveUserData started", {
+    userId,
+    fullSync,
+    questionHistory: questionHistoryToSave.length,
+    mcHistory: mcHistoryToSave.length,
+    savedSets: savedSetsToSave.length,
+    deltaSavings,
+    skippedUnchanged,
+  });
 
   try {
     // Save settings (with retry) — skip when settings are empty to avoid
@@ -651,123 +794,175 @@ export async function saveUserData(userId: string, data: SyncableData): Promise<
       console.log("[Firebase] Settings saved");
     }
 
-    // Save question history - use parallel writes instead of batch
-    if (data.questionHistory && data.questionHistory.length > 0) {
-      console.log("[Firebase] Saving questionHistory:", data.questionHistory.length, "items");
-      const historyRef = getHistoryCollectionRef(userId, "questionHistory");
-      let skippedQuestionHistory = 0;
-      
-      const batchSize = 20;
-      for (let i = 0; i < data.questionHistory.length; i += batchSize) {
-        const batch = writeBatch(db);
-        const batchItems = data.questionHistory.slice(i, i + batchSize);
+    // Save all collections in parallel for better performance
+    const savePromises: Promise<void>[] = [];
+
+    // Save question history
+    if (questionHistoryToSave.length > 0) {
+      const saveQhPromise = (async () => {
+        console.log("[Firebase] Saving questionHistory:", questionHistoryToSave.length, "items");
+        const historyRef = getHistoryCollectionRef(userId, "questionHistory");
+        let skippedQuestionHistory = 0;
         
-        for (const item of batchItems) {
-          if (!item.id) continue;
-          const docRef = doc(historyRef, item.id as string);
-          const compacted = compactQuestionHistoryEntry(item);
-          const prepared = prepareQuestionHistoryEntryForFirestore(compacted);
-          if (!prepared) {
-            skippedQuestionHistory += 1;
-            console.warn(`[Firebase] Skipping oversize questionHistory entry ${String(item.id)} (cannot fit under ${FIRESTORE_DOC_MAX_BYTES} bytes even after pruning)`);
-            continue;
-          }
-          batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
-          totalWrites++;
+        // Process in batches with parallel execution
+        const batches: Array<Promise<void>> = [];
+        for (let i = 0; i < questionHistoryToSave.length; i += BATCH_SIZE_QH) {
+          const batchItems = questionHistoryToSave.slice(i, i + BATCH_SIZE_QH);
+          const batchNum = Math.floor(i / BATCH_SIZE_QH) + 1;
+          
+          batches.push(
+            (async () => {
+              const batch = writeBatch(db);
+              let batchWrites = 0;
+              
+              for (const item of batchItems) {
+                if (!item.id) continue;
+                const docRef = doc(historyRef, item.id as string);
+                const compacted = compactQuestionHistoryEntry(item);
+                const prepared = prepareQuestionHistoryEntryForFirestore(compacted);
+                if (!prepared) {
+                  skippedQuestionHistory++;
+                  console.warn(`[Firebase] Skipping oversize questionHistory entry ${String(item.id)}`);
+                  continue;
+                }
+                batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
+                batchWrites++;
+              }
+              
+              if (batchWrites > 0) {
+                await withRetry(
+                  () => withTimeout(batch.commit(), `committing questionHistory batch ${batchNum}`),
+                  `questionHistory batch ${batchNum}`
+                );
+                totalWrites += batchWrites;
+              }
+              console.log(`[Firebase] questionHistory batch ${batchNum} committed (${Math.min(i + BATCH_SIZE_QH, questionHistoryToSave.length)}/${questionHistoryToSave.length})`);
+            })()
+          );
         }
         
-        await withRetry(
-          () => withTimeout(batch.commit(), `committing questionHistory batch ${Math.floor(i / batchSize) + 1}`),
-          `questionHistory batch ${Math.floor(i / batchSize) + 1}`
-        );
-        console.log(`[Firebase] questionHistory batch ${Math.floor(i/batchSize) + 1} committed (${Math.min(i+batchSize, data.questionHistory.length)}/${data.questionHistory.length})`);
-      }
-      console.log("[Firebase] questionHistory saved", { skippedQuestionHistory });
+        await Promise.all(batches);
+        console.log("[Firebase] questionHistory saved", { skippedQuestionHistory, batchCount: batches.length });
+      })();
+      savePromises.push(saveQhPromise);
     }
 
     // Save mc history
-    if (data.mcHistory && data.mcHistory.length > 0) {
-      console.log("[Firebase] Saving mcHistory:", data.mcHistory.length, "items");
-      const historyRef = getHistoryCollectionRef(userId, "mcHistory");
-      let skippedMcHistory = 0;
-      
-      const batchSize = 20;
-      for (let i = 0; i < data.mcHistory.length; i += batchSize) {
-        const batch = writeBatch(db);
-        const batchItems = data.mcHistory.slice(i, i + batchSize);
+    if (mcHistoryToSave.length > 0) {
+      const saveMcPromise = (async () => {
+        console.log("[Firebase] Saving mcHistory:", mcHistoryToSave.length, "items");
+        const historyRef = getHistoryCollectionRef(userId, "mcHistory");
+        let skippedMcHistory = 0;
         
-        for (const item of batchItems) {
-          if (!item.id) continue;
-          const docRef = doc(historyRef, item.id as string);
-          const compacted = compactMcHistoryEntry(item);
-          const prepared = prepareMcHistoryEntryForFirestore(compacted);
-          if (!prepared) {
-            skippedMcHistory += 1;
-            console.warn(`[Firebase] Skipping oversize mcHistory entry ${String(item.id)} (cannot fit under ${FIRESTORE_DOC_MAX_BYTES} bytes even after pruning)`);
-            continue;
-          }
-          batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
-          totalWrites++;
+        const batches: Array<Promise<void>> = [];
+        for (let i = 0; i < mcHistoryToSave.length; i += BATCH_SIZE_MC) {
+          const batchItems = mcHistoryToSave.slice(i, i + BATCH_SIZE_MC);
+          const batchNum = Math.floor(i / BATCH_SIZE_MC) + 1;
+          
+          batches.push(
+            (async () => {
+              const batch = writeBatch(db);
+              let batchWrites = 0;
+              
+              for (const item of batchItems) {
+                if (!item.id) continue;
+                const docRef = doc(historyRef, item.id as string);
+                const compacted = compactMcHistoryEntry(item);
+                const prepared = prepareMcHistoryEntryForFirestore(compacted);
+                if (!prepared) {
+                  skippedMcHistory++;
+                  console.warn(`[Firebase] Skipping oversize mcHistory entry ${String(item.id)}`);
+                  continue;
+                }
+                batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
+                batchWrites++;
+              }
+              
+              if (batchWrites > 0) {
+                await withRetry(
+                  () => withTimeout(batch.commit(), `committing mcHistory batch ${batchNum}`),
+                  `mcHistory batch ${batchNum}`
+                );
+                totalWrites += batchWrites;
+              }
+              console.log(`[Firebase] mcHistory batch ${batchNum} committed (${Math.min(i + BATCH_SIZE_MC, mcHistoryToSave.length)}/${mcHistoryToSave.length})`);
+            })()
+          );
         }
         
-        await withRetry(
-          () => withTimeout(batch.commit(), `committing mcHistory batch ${Math.floor(i / batchSize) + 1}`),
-          `mcHistory batch ${Math.floor(i / batchSize) + 1}`
-        );
-        console.log(`[Firebase] mcHistory batch ${Math.floor(i/batchSize) + 1} committed (${Math.min(i+batchSize, data.mcHistory.length)}/${data.mcHistory.length})`);
-      }
-      console.log("[Firebase] mcHistory saved", { skippedMcHistory });
+        await Promise.all(batches);
+        console.log("[Firebase] mcHistory saved", { skippedMcHistory, batchCount: batches.length });
+      })();
+      savePromises.push(saveMcPromise);
     }
 
-    // Save saved sets
-    if (data.savedSets && data.savedSets.length > 0) {
-      console.log("[Firebase] Saving savedSets:", data.savedSets.length, "items");
-      const savedSetsRef = getSavedSetsCollectionRef(userId);
-      let skippedSavedSets = 0;
+    // Save saved sets with parallel writes
+    if (savedSetsToSave.length > 0) {
+      const saveSsPromise = (async () => {
+        console.log("[Firebase] Saving savedSets:", savedSetsToSave.length, "items");
+        const savedSetsRef = getSavedSetsCollectionRef(userId);
+        let skippedSavedSets = 0;
 
-      const pendingWrites: Array<{ id: string; payload: Record<string, unknown> }> = [];
-      for (const item of data.savedSets) {
-        if (!item.id) continue;
-        const compacted = compactSavedSet(item);
-        const prepared = prepareSavedSetForFirestore(compacted);
-        if (!prepared) {
-          skippedSavedSets += 1;
-          console.warn(`[Firebase] Skipping oversize savedSet ${String(item.id)} (cannot fit under ${FIRESTORE_DOC_MAX_BYTES} bytes even after pruning)`);
-          continue;
+        const pendingWrites: Array<{ id: string; payload: Record<string, unknown> }> = [];
+        for (const item of savedSetsToSave) {
+          if (!item.id) continue;
+          const compacted = compactSavedSet(item);
+          const prepared = prepareSavedSetForFirestore(compacted);
+          if (!prepared) {
+            skippedSavedSets++;
+            console.warn(`[Firebase] Skipping oversize savedSet ${String(item.id)}`);
+            continue;
+          }
+          pendingWrites.push({ id: String(item.id), payload: prepared });
         }
-        pendingWrites.push({ id: String(item.id), payload: prepared });
-      }
 
-      const writeConcurrency = 4;
-      for (let i = 0; i < pendingWrites.length; i += writeConcurrency) {
-        const chunk = pendingWrites.slice(i, i + writeConcurrency);
-        await Promise.all(
-          chunk.map(async ({ id, payload }) => {
-            const docRef = doc(savedSetsRef, id);
-            await withRetry(
-              () =>
-                withTimeout(
-                  setDoc(docRef, { ...payload, _lastModified: serverTimestamp() }),
-                  `saving savedSet ${id}`,
-                  FIRESTORE_OP_TIMEOUT_MS
-                ),
-              `saving savedSet ${id}`
-            );
-            totalWrites++;
-          })
-        );
-        console.log(`[Firebase] savedSets writes completed (${Math.min(i + writeConcurrency, pendingWrites.length)}/${pendingWrites.length})`);
-      }
-      console.log("[Firebase] savedSets saved", { skippedSavedSets });
+        // Process in parallel chunks
+        const chunks: Array<Promise<void>> = [];
+        for (let i = 0; i < pendingWrites.length; i += CONCURRENT_SAVESETS_WRITES) {
+          const chunk = pendingWrites.slice(i, i + CONCURRENT_SAVESETS_WRITES);
+          chunks.push(
+            Promise.all(
+              chunk.map(async ({ id, payload }) => {
+                const docRef = doc(savedSetsRef, id);
+                await withRetry(
+                  () =>
+                    withTimeout(
+                      setDoc(docRef, { ...payload, _lastModified: serverTimestamp() }),
+                      `saving savedSet ${id}`,
+                      FIRESTORE_OP_TIMEOUT_MS
+                    ),
+                  `saving savedSet ${id}`
+                );
+                totalWrites++;
+              })
+            ).then(() => {
+              console.log(`[Firebase] savedSets chunk completed (${Math.min(i + CONCURRENT_SAVESETS_WRITES, pendingWrites.length)}/${pendingWrites.length})`);
+            })
+          );
+        }
+        
+        await Promise.all(chunks);
+        console.log("[Firebase] savedSets saved", { skippedSavedSets, chunkCount: chunks.length });
+      })();
+      savePromises.push(saveSsPromise);
+    }
+
+    // Execute all saves in parallel
+    if (PARALLEL_COLLECTION_SAVES && savePromises.length > 0) {
+      await Promise.all(savePromises);
     }
 
     const elapsed = Date.now() - startTime;
     console.log("[Firebase] saveUserData completed", {
       userId,
       totalWrites,
+      deltaSavings,
+      skippedUnchanged,
       elapsedMs: elapsed,
-      elapsedSec: (elapsed / 1000).toFixed(2)
+      elapsedSec: (elapsed / 1000).toFixed(2),
     });
+
+    return { totalWrites, skippedUnchanged, deltaSavings };
   } catch (error) {
     console.error("[Firebase] saveUserData error:", error);
     throw error;
@@ -794,10 +989,22 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
     console.log("[Firebase] Settings loaded");
   }
   
-  // Load question history
-  const qhRef = getHistoryCollectionRef(userId, "questionHistory");
-  const qhQ = query(qhRef, orderBy("createdAt", "desc"), limit(500));
-  const qhSnapshot = await withTimeout(getDocs(qhQ), "loading questionHistory");
+  // Load all collections in parallel for better performance
+  const [qhSnapshot, mchSnapshot, ssSnapshot] = await Promise.all([
+    withTimeout(
+      getDocs(query(getHistoryCollectionRef(userId, "questionHistory"), orderBy("createdAt", "desc"), limit(500))),
+      "loading questionHistory"
+    ),
+    withTimeout(
+      getDocs(query(getHistoryCollectionRef(userId, "mcHistory"), orderBy("createdAt", "desc"), limit(500))),
+      "loading mcHistory"
+    ),
+    withTimeout(
+      getDocs(query(getSavedSetsCollectionRef(userId), orderBy("updatedAt", "desc"), limit(100))),
+      "loading savedSets"
+    ),
+  ]);
+  
   qhSnapshot.forEach((doc) => {
     const data = doc.data();
     delete data._lastModified;
@@ -805,10 +1012,6 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
   });
   console.log("[Firebase] questionHistory loaded:", result.questionHistory.length);
   
-  // Load mc history
-  const mchRef = getHistoryCollectionRef(userId, "mcHistory");
-  const mchQ = query(mchRef, orderBy("createdAt", "desc"), limit(500));
-  const mchSnapshot = await withTimeout(getDocs(mchQ), "loading mcHistory");
   mchSnapshot.forEach((doc) => {
     const data = doc.data();
     delete data._lastModified;
@@ -816,10 +1019,6 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
   });
   console.log("[Firebase] mcHistory loaded:", result.mcHistory.length);
   
-  // Load saved sets
-  const ssRef = getSavedSetsCollectionRef(userId);
-  const ssQ = query(ssRef, orderBy("updatedAt", "desc"), limit(100));
-  const ssSnapshot = await withTimeout(getDocs(ssQ), "loading savedSets");
   ssSnapshot.forEach((doc) => {
     const data = doc.data();
     delete data._lastModified;
@@ -835,6 +1034,84 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
     totalDocs: result.questionHistory.length + result.mcHistory.length + result.savedSets.length
   });
   
+  return result;
+}
+
+// Load specific changed items by IDs (for delta sync)
+export async function loadChangedItems(
+  userId: string,
+  changedItemIds: { questionHistory?: string[]; mcHistory?: string[]; savedSets?: string[] }
+): Promise<{
+  questionHistory: Record<string, unknown>[];
+  mcHistory: Record<string, unknown>[];
+  savedSets: Record<string, unknown>[];
+}> {
+  const result = {
+    questionHistory: [] as Record<string, unknown>[],
+    mcHistory: [] as Record<string, unknown>[],
+    savedSets: [] as Record<string, unknown>[],
+  };
+
+  const loadPromises: Promise<void>[] = [];
+
+  if (changedItemIds.questionHistory?.length) {
+    loadPromises.push(
+      (async () => {
+        const qhRef = getHistoryCollectionRef(userId, "questionHistory");
+        const loadPromises = changedItemIds.questionHistory!.map(async (id) => {
+          const docRef = doc(qhRef, id);
+          const docSnap = await withTimeout(getDoc(docRef), `loading questionHistory ${id}`);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            delete data._lastModified;
+            result.questionHistory.push(data);
+          }
+        });
+        await Promise.all(loadPromises);
+        console.log(`[Firebase] Loaded ${result.questionHistory.length} changed questionHistory items`);
+      })()
+    );
+  }
+
+  if (changedItemIds.mcHistory?.length) {
+    loadPromises.push(
+      (async () => {
+        const mchRef = getHistoryCollectionRef(userId, "mcHistory");
+        const loadPromises = changedItemIds.mcHistory!.map(async (id) => {
+          const docRef = doc(mchRef, id);
+          const docSnap = await withTimeout(getDoc(docRef), `loading mcHistory ${id}`);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            delete data._lastModified;
+            result.mcHistory.push(data);
+          }
+        });
+        await Promise.all(loadPromises);
+        console.log(`[Firebase] Loaded ${result.mcHistory.length} changed mcHistory items`);
+      })()
+    );
+  }
+
+  if (changedItemIds.savedSets?.length) {
+    loadPromises.push(
+      (async () => {
+        const ssRef = getSavedSetsCollectionRef(userId);
+        const loadPromises = changedItemIds.savedSets!.map(async (id) => {
+          const docRef = doc(ssRef, id);
+          const docSnap = await withTimeout(getDoc(docRef), `loading savedSet ${id}`);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            delete data._lastModified;
+            result.savedSets.push(inflateSavedSet(data));
+          }
+        });
+        await Promise.all(loadPromises);
+        console.log(`[Firebase] Loaded ${result.savedSets.length} changed savedSets items`);
+      })()
+    );
+  }
+
+  await Promise.all(loadPromises);
   return result;
 }
 

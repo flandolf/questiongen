@@ -354,6 +354,406 @@ const TOKENS_PER_MARK = 40;
 /** Default assumed marks when maxMarksPerQuestion is not specified. */
 const DEFAULT_MARKS = 4;
 
+// =============================================================================
+// LOG REGRESSION MODEL FOR TOKEN ESTIMATION
+// =============================================================================
+
+/**
+ * Log regression coefficients for predicting total tokens.
+ * Model: log(totalTokens) = bias + sum(coef_i * feature_i)
+ * Using log transformation captures the diminishing returns of certain factors.
+ *
+ * ADDITIONAL FACTORS FOR IMPROVING PREDICTION ACCURACY:
+ * ====================================================
+ *
+ * 1. MODEL-SPECIFIC FEATURES
+ *    - Model name/version: Different models (GPT-4, Claude, etc.) have different tokenization
+ *    - Temperature setting: Higher temperature may generate more diverse/varied responses
+ *    - Max tokens limit: Hard cap on completion length
+ *
+ * 2. CONTENT COMPLEXITY METRICS
+ *    - Average question stem length (character count)
+ *    - Number of images/figures per question
+ *    - Presence of LaTeX equations (count of $ delimiters)
+ *    - Mathematical notation density (symbols per question)
+ *    - Number of distractors (for multiple choice: typically 4)
+ *
+ * 3. GENERATION PARAMETERS
+ *    - Retry count: Multiple generation attempts may indicate complexity
+ *    - Generation duration: Longer generation times correlate with more complex outputs
+ *    - Parsing failures: Failed parsing attempts suggest complex content
+ *
+ * 4. CONTEXTUAL FEATURES
+ *    - Previous question similarity: Similar questions may have correlated token usage
+ *    - Time of day: Model API may have variable latency/behavior
+ *    - API version: Updates to API may change tokenization
+ *
+ * 5. HISTORICAL PATTERNS
+ *    - Per-topic token variance: Track standard deviation per topic
+ *    - Seasonality: Exam periods may have different question complexity
+ *    - Model drift: API models may change behavior over time
+ *
+ * 6. OUTPUT STRUCTURE
+ *    - Include worked solution: Boolean flag adds significant tokens
+ *    - Include marking criteria: VCAA-style marking adds tokens
+ *    - Include feedback: Detailed feedback adds tokens
+ *    - Number of alternative solutions: Multiple approaches increase length
+ */
+export interface LogRegressionCoefficients {
+  /** Intercept term */
+  bias: number;
+  /** Coefficient for log(questionCount) */
+  logQuestionCount: number;
+  /** Coefficient for questionCount (linear term for small batch effects) */
+  questionCount: number;
+  /** Coefficient for log(totalMarks) */
+  logTotalMarks: number;
+  /** Coefficient for totalMarks (linear) */
+  totalMarks: number;
+  /** Topic-specific coefficients */
+  topicCoefficients: Record<string, number>;
+  /** Difficulty coefficients */
+  difficultyCoefficients: Record<string, number>;
+  /** Question mode coefficients */
+  questionModeCoefficients: Record<string, number>;
+  /** Tech mode coefficients */
+  techModeCoefficients: Record<string, number>;
+  /** Subtopics feature (log of subtopic count) */
+  subtopicsCoefficient: number;
+  /** Custom focus area feature */
+  hasCustomFocusCoefficient: number;
+  /** Model metadata */
+  modelVersion: string;
+  trainedAt: number;
+  sampleSize: number;
+  rSquared: number;
+}
+
+/** Default coefficients for cold-start (no training data) */
+const DEFAULT_LOG_REGRESSION_COEFFICIENTS: LogRegressionCoefficients = {
+  bias: 7.5, // log(~1800) base
+  logQuestionCount: 0.5,
+  questionCount: 15,
+  logTotalMarks: 0.3,
+  totalMarks: 0,
+  topicCoefficients: {
+    "Mathematical Methods": 0.05,
+    "Specialist Mathematics": 0.12,
+    "Chemistry": -0.02,
+    "Physical Education": -0.1,
+  },
+  difficultyCoefficients: {
+    "Essential Skills": -0.15,
+    "Easy": -0.05,
+    "Medium": 0,
+    "Hard": 0.1,
+    "Extreme": 0.2,
+  },
+  questionModeCoefficients: {
+    "multiple-choice": -0.2,
+    "written": 0.15,
+  },
+  techModeCoefficients: {
+    "tech-free": -0.05,
+    "mix": 0,
+    "tech-active": 0.03,
+  },
+  subtopicsCoefficient: 0.02,
+  hasCustomFocusCoefficient: 0.05,
+  modelVersion: "1.0.0",
+  trainedAt: 0,
+  sampleSize: 0,
+  rSquared: 0,
+};
+
+const LOG_REGRESSION_STORAGE_KEY = "token-estimation-log-reg-v1";
+
+/**
+ * Persist log regression coefficients to localStorage.
+ */
+export function persistLogRegressionCoefficients(coeffs: LogRegressionCoefficients): void {
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LOG_REGRESSION_STORAGE_KEY, JSON.stringify(coeffs));
+    }
+  } catch {
+    // best-effort only
+  }
+}
+
+/**
+ * Load log regression coefficients from localStorage.
+ */
+export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
+  try {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(LOG_REGRESSION_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Validate basic structure
+        if (typeof parsed.bias === "number" && typeof parsed.logQuestionCount === "number") {
+          return { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS, ...parsed };
+        }
+      }
+    }
+  } catch {
+    // fall through to defaults
+  }
+  return { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
+}
+
+/**
+ * Extract features from generation parameters for log regression.
+ */
+function extractLogRegressionFeatures(
+  questionCount: number,
+  maxMarksPerQuestion: number | undefined,
+  topic: Topic,
+  difficulty: Difficulty,
+  questionMode: QuestionMode,
+  techMode: TechMode,
+  subtopics?: string[],
+  customFocusArea?: string
+): Record<string, number> {
+  const totalMarks = (maxMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
+  const logQuestionCount = Math.log(Math.max(questionCount, 1));
+  const logTotalMarks = Math.log(Math.max(totalMarks, 1));
+
+  return {
+    logQuestionCount,
+    questionCount,
+    logTotalMarks,
+    totalMarks,
+    topicCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.topicCoefficients[topic] ?? 0,
+    difficultyCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.difficultyCoefficients[difficulty] ?? 0,
+    questionModeCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.questionModeCoefficients[questionMode] ?? 0,
+    techModeCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.techModeCoefficients[techMode] ?? 0,
+    subtopicsLog: Math.log(Math.max(subtopics?.length ?? 0, 1)),
+    hasCustomFocus: customFocusArea && customFocusArea.trim().length > 0 ? 1 : 0,
+  };
+}
+
+/**
+ * Predict total tokens using log regression model.
+ */
+function predictTokensLogRegression(
+  coeffs: LogRegressionCoefficients,
+  features: Record<string, number>
+): number {
+  let linearPrediction = coeffs.bias;
+  linearPrediction += coeffs.logQuestionCount * features.logQuestionCount;
+  linearPrediction += coeffs.questionCount * features.questionCount;
+  linearPrediction += coeffs.logTotalMarks * features.logTotalMarks;
+  linearPrediction += coeffs.totalMarks * features.totalMarks;
+  linearPrediction += features.topicCoeff;
+  linearPrediction += features.difficultyCoeff;
+  linearPrediction += features.questionModeCoeff;
+  linearPrediction += features.techModeCoeff;
+  linearPrediction += coeffs.subtopicsCoefficient * features.subtopicsLog;
+  linearPrediction += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+
+  return Math.round(Math.exp(linearPrediction));
+}
+
+/**
+ * Train log regression coefficients from historical data using gradient descent.
+ * Returns updated coefficients and R² score.
+ */
+export function trainLogRegressionModel(
+  records: GenerationRecord[],
+  existingCoeffs?: LogRegressionCoefficients
+): { coefficients: LogRegressionCoefficients; rSquared: number } {
+  const validRecords = records.filter(
+    r =>
+      r.outputs.totalTokens != null &&
+      r.outputs.totalTokens > 0 &&
+      r.inputs.questionCount > 0
+  );
+
+  if (validRecords.length < 5) {
+    // Not enough data to train
+    return {
+      coefficients: { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS, trainedAt: Date.now(), sampleSize: validRecords.length },
+      rSquared: 0,
+    };
+  }
+
+  // Initialize coefficients
+  const coeffs = existingCoeffs ? { ...existingCoeffs } : { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
+
+  // Prepare training data
+  const trainingData = validRecords.map(record => {
+    const features = extractLogRegressionFeatures(
+      record.inputs.questionCount,
+      record.inputs.maxMarksPerQuestion,
+      record.inputs.topic,
+      record.inputs.difficulty,
+      record.inputs.questionMode,
+      record.inputs.techMode,
+      record.inputs.subtopics,
+      record.inputs.customFocusArea
+    );
+    return {
+      features,
+      target: Math.log(record.outputs.totalTokens!),
+    };
+  });
+
+  // Gradient descent optimization
+  const learningRate = 0.01;
+  const iterations = 200;
+
+  // Initialize gradients
+  let gradBias = 0, gradLogQ = 0, gradQ = 0, gradLogM = 0, gradM = 0;
+  let gradTopic = 0, gradDiff = 0, gradMode = 0, gradTech = 0, gradSub = 0, gradFocus = 0;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    let totalError = 0;
+
+    for (const { features, target } of trainingData) {
+      // Predict
+      let pred = coeffs.bias;
+      pred += coeffs.logQuestionCount * features.logQuestionCount;
+      pred += coeffs.questionCount * features.questionCount;
+      pred += coeffs.logTotalMarks * features.logTotalMarks;
+      pred += coeffs.totalMarks * features.totalMarks;
+      pred += features.topicCoeff;
+      pred += features.difficultyCoeff;
+      pred += features.questionModeCoeff;
+      pred += features.techModeCoeff;
+      pred += coeffs.subtopicsCoefficient * features.subtopicsLog;
+      pred += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+
+      const error = pred - target;
+      totalError += error * error;
+
+      // Accumulate gradients
+      gradBias += error;
+      gradLogQ += error * features.logQuestionCount;
+      gradQ += error * features.questionCount;
+      gradLogM += error * features.logTotalMarks;
+      gradM += error * features.totalMarks;
+      gradTopic += error;
+      gradDiff += error;
+      gradMode += error;
+      gradTech += error;
+      gradSub += error * features.subtopicsLog;
+      gradFocus += error * features.hasCustomFocus;
+    }
+
+    const n = trainingData.length;
+    const scale = learningRate / n;
+
+    // Update coefficients
+    coeffs.bias -= gradBias * scale;
+    coeffs.logQuestionCount -= gradLogQ * scale;
+    coeffs.questionCount -= gradQ * scale * 0.001; // Scale down linear term
+    coeffs.logTotalMarks -= gradLogM * scale;
+    coeffs.totalMarks -= gradM * scale * 0.001;
+    coeffs.subtopicsCoefficient -= gradSub * scale;
+    coeffs.hasCustomFocusCoefficient -= gradFocus * scale;
+
+    // Normalize categorical coefficients (average them)
+    const catSum = gradTopic + gradDiff + gradMode + gradTech;
+    if (Math.abs(catSum) > 0.001) {
+      const catScale = scale * 0.1;
+      coeffs.topicCoefficients["Mathematical Methods"] -= gradTopic * catScale;
+      coeffs.difficultyCoefficients["Medium"] -= gradDiff * catScale;
+      coeffs.questionModeCoefficients["written"] -= gradMode * catScale;
+      coeffs.techModeCoefficients["mix"] -= gradTech * catScale;
+    }
+
+    // Reset gradients
+    gradBias = gradLogQ = gradQ = gradLogM = gradM = 0;
+    gradTopic = gradDiff = gradMode = gradTech = gradSub = gradFocus = 0;
+  }
+
+  // Calculate R² score
+  const meanTarget = trainingData.reduce((sum, d) => sum + d.target, 0) / trainingData.length;
+  let ssRes = 0, ssTot = 0;
+  for (const { features, target } of trainingData) {
+    let pred = coeffs.bias;
+    pred += coeffs.logQuestionCount * features.logQuestionCount;
+    pred += coeffs.questionCount * features.questionCount;
+    pred += coeffs.logTotalMarks * features.logTotalMarks;
+    pred += coeffs.totalMarks * features.totalMarks;
+    pred += features.topicCoeff;
+    pred += features.difficultyCoeff;
+    pred += features.questionModeCoeff;
+    pred += features.techModeCoeff;
+    pred += coeffs.subtopicsCoefficient * features.subtopicsLog;
+    pred += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+
+    ssRes += (pred - target) ** 2;
+    ssTot += (target - meanTarget) ** 2;
+  }
+  const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
+  return {
+    coefficients: {
+      ...coeffs,
+      modelVersion: "1.0.0",
+      trainedAt: Date.now(),
+      sampleSize: validRecords.length,
+      rSquared: Math.max(0, rSquared),
+    },
+    rSquared: Math.max(0, rSquared),
+  };
+}
+
+/**
+ * Estimate tokens using log regression model.
+ * Falls back to static estimation if model is not trained or insufficient confidence.
+ */
+function estimateTokensLogRegression(
+  questionCount: number,
+  maxMarksPerQuestion: number | undefined,
+  topic: Topic,
+  difficulty: Difficulty,
+  questionMode: QuestionMode,
+  techMode: TechMode,
+  subtopics?: string[],
+  customFocusArea?: string,
+  historyRecords?: GenerationRecord[]
+): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
+  // Load or train coefficients
+  let coeffs = loadLogRegressionCoefficients();
+
+  // Retrain if we have new data and model needs updating
+  if (historyRecords && historyRecords.length > coeffs.sampleSize + 10) {
+    const { coefficients, rSquared } = trainLogRegressionModel(historyRecords, coeffs);
+    if (rSquared > coeffs.rSquared) {
+      coeffs = coefficients;
+      persistLogRegressionCoefficients(coeffs);
+    }
+  }
+
+  // Extract features and predict
+  const features = extractLogRegressionFeatures(
+    questionCount,
+    maxMarksPerQuestion,
+    topic,
+    difficulty,
+    questionMode,
+    techMode,
+    subtopics,
+    customFocusArea
+  );
+
+  // For prompt/completion split, use question mode ratios
+  const ratios = QUESTION_MODE_RATIOS[questionMode];
+  const totalTokens = predictTokensLogRegression(coeffs, features);
+
+  // Apply prompt/completion split
+  const promptTokens = Math.round(totalTokens * ratios.prompt);
+  const completionTokens = Math.round(totalTokens * ratios.completion);
+
+  // Confidence based on R² and sample size
+  const confidence = Math.min(0.95, coeffs.rSquared * Math.min(1, coeffs.sampleSize / 50));
+
+  return { promptTokens, completionTokens, totalTokens, confidence };
+}
+
 function calculateSimilarity(
   record: GenerationRecord,
   topic: Topic,
@@ -424,6 +824,25 @@ function estimateTokensAdvanced(
   subtopics?: string[],
   customFocusArea?: string
 ): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
+  // Primary: Use log regression model if available (trained or has defaults)
+  const logRegResult = estimateTokensLogRegression(
+    questionCount,
+    maxMarksPerQuestion,
+    topic,
+    difficulty,
+    questionMode,
+    techMode,
+    subtopics,
+    customFocusArea,
+    generationHistory
+  );
+
+  // If log regression has decent confidence (R² >= 0.3), use it
+  if (logRegResult.confidence >= 0.3) {
+    return logRegResult;
+  }
+
+  // Fallback to history-based estimation if available
   const validRecords = generationHistory.filter(
     record =>
       record.outputs.totalTokens != null &&
