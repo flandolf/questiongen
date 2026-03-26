@@ -315,6 +315,7 @@ export function GeneratorView() {
   const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && completedCount === questions.length;
   const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && mcCompletedCount === mcQuestions.length;
   const isSetComplete = isWrittenSetComplete || isMcSetComplete;
+  const isReviewingCompletedSet = generationMode === "exam" && isSetComplete && !showCompletionScreen;
   const isAtLastWrittenQuestion = activeQuestionIndex === questions.length - 1;
   const isAtLastMcQuestion = activeMcQuestionIndex === mcQuestions.length - 1;
   const canAdvanceWritten = questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
@@ -359,6 +360,30 @@ export function GeneratorView() {
     if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [elapsedSeconds]);
+
+  const remainingSeconds = useMemo(() => {
+    const totalSeconds = examTimeLimitMinutes * 60;
+    return Math.max(0, totalSeconds - elapsedSeconds);
+  }, [examTimeLimitMinutes, elapsedSeconds]);
+
+  const formattedCountdownTime = useMemo(() => {
+    const h = Math.floor(remainingSeconds / 3600);
+    const m = Math.floor((remainingSeconds % 3600) / 60);
+    const s = remainingSeconds % 60;
+    if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }, [remainingSeconds]);
+
+  const formattedTimerDisplay = generationMode === "exam" ? formattedCountdownTime : formattedElapsedTime;
+
+  useEffect(() => {
+    if (generationMode !== "exam") return;
+    if (!generationStartedAt) return;
+    if (showCompletionScreen || isSetComplete) return;
+    if (remainingSeconds > 0) return;
+    setSessionFinishedAt(Date.now());
+    setShowCompletionScreen(true);
+  }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, showCompletionScreen]);
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => { setShowCompletionScreen(false); }, [completionSetKey]);
@@ -688,6 +713,32 @@ useEffect(() => {
       },
     };
     setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
+  }
+
+  function updateLatestMcHistoryEntry(questionId: string, selectedAnswer: string, awardedMarks: number, responseEnteredAtMs?: number) {
+    const questionStartedAt = mcQuestionPresentedAtById[questionId];
+    const responseAt = responseEnteredAtMs ?? Date.now();
+    const now = Date.now();
+    setMcHistory((prev: any) => {
+      const idx = prev.findIndex((e: McHistoryEntry) => e.question.id === questionId && (e.analytics?.attemptKind ?? "initial") === "initial");
+      if (idx === -1) return prev;
+      const entry = prev[idx];
+      const next = [...prev];
+      next[idx] = {
+        ...entry,
+        selectedAnswer,
+        correct: awardedMarks >= 1,
+        awardedMarks,
+        lastModified: now,
+        analytics: {
+          ...entry.analytics,
+          responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt)
+            ? Math.max(0, responseAt - questionStartedAt)
+            : entry.analytics?.responseLatencyMs,
+        },
+      };
+      return next;
+    });
   }
 
   function appendWrittenHistoryEntry(question: typeof activeQuestion, response: ReturnType<typeof normalizeMarkResponse>, options?: { uploadedAnswerOverride?: string; attemptKind?: WrittenAttemptKind; markingLatencyMs?: number; responseEnteredAtMs?: number }) {
@@ -1124,14 +1175,25 @@ useEffect(() => {
 
   // ── MC answer / appeal / override ────────────────────────────────────────────
   function handleMcAnswer(selectedLabel: string) {
-    if (!activeMcQuestion || mcAnswersByQuestionId[activeMcQuestion.id]) return;
+    if (!activeMcQuestion) return;
+    const isExamMode = generationMode === "exam";
+    const isCompletionLocked = showCompletionScreen;
+    if (isReviewingCompletedSet) return;
+    const existingAnswer = mcAnswersByQuestionId[activeMcQuestion.id];
+    if (!isExamMode && existingAnswer) return;
+    if (isExamMode && isCompletionLocked) return;
+    if (existingAnswer === selectedLabel) return;
     const responseEnteredAtMs = Date.now();
     const awardedMarks = selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
     setMcAnswersByQuestionId((prev: any) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
     setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: awardedMarks }));
     setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: String(awardedMarks) }));
-    appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial", responseEnteredAtMs);
-    useAppStore.getState().recordCompletion("multiple-choice");
+    if (existingAnswer) {
+      updateLatestMcHistoryEntry(activeMcQuestion.id, selectedLabel, awardedMarks, responseEnteredAtMs);
+    } else {
+      appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial", responseEnteredAtMs);
+      useAppStore.getState().recordCompletion("multiple-choice");
+    }
   }
 
   function buildMcMarkingPrompt(question: typeof activeMcQuestion) {
@@ -1389,7 +1451,7 @@ useEffect(() => {
             canAdvance={canAdvanceWritten}
             hasSavedSet={Boolean(activeWrittenSavedSetId)}
             generationStartedAt={generationStartedAt}
-            formattedElapsedTime={formattedElapsedTime}
+            formattedElapsedTime={formattedTimerDisplay}
             telemetry={writtenGenerationTelemetry}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))}
@@ -1402,6 +1464,11 @@ useEffect(() => {
           {activeQuestion && (
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
+                {generationMode === "exam" && remainingSeconds > 0 && remainingSeconds <= 120 && (
+                  <div className="rounded-lg border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                    Time warning: {formattedCountdownTime} remaining.
+                  </div>
+                )}
                 <WrittenQuestionCard
                   promptMarkdown={activeQuestion.promptMarkdown}
                   canShowRawOutput={canShowWrittenRawOutput}
@@ -1465,7 +1532,7 @@ useEffect(() => {
             canAdvance={canAdvanceMc}
             hasSavedSet={Boolean(activeMcSavedSetId)}
             generationStartedAt={generationStartedAt}
-            formattedElapsedTime={formattedElapsedTime}
+            formattedElapsedTime={formattedTimerDisplay}
             telemetry={mcGenerationTelemetry}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))}
@@ -1478,6 +1545,11 @@ useEffect(() => {
           {activeMcQuestion && (
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
+                {generationMode === "exam" && remainingSeconds > 0 && remainingSeconds <= 120 && (
+                  <div className="rounded-lg border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                    Time warning: {formattedCountdownTime} remaining.
+                  </div>
+                )}
                 <McQuestionCard
                   promptMarkdown={activeMcQuestion.promptMarkdown}
                   canShowRawOutput={canShowMcRawOutput}
@@ -1501,6 +1573,7 @@ useEffect(() => {
                   appealText={activeMcMarkAppeal}
                   overrideInput={activeMcOverrideInput}
                   isMarking={isMarking}
+                  hideCorrectAnswer={generationMode === "exam" && !isReviewingCompletedSet}
                   onSelectAnswer={handleMcAnswer}
                   onAppealChange={(v) => setMcMarkAppealByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
                   onOverrideInputChange={(v) => setMcMarkOverrideInputByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}

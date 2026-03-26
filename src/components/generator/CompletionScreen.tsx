@@ -127,15 +127,15 @@ export function CompletionScreen({
   const sessionWrittenEntries = useMemo(() => {
     if (questionMode !== "written") return [];
     return [...questionHistory]
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-      .slice(0, completedCount);
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      .slice(-completedCount);
   }, [questionHistory, questionMode, completedCount]);
 
   const sessionMcEntries = useMemo(() => {
     if (questionMode !== "multiple-choice") return [];
     return [...mcHistory]
-      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-      .slice(0, completedCount);
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      .slice(-completedCount);
   }, [mcHistory, questionMode, completedCount]);
 
   // ── Per-question result rows for written ──────────────────────────────────
