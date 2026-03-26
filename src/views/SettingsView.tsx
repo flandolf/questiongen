@@ -73,6 +73,9 @@ const PRESET_MODELS = [
   { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash" },
   { id: "google/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite" },
   { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano" },
+  { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+  { id: "openai/gpt-oss-120b:nitro", name: "GPT-OSS 120B (Nitro)" },
+  { id: "openai/gpt-oss-20b", name: "GPT-OSS 20B" },
   { id: "x-ai/grok-4.1-fast", name: "Grok 4.1 Fast" },
   { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
@@ -429,7 +432,7 @@ function CustomModelInput({ id, value, onChange, onApply, label, hint }: {
       <FieldGroup label={label} htmlFor={id} hint={hint ?? "Format: provider/model-name"}>
         <Input
           id={id} value={value} onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. openai/gpt-4o" className="font-mono text-sm"
+          placeholder="e.g. openai/gpt-oss-120b" className="font-mono text-sm"
           onKeyDown={(e) => e.key === "Enter" && value.trim() && onApply()}
         />
       </FieldGroup>
