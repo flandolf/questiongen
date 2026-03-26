@@ -568,7 +568,7 @@ QUESTION DESIGN GUIDANCE
   intervention → justify using theoretical language.
 `,
 
-  "Applied Biomechanics: Newton's Laws, Projectile Motion, and Levers": `
+  "Applied Biomechanics: Forces, Momentum, Impulse, Newton’s Laws, Projectile Motion, and Levers": `
 SCOPE
 - Newton's three laws applied to sport, force summation, projectile motion variables, and lever systems
   in the human body and sport equipment.

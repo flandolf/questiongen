@@ -15,10 +15,11 @@ pub const LATEX_RULES: &str = " LaTeX (mandatory): \
 (3) Never use \\(...\\) or \\[...\\]. \
 (4) All subscripts, superscripts, fractions, radicals, Greek letters, vectors, operators must be inside delimiters. \
 (5) Multi-line/matrix: $$\\begin{pmatrix}...\\end{pmatrix}$$. \
-(6) Chemistry formulas: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.";
+(6) Chemistry formulas: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.
+(7) Punctuation: Do NOT add commas after LaTeX expressions (e.g., write $x = 3$ not $x = 3$, or $f(x)$ not $f(x)$,). Commas belong only between natural language words.";
 
 pub const QUESTION_STYLE_RULES: &str = "
-QUESTION STYLE RULES (mandatory):
+QUESTION STYLE RULES (mandatory): 
 
 (1) OUTPUT FORMAT
 - Markdown is permitted for emphasis (*italic*, **bold**) and inline code, but never for structure.
@@ -356,7 +357,7 @@ accompanying strategies\n\
         - Coaching considerations to enhance participation and performance");
 
     m.insert(
-        "applied biomechanics: newton's laws, projectile motion, and levers",
+        "applied biomechanics: forces, momentum, impulse, newton’s laws, projectile motion, and levers",
         "Study Design key knowledge:\n\
         - Linear and angular concepts: force/torque, momentum, impulse, speed/velocity\n\
         - Newton's 3 laws of linear motion: inertia, acceleration, action-reaction\n\

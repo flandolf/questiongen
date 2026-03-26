@@ -409,7 +409,7 @@ for correct: why it is right)\n\
 
 // ─── Shared prompt-note builders ──────────────────────────────────────────────
 
-fn topic_notes(topics: &[String]) -> String {
+fn topic_notes(topics: &[String], selected_subs: Option<&Vec<String>>) -> String {
     let mut s = String::new();
     if topics
         .iter()
@@ -418,9 +418,11 @@ fn topic_notes(topics: &[String]) -> String {
         s.push('\n');
         s.push_str(MATHEMATICAL_METHODS_GUIDANCE);
     }
+    let no_focus_areas = selected_subs.map_or(true, |subs| subs.is_empty());
     if topics
         .iter()
         .any(|t| t.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC))
+        && no_focus_areas
     {
         s.push('\n');
         s.push_str(PHYSICAL_EDUCATION_GUIDANCE);
@@ -838,7 +840,7 @@ async fn generate_questions(
         subs_note             = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note           = custom_note,
         tech                  = tech_note(tech_mode),
-        topic_notes           = topic_notes(&request.topics),
+        topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
         focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
         exam_context_preamble = exam_context_preamble,
@@ -1053,7 +1055,7 @@ async fn generate_mc_questions(
         subs_note             = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
         custom_note           = custom_note,
         tech                  = tech_note(tech_mode),
-        topic_notes           = topic_notes(&request.topics),
+        topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
         focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
         exam_context_preamble = exam_context_preamble,
