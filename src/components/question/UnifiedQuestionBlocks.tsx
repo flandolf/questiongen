@@ -67,6 +67,7 @@ export function UnifiedMcqOptionsGrid({
   correctAnswer,
   answered,
   revealCorrectness = false,
+  lockSelection = true,
   onSelect,
   className,
 }: {
@@ -75,10 +76,12 @@ export function UnifiedMcqOptionsGrid({
   correctAnswer?: string;
   answered?: boolean;
   revealCorrectness?: boolean;
+  lockSelection?: boolean;
   onSelect?: (label: string) => void;
   className?: string;
 }) {
   const isAnswered = answered ?? Boolean(selectedAnswer);
+  const isExamStyle = isAnswered && !revealCorrectness;
 
   return (
     <div className={cn("grid grid-cols-2 gap-4", className)}>
@@ -86,7 +89,7 @@ export function UnifiedMcqOptionsGrid({
         const isChosen = selectedAnswer === opt.label;
         const isCorrect = opt.label === correctAnswer;
         const color = UNIFIED_OPTION_COLORS[opt.label] ?? "#6b7280";
-        const disabled = isAnswered || !onSelect;
+        const disabled = lockSelection && (isAnswered || !onSelect);
 
         let containerClasses = "p-4 rounded-lg border border-transparent hover:bg-muted/30 cursor-pointer transition-colors";
 
@@ -98,7 +101,9 @@ export function UnifiedMcqOptionsGrid({
               ? "p-4 rounded-lg border border-rose-500/30 bg-rose-500/5 cursor-default"
               : "p-4 rounded-lg border border-violet-500/30 bg-violet-500/5 cursor-default";
           } else {
-            containerClasses = "p-4 rounded-lg border border-transparent opacity-40 cursor-default";
+            containerClasses = isExamStyle
+              ? "p-4 rounded-lg border border-transparent hover:bg-muted/30 cursor-pointer transition-colors"
+              : "p-4 rounded-lg border border-transparent opacity-40 cursor-default";
           }
         }
 
@@ -110,16 +115,22 @@ export function UnifiedMcqOptionsGrid({
             onClick={() => onSelect?.(opt.label)}
             className={cn("w-full text-left flex items-start gap-3", containerClasses)}
           >
-            <div
-              className={cn(
-                "w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs font-semibold",
-                isAnswered ? (
-                  isCorrect ? "bg-emerald-500 text-white" :
-                    isChosen ? (revealCorrectness ? "bg-rose-500 text-white" : "bg-violet-500 text-white") :
-                      "bg-muted text-muted-foreground"
-                ) : "bg-muted text-foreground/70"
-              )}
-              style={!isAnswered ? { backgroundColor: `${color}20`, color } : undefined}
+        <div
+          className={cn(
+            "w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs font-semibold",
+            isAnswered ? (
+              isChosen ? (
+                revealCorrectness
+                  ? (isCorrect ? "bg-emerald-500 text-white" : "bg-rose-500 text-white")
+                  : "bg-violet-500 text-white"
+              ) : (isCorrect && revealCorrectness
+                ? "bg-emerald-500 text-white"
+                : isExamStyle
+                  ? "bg-muted text-foreground/70"
+                  : "bg-muted text-muted-foreground")
+            ) : "bg-muted text-foreground/70"
+          )}
+              style={!isAnswered || (isExamStyle && !isChosen) ? { backgroundColor: `${color}20`, color } : undefined}
             >
               {opt.label}
             </div>

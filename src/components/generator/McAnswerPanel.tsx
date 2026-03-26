@@ -18,6 +18,7 @@ type McAnswerPanelProps = {
   appealText: string;
   overrideInput: string;
   isMarking: boolean;
+  hideCorrectAnswer?: boolean;
   onSelectAnswer: (label: string) => void;
   onAppealChange: (value: string) => void;
   onOverrideInputChange: (value: string) => void;
@@ -34,6 +35,7 @@ export function McAnswerPanel({
   appealText,
   overrideInput,
   isMarking,
+  hideCorrectAnswer,
   onSelectAnswer,
   onAppealChange,
   onOverrideInputChange,
@@ -42,6 +44,7 @@ export function McAnswerPanel({
 }: McAnswerPanelProps) {
   const answered = Boolean(selectedAnswer);
   const isCorrect = selectedAnswer === correctAnswer;
+  const showResult = answered && !hideCorrectAnswer;
 
   return (
     <div className="overflow-hidden flex-col">
@@ -56,12 +59,13 @@ export function McAnswerPanel({
           selectedAnswer={selectedAnswer}
           correctAnswer={correctAnswer}
           answered={answered}
-          revealCorrectness={answered}
+          revealCorrectness={answered && !hideCorrectAnswer}
+          lockSelection={!hideCorrectAnswer}
           onSelect={onSelectAnswer}
         />
 
         {/* Result + explanation */}
-        {answered && (
+        {showResult && (
           <div className="mt-2 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className={`p-4 rounded-2xl border flex gap-3 items-start ${
               isCorrect
