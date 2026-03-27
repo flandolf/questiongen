@@ -46,6 +46,7 @@ import { SetupPanel, BatchTopicProgress } from "@/components/generator/SetupPane
 import { CompletionScreen } from "@/components/generator/CompletionScreen";
 import { WrittenSessionHeader } from "@/components/generator/WrittenSessionHeader";
 import { WrittenQuestionCard } from "@/components/generator/WrittenQuestionCard";
+import { useQuestionTimer } from "@/hooks/useQuestionTimer";
 import { WrittenAnswerCard } from "@/components/generator/WrittenAnswerCard";
 import { WrittenFeedbackPanel } from "@/components/generator/WrittenFeedbackPanel";
 import { McSessionHeader } from "@/components/generator/McSessionHeader";
@@ -75,11 +76,6 @@ function getDifficultyBadgeClasses(level: Difficulty) {
     default: return "";
   }
 }
-
-// ─── Stopwatch persistence keys ───────────────────────────────────────────────
-const LS_STOPWATCH_STARTED_KEY = "generator_stopwatch_startedAt";
-const LS_STOPWATCH_FINISHED_KEY = "generator_stopwatch_finishedAt";
-const LS_STOPWATCH_PAUSED_TIME_KEY = "generator_stopwatch_pausedTime";
 
 // ─── Batch distribution helper ────────────────────────────────────────────────
 // Distributes `total` questions across `n` topics as evenly as possible.
@@ -124,29 +120,29 @@ function rekeyMc(
 export function GeneratorView() {
   // Read query params for pre-selection
   const location = useLocation();
-    // Pre-select topic and subtopic from query params on mount
-    useEffect(() => {
-      const params = new URLSearchParams(location.search);
-      const topic = params.get("topic");
-      const subtopic = params.get("subtopic");
-      if (topic && TOPICS.includes(topic as Topic)) {
-        setSelectedTopics([topic as Topic]);
-        // Try to select subtopic if present and valid for this topic
-        if (subtopic) {
-          if (topic === "Mathematical Methods" && MATH_METHODS_SUBTOPICS.includes(subtopic as MathMethodsSubtopic)) {
-            setMathMethodsSubtopics([subtopic as MathMethodsSubtopic]);
-          } else if (topic === "Specialist Mathematics" && SPECIALIST_MATH_SUBTOPICS.includes(subtopic as SpecialistMathSubtopic)) {
-            setSpecialistMathSubtopics([subtopic as SpecialistMathSubtopic]);
-          } else if (topic === "Chemistry" && CHEMISTRY_SUBTOPICS.includes(subtopic as ChemistrySubtopic)) {
-            setChemistrySubtopics([subtopic as ChemistrySubtopic]);
-          } else if (topic === "Physical Education" && PHYSICAL_EDUCATION_SUBTOPICS.includes(subtopic as PhysicalEducationSubtopic)) {
-            setPhysicalEducationSubtopics([subtopic as PhysicalEducationSubtopic]);
-          }
+  // Pre-select topic and subtopic from query params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const topic = params.get("topic");
+    const subtopic = params.get("subtopic");
+    if (topic && TOPICS.includes(topic as Topic)) {
+      setSelectedTopics([topic as Topic]);
+      // Try to select subtopic if present and valid for this topic
+      if (subtopic) {
+        if (topic === "Mathematical Methods" && MATH_METHODS_SUBTOPICS.includes(subtopic as MathMethodsSubtopic)) {
+          setMathMethodsSubtopics([subtopic as MathMethodsSubtopic]);
+        } else if (topic === "Specialist Mathematics" && SPECIALIST_MATH_SUBTOPICS.includes(subtopic as SpecialistMathSubtopic)) {
+          setSpecialistMathSubtopics([subtopic as SpecialistMathSubtopic]);
+        } else if (topic === "Chemistry" && CHEMISTRY_SUBTOPICS.includes(subtopic as ChemistrySubtopic)) {
+          setChemistrySubtopics([subtopic as ChemistrySubtopic]);
+        } else if (topic === "Physical Education" && PHYSICAL_EDUCATION_SUBTOPICS.includes(subtopic as PhysicalEducationSubtopic)) {
+          setPhysicalEducationSubtopics([subtopic as PhysicalEducationSubtopic]);
         }
       }
+    }
     // Only run on mount or when location.search changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location.search]);
+  }, [location.search]);
   // ── Local UI state ──────────────────────────────────────────────────────────
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
@@ -156,6 +152,7 @@ export function GeneratorView() {
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState("");
   const [examRecordSaved, setExamRecordSaved] = useState(false);
+  const [capturedElapsedSeconds, setCapturedElapsedSeconds] = useState<number | null>(null);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
@@ -238,6 +235,12 @@ export function GeneratorView() {
   const [, setNow] = useState(Date.now());
 
   const pauseStartedAtRef = useRef<number | null>(null);
+  const generationStartedAtRef = useRef<number | null>(generationStartedAt);
+  useEffect(() => { generationStartedAtRef.current = generationStartedAt; }, [generationStartedAt]);
+  const pausedDurationRef = useRef(pausedDuration);
+  useEffect(() => { pausedDurationRef.current = pausedDuration; }, [pausedDuration]);
+  const isPausedRef = useRef(isPaused);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
   const [streamText, setStreamText] = useState("");
 
@@ -252,9 +255,24 @@ export function GeneratorView() {
     return totalScore / recentExams.length;
   }, []); // Recalculate when needed, but for now static
 
+
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
     import("@/types").GenerationTelemetry | null
   >(null);
+
+  // --- Timer hooks ---
+  const writtenTimer = useQuestionTimer(
+    generationMode,
+    examTimeLimitMinutes * 60,
+    questions,
+    activeQuestionIndex
+  );
+  const mcTimer = useQuestionTimer(
+    generationMode,
+    examTimeLimitMinutes * 60,
+    mcQuestions,
+    activeMcQuestionIndex
+  );
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -364,6 +382,15 @@ export function GeneratorView() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [elapsedSeconds]);
 
+  const completionFormattedElapsedTime = useMemo(() => {
+    const secs = capturedElapsedSeconds ?? elapsedSeconds;
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }, [capturedElapsedSeconds, elapsedSeconds]);
+
   const remainingSeconds = useMemo(() => {
     const totalSeconds = examTimeLimitMinutes * 60;
     return Math.max(0, totalSeconds - elapsedSeconds);
@@ -377,22 +404,24 @@ export function GeneratorView() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remainingSeconds]);
 
-  const formattedTimerDisplay = generationMode === "exam" ? formattedCountdownTime : formattedElapsedTime;
+
 
   useEffect(() => {
     if (generationMode !== "exam") return;
     if (!generationStartedAt) return;
     if (showCompletionScreen || isSetComplete) return;
-    if (sessionFinishedAt !== null) return;
+    // Removed: if (sessionFinishedAt !== null) return;
     if (remainingSeconds > 0) return;
     setSessionFinishedAt(Date.now());
+    captureElapsedSeconds();
     setShowCompletionScreen(true);
-  }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, sessionFinishedAt, showCompletionScreen]);
+  }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, showCompletionScreen]);
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     setShowCompletionScreen(false);
     setHasShownCompletionScreen(false);
+    setCapturedElapsedSeconds(null);
   }, [completionSetKey]);
 
   useEffect(() => {
@@ -445,33 +474,72 @@ export function GeneratorView() {
       return { ...prev, [activeMcQuestion.id]: getPausedTotalAt(Date.now()) };
     });
   }, [activeMcQuestion, setMcQuestionPresentedAtById]);
- 
+
   // ── Stopwatch ────────────────────────────────────────────────────────────────
   function startStopwatch() {
     // Initialize stopwatch state but don't start timing yet
-    localStorage.removeItem(LS_STOPWATCH_STARTED_KEY);
-    localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
-    localStorage.removeItem(LS_STOPWATCH_PAUSED_TIME_KEY);
+
     setGenerationStartedAt(null);
     setSessionFinishedAt(null);
+    setCapturedElapsedSeconds(null);
     setIsPaused(false);
     setPausedDuration(0);
   }
 
   function startTiming() {
     const now = Date.now();
-    localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(now));
     setGenerationStartedAt(now);
+    // Timer will be started by useEffect below when questions/mcQuestions are populated
   }
 
+  function captureElapsedSeconds() {
+    const now = Date.now();
+    const startFrom = generationStartedAtRef.current;
+    if (startFrom !== null) {
+      const currentPauseOverlap = (isPausedRef.current && pauseStartedAtRef.current)
+        ? (now - pauseStartedAtRef.current)
+        : 0;
+      setCapturedElapsedSeconds(Math.max(0, Math.floor((now - startFrom - pausedDurationRef.current - currentPauseOverlap) / 1000)));
+    } else {
+      const presented = questionMode === "written"
+        ? Object.values(writtenQuestionPresentedAtById)
+        : Object.values(mcQuestionPresentedAtById);
+      const earliest = presented.length > 0 ? Math.min(...presented) : now;
+      setCapturedElapsedSeconds(Math.max(0, Math.floor((now - earliest) / 1000)));
+    }
+  }
+  // Start timer only after questions or mcQuestions are populated
+  useEffect(() => {
+    if (questionMode === "written" && questions.length > 0) {
+      writtenTimer.startTiming(questions);
+    } else if (questionMode === "multiple-choice" && mcQuestions.length > 0) {
+      mcTimer.startTiming(mcQuestions);
+    }
+    // Only run when questions/mcQuestions change
+  }, [questionMode, questions, mcQuestions, writtenTimer, mcTimer]);
+
+  // Pause timers while marking in practice mode
+  useEffect(() => {
+    if (generationMode !== "practice") return;
+    if (questionMode === "written") {
+      writtenTimer.setPaused(isMarking);
+    } else if (questionMode === "multiple-choice") {
+      mcTimer.setPaused(isMarking);
+    }
+  }, [isMarking, generationMode, questionMode, writtenTimer, mcTimer]);
+
+
   function resetStopwatch() {
-    localStorage.removeItem(LS_STOPWATCH_STARTED_KEY);
-    localStorage.removeItem(LS_STOPWATCH_FINISHED_KEY);
-    localStorage.removeItem(LS_STOPWATCH_PAUSED_TIME_KEY);
     setGenerationStartedAt(null);
     setSessionFinishedAt(null);
+    setCapturedElapsedSeconds(null);
     setIsPaused(false);
     setPausedDuration(0);
+    if (questionMode === "written") {
+      writtenTimer.reset();
+    } else if (questionMode === "multiple-choice") {
+      mcTimer.reset();
+    }
   }
 
   function togglePause() {
@@ -480,7 +548,6 @@ export function GeneratorView() {
       if (pauseStartedAtRef.current) {
         const pausedNow = Date.now();
         setPausedDuration(prev => prev + (pausedNow - pauseStartedAtRef.current!));
-        localStorage.setItem(LS_STOPWATCH_PAUSED_TIME_KEY, String(pausedDuration + (pausedNow - pauseStartedAtRef.current!)));
       }
       pauseStartedAtRef.current = null;
       setIsPaused(false);
@@ -489,38 +556,25 @@ export function GeneratorView() {
       pauseStartedAtRef.current = Date.now();
       setIsPaused(true);
     }
+    // Optionally, you could call writtenTimer.togglePause() or mcTimer.togglePause() here if you want timer state to match UI pause
   }
 
   useEffect(() => {
+
     if (generationStartedAt !== null) return;
-    const storedStart = localStorage.getItem(LS_STOPWATCH_STARTED_KEY);
-    const storedFinish = localStorage.getItem(LS_STOPWATCH_FINISHED_KEY);
-    const storedPaused = localStorage.getItem(LS_STOPWATCH_PAUSED_TIME_KEY);
-    if (storedStart) {
-      const parsed = Number(storedStart);
-      if (Number.isFinite(parsed) && parsed > 0) setGenerationStartedAt(parsed);
-    }
-    if (storedFinish) {
-      const parsed = Number(storedFinish);
-      if (Number.isFinite(parsed) && parsed > 0) setSessionFinishedAt(parsed);
-    }
-    if (storedPaused) {
-      const parsed = Number(storedPaused);
-      if (Number.isFinite(parsed) && parsed > 0) setPausedDuration(parsed);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Legacy stopwatch restore logic removed
   }, []);
 
   useEffect(() => {
-    if (generationStartedAt !== null) localStorage.setItem(LS_STOPWATCH_STARTED_KEY, String(generationStartedAt));
+
   }, [generationStartedAt]);
 
   useEffect(() => {
-    if (sessionFinishedAt !== null) localStorage.setItem(LS_STOPWATCH_FINISHED_KEY, String(sessionFinishedAt));
+
   }, [sessionFinishedAt]);
 
   useEffect(() => {
-    if (pausedDuration > 0) localStorage.setItem(LS_STOPWATCH_PAUSED_TIME_KEY, String(pausedDuration));
+
   }, [pausedDuration]);
 
   useEffect(() => {
@@ -536,71 +590,85 @@ export function GeneratorView() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [generationStartedAt, sessionFinishedAt]);
 
-// ── Stream token listener ────────────────────────────────────────────────────
-useEffect(() => {
-  let unlisten: (() => void) | undefined;
-  let cancelled = false;
+  // ── Stream token listener ────────────────────────────────────────────────────
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
 
-  listen<GenerationTokenEvent>("generation-token", (event) => {
-    setStreamText((prev) => prev + event.payload.text);
-  }).then((fn) => {
-    if (cancelled) {
-      fn(); // Promise resolved after cleanup — immediately unlisten
-    } else {
-      unlisten = fn;
-    }
-  }).catch(() => {});
+    listen<GenerationTokenEvent>("generation-token", (event) => {
+      setStreamText((prev) => prev + event.payload.text);
+    }).then((fn) => {
+      if (cancelled) {
+        fn(); // Promise resolved after cleanup — immediately unlisten
+      } else {
+        unlisten = fn;
+      }
+    }).catch(() => { });
 
-  return () => {
-    cancelled = true;
-    unlisten?.();
-  };
-}, []);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
-// ── SSE status listener — forwards stage updates into batchProgress ──────────
-useEffect(() => {
-  let unlisten: (() => void) | undefined;
-  let cancelled = false;
+  // ── SSE status listener — forwards stage updates into batchProgress ──────────
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
 
-  listen<import("@/types").GenerationStatusEvent>("generation-status", (event) => {
-    setGenerationStatus(event.payload);
-    setBatchProgress((prev) => {
-      const activeIdx = prev.findIndex((e) => e.status === "active");
-      if (activeIdx === -1) return prev;
-      const next = [...prev];
-      next[activeIdx] = {
-        ...next[activeIdx],
-        stage: event.payload.stage,
-        message: event.payload.message,
-      };
-      return next;
-    });
-  }).then((fn) => {
-    if (cancelled) {
-      fn();
-    } else {
-      unlisten = fn;
-    }
-  }).catch(() => {});
+    listen<import("@/types").GenerationStatusEvent>("generation-status", (event) => {
+      setGenerationStatus(event.payload);
+      setBatchProgress((prev) => {
+        const activeIdx = prev.findIndex((e) => e.status === "active");
+        if (activeIdx === -1) return prev;
+        const next = [...prev];
+        next[activeIdx] = {
+          ...next[activeIdx],
+          stage: event.payload.stage,
+          message: event.payload.message,
+        };
+        return next;
+      });
+    }).then((fn) => {
+      if (cancelled) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
+    }).catch(() => { });
 
-  return () => {
-    cancelled = true;
-    unlisten?.();
-  };
-}, [setGenerationStatus]);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [setGenerationStatus]);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
-    if (isAtLastWrittenQuestion) { setSessionFinishedAt(Date.now()); setShowCompletionScreen(true); return; }
+    if (isAtLastWrittenQuestion) {
+      const now = Date.now();
+      setSessionFinishedAt(now);
+      captureElapsedSeconds();
+      setShowCompletionScreen(true);
+      writtenTimer.finishSession();
+      return;
+    }
     setActiveQuestionIndex(Math.min(questions.length - 1, activeQuestionIndex + 1));
-  }, [canAdvanceWritten, isAtLastWrittenQuestion, questions.length, activeQuestionIndex, setActiveQuestionIndex]);
+  }, [canAdvanceWritten, isAtLastWrittenQuestion, questions.length, activeQuestionIndex, setActiveQuestionIndex, writtenTimer]);
 
   const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
-    if (isAtLastMcQuestion) { setSessionFinishedAt(Date.now()); setShowCompletionScreen(true); return; }
+    if (isAtLastMcQuestion) {
+      const now = Date.now();
+      setSessionFinishedAt(now);
+      captureElapsedSeconds();
+      setShowCompletionScreen(true);
+      mcTimer.finishSession();
+      return;
+    }
     setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1));
-  }, [canAdvanceMc, isAtLastMcQuestion, mcQuestions.length, activeMcQuestionIndex, setActiveMcQuestionIndex]);
+  }, [canAdvanceMc, isAtLastMcQuestion, mcQuestions.length, activeMcQuestionIndex, setActiveMcQuestionIndex, mcTimer]);
 
   // ── Cancel question ──────────────────────────────────────────────────────────
   const handleCancelWrittenQuestion = useCallback(() => {
@@ -1399,6 +1467,7 @@ useEffect(() => {
     } catch { setErrorMessage("Could not read image file. Try a different file."); }
   }, [activeQuestion, setImagesByQuestionId, setWrittenResponseEnteredAtById]);
 
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-full w-full flex flex-col gap-6 animate-in fade-in duration-500">
@@ -1465,13 +1534,35 @@ useEffect(() => {
           questionMode={questionMode}
           difficulty={difficulty}
           accuracyPercent={completionAccuracyPercent ?? 0}
-          formattedElapsedTime={formattedElapsedTime}
+          formattedElapsedTime={completionFormattedElapsedTime}
           completedCount={questionMode === "written" ? completedCount : mcCompletedCount}
           totalCount={questionMode === "written" ? questions.length : mcQuestions.length}
           hasSavedSet={Boolean(questionMode === "written" ? activeWrittenSavedSetId : activeMcSavedSetId)}
           onReview={() => setShowCompletionScreen(false)}
           onSave={handleSave}
           onStartOver={handleStartOver}
+          perQuestionTiming={questionMode === "written"
+            ? questions.map(q => {
+              const t = writtenTimer.getQuestionTiming(q.id);
+              return t ? {
+                questionId: q.id,
+                timeUsedSeconds: t.timeUsedSeconds,
+                timeLimitSeconds: t.timeLimitSeconds,
+                finishedEarly: t.finishedEarly,
+              } : { questionId: q.id, timeUsedSeconds: 0, timeLimitSeconds: 0, finishedEarly: false };
+            })
+            : mcQuestions.map(q => {
+              const t = mcTimer.getQuestionTiming(q.id);
+              return t ? {
+                questionId: q.id,
+                timeUsedSeconds: t.timeUsedSeconds,
+                timeLimitSeconds: t.timeLimitSeconds,
+                finishedEarly: t.finishedEarly,
+              } : { questionId: q.id, timeUsedSeconds: 0, timeLimitSeconds: 0, finishedEarly: false };
+            })
+          }
+          parTimeSeconds={questionMode === "written" ? writtenTimer.parTimeSeconds : mcTimer.parTimeSeconds}
+          totalBankedSeconds={questionMode === "written" ? writtenTimer.bankedSeconds : mcTimer.bankedSeconds}
         />
 
         /* ── Written Question View ── */
@@ -1490,7 +1581,6 @@ useEffect(() => {
             canAdvance={canAdvanceWritten}
             hasSavedSet={Boolean(activeWrittenSavedSetId)}
             generationStartedAt={generationStartedAt}
-            formattedElapsedTime={formattedTimerDisplay}
             telemetry={writtenGenerationTelemetry}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))}
@@ -1514,6 +1604,22 @@ useEffect(() => {
                   showRawOutput={showWrittenRawOutput}
                   rawModelOutput={writtenRawModelOutput}
                   onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
+                  timerProps={{
+                    questionNumber: activeQuestionIndex + 1,
+                    totalQuestions: questions.length,
+                    currentQuestionTimeUsed: writtenTimer.currentQuestionTimeUsed,
+                    currentQuestionTimeLimit: writtenTimer.currentQuestionTimeLimit,
+                    currentQuestionRemaining: writtenTimer.currentQuestionRemaining,
+                    formattedQuestionTime: writtenTimer.formattedQuestionTime,
+                    parTimeSeconds: writtenTimer.parTimeSeconds,
+                    bankedSeconds: writtenTimer.bankedSeconds,
+                    formattedBank: writtenTimer.formattedBank,
+                    bankStatus: writtenTimer.bankStatus,
+                    formattedSessionTime: writtenTimer.formattedSessionTime,
+                    isQuestionExpired: writtenTimer.isQuestionExpired,
+                    mode: generationMode,
+                  }}
+                  isSubmitDisabled={writtenTimer.isQuestionExpired && generationMode === "exam"}
                 />
                 {!activeFeedback ? (
                   <WrittenAnswerCard
@@ -1547,8 +1653,8 @@ useEffect(() => {
                     onAppealChange={(v) => setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
                     onOverrideInputChange={(v) => setMarkOverrideInputByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
                     onArgueForMark={handleArgueForMark}
-                      onApplyOverride={handleOverrideMark}
-                      onCriterionChange={handleOverrideCriterion}
+                    onApplyOverride={handleOverrideMark}
+                    onCriterionChange={handleOverrideCriterion}
                   />
                 )}
               </div>
@@ -1571,7 +1677,6 @@ useEffect(() => {
             canAdvance={canAdvanceMc}
             hasSavedSet={Boolean(activeMcSavedSetId)}
             generationStartedAt={generationStartedAt}
-            formattedElapsedTime={formattedTimerDisplay}
             telemetry={mcGenerationTelemetry}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))}
@@ -1595,6 +1700,22 @@ useEffect(() => {
                   showRawOutput={showMcRawOutput}
                   rawModelOutput={mcRawModelOutput}
                   onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
+                  timerProps={{
+                    questionNumber: activeMcQuestionIndex + 1,
+                    totalQuestions: mcQuestions.length,
+                    currentQuestionTimeUsed: mcTimer.currentQuestionTimeUsed,
+                    currentQuestionTimeLimit: mcTimer.currentQuestionTimeLimit,
+                    currentQuestionRemaining: mcTimer.currentQuestionRemaining,
+                    formattedQuestionTime: mcTimer.formattedQuestionTime,
+                    parTimeSeconds: mcTimer.parTimeSeconds,
+                    bankedSeconds: mcTimer.bankedSeconds,
+                    formattedBank: mcTimer.formattedBank,
+                    bankStatus: mcTimer.bankStatus,
+                    formattedSessionTime: mcTimer.formattedSessionTime,
+                    isQuestionExpired: mcTimer.isQuestionExpired,
+                    mode: generationMode,
+                  }}
+                  isSubmitDisabled={mcTimer.isQuestionExpired && generationMode === "exam"}
                 />
                 {countWords(activeMcQuestion.explanationMarkdown) > MC_MAX_EXPLANATION_WORDS && (
                   <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-lg px-4 py-2 mb-2 text-sm">

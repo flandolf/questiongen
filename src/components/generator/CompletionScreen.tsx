@@ -21,6 +21,13 @@ import { AccuracyTrendChart } from "./AccuracyTrendChart";
 import { formatDurationMs } from "@/lib/app-utils";
 import { MarkdownMath } from "../MarkdownMath";
 
+type PerQuestionTiming = {
+  questionId: string;
+  timeUsedSeconds: number;
+  timeLimitSeconds: number;
+  finishedEarly: boolean;
+};
+
 type CompletionScreenProps = {
   questionMode: QuestionMode;
   difficulty: Difficulty;
@@ -32,6 +39,9 @@ type CompletionScreenProps = {
   onReview: () => void;
   onSave: () => void;
   onStartOver: () => void;
+  perQuestionTiming?: PerQuestionTiming[];
+  parTimeSeconds?: number;
+  totalBankedSeconds?: number;
 };
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
@@ -101,6 +111,12 @@ function MiniBar({ pct }: { pct: number }) {
   );
 }
 
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CompletionScreen({
@@ -114,6 +130,9 @@ export function CompletionScreen({
   onReview,
   onSave,
   onStartOver,
+  perQuestionTiming,
+  parTimeSeconds,
+  totalBankedSeconds = 0,
 }: CompletionScreenProps) {
   const {
     summary, trendData, topicPerformance,
@@ -591,6 +610,44 @@ export function CompletionScreen({
         )}
 
       </CardContent>
+      {/* Per-question timing breakdown */}
+      {perQuestionTiming && perQuestionTiming.length > 0 && (
+        <div className="mt-6 mx-6">
+          <SectionHeading>Per-Question Timing</SectionHeading>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs border rounded-lg">
+              <thead>
+                <tr className="bg-muted/60">
+                  <th className="px-2 py-1 text-left">Q#</th>
+                  <th className="px-2 py-1 text-left">Used</th>
+                  <th className="px-2 py-1 text-left">Limit</th>
+                  <th className="px-2 py-1 text-left">Par</th>
+                  <th className="px-2 py-1 text-left">Early?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perQuestionTiming.map((q, i) => (
+                  <tr key={q.questionId} className="border-t">
+                    <td className="px-2 py-1 font-mono">{i + 1}</td>
+                    <td className="px-2 py-1 font-mono">{formatTime(q.timeUsedSeconds)}</td>
+                    <td className="px-2 py-1 font-mono">{formatTime(q.timeLimitSeconds)}</td>
+                    <td className="px-2 py-1 font-mono">{formatTime(parTimeSeconds ?? 0)}</td>
+                    <td className="px-2 py-1">{q.finishedEarly ? <span className="text-emerald-600 font-semibold">Yes</span> : <span className="text-muted-foreground">No</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            <span className="font-semibold">Total time banked: </span>
+            <span className={totalBankedSeconds >= 0 ? "text-emerald-600" : "text-rose-600"}>
+              {totalBankedSeconds >= 0 ? "+" : "-"}{formatTime(Math.abs(totalBankedSeconds ?? 0))}
+            </span>
+            {" "}
+            <span className="ml-2">(ahead/behind par)</span>
+          </div>
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <CardFooter className="border-t bg-muted/10 px-5 py-3.5 flex flex-wrap items-center justify-end gap-2">

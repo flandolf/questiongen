@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Clock, Flag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,7 +19,6 @@ type WrittenSessionHeaderProps = {
   hasSavedSet: boolean;
   lastSavedAt?: string | null;
   generationStartedAt: number | null;
-  formattedElapsedTime: string;
   telemetry: GenerationTelemetry | null;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
   onPrev: () => void;
@@ -34,7 +33,7 @@ export function WrittenSessionHeader({
   questionIndex, totalQuestions,
   topic, difficulty, maxMarks, techAllowed, isMathTopic,
   isAtLast, canAdvance, hasSavedSet,
-  generationStartedAt, formattedElapsedTime, telemetry,
+  generationStartedAt, telemetry,
   getDifficultyBadgeClasses,
   onPrev, onNext, onSave, onDelete, onExit,
   onRegenerate,
@@ -76,10 +75,6 @@ export function WrittenSessionHeader({
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2 font-mono text-sm font-bold px-3 py-1.5 rounded-full shadow-sm border border-border/50 bg-card text-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            {formattedElapsedTime}
-          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -95,7 +90,6 @@ export function WrittenSessionHeader({
               <TooltipContent side="bottom" align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-3">
                 <TelemetryTooltip
                   generationStartedAt={generationStartedAt}
-                  formattedElapsedTime={formattedElapsedTime}
                   telemetry={telemetry}
                 />
               </TooltipContent>
@@ -137,11 +131,10 @@ export function WrittenSessionHeader({
 
 type TelemetryTooltipProps = {
   generationStartedAt: number | null;
-  formattedElapsedTime: string;
   telemetry: GenerationTelemetry | null;
 };
 
-export function TelemetryTooltip({ generationStartedAt, formattedElapsedTime, telemetry }: TelemetryTooltipProps) {
+export function TelemetryTooltip({ generationStartedAt, telemetry }: TelemetryTooltipProps) {
   const hasAny = generationStartedAt !== null || telemetry;
   if (!hasAny) {
     return <div className="text-xs text-background/80">No generation diagnostics yet.</div>;
@@ -149,10 +142,6 @@ export function TelemetryTooltip({ generationStartedAt, formattedElapsedTime, te
   return (
     <div className="flex flex-col gap-2 text-xs">
       <div className="font-semibold text-background">Question details</div>
-
-      {generationStartedAt !== null && (
-        <Row label="Timer" value={<span className="font-mono">{formattedElapsedTime}</span>} />
-      )}
       {telemetry && (
         <Row label="Generation time" value={formatDurationMs(telemetry.durationMs)} />
       )}

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Clock, Flag } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,7 +18,6 @@ type McSessionHeaderProps = {
   hasSavedSet: boolean;
   lastSavedAt?: string | null;
   generationStartedAt: number | null;
-  formattedElapsedTime: string;
   telemetry: GenerationTelemetry | null;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
   onPrev: () => void;
@@ -33,7 +32,7 @@ export function McSessionHeader({
   questionIndex, totalQuestions,
   topic, difficulty, techAllowed, isMathTopic,
   isAtLast, canAdvance, hasSavedSet,
-  generationStartedAt, formattedElapsedTime, telemetry,
+  generationStartedAt, telemetry,
   getDifficultyBadgeClasses,
   onPrev, onNext, onSave, onDelete, onExit,
   onRegenerate,
@@ -70,10 +69,6 @@ export function McSessionHeader({
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2 font-mono text-sm font-bold px-3 py-1.5 rounded-full shadow-sm border border-border/50 bg-card text-foreground">
-            <Clock className="w-3.5 h-3.5" />
-            {formattedElapsedTime}
-          </div>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -89,7 +84,6 @@ export function McSessionHeader({
               <TooltipContent side="bottom" align="end" sideOffset={8}>
                 <TelemetryTooltip
                   generationStartedAt={generationStartedAt}
-                  formattedElapsedTime={formattedElapsedTime}
                   telemetry={telemetry}
                 />
               </TooltipContent>

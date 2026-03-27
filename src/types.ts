@@ -531,6 +531,40 @@ export type PersistedAppState = {
   generationHistory?: GenerationRecord[];
 };
 
+// ─── Per-Question Timing ──────────────────────────────────────────────────────
+
+/** Public timing snapshot for a single question. Returned by useQuestionTimer. */
+export type PerQuestionTiming = {
+  /** Allocated seconds (may grow after bank redistribution) */
+  timeLimitSeconds: number;
+  /** Original par-time before any redistribution */
+  originalTimeLimitSeconds: number;
+  /** Wall-clock ms when question was first presented */
+  startedAt: number | null;
+  /** Wall-clock ms when question was answered / submitted */
+  answeredAt: number | null;
+  /** Effective seconds used (pauses excluded; frozen once answered) */
+  timeUsedSeconds: number;
+  /** True once the per-question clock hits zero in exam mode */
+  isExpired: boolean;
+  /** True when the user finished before their allocation ran out */
+  finishedEarly: boolean;
+};
+
+/** Session-level timer state shape (mirrors the hook's internal state). */
+export type QuestionTimerState = {
+  byQuestionId: Record<string, PerQuestionTiming>;
+  totalTimeLimitSeconds: number;
+  sessionStartedAt: number | null;
+  sessionFinishedAt: number | null;
+  bankedSeconds: number;
+  parTimeSeconds: number;
+  isPaused: boolean;
+  pausedDurationMs: number;
+  activeQuestionIndex: number;
+  mode: GenerationMode;
+};
+
 // ─── ExamRecord ─────────────────────────────────────────────────────────────
 
 export type ExamRecord = {
@@ -545,6 +579,13 @@ export type ExamRecord = {
   totalScore: number;
   totalMax: number;
   questionResults: ExamQuestionResult[];
+  /** Per-question timing breakdown (populated by the new timing system) */
+  perQuestionTiming?: Array<{
+    questionId: string;
+    timeUsedSeconds: number;
+    timeLimitSeconds: number;
+    finishedEarly: boolean;
+  }>;
 };
 
 // ─── Spaced Repetition (SM-2) ─────────────────────────────────────────────────
