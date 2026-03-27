@@ -950,7 +950,7 @@ export function SetupPanel({
               )
             }
           >
-            <div className="space-y-4 mb-2">
+            <div className="space-y-2 mb-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="ai-scaling"

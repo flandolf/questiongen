@@ -85,6 +85,10 @@ export function useQuestionTimer(
   const timerStateRef = useRef(timerState);
   useEffect(() => { timerStateRef.current = timerState; }, [timerState]);
 
+  // Stable ref for activeQuestionIndex so the interval always ticks the correct question
+  const activeIndexRef = useRef(activeQuestionIndex);
+  useEffect(() => { activeIndexRef.current = activeQuestionIndex; }, [activeQuestionIndex]);
+
   // --- Timer logic ---
   useEffect(() => {
     if (timerState.isPaused || timerState.sessionStartedAt === null || timerState.sessionFinishedAt !== null) return;
@@ -92,12 +96,12 @@ export function useQuestionTimer(
       setTimerState(s => {
         const now = Date.now() / 1000;
         const qs = questionsRef.current;
-        const currentQ = qs[s.activeQuestionIndex];
+        const currentQ = qs[activeIndexRef.current];
         if (!currentQ) return s;
         const q = s.byQuestionId[currentQ.id];
         if (!q || q.startedAt === null || q.isExpired || q.answeredAt !== null) return s;
 
-        const timeUsed = Math.floor(now - q.startedAt);
+        const timeUsed = Math.max(0, Math.floor(now - q.startedAt - (s.pausedDurationMs / 1000)));
         const isExpired = timeUsed >= q.timeLimitSeconds;
         const newTimeUsed = Math.min(timeUsed, q.timeLimitSeconds);
 
@@ -136,11 +140,14 @@ export function useQuestionTimer(
   const isQuestionExpired = !!qTiming?.isExpired;
   const shouldAutoAdvance = isQuestionExpired && mode === "exam";
 
-  // Session elapsed time accounts for pauses via pausedDurationMs
+  // Session elapsed time accounts for pauses via pausedDurationMs + current active pause
+  const currentPauseMs = timerState.isPaused && pauseStartedAtRef.current
+    ? Date.now() - pauseStartedAtRef.current
+    : 0;
   const sessionElapsedSeconds = timerState.sessionStartedAt === null
     ? 0
     : Math.floor(
-        ((timerState.sessionFinishedAt ?? Date.now() / 1000) - timerState.sessionStartedAt - (timerState.pausedDurationMs / 1000))
+        ((timerState.sessionFinishedAt ?? Date.now() / 1000) - timerState.sessionStartedAt - ((timerState.pausedDurationMs + currentPauseMs) / 1000))
       );
   const sessionRemainingSeconds = Math.max(0, timerState.totalTimeLimitSeconds - sessionElapsedSeconds);
   const formattedSessionTime = formatTime(mode === "exam" ? sessionRemainingSeconds : sessionElapsedSeconds);
@@ -228,11 +235,28 @@ export function useQuestionTimer(
       const now = Date.now() / 1000;
       const q = s.byQuestionId[questionId];
       if (!q || q.answeredAt !== null) return s;
+      let timeUsedSeconds = q.timeUsedSeconds;
+      if (q.startedAt !== null) {
+        // Subtract accumulated pause duration so paused time doesn't inflate the answer time
+        const currentPauseMs = s.isPaused && pauseStartedAtRef.current
+          ? Date.now() - pauseStartedAtRef.current
+          : 0;
+        const totalPauseSeconds = (s.pausedDurationMs + currentPauseMs) / 1000;
+        timeUsedSeconds = Math.max(0, Math.floor(now - q.startedAt - totalPauseSeconds));
+      }
+      const finishedEarly = timeUsedSeconds < q.timeLimitSeconds;
+      const bankDelta = q.timeLimitSeconds - timeUsedSeconds;
       return {
         ...s,
+        bankedSeconds: s.bankedSeconds + bankDelta,
         byQuestionId: {
           ...s.byQuestionId,
-          [questionId]: { ...q, answeredAt: now, finishedEarly: true },
+          [questionId]: {
+            ...q,
+            answeredAt: now,
+            finishedEarly,
+            timeUsedSeconds,
+          },
         },
       };
     });
