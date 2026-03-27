@@ -61,8 +61,8 @@ function AppRoutes() {
 export default function App() {
   return (
     <MathJaxContext
-      version={3}
-      src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"
+      version={4}
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"
       config={{
         tex: {
           inlineMath: [["$", "$"]],

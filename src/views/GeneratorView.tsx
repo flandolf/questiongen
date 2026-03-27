@@ -232,7 +232,7 @@ export function GeneratorView() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [pausedDuration, setPausedDuration] = useState(0);
-  const [, setNow] = useState(Date.now());
+  const [now, setNow] = useState(Date.now());
 
   const pauseStartedAtRef = useRef<number | null>(null);
   const generationStartedAtRef = useRef<number | null>(generationStartedAt);
@@ -367,12 +367,12 @@ export function GeneratorView() {
 
   const elapsedSeconds = useMemo(() => {
     if (generationStartedAt === null) return 0;
-    const end = sessionFinishedAt ?? Date.now();
+    const end = sessionFinishedAt ?? now;
     const currentPauseOverlap = (isPaused && pauseStartedAtRef.current)
-      ? (Date.now() - pauseStartedAtRef.current)
+      ? (now - pauseStartedAtRef.current)
       : 0;
     return Math.max(0, Math.floor((end - generationStartedAt - pausedDuration - currentPauseOverlap) / 1000));
-  }, [generationStartedAt, sessionFinishedAt, pausedDuration, isPaused, Date.now()]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [generationStartedAt, sessionFinishedAt, pausedDuration, isPaused, now]);
 
   const formattedElapsedTime = useMemo(() => {
     const h = Math.floor(elapsedSeconds / 3600);
@@ -543,39 +543,18 @@ export function GeneratorView() {
   }
 
   function togglePause() {
-    if (isPaused) {
-      // Resume: subtract the paused duration from the total
-      if (pauseStartedAtRef.current) {
-        const pausedNow = Date.now();
-        setPausedDuration(prev => prev + (pausedNow - pauseStartedAtRef.current!));
-      }
-      pauseStartedAtRef.current = null;
-      setIsPaused(false);
-    } else {
-      // Pause: record the start time
+    const willPause = !isPaused;
+    if (willPause) {
       pauseStartedAtRef.current = Date.now();
-      setIsPaused(true);
+    } else if (pauseStartedAtRef.current) {
+      setPausedDuration(prev => prev + (Date.now() - pauseStartedAtRef.current!));
+      pauseStartedAtRef.current = null;
     }
-    // Optionally, you could call writtenTimer.togglePause() or mcTimer.togglePause() here if you want timer state to match UI pause
+    setIsPaused(willPause);
+    // Sync per-question timer with session-level pause
+    if (questionMode === "written") writtenTimer.setPaused(willPause);
+    else if (questionMode === "multiple-choice") mcTimer.setPaused(willPause);
   }
-
-  useEffect(() => {
-
-    if (generationStartedAt !== null) return;
-    // Legacy stopwatch restore logic removed
-  }, []);
-
-  useEffect(() => {
-
-  }, [generationStartedAt]);
-
-  useEffect(() => {
-
-  }, [sessionFinishedAt]);
-
-  useEffect(() => {
-
-  }, [pausedDuration]);
 
   useEffect(() => {
     if (generationStartedAt === null || sessionFinishedAt !== null) return;
