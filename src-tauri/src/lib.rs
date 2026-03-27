@@ -368,6 +368,7 @@ ALL four options (what misconception each wrong option targets and why the corre
          \n\
         FEEDBACK STYLE:\n\
          - Format `feedbackMarkdown` using Markdown (headings, bullet points, and short math/code fences where appropriate) so feedback is clear and scannable.\n\
+         - Also use Markdown in `comparisonToSolutionMarkdown` and `workedSolutionMarkdown` (headings, lists, and clear step structure).\n\
          - At the end of `feedbackMarkdown` include an \"Exemplar response\" subsection showing an ideal student answer (concise, directly aligned to the marking scheme) that would earn full marks.\n\
          - Keep exemplar focused on the key steps or reasoning required for full credit.\n\
         \n\
