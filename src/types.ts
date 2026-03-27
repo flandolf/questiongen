@@ -1,3 +1,13 @@
+// ─── Generator Parameter Preset ─────────────────────────────────────────────
+
+export type Preset = {
+  id: string; // UUID or Firestore doc id
+  name: string; // User-facing name
+  preferences: PersistedGeneratorPreferences;
+  createdAt: string; // ISO date
+  updatedAt: string; // ISO date
+  lastModified?: number;
+};
 export type Difficulty =  "Essential Skills" | "Easy" | "Medium" | "Hard" | "Extreme";
 
 export type TechMode = "tech-free" | "tech-active" | "mix";
@@ -529,6 +539,7 @@ export type PersistedAppState = {
   streakData?: StreakData;
   examHistory?: ExamRecord[];
   generationHistory?: GenerationRecord[];
+  presets?: Preset[];
 };
 
 // ─── Per-Question Timing ──────────────────────────────────────────────────────

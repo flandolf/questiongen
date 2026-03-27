@@ -25,6 +25,8 @@ import {
   Pause,
   Play,
   FileText,
+  Save,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppSettings } from "@/AppContext";
@@ -54,6 +56,8 @@ import {
   GenerationMode,
   GenerationStatusEvent,
   GenerationTelemetry,
+  Preset,
+  PersistedGeneratorPreferences,
 } from "@/types";
 import { PageHeader, FilterGroup, FilterButton } from "@/components/layout/primitives";
 import { useAppStore } from "@/store";
@@ -221,6 +225,233 @@ function SubtopicGroup({ label, hint, items, selected, onToggle }: {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Preset section ──────────────────────────────────────────────────────────
+
+function buildPreferencesSnapshot(props: {
+  selectedTopics: Topic[];
+  difficulty: Difficulty;
+  techMode: TechMode;
+  avoidSimilarQuestions: boolean;
+  mathMethodsSubtopics: MathMethodsSubtopic[];
+  specialistMathSubtopics: SpecialistMathSubtopic[];
+  chemistrySubtopics: ChemistrySubtopic[];
+  physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  questionCount: number;
+  averageMarksPerQuestion: number;
+  questionMode: QuestionMode;
+  generationMode: GenerationMode;
+  examTimeLimitMinutes: number;
+  subtopicInstructions: Record<string, string>;
+  aiDifficultyScalingEnabled: boolean;
+  difficultyThresholds: { increase: number; decrease: number };
+}): PersistedGeneratorPreferences {
+  return {
+    selectedTopics: props.selectedTopics,
+    difficulty: props.difficulty,
+    techMode: props.techMode,
+    avoidSimilarQuestions: props.avoidSimilarQuestions,
+    mathMethodsSubtopics: props.mathMethodsSubtopics,
+    specialistMathSubtopics: props.specialistMathSubtopics,
+    chemistrySubtopics: props.chemistrySubtopics,
+    physicalEducationSubtopics: props.physicalEducationSubtopics,
+    questionCount: props.questionCount,
+    averageMarksPerQuestion: props.averageMarksPerQuestion,
+    questionMode: props.questionMode,
+    generationMode: props.generationMode,
+    examTimeLimitMinutes: props.examTimeLimitMinutes,
+    subtopicInstructions: props.subtopicInstructions,
+    aiDifficultyScalingEnabled: props.aiDifficultyScalingEnabled,
+    difficultyThresholds: props.difficultyThresholds,
+  };
+}
+
+
+function PresetSection({
+  selectedTopics, difficulty, techMode, avoidSimilarQuestions,
+  mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics,
+  physicalEducationSubtopics, questionCount, averageMarksPerQuestion,
+  questionMode, generationMode, examTimeLimitMinutes,
+  aiDifficultyScalingEnabled, difficultyThresholds,
+}: {
+  selectedTopics: Topic[];
+  difficulty: Difficulty;
+  techMode: TechMode;
+  avoidSimilarQuestions: boolean;
+  mathMethodsSubtopics: MathMethodsSubtopic[];
+  specialistMathSubtopics: SpecialistMathSubtopic[];
+  chemistrySubtopics: ChemistrySubtopic[];
+  physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  questionCount: number;
+  averageMarksPerQuestion: number;
+  questionMode: QuestionMode;
+  generationMode: GenerationMode;
+  examTimeLimitMinutes: number;
+  aiDifficultyScalingEnabled: boolean;
+  difficultyThresholds: { increase: number; decrease: number };
+}) {
+  const presets = useAppStore((s) => s.presets);
+  const addPreset = useAppStore((s) => s.addPreset);
+  const updatePreset = useAppStore((s) => s.updatePreset);
+  const deletePreset = useAppStore((s) => s.deletePreset);
+  const setDifficulty = useAppStore((s) => s.setDifficulty);
+  const setTechMode = useAppStore((s) => s.setTechMode);
+  const setAvoidSimilarQuestions = useAppStore((s) => s.setAvoidSimilarQuestions);
+  const setSelectedTopics = useAppStore((s) => s.setSelectedTopics);
+  const setMathMethodsSubtopics = useAppStore((s) => s.setMathMethodsSubtopics);
+  const setSpecialistMathSubtopics = useAppStore((s) => s.setSpecialistMathSubtopics);
+  const setChemistrySubtopics = useAppStore((s) => s.setChemistrySubtopics);
+  const setPhysicalEducationSubtopics = useAppStore((s) => s.setPhysicalEducationSubtopics);
+  const setQuestionCount = useAppStore((s) => s.setQuestionCount);
+  const setAverageMarksPerQuestion = useAppStore((s) => s.setAverageMarksPerQuestion);
+  const setQuestionMode = useAppStore((s) => s.setQuestionMode);
+  const setGenerationMode = useAppStore((s) => s.setGenerationMode);
+  const setExamTimeLimitMinutes = useAppStore((s) => s.setExamTimeLimitMinutes);
+  const setAiDifficultyScalingEnabled = useAppStore((s) => s.setAiDifficultyScalingEnabled);
+  const setDifficultyThresholds = useAppStore((s) => s.setDifficultyThresholds);
+  const subtopicInstructions = useAppStore((s) => s.subtopicInstructions);
+
+  const [presetName, setPresetName] = useState("");
+
+  const handleSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+
+    const now = new Date().toISOString();
+    const existing = presets.find((p) => p.name === name);
+
+    const prefs = buildPreferencesSnapshot({
+      selectedTopics, difficulty, techMode, avoidSimilarQuestions,
+      mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics,
+      physicalEducationSubtopics, questionCount, averageMarksPerQuestion,
+      questionMode, generationMode, examTimeLimitMinutes,
+      subtopicInstructions, aiDifficultyScalingEnabled, difficultyThresholds,
+    });
+
+    if (existing) {
+      updatePreset({ ...existing, preferences: prefs, updatedAt: now });
+    } else {
+      addPreset({
+        id: `preset-${Date.now()}`,
+        name,
+        preferences: prefs,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    setPresetName("");
+  };
+
+  const handleLoadPreset = (preset: Preset) => {
+    const p = preset.preferences;
+    setSelectedTopics([...p.selectedTopics]);
+    setDifficulty(p.difficulty);
+    setTechMode(p.techMode);
+    setAvoidSimilarQuestions(p.avoidSimilarQuestions);
+    setMathMethodsSubtopics([...p.mathMethodsSubtopics]);
+    setSpecialistMathSubtopics([...p.specialistMathSubtopics]);
+    setChemistrySubtopics([...p.chemistrySubtopics]);
+    setPhysicalEducationSubtopics([...p.physicalEducationSubtopics]);
+    setQuestionCount(p.questionCount);
+    setAverageMarksPerQuestion(p.averageMarksPerQuestion);
+    setQuestionMode(p.questionMode);
+    setGenerationMode(p.generationMode ?? "practice");
+    setExamTimeLimitMinutes(p.examTimeLimitMinutes ?? 30);
+    setAiDifficultyScalingEnabled(p.aiDifficultyScalingEnabled ?? true);
+    setDifficultyThresholds(p.difficultyThresholds ?? { increase: 85, decrease: 70 });
+  };
+
+  const handleDeletePreset = (id: string) => {
+    deletePreset(id);
+  };
+
+  // Overwrite a preset with current settings
+  const handleUpdatePreset = (preset: Preset) => {
+    const now = new Date().toISOString();
+    const prefs = buildPreferencesSnapshot({
+      selectedTopics, difficulty, techMode, avoidSimilarQuestions,
+      mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics,
+      physicalEducationSubtopics, questionCount, averageMarksPerQuestion,
+      questionMode, generationMode, examTimeLimitMinutes,
+      subtopicInstructions, aiDifficultyScalingEnabled, difficultyThresholds,
+    });
+    updatePreset({ ...preset, preferences: prefs, updatedAt: now });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Input
+          value={presetName}
+          onChange={(e) => setPresetName(e.target.value)}
+          placeholder="Preset name…"
+          className="text-xs h-8 flex-1"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && presetName.trim()) {
+              e.preventDefault();
+              handleSavePreset();
+            }
+          }}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 px-3 text-xs gap-1.5"
+          onClick={handleSavePreset}
+          disabled={!presetName.trim()}
+        >
+          <Save className="w-3 h-3" /> Save
+        </Button>
+      </div>
+
+      {presets.length > 0 ? (
+        <div className="space-y-1">
+          {presets.map((preset) => (
+            <div
+              key={preset.id}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/20 transition-all duration-150 group"
+            >
+              <button
+                type="button"
+                onClick={() => handleLoadPreset(preset)}
+                className="flex-1 min-w-0 text-left cursor-pointer"
+              >
+                <p className="text-xs font-semibold truncate">{preset.name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+                  <span>{preset.preferences.selectedTopics.map((t) => t.split(" ")[0]).join(", ")}</span>
+                  <span>·</span>
+                  <span>{preset.preferences.difficulty}</span>
+                  <span>·</span>
+                  <span>{preset.preferences.questionCount}Q</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdatePreset(preset)}
+                className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
+                title="Update preset with current settings"
+              >
+                <Save className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeletePreset(preset.id)}
+                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
+                title="Delete preset"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground text-center py-2">
+          No presets saved yet. Configure your settings and save one above.
+        </p>
+      )}
     </div>
   );
 }
@@ -630,6 +861,8 @@ export function SetupPanel({
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
+  const presets = useAppStore((s) => s.presets);
+  const hasPresets = presets.length >= 1;
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(null);
   const [completionPricePerToken, setCompletionPricePerToken] = useState<number | null>(null);
   const hasAnyMathTopic = selectedTopics.some(
@@ -728,12 +961,43 @@ export function SetupPanel({
 
       <div className="px-6 pt-0 pb-2">
 
-        {/* ── Step 1: Subjects ── */}
+        {/* ── Step 1: Presets ── */}
+        <div>
+          <CollapsibleStep
+            number={step()}
+            title="Presets"
+            subtitle="Save and load generator configurations"
+            defaultOpen={presets.length === 0}
+          >
+            <PresetSection
+              selectedTopics={selectedTopics}
+              difficulty={difficulty}
+              techMode={techMode}
+              avoidSimilarQuestions={avoidSimilarQuestions}
+              mathMethodsSubtopics={mathMethodsSubtopics}
+              specialistMathSubtopics={specialistMathSubtopics}
+              chemistrySubtopics={chemistrySubtopics}
+              physicalEducationSubtopics={physicalEducationSubtopics}
+              questionCount={questionCount}
+              averageMarksPerQuestion={averageMarksPerQuestion}
+              questionMode={questionMode}
+              generationMode={generationMode}
+              examTimeLimitMinutes={examTimeLimitMinutes}
+              aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
+              difficultyThresholds={difficultyThresholds}
+            />
+          </CollapsibleStep>
+        </div>
+
+        <SectionDivider />
+
+        {/* ── Step 2: Generation Mode ── */}
         <div>
           <CollapsibleStep
             number={step()}
             title="Generation Mode"
             subtitle={generationMode === "exam" ? "Timed exam simulation" : "Untimed practice session"}
+            defaultOpen={!hasPresets}
             chips={
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${generationMode === "exam" ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"}`}>
                 {generationMode === "exam" ? "Exam" : "Practice"}
@@ -813,12 +1077,13 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 2: Subjects ── */}
+        {/* ── Step 3: Subjects ── */}
         <div>
           <CollapsibleStep
             number={step()}
             title="Select Subjects"
             subtitle={selectedTopics.length > 0 ? `${selectedTopics.length} selected` : "Choose at least one to continue"}
+            defaultOpen={!hasPresets}
             chips={
               selectedTopics.length === 0 ? (
                 <span className="text-[10px] font-medium text-amber-500 dark:text-amber-400 flex items-center gap-1">
@@ -899,11 +1164,12 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 3: Difficulty ── */}
+        {/* ── Step 4: Difficulty ── */}
         <div>
           <CollapsibleStep
             number={step()}
             title="Difficulty"
+            defaultOpen={!hasPresets}
             chips={
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted ${DIFFICULTY_META[difficulty].color}`}>
                 {DIFFICULTY_META[difficulty].label}
@@ -933,11 +1199,12 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 4: AI Difficulty Scaling ── */}
+        {/* ── Step 5: AI Difficulty Scaling ── */}
         <div>
           <CollapsibleStep
             number={step()}
             title="AI Difficulty Scaling"
+            defaultOpen={!hasPresets}
             chips={
               aiDifficultyScalingEnabled ? (
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
@@ -1004,11 +1271,12 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 5: Questions + Marks ── */}
+        {/* ── Step 6: Questions + Marks ── */}
         <div>
           <CollapsibleStep
             number={step()}
             title="Session Size"
+            defaultOpen={!hasPresets}
             chips={
               <>
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-foreground">
@@ -1085,11 +1353,12 @@ export function SetupPanel({
 
         <SectionDivider />
 
-        {/* ── Step 6: Options ── */}
+        {/* ── Step 7: Options ── */}
         <div>
           <CollapsibleStep
             number={step()}
             title="Options"
+            defaultOpen={!hasPresets}
             chips={
               (() => {
                 const parts: string[] = [];
