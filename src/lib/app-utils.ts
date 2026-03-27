@@ -513,7 +513,10 @@ function extractLogRegressionFeatures(
   questionMode: QuestionMode,
   techMode: TechMode,
   subtopics?: string[],
-  customFocusArea?: string
+  customFocusArea?: string,
+  // Accept trained coefficients so categorical lookups reflect learned values,
+  // not the frozen defaults. Falls back to defaults when not supplied.
+  coeffs: LogRegressionCoefficients = DEFAULT_LOG_REGRESSION_COEFFICIENTS
 ): Record<string, number> {
   const totalMarks = (averageMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
   const logQuestionCount = Math.log(Math.max(questionCount, 1));
@@ -524,11 +527,11 @@ function extractLogRegressionFeatures(
     questionCount,
     logTotalMarks,
     totalMarks,
-    topicCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.topicCoefficients[topic] ?? 0,
-    difficultyCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.difficultyCoefficients[difficulty] ?? 0,
-    questionModeCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.questionModeCoefficients[questionMode] ?? 0,
-    techModeCoeff: DEFAULT_LOG_REGRESSION_COEFFICIENTS.techModeCoefficients[techMode] ?? 0,
-    subtopicsLog: Math.log(Math.max(subtopics?.length ?? 0, 1)),
+    topicCoeff: coeffs.topicCoefficients[topic] ?? 0,
+    difficultyCoeff: coeffs.difficultyCoefficients[difficulty] ?? 0,
+    questionModeCoeff: coeffs.questionModeCoefficients[questionMode] ?? 0,
+    techModeCoeff: coeffs.techModeCoefficients[techMode] ?? 0,
+    subtopicsLog: Math.log((subtopics?.length ?? 0) + 1),
     hasCustomFocus: customFocusArea && customFocusArea.trim().length > 0 ? 1 : 0,
   };
 }
@@ -580,38 +583,52 @@ export function trainLogRegressionModel(
 
   // Initialize coefficients
   const coeffs = existingCoeffs ? { ...existingCoeffs } : { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
+  // Deep-clone mutable nested objects so training doesn't mutate the input
+  coeffs.topicCoefficients = { ...coeffs.topicCoefficients };
+  coeffs.difficultyCoefficients = { ...coeffs.difficultyCoefficients };
+  coeffs.questionModeCoefficients = { ...coeffs.questionModeCoefficients };
+  coeffs.techModeCoefficients = { ...coeffs.techModeCoefficients };
 
-  // Prepare training data
-  const trainingData = validRecords.map(record => {
-    const features = extractLogRegressionFeatures(
-      record.inputs.questionCount,
-      record.inputs.averageMarksPerQuestion,
-      record.inputs.topic,
-      record.inputs.difficulty,
-      record.inputs.questionMode,
-      record.inputs.techMode,
-      record.inputs.subtopics,
-      record.inputs.customFocusArea
-    );
-    return {
-      features,
+  // Prepare training data — features must use the *current* coefficients so that
+  // categorical lookups (topicCoeff, difficultyCoeff, …) reflect any pre-trained
+  // values rather than the frozen defaults.
+  const buildTrainingData = () =>
+    validRecords.map(record => ({
+      record,
+      features: extractLogRegressionFeatures(
+        record.inputs.questionCount,
+        record.inputs.averageMarksPerQuestion,
+        record.inputs.topic,
+        record.inputs.difficulty,
+        record.inputs.questionMode,
+        record.inputs.techMode,
+        record.inputs.subtopics,
+        record.inputs.customFocusArea,
+        coeffs
+      ),
       target: Math.log(record.outputs.totalTokens!),
-    };
-  });
+    }));
 
   // Gradient descent optimization
   const learningRate = 0.01;
   const iterations = 200;
 
-  // Initialize gradients
-  let gradBias = 0, gradLogQ = 0, gradQ = 0, gradLogM = 0, gradM = 0;
-  let gradTopic = 0, gradDiff = 0, gradMode = 0, gradTech = 0, gradSub = 0, gradFocus = 0;
-
   for (let iter = 0; iter < iterations; iter++) {
-    let totalError = 0;
+    // Rebuild features each iteration so they reflect the latest coefficients
+    // for the categorical terms that change during training.
+    const trainingData = buildTrainingData();
 
-    for (const { features, target } of trainingData) {
-      // Predict
+    let gradBias = 0, gradLogQ = 0, gradQ = 0, gradLogM = 0, gradM = 0;
+    let gradSub = 0, gradFocus = 0;
+
+    // Per-category gradients: track each level independently
+    const gradTopic: Record<string, number> = {};
+    const gradDiff: Record<string, number> = {};
+    const gradMode: Record<string, number> = {};
+    const gradTech: Record<string, number> = {};
+
+    for (const { record, features, target } of trainingData) {
+      // Predict using current coefficients
       let pred = coeffs.bias;
       pred += coeffs.logQuestionCount * features.logQuestionCount;
       pred += coeffs.questionCount * features.questionCount;
@@ -625,64 +642,61 @@ export function trainLogRegressionModel(
       pred += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
 
       const error = pred - target;
-      totalError += error * error;
 
-      // Accumulate gradients
+      // Accumulate scalar gradients
       gradBias += error;
       gradLogQ += error * features.logQuestionCount;
       gradQ += error * features.questionCount;
       gradLogM += error * features.logTotalMarks;
       gradM += error * features.totalMarks;
-      gradTopic += error;
-      gradDiff += error;
-      gradMode += error;
-      gradTech += error;
       gradSub += error * features.subtopicsLog;
       gradFocus += error * features.hasCustomFocus;
+
+      // Accumulate per-level categorical gradients (gradient = error * 1 for the active level)
+      const t = record.inputs.topic as string;
+      const d = record.inputs.difficulty as string;
+      const qm = record.inputs.questionMode as string;
+      const tm = record.inputs.techMode as string;
+      gradTopic[t] = (gradTopic[t] ?? 0) + error;
+      gradDiff[d] = (gradDiff[d] ?? 0) + error;
+      gradMode[qm] = (gradMode[qm] ?? 0) + error;
+      gradTech[tm] = (gradTech[tm] ?? 0) + error;
     }
 
     const n = trainingData.length;
     const scale = learningRate / n;
 
-    // Update coefficients
+    // Update scalar coefficients
     coeffs.bias -= gradBias * scale;
     coeffs.logQuestionCount -= gradLogQ * scale;
-    coeffs.questionCount -= gradQ * scale * 0.001; // Scale down linear term
+    coeffs.questionCount -= gradQ * scale * 0.001; // dampen linear term
     coeffs.logTotalMarks -= gradLogM * scale;
     coeffs.totalMarks -= gradM * scale * 0.001;
     coeffs.subtopicsCoefficient -= gradSub * scale;
     coeffs.hasCustomFocusCoefficient -= gradFocus * scale;
 
-    // Normalize categorical coefficients (average them)
-    const catSum = gradTopic + gradDiff + gradMode + gradTech;
-    if (Math.abs(catSum) > 0.001) {
-      const catScale = scale * 0.1;
-      coeffs.topicCoefficients["Mathematical Methods"] -= gradTopic * catScale;
-      coeffs.difficultyCoefficients["Medium"] -= gradDiff * catScale;
-      coeffs.questionModeCoefficients["written"] -= gradMode * catScale;
-      coeffs.techModeCoefficients["mix"] -= gradTech * catScale;
+    // Update every observed category level — not just one reference level
+    const catScale = scale * 0.1;
+    for (const [level, grad] of Object.entries(gradTopic)) {
+      coeffs.topicCoefficients[level] = (coeffs.topicCoefficients[level] ?? 0) - grad * catScale;
     }
-
-    // Reset gradients
-    gradBias = gradLogQ = gradQ = gradLogM = gradM = 0;
-    gradTopic = gradDiff = gradMode = gradTech = gradSub = gradFocus = 0;
+    for (const [level, grad] of Object.entries(gradDiff)) {
+      coeffs.difficultyCoefficients[level] = (coeffs.difficultyCoefficients[level] ?? 0) - grad * catScale;
+    }
+    for (const [level, grad] of Object.entries(gradMode)) {
+      coeffs.questionModeCoefficients[level] = (coeffs.questionModeCoefficients[level] ?? 0) - grad * catScale;
+    }
+    for (const [level, grad] of Object.entries(gradTech)) {
+      coeffs.techModeCoefficients[level] = (coeffs.techModeCoefficients[level] ?? 0) - grad * catScale;
+    }
   }
 
-  // Calculate R² score
-  const meanTarget = trainingData.reduce((sum, d) => sum + d.target, 0) / trainingData.length;
+  // Calculate R² score on final predictions using the shared prediction helper
+  const finalData = buildTrainingData();
+  const meanTarget = finalData.reduce((sum, d) => sum + d.target, 0) / finalData.length;
   let ssRes = 0, ssTot = 0;
-  for (const { features, target } of trainingData) {
-    let pred = coeffs.bias;
-    pred += coeffs.logQuestionCount * features.logQuestionCount;
-    pred += coeffs.questionCount * features.questionCount;
-    pred += coeffs.logTotalMarks * features.logTotalMarks;
-    pred += coeffs.totalMarks * features.totalMarks;
-    pred += features.topicCoeff;
-    pred += features.difficultyCoeff;
-    pred += features.questionModeCoeff;
-    pred += features.techModeCoeff;
-    pred += coeffs.subtopicsCoefficient * features.subtopicsLog;
-    pred += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+  for (const { features, target } of finalData) {
+    const pred = Math.log(predictTokensLogRegression(coeffs, features));
 
     ssRes += (pred - target) ** 2;
     ssTot += (target - meanTarget) ** 2;
@@ -728,7 +742,7 @@ function estimateTokensLogRegression(
     }
   }
 
-  // Extract features and predict
+  // Extract features using the (possibly retrained) coefficients so categorical lookups reflect learned values.
   const features = extractLogRegressionFeatures(
     questionCount,
     averageMarksPerQuestion,
@@ -737,7 +751,8 @@ function estimateTokensLogRegression(
     questionMode,
     techMode,
     subtopics,
-    customFocusArea
+    customFocusArea,
+    coeffs
   );
 
   // For prompt/completion split, use question mode ratios

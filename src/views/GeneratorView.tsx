@@ -145,14 +145,12 @@ export function GeneratorView() {
   }, [location.search]);
   // ── Local UI state ──────────────────────────────────────────────────────────
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
-  const [sessionFinishedAt, setSessionFinishedAt] = useState<number | null>(null);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] = useState(false);
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState("");
   const [examRecordSaved, setExamRecordSaved] = useState(false);
-  const [capturedElapsedSeconds, setCapturedElapsedSeconds] = useState<number | null>(null);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<Record<string, string>>({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
@@ -160,8 +158,6 @@ export function GeneratorView() {
   const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] = useState<Record<string, string>>({});
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<Record<string, number>>({});
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
-  const [writtenPausedAtByQuestionId, setWrittenPausedAtByQuestionId] = useState<Record<string, number>>({});
-  const [mcPausedAtByQuestionId, setMcPausedAtByQuestionId] = useState<Record<string, number>>({});
 
   // Per-topic batch progress — drives the multi-topic timeline in SetupPanel.
   // Empty when only one topic is selected (single-call path shows normal timeline).
@@ -191,7 +187,7 @@ export function GeneratorView() {
   const {
     questions, setQuestions,
     activeQuestionIndex, setActiveQuestionIndex,
-    writtenQuestionPresentedAtById, setWrittenQuestionPresentedAtById,
+    setWrittenQuestionPresentedAtById,
     answersByQuestionId, setAnswersByQuestionId,
     imagesByQuestionId, setImagesByQuestionId,
     feedbackByQuestionId, setFeedbackByQuestionId,
@@ -204,7 +200,7 @@ export function GeneratorView() {
   const {
     mcQuestions, setMcQuestions,
     activeMcQuestionIndex, setActiveMcQuestionIndex,
-    mcQuestionPresentedAtById, setMcQuestionPresentedAtById,
+    setMcQuestionPresentedAtById,
     mcAnswersByQuestionId, setMcAnswersByQuestionId,
     mcHistory, setMcHistory,
     mcRawModelOutput, setMcRawModelOutput,
@@ -230,17 +226,6 @@ export function GeneratorView() {
   const [pendingCancelType, setPendingCancelType] = useState<null | "written" | "mc">(null);
 
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [isPaused, setIsPaused] = useState(false);
-  const [pausedDuration, setPausedDuration] = useState(0);
-  const [now, setNow] = useState(Date.now());
-
-  const pauseStartedAtRef = useRef<number | null>(null);
-  const generationStartedAtRef = useRef<number | null>(generationStartedAt);
-  useEffect(() => { generationStartedAtRef.current = generationStartedAt; }, [generationStartedAt]);
-  const pausedDurationRef = useRef(pausedDuration);
-  useEffect(() => { pausedDurationRef.current = pausedDuration; }, [pausedDuration]);
-  const isPausedRef = useRef(isPaused);
-  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
   const [streamText, setStreamText] = useState("");
 
@@ -365,63 +350,48 @@ export function GeneratorView() {
 
   const completionAccuracyPercent = questionMode === "written" ? writtenAccuracyPercent : mcAccuracyPercent;
 
-  const elapsedSeconds = useMemo(() => {
-    if (generationStartedAt === null) return 0;
-    const end = sessionFinishedAt ?? now;
-    const currentPauseOverlap = (isPaused && pauseStartedAtRef.current)
-      ? (now - pauseStartedAtRef.current)
-      : 0;
-    return Math.max(0, Math.floor((end - generationStartedAt - pausedDuration - currentPauseOverlap) / 1000));
-  }, [generationStartedAt, sessionFinishedAt, pausedDuration, isPaused, now]);
+  // Active timer hook based on current question mode
+  const activeTimer = questionMode === "written" ? writtenTimer : mcTimer;
+
+  // Session elapsed time from the active timer hook (single source of truth)
+  const elapsedSeconds = activeTimer.sessionElapsedSeconds;
 
   const formattedElapsedTime = useMemo(() => {
-    const h = Math.floor(elapsedSeconds / 3600);
-    const m = Math.floor((elapsedSeconds % 3600) / 60);
-    const s = elapsedSeconds % 60;
-    if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }, [elapsedSeconds]);
-
-  const completionFormattedElapsedTime = useMemo(() => {
-    const secs = capturedElapsedSeconds ?? elapsedSeconds;
+    const secs = elapsedSeconds;
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
     if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }, [capturedElapsedSeconds, elapsedSeconds]);
+  }, [elapsedSeconds]);
 
-  const remainingSeconds = useMemo(() => {
-    const totalSeconds = examTimeLimitMinutes * 60;
-    return Math.max(0, totalSeconds - elapsedSeconds);
-  }, [examTimeLimitMinutes, elapsedSeconds]);
+  const completionFormattedElapsedTime = formattedElapsedTime;
+
+  const remainingSeconds = activeTimer.sessionRemainingSeconds;
 
   const formattedCountdownTime = useMemo(() => {
-    const h = Math.floor(remainingSeconds / 3600);
-    const m = Math.floor((remainingSeconds % 3600) / 60);
-    const s = remainingSeconds % 60;
+    const secs = remainingSeconds;
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
     if (h > 0) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remainingSeconds]);
 
-
-
+  // Exam mode: auto-complete when time runs out
   useEffect(() => {
     if (generationMode !== "exam") return;
-    if (!generationStartedAt) return;
+    if (!activeTimer.sessionElapsedSeconds && activeTimer.sessionElapsedSeconds !== 0) return;
     if (showCompletionScreen || isSetComplete) return;
-    // Removed: if (sessionFinishedAt !== null) return;
-    if (remainingSeconds > 0) return;
-    setSessionFinishedAt(Date.now());
-    captureElapsedSeconds();
+    if (activeTimer.sessionRemainingSeconds > 0) return;
+    activeTimer.finishSession();
     setShowCompletionScreen(true);
-  }, [generationMode, generationStartedAt, isSetComplete, remainingSeconds, showCompletionScreen]);
+  }, [generationMode, activeTimer.sessionRemainingSeconds, isSetComplete, showCompletionScreen]);
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     setShowCompletionScreen(false);
     setHasShownCompletionScreen(false);
-    setCapturedElapsedSeconds(null);
   }, [completionSetKey]);
 
   useEffect(() => {
@@ -442,72 +412,16 @@ export function GeneratorView() {
     lastMcCompletedCountRef.current = mcCompletedCount;
   }, [activeMcSavedSetId, mcCompletedCount, mcQuestions.length, questionMode, saveCurrentSet]);
 
-  function getPausedTotalAt(timeMs: number) {
-    if (!generationStartedAt) return 0;
-    let total = pausedDuration;
-    if (isPaused && pauseStartedAtRef.current) {
-      total += Math.max(0, timeMs - pauseStartedAtRef.current);
-    }
-    return total;
-  }
-
-  useEffect(() => {
-    if (!activeQuestion) return;
-    setWrittenQuestionPresentedAtById((prev) => {
-      if (prev[activeQuestion.id] !== undefined) return prev;
-      return { ...prev, [activeQuestion.id]: Date.now() };
-    });
-    setWrittenPausedAtByQuestionId((prev) => {
-      if (prev[activeQuestion.id] !== undefined) return prev;
-      return { ...prev, [activeQuestion.id]: getPausedTotalAt(Date.now()) };
-    });
-  }, [activeQuestion, setWrittenQuestionPresentedAtById]);
-
-  useEffect(() => {
-    if (!activeMcQuestion) return;
-    setMcQuestionPresentedAtById((prev) => {
-      if (prev[activeMcQuestion.id] !== undefined) return prev;
-      return { ...prev, [activeMcQuestion.id]: Date.now() };
-    });
-    setMcPausedAtByQuestionId((prev) => {
-      if (prev[activeMcQuestion.id] !== undefined) return prev;
-      return { ...prev, [activeMcQuestion.id]: getPausedTotalAt(Date.now()) };
-    });
-  }, [activeMcQuestion, setMcQuestionPresentedAtById]);
-
-  // ── Stopwatch ────────────────────────────────────────────────────────────────
+  // ── Timer actions ─────────────────────────────────────────────────────────────
   function startStopwatch() {
-    // Initialize stopwatch state but don't start timing yet
-
-    setGenerationStartedAt(null);
-    setSessionFinishedAt(null);
-    setCapturedElapsedSeconds(null);
-    setIsPaused(false);
-    setPausedDuration(0);
+    if (questionMode === "written") writtenTimer.reset();
+    else if (questionMode === "multiple-choice") mcTimer.reset();
   }
 
   function startTiming() {
-    const now = Date.now();
-    setGenerationStartedAt(now);
-    // Timer will be started by useEffect below when questions/mcQuestions are populated
+    setGenerationStartedAt(Date.now());
   }
 
-  function captureElapsedSeconds() {
-    const now = Date.now();
-    const startFrom = generationStartedAtRef.current;
-    if (startFrom !== null) {
-      const currentPauseOverlap = (isPausedRef.current && pauseStartedAtRef.current)
-        ? (now - pauseStartedAtRef.current)
-        : 0;
-      setCapturedElapsedSeconds(Math.max(0, Math.floor((now - startFrom - pausedDurationRef.current - currentPauseOverlap) / 1000)));
-    } else {
-      const presented = questionMode === "written"
-        ? Object.values(writtenQuestionPresentedAtById)
-        : Object.values(mcQuestionPresentedAtById);
-      const earliest = presented.length > 0 ? Math.min(...presented) : now;
-      setCapturedElapsedSeconds(Math.max(0, Math.floor((now - earliest) / 1000)));
-    }
-  }
   // Start timer only after questions or mcQuestions are populated
   useEffect(() => {
     if (questionMode === "written" && questions.length > 0) {
@@ -515,7 +429,6 @@ export function GeneratorView() {
     } else if (questionMode === "multiple-choice" && mcQuestions.length > 0) {
       mcTimer.startTiming(mcQuestions);
     }
-    // Only run when questions/mcQuestions change
   }, [questionMode, questions, mcQuestions, writtenTimer, mcTimer]);
 
   // Pause timers while marking in practice mode
@@ -528,46 +441,16 @@ export function GeneratorView() {
     }
   }, [isMarking, generationMode, questionMode, writtenTimer, mcTimer]);
 
-
   function resetStopwatch() {
     setGenerationStartedAt(null);
-    setSessionFinishedAt(null);
-    setCapturedElapsedSeconds(null);
-    setIsPaused(false);
-    setPausedDuration(0);
-    if (questionMode === "written") {
-      writtenTimer.reset();
-    } else if (questionMode === "multiple-choice") {
-      mcTimer.reset();
-    }
+    if (questionMode === "written") writtenTimer.reset();
+    else if (questionMode === "multiple-choice") mcTimer.reset();
   }
 
   function togglePause() {
-    const willPause = !isPaused;
-    if (willPause) {
-      pauseStartedAtRef.current = Date.now();
-    } else if (pauseStartedAtRef.current) {
-      setPausedDuration(prev => prev + (Date.now() - pauseStartedAtRef.current!));
-      pauseStartedAtRef.current = null;
-    }
-    setIsPaused(willPause);
-    // Sync per-question timer with session-level pause
-    if (questionMode === "written") writtenTimer.setPaused(willPause);
-    else if (questionMode === "multiple-choice") mcTimer.setPaused(willPause);
+    if (questionMode === "written") writtenTimer.togglePause();
+    else if (questionMode === "multiple-choice") mcTimer.togglePause();
   }
-
-  useEffect(() => {
-    if (generationStartedAt === null || sessionFinishedAt !== null) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [generationStartedAt, sessionFinishedAt]);
-
-  useEffect(() => {
-    if (generationStartedAt === null || sessionFinishedAt !== null) return;
-    function onVisibilityChange() { if (!document.hidden) setNow(Date.now()); }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [generationStartedAt, sessionFinishedAt]);
 
   // ── Stream token listener ────────────────────────────────────────────────────
   useEffect(() => {
@@ -626,11 +509,8 @@ export function GeneratorView() {
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
     if (isAtLastWrittenQuestion) {
-      const now = Date.now();
-      setSessionFinishedAt(now);
-      captureElapsedSeconds();
-      setShowCompletionScreen(true);
       writtenTimer.finishSession();
+      setShowCompletionScreen(true);
       return;
     }
     setActiveQuestionIndex(Math.min(questions.length - 1, activeQuestionIndex + 1));
@@ -639,11 +519,8 @@ export function GeneratorView() {
   const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
     if (isAtLastMcQuestion) {
-      const now = Date.now();
-      setSessionFinishedAt(now);
-      captureElapsedSeconds();
-      setShowCompletionScreen(true);
       mcTimer.finishSession();
+      setShowCompletionScreen(true);
       return;
     }
     setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1));
@@ -679,7 +556,6 @@ export function GeneratorView() {
       setMarkAppealByQuestionId((p) => removeKey(p, id));
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
-      setWrittenPausedAtByQuestionId((p) => removeKey(p, id));
       setErrorMessage(null);
     }
     if (pendingCancelType === "mc" && activeMcQuestion) {
@@ -694,7 +570,6 @@ export function GeneratorView() {
       setMcMarkAppealByQuestionId((p) => removeKey(p, id));
       setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
-      setMcPausedAtByQuestionId((p) => removeKey(p, id));
       setErrorMessage(null);
     }
     setPendingCancelType(null);
@@ -776,10 +651,8 @@ export function GeneratorView() {
 
   function appendMcHistoryEntry(question: typeof activeMcQuestion, selectedAnswer: string, awardedMarks: number, attemptKind: McAttemptKind, responseEnteredAtMs?: number) {
     if (!question) return;
-    const questionStartedAt = mcQuestionPresentedAtById[question.id];
-    const pausedAtStart = mcPausedAtByQuestionId[question.id] ?? 0;
+    const timing = mcTimer.getQuestionTiming(question.id);
     const responseAt = responseEnteredAtMs ?? Date.now();
-    const pausedAtResponse = getPausedTotalAt(responseAt);
     const now = Date.now();
     const entry: McHistoryEntry = {
       type: "multiple-choice", id: generateEntryId(), createdAt: new Date(now).toISOString(), lastModified: now,
@@ -788,9 +661,7 @@ export function GeneratorView() {
       analytics: {
         attemptKind, attemptSequence: getMcAttemptSequence(question.id),
         answerCharacterCount: 0, answerWordCount: 0, usedImageUpload: false,
-        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt)
-          ? Math.max(0, responseAt - questionStartedAt - Math.max(0, pausedAtResponse - pausedAtStart))
-          : undefined,
+        responseLatencyMs: timing ? timing.timeUsedSeconds * 1000 : undefined,
         finalAnswerChangedAtMs: responseAt,
       },
     };
@@ -824,10 +695,7 @@ export function GeneratorView() {
   function appendWrittenHistoryEntry(question: typeof activeQuestion, response: ReturnType<typeof normalizeMarkResponse>, options?: { uploadedAnswerOverride?: string; attemptKind?: WrittenAttemptKind; markingLatencyMs?: number; responseEnteredAtMs?: number }) {
     if (!question) return;
     const uploadedAnswer = options?.uploadedAnswerOverride ?? (answersByQuestionId[question.id] ?? "");
-    const questionStartedAt = writtenQuestionPresentedAtById[question.id];
-    const responseAt = options?.responseEnteredAtMs ?? writtenResponseEnteredAtById[question.id] ?? Date.now();
-    const pausedAtStart = writtenPausedAtByQuestionId[question.id] ?? 0;
-    const pausedAtResponse = getPausedTotalAt(responseAt);
+    const timing = writtenTimer.getQuestionTiming(question.id);
     const now = Date.now();
     const entry: QuestionHistoryEntry = {
       id: generateEntryId(), createdAt: new Date(now).toISOString(), lastModified: now,
@@ -838,9 +706,7 @@ export function GeneratorView() {
         attemptKind: options?.attemptKind ?? "initial", attemptSequence: getWrittenAttemptSequence(question.id),
         answerCharacterCount: uploadedAnswer.length, answerWordCount: countWords(uploadedAnswer),
         usedImageUpload: Boolean(imagesByQuestionId[question.id]),
-        responseLatencyMs: Number.isFinite(questionStartedAt) && Number.isFinite(responseAt)
-          ? Math.max(0, responseAt - questionStartedAt - Math.max(0, pausedAtResponse - pausedAtStart))
-          : undefined,
+        responseLatencyMs: timing ? timing.timeUsedSeconds * 1000 : undefined,
         markingLatencyMs: options?.markingLatencyMs,
       },
     };
@@ -1022,7 +888,6 @@ export function GeneratorView() {
       setActiveWrittenSavedSetId(null);
       setLastSavedAt(null);
       setWrittenQuestionPresentedAtById({});
-      setWrittenPausedAtByQuestionId({});
       setWrittenResponseEnteredAtById({});
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
@@ -1168,7 +1033,6 @@ export function GeneratorView() {
       setActiveMcSavedSetId(null);
       setLastSavedAt(null);
       setMcQuestionPresentedAtById({});
-      setMcPausedAtByQuestionId({});
       setMcAnswersByQuestionId({});
       setMcMarkAppealByQuestionId({});
       setMcMarkOverrideInputByQuestionId({});
@@ -1337,11 +1201,11 @@ export function GeneratorView() {
     setGenerationStatus(null); // Reset status so summary shows
     setGenerationStartedAt(null);
     setQuestions([]); setWrittenRawModelOutput(""); setWrittenGenerationTelemetry(null); setShowWrittenRawOutput(false);
-    setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null); setWrittenQuestionPresentedAtById({}); setWrittenPausedAtByQuestionId({});
+    setActiveQuestionIndex(0); setActiveWrittenSavedSetId(null); setWrittenQuestionPresentedAtById({});
     setAnswersByQuestionId({}); setImagesByQuestionId({}); setFeedbackByQuestionId({});
     setWrittenResponseEnteredAtById({}); setMarkAppealByQuestionId({}); setMarkOverrideInputByQuestionId({});
     setMcQuestions([]); setMcRawModelOutput(""); setMcGenerationTelemetry(null); setShowMcRawOutput(false);
-    setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({}); setMcPausedAtByQuestionId({});
+    setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
     setExamRecordSaved(false);
   }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);
@@ -1495,7 +1359,7 @@ export function GeneratorView() {
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}
           isGenerating={isGenerating}
-          isPaused={isPaused}
+          isPaused={activeTimer.isPaused}
           onTogglePause={togglePause}
           generationStatus={generationStatus}
           generationStartedAt={generationStartedAt}
