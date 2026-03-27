@@ -283,11 +283,15 @@ fn mc_system() -> String {
                  {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
                ],\n\
                \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-                                     \"explanationMarkdown\": string (≤300 words — name the misconception each wrong option targets),\n\
+               \"explanationMarkdown\": string (≤300 words — name the misconception each wrong option targets),\n\
                \"techAllowed\": boolean\n\
              }}\n\
            ]\n\
          }}\n\
+         STRICT RULE FOR PROMPT MARKDOWN:\n\
+         The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
+         including the answer options (A, B, C, D) inside the \"promptMarkdown\" string, as these \
+         are handled by the \"options\" array in the JSON schema.\n\n\
          ADDITIONAL EXAM ALIGNMENT:\n\
          - For Mathematical Methods Exam 2: Questions are multiple-choice with 4 options, often involving calculations, graphs, or interpretations. Distractors are common mistakes.\n\
          - For Specialist Mathematics Exam 2: Similar, but with more complex topics like vectors, complex numbers, kinematics.\n\
@@ -299,7 +303,7 @@ fn mc_system() -> String {
              {{\n\
                \"topic\": \"Mathematical Methods\",\n\
                \"subtopic\": \"Functions and graphs\",\n\
-               \"promptMarkdown\": \"The graph of $y = f(x)$ is shown below. Which of the following could be the graph of $y = f'(x)$?\\nA. [graph description]\\nB. [graph description]\\nC. [graph description]\\nD. [graph description]\",\n\
+               \"promptMarkdown\": \"The graph of $y = f(x)$ is shown below. Which of the following could be the graph of $y = f'(x)$?\",\n\
                \"options\": [\n\
                  {{\"label\": \"A\", \"text\": \"Option A description\"}},\n\
                  {{\"label\": \"B\", \"text\": \"Option B description\"}},\n\
@@ -313,7 +317,7 @@ fn mc_system() -> String {
              {{\n\
                \"topic\": \"Specialist Mathematics\",\n\
                \"subtopic\": \"Complex numbers\",\n\
-               \"promptMarkdown\": \"If $z = 2 + 3i$, then $\\\\overline{{z}}$ is\\\\nA. $2 - 3i$\\\\nB. $-2 + 3i$\\\\nC. $2 + 3i$\\\\nD. $-2 - 3i$\",\n\
+               \"promptMarkdown\": \"If $z = 2 + 3i$, then the conjugate $\\\\overline{{z}}$ is equal to:\",\n\
                \"options\": [\n\
                  {{\"label\": \"A\", \"text\": \"$2 - 3i$\"}},\n\
                  {{\"label\": \"B\", \"text\": \"$-2 + 3i$\"}},\n\
