@@ -65,16 +65,11 @@ QUESTION STYLE RULES (STRICT — violation produces zero marks):
 pub const MC_DISTRACTOR_RULES: &str = "
 MC RULES (STRICT):
 (1) Each option MUST be a complete, standalone answer to the question — never sentence fragments or single words.
-(2) Options MUST be parallel in structure and style (e.g. all full sentences, or all mathematical expressions).
-(3) NEVER put the responses in the question field — options MUST be in the choices field for proper formatting and parsing.
-MC DISTRACTOR RULES (STRICT):
-(1) Each wrong option MUST correspond to a NAMED misconception or predictable error: \
-'sign error in chain rule', 'incorrect domain assumption', 'misapplied formula for this context'. NO random wrong numbers.
-(2) All options must be plausible to a student with partial knowledge — a student knowing nothing \
-must NOT be able to eliminate two options immediately.
-(3) Numeric distractors must be arithmetically close to correct OR result from a specific procedural mistake.
-(4) Correct answer must NOT be systematically longest/shortest/most qualified.
-(5) FORBIDDEN: 'all of the above' / 'none of the above' options.";
+(2) Options MUST be parallel in structure and style.
+(3) FORBIDDEN: Do NOT include labels (A., B., C., D.) or the option text inside the 'promptMarkdown' field. 
+(4) The 'promptMarkdown' should contain ONLY the question stem. The options belong exclusively in the 'options' array.
+...
+";
 
 // ─── Mathematical Methods ─────────────────────────────────────────────────────
 
