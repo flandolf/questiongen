@@ -5,12 +5,33 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { UnifiedQuestionPromptCard } from "@/components/question/UnifiedQuestionBlocks";
 
+
+import { QuestionTimerBar } from "@/components/generator/QuestionTimerBar";
+import { GenerationMode } from "@/types";
+
 type WrittenQuestionCardProps = {
   promptMarkdown: string;
   canShowRawOutput: boolean;
   showRawOutput: boolean;
   rawModelOutput: string;
   onToggleRawOutput: () => void;
+  // Timer props
+  timerProps?: {
+    questionNumber: number;
+    totalQuestions: number;
+    currentQuestionTimeUsed: number;
+    currentQuestionTimeLimit: number;
+    currentQuestionRemaining: number;
+    formattedQuestionTime: string;
+    parTimeSeconds: number;
+    bankedSeconds: number;
+    formattedBank: string;
+    bankStatus: "ahead" | "behind" | "on-pace";
+    formattedSessionTime: string;
+    isQuestionExpired: boolean;
+    mode: GenerationMode;
+  };
+  isSubmitDisabled?: boolean;
 };
 
 export const WrittenQuestionCard = memo(function WrittenQuestionCard({
@@ -19,6 +40,7 @@ export const WrittenQuestionCard = memo(function WrittenQuestionCard({
   showRawOutput,
   rawModelOutput,
   onToggleRawOutput,
+  timerProps,
 }: WrittenQuestionCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -40,7 +62,10 @@ export const WrittenQuestionCard = memo(function WrittenQuestionCard({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative">
+      {timerProps && (
+        <QuestionTimerBar {...timerProps} />
+      )}
       <UnifiedQuestionPromptCard
         promptMarkdown={promptMarkdown}
         rightSlot={canShowRawOutput ? (
@@ -69,6 +94,12 @@ export const WrittenQuestionCard = memo(function WrittenQuestionCard({
               {rawModelOutput}
             </pre>
           </div>
+        </div>
+      )}
+      {/* Time Expired overlay */}
+      {timerProps?.isQuestionExpired && timerProps?.mode === "exam" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-rose-600/80 text-white font-bold text-lg rounded-xl z-20">
+          <span className="flex items-center gap-2"><span className="material-icons">lock</span> Time Expired</span>
         </div>
       )}
     </div>

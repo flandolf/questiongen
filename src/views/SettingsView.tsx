@@ -137,7 +137,7 @@ const SORT_OPTIONS: { key: SortKey; label: string; description: string }[] = [
   { key: "context", label: "Context", description: "Context window size" },
 ];
 
-export const APP_VERSION = "2.0.2";
+export const APP_VERSION = "2.0.3";
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "api", label: "API Key", icon: <Key className="h-4 w-4" /> },

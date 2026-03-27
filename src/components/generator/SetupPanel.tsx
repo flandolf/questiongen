@@ -773,6 +773,21 @@ export function SetupPanel({
                       <div className="flex justify-between text-[10px] text-muted-foreground"><span>5m</span><span>180m</span></div>
                     </div>
 
+                    {/* Per-question time preview and bank info */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                      <span>
+                        {questionCount} questions × {(examTimeLimitMinutes / questionCount).toFixed(2)} min each = {examTimeLimitMinutes} min total
+                      </span>
+                      <span className="ml-2">
+                        <span className="inline-block align-middle">
+                          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="#6366F1" strokeWidth="2" fill="#EEF2FF"/><text x="50%" y="55%" textAnchor="middle" fill="#6366F1" fontSize="10" fontFamily="Arial" dy=".3em">i</text></svg>
+                        </span>
+                        <span className="ml-1 align-middle" title="Unused time from early completions is banked and redistributed to remaining questions. The time bank helps you stay ahead or catch up.">
+                          Time bank: unused time carries over
+                        </span>
+                      </span>
+                    </div>
+
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">Presets</p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
