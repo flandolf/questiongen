@@ -1,24 +1,25 @@
+import { AppState, useAppStore } from "@/store";
+import { QuestionHistoryEntry, McHistoryEntry, SavedQuestionSet, Preset } from "@/types";
 import { useEffect, useState, useCallback, useRef } from "react";
-import {
-  FirebaseUser,
-  signInWithEmail,
-  signUpWithEmail,
-  onAuthChange,
-  subscribeToUserData,
-  saveUserData,
-  loadUserData,
-  migrateUserDataForCompaction,
-  deleteArchivedItems,
-  SyncableData,
-  SyncMetadata,
-  buildVersionMap,
-} from "./useFirebase";
-import { useAppStore, AppState } from "../../store";
-import type {
-  QuestionHistoryEntry,
-  McHistoryEntry,
-  SavedQuestionSet,
-} from "../../types";
+import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, subscribeToUserData, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems } from "./useFirebase";
+
+
+// Helper to normalize remote SyncableData to local SyncableData
+function normalizeRemoteSyncableData(remote: SyncableData | null): SyncableData | null {
+  if (!remote) return null;
+  return {
+    settings: {},
+    questionHistory: Array.isArray(remote.questionHistory) ? (remote.questionHistory as QuestionHistoryEntry[]) : [],
+    mcHistory: Array.isArray(remote.mcHistory) ? (remote.mcHistory as McHistoryEntry[]) : [],
+    savedSets: Array.isArray(remote.savedSets) ? (remote.savedSets as SavedQuestionSet[]) : [],
+    presets: Array.isArray(remote.presets) ? (remote.presets as Preset[]) : [],
+    studyGoals: remote.studyGoals && typeof remote.studyGoals === "object" ? remote.studyGoals : undefined,
+    streakData: remote.streakData && typeof remote.streakData === "object" ? remote.streakData : undefined,
+  };
+}
+
+
+
 
 const SYNC_DEBUG = true;
 
@@ -43,38 +44,47 @@ function getUserId(user: FirebaseUser | null): string {
 
 function mergeSyncableData(
   local: SyncableData | null,
-  remote: SyncableData | null
+  remote: import("./useFirebase").SyncableData | null
 ): SyncableData {
   const defaultData: SyncableData = {
     settings: {},
     questionHistory: [],
     mcHistory: [],
     savedSets: [],
+    presets: [],
   };
+
+    // Helper to cast remote arrays to correct types
+    function castArray<T>(arr: unknown[] | undefined): T[] {
+      return Array.isArray(arr) ? (arr as T[]) : [];
+    }
 
   if (!local && !remote) {
     return defaultData;
   }
-
   if (!local) {
-    return remote ?? defaultData;
+    return {
+      settings: {},
+      questionHistory: castArray<QuestionHistoryEntry>(remote?.questionHistory ?? []),
+      mcHistory: castArray<McHistoryEntry>(remote?.mcHistory ?? []),
+      savedSets: castArray<SavedQuestionSet>(remote?.savedSets ?? []),
+      presets: castArray<Preset>(remote?.presets ?? []),
+      studyGoals: remote?.studyGoals,
+      streakData: remote?.streakData,
+    };
   }
-
   if (!remote) {
     return local;
   }
-
-  const merged: SyncableData = {
-    // Settings sync is intentionally disabled due to cross-device instability.
+  return {
     settings: {},
-    questionHistory: mergeById(local.questionHistory, remote.questionHistory),
-    mcHistory: mergeById(local.mcHistory, remote.mcHistory),
-    savedSets: mergeById(local.savedSets, remote.savedSets),
+    questionHistory: mergeById(local.questionHistory, castArray<QuestionHistoryEntry>(remote.questionHistory)),
+    mcHistory: mergeById(local.mcHistory, castArray<McHistoryEntry>(remote.mcHistory)),
+    savedSets: mergeById(local.savedSets, castArray<SavedQuestionSet>(remote.savedSets)),
+    presets: mergeById(local.presets!, castArray<Preset>(remote?.presets ?? [])),
+    studyGoals: remote.studyGoals ?? local.studyGoals,
+    streakData: remote.streakData ?? local.streakData,
   };
-
-
-
-  return merged;
 }
 
 function hasRemoteData(data: SyncableData | null): boolean {
@@ -85,7 +95,8 @@ function hasRemoteData(data: SyncableData | null): boolean {
   return hasSettings
     || (data.questionHistory?.length ?? 0) > 0
     || (data.mcHistory?.length ?? 0) > 0
-    || (data.savedSets?.length ?? 0) > 0;
+    || (data.savedSets?.length ?? 0) > 0
+    || Boolean(data.studyGoals && Object.keys(data.studyGoals).length > 0);
 }
 
 interface HasId {
@@ -153,15 +164,20 @@ function extractSyncableData(state: AppState): SyncableData {
     questionHistory: state.questionHistory,
     mcHistory: state.mcHistory,
     savedSets: state.savedSets,
+    presets: state.presets ?? [],
+    studyGoals: state.studyGoals,
+    streakData: state.streakData,
   };
 }
 
 function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
   return {
-    // Settings are intentionally not applied from cloud.
     questionHistory: (data.questionHistory as QuestionHistoryEntry[]) ?? [],
     mcHistory: (data.mcHistory as McHistoryEntry[]) ?? [],
     savedSets: (data.savedSets as SavedQuestionSet[]) ?? [],
+    presets: (data.presets as Preset[]) ?? [],
+    studyGoals: data.studyGoals ? (data.studyGoals as unknown as AppState["studyGoals"]) : undefined,
+    streakData: data.streakData ? (data.streakData as unknown as AppState["streakData"]) : undefined,
   };
 }
 
@@ -508,7 +524,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       isInitializedRef.current = false;
       
       let remoteData = await loadUserData(userId);
-      const remoteHasData = hasRemoteData(remoteData);
+      const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
       debugLog("Remote data loaded:", {
         hasData: remoteHasData,
         settings: !!remoteData?.settings,
@@ -527,7 +543,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           );
           remoteData = await loadUserData(userId);
           debugLog("Remote data reloaded after compaction migration:", {
-            hasData: hasRemoteData(remoteData),
+            hasData: hasRemoteData(normalizeRemoteSyncableData(remoteData)),
             questionHistory: remoteData?.questionHistory?.length,
             mcHistory: remoteData?.mcHistory?.length,
             savedSets: remoteData?.savedSets?.length,
@@ -540,7 +556,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       
       localDataRef.current = localData;
       
-      if (hasRemoteData(remoteData)) {
+      if (hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
         debugLog("ID check", {
           localIds: localData.questionHistory.map((q) => q.id),
           remoteIds: remoteData?.questionHistory?.map((q) => String(q.id ?? "")) ?? [],
@@ -591,7 +607,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         });
       }
 
-      if (!hasRemoteData(remoteData)) {
+      if (!hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
         // Initialize sync metadata for first-time sync
         const now = Date.now();
         syncMetadataRef.current.lastSyncTime = now;
@@ -616,7 +632,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         addSyncEvent("upload", "Initial data uploaded to cloud");
       }
       isInitializedRef.current = true;
-      isFirstSyncRef.current = !hasRemoteData(remoteData);
+      isFirstSyncRef.current = !hasRemoteData(normalizeRemoteSyncableData(remoteData));
       setIsSyncEnabled(true);
       setSyncError(null);
       setSyncStatus("idle");
@@ -678,7 +694,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         });
 
         const remoteData = await loadUserData(userId);
-        const remoteHasData = hasRemoteData(remoteData);
+        const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
         debugLog("Manual sync remote snapshot", {
           hasData: remoteHasData,
           questionHistory: remoteData?.questionHistory?.length ?? 0,

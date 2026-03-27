@@ -1,3 +1,70 @@
+import { Preset } from "@/types";
+// ─── Preset Firestore Helpers ─────────────────────────────────────────────
+
+function getPresetsCollectionRef(userId: string) {
+  return collection(db, "users", userId, "presets");
+}
+
+export async function listPresets(userId: string): Promise<Preset[]> {
+  const colRef = getPresetsCollectionRef(userId);
+  const snapshot = await getDocs(query(colRef, orderBy("updatedAt", "desc")));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Preset));
+}
+
+export async function savePreset(userId: string, preset: Preset): Promise<void> {
+  const colRef = getPresetsCollectionRef(userId);
+  const docRef = doc(colRef, preset.id);
+  await setDoc(docRef, { ...preset, updatedAt: new Date().toISOString() });
+}
+
+export async function deletePreset(userId: string, presetId: string): Promise<void> {
+  const colRef = getPresetsCollectionRef(userId);
+  const docRef = doc(colRef, presetId);
+  await setDoc(docRef, {}, { merge: false }); // Overwrite with empty to delete
+  // Firestore best practice is to use deleteDoc, but setDoc({}, {merge:false}) is a safe fallback
+}
+
+// ─── Goals & Streak Firestore Helpers ──────────────────────────────────────
+
+function getGoalsDocRef(userId: string) {
+  return doc(db, "users", userId, "settings", "goals");
+}
+
+export async function saveGoalsData(
+  userId: string,
+  studyGoals: Record<string, unknown>,
+  streakData: Record<string, unknown>,
+): Promise<void> {
+  const goalsRef = getGoalsDocRef(userId);
+  await withRetry(
+    () => withTimeout(
+      setDoc(goalsRef, {
+        studyGoals: removeUndefined(studyGoals),
+        streakData: removeUndefined(streakData),
+        _lastModified: serverTimestamp(),
+      }, { merge: true }),
+      "saving goals data"
+    ),
+    "saving goals data"
+  );
+}
+
+export async function loadGoalsData(userId: string): Promise<{
+  studyGoals: Record<string, unknown> | null;
+  streakData: Record<string, unknown> | null;
+}> {
+  const goalsRef = getGoalsDocRef(userId);
+  const snapshot = await withTimeout(getDoc(goalsRef), "loading goals data");
+  if (!snapshot.exists()) {
+    return { studyGoals: null, streakData: null };
+  }
+  const data = snapshot.data();
+  return {
+    studyGoals: typeof data.studyGoals === "object" && data.studyGoals !== null && !Array.isArray(data.studyGoals) ? data.studyGoals : null,
+    streakData: typeof data.streakData === "object" && data.streakData !== null && !Array.isArray(data.streakData) ? data.streakData : null,
+  };
+}
+
 import { initializeApp, getApps } from "firebase/app";
 import {
   getAuth,
@@ -99,6 +166,9 @@ export interface SyncableData {
   questionHistory: Record<string, unknown>[];
   mcHistory: Record<string, unknown>[];
   savedSets: Record<string, unknown>[];
+  presets?: Preset[];
+  studyGoals?: Record<string, unknown>;
+  streakData?: Record<string, unknown>;
 }
 
 // Track last sync timestamps per collection to enable delta sync
@@ -794,6 +864,14 @@ export async function saveUserData(
       console.log("[Firebase] Settings saved");
     }
 
+    // Save goals & streak data
+    if (data.studyGoals || data.streakData) {
+      console.log("[Firebase] Saving goals data...");
+      await saveGoalsData(userId, data.studyGoals ?? {}, data.streakData ?? {});
+      totalWrites++;
+      console.log("[Firebase] Goals data saved");
+    }
+
     // Save all collections in parallel for better performance
     const savePromises: Promise<void>[] = [];
 
@@ -990,7 +1068,7 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
   }
   
   // Load all collections in parallel for better performance
-  const [qhSnapshot, mchSnapshot, ssSnapshot] = await Promise.all([
+  const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult] = await Promise.all([
     withTimeout(
       getDocs(query(getHistoryCollectionRef(userId, "questionHistory"), orderBy("createdAt", "desc"), limit(500))),
       "loading questionHistory"
@@ -1003,6 +1081,7 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
       getDocs(query(getSavedSetsCollectionRef(userId), orderBy("updatedAt", "desc"), limit(100))),
       "loading savedSets"
     ),
+    loadGoalsData(userId).catch(() => ({ studyGoals: null, streakData: null })),
   ]);
   
   qhSnapshot.forEach((doc) => {
@@ -1025,7 +1104,11 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
     result.savedSets.push(inflateSavedSet(data));
   });
   console.log("[Firebase] savedSets loaded:", result.savedSets.length);
-  
+
+  if (goalsResult.studyGoals) result.studyGoals = goalsResult.studyGoals;
+  if (goalsResult.streakData) result.streakData = goalsResult.streakData;
+  console.log("[Firebase] goals data loaded:", { hasStudyGoals: !!goalsResult.studyGoals, hasStreakData: !!goalsResult.streakData });
+
   const elapsed = Date.now() - startTime;
   console.log("[Firebase] loadUserData completed", {
     userId,

@@ -113,6 +113,7 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   studyGoals: DEFAULT_STUDY_GOALS,
   streakData: DEFAULT_STREAK_DATA,
   generationHistory: [],
+  presets: [], // Generator parameter presets (Firebase-synced)
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {

@@ -63,6 +63,8 @@ function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 
+import { Preset } from "./types";
+
 export interface AppState {
   // ── Hydration ──────────────────────────────────────────────────────────────
   isHydrated: boolean;
@@ -140,11 +142,19 @@ export interface AppState {
 
   examHistory: ExamRecord[];
   generationHistory: GenerationRecord[];
+
+  // ─── Generator Parameter Presets (Firebase-synced) ─────────────
+  presets: Preset[];
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
 
 export interface AppActions {
+    // Preset management (Firebase-synced)
+    setPresets: (presets: Preset[]) => void;
+    addPreset: (preset: Preset) => void;
+    updatePreset: (preset: Preset) => void;
+    deletePreset: (id: string) => void;
   // Settings
   setApiKey: (key: string) => void;
   setShowApiKey: (show: boolean) => void;
@@ -365,6 +375,7 @@ const defaultState: AppState = {
 
   examHistory: [],
   generationHistory: [],
+  presets: [],
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -479,6 +490,12 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
   clearApiKey: () => set({ apiKey: "" }),
+
+  // ── Preset management (Firebase-synced) ──────────────────────────────────
+  setPresets: (presets) => set({ presets }),
+  addPreset: (preset) => set((s) => ({ presets: [preset, ...s.presets] })),
+  updatePreset: (preset) => set((s) => ({ presets: s.presets.map((p) => p.id === preset.id ? preset : p) })),
+  deletePreset: (id) => set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
 
   // ── Preferences ────────────────────────────────────────────────────────────
 
