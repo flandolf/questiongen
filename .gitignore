@@ -28,5 +28,8 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-src/firebaseConfig.ts
 src-tauri/gen/android/app/google-services.json
+
+# Environment variables
+.env
+.env.local
