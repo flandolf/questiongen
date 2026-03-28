@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useAppSettings } from "@/AppContext";
 import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { formatCostUsd, estimateTokensAndCost } from "@/lib/app-utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -524,7 +524,7 @@ type SetupPanelProps = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function SetupPanel({
+function SetupPanelImpl({
   questionMode, onSetQuestionMode,
   generationMode, onSetGenerationMode,
   examTimeLimitMinutes, onSetExamTimeLimitMinutes,
@@ -1324,3 +1324,5 @@ export function SetupPanel({
     </div>
   );
 }
+
+export const SetupPanel = memo(SetupPanelImpl);

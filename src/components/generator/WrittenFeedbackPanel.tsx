@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
   Loader2,
   Sparkles,
@@ -58,7 +58,7 @@ function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
   );
 }
 
-export function WrittenFeedbackPanel({
+export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   answer,
   image,
   feedback,
@@ -334,4 +334,4 @@ export function WrittenFeedbackPanel({
       </CardContent>
     </Card>
   );
-}
+});

@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { MathJaxContext } from "better-react-mathjax";
 import { AppProvider } from "./AppContext";
-import { useAppContext } from "./AppContext";
+import { useAppStore } from "./store";
 import { FirebaseSyncProvider } from "./context/FirebaseSyncContext";
 import { Layout } from "./components/layout/Layout";
 
@@ -26,7 +26,7 @@ function RouteFallback() {
 }
 
 function AppRoutes() {
-  const { isHydrated } = useAppContext();
+  const isHydrated = useAppStore((s) => s.isHydrated);
 
   if (!isHydrated) {
     return (

@@ -8,12 +8,175 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { formatDate } from "../lib/app-utils";
 import { EmptyState } from "../components/EmptyState";
 import { ConfirmModal } from "../components/ui/ConfirmModal";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, memo } from "react";
 import { PageContainer, PageHeader, Toolbar, FilterGroup, FilterButton } from "@/components/layout/primitives";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 type SortKey = "updatedAt" | "title" | "progress";
 type ModeFilter = "all" | "written" | "mc";
+
+const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
+  sets,
+  onOpen,
+  onDelete,
+}: {
+  sets: any[];
+  onOpen: (id: string) => void;
+  onDelete: (id: string, title: string) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: sets.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 140,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
+
+  return (
+    <div ref={parentRef} style={{ height: "100vh", overflow: "auto" }}>
+      <div
+        style={{
+          height: `100vh`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const savedSet = sets[virtualRow.index];
+          const questionCount =
+            savedSet.questionMode === "written"
+              ? savedSet.writtenSession?.questions.length ?? 0
+              : savedSet.mcSession?.questions.length ?? 0;
+          const completedCount =
+            savedSet.questionMode === "written"
+              ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
+              : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
+          const progressPct = questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
+          const topics = savedSet.preferences.selectedTopics;
+          const isWritten = savedSet.questionMode === "written";
+          const progressLabel =
+            completedCount === 0
+              ? "Not started"
+              : completedCount === questionCount
+                ? "Complete"
+                : `${progressPct.toFixed(0)}% complete`;
+          return (
+            <div
+              key={savedSet.id}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+                paddingBottom: 16,
+              }}
+            >
+              <Card className="overflow-hidden border shadow-sm transition-shadow hover:shadow-md bg-muted/30">
+                <CardHeader className="px-4 border-b">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-base font-light truncate">{savedSet.title}</span>
+                        <Badge
+                          variant="secondary"
+                          className={`shrink-0 text-xs ${isWritten
+                            ? "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
+                            : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                            }`}
+                        >
+                          {isWritten ? "Written" : "Multiple Choice"}
+                        </Badge>
+                      </div>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock3 className="h-3 w-3 shrink-0" />
+                        Saved {formatDate(savedSet.updatedAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 px-3 py-2 h-8 text-xs"
+                        onClick={() => onOpen(savedSet.id)}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Reopen
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 px-3 py-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => onDelete(savedSet.id, savedSet.title)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 py-3 space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {topics.length > 0
+                      ? topics.map((topic: string) => (
+                        <Badge key={topic} variant="outline" className="text-xs px-2 py-0.5">
+                          {topic}
+                        </Badge>
+                      ))
+                      : <Badge variant="outline" className="text-xs px-2 py-0.5">Mixed topics</Badge>}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <BarChart2 className="h-3 w-3 shrink-0" />
+                        <span className="text-xs font-light uppercase tracking-wide">Difficulty</span>
+                      </div>
+                      <div className="text-xs font-light capitalize">{savedSet.preferences.difficulty}</div>
+                    </div>
+                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Hash className="h-3 w-3 shrink-0" />
+                        <span className="text-xs font-light uppercase tracking-wide">Progress</span>
+                      </div>
+                      <div className="text-xs font-medium">{completedCount}/{questionCount}</div>
+                    </div>
+                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Clock3 className="h-3 w-3 shrink-0" />
+                        <span className="text-xs font-semibold uppercase tracking-wide">Saved</span>
+                      </div>
+                      <div className="text-xs font-medium truncate">{formatDate(savedSet.updatedAt)}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${isWritten ? "bg-sky-500" : "bg-violet-500"}`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                    <p className={`text-xs text-right font-medium ${completedCount === 0
+                      ? "text-muted-foreground/60 italic"
+                      : completedCount === questionCount
+                        ? isWritten ? "text-sky-600 dark:text-sky-400" : "text-violet-600 dark:text-violet-400"
+                        : "text-muted-foreground"
+                      }`}>
+                      {progressLabel}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 export function SavedView() {
   const navigate = useNavigate();
@@ -122,169 +285,6 @@ export function SavedView() {
           </Button>
         }
       />
-    );
-  }
-
-  function VirtualizedSavedSetList({
-    sets,
-    onOpen,
-    onDelete,
-  }: {
-    sets: any[];
-    onOpen: (id: string) => void;
-    onDelete: (id: string, title: string) => void;
-  }) {
-    const parentRef = useRef<HTMLDivElement>(null);
-    const rowVirtualizer = useVirtualizer({
-      count: sets.length,
-      getScrollElement: () => parentRef.current,
-      estimateSize: () => 140,
-      measureElement: (el) => el.getBoundingClientRect().height,
-    });
-
-    return (
-      <div ref={parentRef} style={{ height: "100vh", overflow: "auto" }}>
-        <div
-          style={{
-            height: `100vh`,
-            width: "100%",
-            position: "relative",
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const savedSet = sets[virtualRow.index];
-            const questionCount =
-              savedSet.questionMode === "written"
-                ? savedSet.writtenSession?.questions.length ?? 0
-                : savedSet.mcSession?.questions.length ?? 0;
-            const completedCount =
-              savedSet.questionMode === "written"
-                ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
-                : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
-            const progressPct = questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
-            const topics = savedSet.preferences.selectedTopics;
-            const isWritten = savedSet.questionMode === "written";
-            const progressLabel =
-              completedCount === 0
-                ? "Not started"
-                : completedCount === questionCount
-                  ? "Complete"
-                  : `${progressPct.toFixed(0)}% complete`;
-            return (
-              <div
-                key={savedSet.id}
-                data-index={virtualRow.index}
-                ref={rowVirtualizer.measureElement}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
-                  paddingBottom: 16,
-                }}
-              >
-                <Card className="overflow-hidden border shadow-sm transition-shadow hover:shadow-md bg-muted/30">
-                  <CardHeader className="px-4 border-b">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base font-light truncate">{savedSet.title}</span>
-                          <Badge
-                            variant="secondary"
-                            className={`shrink-0 text-xs ${isWritten
-                              ? "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
-                              : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-                              }`}
-                          >
-                            {isWritten ? "Written" : "Multiple Choice"}
-                          </Badge>
-                        </div>
-                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock3 className="h-3 w-3 shrink-0" />
-                          Saved {formatDate(savedSet.updatedAt)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 px-3 py-2 h-8 text-xs"
-                          onClick={() => onOpen(savedSet.id)}
-                        >
-                          <FolderOpen className="h-3.5 w-3.5" />
-                          Reopen
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5 px-3 py-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => onDelete(savedSet.id, savedSet.title)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="px-4 py-3 space-y-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {topics.length > 0
-                        ? topics.map((topic: string) => (
-                          <Badge key={topic} variant="outline" className="text-xs px-2 py-0.5">
-                            {topic}
-                          </Badge>
-                        ))
-                        : <Badge variant="outline" className="text-xs px-2 py-0.5">Mixed topics</Badge>}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <BarChart2 className="h-3 w-3 shrink-0" />
-                          <span className="text-xs font-light uppercase tracking-wide">Difficulty</span>
-                        </div>
-                        <div className="text-xs font-light capitalize">{savedSet.preferences.difficulty}</div>
-                      </div>
-                      <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Hash className="h-3 w-3 shrink-0" />
-                          <span className="text-xs font-light uppercase tracking-wide">Progress</span>
-                        </div>
-                        <div className="text-xs font-medium">{completedCount}/{questionCount}</div>
-                      </div>
-                      <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock3 className="h-3 w-3 shrink-0" />
-                          <span className="text-xs font-semibold uppercase tracking-wide">Saved</span>
-                        </div>
-                        <div className="text-xs font-medium truncate">{formatDate(savedSet.updatedAt)}</div>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${isWritten ? "bg-sky-500" : "bg-violet-500"}`}
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                      <p className={`text-xs text-right font-medium ${completedCount === 0
-                        ? "text-muted-foreground/60 italic"
-                        : completedCount === questionCount
-                          ? isWritten ? "text-sky-600 dark:text-sky-400" : "text-violet-600 dark:text-violet-400"
-                          : "text-muted-foreground"
-                        }`}>
-                        {progressLabel}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     );
   }
 

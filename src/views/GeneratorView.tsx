@@ -4,11 +4,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { XCircle } from "lucide-react";
 import {
-  useAppContext,
   useAppPreferences,
   useAppSettings,
   useMultipleChoiceSession,
   useWrittenSession,
+  useGenerationStatus,
 } from "@/AppContext";
 import { useAppStore } from "@/store";
 import {
@@ -215,7 +215,7 @@ export function GeneratorView() {
     generationStartedAt, setGenerationStartedAt,
     isMarking, setIsMarking,
     errorMessage, setErrorMessage,
-  } = useAppContext();
+  } = useGenerationStatus();
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
   const addExamRecord = useAppStore((s) => s.addExamRecord);
@@ -541,7 +541,7 @@ export function GeneratorView() {
     setConfirmOpen(true);
   }, [activeMcQuestion, activeMcQuestionIndex]);
 
-  function performConfirmedCancel() {
+  const performConfirmedCancel = useCallback(() => {
     if (pendingCancelType === "written" && activeQuestion) {
       const id = activeQuestion.id;
       const next = questions.filter((q) => q.id !== id);
@@ -575,7 +575,7 @@ export function GeneratorView() {
     setPendingCancelType(null);
     setConfirmOpen(false);
     setConfirmMessage(null);
-  }
+  }, [pendingCancelType, activeQuestion, activeQuestionIndex, activeMcQuestion, activeMcQuestionIndex, questions, mcQuestions, setQuestions, setActiveWrittenSavedSetId, setActiveQuestionIndex, setWrittenQuestionPresentedAtById, setAnswersByQuestionId, setImagesByQuestionId, setFeedbackByQuestionId, setMarkAppealByQuestionId, setMarkOverrideInputByQuestionId, setWrittenResponseEnteredAtById, setMcQuestions, setActiveMcSavedSetId, setActiveMcQuestionIndex, setMcQuestionPresentedAtById, setMcAnswersByQuestionId, setMcMarkAppealByQuestionId, setMcMarkOverrideInputByQuestionId, setMcAwardedMarksByQuestionId, setErrorMessage]);
 
   // ── Topic / subtopic toggles ─────────────────────────────────────────────────
   const toggleTopic = useCallback((topic: Topic) => {
@@ -1310,6 +1310,43 @@ export function GeneratorView() {
     } catch { setErrorMessage("Could not read image file. Try a different file."); }
   }, [activeQuestion, setImagesByQuestionId, setWrittenResponseEnteredAtById]);
 
+  // ── Memoized per-question callbacks ──────────────────────────────────────
+  const handleAnswerChange = useCallback((value: string) => {
+    if (!activeQuestion) return;
+    setAnswersByQuestionId((prev: Record<string, string>) => ({ ...prev, [activeQuestion.id]: value }));
+    if (value.trim().length > 0) {
+      setWrittenResponseEnteredAtById((prev) => {
+        if (prev[activeQuestion.id] !== undefined) return prev;
+        return { ...prev, [activeQuestion.id]: Date.now() };
+      });
+    }
+  }, [activeQuestion, setAnswersByQuestionId, setWrittenResponseEnteredAtById]);
+
+  const handleImageRemove = useCallback(() => {
+    if (!activeQuestion) return;
+    setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }));
+  }, [activeQuestion, setImagesByQuestionId]);
+
+  const handleAppealChange = useCallback((v: string) => {
+    if (!activeQuestion) return;
+    setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }));
+  }, [activeQuestion]);
+
+  const handleOverrideInputChange = useCallback((v: string) => {
+    if (!activeQuestion) return;
+    setMarkOverrideInputByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }));
+  }, [activeQuestion]);
+
+  const handleMcAppealChange = useCallback((v: string) => {
+    if (!activeMcQuestion) return;
+    setMcMarkAppealByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }));
+  }, [activeMcQuestion]);
+
+  const handleMcOverrideInputChange = useCallback((v: string) => {
+    if (!activeMcQuestion) return;
+    setMcMarkOverrideInputByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }));
+  }, [activeMcQuestion]);
+
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -1471,17 +1508,9 @@ export function GeneratorView() {
                     image={activeQuestionImage}
                     isMarking={isMarking}
                     canSubmit={canSubmitAnswer}
-                    onAnswerChange={(value) => {
-                      setAnswersByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: value }));
-                      if (value.trim().length > 0) {
-                        setWrittenResponseEnteredAtById((prev) => {
-                          if (prev[activeQuestion.id] !== undefined) return prev;
-                          return { ...prev, [activeQuestion.id]: Date.now() };
-                        });
-                      }
-                    }}
+                    onAnswerChange={handleAnswerChange}
                     onImageDrop={handleDropDropzone}
-                    onImageRemove={() => setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }))}
+                    onImageRemove={handleImageRemove}
                     onSubmit={handleSubmitForMarking}
                   />
                 ) : (
@@ -1493,8 +1522,8 @@ export function GeneratorView() {
                     appealText={activeMarkAppeal}
                     overrideInput={activeOverrideInput}
                     isMarking={isMarking}
-                    onAppealChange={(v) => setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
-                    onOverrideInputChange={(v) => setMarkOverrideInputByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }))}
+                    onAppealChange={handleAppealChange}
+                    onOverrideInputChange={handleOverrideInputChange}
                     onArgueForMark={handleArgueForMark}
                     onApplyOverride={handleOverrideMark}
                     onCriterionChange={handleOverrideCriterion}
@@ -1578,8 +1607,8 @@ export function GeneratorView() {
                   isMarking={isMarking}
                   hideCorrectAnswer={generationMode === "exam" && !isReviewingCompletedSet}
                   onSelectAnswer={handleMcAnswer}
-                  onAppealChange={(v) => setMcMarkAppealByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
-                  onOverrideInputChange={(v) => setMcMarkOverrideInputByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }))}
+                  onAppealChange={handleMcAppealChange}
+                  onOverrideInputChange={handleMcOverrideInputChange}
                   onArgueForMark={handleArgueForMcMark}
                   onApplyOverride={handleOverrideMcMark}
                 />

@@ -162,6 +162,28 @@ export function useAppContext() {
   );
 }
 
+// ─── Targeted generation-status hook ──────────────────────────────────────────
+// Use this instead of useAppContext() when you only need generation/marking state.
+// Avoids re-renders when unrelated slices (preferences, session, etc.) change.
+
+export function useGenerationStatus() {
+  return useAppStore(
+    useShallow((s) => ({
+      saveCurrentSet: s.saveCurrentSet,
+      isGenerating: s.isGenerating,
+      setIsGenerating: s.setIsGenerating,
+      generationStatus: s.generationStatus,
+      setGenerationStatus: s.setGenerationStatus,
+      generationStartedAt: s.generationStartedAt,
+      setGenerationStartedAt: s.setGenerationStartedAt,
+      isMarking: s.isMarking,
+      setIsMarking: s.setIsMarking,
+      errorMessage: s.errorMessage,
+      setErrorMessage: s.setErrorMessage,
+    }))
+  );
+}
+
 // ─── Scoped convenience hooks ─────────────────────────────────────────────────
 
 export function useAppPreferences() {

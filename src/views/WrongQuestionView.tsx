@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../store";
@@ -88,7 +88,7 @@ function EmptyState() {
 
 // ─── List entry card ──────────────────────────────────────────────────────────
 
-function ListEntryCard({
+const ListEntryCard = memo(function ListEntryCard({
     entry, index, isExpanded, onToggle, onDelete, onReattempt, srCard,
 }: {
     entry: WrongEntry; index: number; isExpanded: boolean; onToggle: () => void; onDelete: () => void; onReattempt: () => void;
@@ -179,7 +179,7 @@ function ListEntryCard({
             )}
         </div>
     );
-}
+});
 export function VirtualizedWrongList({
     entries,
     expandedIds,
