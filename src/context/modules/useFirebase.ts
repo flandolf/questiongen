@@ -6,6 +6,7 @@ export {
   type CompactionMigrationResult,
   type DeltaSyncResult,
   type SaveOptions,
+  type DailyUsageRecord,
   createInitialSyncMetadata,
   getChangedItems,
   getDeltaItems,
@@ -17,4 +18,5 @@ export {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   subscribeToUserData,
+  saveDailyUsage,
 } from "./firebase-crud";

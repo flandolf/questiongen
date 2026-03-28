@@ -31,6 +31,7 @@ import {
    StreakData,
    ExamRecord,
    GenerationRecord,
+   Preset,
 } from "../types";
 import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
 
@@ -61,7 +62,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   generationMode: "practice",
   examTimeLimitMinutes: 30,
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
-  aiDifficultyScalingEnabled: false,
+  aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
 };
 
@@ -153,6 +154,7 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     streakData: normalizeStreakData(data.streakData),
     examHistory: normalizeExamHistory(data.examHistory),
     generationHistory: normalizeGenerationHistory(data.generationHistory),
+    presets: normalizePresets(data.presets),
   };
 }
 
@@ -820,5 +822,30 @@ function normalizeStreakData(raw: unknown): StreakData {
     longestStreak: typeof raw.longestStreak === "number" && raw.longestStreak >= 0 ? Math.floor(raw.longestStreak) : 0,
     lastActiveDate: typeof raw.lastActiveDate === "string" ? raw.lastActiveDate : "",
     dailyCompletions: completions,
+  };
+}
+
+function normalizePresets(raw: unknown): Preset[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => normalizePreset(item))
+    .filter((item): item is Preset => item !== null);
+}
+
+function normalizePreset(raw: unknown): Preset | null {
+  const data = isRecord(raw) ? raw : null;
+  if (!data) return null;
+
+  const id = asString(data.id);
+  const name = asString(data.name);
+  if (!id || !name) return null;
+
+  return {
+    id,
+    name,
+    preferences: normalizePreferences(data.preferences),
+    createdAt: asString(data.createdAt) || new Date(0).toISOString(),
+    updatedAt: asString(data.updatedAt) || new Date(0).toISOString(),
+    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? undefined,
   };
 }
