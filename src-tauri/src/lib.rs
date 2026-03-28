@@ -1674,6 +1674,18 @@ async fn cleanup_subtopics(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|_app| {
+            #[cfg(target_os = "android")]
+            {
+                let ctx = ndk_context::android_context();
+                let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+                let mut env = vm.attach_current_thread().unwrap();
+                let context = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
+                rustls_platform_verifier::android::init_with_env(&mut env, context)
+                    .expect("failed to initialize rustls-platform-verifier on Android");
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             load_persisted_state,
