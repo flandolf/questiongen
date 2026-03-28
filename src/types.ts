@@ -682,3 +682,12 @@ export type ExamQuestionResult = {
   /** MC only */
   correctAnswer?: string;
 };
+
+export interface BatchTopicProgress {
+  topic: Topic;
+  questionCount: number;
+  status: "waiting" | "active" | "done" | "error";
+  stage?: string;
+  message?: string;
+  errorMessage?: string;
+}
