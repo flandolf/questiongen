@@ -2,12 +2,9 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Maximize, Minus, X } from 'lucide-react';
 
 import { useRef } from 'react';
-import { useTimerBar } from '@/context/TimerBarContext';
-import { QuestionTimerBar } from '@/components/generator/QuestionTimerBar';
 
 export default function Titlebar() {
   const barRef = useRef<HTMLDivElement>(null);
-  const { timerBarData } = useTimerBar();
 
   // Manual drag and double-click maximize per Tauri v2 docs
   const handleMouseDown = async (e: React.MouseEvent) => {
@@ -52,11 +49,6 @@ export default function Titlebar() {
           </button>
         </div>
       </div>
-      {timerBarData && (
-        <div className="px-2 pb-1 bg-background border-b border-border/40" style={{ zIndex: 50 }}>
-          <QuestionTimerBar {...timerBarData} />
-        </div>
-      )}
     </div>
   );
 }

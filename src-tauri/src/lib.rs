@@ -1453,6 +1453,208 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
     Ok(AnalyzeImageResponse { output_text })
 }
 
+/// Parse a `{"mappings":[{"unknown":"…","canonical":"…"},…]}` payload from raw
+/// LLM output.  Uses the same JSON extraction / LaTeX-protection pipeline that
+/// question generation relies on so fenced code blocks, preamble text, and
+/// LaTeX in values are all handled gracefully.
+fn parse_cleanup_mappings(raw: &str) -> CommandResult<Vec<(String, String)>> {
+    let protected = protect_latex_in_raw_json(raw);
+
+    // Try to parse as a complete JSON value first (handles both objects and arrays).
+    let value: Option<serde_json::Value> = serde_json::from_str(&protected).ok();
+
+    // If direct parse fails, try extracting a JSON object (for wrapped/text responses).
+    let value = match value {
+        Some(v) => v,
+        None => {
+            // Try extracting a JSON array first (bare array case)
+            if let Some(arr_str) = extract_json_array(&protected) {
+                serde_json::from_str(&arr_str).map_err(|e| {
+                    AppError::new(
+                        "MODEL_PARSE_ERROR",
+                        format!(
+                            "Invalid JSON array in cleanup response: {e}. Raw:\n{}",
+                            raw.chars().take(500).collect::<String>()
+                        ),
+                    )
+                })?
+            } else if let Some(obj_str) = extract_json_object(&protected) {
+                serde_json::from_str(&obj_str).map_err(|e| {
+                    AppError::new(
+                        "MODEL_PARSE_ERROR",
+                        format!(
+                            "Invalid JSON object in cleanup response: {e}. Raw:\n{}",
+                            raw.chars().take(500).collect::<String>()
+                        ),
+                    )
+                })?
+            } else {
+                return Err(AppError::new(
+                    "MODEL_PARSE_ERROR",
+                    format!(
+                        "No JSON in cleanup response. Raw:\n{}",
+                        raw.chars().take(500).collect::<String>()
+                    ),
+                ));
+            }
+        }
+    };
+
+    // Accept: {"mappings":[…]}, bare array […], or a single mapping object {"unknown":"…","canonical":"…"}.
+    let arr_opt = value
+        .get("mappings")
+        .and_then(|v| v.as_array())
+        .or_else(|| value.as_array());
+
+    // If we got a bare array directly from extract_json_object (the scanner found
+    // the first {…} inside a bare array), arr_opt will be None but value will be
+    // an object with "unknown"/"canonical" keys. Treat it as a single-element list.
+    let items: Vec<&serde_json::Value> = match arr_opt {
+        Some(arr) => arr.iter().collect(),
+        None => {
+            // Single object case: treat as one mapping
+            vec![&value]
+        }
+    };
+
+    let mut out = Vec::new();
+    for item in items {
+        let unknown = item
+            .get("unknown")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        let canonical = item
+            .get("canonical")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        if let (Some(u), Some(c)) = (unknown, canonical) {
+            out.push((u, c));
+        }
+    }
+    Ok(out)
+}
+
+/// Extract the first JSON array (`[…]`) from a string, stripping fences.
+fn extract_json_array(content: &str) -> Option<String> {
+    let s = content.trim();
+
+    // Already a clean array.
+    if s.starts_with('[') {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+            if v.is_array() {
+                return Some(s.to_string());
+            }
+        }
+    }
+
+    // Strip ```json ... ``` fences.
+    let fence = s
+        .strip_prefix("```json")
+        .or_else(|| s.strip_prefix("```"))
+        .map(|s| s.trim_start_matches('\n'))
+        .and_then(|s| s.strip_suffix("```"))
+        .map(str::trim);
+    if let Some(inner) = fence {
+        if inner.starts_with('[') {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
+                if v.is_array() {
+                    return Some(inner.to_string());
+                }
+            }
+        }
+    }
+
+    // Scan for the first parseable array.
+    for (i, ch) in content.char_indices() {
+        if ch != '[' {
+            continue;
+        }
+        let slice = &content[i..];
+        let mut iter = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
+        if let Some(Ok(v)) = iter.next() {
+            if v.is_array() {
+                let end = i + iter.byte_offset();
+                return content.get(i..end).map(str::to_string);
+            }
+        }
+    }
+    None
+}
+
+/// Build the cleanup system prompt.  Kept as a helper so both topic and
+/// subtopic commands share identical instructions.
+fn cleanup_system_prompt() -> &'static str {
+    "You are a strict data-cleaning assistant. You MUST output ONLY valid JSON.\n\
+     Respond with an object containing a \"mappings\" array. Each item must have\n\
+     an \"unknown\" string and a \"canonical\" string.\n\
+     Example response:\n\
+     {\"mappings\":[{\"unknown\":\"Some Name\",\"canonical\":\"Exact Name\"}]}\n\
+     Rules:\n\
+     - The \"canonical\" value MUST be copied exactly from the canonical list provided.\n\
+     - Only include mappings where you are confident.\n\
+     - If an input does not match any canonical value, omit it from the array.\n\
+     - Do NOT include markdown fences, explanations, or any text outside the JSON."
+}
+
+/// Auto-map items that already exactly match a canonical value (case-insensitive).
+/// Returns (mapping, remaining_unknowns).
+fn auto_map_exact(
+    unknowns: &[String],
+    canonical: &[String],
+) -> (HashMap<String, String>, Vec<String>) {
+    let canonical_lower: Vec<(String, String)> = canonical
+        .iter()
+        .map(|c| (c.to_ascii_lowercase(), c.clone()))
+        .collect();
+    let mut mapping = HashMap::new();
+    let mut remaining = Vec::new();
+    for u in unknowns {
+        let u_trimmed = u.trim();
+        if let Some((_, exact)) = canonical_lower
+            .iter()
+            .find(|(lc, _)| lc == &u_trimmed.to_ascii_lowercase())
+        {
+            mapping.insert(u_trimmed.to_string(), exact.clone());
+        } else {
+            remaining.push(u_trimmed.to_string());
+        }
+    }
+    (mapping, remaining)
+}
+
+/// Validate and filter LLM-produced mappings: trim, skip blanks, enforce
+/// canonical membership, deduplicate.
+fn validate_and_filter_mappings(
+    raw_mappings: Vec<(String, String)>,
+    canonical: &[String],
+    existing: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    let canonical_set: HashSet<&str> = canonical.iter().map(|s| s.as_str()).collect();
+    let mut result = existing.clone();
+    for (unknown, canonical_val) in raw_mappings {
+        let u = unknown.trim();
+        let c = canonical_val.trim();
+        if u.is_empty() || c.is_empty() {
+            continue;
+        }
+        // Skip self-maps (unknown already equals canonical)
+        if u.eq_ignore_ascii_case(c) {
+            continue;
+        }
+        // Only insert if canonical value is in the allowed set
+        if !canonical_set.contains(c) {
+            continue;
+        }
+        // Don't overwrite existing mappings
+        if !result.contains_key(u) {
+            result.insert(u.to_string(), c.to_string());
+        }
+    }
+    result
+}
+
 // ─── Tauri command: cleanup topics only ───────────────────────────────────────
 
 #[tauri::command]
@@ -1471,8 +1673,22 @@ async fn cleanup_topics(
         });
     }
 
-    // Use an array of objects which is much easier for lower-tier LLMs to follow
-    // than an object with dynamic, arbitrary keys.
+    // Normalise canonical list: trim, drop blanks
+    let canonical_topics: Vec<String> = request
+        .canonical_topics
+        .iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // Auto-map exact (case-insensitive) matches — no LLM call needed
+    let (mut topic_mapping, remaining_unknowns) =
+        auto_map_exact(&request.unknown_topics, &canonical_topics);
+
+    if remaining_unknowns.is_empty() {
+        return Ok(CleanupTopicsResponse { topic_mapping });
+    }
+
     let topic_schema = json_schema_format(
         "topic_cleanup",
         serde_json::json!({
@@ -1496,68 +1712,30 @@ async fn cleanup_topics(
         }),
     );
 
-    let system_prompt = "\
-        You are a strict data-cleaning assistant. You MUST output ONLY valid JSON. \
-        Respond with an object containing a 'mappings' array. Each item in the array must have \
-        an 'unknown' string and a 'canonical' string.\n\n\
-        EXPECTED JSON SCHEMA:\n\
-        {\n\
-          \"mappings\": [\n\
-            { \"unknown\": \"string\", \"canonical\": \"string\" }\n\
-          ]\n\
-        }\n\
-        Do not include markdown blocks, explanations, or any other text.";
-
     let user_prompt = format!(
-        "Normalize the following 'Unknown' topics by mapping them to the EXACT 'Canonical' counterparts.\n\n\
-        [Target Canonical Topics]:\n- {}\n\n\
-        [Unknown Input Topics]:\n- {}\n\n\
-        STRICT RULES:\n\
-        1. The 'canonical' field MUST be an exact, character-for-character match from the [Target Canonical Topics] list.\n\
-        2. If an 'Unknown' topic does not logically match any Canonical topic, DO NOT include it in the output array.\n\
-        3. Only include mappings for the items provided in [Unknown Input Topics].",
-        request.canonical_topics.join("\n- "),
-        request.unknown_topics.join("\n- ")
+        "Map each 'Unknown' topic to the closest 'Canonical' topic.\n\n\
+         Canonical topics:\n- {}\n\n\
+         Unknown topics to map:\n- {}\n\n\
+         The \"canonical\" value MUST be an exact copy from the list above.",
+        canonical_topics.join("\n- "),
+        remaining_unknowns.join("\n- ")
     );
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        system_prompt,
+        cleanup_system_prompt(),
         serde_json::Value::String(user_prompt),
         &topic_schema,
         2048,
         request.temperature.unwrap_or(0.0),
         request.top_p.unwrap_or(0.9),
         request.seed,
-    ).await?;
+    )
+    .await?;
 
-    let parsed: serde_json::Value = serde_json::from_str(&result.content)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Topic parse error: {e}")))?;
-
-    let mut topic_mapping = HashMap::new();
-    
-    // Parse the safer array-of-objects structure back into a HashMap
-    if let Some(mappings) = parsed.get("mappings").and_then(|m| m.as_array()) {
-        for item in mappings {
-            if let (Some(unknown), Some(canonical)) = (
-                item.get("unknown").and_then(|u| u.as_str()),
-                item.get("canonical").and_then(|c| c.as_str()),
-            ) {
-                topic_mapping.insert(unknown.to_string(), canonical.to_string());
-            }
-        }
-    }
-
-    // Validation Guardrail
-    for (key, val) in &topic_mapping {
-        if !request.canonical_topics.contains(val) {
-            return Err(AppError::new(
-                "MODEL_PARSE_ERROR",
-                format!("LLM mapped topic \"{key}\" to non-canonical value \"{val}\""),
-            ));
-        }
-    }
+    let raw_mappings = parse_cleanup_mappings(&result.content)?;
+    topic_mapping = validate_and_filter_mappings(raw_mappings, &canonical_topics, &topic_mapping);
 
     Ok(CleanupTopicsResponse { topic_mapping })
 }
@@ -1578,6 +1756,20 @@ async fn cleanup_subtopics(
         return Ok(CleanupSubtopicsResponse {
             subtopic_mapping: HashMap::new(),
         });
+    }
+
+    let canonical_subtopics: Vec<String> = request
+        .canonical_subtopics
+        .iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let (mut subtopic_mapping, remaining_unknowns) =
+        auto_map_exact(&request.unknown_subtopics, &canonical_subtopics);
+
+    if remaining_unknowns.is_empty() {
+        return Ok(CleanupSubtopicsResponse { subtopic_mapping });
     }
 
     let subtopic_schema = json_schema_format(
@@ -1603,68 +1795,31 @@ async fn cleanup_subtopics(
         }),
     );
 
-    let system_prompt = "\
-        You are a strict data-cleaning assistant. You MUST output ONLY valid JSON. \
-        Respond with an object containing a 'mappings' array. Each item in the array must have \
-        an 'unknown' string and a 'canonical' string.\n\n\
-        EXPECTED JSON SCHEMA:\n\
-        {\n\
-          \"mappings\": [\n\
-            { \"unknown\": \"string\", \"canonical\": \"string\" }\n\
-          ]\n\
-        }\n\
-        Do not include markdown blocks, explanations, or any other text.";
-
     let user_prompt = format!(
-        "Normalize the following 'Unknown' subtopics by mapping them to the EXACT 'Canonical' counterparts.\n\n\
-        [Target Canonical Subtopics]:\n- {}\n\n\
-        [Unknown Input Subtopics]:\n- {}\n\n\
-        STRICT RULES:\n\
-        1. The 'canonical' field MUST be an exact, character-for-character match from the [Target Canonical Subtopics] list.\n\
-        2. If an 'Unknown' subtopic does not logically match any Canonical subtopic, DO NOT include it in the output array.\n\
-        3. Only include mappings for the items provided in [Unknown Input Subtopics].",
-        request.canonical_subtopics.join("\n- "),
-        request.unknown_subtopics.join("\n- ")
+        "Map each 'Unknown' subtopic to the closest 'Canonical' subtopic.\n\n\
+         Canonical subtopics:\n- {}\n\n\
+         Unknown subtopics to map:\n- {}\n\n\
+         The \"canonical\" value MUST be an exact copy from the list above.",
+        canonical_subtopics.join("\n- "),
+        remaining_unknowns.join("\n- ")
     );
 
     let result = call_openrouter(
         &request.api_key,
         &request.model,
-        system_prompt,
+        cleanup_system_prompt(),
         serde_json::Value::String(user_prompt),
         &subtopic_schema,
         2048,
         request.temperature.unwrap_or(0.0),
         request.top_p.unwrap_or(0.9),
         request.seed,
-    ).await?;
+    )
+    .await?;
 
-    let parsed: serde_json::Value = serde_json::from_str(&result.content)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Subtopic parse error: {e}")))?;
-
-    let mut subtopic_mapping = HashMap::new();
-    
-    // Parse the array-of-objects structure back into a HashMap
-    if let Some(mappings) = parsed.get("mappings").and_then(|m| m.as_array()) {
-        for item in mappings {
-            if let (Some(unknown), Some(canonical)) = (
-                item.get("unknown").and_then(|u| u.as_str()),
-                item.get("canonical").and_then(|c| c.as_str()),
-            ) {
-                subtopic_mapping.insert(unknown.to_string(), canonical.to_string());
-            }
-        }
-    }
-
-    // Validation Guardrail
-    for (key, val) in &subtopic_mapping {
-        if !request.canonical_subtopics.contains(val) {
-            return Err(AppError::new(
-                "MODEL_PARSE_ERROR",
-                format!("LLM mapped subtopic \"{key}\" to non-canonical value \"{val}\""),
-            ));
-        }
-    }
+    let raw_mappings = parse_cleanup_mappings(&result.content)?;
+    subtopic_mapping =
+        validate_and_filter_mappings(raw_mappings, &canonical_subtopics, &subtopic_mapping);
 
     Ok(CleanupSubtopicsResponse { subtopic_mapping })
 }
@@ -1795,5 +1950,133 @@ mod tests {
         // 10-mark question should have generous limits
         let sys_10 = marking_system(10, "");
         assert!(sys_10.contains("≤600 words"));
+    }
+
+    // --- Cleanup helpers -------------------------------------------------------
+
+    #[test]
+    fn parse_cleanup_mappings_from_wrapped_json() {
+        let raw = r#"{"mappings":[{"unknown":"Maths Methods","canonical":"Mathematical Methods"}]}"#;
+        let result = parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "Maths Methods");
+        assert_eq!(result[0].1, "Mathematical Methods");
+    }
+
+    #[test]
+    fn parse_cleanup_mappings_from_bare_array() {
+        let raw = r#"[{"unknown":"Chem","canonical":"Chemistry"}]"#;
+        let result = parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "Chem");
+        assert_eq!(result[0].1, "Chemistry");
+    }
+
+    #[test]
+    fn parse_cleanup_mappings_from_fenced_json() {
+        let raw = "```json\n{\"mappings\":[{\"unknown\":\"PE\",\"canonical\":\"Physical Education\"}]}\n```";
+        let result = parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "PE");
+        assert_eq!(result[0].1, "Physical Education");
+    }
+
+    #[test]
+    fn parse_cleanup_mappings_skips_empty_entries() {
+        let raw = r#"{"mappings":[{"unknown":"","canonical":"Chemistry"},{"unknown":"PE","canonical":""},{"unknown":"Math","canonical":"Mathematical Methods"}]}"#;
+        let result = parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "Math");
+    }
+
+    #[test]
+    fn parse_cleanup_mappings_trims_whitespace() {
+        let raw = r#"{"mappings":[{"unknown":"  Chem  ","canonical":"  Chemistry  "}]}"#;
+        let result = parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "Chem");
+        assert_eq!(result[0].1, "Chemistry");
+    }
+
+    #[test]
+    fn parse_cleanup_mappings_with_preamble_text() {
+        let raw = "Sure, here is the JSON:\n\n{\"mappings\":[{\"unknown\":\"Bio\",\"canonical\":\"Biology\"}]}";
+        let result = parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "Bio");
+    }
+
+    #[test]
+    fn auto_map_exact_case_insensitive() {
+        let unknowns = vec!["Mathematical Methods".into(), "chem".into()];
+        let canonical = vec![
+            "Mathematical Methods".into(),
+            "Chemistry".into(),
+        ];
+        let (mapping, remaining) = auto_map_exact(&unknowns, &canonical);
+        assert_eq!(mapping.len(), 1);
+        assert_eq!(mapping["Mathematical Methods"], "Mathematical Methods");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0], "chem");
+    }
+
+    #[test]
+    fn auto_map_exact_handles_whitespace() {
+        let unknowns = vec!["  Chemistry  ".into()];
+        let canonical = vec!["Chemistry".into()];
+        let (mapping, remaining) = auto_map_exact(&unknowns, &canonical);
+        assert_eq!(mapping.len(), 1);
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn validate_and_filter_rejects_non_canonical() {
+        let raw = vec![
+            ("Chem".to_string(), "Biology".to_string()), // Biology not in canonical
+            ("Math".to_string(), "Mathematical Methods".to_string()),
+        ];
+        let canonical = vec!["Mathematical Methods".into(), "Chemistry".into()];
+        let existing = HashMap::new();
+        let result = validate_and_filter_mappings(raw, &canonical, &existing);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result["Math"], "Mathematical Methods");
+    }
+
+    #[test]
+    fn validate_and_filter_skips_self_maps() {
+        let raw = vec![
+            ("Chemistry".to_string(), "Chemistry".to_string()),
+        ];
+        let canonical = vec!["Chemistry".into()];
+        let existing = HashMap::new();
+        let result = validate_and_filter_mappings(raw, &canonical, &existing);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn validate_and_filter_deduplicates() {
+        let raw = vec![
+            ("Chem".to_string(), "Chemistry".to_string()),
+            ("Chem".to_string(), "Biology".to_string()), // duplicate, second ignored
+        ];
+        let canonical = vec!["Chemistry".into(), "Biology".into()];
+        let existing = HashMap::new();
+        let result = validate_and_filter_mappings(raw, &canonical, &existing);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result["Chem"], "Chemistry"); // first mapping wins
+    }
+
+    #[test]
+    fn validate_and_filter_preserves_existing() {
+        let mut existing = HashMap::new();
+        existing.insert("Math".to_string(), "Mathematical Methods".to_string());
+        let raw = vec![
+            ("Chem".to_string(), "Chemistry".to_string()),
+        ];
+        let canonical = vec!["Mathematical Methods".into(), "Chemistry".into()];
+        let result = validate_and_filter_mappings(raw, &canonical, &existing);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result["Math"], "Mathematical Methods");
+        assert_eq!(result["Chem"], "Chemistry");
     }
 }

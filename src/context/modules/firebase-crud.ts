@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   writeBatch,
   setDoc,
+  deleteDoc,
   increment,
 } from "firebase/firestore";
 import { db } from "./firebase-init";
@@ -637,6 +638,11 @@ export interface SaveOptions {
     savedSets: Record<string, number>;
   };
   fullSync?: boolean;
+  deletedIds?: {
+    questionHistory: string[];
+    mcHistory: string[];
+    savedSets: string[];
+  };
 }
 
 export async function saveUserData(
@@ -644,11 +650,57 @@ export async function saveUserData(
   data: SyncableData,
   options: SaveOptions = {}
 ): Promise<{ totalWrites: number; skippedUnchanged: number; deltaSavings: number }> {
-  const { deltaSyncVersions, fullSync = false } = options;
+  const { deltaSyncVersions, fullSync = false, deletedIds } = options;
   const startTime = Date.now();
   let totalWrites = 0;
   let skippedUnchanged = 0;
   let deltaSavings = 0;
+
+  // Delete removed items from Firestore first
+  if (deletedIds) {
+    const deletePromises: Promise<void>[] = [];
+
+    if (deletedIds.questionHistory.length > 0) {
+      const historyRef = getHistoryCollectionRef(userId, "questionHistory");
+      for (const id of deletedIds.questionHistory) {
+        deletePromises.push(
+          withRetry(
+            () => withTimeout(deleteDoc(doc(historyRef, id)), `deleting questionHistory ${id}`),
+            `deleting questionHistory ${id}`
+          )
+        );
+      }
+    }
+
+    if (deletedIds.mcHistory.length > 0) {
+      const historyRef = getHistoryCollectionRef(userId, "mcHistory");
+      for (const id of deletedIds.mcHistory) {
+        deletePromises.push(
+          withRetry(
+            () => withTimeout(deleteDoc(doc(historyRef, id)), `deleting mcHistory ${id}`),
+            `deleting mcHistory ${id}`
+          )
+        );
+      }
+    }
+
+    if (deletedIds.savedSets.length > 0) {
+      const savedSetsRef = getSavedSetsCollectionRef(userId);
+      for (const id of deletedIds.savedSets) {
+        deletePromises.push(
+          withRetry(
+            () => withTimeout(deleteDoc(doc(savedSetsRef, id)), `deleting savedSet ${id}`),
+            `deleting savedSet ${id}`
+          )
+        );
+      }
+    }
+
+    if (deletePromises.length > 0) {
+      await Promise.all(deletePromises);
+      console.log(`[Firebase] Deleted ${deletePromises.length} documents from Firestore`);
+    }
+  }
 
   let questionHistoryToSave = data.questionHistory || [];
   let mcHistoryToSave = data.mcHistory || [];
@@ -1086,67 +1138,7 @@ export async function deleteArchivedItems(
   return deleted;
 }
 
-export function subscribeToUserData(
-  userId: string,
-  callback: (data: SyncableData | null) => void,
-  getLocalData?: () => SyncableData | null
-): () => void {
-  let isRefreshing = false;
-  let refreshQueued = false;
-  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const refresh = async (reason: string) => {
-    if (isRefreshing) {
-      refreshQueued = true;
-      return;
-    }
-    isRefreshing = true;
-    try {
-      console.log(`[Firebase] Remote refresh triggered by ${reason}`);
-
-      if (getLocalData) {
-        const localData = getLocalData();
-        if (localData) {
-          const deltaResult = await getDeltaSyncData(userId, localData);
-          if (deltaResult.changedItems.length === 0) {
-            isRefreshing = false;
-            if (refreshQueued) {
-              refreshQueued = false;
-              void refresh("queued");
-            }
-            return;
-          }
-        }
-      }
-
-      const data = await loadUserData(userId);
-      callback(data);
-    } catch (error) {
-      console.error("[Firebase] subscribeToUserData refresh failed:", error);
-    } finally {
-      isRefreshing = false;
-      if (refreshQueued) {
-        refreshQueued = false;
-        void refresh("queued");
-      }
-    }
-  };
-
-  void refresh("initial");
-
-  const POLL_INTERVAL_MS = 300_000;
-  const pollTimer = setInterval(() => {
-    void refresh("poll");
-  }, POLL_INTERVAL_MS);
-
-  return () => {
-    clearInterval(pollTimer);
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-      refreshTimer = null;
-    }
-  };
-}
+// subscribeToUserData removed — sync is now manual-only (no polling)
 
 // ─── Daily usage tracking ────────────────────────────────────────────────────
 

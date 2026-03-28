@@ -1,7 +1,7 @@
 import { AppState, useAppStore, setSuppressPersistUntil } from "@/store";
 import { QuestionHistoryEntry, McHistoryEntry, SavedQuestionSet, Preset } from "@/types";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, subscribeToUserData, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems, saveDailyUsage, getDeltaSyncData } from "./useFirebase";
+import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems, saveDailyUsage, getDeltaSyncData } from "./useFirebase";
 
 
 // Helper to normalize remote SyncableData to local SyncableData
@@ -19,14 +19,7 @@ function normalizeRemoteSyncableData(remote: SyncableData | null): SyncableData 
 }
 
 
-
-
 const SYNC_DEBUG = true;
-
-// Optimized constants for better sync performance
-const AUTO_SAVE_DEBOUNCE_MS = 10000; // Reduced from 60000ms (10s instead of 60s)
-const SYNC_STALE_THRESHOLD_MS = 300000; // Force full sync if stale for > 5 minutes
-const STORE_CHANGE_THROTTLE_MS = 2000; // Throttle store subscriptions to avoid excessive saves
 
 // Debug log / sync event memory limits
 const DEBUG_LOG_LIMIT = 50;
@@ -51,12 +44,6 @@ function writePersistedSyncEnabled(enabled: boolean): void {
   } catch {
     // localStorage unavailable — non-fatal
   }
-}
-
-// Operation queue for preventing race conditions
-interface QueuedOperation {
-  id: string;
-  execute: () => Promise<void>;
 }
 
 function getUserId(user: FirebaseUser | null): string {
@@ -180,7 +167,6 @@ function getItemLastModified(item: HasId): number {
 
 function extractSyncableData(state: AppState): SyncableData {
   return {
-    // Keep settings out of cloud payloads; sync only content/history.
     settings: {},
     questionHistory: state.questionHistory,
     mcHistory: state.mcHistory,
@@ -229,6 +215,7 @@ export interface UseFirebaseSyncReturn {
   syncError: string | null;
   syncEvents: SyncEvent[];
   debugLogs: DebugLogEntry[];
+  pendingChanges: number;
   enableSync: (email: string, password: string, isSignUp?: boolean) => Promise<void>;
   disableSync: () => Promise<void>;
   toggleSync: () => void;
@@ -246,7 +233,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const [syncEvents, setSyncEvents] = useState<SyncEvent[]>([]);
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
-  
+  const [pendingChanges, setPendingChanges] = useState(0);
+
   const debugLog = useCallback((message: string, data?: unknown) => {
     if (SYNC_DEBUG) {
       console.log("[FirebaseSync]", message, data);
@@ -259,7 +247,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       setDebugLogs((prev) => [entry, ...prev].slice(0, DEBUG_LOG_LIMIT));
     }
   }, []);
-  
+
   const addSyncEvent = useCallback((type: SyncEvent["type"], description: string) => {
     const event: SyncEvent = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -269,15 +257,13 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     };
     debugLog(`Sync event: ${type} - ${description}`);
     setSyncEvents((prev) => [event, ...prev].slice(0, SYNC_EVENT_LIMIT));
-  }, []);
-  
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  }, [debugLog]);
+
   const localDataRef = useRef<SyncableData | null>(null);
   const isInitializedRef = useRef(false);
-  const isFirstSyncRef = useRef(true);
   const suppressAutoSaveRef = useRef(false);
   const suppressAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   // Track sync metadata for delta sync
   const syncMetadataRef = useRef<SyncMetadata>({
     lastSyncTime: 0,
@@ -290,33 +276,9 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       savedSets: {},
     },
   });
-  
-  // Track last store update time for throttling
-  const lastStoreUpdateRef = useRef<number>(0);
 
-  // Operation queue for serializing sync writes
-  const operationQueueRef = useRef<QueuedOperation[]>([]);
-  const isProcessingQueueRef = useRef(false);
-
-  const processQueue = useCallback(async () => {
-    if (isProcessingQueueRef.current) return;
-    isProcessingQueueRef.current = true;
-    while (operationQueueRef.current.length > 0) {
-      const op = operationQueueRef.current.shift();
-      if (!op) break;
-      try {
-        await op.execute();
-      } catch (error) {
-        console.error(`[FirebaseSync] Queued operation ${op.id} failed:`, error);
-      }
-    }
-    isProcessingQueueRef.current = false;
-  }, []);
-
-  const enqueueOperation = useCallback((id: string, execute: () => Promise<void>) => {
-    operationQueueRef.current.push({ id, execute });
-    void processQueue();
-  }, [processQueue]);
+  // Snapshot of last-synced data for detecting pending changes
+  const lastSyncedSnapshotRef = useRef<string>("");
 
   const suppressAutoSaveTemporarily = useCallback((ms = 1200) => {
     suppressAutoSaveRef.current = true;
@@ -328,15 +290,66 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       suppressAutoSaveTimerRef.current = null;
     }, ms);
   }, []);
-  
-  // (moved below forceSync definition)
-// (removed duplicate/broken code)
-  
+
   // Persist isSyncEnabled to localStorage whenever it changes
   useEffect(() => {
     writePersistedSyncEnabled(isSyncEnabled);
   }, [isSyncEnabled]);
 
+  // Track pending changes by comparing current state to last synced snapshot
+  useEffect(() => {
+    if (!user || !isSyncEnabled || !isInitializedRef.current) return;
+
+    const checkPending = () => {
+      const state = useAppStore.getState();
+      if (!state.isHydrated) return;
+      const syncable = extractSyncableData(state);
+      const snapshot = JSON.stringify({
+        qh: syncable.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        mch: syncable.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        ss: syncable.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+      });
+
+      if (snapshot !== lastSyncedSnapshotRef.current) {
+        // Count how many items differ
+        let count = 0;
+        try {
+          const lastParsed = JSON.parse(lastSyncedSnapshotRef.current || '{"qh":[],"mch":[],"ss":[]}');
+          const lastQhIds = new Set(lastParsed.qh.map((i: { id: string }) => i.id));
+          const lastMcIds = new Set(lastParsed.mch.map((i: { id: string }) => i.id));
+          const lastSsIds = new Set(lastParsed.ss.map((i: { id: string }) => i.id));
+          for (const q of syncable.questionHistory) {
+            if (!lastQhIds.has(q.id)) count++;
+          }
+          for (const q of syncable.mcHistory) {
+            if (!lastMcIds.has(q.id)) count++;
+          }
+          for (const q of syncable.savedSets) {
+            if (!lastSsIds.has(q.id)) count++;
+          }
+        } catch {
+          count = -1; // unknown
+        }
+        setPendingChanges(count);
+      } else {
+        setPendingChanges(0);
+      }
+    };
+
+    const unsubscribe = useAppStore.subscribe(() => {
+      if (suppressAutoSaveRef.current) return;
+      checkPending();
+    });
+
+    // Check immediately
+    checkPending();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user, isSyncEnabled]);
+
+  // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
       debugLog("Auth changed:", firebaseUser?.uid ?? "null");
@@ -346,7 +359,6 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         isInitializedRef.current = false;
         setSyncStatus("idle");
       } else {
-        // Auto-enable sync if the user previously had it enabled
         const persisted = readPersistedSyncEnabled();
         debugLog("Persisted sync preference:", persisted);
         if (persisted) {
@@ -355,236 +367,37 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       }
       setIsLoading(false);
     });
-    
+
     return unsubscribe;
+  }, [debugLog]);
+
+  // Online/offline listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSyncStatus((prev) => prev === "offline" ? "idle" : prev);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setSyncStatus("offline");
+    };
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
-  
-  useEffect(() => {
-    if (!user || !isSyncEnabled) return;
-    
-    const userId = getUserId(user);
-    
-    const unsubscribe = subscribeToUserData(userId, async (remoteData) => {
-        if (!isInitializedRef.current) return;
-
-        setIsSyncing(true);
-        setSyncStatus("syncing");
-
-        try {
-          if (remoteData && isFirstSyncRef.current) {
-            isFirstSyncRef.current = false;
-          const merged = mergeSyncableData(localDataRef.current, remoteData);
-          const storeUpdates = applySyncableDataToStore(merged);
-          setSuppressPersistUntil(Date.now() + 1500);
-          suppressAutoSaveTemporarily();
-          useAppStore.setState(storeUpdates);
-          localDataRef.current = merged;
-          addSyncEvent("download", "Initial data synced from cloud");
-        } else if (remoteData) {
-          const merged = mergeSyncableData(localDataRef.current, remoteData);
-          const storeUpdates = applySyncableDataToStore(merged);
-          setSuppressPersistUntil(Date.now() + 1500);
-          suppressAutoSaveTemporarily();
-          useAppStore.setState(storeUpdates);
-          localDataRef.current = merged;
-          addSyncEvent("download", "Data updated from cloud");
-        }
-
-        setLastSyncTime(Date.now());
-        setSyncStatus("idle");
-      } catch (error) {
-        console.error("Sync error:", error);
-        setSyncError(error instanceof Error ? error.message : "Sync failed");
-        setSyncStatus("error");
-        addSyncEvent("error", `Sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-      } finally {
-        setIsSyncing(false);
-      }
-    }, () => localDataRef.current);
-    unsubscribeRef.current = unsubscribe;
-    
-    return () => {
-      unsubscribe();
-      if (unsubscribeRef.current === unsubscribe) {
-        unsubscribeRef.current = null;
-      }
-    };
-  }, [user, isSyncEnabled, addSyncEvent]);
-  
-  useEffect(() => {
-    if (!user || !isSyncEnabled) return;
-
-    const userId = getUserId(user);
-    let saveTimer: ReturnType<typeof setTimeout> | null = null;
-    let isDirty = false;
-    let lastSavedSnapshot = "";
-
-    const trySave = (state: AppState) => {
-      if (!state.isHydrated || !isSyncEnabled || suppressAutoSaveRef.current) return;
-      
-      // Throttle: skip if we just saved recently
-      const now = Date.now();
-      if (now - lastStoreUpdateRef.current < STORE_CHANGE_THROTTLE_MS) {
-        // Mark dirty but don't trigger save immediately
-        isDirty = true;
-        lastStoreUpdateRef.current = now;
-        return;
-      }
-      lastStoreUpdateRef.current = now;
-      
-      // Create snapshot to detect actual changes
-      const syncableData = extractSyncableData(state);
-      const snapshot = JSON.stringify({
-        qh: syncableData.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q) })),
-        mch: syncableData.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q) })),
-        ss: syncableData.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q) })),
-      });
-      
-      // Skip if nothing changed since last save
-      if (snapshot === lastSavedSnapshot) {
-        debugLog("No changes detected, skipping save");
-        return;
-      }
-      
-      lastSavedSnapshot = snapshot;
-      localDataRef.current = syncableData;
-      isDirty = true;
-      
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        if (!isDirty) return;
-        isDirty = false;
-        enqueueOperation(`auto-save-${Date.now()}`, async () => {
-          try {
-            setIsSyncing(true);
-            setSyncStatus("syncing");
-            const currentData = extractSyncableData(useAppStore.getState());
-            debugLog("Auto-saving user data", {
-              userId,
-              settings: currentData.settings,
-              questionHistory: currentData.questionHistory?.length,
-              mcHistory: currentData.mcHistory?.length,
-              savedSets: currentData.savedSets?.length,
-            });
-            
-            // Check if sync is stale (force full sync)
-            const timeSinceLastSync = now - syncMetadataRef.current.lastSyncTime;
-            const isStale = timeSinceLastSync > SYNC_STALE_THRESHOLD_MS;
-            
-            // Use delta sync - only save changed items
-            const result = await saveUserData(userId, currentData, {
-              deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
-              fullSync: isStale,
-            });
-            
-            // Update sync metadata after successful save
-            syncMetadataRef.current.lastSyncTime = Date.now();
-            syncMetadataRef.current.questionHistorySyncTime = Date.now();
-            syncMetadataRef.current.mcHistorySyncTime = Date.now();
-            syncMetadataRef.current.savedSetsSyncTime = Date.now();
-            syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
-              currentData.questionHistory as Array<Record<string, unknown>>,
-              syncMetadataRef.current.lastSyncVersions.questionHistory
-            );
-            syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-              currentData.mcHistory as Array<Record<string, unknown>>,
-              syncMetadataRef.current.lastSyncVersions.mcHistory
-            );
-            syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-              currentData.savedSets as Array<Record<string, unknown>>,
-              syncMetadataRef.current.lastSyncVersions.savedSets
-            );
-            
-            debugLog("Auto-save completed", {
-              totalWrites: result.totalWrites,
-              deltaSavings: result.deltaSavings,
-              skippedUnchanged: result.skippedUnchanged,
-              wasFullSync: isStale,
-            });
-            
-            setLastSyncTime(Date.now());
-            setSyncError(null);
-            setSyncStatus("idle");
-            addSyncEvent("upload", `Data uploaded to cloud (${result.totalWrites} writes, ${result.deltaSavings} delta savings)`);
-          } catch (error) {
-            console.error("Failed to save to Firebase:", error);
-            setSyncError(error instanceof Error ? error.message : "Save failed");
-            setSyncStatus("error");
-            addSyncEvent("error", `Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-          } finally {
-            setIsSyncing(false);
-          }
-        });
-      }, AUTO_SAVE_DEBOUNCE_MS); // Reduced from 60000ms
-    };
-
-    const unsubscribe = useAppStore.subscribe(trySave);
-
-    return () => {
-      unsubscribe();
-      if (saveTimer) clearTimeout(saveTimer);
-      if (suppressAutoSaveTimerRef.current) {
-        clearTimeout(suppressAutoSaveTimerRef.current);
-        suppressAutoSaveTimerRef.current = null;
-      }
-    };
-  }, [user, isSyncEnabled, addSyncEvent, debugLog, enqueueOperation]);
-
-  // ── Daily usage sync ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user || !isSyncEnabled) return;
-
-    const userId = getUserId(user);
-    let lastSyncedGenCount = 0;
-
-    const syncDailyUsage = async () => {
-      const state = useAppStore.getState();
-      if (!state.isHydrated) return;
-      const genCount = state.generationHistory.length;
-      if (genCount === lastSyncedGenCount) return;
-      lastSyncedGenCount = genCount;
-
-      try {
-        await saveDailyUsage(
-          userId,
-          state.generationHistory,
-          state.questionHistory,
-          state.mcHistory,
-        );
-        debugLog("Daily usage synced to Firestore", { generationCount: genCount });
-      } catch (error) {
-        console.warn("[Firebase] Daily usage sync failed:", error);
-      }
-    };
-
-    // Sync immediately on mount/auth change
-    void syncDailyUsage();
-
-    // Then sync on store changes (debounced to batch rapid-fire writes)
-    let dailyUsageTimer: ReturnType<typeof setTimeout> | null = null;
-    const unsubscribe = useAppStore.subscribe((state) => {
-      if (state.generationHistory.length !== lastSyncedGenCount) {
-        if (dailyUsageTimer) clearTimeout(dailyUsageTimer);
-        dailyUsageTimer = setTimeout(() => {
-          void syncDailyUsage();
-        }, 10_000);
-      }
-    });
-
-    return () => {
-      unsubscribe();
-      if (dailyUsageTimer) clearTimeout(dailyUsageTimer);
-    };
-  }, [user, isSyncEnabled, debugLog]);
 
   const enableSync = useCallback(async (email: string, password: string, isSignUp = false) => {
     debugLog("enableSync called", { email, isSignUp });
     setSyncError(null);
     setSyncStatus("connecting");
-    
+
     try {
       let firebaseUser: FirebaseUser | null = null;
-      
+
       if (isSignUp) {
         debugLog("Signing up...");
         firebaseUser = await signUpWithEmail(email, password);
@@ -592,19 +405,19 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         debugLog("Signing in...");
         firebaseUser = await signInWithEmail(email, password);
       }
-      
+
       if (!firebaseUser) {
         setSyncError("Failed to sign in");
         return;
       }
-      
+
       debugLog("User authenticated:", firebaseUser.uid);
       setUser(firebaseUser);
-      
+
       const userId = getUserId(firebaseUser);
       debugLog("Loading user data for:", userId);
       isInitializedRef.current = false;
-      
+
       let remoteData = await loadUserData(userId);
       const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
       debugLog("Remote data loaded:", {
@@ -635,24 +448,18 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
       const localState = useAppStore.getState();
       const localData = extractSyncableData(localState);
-      
+
       localDataRef.current = localData;
-      
+
       if (hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
-        debugLog("ID check", {
-          localIds: localData.questionHistory.map((q) => q.id),
-          remoteIds: remoteData?.questionHistory?.map((q) => String(q.id ?? "")) ?? [],
-          localMcIds: localData.mcHistory.map((q) => q.id),
-          remoteMcIds: remoteData?.mcHistory?.map((q) => String(q.id ?? "")) ?? [],
-        });
         const merged = mergeSyncableData(localData, remoteData ?? null);
         const storeUpdates = applySyncableDataToStore(merged);
         setSuppressPersistUntil(Date.now() + 1500);
         suppressAutoSaveTemporarily();
         useAppStore.setState(storeUpdates);
         localDataRef.current = merged;
-        
-        // Initialize sync metadata from merged data (for delta sync tracking)
+
+        // Initialize sync metadata from merged data
         const now = Date.now();
         syncMetadataRef.current.lastSyncTime = now;
         syncMetadataRef.current.questionHistorySyncTime = now;
@@ -670,13 +477,20 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           merged.savedSets as Array<Record<string, unknown>>,
           {}
         );
-        
+
+        // Set snapshot so pending changes shows 0 after initial merge
+        lastSyncedSnapshotRef.current = JSON.stringify({
+          qh: merged.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+          mch: merged.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+          ss: merged.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        });
+
         debugLog("Sync metadata initialized", {
           questionHistoryVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.questionHistory).length,
           mcHistoryVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.mcHistory).length,
           savedSetsVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.savedSets).length,
         });
-        
+
         addSyncEvent("download", `Synced ${remoteData?.questionHistory?.length || 0} question history items`);
 
         // Archive old items from Firestore after merge
@@ -709,16 +523,23 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           localDataRef.current.savedSets as Array<Record<string, unknown>>,
           {}
         );
-        
+
         // Full sync for first upload
         await saveUserData(userId, localDataRef.current, { fullSync: true });
         addSyncEvent("upload", "Initial data uploaded to cloud");
+
+        lastSyncedSnapshotRef.current = JSON.stringify({
+          qh: localDataRef.current.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+          mch: localDataRef.current.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+          ss: localDataRef.current.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        });
       }
       isInitializedRef.current = true;
-      isFirstSyncRef.current = !hasRemoteData(normalizeRemoteSyncableData(remoteData));
+      setPendingChanges(0);
       setIsSyncEnabled(true);
       setSyncError(null);
       setSyncStatus("idle");
+      setLastSyncTime(Date.now());
     } catch (error: unknown) {
       console.error("Failed to enable sync:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to enable sync";
@@ -727,23 +548,19 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       setIsSyncEnabled(false);
       setSyncStatus("error");
     }
-  }, []);
-  
+  }, [debugLog, addSyncEvent, suppressAutoSaveTemporarily]);
+
   const disableSync = useCallback(async () => {
     setIsSyncEnabled(false);
     isInitializedRef.current = false;
-    unsubscribeRef.current?.();
-    unsubscribeRef.current = null;
     setSyncStatus("idle");
     addSyncEvent("upload", "Disconnected from cloud sync");
-  }, []);
+  }, [addSyncEvent]);
 
   const toggleSync = useCallback(() => {
     if (isSyncEnabled) {
       setIsSyncEnabled(false);
       isInitializedRef.current = false;
-      unsubscribeRef.current?.();
-      unsubscribeRef.current = null;
       setSyncStatus("idle");
       addSyncEvent("upload", "Cloud sync paused");
     } else if (user) {
@@ -752,130 +569,129 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       addSyncEvent("download", "Cloud sync resumed");
     }
   }, [isSyncEnabled, user, addSyncEvent]);
-  
+
   const forceSync = useCallback(async () => {
     if (!user) {
       setSyncError("Not signed in");
       return;
     }
-    
+
     debugLog("Manual sync started");
     setIsSyncing(true);
     setSyncStatus("syncing");
-    
+    setIsSyncEnabled(true);
+    isInitializedRef.current = true;
+
     const userId = getUserId(user);
-    
-    enqueueOperation(`force-sync-${Date.now()}`, async () => {
+
+    try {
+      const state = useAppStore.getState();
+      const localData = extractSyncableData(state);
+      debugLog("Manual sync local snapshot", {
+        questionHistory: localData.questionHistory?.length,
+        mcHistory: localData.mcHistory?.length,
+        savedSets: localData.savedSets?.length,
+      });
+
+      // 1. Read remote (1 read per doc, but only once per manual sync)
+      const remoteData = await loadUserData(userId);
+      const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
+      debugLog("Manual sync remote snapshot", {
+        hasData: remoteHasData,
+        questionHistory: remoteData?.questionHistory?.length ?? 0,
+        mcHistory: remoteData?.mcHistory?.length ?? 0,
+        savedSets: remoteData?.savedSets?.length ?? 0,
+      });
+
+      // 2. Merge local + remote (newer wins)
+      const merged = remoteHasData
+        ? mergeSyncableData(localData, remoteData)
+        : localData;
+
+      if (remoteHasData) {
+        const storeUpdates = applySyncableDataToStore(merged);
+        setSuppressPersistUntil(Date.now() + 1500);
+        suppressAutoSaveTemporarily();
+        useAppStore.setState(storeUpdates);
+        addSyncEvent("download", "Merged remote updates");
+      }
+
+      // 3. Write only changed items (delta sync)
+      debugLog("Uploading merged data", {
+        questionHistory: merged.questionHistory?.length,
+        mcHistory: merged.mcHistory?.length,
+        savedSets: merged.savedSets?.length,
+      });
+
+      const deltaResult = await getDeltaSyncData(userId, merged);
+      if (deltaResult.changedItems.length === 0 && !remoteHasData) {
+        debugLog("No changes to sync");
+        addSyncEvent("upload", "No changes to sync");
+      } else {
+        await saveUserData(userId, merged, {
+          deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
+          fullSync: false,
+        });
+        addSyncEvent("upload", "Data synced to cloud");
+      }
+
+      // 4. Sync daily usage (bundled into manual sync)
       try {
-        const state = useAppStore.getState();
-        const localData = extractSyncableData(state);
-        debugLog("Manual sync local snapshot", {
-          settings: localData.settings,
-          questionHistory: localData.questionHistory?.length,
-          mcHistory: localData.mcHistory?.length,
-          savedSets: localData.savedSets?.length,
-        });
-
-        const remoteData = await loadUserData(userId);
-        const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
-        debugLog("Manual sync remote snapshot", {
-          hasData: remoteHasData,
-          questionHistory: remoteData?.questionHistory?.length ?? 0,
-          mcHistory: remoteData?.mcHistory?.length ?? 0,
-          savedSets: remoteData?.savedSets?.length ?? 0,
-        });
-
-        const merged = remoteHasData
-          ? mergeSyncableData(localData, remoteData)
-          : localData;
-
-        if (remoteHasData) {
-          const storeUpdates = applySyncableDataToStore(merged);
-          setSuppressPersistUntil(Date.now() + 1500);
-          suppressAutoSaveTemporarily();
-          useAppStore.setState(storeUpdates);
-          addSyncEvent("download", "Manual sync pulled remote updates");
-        }
-
-        debugLog("Uploading merged data to cloud (full sync)", {
-          questionHistory: merged.questionHistory?.length,
-          mcHistory: merged.mcHistory?.length,
-          savedSets: merged.savedSets?.length,
-        });
-
-        // Check if local data actually changed before doing a full save
-        const deltaResult = await getDeltaSyncData(userId, merged);
-        if (deltaResult.changedItems.length === 0) {
-          debugLog("No local changes detected, skipping full save");
-        } else {
-          // Force full sync for manual sync
-          await saveUserData(userId, merged, { fullSync: true });
-        }
-        localDataRef.current = merged;
-        
-        // Update sync metadata after full sync
-        const now = Date.now();
-        syncMetadataRef.current.lastSyncTime = now;
-        syncMetadataRef.current.questionHistorySyncTime = now;
-        syncMetadataRef.current.mcHistorySyncTime = now;
-        syncMetadataRef.current.savedSetsSyncTime = now;
-        syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
-          merged.questionHistory as Array<Record<string, unknown>>,
-          {}
+        await saveDailyUsage(
+          userId,
+          state.generationHistory,
+          state.questionHistory,
+          state.mcHistory,
         );
-        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-          merged.mcHistory as Array<Record<string, unknown>>,
-          {}
-        );
-        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-          merged.savedSets as Array<Record<string, unknown>>,
-          {}
-        );
-        
-        setLastSyncTime(Date.now());
-        setSyncError(null);
-        setSyncStatus("idle");
-        addSyncEvent("upload", "Manual sync completed");
-        debugLog("Manual sync completed successfully");
-      } catch (error) {
-        console.error("Force sync failed:", error);
-        setSyncError(error instanceof Error ? error.message : "Force sync failed");
-        setSyncStatus("error");
-        addSyncEvent("error", `Manual sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-        debugLog("Manual sync failed", error);
-      } finally {
-        setIsSyncing(false);
+        debugLog("Daily usage synced");
+      } catch (usageError) {
+        console.warn("[Firebase] Daily usage sync failed:", usageError);
       }
-    });
-  }, [user, enqueueOperation]);
 
-  // Sync on focus/visibility change (must be after forceSync is defined)
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setSyncStatus((prev) => prev === "offline" ? "idle" : prev);
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      setSyncStatus("offline");
-    };
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+      localDataRef.current = merged;
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && user && isSyncEnabled && !isSyncing) {
-        forceSync();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+      // Update sync metadata
+      const now = Date.now();
+      syncMetadataRef.current.lastSyncTime = now;
+      syncMetadataRef.current.questionHistorySyncTime = now;
+      syncMetadataRef.current.mcHistorySyncTime = now;
+      syncMetadataRef.current.savedSetsSyncTime = now;
+      syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
+        merged.questionHistory as Array<Record<string, unknown>>,
+        syncMetadataRef.current.lastSyncVersions.questionHistory
+      );
+      syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+        merged.mcHistory as Array<Record<string, unknown>>,
+        syncMetadataRef.current.lastSyncVersions.mcHistory
+      );
+      syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+        merged.savedSets as Array<Record<string, unknown>>,
+        syncMetadataRef.current.lastSyncVersions.savedSets
+      );
 
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [user, isSyncEnabled, isSyncing, forceSync]);
-  
+      // Update snapshot for pending change tracking
+      lastSyncedSnapshotRef.current = JSON.stringify({
+        qh: merged.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        mch: merged.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        ss: merged.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+      });
+
+      setPendingChanges(0);
+      setLastSyncTime(Date.now());
+      setSyncError(null);
+      setSyncStatus("idle");
+      debugLog("Manual sync completed successfully");
+    } catch (error) {
+      console.error("Force sync failed:", error);
+      setSyncError(error instanceof Error ? error.message : "Force sync failed");
+      setSyncStatus("error");
+      addSyncEvent("error", `Manual sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      debugLog("Manual sync failed", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [user, debugLog, addSyncEvent, suppressAutoSaveTemporarily]);
+
   return {
     user,
     isLoading,
@@ -887,6 +703,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     syncError,
     syncEvents,
     debugLogs,
+    pendingChanges,
     enableSync,
     disableSync,
     toggleSync,

@@ -523,14 +523,6 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
                                     onApplyOverride={handleApplyOverride}
                                     onCriterionChange={handleCriterionChange}
                                 />
-                                <div className="flex justify-end mt-4">
-                                    <Button
-                                        onClick={() => handleNext(getCurrentResult())}
-                                        disabled={isMarking}
-                                    >
-                                        {isLast ? "Finish" : "Next"}
-                                    </Button>
-                                </div>
                             </>
                         )}
                     </div>
@@ -560,14 +552,6 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
                                 onArgueForMark={() => { }}
                                 onApplyOverride={handleApplyMcOverride}
                             />
-                        </div>
-                        <div className="flex justify-end mt-4">
-                            <Button
-                                onClick={() => handleNext(getCurrentResult())}
-                                disabled={!selectedAnswer}
-                            >
-                                {isLast ? "Finish" : "Next"}
-                            </Button>
                         </div>
                     </>
                 )}

@@ -17,6 +17,5 @@ export {
   loadChangedItems,
   migrateUserDataForCompaction,
   deleteArchivedItems,
-  subscribeToUserData,
   saveDailyUsage,
 } from "./firebase-crud";
