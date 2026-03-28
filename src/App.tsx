@@ -4,6 +4,7 @@ import { MathJaxContext } from "better-react-mathjax";
 import { AppProvider } from "./AppContext";
 import { useAppStore } from "./store";
 import { FirebaseSyncProvider } from "./context/FirebaseSyncContext";
+import { TimerBarProvider } from "./context/TimerBarContext";
 import { Layout } from "./components/layout/Layout";
 
 const GeneratorView = lazy(() => import("./views/GeneratorView").then((m) => ({ default: m.GeneratorView })));
@@ -78,7 +79,9 @@ export default function App() {
     >
       <AppProvider>
         <FirebaseSyncProvider>
-          <AppRoutes />
+          <TimerBarProvider>
+            <AppRoutes />
+          </TimerBarProvider>
         </FirebaseSyncProvider>
       </AppProvider>
     </MathJaxContext>

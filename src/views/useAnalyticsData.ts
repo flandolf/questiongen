@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMultipleChoiceSession, useWrittenSession } from "../AppContext";
+import { useAppStore } from "../store";
 import { McHistoryEntry, QuestionHistoryEntry } from "../types";
 
 export const UNSPECIFIED_SUBTOPIC = "Unspecified";
@@ -48,14 +49,13 @@ export type SubtopicPerformanceRow = {
 };
 
 export type QualityRow = {
-  difficulty: string;
+  topic: string;
   sampleCount: number;
   accuracy: number;
   avgDurationSeconds: number;
-  avgRepairAttempts: number;
-  avgGenerationAttempts: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  avgCostPerQuestion?: number;
 };
 
 export type CriterionWeakPointRow = {
@@ -112,6 +112,7 @@ export function normalizeCriterionLabel(value: string) {
 export function useAnalyticsData() {
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
+  const generationHistory = useAppStore((s) => s.generationHistory);
   const [topicFilter, setTopicFilter] = useState<string>(ALL_TOPICS);
 
   const writtenAttempts = useMemo<AttemptRow[]>(() => {
@@ -529,86 +530,114 @@ export function useAnalyticsData() {
   }, [mcAttempts]);
 
   const qualityRows = useMemo<QualityRow[]>(() => {
-    const bucketByDifficulty = new Map<
+    const bucketByTopic = new Map<
       string,
       {
         sampleCount: number;
         correct: number;
         durationTotal: number;
         durationCount: number;
-        repairTotal: number;
-        attemptsTotal: number;
         distinctnessTotal: number;
         distinctnessCount: number;
         depthTotal: number;
         depthCount: number;
+        costTotal: number;
+        costCount: number;
+        questionCount: number;
       }
     >();
 
-    const evaluateEntry = (
-      entry: QuestionHistoryEntry | McHistoryEntry,
-      isCorrectFunc: () => boolean
-    ) => {
-      const difficulty = "Unknown";
-      const bucket = bucketByDifficulty.get(difficulty) ?? {
+    const getBucket = (topic: string) => {
+      const existing = bucketByTopic.get(topic);
+      if (existing) return existing;
+      const fresh = {
         sampleCount: 0,
         correct: 0,
         durationTotal: 0,
         durationCount: 0,
-        repairTotal: 0,
-        attemptsTotal: 0,
         distinctnessTotal: 0,
         distinctnessCount: 0,
         depthTotal: 0,
         depthCount: 0,
+        costTotal: 0,
+        costCount: 0,
+        questionCount: 0,
       };
+      bucketByTopic.set(topic, fresh);
+      return fresh;
+    };
 
+    for (const entry of questionHistory) {
+      const bucket = getBucket(entry.question.topic);
       bucket.sampleCount += 1;
-      bucket.correct += isCorrectFunc() ? 1 : 0;
-
+      bucket.correct += entry.markResponse.verdict.toLowerCase() === "correct" ? 1 : 0;
       if (entry.generationTelemetry?.durationMs !== undefined) {
         bucket.durationTotal += entry.generationTelemetry.durationMs;
         bucket.durationCount += 1;
       }
-
       if (entry.question.distinctnessScore !== undefined) {
         bucket.distinctnessTotal += entry.question.distinctnessScore;
         bucket.distinctnessCount += 1;
       }
-
       if (entry.question.multiStepDepth !== undefined) {
         bucket.depthTotal += entry.question.multiStepDepth;
         bucket.depthCount += 1;
       }
-
-      bucketByDifficulty.set(difficulty, bucket);
-    };
-
-    for (const entry of questionHistory) {
-      evaluateEntry(entry, () => entry.markResponse.verdict.toLowerCase() === "correct");
     }
 
     for (const entry of mcHistory) {
-      evaluateEntry(entry, () => entry.correct ?? false);
+      const bucket = getBucket(entry.question.topic);
+      bucket.sampleCount += 1;
+      bucket.correct += (entry.correct ?? false) ? 1 : 0;
+      if (entry.generationTelemetry?.durationMs !== undefined) {
+        bucket.durationTotal += entry.generationTelemetry.durationMs;
+        bucket.durationCount += 1;
+      }
+      if (entry.question.distinctnessScore !== undefined) {
+        bucket.distinctnessTotal += entry.question.distinctnessScore;
+        bucket.distinctnessCount += 1;
+      }
+      if (entry.question.multiStepDepth !== undefined) {
+        bucket.depthTotal += entry.question.multiStepDepth;
+        bucket.depthCount += 1;
+      }
     }
 
-    return Array.from(bucketByDifficulty.entries())
-      .map(([difficulty, bucket]) => ({
-        difficulty,
+    for (const record of generationHistory) {
+      const topic = record.inputs.topic;
+      const bucket = getBucket(topic);
+      bucket.questionCount += record.inputs.questionCount;
+      if (record.outputs?.distinctnessAvg !== undefined) {
+        bucket.distinctnessTotal += record.outputs.distinctnessAvg;
+        bucket.distinctnessCount += 1;
+      }
+      if (record.outputs?.multiStepDepthAvg !== undefined) {
+        bucket.depthTotal += record.outputs.multiStepDepthAvg;
+        bucket.depthCount += 1;
+      }
+      if (record.outputs?.estimatedCostUsd !== undefined && record.inputs.questionCount > 0) {
+        bucket.costTotal += record.outputs.estimatedCostUsd;
+        bucket.costCount += record.inputs.questionCount;
+      }
+    }
+
+    return Array.from(bucketByTopic.entries())
+      .map(([topic, bucket]) => ({
+        topic,
         sampleCount: bucket.sampleCount,
         accuracy: percent(bucket.correct, bucket.sampleCount),
         avgDurationSeconds: average(bucket.durationTotal, bucket.durationCount) / 1000,
-        avgRepairAttempts: average(bucket.repairTotal, bucket.sampleCount),
-        avgGenerationAttempts: average(bucket.attemptsTotal, bucket.sampleCount),
         distinctnessAvg:
           bucket.distinctnessCount > 0
             ? average(bucket.distinctnessTotal, bucket.distinctnessCount)
             : undefined,
         multiStepDepthAvg:
           bucket.depthCount > 0 ? average(bucket.depthTotal, bucket.depthCount) : undefined,
+        avgCostPerQuestion:
+          bucket.costCount > 0 ? bucket.costTotal / bucket.costCount : undefined,
       }))
-      .sort((a, b) => a.difficulty.localeCompare(b.difficulty));
-  }, [mcHistory, questionHistory]);
+      .sort((a, b) => a.topic.localeCompare(b.topic));
+  }, [mcHistory, questionHistory, generationHistory]);
 
   const lowestScoringWritten = useMemo(() => {
     return [...writtenAttempts]

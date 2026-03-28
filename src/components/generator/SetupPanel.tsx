@@ -217,6 +217,376 @@ function SubtopicGroup({ label, hint, items, selected, onToggle }: {
   );
 }
 
+// ─── Advanced Options Accordion ───────────────────────────────────────────────
+
+type AdvancedOptionsAccordionProps = {
+  questionMode: QuestionMode;
+  questionCount: number;
+  onSetQuestionCount: (count: number) => void;
+  averageMarksPerQuestion: number;
+  onSetAverageMarksPerQuestion: (marks: number) => void;
+  selectedTopics: Topic[];
+  hasSubtopicSection: boolean;
+  mathMethodsSubtopics: MathMethodsSubtopic[];
+  onToggleMathMethodsSubtopic: (sub: MathMethodsSubtopic) => void;
+  specialistMathSubtopics: SpecialistMathSubtopic[];
+  onToggleSpecialistMathSubtopic: (sub: SpecialistMathSubtopic) => void;
+  chemistrySubtopics: ChemistrySubtopic[];
+  onToggleChemistrySubtopic: (sub: ChemistrySubtopic) => void;
+  physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  onTogglePhysicalEducationSubtopic: (sub: PhysicalEducationSubtopic) => void;
+  hasAnyMathTopic: boolean;
+  techMode: TechMode;
+  onSetTechMode: (mode: TechMode) => void;
+  avoidSimilarQuestions: boolean;
+  onSetAvoidSimilarQuestions: (enabled: boolean) => void;
+  shuffleQuestions: boolean;
+  onSetShuffleQuestions: (enabled: boolean) => void;
+  customFocusArea: string;
+  onSetCustomFocusArea: (value: string) => void;
+  aiDifficultyScalingEnabled: boolean;
+  onSetAiDifficultyScalingEnabled: (enabled: boolean) => void;
+  difficultyThresholds: { increase: number; decrease: number };
+  onSetDifficultyThresholds: (thresholds: { increase: number; decrease: number }) => void;
+  // Preset section props
+  selectedTopicsAll: Topic[];
+  difficulty: Difficulty;
+  techModeAll: TechMode;
+  avoidSimilarQuestionsAll: boolean;
+  generationMode: GenerationMode;
+  examTimeLimitMinutes: number;
+};
+
+function AdvancedOptionsAccordion({
+  questionMode, questionCount, onSetQuestionCount,
+  averageMarksPerQuestion, onSetAverageMarksPerQuestion,
+  selectedTopics, hasSubtopicSection,
+  mathMethodsSubtopics, onToggleMathMethodsSubtopic,
+  specialistMathSubtopics, onToggleSpecialistMathSubtopic,
+  chemistrySubtopics, onToggleChemistrySubtopic,
+  physicalEducationSubtopics, onTogglePhysicalEducationSubtopic,
+  hasAnyMathTopic, techMode, onSetTechMode,
+  avoidSimilarQuestions, onSetAvoidSimilarQuestions,
+  shuffleQuestions, onSetShuffleQuestions,
+  customFocusArea, onSetCustomFocusArea,
+  aiDifficultyScalingEnabled, onSetAiDifficultyScalingEnabled,
+  difficultyThresholds, onSetDifficultyThresholds,
+  selectedTopicsAll, difficulty, techModeAll, avoidSimilarQuestionsAll,
+  generationMode, examTimeLimitMinutes,
+}: AdvancedOptionsAccordionProps) {
+  const [open, setOpen] = useState(false);
+  const [height, setHeight] = useState<string | number>(0);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setHeight((h) => {
+        if (h === "auto" || h === 0) return h;
+        return el.scrollHeight;
+      });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const toggle = () => {
+    const el = innerRef.current;
+    if (!el) return;
+    if (open) {
+      setHeight(el.scrollHeight);
+      requestAnimationFrame(() => { requestAnimationFrame(() => setHeight(0)); });
+    } else {
+      setHeight(el.scrollHeight);
+    }
+    setOpen((v) => !v);
+  };
+
+  const handleTransitionEnd = () => { if (open) setHeight("auto"); };
+
+  return (
+    <div className="mt-4 rounded-xl border border-border/60 overflow-hidden">
+      <button
+        type="button"
+        onClick={toggle}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer select-none group"
+      >
+        <div className="shrink-0 w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
+          <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-semibold">Advanced Options</p>
+          <p className="text-[11px] text-muted-foreground">Customize question count, marks, focus areas, and more</p>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-250 ${open ? "" : "-rotate-90"}`} />
+      </button>
+      <div
+        style={{ height: typeof height === "number" ? `${height}px` : height, overflow: "hidden", transition: "height 250ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+        onTransitionEnd={handleTransitionEnd}
+      >
+        <div ref={innerRef} className="px-4 pb-4 space-y-5">
+          {/* Session Size */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Session Size</p>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5" /> Questions
+                </Label>
+                <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{questionCount}</Badge>
+              </div>
+              <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => onSetQuestionCount(val[0])} className="px-1 py-1" />
+              <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>20</span></div>
+            </div>
+            {selectedTopics.length > 1 && (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2 space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Questions per subject</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                  {selectedTopics.map((topic, i) => {
+                    const base = Math.floor(questionCount / selectedTopics.length);
+                    const remainder = questionCount % selectedTopics.length;
+                    const count = base + (i < remainder ? 1 : 0);
+                    return (
+                      <span key={topic} className="text-[11px] text-foreground flex items-center gap-1">
+                        <span className="text-muted-foreground">{TOPIC_ICONS[topic]}</span>
+                        <span className="truncate max-w-[100px]">{topic.split(" ")[0]}</span>
+                        <span className="font-semibold tabular-nums text-primary">{count}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {questionMode === "written" ? (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5" /> Avg marks per question
+                  </Label>
+                  <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{averageMarksPerQuestion}</Badge>
+                </div>
+                <Slider min={1} max={15} step={1} value={[averageMarksPerQuestion]} onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])} className="py-1" />
+                <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>15</span></div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                    <BarChart3 className="w-3.5 h-3.5" /> Avg marks per question
+                  </Label>
+                  <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums bg-muted text-muted-foreground">1 mark (fixed)</Badge>
+                </div>
+                <div className="h-6 bg-muted/30 rounded-md border border-border flex items-center px-3">
+                  <span className="text-xs text-muted-foreground">Multiple choice questions are always worth 1 mark each</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <SectionDivider />
+
+          {/* Focus Areas */}
+          {hasSubtopicSection && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Focus Areas
+                <span className="ml-2 font-normal lowercase">leave blank to cover all</span>
+              </p>
+              {selectedTopics.includes("Mathematical Methods") && (
+                <SubtopicGroup label="Mathematical Methods" hint="Unit 3/4" items={MATH_METHODS_SUBTOPICS} selected={mathMethodsSubtopics} onToggle={onToggleMathMethodsSubtopic as (s: string) => void} />
+              )}
+              {selectedTopics.includes("Specialist Mathematics") && (
+                <SubtopicGroup label="Specialist Mathematics" hint="Unit 1/2" items={SPECIALIST_MATH_SUBTOPICS} selected={specialistMathSubtopics} onToggle={onToggleSpecialistMathSubtopic as (s: string) => void} />
+              )}
+              {selectedTopics.includes("Chemistry") && (
+                <SubtopicGroup label="Chemistry" hint="Unit 1/2" items={CHEMISTRY_SUBTOPICS} selected={chemistrySubtopics} onToggle={onToggleChemistrySubtopic as (s: string) => void} />
+              )}
+              {selectedTopics.includes("Physical Education") && (
+                <SubtopicGroup label="Physical Education" hint="Unit 3/4" items={PHYSICAL_EDUCATION_SUBTOPICS} selected={physicalEducationSubtopics} onToggle={onTogglePhysicalEducationSubtopic as (s: string) => void} />
+              )}
+            </div>
+          )}
+
+          {/* Calculator Mode */}
+          {hasAnyMathTopic && (
+            <>
+              {hasSubtopicSection && <SectionDivider />}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Calculator Mode</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { value: "tech-free" as TechMode, label: "Tech-Free", icon: <Pen className="w-3.5 h-3.5" /> },
+                    { value: "mix" as TechMode, label: "Mixed", icon: <Blend className="w-3.5 h-3.5" /> },
+                    { value: "tech-active" as TechMode, label: "Tech-Active", icon: <Calculator className="w-3.5 h-3.5" /> },
+                  ]).map(({ value, label, icon }) => {
+                    const isActive = techMode === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => onSetTechMode(value)}
+                        className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border text-xs font-medium transition-all duration-150 cursor-pointer
+                        ${isActive ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
+                      >
+                        {icon} {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Options toggles */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Options</p>
+            <button
+              type="button"
+              onClick={() => onSetAvoidSimilarQuestions(!avoidSimilarQuestions)}
+              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
+              ${avoidSimilarQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
+            >
+              <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${avoidSimilarQuestions ? "text-primary" : "text-muted-foreground"}`} />
+              <div className="min-w-0">
+                <p className={`text-xs font-semibold ${avoidSimilarQuestions ? "text-foreground" : "text-muted-foreground"}`}>
+                  Avoid Similar Questions
+                  <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${avoidSimilarQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {avoidSimilarQuestions ? "On" : "Off"}
+                  </span>
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                  Uses recent same-topic prompts to steer the model away from repeats.
+                </p>
+              </div>
+            </button>
+
+            {selectedTopics.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onSetShuffleQuestions(!shuffleQuestions)}
+                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
+              ${shuffleQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
+              >
+                <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${shuffleQuestions ? "text-primary" : "text-muted-foreground"}`} />
+                <div className="min-w-0">
+                  <p className={`text-xs font-semibold ${shuffleQuestions ? "text-foreground" : "text-muted-foreground"}`}>
+                    Shuffle Questions
+                    <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${shuffleQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {shuffleQuestions ? "On" : "Off"}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                    Randomly shuffles the combined set after generating questions for each subject.
+                  </p>
+                </div>
+              </button>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                <Crosshair className="w-3.5 h-3.5" />
+                Custom Focus Area
+                <span className="font-normal opacity-70">— optional</span>
+              </Label>
+              <Input
+                value={customFocusArea}
+                onChange={(e) => onSetCustomFocusArea(e.target.value)}
+                maxLength={160}
+                placeholder="e.g. projectile motion with optimisation constraints"
+                className="text-xs h-8"
+              />
+            </div>
+          </div>
+
+          <SectionDivider />
+
+          {/* AI Difficulty Scaling */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">AI Difficulty Scaling</p>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${aiDifficultyScalingEnabled ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                {aiDifficultyScalingEnabled ? "Enabled" : "Disabled"}
+              </span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="ai-scaling"
+                  checked={aiDifficultyScalingEnabled}
+                  onCheckedChange={(checked) => onSetAiDifficultyScalingEnabled(!!checked)}
+                />
+                <Label htmlFor="ai-scaling" className="text-sm font-medium">
+                  Enable AI-driven difficulty adjustment
+                </Label>
+              </div>
+              {aiDifficultyScalingEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Increase threshold (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={difficultyThresholds.increase}
+                      onChange={(e) => onSetDifficultyThresholds({
+                        ...difficultyThresholds,
+                        increase: parseInt(e.target.value) || 85
+                      })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Decrease threshold (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={difficultyThresholds.decrease}
+                      onChange={(e) => onSetDifficultyThresholds({
+                        ...difficultyThresholds,
+                        decrease: parseInt(e.target.value) || 70
+                      })}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                When enabled, the AI will adjust question difficulty based on your recent performance.
+              </p>
+            </div>
+          </div>
+
+          <SectionDivider />
+
+          {/* Presets */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Presets</p>
+            <PresetSection
+              selectedTopics={selectedTopicsAll}
+              difficulty={difficulty}
+              techMode={techModeAll}
+              avoidSimilarQuestions={avoidSimilarQuestionsAll}
+              mathMethodsSubtopics={mathMethodsSubtopics}
+              specialistMathSubtopics={specialistMathSubtopics}
+              chemistrySubtopics={chemistrySubtopics}
+              physicalEducationSubtopics={physicalEducationSubtopics}
+              questionCount={questionCount}
+              averageMarksPerQuestion={averageMarksPerQuestion}
+              questionMode={questionMode}
+              generationMode={generationMode}
+              examTimeLimitMinutes={examTimeLimitMinutes}
+              aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
+              difficultyThresholds={difficultyThresholds}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Preset section ──────────────────────────────────────────────────────────
 
 function buildPreferencesSnapshot(props: {
@@ -553,8 +923,6 @@ function SetupPanelImpl({
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
-  const presets = useAppStore((s) => s.presets);
-  const hasPresets = presets.length >= 1;
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(null);
   const [completionPricePerToken, setCompletionPricePerToken] = useState<number | null>(null);
   const hasAnyMathTopic = selectedTopics.some(
@@ -573,9 +941,6 @@ function SetupPanelImpl({
     { label: "Deep Dive", count: 15, time: 60 },
     { label: "Marathon", count: 20, time: 90 },
   ];
-
-  let stepNum = 0;
-  const step = () => ++stepNum;
 
   const getSelectedSubtopics = () => Array.from(new Set([
     ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
@@ -651,509 +1016,171 @@ function SetupPanelImpl({
 
       <div className="px-6 pt-0 pb-2">
 
-        {/* ── Step 1: Presets ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="Presets"
-            subtitle="Save and load generator configurations"
-            defaultOpen={presets.length === 0}
-          >
-            <PresetSection
-              selectedTopics={selectedTopics}
-              difficulty={difficulty}
-              techMode={techMode}
-              avoidSimilarQuestions={avoidSimilarQuestions}
-              mathMethodsSubtopics={mathMethodsSubtopics}
-              specialistMathSubtopics={specialistMathSubtopics}
-              chemistrySubtopics={chemistrySubtopics}
-              physicalEducationSubtopics={physicalEducationSubtopics}
-              questionCount={questionCount}
-              averageMarksPerQuestion={averageMarksPerQuestion}
-              questionMode={questionMode}
-              generationMode={generationMode}
-              examTimeLimitMinutes={examTimeLimitMinutes}
-              aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
-              difficultyThresholds={difficultyThresholds}
-            />
-          </CollapsibleStep>
-        </div>
-
-        <SectionDivider />
-
-        {/* ── Step 2: Generation Mode ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="Generation Mode"
-            subtitle={generationMode === "exam" ? "Timed exam simulation" : "Untimed practice session"}
-            defaultOpen={!hasPresets}
-            chips={
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${generationMode === "exam" ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" : "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"}`}>
-                {generationMode === "exam" ? "Exam" : "Practice"}
-              </span>
-            }
-          >
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onSetGenerationMode("practice")}
-                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === "practice" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}
-                >
-                  <BookOpen className="w-3.5 h-3.5" /> Practice
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSetGenerationMode("exam")}
-                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === "exam" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}
-                >
-                  <Clock3 className="w-3.5 h-3.5" /> Exam
-                </button>
-              </div>
-
-              {generationMode === "exam" && (
-                <div className="mb-2">
-                  <SectionDivider />
-                  <div className="space-y-4 rounded-lg border bg-muted/20 px-3 py-3 mt-2">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs font-medium flex items-center gap-1.5">
-                          <Clock3 className="w-3.5 h-3.5" /> Time allocation
-                        </Label>
-                        <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{examTimeLimitMinutes} min</Badge>
-                      </div>
-                      <Slider min={5} max={180} step={5} value={[examTimeLimitMinutes]} onValueChange={(val) => onSetExamTimeLimitMinutes(val[0])} className="px-1 py-1" />
-                      <div className="flex justify-between text-[10px] text-muted-foreground"><span>5m</span><span>180m</span></div>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                      <span>
-                        {questionCount} questions × {(examTimeLimitMinutes / questionCount).toFixed(2)} min each = {examTimeLimitMinutes} min total
-                      </span>
-                      <span className="ml-2">
-                        <span className="inline-block align-middle">
-                          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" stroke="#6366F1" strokeWidth="2" fill="#EEF2FF"/><text x="50%" y="55%" textAnchor="middle" fill="#6366F1" fontSize="10" fontFamily="Arial" dy=".3em">i</text></svg>
-                        </span>
-                        <span className="ml-1 align-middle" title="Unused time from early completions is banked and redistributed to remaining questions. The time bank helps you stay ahead or catch up.">
-                          Time bank: unused time carries over
-                        </span>
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Presets</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {examPresets.map((preset) => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => { onSetQuestionCount(preset.count); onSetExamTimeLimitMinutes(preset.time); }}
-                            className={`group p-2.5 text-left rounded-lg border transition-all duration-150 cursor-pointer ${questionCount === preset.count && examTimeLimitMinutes === preset.time ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-                          >
-                            <p className="text-xs font-semibold leading-tight">{preset.label}</p>
-                            <span className="text-[10px] text-muted-foreground">{preset.count}Q / {preset.time}m</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CollapsibleStep>
-        </div>
-
-        <SectionDivider />
-
-        {/* ── Step 3: Subjects ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="Select Subjects"
-            subtitle={selectedTopics.length > 0 ? `${selectedTopics.length} selected` : "Choose at least one to continue"}
-            defaultOpen={!hasPresets}
-            chips={
-              selectedTopics.length === 0 ? (
-                <span className="text-[10px] font-medium text-amber-500 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> None selected
-                </span>
-              ) : (
-                selectedTopics.map((t) => (
-                  <span key={t} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                    {t.split(" ")[0]}
-                  </span>
-                ))
-              )
-            }
-          >
-            <div className="grid grid-cols-2 gap-2">
-              {TOPICS.map((topic) => {
-                const isSelected = selectedTopics.includes(topic);
-                return (
-                  <button
-                    key={topic}
-                    type="button"
-                    onClick={() => onToggleTopic(topic)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-left transition-all duration-150 cursor-pointer
-                    ${isSelected
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"
-                      }`}
-                  >
-                    <span className="shrink-0">{TOPIC_ICONS[topic] ?? <BookOpen className="w-3.5 h-3.5" />}</span>
-                    <span className="leading-tight">{topic}</span>
-                    {isSelected && <CheckCheck className="w-3.5 h-3.5 ml-auto shrink-0 opacity-80" />}
-                  </button>
-                );
-              })}
-            </div>
-            {includeExamContext && selectedTopics.length > 0 && (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 mb-2">
-                <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
-                    Using exam PDFs for context
-                  </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {getExamPdfsForTopics(selectedTopics).map((pdf) => (
-                      <span key={pdf} className="inline-flex items-center px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[10px] font-mono">
-                        {pdf}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+        {/* ── Subjects (Tier 1 — Always Visible) ── */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Subjects
+            {selectedTopics.length > 0 && (
+              <span className="ml-1.5 font-normal normal-case text-primary">{selectedTopics.length} selected</span>
             )}
-            {hasSubtopicSection && (
-              <>
-                <SectionDivider />
-                <div className="rounded-lg border bg-muted/20 px-4 py-3 space-y-4 mt-2 mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Focus Areas
-                    <span className="ml-2 font-normal normal-case">— leave blank to cover all</span>
-                  </p>
-                  {selectedTopics.includes("Mathematical Methods") && (
-                    <SubtopicGroup label="Mathematical Methods" hint="Unit 3/4" items={MATH_METHODS_SUBTOPICS} selected={mathMethodsSubtopics} onToggle={onToggleMathMethodsSubtopic as (s: string) => void} />
-                  )}
-                  {selectedTopics.includes("Specialist Mathematics") && (
-                    <SubtopicGroup label="Specialist Mathematics" hint="Unit 1/2" items={SPECIALIST_MATH_SUBTOPICS} selected={specialistMathSubtopics} onToggle={onToggleSpecialistMathSubtopic as (s: string) => void} />
-                  )}
-                  {selectedTopics.includes("Chemistry") && (
-                    <SubtopicGroup label="Chemistry" hint="Unit 1/2" items={CHEMISTRY_SUBTOPICS} selected={chemistrySubtopics} onToggle={onToggleChemistrySubtopic as (s: string) => void} />
-                  )}
-                  {selectedTopics.includes("Physical Education") && (
-                    <SubtopicGroup label="Physical Education" hint="Unit 3/4" items={PHYSICAL_EDUCATION_SUBTOPICS} selected={physicalEducationSubtopics} onToggle={onTogglePhysicalEducationSubtopic as (s: string) => void} />
-                  )}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {TOPICS.map((topic) => {
+              const isSelected = selectedTopics.includes(topic);
+              return (
+                <button
+                  key={topic}
+                  type="button"
+                  onClick={() => onToggleTopic(topic)}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-left transition-all duration-150 cursor-pointer
+                  ${isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"
+                    }`}
+                >
+                  <span className="shrink-0">{TOPIC_ICONS[topic] ?? <BookOpen className="w-3.5 h-3.5" />}</span>
+                  <span className="leading-tight">{topic}</span>
+                  {isSelected && <CheckCheck className="w-3.5 h-3.5 ml-auto shrink-0 opacity-80" />}
+                </button>
+              );
+            })}
+          </div>
+          {includeExamContext && selectedTopics.length > 0 && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+              <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                  Using exam PDFs for context
+                </p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {getExamPdfsForTopics(selectedTopics).map((pdf) => (
+                    <span key={pdf} className="inline-flex items-center px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[10px] font-mono">
+                      {pdf}
+                    </span>
+                  ))}
                 </div>
-              </>
-            )}
-          </CollapsibleStep>
-        </div>
-
-        <SectionDivider />
-
-        {/* ── Step 4: Difficulty ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="Difficulty"
-            defaultOpen={!hasPresets}
-            chips={
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted ${DIFFICULTY_META[difficulty].color}`}>
-                {DIFFICULTY_META[difficulty].label}
-              </span>
-            }
-          >
-            <div className="grid grid-cols-5 gap-1.5">
-              {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((level) => {
-                const isSelected = difficulty === level;
-                const meta = DIFFICULTY_META[level];
-                return (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => onSetDifficulty(level)}
-                    className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-center transition-all duration-150 cursor-pointer
-                    ${isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-                  >
-                    <span className={`text-xs font-semibold leading-tight ${isSelected ? meta.color : "text-foreground"}`}>{meta.label}</span>
-                    <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">{meta.desc}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </CollapsibleStep>
-        </div>
-
-        <SectionDivider />
-
-        {/* ── Step 5: AI Difficulty Scaling ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="AI Difficulty Scaling"
-            defaultOpen={!hasPresets}
-            chips={
-              aiDifficultyScalingEnabled ? (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                  Enabled
-                </span>
-              ) : (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Disabled
-                </span>
-              )
-            }
-          >
-            <div className="space-y-2 mb-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="ai-scaling"
-                  checked={aiDifficultyScalingEnabled}
-                  onCheckedChange={(checked) => onSetAiDifficultyScalingEnabled(!!checked)}
-                />
-                <Label htmlFor="ai-scaling" className="text-sm font-medium">
-                  Enable AI-driven difficulty adjustment
-                </Label>
               </div>
-              {aiDifficultyScalingEnabled && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Increase threshold (%)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={difficultyThresholds.increase}
-                      onChange={(e) => onSetDifficultyThresholds({
-                        ...difficultyThresholds,
-                        increase: parseInt(e.target.value) || 85
-                      })}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Decrease threshold (%)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={difficultyThresholds.decrease}
-                      onChange={(e) => onSetDifficultyThresholds({
-                        ...difficultyThresholds,
-                        decrease: parseInt(e.target.value) || 70
-                      })}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                When enabled, the AI will adjust question difficulty based on your recent performance.
-                If your average score exceeds the increase threshold, difficulty will rise.
-                If below the decrease threshold, difficulty will lower.
-              </p>
             </div>
-          </CollapsibleStep>
+          )}
         </div>
 
-        <SectionDivider />
-
-        {/* ── Step 6: Questions + Marks ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="Session Size"
-            defaultOpen={!hasPresets}
-            chips={
-              <>
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-foreground">
-                  {questionCount} questions
-                </span>
-                {questionMode === "written" && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                    ≤{averageMarksPerQuestion}mk
-                  </span>
-                )}
-              </>
-            }
-          >
-            <div className="space-y-4 mb-2">
+        {/* ── Mode (Tier 1 — Always Visible) ── */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Mode</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onSetGenerationMode("practice")}
+              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === "practice" ? "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/40 shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}
+            >
+              <BookOpen className="w-4 h-4" /> Practice
+              <span className="text-[10px] text-muted-foreground ml-1 hidden sm:inline">Untimed</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onSetGenerationMode("exam")}
+              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === "exam" ? "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/40 shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30"}`}
+            >
+              <Clock3 className="w-4 h-4" /> Exam
+              <span className="text-[10px] text-muted-foreground ml-1 hidden sm:inline">Timed</span>
+            </button>
+          </div>
+          {generationMode === "exam" && (
+            <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 px-3 py-3">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-medium flex items-center gap-1.5">
-                    <Hash className="w-3.5 h-3.5" /> Questions
+                    <Clock3 className="w-3.5 h-3.5" /> Time allocation
                   </Label>
-                  <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{questionCount}</Badge>
+                  <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{examTimeLimitMinutes} min</Badge>
                 </div>
-                <Slider min={1} max={20} step={1} value={[questionCount]} onValueChange={(val) => onSetQuestionCount(val[0])} className="px-1 py-1" />
-                <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>20</span></div>
+                <Slider min={5} max={180} step={5} value={[examTimeLimitMinutes]} onValueChange={(val) => onSetExamTimeLimitMinutes(val[0])} className="px-1 py-1" />
+                <div className="flex justify-between text-[10px] text-muted-foreground"><span>5m</span><span>180m</span></div>
               </div>
-
-              {selectedTopics.length > 1 && (
-                <div className="rounded-lg border bg-muted/20 px-3 py-2 space-y-1">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Questions per subject</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                    {selectedTopics.map((topic, i) => {
-                      const base = Math.floor(questionCount / selectedTopics.length);
-                      const remainder = questionCount % selectedTopics.length;
-                      const count = base + (i < remainder ? 1 : 0);
-                      return (
-                        <span key={topic} className="text-[11px] text-foreground flex items-center gap-1">
-                          <span className="text-muted-foreground">{TOPIC_ICONS[topic]}</span>
-                          <span className="truncate max-w-[100px]">{topic.split(" ")[0]}</span>
-                          <span className="font-semibold tabular-nums text-primary">{count}</span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {questionMode === "written" ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-medium flex items-center gap-1.5">
-                      <BarChart3 className="w-3.5 h-3.5" /> Avg marks per question
-                    </Label>
-                    <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums">{averageMarksPerQuestion}</Badge>
-                  </div>
-                  <Slider min={1} max={15} step={1} value={[averageMarksPerQuestion]} onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])} className="py-1" />
-                  <div className="flex justify-between text-[10px] text-muted-foreground"><span>1</span><span>15</span></div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-                      <BarChart3 className="w-3.5 h-3.5" /> Avg marks per question
-                    </Label>
-                    <Badge variant="secondary" className="text-xs px-2 py-0 tabular-nums bg-muted text-muted-foreground">1 mark (fixed)</Badge>
-                  </div>
-                  <div className="h-6 bg-muted/30 rounded-md border border-border flex items-center px-3">
-                    <span className="text-xs text-muted-foreground">Multiple choice questions are always worth 1 mark each</span>
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {examPresets.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => { onSetQuestionCount(preset.count); onSetExamTimeLimitMinutes(preset.time); }}
+                    className={`group p-2 text-left rounded-lg border transition-all duration-150 cursor-pointer ${questionCount === preset.count && examTimeLimitMinutes === preset.time ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+                  >
+                    <p className="text-[11px] font-semibold leading-tight">{preset.label}</p>
+                    <span className="text-[10px] text-muted-foreground">{preset.count}Q / {preset.time}m</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </CollapsibleStep>
+          )}
         </div>
 
-        <SectionDivider />
-
-        {/* ── Step 7: Options ── */}
-        <div>
-          <CollapsibleStep
-            number={step()}
-            title="Options"
-            defaultOpen={!hasPresets}
-            chips={
-              (() => {
-                const parts: string[] = [];
-                if (hasAnyMathTopic) {
-                  const techLabels: Record<string, string> = { "tech-free": "Tech-Free", mix: "Mixed", "tech-active": "Tech-Active" };
-                  parts.push(techLabels[techMode] ?? techMode);
-                }
-                if (avoidSimilarQuestions) parts.push("No repeats");
-                if (customFocusArea.trim()) parts.push("Custom focus");
-                return parts.length > 0 ? (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                    {parts.join(" · ")}
-                  </span>
-                ) : null;
-              })()
-            }
-          >
-            <div className="space-y-3">
-              {hasAnyMathTopic && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">Calculator Mode</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {([
-                      { value: "tech-free", label: "Tech-Free", icon: <Pen className="w-3.5 h-3.5" /> },
-                      { value: "mix", label: "Mixed", icon: <Blend className="w-3.5 h-3.5" /> },
-                      { value: "tech-active", label: "Tech-Active", icon: <Calculator className="w-3.5 h-3.5" /> },
-                    ] as { value: TechMode; label: string; icon: React.ReactNode }[]).map(({ value, label, icon }) => {
-                      const isActive = techMode === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => onSetTechMode(value)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border text-xs font-medium transition-all duration-150 cursor-pointer
-                          ${isActive ? "bg-primary text-primary-foreground border-primary shadow-sm" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
-                        >
-                          {icon} {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => onSetAvoidSimilarQuestions(!avoidSimilarQuestions)}
-                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
-                ${avoidSimilarQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
-              >
-                <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${avoidSimilarQuestions ? "text-primary" : "text-muted-foreground"}`} />
-                <div className="min-w-0">
-                  <p className={`text-xs font-semibold ${avoidSimilarQuestions ? "text-foreground" : "text-muted-foreground"}`}>
-                    Avoid Similar Questions
-                    <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${avoidSimilarQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      {avoidSimilarQuestions ? "On" : "Off"}
-                    </span>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                    Uses recent same-topic prompts to steer the model away from repeats.
-                  </p>
-                </div>
-              </button>
-
-              {selectedTopics.length > 1 && (
+        {/* ── Difficulty (Tier 1 — Always Visible) ── */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Difficulty
+            <span className={`ml-1.5 font-normal ${DIFFICULTY_META[difficulty].color}`}>{DIFFICULTY_META[difficulty].label}</span>
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {(["Essential Skills", "Easy", "Medium", "Hard", "Extreme"] as Difficulty[]).map((level) => {
+              const isSelected = difficulty === level;
+              const meta = DIFFICULTY_META[level];
+              return (
                 <button
+                  key={level}
                   type="button"
-                  onClick={() => onSetShuffleQuestions(!shuffleQuestions)}
-                  className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
-                ${shuffleQuestions ? "bg-primary/5 border-primary/40" : "border-border hover:border-primary/30 hover:bg-muted/20"}`}
+                  onClick={() => onSetDifficulty(level)}
+                  className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-center transition-all duration-150 cursor-pointer
+                  ${isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
                 >
-                  <Shuffle className={`w-4 h-4 mt-0.5 shrink-0 ${shuffleQuestions ? "text-primary" : "text-muted-foreground"}`} />
-                  <div className="min-w-0">
-                    <p className={`text-xs font-semibold ${shuffleQuestions ? "text-foreground" : "text-muted-foreground"}`}>
-                      Shuffle Questions
-                      <span className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${shuffleQuestions ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {shuffleQuestions ? "On" : "Off"}
-                      </span>
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                      Randomly shuffles the combined set after generating questions for each subject.
-                    </p>
-                  </div>
+                  <span className={`text-xs font-semibold leading-tight ${isSelected ? meta.color : "text-foreground"}`}>{meta.label}</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">{meta.desc}</span>
                 </button>
-              )}
-
-              <div className="space-y-1.5 mb-2">
-                <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-                  <Crosshair className="w-3.5 h-3.5" />
-                  Custom Focus Area
-                  <span className="font-normal opacity-70">— optional</span>
-                </Label>
-                <Input
-                  value={customFocusArea}
-                  onChange={(e) => onSetCustomFocusArea(e.target.value)}
-                  maxLength={160}
-                  placeholder="e.g. projectile motion with optimisation constraints"
-                  className="text-xs h-8"
-                />
-              </div>
-            </div>
-          </CollapsibleStep>
+              );
+            })}
+          </div>
         </div>
+
+        {/* ── Advanced Options (Tier 2 — Collapsed Accordion) ── */}
+        <AdvancedOptionsAccordion
+          questionMode={questionMode}
+          questionCount={questionCount}
+          onSetQuestionCount={onSetQuestionCount}
+          averageMarksPerQuestion={averageMarksPerQuestion}
+          onSetAverageMarksPerQuestion={onSetAverageMarksPerQuestion}
+          selectedTopics={selectedTopics}
+          hasSubtopicSection={hasSubtopicSection}
+          mathMethodsSubtopics={mathMethodsSubtopics}
+          onToggleMathMethodsSubtopic={onToggleMathMethodsSubtopic}
+          specialistMathSubtopics={specialistMathSubtopics}
+          onToggleSpecialistMathSubtopic={onToggleSpecialistMathSubtopic}
+          chemistrySubtopics={chemistrySubtopics}
+          onToggleChemistrySubtopic={onToggleChemistrySubtopic}
+          physicalEducationSubtopics={physicalEducationSubtopics}
+          onTogglePhysicalEducationSubtopic={onTogglePhysicalEducationSubtopic}
+          hasAnyMathTopic={hasAnyMathTopic}
+          techMode={techMode}
+          onSetTechMode={onSetTechMode}
+          avoidSimilarQuestions={avoidSimilarQuestions}
+          onSetAvoidSimilarQuestions={onSetAvoidSimilarQuestions}
+          shuffleQuestions={shuffleQuestions}
+          onSetShuffleQuestions={onSetShuffleQuestions}
+          customFocusArea={customFocusArea}
+          onSetCustomFocusArea={onSetCustomFocusArea}
+          aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
+          onSetAiDifficultyScalingEnabled={onSetAiDifficultyScalingEnabled}
+          difficultyThresholds={difficultyThresholds}
+          onSetDifficultyThresholds={onSetDifficultyThresholds}
+          selectedTopicsAll={selectedTopics}
+          difficulty={difficulty}
+          techModeAll={techMode}
+          avoidSimilarQuestionsAll={avoidSimilarQuestions}
+          generationMode={generationMode}
+          examTimeLimitMinutes={examTimeLimitMinutes}
+        />
 
         {/* ── API key warning ── */}
         {!hasApiKey && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2.5">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2.5 mt-4">
             <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">

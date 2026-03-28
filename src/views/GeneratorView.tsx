@@ -47,6 +47,7 @@ import { CompletionScreen } from "@/components/generator/CompletionScreen";
 import { WrittenSessionHeader } from "@/components/generator/WrittenSessionHeader";
 import { WrittenQuestionCard } from "@/components/generator/WrittenQuestionCard";
 import { useQuestionTimer } from "@/hooks/useQuestionTimer";
+import { useTimerBar, type TimerBarData } from "@/context/TimerBarContext";
 import { WrittenAnswerCard } from "@/components/generator/WrittenAnswerCard";
 import { WrittenFeedbackPanel } from "@/components/generator/WrittenFeedbackPanel";
 import { McSessionHeader } from "@/components/generator/McSessionHeader";
@@ -159,6 +160,11 @@ export function GeneratorView() {
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<Record<string, number>>({});
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] = useState<Record<string, number>>({});
 
+  // Keyboard shortcut hint state
+  const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
+    try { return !localStorage.getItem("keyboard-hint-dismissed"); } catch { return true; }
+  });
+
   // Per-topic batch progress — drives the multi-topic timeline in SetupPanel.
   // Empty when only one topic is selected (single-call path shows normal timeline).
   const [batchProgress, setBatchProgress] = useState<BatchTopicProgress[]>([]);
@@ -258,6 +264,7 @@ export function GeneratorView() {
     mcQuestions,
     activeMcQuestionIndex
   );
+
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -387,6 +394,58 @@ export function GeneratorView() {
     activeTimer.finishSession();
     setShowCompletionScreen(true);
   }, [generationMode, activeTimer.sessionRemainingSeconds, isSetComplete, showCompletionScreen]);
+
+  // --- Timer bar context (for header display) ---
+  const { setTimerBarData } = useTimerBar();
+  const hasActiveSession = (questionMode === "written" && questions.length > 0) || (questionMode === "multiple-choice" && mcQuestions.length > 0);
+
+  useEffect(() => {
+    if (!hasActiveSession) {
+      setTimerBarData(null);
+      return;
+    }
+    const timer = activeTimer;
+    const data: TimerBarData = {
+      questionNumber: (questionMode === "written" ? activeQuestionIndex : activeMcQuestionIndex) + 1,
+      totalQuestions: questionMode === "written" ? questions.length : mcQuestions.length,
+      currentQuestionTimeUsed: timer.currentQuestionTimeUsed,
+      currentQuestionTimeLimit: timer.currentQuestionTimeLimit,
+      currentQuestionRemaining: timer.currentQuestionRemaining,
+      formattedQuestionTime: timer.formattedQuestionTime,
+      parTimeSeconds: timer.parTimeSeconds,
+      bankedSeconds: timer.bankedSeconds,
+      formattedBank: timer.formattedBank,
+      bankStatus: timer.bankStatus,
+      formattedSessionTime: timer.formattedSessionTime,
+      isQuestionExpired: timer.isQuestionExpired,
+      mode: generationMode,
+    };
+    setTimerBarData(data);
+  }, [
+    hasActiveSession,
+    questionMode,
+    activeQuestionIndex,
+    activeMcQuestionIndex,
+    questions.length,
+    mcQuestions.length,
+    activeTimer.currentQuestionTimeUsed,
+    activeTimer.currentQuestionTimeLimit,
+    activeTimer.currentQuestionRemaining,
+    activeTimer.formattedQuestionTime,
+    activeTimer.parTimeSeconds,
+    activeTimer.bankedSeconds,
+    activeTimer.formattedBank,
+    activeTimer.bankStatus,
+    activeTimer.formattedSessionTime,
+    activeTimer.isQuestionExpired,
+    generationMode,
+    setTimerBarData,
+  ]);
+
+  // Clear timer bar on unmount
+  useEffect(() => {
+    return () => { setTimerBarData(null); };
+  }, [setTimerBarData]);
 
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -525,6 +584,62 @@ export function GeneratorView() {
     }
     setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1));
   }, [canAdvanceMc, isAtLastMcQuestion, mcQuestions.length, activeMcQuestionIndex, setActiveMcQuestionIndex, mcTimer]);
+
+  const isInSession = !showSetup && !showCompletionScreen;
+  function dismissKeyboardHint() {
+    setShowKeyboardHint(false);
+    try { localStorage.setItem("keyboard-hint-dismissed", "1"); } catch { /* noop */ }
+  }
+  const startOverRef = useRef<() => void>(() => {});
+  const submitRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!isInSession) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isEditable = (e.target as HTMLElement)?.isContentEditable;
+      if (tag === "TEXTAREA" || tag === "INPUT" || isEditable) return;
+
+      // Ctrl/Cmd+Enter → submit answer
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (questionMode === "written" && canSubmitAnswer && !isMarking) {
+          submitRef.current();
+        }
+        return;
+      }
+
+      // Right arrow / N → next question
+      if (e.key === "ArrowRight" || e.key === "n") {
+        e.preventDefault();
+        if (questionMode === "written") {
+          handleNextWrittenQuestion();
+        } else {
+          handleNextMcQuestion();
+        }
+        return;
+      }
+
+      // Left arrow / P → previous question
+      if (e.key === "ArrowLeft" || e.key === "p") {
+        e.preventDefault();
+        if (questionMode === "written") {
+          setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1));
+        } else {
+          setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1));
+        }
+        return;
+      }
+
+      // Esc → exit session (with confirmation)
+      if (e.key === "Escape") {
+        e.preventDefault();
+        startOverRef.current();
+        return;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isInSession, questionMode, canSubmitAnswer, isMarking, activeQuestionIndex, activeMcQuestionIndex, handleNextWrittenQuestion, handleNextMcQuestion, setActiveQuestionIndex, setActiveMcQuestionIndex]);
 
   // ── Cancel question ──────────────────────────────────────────────────────────
   const handleCancelWrittenQuestion = useCallback(() => {
@@ -1066,6 +1181,7 @@ export function GeneratorView() {
     } catch (error) { setErrorMessage(readBackendError(error)); setLastFailedAction("mark-written"); }
     finally { setIsMarking(false); }
   }
+  submitRef.current = handleSubmitForMarking;
 
   const handleSave = useCallback(() => {
     const id = saveCurrentSet();
@@ -1209,6 +1325,7 @@ export function GeneratorView() {
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
     setExamRecordSaved(false);
   }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);
+  startOverRef.current = handleStartOver;
 
   useEffect(() => {
     if (generationMode !== "exam" || !showCompletionScreen || !isSetComplete || examRecordSaved) return;
@@ -1469,7 +1586,17 @@ export function GeneratorView() {
             lastSavedAt={lastSavedAt}
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
+            generationMode={generationMode}
+            formattedCountdownTime={formattedCountdownTime}
+            remainingSeconds={remainingSeconds}
+            formattedElapsedTime={formattedElapsedTime}
           />
+          {showKeyboardHint && (
+            <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+              <span>Tip: Use <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">←</kbd> <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">→</kbd> to navigate, <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">Ctrl+Enter</kbd> to submit</span>
+              <button onClick={dismissKeyboardHint} className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Dismiss</button>
+            </div>
+          )}
           {activeQuestion && (
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
@@ -1484,21 +1611,8 @@ export function GeneratorView() {
                   showRawOutput={showWrittenRawOutput}
                   rawModelOutput={writtenRawModelOutput}
                   onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
-                  timerProps={{
-                    questionNumber: activeQuestionIndex + 1,
-                    totalQuestions: questions.length,
-                    currentQuestionTimeUsed: writtenTimer.currentQuestionTimeUsed,
-                    currentQuestionTimeLimit: writtenTimer.currentQuestionTimeLimit,
-                    currentQuestionRemaining: writtenTimer.currentQuestionRemaining,
-                    formattedQuestionTime: writtenTimer.formattedQuestionTime,
-                    parTimeSeconds: writtenTimer.parTimeSeconds,
-                    bankedSeconds: writtenTimer.bankedSeconds,
-                    formattedBank: writtenTimer.formattedBank,
-                    bankStatus: writtenTimer.bankStatus,
-                    formattedSessionTime: writtenTimer.formattedSessionTime,
-                    isQuestionExpired: writtenTimer.isQuestionExpired,
-                    mode: generationMode,
-                  }}
+                  isQuestionExpired={writtenTimer.isQuestionExpired}
+                  generationMode={generationMode}
                   isSubmitDisabled={writtenTimer.isQuestionExpired && generationMode === "exam"}
                 />
                 {!activeFeedback ? (
@@ -1557,7 +1671,17 @@ export function GeneratorView() {
             lastSavedAt={lastSavedAt}
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
+            generationMode={generationMode}
+            formattedCountdownTime={formattedCountdownTime}
+            remainingSeconds={remainingSeconds}
+            formattedElapsedTime={formattedElapsedTime}
           />
+          {showKeyboardHint && (
+            <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+              <span>Tip: Use <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">←</kbd> <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">→</kbd> to navigate</span>
+              <button onClick={dismissKeyboardHint} className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Dismiss</button>
+            </div>
+          )}
           {activeMcQuestion && (
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
@@ -1572,21 +1696,8 @@ export function GeneratorView() {
                   showRawOutput={showMcRawOutput}
                   rawModelOutput={mcRawModelOutput}
                   onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
-                  timerProps={{
-                    questionNumber: activeMcQuestionIndex + 1,
-                    totalQuestions: mcQuestions.length,
-                    currentQuestionTimeUsed: mcTimer.currentQuestionTimeUsed,
-                    currentQuestionTimeLimit: mcTimer.currentQuestionTimeLimit,
-                    currentQuestionRemaining: mcTimer.currentQuestionRemaining,
-                    formattedQuestionTime: mcTimer.formattedQuestionTime,
-                    parTimeSeconds: mcTimer.parTimeSeconds,
-                    bankedSeconds: mcTimer.bankedSeconds,
-                    formattedBank: mcTimer.formattedBank,
-                    bankStatus: mcTimer.bankStatus,
-                    formattedSessionTime: mcTimer.formattedSessionTime,
-                    isQuestionExpired: mcTimer.isQuestionExpired,
-                    mode: generationMode,
-                  }}
+                  isQuestionExpired={mcTimer.isQuestionExpired}
+                  generationMode={generationMode}
                   isSubmitDisabled={mcTimer.isQuestionExpired && generationMode === "exam"}
                 />
                 {countWords(activeMcQuestion.explanationMarkdown) > MC_MAX_EXPLANATION_WORDS && (
@@ -1615,6 +1726,28 @@ export function GeneratorView() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Keyboard shortcut hint ── */}
+      {isInSession && showKeyboardHint && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/90 text-background text-[11px] font-medium shadow-lg backdrop-blur-sm">
+          <span>Tip: Use</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">←</kbd>
+          <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">→</kbd>
+          <span>to navigate,</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">Esc</kbd>
+          <span>to exit</span>
+          <button
+            type="button"
+            onClick={() => {
+              setShowKeyboardHint(false);
+              try { localStorage.setItem("keyboard-hint-dismissed", "1"); } catch {}
+            }}
+            className="ml-2 text-background/60 hover:text-background cursor-pointer"
+          >
+            ×
+          </button>
         </div>
       )}
 

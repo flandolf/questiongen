@@ -133,22 +133,32 @@ analysis and application to sport contexts.\n\
 Questions must be grounded STRICTLY in the VCE Units 3 & 4 Physical Education Study Design \
 key knowledge listed below. Do NOT introduce content outside this list.\n\n\
 UNIT 3 AREA OF STUDY 1 — How are movement skills improved?\n\
-- Classification of movement skills: fundamental movement skills, sport-specific skills, \
-open and closed skills, gross and fine skills, discrete/serial/continuous motor skills\n\
-- Link between motor skill development, participation and performance\n\
-- Sociocultural factors affecting skill development\n\
-- Three stages of learning: cognitive, associative, autonomous\n\
-- Theories of skill acquisition: linear vs non-linear; direct and constraint-based approaches\n\
-- Psychological skills: confidence, motivation, optimal arousal, concentration; accompanying strategies\n\
+- Classification of movement skills: fundamental movement skills (stability, locomotor, manipulative), \
+sport-specific skills, open and closed skills, gross and fine skills, discrete/serial/continuous motor skills\n\
+- Link between motor skill development, participation and performance: how skill level influences \
+motivation, enjoyment and continued engagement\n\
+- Sociocultural factors affecting skill development: family (transport, financial support, role models), \
+peers (socialization vs sedentary behavior), community, gender, socioeconomic status, and cultural beliefs/traditions\n\
+- Three stages of learning: cognitive (high errors, inconsistent, requires visual cues), \
+associative (refining technique, internal feedback use), autonomous (automaticity, focus on tactics)\n\
+- Theories of skill acquisition: linear vs non-linear; direct instruction (explicit, coach-led, \
+predictable environments) and constraint-based approaches (implicit, learner-led, game sense, \
+individual/environmental/task constraints)\n\
+- Psychological skills: confidence (self-efficacy), motivation (intrinsic vs extrinsic), \
+optimal arousal (regulation via PMR, breath control, or music), concentration; accompanying strategies \
+such as imagery (vivid/controllable) and goal setting (SMARTER)\n\
 - Practice scheduling: type (part/whole), distribution (massed/distributed), variability (blocked/random)\n\
-- Feedback: intrinsic vs augmented (knowledge of results vs knowledge of performance)\n\
+- Feedback: intrinsic (visual, auditory, proprioception) vs augmented (knowledge of results \
+vs knowledge of performance); timing (concurrent vs terminal) and frequency issues (dependency)\n\
 - Biomechanical principles: linear and angular concepts (force/torque, momentum, impulse, speed/velocity); \
 Newton's 3 laws of linear motion (inertia, acceleration, action-reaction); \
 projectile motion (height, angle, speed of release); anatomical third-class levers \
-(axis, force, resistance, mechanical advantage); equilibrium/stability (centre of gravity, \
-base of support, line of gravity)\n\
-Summation of forces, conservation of momentum, impulse-momentum relationship\n\
-- Qualitative movement analysis stages: preparation, observation, evaluation, error correction\n\n\
+(axis, force, resistance, mechanical advantage < 1 for speed/range of motion); \
+equilibrium/stability (centre of gravity, base of support, line of gravity)\n\
+- Force application: summation of forces (sequential vs simultaneous), conservation of momentum, \
+impulse-momentum relationship\n\
+- Qualitative movement analysis stages: preparation, observation, evaluation (diagnosis of errors), \
+error correction (intervention)\n\n\
 UNIT 3 AREA OF STUDY 2 — How does the body produce energy?\n\
 - Oxygen uptake at rest and during exercise/recovery: oxygen deficit, steady state, EPOC\n\
 - Acute physiological responses to exercise in the cardiovascular, respiratory and muscular systems\n\
@@ -156,7 +166,7 @@ UNIT 3 AREA OF STUDY 2 — How does the body produce energy?\n\
 rate and yield of each system; contribution at rest and varying intensities; \
 recovery rates with active vs passive recovery\n\
 - Interplay of energy systems in relation to intensity and duration of activity\n\
-- Muscular fatigue mechanisms: fuel depletion, accumulation of metabolic by-products \
+- Muscular fatigue mechanisms: fuel depletion (PC, glycogen), accumulation of metabolic by-products \
 (e.g. H⁺ ions), thermoregulatory fatigue; linked to sport and exercise intensities/durations\n\
 - Nutritional and hydration strategies: carbohydrate ingestion, protein, water — \
 to enhance performance, delay fatigue, improve recovery\n\n\
