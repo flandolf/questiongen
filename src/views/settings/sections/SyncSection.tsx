@@ -29,9 +29,9 @@ export function SyncSection() {
     syncError,
     syncEvents,
     debugLogs,
+    pendingChanges,
     enableSync,
     disableSync,
-    toggleSync,
     forceSync,
   } = firebaseSync;
 
@@ -57,7 +57,7 @@ export function SyncSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Cloud Sync"
-        description="Sync your settings, preferences, history, and saved question sets across multiple devices."
+        description="Sync your history and saved question sets to the cloud manually. Click 'Sync Now' to upload changes and pull updates from other devices."
       />
 
       {!isOnline && (
@@ -105,8 +105,8 @@ export function SyncSection() {
               <p className="text-sm font-medium">
                 {syncStatus === "connecting" ? "Connecting..."
                   : syncStatus === "syncing" ? "Syncing..."
-                    : syncEnabled ? "Connected to Cloud"
-                      : isSignedIn ? "Sync Paused"
+                    : syncEnabled ? "Cloud Sync Connected"
+                      : isSignedIn ? "Sync Disabled"
                         : "Not Connected"}
               </p>
               {user && (
@@ -114,12 +114,17 @@ export function SyncSection() {
                   {user.email}
                 </p>
               )}
+              {syncEnabled && pendingChanges > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  {pendingChanges < 0 ? "Changes pending" : `${pendingChanges} change${pendingChanges === 1 ? "" : "s"} pending`}
+                </p>
+              )}
             </div>
           </div>
           {syncEnabled && (
             <div className="flex gap-2">
               <Button
-                variant="outline"
+                variant={pendingChanges > 0 ? "default" : "outline"}
                 size="sm"
                 className="gap-1.5"
                 onClick={handleForceSync}
@@ -127,15 +132,6 @@ export function SyncSection() {
               >
                 <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
                 {isSyncing ? "Syncing..." : "Sync Now"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={toggleSync}
-              >
-                <CloudOff className="h-3.5 w-3.5" />
-                Pause Sync
               </Button>
               <Button
                 variant="outline"
@@ -152,11 +148,11 @@ export function SyncSection() {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={toggleSync}
-              disabled={!isOnline}
+              onClick={handleForceSync}
+              disabled={isSyncing || !isOnline}
             >
               <Cloud className="h-3.5 w-3.5" />
-              Resume Sync
+              {isSyncing ? "Enabling..." : "Enable Sync"}
             </Button>
           )}
         </div>
@@ -241,20 +237,24 @@ export function SyncSection() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              Generator preferences (topics, difficulty, question count)
+              Question history and analytics
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              Question history and analytics
+              Multiple choice history
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               Saved question sets
             </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              Study goals and streak data
+            </li>
           </ul>
           <p className="mt-4 text-xs text-muted-foreground">
-            Data is stored securely in Firebase. When you sign in on another device,
-            your data will be automatically merged with any local changes.
+            Sync is manual only — click "Sync Now" to upload your changes and pull updates
+            from other devices. This uses significantly fewer cloud operations than automatic sync.
           </p>
         </Card>
       )}

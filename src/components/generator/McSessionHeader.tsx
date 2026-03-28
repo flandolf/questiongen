@@ -1,10 +1,11 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Flag, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Flag, Clock, Timer, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Difficulty, GenerationMode, GenerationTelemetry } from "@/types";
 import { TelemetryTooltip } from "@/components/generator/WrittenSessionHeader";
 import { cn } from "@/lib/utils";
+import { useTimerBar } from "@/context/TimerBarContext";
 
 type McSessionHeaderProps = {
   questionIndex: number;
@@ -54,6 +55,27 @@ export function McSessionHeader({
       : remainingSeconds <= 120 ? "text-amber-500"
         : "text-foreground";
 
+  const timerBar = useTimerBar();
+  const formatTimerValue = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  const TimeDisplay = ({ icon: Icon, value, className }: {
+    icon: React.ElementType;
+    value: string;
+    className?: string;
+  }) => (
+    <div className="flex items-center gap-1.5">
+      <Icon className={cn("w-3.5 h-3.5", className)} />
+      <span className={cn("text-sm font-bold tabular-nums font-mono", className)}>
+        {value}
+      </span>
+    </div>
+  );
+
+
   return (
     <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md">
       {/* Session progress bar at very top */}
@@ -77,14 +99,40 @@ export function McSessionHeader({
               {isExam ? "Timed" : "Untimed"}
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className={cn("w-3.5 h-3.5", timerColor)} />
-            <span className={cn("text-sm font-bold tabular-nums font-mono", timerColor)}>
-              {isExam && formattedCountdownTime ? formattedCountdownTime : (formattedElapsedTime ?? "00:00")}
-            </span>
-            {isExam && (
-              <span className="text-[10px] text-muted-foreground ml-1">remaining</span>
+
+          <div className="flex flex-row items-center gap-2">
+            {/* Banked time (exam only) */}
+            {isExam && timerBar && (
+              <TimeDisplay
+                icon={PiggyBank}
+                value={formatTimerValue(timerBar.timerBarData?.bankedSeconds ?? 0)}
+                className={timerColor}
+              />
             )}
+
+            {/* Current question timer */}
+            {timerBar && (
+              <TimeDisplay
+                icon={Timer}
+                value={formatTimerValue(timerBar.timerBarData?.currentQuestionTimeUsed ?? 0)}
+                className={timerColor}
+              />
+            )}
+
+            {/* Main timer */}
+            <div className="flex items-center gap-1.5">
+              <Clock className={cn("w-3.5 h-3.5", timerColor)} />
+              <span className={cn("text-sm font-bold tabular-nums font-mono", timerColor)}>
+                {isExam
+                  ? formattedCountdownTime ?? "00:00"
+                  : formattedElapsedTime ?? "00:00"}
+              </span>
+              {isExam && (
+                <span className="text-[10px] text-muted-foreground ml-1">
+                  remaining
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -168,5 +216,6 @@ export function McSessionHeader({
         </div>
       </div>
     </div>
+
   );
 }

@@ -33,3 +33,5 @@ src-tauri/gen/android/app/google-services.json
 # Environment variables
 .env
 .env.local
+
+tsconfig.tsbuildinfo
