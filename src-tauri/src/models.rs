@@ -208,6 +208,46 @@ pub struct AnalyzeImageResponse {
     pub output_text: String,
 }
 
+// ─── Cleanup topics only ─────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupTopicsRequest {
+    pub model: String,
+    pub api_key: String,
+    pub unknown_topics: Vec<String>,
+    pub canonical_topics: Vec<String>,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupTopicsResponse {
+    pub topic_mapping: HashMap<String, String>,
+}
+
+// ─── Cleanup subtopics only ──────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupSubtopicsRequest {
+    pub model: String,
+    pub api_key: String,
+    pub unknown_subtopics: Vec<String>,
+    pub canonical_subtopics: Vec<String>,
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupSubtopicsResponse {
+    pub subtopic_mapping: HashMap<String, String>,
+}
+
 // ─── Multiple-choice ──────────────────────────────────────────────────────────
 
 #[allow(dead_code)]

@@ -51,15 +51,18 @@ fn adjust_difficulty(
     levels[new_index].to_string()
 }
 use models::*;
-use openrouter::{call_openrouter, call_openrouter_streaming, json_schema_format};
+use openrouter::{
+    call_openrouter, call_openrouter_streaming_with_plugins,
+    json_schema_format,
+};
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use parsing::{
     clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
     protect_latex_in_raw_json, validate_mc, validate_written,
 };
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
+
 
 // ─── Response format schemas ──────────────────────────────────────────────────
 
@@ -575,7 +578,10 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
 }
 
 fn topic_exam_pdf_files(topic: &str) -> &'static [&'static str] {
-    if topic.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC) {
+    if topic
+        .trim()
+        .eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)
+    {
         &["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"]
     } else if topic.trim().eq_ignore_ascii_case("Specialist Mathematics") {
         &["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"]
@@ -625,73 +631,49 @@ fn resolve_exam_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathB
     None
 }
 
-
-/// Calls Cloudflare-AI PDF extraction API and returns extracted text.
-async fn extract_pdf_text_cloudflare_ai(api_key: &str, pdf_bytes: &[u8]) -> Result<String, String> {
-    let client = reqwest::Client::new();
-    let url = "https://api.cloudflare.com/client/v4/ai/run/@cf/pdf-extract-text";
-    let resp = client
-        .post(url)
-        .header(AUTHORIZATION, format!("Bearer {}", api_key))
-        .header(CONTENT_TYPE, "application/pdf")
-        .body(pdf_bytes.to_vec())
-        .send()
-        .await
-        .map_err(|e| format!("Cloudflare-AI request failed: {e}"))?;
-    if !resp.status().is_success() {
-        return Err(format!("Cloudflare-AI returned {}", resp.status()));
-    }
-    let json: serde_json::Value = resp.json().await.map_err(|e| format!("Invalid JSON: {e}"))?;
-    let text = json.get("result").and_then(|r| r.get("text")).and_then(|t| t.as_str()).unwrap_or("").to_string();
-    Ok(text)
-}
-
-/// Build exam context parts, using Cloudflare-AI if model does not support PDFs.
-async fn build_exam_context_parts_conditional(
+/// Build exam PDF file parts for inclusion in the user message.
+/// Returns data-URL encoded file objects that OpenRouter's file-parser plugin
+/// will process based on the model's native file support.
+fn build_exam_file_parts(
     app: &tauri::AppHandle,
     topics: &[String],
-    api_key: &str,
-    model: &str,
-) -> CommandResult<Vec<serde_json::Value>> {
-    let stats = get_model_stats(api_key.to_string(), model.to_string()).await?;
-    let supports_files = stats.supports_files;
+) -> Vec<serde_json::Value> {
     let mut parts = Vec::new();
     for filename in exam_pdf_names_for_topics(topics) {
-        let Some(path) = resolve_exam_pdf_path(app, filename) else { continue; };
-        let bytes = std::fs::read(&path).map_err(|e| {
-            AppError::new("IO_ERROR", format!("Failed to read exam PDF '{}': {e}", path.display()))
-        })?;
-        if supports_files {
-            let data_url = format!(
-                "data:application/pdf;base64,{}",
-                general_purpose::STANDARD.encode(&bytes)
-            );
-            parts.push(serde_json::json!({
-                "type": "file",
-                "file": {
-                    "filename": filename,
-                    "file_data": data_url,
-                }
-            }));
-        } else {
-            // Use Cloudflare-AI to extract text
-            match extract_pdf_text_cloudflare_ai(api_key, &bytes).await {
-                Ok(text) => {
-                    parts.push(serde_json::json!({
-                        "type": "text",
-                        "text": format!("[Extracted from exam PDF '{}']\n{}", filename, text),
-                    }));
-                }
-                Err(e) => {
-                    parts.push(serde_json::json!({
-                        "type": "text",
-                        "text": format!("[Failed to extract text from '{}': {}]", filename, e),
-                    }));
-                }
+        let Some(path) = resolve_exam_pdf_path(app, filename) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let data_url = format!(
+            "data:application/pdf;base64,{}",
+            general_purpose::STANDARD.encode(&bytes)
+        );
+        parts.push(serde_json::json!({
+            "type": "file",
+            "file": {
+                "filename": filename,
+                "file_data": data_url,
             }
-        }
+        }));
     }
-    Ok(parts)
+    parts
+}
+
+/// Determine the plugins configuration based on whether the model supports files natively.
+fn plugins_for_model(supports_files: bool) -> serde_json::Value {
+    if supports_files {
+        serde_json::json!([{ "id": "response-healing" }])
+    } else {
+        serde_json::json!([
+            { "id": "response-healing" },
+            {
+                "id": "file-parser",
+                "pdf": { "engine": "cloudflare-ai" }
+            }
+        ])
+    }
 }
 
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
@@ -835,7 +817,10 @@ async fn generate_questions(
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
  key knowledge above. Do not introduce content outside the Study Design.\n\
-         Subtopic: choose only from provided list; omit if none fits.\n\
+         Topic: you MUST set the \"topic\" field to exactly one of the user-selected topics listed above. Do NOT invent new topics.\n\
+         Subtopic: you MUST set the \"subtopic\" field to exactly one of the user-selected \
+ focus areas listed above. Do NOT invent new subtopics. If the question spans multiple \
+ subtopics, pick the primary one it tests.\n\
          {focus_lock}{exam_context_preamble}\n\
          Output exactly {count} questions.",
         count                 = request.question_count,
@@ -868,9 +853,15 @@ async fn generate_questions(
     let written_sys = written_system();
     let written_fmt = written_format();
     let max_tokens = (request.question_count as u32) * 4000 + 4000;
+
+    // Determine model capabilities and plugins before building the request.
+    let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
+    let supports_files = stats_result.as_ref().ok().map_or(false, |s| s.supports_files);
+    let plugins = plugins_for_model(supports_files);
+
     let user_content = if include_exam_context {
         let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
-        let exam_parts = build_exam_context_parts_conditional(&app, &request.topics, &request.api_key, &request.model).await?;
+        let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
@@ -891,22 +882,20 @@ async fn generate_questions(
     let top_p = request.top_p.unwrap_or(top_p);
     let seed = request.seed;
 
-    let (result, stats_result) = tokio::join!(
-        call_openrouter_streaming(
-            &app,
-            &request.api_key,
-            &request.model,
-            &written_sys,
-            user_content,
-            &written_fmt,
-            max_tokens,
-            temperature,
-            top_p,
-            seed,
-        ),
-        get_model_stats(request.api_key.clone(), request.model.clone()),
-    );
-    let result = result?;
+    let result = call_openrouter_streaming_with_plugins(
+        &app,
+        &request.api_key,
+        &request.model,
+        &written_sys,
+        user_content,
+        &written_fmt,
+        max_tokens,
+        temperature,
+        top_p,
+        seed,
+        plugins,
+    )
+    .await?;
 
     let _ = app.emit(
         "generation-status",
@@ -1050,7 +1039,10 @@ async fn generate_mc_questions(
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
  key knowledge above. Do not introduce content outside the Study Design.\
-         Subtopic: choose only from provided list; omit if none fits.\
+         Topic: you MUST set the \"topic\" field to one of the user-selected topics above. Do NOT invent new topics.\
+         Subtopic: you MUST set the \"subtopic\" field to exactly one of the user-selected \
+ focus areas listed above. Do NOT invent new subtopics. If the question spans multiple \
+ subtopics, pick the primary one it tests.\
          {focus_lock}{exam_context_preamble}\
          Output exactly {count} questions.",
         count                 = request.question_count,
@@ -1086,9 +1078,15 @@ async fn generate_mc_questions(
     } else {
         4000
     };
+
+    // Determine model capabilities and plugins before building the request.
+    let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
+    let supports_files = stats_result.as_ref().ok().map_or(false, |s| s.supports_files);
+    let plugins = plugins_for_model(supports_files);
+
     let user_content = if include_exam_context {
         let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
-        let exam_parts = build_exam_context_parts_conditional(&app, &request.topics, &request.api_key, &request.model).await?;
+        let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
@@ -1109,22 +1107,20 @@ async fn generate_mc_questions(
     let top_p = request.top_p.unwrap_or(top_p);
     let seed = request.seed;
 
-    let (result, stats_result) = tokio::join!(
-        call_openrouter_streaming(
-            &app,
-            &request.api_key,
-            &request.model,
-            &mc_sys,
-            user_content,
-            &mc_fmt,
-            max_tokens,
-            temperature,
-            top_p,
-            seed,
-        ),
-        get_model_stats(request.api_key.clone(), request.model.clone()),
-    );
-    let result = result?;
+    let result = call_openrouter_streaming_with_plugins(
+        &app,
+        &request.api_key,
+        &request.model,
+        &mc_sys,
+        user_content,
+        &mc_fmt,
+        max_tokens,
+        temperature,
+        top_p,
+        seed,
+        plugins,
+    )
+    .await?;
 
     let _ = app.emit(
         "generation-status",
@@ -1457,6 +1453,222 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
     Ok(AnalyzeImageResponse { output_text })
 }
 
+// ─── Tauri command: cleanup topics only ───────────────────────────────────────
+
+#[tauri::command]
+async fn cleanup_topics(
+    request: CleanupTopicsRequest,
+) -> CommandResult<CleanupTopicsResponse> {
+    if request.api_key.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
+    }
+    if request.model.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Model required."));
+    }
+    if request.unknown_topics.is_empty() {
+        return Ok(CleanupTopicsResponse {
+            topic_mapping: HashMap::new(),
+        });
+    }
+
+    // Use an array of objects which is much easier for lower-tier LLMs to follow
+    // than an object with dynamic, arbitrary keys.
+    let topic_schema = json_schema_format(
+        "topic_cleanup",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mappings"],
+            "properties": {
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["unknown", "canonical"],
+                        "properties": {
+                            "unknown": { "type": "string" },
+                            "canonical": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        }),
+    );
+
+    let system_prompt = "\
+        You are a strict data-cleaning assistant. You MUST output ONLY valid JSON. \
+        Respond with an object containing a 'mappings' array. Each item in the array must have \
+        an 'unknown' string and a 'canonical' string.\n\n\
+        EXPECTED JSON SCHEMA:\n\
+        {\n\
+          \"mappings\": [\n\
+            { \"unknown\": \"string\", \"canonical\": \"string\" }\n\
+          ]\n\
+        }\n\
+        Do not include markdown blocks, explanations, or any other text.";
+
+    let user_prompt = format!(
+        "Normalize the following 'Unknown' topics by mapping them to the EXACT 'Canonical' counterparts.\n\n\
+        [Target Canonical Topics]:\n- {}\n\n\
+        [Unknown Input Topics]:\n- {}\n\n\
+        STRICT RULES:\n\
+        1. The 'canonical' field MUST be an exact, character-for-character match from the [Target Canonical Topics] list.\n\
+        2. If an 'Unknown' topic does not logically match any Canonical topic, DO NOT include it in the output array.\n\
+        3. Only include mappings for the items provided in [Unknown Input Topics].",
+        request.canonical_topics.join("\n- "),
+        request.unknown_topics.join("\n- ")
+    );
+
+    let result = call_openrouter(
+        &request.api_key,
+        &request.model,
+        system_prompt,
+        serde_json::Value::String(user_prompt),
+        &topic_schema,
+        2048,
+        request.temperature.unwrap_or(0.0),
+        request.top_p.unwrap_or(0.9),
+        request.seed,
+    ).await?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result.content)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Topic parse error: {e}")))?;
+
+    let mut topic_mapping = HashMap::new();
+    
+    // Parse the safer array-of-objects structure back into a HashMap
+    if let Some(mappings) = parsed.get("mappings").and_then(|m| m.as_array()) {
+        for item in mappings {
+            if let (Some(unknown), Some(canonical)) = (
+                item.get("unknown").and_then(|u| u.as_str()),
+                item.get("canonical").and_then(|c| c.as_str()),
+            ) {
+                topic_mapping.insert(unknown.to_string(), canonical.to_string());
+            }
+        }
+    }
+
+    // Validation Guardrail
+    for (key, val) in &topic_mapping {
+        if !request.canonical_topics.contains(val) {
+            return Err(AppError::new(
+                "MODEL_PARSE_ERROR",
+                format!("LLM mapped topic \"{key}\" to non-canonical value \"{val}\""),
+            ));
+        }
+    }
+
+    Ok(CleanupTopicsResponse { topic_mapping })
+}
+
+// ─── Tauri command: cleanup subtopics only ────────────────────────────────────
+
+#[tauri::command]
+async fn cleanup_subtopics(
+    request: CleanupSubtopicsRequest,
+) -> CommandResult<CleanupSubtopicsResponse> {
+    if request.api_key.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
+    }
+    if request.model.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Model required."));
+    }
+    if request.unknown_subtopics.is_empty() {
+        return Ok(CleanupSubtopicsResponse {
+            subtopic_mapping: HashMap::new(),
+        });
+    }
+
+    let subtopic_schema = json_schema_format(
+        "subtopic_cleanup",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mappings"],
+            "properties": {
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["unknown", "canonical"],
+                        "properties": {
+                            "unknown": { "type": "string" },
+                            "canonical": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        }),
+    );
+
+    let system_prompt = "\
+        You are a strict data-cleaning assistant. You MUST output ONLY valid JSON. \
+        Respond with an object containing a 'mappings' array. Each item in the array must have \
+        an 'unknown' string and a 'canonical' string.\n\n\
+        EXPECTED JSON SCHEMA:\n\
+        {\n\
+          \"mappings\": [\n\
+            { \"unknown\": \"string\", \"canonical\": \"string\" }\n\
+          ]\n\
+        }\n\
+        Do not include markdown blocks, explanations, or any other text.";
+
+    let user_prompt = format!(
+        "Normalize the following 'Unknown' subtopics by mapping them to the EXACT 'Canonical' counterparts.\n\n\
+        [Target Canonical Subtopics]:\n- {}\n\n\
+        [Unknown Input Subtopics]:\n- {}\n\n\
+        STRICT RULES:\n\
+        1. The 'canonical' field MUST be an exact, character-for-character match from the [Target Canonical Subtopics] list.\n\
+        2. If an 'Unknown' subtopic does not logically match any Canonical subtopic, DO NOT include it in the output array.\n\
+        3. Only include mappings for the items provided in [Unknown Input Subtopics].",
+        request.canonical_subtopics.join("\n- "),
+        request.unknown_subtopics.join("\n- ")
+    );
+
+    let result = call_openrouter(
+        &request.api_key,
+        &request.model,
+        system_prompt,
+        serde_json::Value::String(user_prompt),
+        &subtopic_schema,
+        2048,
+        request.temperature.unwrap_or(0.0),
+        request.top_p.unwrap_or(0.9),
+        request.seed,
+    ).await?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&result.content)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Subtopic parse error: {e}")))?;
+
+    let mut subtopic_mapping = HashMap::new();
+    
+    // Parse the array-of-objects structure back into a HashMap
+    if let Some(mappings) = parsed.get("mappings").and_then(|m| m.as_array()) {
+        for item in mappings {
+            if let (Some(unknown), Some(canonical)) = (
+                item.get("unknown").and_then(|u| u.as_str()),
+                item.get("canonical").and_then(|c| c.as_str()),
+            ) {
+                subtopic_mapping.insert(unknown.to_string(), canonical.to_string());
+            }
+        }
+    }
+
+    // Validation Guardrail
+    for (key, val) in &subtopic_mapping {
+        if !request.canonical_subtopics.contains(val) {
+            return Err(AppError::new(
+                "MODEL_PARSE_ERROR",
+                format!("LLM mapped subtopic \"{key}\" to non-canonical value \"{val}\""),
+            ));
+        }
+    }
+
+    Ok(CleanupSubtopicsResponse { subtopic_mapping })
+}
+
 // ─── App entry-point ──────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1472,6 +1684,8 @@ pub fn run() {
             generate_mc_questions,
             get_model_stats,
             get_credits,
+            cleanup_topics,
+            cleanup_subtopics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,13 +2,15 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
-
 } from "recharts";
-import { Clock3, Type, PlusCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock3, Type, PlusCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
   ChartConfig,
@@ -22,7 +24,6 @@ import { EmptyState } from "../components/EmptyState";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDurationMs, formatPercent } from "../lib/app-utils";
 import { useAnalyticsData, ALL_TOPICS } from "./useAnalyticsData";
-import { useAppSettings } from "../AppContext";
 import { useNavigate } from "react-router-dom";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
@@ -61,10 +62,18 @@ const responseLatencyChartConfig = {
   avgResponseSeconds: { label: "Avg response seconds", color: "hsl(220 83% 60%)" },
 } satisfies ChartConfig;
 
-const generationChartConfig = {
-  avgDurationSeconds: { label: "Generation seconds", color: "hsl(158 64% 52%)" },
-  avgRepairAttempts: { label: "Repair attempts", color: "hsl(340 82% 52%)" },
-} satisfies ChartConfig;
+const FOCUS_AREA_COLORS = [
+  "hsl(158 64% 52%)",
+  "hsl(220 83% 60%)",
+  "hsl(34 100% 50%)",
+  "hsl(340 82% 52%)",
+  "hsl(190 70% 45%)",
+  "hsl(270 60% 55%)",
+  "hsl(60 80% 45%)",
+  "hsl(120 50% 45%)",
+  "hsl(0 70% 55%)",
+  "hsl(30 90% 50%)",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -194,8 +203,6 @@ function useDailyStats(questionHistory: QuestionHistoryEntry[], mcHistory: McHis
 
 export function AnalyticsView() {
   const navigate = useNavigate();
-  const { debugMode } = useAppSettings();
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
   const generationHistory = useAppStore((s) => s.generationHistory);
@@ -213,7 +220,6 @@ export function AnalyticsView() {
     recentCriterionWeakPoints,
     mcTopicAccuracy,
     mcResponseLatency,
-    qualityRows,
     lowestScoringWritten,
     earlyOverallAccuracy,
     recentOverallAccuracy,
@@ -226,7 +232,38 @@ export function AnalyticsView() {
   } = useAnalyticsData();
 
   const dailyStats = useDailyStats(questionHistory, mcHistory, generationHistory);
+  const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
   const hasAnyAttempts = allAttempts.length > 0;
+
+  const subjectList = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const attempt of allAttempts) {
+      if (!seen.has(attempt.topic)) {
+        seen.add(attempt.topic);
+        ordered.push(attempt.topic);
+      }
+    }
+    return ordered.sort((a, b) => a.localeCompare(b));
+  }, [allAttempts]);
+
+  const focusAreaData = useMemo(() => {
+    const filtered = subjectFilter
+      ? allAttempts.filter((a) => a.topic === subjectFilter)
+      : allAttempts;
+    const counts = new Map<string, number>();
+    for (const attempt of filtered) {
+      const area = attempt.subtopic ?? "Unspecified";
+      counts.set(area, (counts.get(area) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([name, value], i) => ({
+        name,
+        value,
+        fill: FOCUS_AREA_COLORS[i % FOCUS_AREA_COLORS.length],
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [allAttempts, subjectFilter]);
 
   const firstAttemptPct = summary.firstAttemptAccuracy;
   const overallPct = summary.overallAccuracy;
@@ -493,29 +530,74 @@ export function AnalyticsView() {
           )}
         </div>
 
-        {/* Diagnostics Toggle */}
+        {/* Focus Area Distribution */}
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <SectionHeading>Diagnostics</SectionHeading>
-            <button type="button" onClick={() => setShowDiagnostics(!showDiagnostics)} className="flex items-center gap-1 text-xs text-muted-foreground font-light hover:text-foreground mb-4">
-              {showDiagnostics || debugMode ? <><ChevronUp className="h-3 w-3" /> Hide</> : <><ChevronDown className="h-3 w-3" /> Show</>}
+          <SectionHeading>
+            {subjectFilter ? `${subjectFilter} — Focus Areas` : "Question Spread"}
+          </SectionHeading>
+
+          {/* Subject filter badges */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSubjectFilter(null)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-light border transition-colors ${
+                subjectFilter === null
+                  ? "border-foreground/30 bg-foreground/10 text-foreground"
+                  : "border-border/30 bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/20"
+              }`}
+            >
+              All subjects
+              <span className="text-[10px] text-muted-foreground/60">{allAttempts.length}</span>
             </button>
+            {subjectList.map((topic) => {
+              const count = allAttempts.filter((a) => a.topic === topic).length;
+              return (
+                <button
+                  key={topic}
+                  type="button"
+                  onClick={() => setSubjectFilter(subjectFilter === topic ? null : topic)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-light border transition-colors ${
+                    subjectFilter === topic
+                      ? "border-foreground/30 bg-foreground/10 text-foreground"
+                      : "border-border/30 bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/20"
+                  }`}
+                >
+                  {topic}
+                  <span className="text-[10px] text-muted-foreground/60">{count}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {(showDiagnostics || debugMode) && (
-            <div className="space-y-8">
-              <div className="h-40">
-                <ChartContainer config={generationChartConfig} className="w-full h-full">
-                  <BarChart data={qualityRows} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.05} />
-                    <XAxis dataKey="difficulty" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                    <Bar dataKey="avgDurationSeconds" fill="var(--color-avgDurationSeconds)" radius={[2, 2, 0, 0]} barSize={12} />
-                    <Bar dataKey="avgRepairAttempts" fill="var(--color-avgRepairAttempts)" radius={[2, 2, 0, 0]} barSize={12} />
-                  </BarChart>
+          {/* Pie chart — focus area distribution for selected subject */}
+          {focusAreaData.length === 0 ? (
+            <ChartEmpty message="No attempts to display." />
+          ) : (
+            <>
+              <div className="h-64">
+                <ChartContainer config={{}} className="w-full h-full">
+                  <PieChart>
+                    <Pie
+                      data={focusAreaData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={90}
+                      dataKey="value"
+                      nameKey="name"
+                      paddingAngle={2}
+                      stroke="none"
+                    >
+                      {focusAreaData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </PieChart>
                 </ChartContainer>
               </div>
-            </div>
+            </>
           )}
         </div>
       </section>

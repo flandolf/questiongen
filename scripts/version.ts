@@ -68,13 +68,13 @@ function updateTauriConfJson(version: string): void {
 }
 
 function updateSettingsView(version: string): void {
-  const content = readFileSync(join(rootDir, "src", "views", "SettingsView.tsx"), "utf-8");
+  const content = readFileSync(join(rootDir, "src", "views", "settings", "types.ts"), "utf-8");
   const updated = content.replace(
     /export const APP_VERSION = "[\d.]+";/,
     `export const APP_VERSION = "${version}";`
   );
-  writeFileSync(join(rootDir, "src", "views", "SettingsView.tsx"), updated, "utf-8");
-  console.log(`src/views/SettingsView.tsx: ${version}`);
+  writeFileSync(join(rootDir, "src", "views", "settings", "types.ts"), updated, "utf-8");
+  console.log(`src/views/settings/types.ts: ${version}`);
 }
 
 const args = process.argv.slice(2);

@@ -26,6 +26,34 @@ pub async fn call_openrouter(
     top_p: f32,
     seed: Option<u64>,
 ) -> CommandResult<OpenRouterResult> {
+    call_openrouter_with_plugins(
+        api_key,
+        model,
+        system_prompt,
+        user_content,
+        response_format,
+        max_tokens,
+        temperature,
+        top_p,
+        seed,
+        serde_json::json!([{ "id": "response-healing" }]),
+    )
+    .await
+}
+
+/// Make a single non-streaming OpenRouter request with custom plugins.
+pub async fn call_openrouter_with_plugins(
+    api_key: &str,
+    model: &str,
+    system_prompt: &str,
+    user_content: serde_json::Value,
+    response_format: &serde_json::Value,
+    max_tokens: u32,
+    temperature: f32,
+    top_p: f32,
+    seed: Option<u64>,
+    plugins: serde_json::Value,
+) -> CommandResult<OpenRouterResult> {
     let mut body = serde_json::json!({
         "model": model,
         "messages": [
@@ -36,7 +64,7 @@ pub async fn call_openrouter(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "response_format": response_format,
-        "plugins": [{ "id": "response-healing" }],
+        "plugins": plugins,
     });
     if let Some(seed) = seed {
         body["seed"] = serde_json::json!(seed);
@@ -114,16 +142,8 @@ struct SseUsage {
     total_tokens: u32,
 }
 
-/// Streaming OpenRouter request.
-///
-/// Emits `"generation-token"` events on `app` as each SSE token arrives:
-/// ```json
-/// { "text": "…delta…" }
-/// ```
-/// Returns the fully-assembled content plus actual token usage once complete.
-/// Falls back gracefully if the provider sends no usage in the stream (counts
-/// completion tokens from deltas as a rough approximation).
-pub async fn call_openrouter_streaming(
+/// Streaming OpenRouter request with custom plugins.
+pub async fn call_openrouter_streaming_with_plugins(
     app: &tauri::AppHandle,
     api_key: &str,
     model: &str,
@@ -134,6 +154,7 @@ pub async fn call_openrouter_streaming(
     temperature: f32,
     top_p: f32,
     seed: Option<u64>,
+    plugins: serde_json::Value,
 ) -> CommandResult<OpenRouterResult> {
     let mut body = serde_json::json!({
         "model": model,
@@ -145,7 +166,7 @@ pub async fn call_openrouter_streaming(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "response_format": response_format,
-        "plugins": [{ "id": "response-healing" }],
+        "plugins": plugins,
         "stream": true,
         // Request usage in the final stream chunk (supported by most providers).
         "stream_options": { "include_usage": true },
