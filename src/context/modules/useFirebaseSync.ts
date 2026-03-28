@@ -1,7 +1,7 @@
-import { AppState, useAppStore } from "@/store";
+import { AppState, useAppStore, setSuppressPersistUntil } from "@/store";
 import { QuestionHistoryEntry, McHistoryEntry, SavedQuestionSet, Preset } from "@/types";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, subscribeToUserData, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems, saveDailyUsage } from "./useFirebase";
+import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, subscribeToUserData, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems, saveDailyUsage, getDeltaSyncData } from "./useFirebase";
 
 
 // Helper to normalize remote SyncableData to local SyncableData
@@ -366,15 +366,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     
     const unsubscribe = subscribeToUserData(userId, async (remoteData) => {
         if (!isInitializedRef.current) return;
-        
+
         setIsSyncing(true);
         setSyncStatus("syncing");
-        
+
         try {
           if (remoteData && isFirstSyncRef.current) {
             isFirstSyncRef.current = false;
           const merged = mergeSyncableData(localDataRef.current, remoteData);
           const storeUpdates = applySyncableDataToStore(merged);
+          setSuppressPersistUntil(Date.now() + 1500);
           suppressAutoSaveTemporarily();
           useAppStore.setState(storeUpdates);
           localDataRef.current = merged;
@@ -382,12 +383,13 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         } else if (remoteData) {
           const merged = mergeSyncableData(localDataRef.current, remoteData);
           const storeUpdates = applySyncableDataToStore(merged);
+          setSuppressPersistUntil(Date.now() + 1500);
           suppressAutoSaveTemporarily();
           useAppStore.setState(storeUpdates);
           localDataRef.current = merged;
           addSyncEvent("download", "Data updated from cloud");
         }
-        
+
         setLastSyncTime(Date.now());
         setSyncStatus("idle");
       } catch (error) {
@@ -398,7 +400,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       } finally {
         setIsSyncing(false);
       }
-    });
+    }, () => localDataRef.current);
     unsubscribeRef.current = unsubscribe;
     
     return () => {
@@ -558,14 +560,21 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     // Sync immediately on mount/auth change
     void syncDailyUsage();
 
-    // Then sync on store changes (debounced by the auto-save mechanism)
+    // Then sync on store changes (debounced to batch rapid-fire writes)
+    let dailyUsageTimer: ReturnType<typeof setTimeout> | null = null;
     const unsubscribe = useAppStore.subscribe((state) => {
       if (state.generationHistory.length !== lastSyncedGenCount) {
-        void syncDailyUsage();
+        if (dailyUsageTimer) clearTimeout(dailyUsageTimer);
+        dailyUsageTimer = setTimeout(() => {
+          void syncDailyUsage();
+        }, 10_000);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (dailyUsageTimer) clearTimeout(dailyUsageTimer);
+    };
   }, [user, isSyncEnabled, debugLog]);
 
   const enableSync = useCallback(async (email: string, password: string, isSignUp = false) => {
@@ -638,6 +647,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         });
         const merged = mergeSyncableData(localData, remoteData ?? null);
         const storeUpdates = applySyncableDataToStore(merged);
+        setSuppressPersistUntil(Date.now() + 1500);
         suppressAutoSaveTemporarily();
         useAppStore.setState(storeUpdates);
         localDataRef.current = merged;
@@ -781,6 +791,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
         if (remoteHasData) {
           const storeUpdates = applySyncableDataToStore(merged);
+          setSuppressPersistUntil(Date.now() + 1500);
           suppressAutoSaveTemporarily();
           useAppStore.setState(storeUpdates);
           addSyncEvent("download", "Manual sync pulled remote updates");
@@ -791,9 +802,15 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           mcHistory: merged.mcHistory?.length,
           savedSets: merged.savedSets?.length,
         });
-        
-        // Force full sync for manual sync
-        await saveUserData(userId, merged, { fullSync: true });
+
+        // Check if local data actually changed before doing a full save
+        const deltaResult = await getDeltaSyncData(userId, merged);
+        if (deltaResult.changedItems.length === 0) {
+          debugLog("No local changes detected, skipping full save");
+        } else {
+          // Force full sync for manual sync
+          await saveUserData(userId, merged, { fullSync: true });
+        }
         localDataRef.current = merged;
         
         // Update sync metadata after full sync

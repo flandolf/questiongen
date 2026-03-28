@@ -860,6 +860,16 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 // ─── Persistence snapshot builder ────────────────────────────────────────────
 
 function buildPersistedSnapshot(s: AppState): PersistedAppState {
+  // Strip base64 dataUrls from images to reduce serialized payload size.
+  // Images for the active session are kept in the store (in-memory) for marking;
+  // only names are persisted so the UI can show which images were uploaded.
+  const strippedImages: Record<string, { name: string; dataUrl: string } | undefined> = {};
+  for (const [key, img] of Object.entries(s.imagesByQuestionId)) {
+    if (img) {
+      strippedImages[key] = { name: img.name, dataUrl: "" };
+    }
+  }
+
   return {
     version: EMPTY_PERSISTED_APP_STATE.version,
     settings: {
@@ -896,7 +906,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       activeQuestionIndex: s.activeQuestionIndex,
       presentedAtByQuestionId: s.writtenQuestionPresentedAtById,
       answersByQuestionId: s.answersByQuestionId,
-      imagesByQuestionId: s.imagesByQuestionId,
+      imagesByQuestionId: strippedImages,
       feedbackByQuestionId: s.feedbackByQuestionId,
       rawModelOutput: s.writtenRawModelOutput,
       generationTelemetry: s.writtenGenerationTelemetry,
@@ -911,7 +921,11 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       generationTelemetry: s.mcGenerationTelemetry,
       savedSetId: s.activeMcSavedSetId,
     },
-    questionHistory: s.questionHistory,
+    questionHistory: s.questionHistory.map((entry) =>
+      entry.uploadedAnswerImage
+        ? { ...entry, uploadedAnswerImage: { name: entry.uploadedAnswerImage.name, dataUrl: "" } }
+        : entry
+    ),
     mcHistory: s.mcHistory,
     savedSets: s.savedSets,
     spacedRepetition: s.spacedRepetitionCards,
@@ -931,11 +945,19 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let hydratedOnce = false;
+export let suppressPersistUntil = 0;
+
+export function setSuppressPersistUntil(ms: number): void {
+  suppressPersistUntil = ms;
+}
 
 useAppStore.subscribe((state) => {
   // Don't persist before the initial hydration is complete — that would
   // overwrite the persisted file with empty defaults.
   if (!state.isHydrated) return;
+
+  // Skip persistence during Firebase sync merges to avoid redundant disk writes
+  if (Date.now() < suppressPersistUntil) return;
 
   // Mark that we've seen at least one post-hydration update.
   hydratedOnce = true;
@@ -943,6 +965,7 @@ useAppStore.subscribe((state) => {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     if (!hydratedOnce) return;
+    if (Date.now() < suppressPersistUntil) return;
     const snapshot = buildPersistedSnapshot(state);
     void savePersistedAppState(snapshot).catch(() => {
       useAppStore.setState((cur) => ({

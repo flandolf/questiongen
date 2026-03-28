@@ -726,8 +726,10 @@ function clearLegacyLocalStorage() {
   window.localStorage.removeItem(MC_HISTORY_STORAGE_KEY);
 }
 
+const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+
 function isTauriRuntime() {
-  return typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+  return isTauri;
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

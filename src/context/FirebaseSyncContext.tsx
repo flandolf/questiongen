@@ -40,20 +40,12 @@ export function FirebaseSyncProvider({ children }: { children: React.ReactNode }
       void firebaseSync.forceSync();
     };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        maybeSyncOnExit();
-      }
-    };
-
     window.addEventListener("beforeunload", maybeSyncOnExit);
     window.addEventListener("pagehide", maybeSyncOnExit);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("beforeunload", maybeSyncOnExit);
       window.removeEventListener("pagehide", maybeSyncOnExit);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isHydrated, firebaseSync.user, firebaseSync.isOnline, firebaseSync.isSyncing, firebaseSync.forceSync]);
 

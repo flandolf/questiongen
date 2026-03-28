@@ -283,7 +283,7 @@ export function CompletionScreen({
   }, [questionMode, writtenResults, mcResults]);
 
   return (
-    <Card className="border shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 m-2">
+    <Card className="border shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 m-2 bg-muted/30">
 
       {/* ── Header ── */}
       <CardHeader className="border-b px-5 py-3">
