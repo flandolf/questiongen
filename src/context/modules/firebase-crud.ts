@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   writeBatch,
   setDoc,
+  increment,
 } from "firebase/firestore";
 import { db } from "./firebase-init";
 import { SUBTOPIC_INSTRUCTIONS, type Preset } from "@/types";
@@ -1145,4 +1146,94 @@ export function subscribeToUserData(
       refreshTimer = null;
     }
   };
+}
+
+// ─── Daily usage tracking ────────────────────────────────────────────────────
+
+export interface DailyUsageRecord {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  estimatedCostUsd: number;
+  generationCount: number;
+  questionCount: number;
+}
+
+function getDayKey(date: string | number): string {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export async function saveDailyUsage(
+  userId: string,
+  generationHistory: Array<{
+    timestamp: string;
+    outputs?: {
+      totalTokens?: number;
+      promptTokens?: number;
+      completionTokens?: number;
+      estimatedCostUsd?: number;
+    };
+  }>,
+  questionHistory: Array<{ createdAt: string }>,
+  mcHistory: Array<{ createdAt: string }>,
+): Promise<void> {
+  const byDay = new Map<string, DailyUsageRecord>();
+
+  for (const record of generationHistory) {
+    const day = getDayKey(record.timestamp);
+    const bucket = byDay.get(day) ?? {
+      totalTokens: 0, promptTokens: 0, completionTokens: 0,
+      estimatedCostUsd: 0, generationCount: 0, questionCount: 0,
+    };
+    bucket.totalTokens += record.outputs?.totalTokens ?? 0;
+    bucket.promptTokens += record.outputs?.promptTokens ?? 0;
+    bucket.completionTokens += record.outputs?.completionTokens ?? 0;
+    bucket.estimatedCostUsd += record.outputs?.estimatedCostUsd ?? 0;
+    bucket.generationCount += 1;
+    byDay.set(day, bucket);
+  }
+
+  for (const e of questionHistory) {
+    const day = getDayKey(e.createdAt);
+    const bucket = byDay.get(day) ?? {
+      totalTokens: 0, promptTokens: 0, completionTokens: 0,
+      estimatedCostUsd: 0, generationCount: 0, questionCount: 0,
+    };
+    bucket.questionCount += 1;
+    byDay.set(day, bucket);
+  }
+
+  for (const e of mcHistory) {
+    const day = getDayKey(e.createdAt);
+    const bucket = byDay.get(day) ?? {
+      totalTokens: 0, promptTokens: 0, completionTokens: 0,
+      estimatedCostUsd: 0, generationCount: 0, questionCount: 0,
+    };
+    bucket.questionCount += 1;
+    byDay.set(day, bucket);
+  }
+
+  const usageCollection = collection(db, "users", userId, "usage");
+  const batch = writeBatch(db);
+  let writes = 0;
+
+  for (const [date, record] of byDay) {
+    const docRef = doc(usageCollection, date);
+    batch.set(docRef, {
+      ...record,
+      totalTokens: increment(record.totalTokens),
+      promptTokens: increment(record.promptTokens),
+      completionTokens: increment(record.completionTokens),
+      estimatedCostUsd: increment(record.estimatedCostUsd),
+      generationCount: increment(record.generationCount),
+      questionCount: increment(record.questionCount),
+      _lastModified: serverTimestamp(),
+    }, { merge: true });
+    writes++;
+  }
+
+  if (writes > 0) {
+    await batch.commit();
+  }
 }

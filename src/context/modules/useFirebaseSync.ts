@@ -1,7 +1,7 @@
 import { AppState, useAppStore } from "@/store";
 import { QuestionHistoryEntry, McHistoryEntry, SavedQuestionSet, Preset } from "@/types";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, subscribeToUserData, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems } from "./useFirebase";
+import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, subscribeToUserData, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems, saveDailyUsage } from "./useFirebase";
 
 
 // Helper to normalize remote SyncableData to local SyncableData
@@ -31,6 +31,27 @@ const STORE_CHANGE_THROTTLE_MS = 2000; // Throttle store subscriptions to avoid 
 // Debug log / sync event memory limits
 const DEBUG_LOG_LIMIT = 50;
 const SYNC_EVENT_LIMIT = 30;
+
+// Persist sync-enabled preference so it survives reloads
+const SYNC_ENABLED_STORAGE_KEY = "firebase_sync_enabled";
+
+function readPersistedSyncEnabled(): boolean {
+  try {
+    const stored = localStorage.getItem(SYNC_ENABLED_STORAGE_KEY);
+    if (stored === null) return true; // Default to enabled for new users
+    return stored === "true";
+  } catch {
+    return true;
+  }
+}
+
+function writePersistedSyncEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(SYNC_ENABLED_STORAGE_KEY, String(enabled));
+  } catch {
+    // localStorage unavailable — non-fatal
+  }
+}
 
 // Operation queue for preventing race conditions
 interface QueuedOperation {
@@ -218,7 +239,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isSyncEnabled, setIsSyncEnabled] = useState(false);
+  const [isSyncEnabled, setIsSyncEnabled] = useState(() => readPersistedSyncEnabled());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -311,6 +332,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   // (moved below forceSync definition)
 // (removed duplicate/broken code)
   
+  // Persist isSyncEnabled to localStorage whenever it changes
+  useEffect(() => {
+    writePersistedSyncEnabled(isSyncEnabled);
+  }, [isSyncEnabled]);
+
   useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
       debugLog("Auth changed:", firebaseUser?.uid ?? "null");
@@ -319,6 +345,13 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         setIsSyncEnabled(false);
         isInitializedRef.current = false;
         setSyncStatus("idle");
+      } else {
+        // Auto-enable sync if the user previously had it enabled
+        const persisted = readPersistedSyncEnabled();
+        debugLog("Persisted sync preference:", persisted);
+        if (persisted) {
+          setIsSyncEnabled(true);
+        }
       }
       setIsLoading(false);
     });
@@ -494,7 +527,47 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       }
     };
   }, [user, isSyncEnabled, addSyncEvent, debugLog, enqueueOperation]);
-  
+
+  // ── Daily usage sync ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !isSyncEnabled) return;
+
+    const userId = getUserId(user);
+    let lastSyncedGenCount = 0;
+
+    const syncDailyUsage = async () => {
+      const state = useAppStore.getState();
+      if (!state.isHydrated) return;
+      const genCount = state.generationHistory.length;
+      if (genCount === lastSyncedGenCount) return;
+      lastSyncedGenCount = genCount;
+
+      try {
+        await saveDailyUsage(
+          userId,
+          state.generationHistory,
+          state.questionHistory,
+          state.mcHistory,
+        );
+        debugLog("Daily usage synced to Firestore", { generationCount: genCount });
+      } catch (error) {
+        console.warn("[Firebase] Daily usage sync failed:", error);
+      }
+    };
+
+    // Sync immediately on mount/auth change
+    void syncDailyUsage();
+
+    // Then sync on store changes (debounced by the auto-save mechanism)
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (state.generationHistory.length !== lastSyncedGenCount) {
+        void syncDailyUsage();
+      }
+    });
+
+    return unsubscribe;
+  }, [user, isSyncEnabled, debugLog]);
+
   const enableSync = useCallback(async (email: string, password: string, isSignUp = false) => {
     debugLog("enableSync called", { email, isSignUp });
     setSyncError(null);

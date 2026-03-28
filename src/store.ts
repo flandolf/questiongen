@@ -424,7 +424,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         generationMode: s.preferences.generationMode ?? "practice",
         examTimeLimitMinutes: s.preferences.examTimeLimitMinutes ?? 30,
         subtopicInstructions: s.preferences.subtopicInstructions,
-        aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? false,
+        aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? true,
         difficultyThresholds: s.preferences.difficultyThresholds ?? { increase: 85, decrease: 70 },
 
         // Written session
@@ -462,6 +462,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         isHydrated: true,
         examHistory: s.examHistory ?? [],
         generationHistory: s.generationHistory ?? [],
+        presets: s.presets ?? [],
       });
     } catch {
       set({ errorMessage: "Could not load saved app data.", isHydrated: true });
@@ -918,6 +919,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
     streakData: s.streakData,
     examHistory: s.examHistory,
     generationHistory: s.generationHistory,
+    presets: s.presets,
   };
 }
 

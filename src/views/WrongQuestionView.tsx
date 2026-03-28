@@ -89,9 +89,9 @@ function EmptyState() {
 // ─── List entry card ──────────────────────────────────────────────────────────
 
 function ListEntryCard({
-    entry, index, isExpanded, onToggle, onDelete, srCard,
+    entry, index, isExpanded, onToggle, onDelete, onReattempt, srCard,
 }: {
-    entry: WrongEntry; index: number; isExpanded: boolean; onToggle: () => void; onDelete: () => void;
+    entry: WrongEntry; index: number; isExpanded: boolean; onToggle: () => void; onDelete: () => void; onReattempt: () => void;
     srCard?: SpacedRepetitionCard;
 }) {
     const isWritten = entry.kind === "written";
@@ -169,6 +169,12 @@ function ListEntryCard({
             {isExpanded && (
                 <div className="border-t border-border/40 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
                     {isWritten ? <WrittenExpandedBody entry={entry as WrittenWrongEntry} /> : <McExpandedBody entry={entry as McWrongEntry} />}
+                    <div className="flex justify-end mt-3">
+                        <Button size="sm" variant="outline" className="gap-1.5" onClick={onReattempt}>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reattempt this question
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
@@ -179,12 +185,14 @@ export function VirtualizedWrongList({
     expandedIds,
     onToggle,
     onDelete,
+    onReattempt,
     spacedRepetitionCards,
 }: {
     entries: any[];
     expandedIds: Set<string>;
     onToggle: (id: string) => void;
     onDelete: (entry: any) => void;
+    onReattempt: (entry: any) => void;
     spacedRepetitionCards: Record<string, any>;
 }) {
     const parentRef = useRef<HTMLDivElement>(null);
@@ -226,6 +234,7 @@ export function VirtualizedWrongList({
                                 isExpanded={expandedIds.has(entry.id)}
                                 onToggle={() => onToggle(entry.id)}
                                 onDelete={() => onDelete(entry)}
+                                onReattempt={() => onReattempt(entry)}
                                 srCard={spacedRepetitionCards[entry.id]}
                             />
                         </div>
@@ -704,6 +713,12 @@ export default function WrongQuestionView() {
         setViewMode("reattempt");
     };
 
+    const startSingleReattempt = useCallback((entry: WrongEntry) => {
+        setReattemptQueue([entry]);
+        setReattemptResults(null);
+        setViewMode("reattempt");
+    }, []);
+
     if (viewMode === "reattempt") {
         return (
             <div className="h-full flex flex-col px-3 sm:px-5 py-4">
@@ -863,6 +878,7 @@ export default function WrongQuestionView() {
                                 expandedIds={expandedIds}
                                 onToggle={toggleExpand}
                                 onDelete={handleDelete}
+                                onReattempt={startSingleReattempt}
                                 spacedRepetitionCards={spacedRepetitionCards}
                             />
                         )}

@@ -80,8 +80,6 @@ const PRESET_MODELS = [
   { id: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },
   { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (Free)" },
   { id: "mistralai/mistral-small-2603", name: "Mistral Small 4" },
-  { id: "mistralai/ministral-3b-2512", name: "Mistral Ministral 3B" },
-  { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5" },
   { id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
   { id: "qwen/qwen3.5-flash-02-23", name: "Qwen 3.5 Flash" },
   { id: "arcee-ai/trinity-large-preview:free", name: "Trinity Large (Preview)" },
@@ -388,9 +386,6 @@ function ImageModelSelectRow({ id, value, disabled, apiKey, onSelect, onSearch, 
                 {m.id === "custom" ? m.name : (
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="truncate">{m.name}</span>
-                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 font-semibold leading-none flex items-center gap-0.5">
-                      <Image className="h-2.5 w-2.5" />Vision
-                    </span>
                   </span>
                 )}
               </SelectItem>
