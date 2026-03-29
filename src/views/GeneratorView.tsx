@@ -232,6 +232,7 @@ export function GeneratorView() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const [pendingCancelType, setPendingCancelType] = useState<null | "written" | "mc">(null);
+  const [isSubmittingExam, setIsSubmittingExam] = useState(false);
 
   const [streamText, setStreamText] = useState("");
 
@@ -316,22 +317,40 @@ export function GeneratorView() {
     !activeFeedback;
 
   const completedCount = useMemo(
-    () => questions.filter((q) => feedbackByQuestionId[q.id]).length,
-    [feedbackByQuestionId, questions],
+    () => {
+      if (generationMode === "exam") {
+        // In exam mode, count answered questions (have text or image)
+        return questions.filter((q) => {
+          const answer = answersByQuestionId[q.id]?.trim() ?? "";
+          const image = imagesByQuestionId[q.id];
+          return answer.length > 0 || Boolean(image);
+        }).length;
+      }
+      return questions.filter((q) => feedbackByQuestionId[q.id]).length;
+    },
+    [feedbackByQuestionId, questions, generationMode, answersByQuestionId, imagesByQuestionId],
   );
   const mcCompletedCount = useMemo(
     () => mcQuestions.filter((q) => mcAnswersByQuestionId[q.id]).length,
     [mcAnswersByQuestionId, mcQuestions],
   );
 
-  const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && completedCount === questions.length;
-  const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && mcCompletedCount === mcQuestions.length;
+  const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && (
+    generationMode === "exam"
+      ? showCompletionScreen // In exam mode, set is "complete" when exam is submitted
+      : completedCount === questions.length
+  );
+  const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && (
+    generationMode === "exam"
+      ? showCompletionScreen
+      : mcCompletedCount === mcQuestions.length
+  );
   const isSetComplete = isWrittenSetComplete || isMcSetComplete;
-  const isReviewingCompletedSet = generationMode === "exam" && isSetComplete && !showCompletionScreen && hasShownCompletionScreen;
+  const isReviewingCompletedSet = isSetComplete && !showCompletionScreen && hasShownCompletionScreen;
   const isAtLastWrittenQuestion = activeQuestionIndex === questions.length - 1;
   const isAtLastMcQuestion = activeMcQuestionIndex === mcQuestions.length - 1;
-  const canAdvanceWritten = questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
-  const canAdvanceMc = mcQuestions.length > 0 && (!isAtLastMcQuestion || isMcSetComplete);
+  const canAdvanceWritten = questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete || (generationMode === "exam" && !showCompletionScreen));
+  const canAdvanceMc = mcQuestions.length > 0 && (!isAtLastMcQuestion || isMcSetComplete || (generationMode === "exam" && !showCompletionScreen));
 
   const completionSetKey = useMemo(() => {
     if (questionMode === "written") return questions.map((q) => q.id).join("|");
@@ -384,14 +403,14 @@ export function GeneratorView() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }, [remainingSeconds]);
 
-  // Exam mode: auto-complete when time runs out
+  // Exam mode: auto-submit when time runs out
   useEffect(() => {
     if (generationMode !== "exam") return;
     if (!activeTimer.sessionElapsedSeconds && activeTimer.sessionElapsedSeconds !== 0) return;
     if (showCompletionScreen || isSetComplete) return;
     if (activeTimer.sessionRemainingSeconds > 0) return;
-    activeTimer.finishSession();
-    setShowCompletionScreen(true);
+    // Time's up — force-submit the exam (marks all answers)
+    handleSubmitExam();
   }, [generationMode, activeTimer.sessionRemainingSeconds, isSetComplete, showCompletionScreen]);
 
   // --- Timer bar context (for header display) ---
@@ -555,22 +574,91 @@ export function GeneratorView() {
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
     if (isAtLastWrittenQuestion) {
-      writtenTimer.finishSession();
-      setShowCompletionScreen(true);
+      if (generationMode === "exam") {
+        // In exam mode, show completion screen without marking — student submits exam manually
+        setShowCompletionScreen(true);
+      } else {
+        writtenTimer.finishSession();
+        setShowCompletionScreen(true);
+      }
       return;
     }
     setActiveQuestionIndex(Math.min(questions.length - 1, activeQuestionIndex + 1));
-  }, [canAdvanceWritten, isAtLastWrittenQuestion, questions.length, activeQuestionIndex, setActiveQuestionIndex, writtenTimer]);
+  }, [canAdvanceWritten, isAtLastWrittenQuestion, questions.length, activeQuestionIndex, setActiveQuestionIndex, writtenTimer, generationMode]);
 
   const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
     if (isAtLastMcQuestion) {
-      mcTimer.finishSession();
-      setShowCompletionScreen(true);
+      if (generationMode === "exam") {
+        setShowCompletionScreen(true);
+      } else {
+        mcTimer.finishSession();
+        setShowCompletionScreen(true);
+      }
       return;
     }
     setActiveMcQuestionIndex(Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1));
-  }, [canAdvanceMc, isAtLastMcQuestion, mcQuestions.length, activeMcQuestionIndex, setActiveMcQuestionIndex, mcTimer]);
+  }, [canAdvanceMc, isAtLastMcQuestion, mcQuestions.length, activeMcQuestionIndex, setActiveMcQuestionIndex, mcTimer, generationMode]);
+
+  // ── Exam submission: mark all answers at once ─────────────────────────────────
+  async function handleSubmitExam() {
+    if (generationMode !== "exam") return;
+    setIsSubmittingExam(true);
+    setErrorMessage(null);
+
+    try {
+      if (questionMode === "written") {
+        // Mark all unmarked written answers
+        const unmarkedQuestions = questions.filter((q) => !feedbackByQuestionId[q.id]);
+        if (unmarkedQuestions.length > 0) {
+          const items = unmarkedQuestions
+            .filter((q) => {
+              const answer = answersByQuestionId[q.id]?.trim() ?? "";
+              const image = imagesByQuestionId[q.id];
+              return answer.length > 0 || Boolean(image?.dataUrl);
+            })
+            .map((q) => ({
+              question: q,
+              studentAnswer: answersByQuestionId[q.id] ?? "",
+              studentAnswerImageDataUrl: imagesByQuestionId[q.id]?.dataUrl,
+              model: markModel,
+              apiKey,
+            }));
+
+          if (items.length > 0) {
+            const response = await invoke<{ results: Array<{ questionId: string; response: unknown; error: string | null }> }>("batch_mark_answers", { request: { items } });
+            for (const item of response.results) {
+              if (item.response) {
+                const q = questions.find((q) => q.id === item.questionId);
+                const maxMarks = q?.maxMarks ?? 10;
+                const normalized = normalizeMarkResponse(item.response, maxMarks);
+                setFeedbackByQuestionId((prev) => ({ ...prev, [item.questionId]: normalized }));
+                setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [item.questionId]: String(normalized.achievedMarks) }));
+              }
+            }
+          }
+        }
+      } else {
+        // MC mode: compute awarded marks for any unanswered questions (they get 0)
+        for (const q of mcQuestions) {
+          if (mcAwardedMarksByQuestionId[q.id] === undefined) {
+            const sel = mcAnswersByQuestionId[q.id];
+            const awarded = sel === q.correctAnswer ? 1 : 0;
+            setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [q.id]: awarded }));
+            setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [q.id]: String(awarded) }));
+          }
+        }
+      }
+
+      writtenTimer.finishSession();
+      mcTimer.finishSession();
+      setShowCompletionScreen(true);
+    } catch (error) {
+      setErrorMessage(readBackendError(error));
+    } finally {
+      setIsSubmittingExam(false);
+    }
+  }
 
   const isInSession = !showSetup && !showCompletionScreen;
   function dismissKeyboardHint() {
@@ -1368,7 +1456,11 @@ export function GeneratorView() {
   startOverRef.current = handleStartOver;
 
   useEffect(() => {
-    if (generationMode !== "exam" || !showCompletionScreen || !isSetComplete || examRecordSaved) return;
+    if (generationMode !== "exam" || !showCompletionScreen || examRecordSaved) return;
+    // In exam mode, we save the record even if not all questions are "complete" (feedback exists)
+    // because answers are marked at submission time
+    if (questionMode === "written" && questions.length === 0) return;
+    if (questionMode === "multiple-choice" && mcQuestions.length === 0) return;
 
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
@@ -1566,7 +1658,7 @@ export function GeneratorView() {
         />
 
         /* ── Completion ── */
-      ) : showCompletionScreen && isSetComplete ? (
+      ) : showCompletionScreen && (isSetComplete || generationMode === "exam") ? (
         <CompletionScreen
           questionMode={questionMode}
           difficulty={difficulty}
@@ -1621,6 +1713,8 @@ export function GeneratorView() {
             onNext={handleNextWrittenQuestion}
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
+            onSubmitExam={handleSubmitExam}
+            isSubmittingExam={isSubmittingExam}
             generationMode={generationMode}
             formattedCountdownTime={formattedCountdownTime}
             remainingSeconds={remainingSeconds}
@@ -1648,7 +1742,7 @@ export function GeneratorView() {
                   onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
                   isQuestionExpired={writtenTimer.isQuestionExpired}
                   generationMode={generationMode}
-                  isSubmitDisabled={writtenTimer.isQuestionExpired && generationMode === "exam"}
+                  isSubmitDisabled={false}
                 />
                 {!activeFeedback ? (
                   <WrittenAnswerCard
@@ -1703,6 +1797,8 @@ export function GeneratorView() {
             onNext={handleNextMcQuestion}
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
+            onSubmitExam={handleSubmitExam}
+            isSubmittingExam={isSubmittingExam}
             generationMode={generationMode}
             formattedCountdownTime={formattedCountdownTime}
             remainingSeconds={remainingSeconds}
@@ -1730,7 +1826,7 @@ export function GeneratorView() {
                   onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
                   isQuestionExpired={mcTimer.isQuestionExpired}
                   generationMode={generationMode}
-                  isSubmitDisabled={mcTimer.isQuestionExpired && generationMode === "exam"}
+                  isSubmitDisabled={false}
                 />
                 {countWords(activeMcQuestion.explanationMarkdown) > MC_MAX_EXPLANATION_WORDS && (
                   <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-lg px-4 py-2 mb-2 text-sm">

@@ -78,8 +78,8 @@ export const WrittenQuestionCard = memo(function WrittenQuestionCard({
           </div>
         </div>
       )}
-      {/* Time Expired overlay */}
-      {isQuestionExpired && generationMode === "exam" && (
+      {/* Time Expired overlay — only in practice mode, never in exam mode */}
+      {isQuestionExpired && generationMode !== "exam" && (
         <div className="absolute inset-0 flex items-center justify-center bg-rose-600/80 text-white font-bold text-lg rounded-xl z-20">
           <span className="flex items-center gap-2"><span className="material-icons">lock</span> Time Expired</span>
         </div>

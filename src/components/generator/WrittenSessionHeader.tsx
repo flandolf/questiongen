@@ -26,6 +26,8 @@ type WrittenSessionHeaderProps = {
   onDelete: () => void;
   onExit: () => void;
   onRegenerate?: () => void;
+  onSubmitExam?: () => void;
+  isSubmittingExam?: boolean;
   generationMode?: GenerationMode;
   formattedCountdownTime?: string;
   remainingSeconds?: number;
@@ -40,6 +42,8 @@ export function WrittenSessionHeader({
   getDifficultyBadgeClasses,
   onPrev, onNext, onDelete, onExit,
   onRegenerate,
+  onSubmitExam,
+  isSubmittingExam,
   generationMode = "practice",
   formattedCountdownTime,
   remainingSeconds,
@@ -205,8 +209,8 @@ export function WrittenSessionHeader({
               <Button variant="outline" size="sm" onClick={onPrev} disabled={questionIndex === 0} className="h-9 w-9 p-0 rounded-full">
                 <ArrowLeft className="w-3.5 h-3.5" />
               </Button>
-              <Button variant={isAtLast && canAdvance ? "default" : "secondary"} size="sm" onClick={onNext} disabled={!canAdvance} className="h-9 rounded-full px-4 gap-1.5 shadow-sm">
-                <span>{isAtLast ? "Complete" : "Next"}</span>
+              <Button variant={isAtLast && canAdvance ? "default" : "secondary"} size="sm" onClick={isExam && isAtLast && onSubmitExam ? onSubmitExam : onNext} disabled={!canAdvance || isSubmittingExam} className="h-9 rounded-full px-4 gap-1.5 shadow-sm">
+                <span>{isExam && isAtLast ? (isSubmittingExam ? "Submitting..." : "Submit Exam") : isAtLast ? "Complete" : "Next"}</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>

@@ -63,7 +63,6 @@ use parsing::{
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
 
-
 // ─── Response format schemas ──────────────────────────────────────────────────
 
 fn written_format() -> serde_json::Value {
@@ -357,7 +356,7 @@ fn mc_system() -> String {
 /// Limits scale with `max_marks` so a 10-mark question gets generous space for a
 /// worked solution while a 1-mark question stays concise. The minimum ensures the
 /// model always has enough room for a useful response.
-fn marking_system(max_marks: u8, chem_note: &str) -> String {
+fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String {
     // Scale word limits by marks, with sensible floors.
     let worked_words = (max_marks as usize * 200).max(500).min(2000);
     let comparison_words = (max_marks as usize * 60).max(200).min(800);
@@ -401,6 +400,7 @@ report specifies partial credit rules, apply them consistently.\n\
          - Keep exemplar focused on the key steps or reasoning required for full credit.\n\
         \n\
         {LATEX_RULES}{chem_note}\n\n\
+        {phys_ed_note}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
              \"verdict\": string,\n\
@@ -433,6 +433,8 @@ for correct: why it is right)\n\
         comparison_words = comparison_words,
         feedback_words = feedback_words,
         worked_words = worked_words,
+        chem_note = chem_note,
+         phys_ed_note = phys_ed_note
     )
 }
 
@@ -655,10 +657,7 @@ fn resolve_exam_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathB
 /// Build exam PDF file parts for inclusion in the user message.
 /// Returns data-URL encoded file objects that OpenRouter's file-parser plugin
 /// will process based on the model's native file support.
-fn build_exam_file_parts(
-    app: &tauri::AppHandle,
-    topics: &[String],
-) -> Vec<serde_json::Value> {
+fn build_exam_file_parts(app: &tauri::AppHandle, topics: &[String]) -> Vec<serde_json::Value> {
     let mut parts = Vec::new();
     for filename in exam_pdf_names_for_topics(topics) {
         let Some(path) = resolve_exam_pdf_path(app, filename) else {
@@ -688,9 +687,15 @@ fn topic_report_pdf_files(topic: &str) -> &'static [&'static str] {
         .trim()
         .eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)
     {
-        &["2025-MathematicalMethods1-report.pdf", "2025-MathematicalMethods2-report_0.pdf"]
+        &[
+            "2025-MathematicalMethods1-report.pdf",
+            "2025-MathematicalMethods2-report_0.pdf",
+        ]
     } else if topic.trim().eq_ignore_ascii_case("Specialist Mathematics") {
-        &["2025-SpecialistMaths1-report.pdf", "2025-SpecialistMaths2-report.pdf"]
+        &[
+            "2025-SpecialistMaths1-report.pdf",
+            "2025-SpecialistMaths2-report.pdf",
+        ]
     } else if topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC) {
         &["2025-Chemistry-report.pdf"]
     } else if topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC) {
@@ -740,10 +745,7 @@ fn resolve_report_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<Pat
 /// Build report PDF file parts for inclusion in the user message.
 /// Returns data-URL encoded file objects that OpenRouter's file-parser plugin
 /// will process based on the model's native file support.
-fn build_report_file_parts(
-    app: &tauri::AppHandle,
-    topics: &[String],
-) -> Vec<serde_json::Value> {
+fn build_report_file_parts(app: &tauri::AppHandle, topics: &[String]) -> Vec<serde_json::Value> {
     let mut parts = Vec::new();
     for filename in report_pdf_names_for_topics(topics) {
         let Some(path) = resolve_report_pdf_path(app, filename) else {
@@ -962,7 +964,10 @@ async fn generate_questions(
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
-    let supports_files = stats_result.as_ref().ok().map_or(false, |s| s.supports_files);
+    let supports_files = stats_result
+        .as_ref()
+        .ok()
+        .map_or(false, |s| s.supports_files);
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
@@ -1189,7 +1194,10 @@ async fn generate_mc_questions(
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
-    let supports_files = stats_result.as_ref().ok().map_or(false, |s| s.supports_files);
+    let supports_files = stats_result
+        .as_ref()
+        .ok()
+        .map_or(false, |s| s.supports_files);
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
@@ -1304,7 +1312,10 @@ async fn generate_mc_questions(
 // ─── Tauri command: mark answer ───────────────────────────────────────────────
 
 #[tauri::command]
-async fn mark_answer(app: tauri::AppHandle, request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
+async fn mark_answer(
+    app: tauri::AppHandle,
+    request: MarkAnswerRequest,
+) -> CommandResult<MarkAnswerResponse> {
     let has_text = !request.student_answer.trim().is_empty();
     let has_image = request
         .student_answer_image_data_url
@@ -1348,6 +1359,23 @@ async fn mark_answer(app: tauri::AppHandle, request: MarkAnswerRequest) -> Comma
         .eq_ignore_ascii_case(CHEMISTRY_TOPIC);
     let chem_note = if is_chem {
         CHEMISTRY_LATEX_GUIDANCE
+    } else {
+        ""
+    };
+
+    let is_pe = request
+        .question
+        .topic
+        .trim()
+        .eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC);
+    let pe_note = if is_pe {
+        " For Physical Education questions, consider the specific demands of the question when awarding marks for partial working. \
+         For example, if a question asks for an evaluation of a training program's effectiveness and the student provides a justified evaluation but omits some supporting evidence, you may award partial marks for the evaluation itself while noting the missing evidence in your feedback.\
+         Always align your marking with the VCAA's criterion-based approach, focusing on the quality of the response rather than penalising for missing steps when the student's reasoning is sound.
+         Furthermore, do not use the absence of working as a reason to deny marks for a correct final answer if the question's command term does not explicitly require working.\
+         In Physical Education, the emphasis is often on the quality of the analysis and evaluation, so consider awarding marks for well-reasoned answers even if some supporting working is not shown, as long as the student's understanding of the concepts is evident.
+         The use of precise formulas and calculations is less central in Physical Education compared to Mathematics, so focus on the student's ability to apply concepts and reasoning to the question rather than strictly penalising for missing mathematical working.
+         For the exemplar answer / feedback, avoid using formulas or calculations as the primary basis for awarding marks. Instead, focus on the quality of the evaluation, the justification provided, and the student's understanding of the concepts when determining how to allocate marks."
     } else {
         ""
     };
@@ -1432,7 +1460,10 @@ async fn mark_answer(app: tauri::AppHandle, request: MarkAnswerRequest) -> Comma
     let plugins = if has_reports {
         // Determine model file support for plugin configuration.
         let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
-        let supports_files = stats_result.as_ref().ok().map_or(false, |s| s.supports_files);
+        let supports_files = stats_result
+            .as_ref()
+            .ok()
+            .map_or(false, |s| s.supports_files);
         plugins_for_model(supports_files)
     } else {
         serde_json::json!([{ "id": "response-healing" }])
@@ -1441,7 +1472,7 @@ async fn mark_answer(app: tauri::AppHandle, request: MarkAnswerRequest) -> Comma
     let result = call_openrouter_with_plugins(
         &request.api_key,
         &request.model,
-        &marking_system(max_marks, chem_note),
+        &marking_system(max_marks, chem_note, pe_note),
         user_content,
         &marking_format(),
         max_tokens,
@@ -1508,6 +1539,41 @@ async fn mark_answer(app: tauri::AppHandle, request: MarkAnswerRequest) -> Comma
     parsed.total_tokens = result.total_tokens;
 
     Ok(parsed)
+}
+
+// ─── Tauri command: batch mark answers ──────────────────────────────────────
+
+#[tauri::command]
+async fn batch_mark_answers(
+    app: tauri::AppHandle,
+    request: BatchMarkRequest,
+) -> CommandResult<BatchMarkResponse> {
+    use futures_util::stream::{self, StreamExt};
+
+    let results: Vec<BatchMarkItem> = stream::iter(request.items)
+        .map(|item| {
+            let app = app.clone();
+            async move {
+                let question_id = item.question.id.clone();
+                match mark_answer(app, item).await {
+                    Ok(response) => BatchMarkItem {
+                        question_id,
+                        response: Some(response),
+                        error: None,
+                    },
+                    Err(e) => BatchMarkItem {
+                        question_id,
+                        response: None,
+                        error: Some(e.message),
+                    },
+                }
+            }
+        })
+        .buffer_unordered(4)
+        .collect()
+        .await;
+
+    Ok(BatchMarkResponse { results })
 }
 
 // ─── Tauri command: analyze image ────────────────────────────────────────────
@@ -1876,9 +1942,7 @@ async fn batch_cleanup(
 // ─── Tauri command: cleanup topics only ───────────────────────────────────────
 
 #[tauri::command]
-async fn cleanup_topics(
-    request: CleanupTopicsRequest,
-) -> CommandResult<CleanupTopicsResponse> {
+async fn cleanup_topics(request: CleanupTopicsRequest) -> CommandResult<CleanupTopicsResponse> {
     if request.api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
@@ -1963,7 +2027,8 @@ pub fn run() {
                 let ctx = ndk_context::android_context();
                 let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
                     .expect("failed to obtain JavaVM from Android context");
-                let mut env = vm.attach_current_thread()
+                let mut env = vm
+                    .attach_current_thread()
                     .expect("failed to attach current thread to JavaVM");
                 let context = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
                 rustls_platform_verifier::android::init_with_env(&mut env, context)
@@ -1977,6 +2042,7 @@ pub fn run() {
             save_persisted_state,
             generate_questions,
             mark_answer,
+            batch_mark_answers,
             analyze_image,
             generate_mc_questions,
             get_model_stats,
@@ -2074,12 +2140,11 @@ mod tests {
     #[test]
     fn marking_system_scales_word_limits_with_marks() {
         // 1-mark question should hit the floors
-        let sys_1 = marking_system(1, "");
+        let sys_1 = marking_system(1, "", "");
         assert!(sys_1.contains("≤150 words"));
 
         // 10-mark question should have generous limits
-        let sys_10 = marking_system(10, "");
+        let sys_10 = marking_system(10, "", "");
         assert!(sys_10.contains("≤600 words"));
     }
-    
 }

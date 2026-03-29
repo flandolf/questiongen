@@ -295,7 +295,7 @@ export function useQuestionTimer(
   const formattedBank = formatTime(Math.abs(bankedSeconds));
   const bankStatus = bankedSeconds > 0 ? "ahead" : bankedSeconds < 0 ? "behind" : "on-pace";
   const isQuestionExpired = !!qTiming?.isExpired;
-  const shouldAutoAdvance = isQuestionExpired && mode === "exam";
+  const shouldAutoAdvance = false; // Never auto-advance in exam mode — questions are guides only
 
   // Session elapsed time accounts for pauses via pausedDurationMs + current active pause
   const effectivePausedMs = getEffectivePausedMs(timerState);
