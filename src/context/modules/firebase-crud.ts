@@ -11,9 +11,9 @@ import {
   setDoc,
   deleteDoc,
   increment,
-} from "firebase/firestore";
-import { db } from "./firebase-init";
-import { SUBTOPIC_INSTRUCTIONS, type Preset } from "@/types";
+} from 'firebase/firestore';
+import { db } from './firebase-init';
+import { SUBTOPIC_INSTRUCTIONS, type Preset } from '@/types';
 
 export interface SyncableData {
   settings: Record<string, unknown>;
@@ -50,28 +50,38 @@ const DEFAULT_SYNC_METADATA: SyncMetadata = {
 };
 
 export function createInitialSyncMetadata(): SyncMetadata {
-  return { ...DEFAULT_SYNC_METADATA, lastSyncVersions: { questionHistory: {}, mcHistory: {}, savedSets: {} } };
+  return {
+    ...DEFAULT_SYNC_METADATA,
+    lastSyncVersions: { questionHistory: {}, mcHistory: {}, savedSets: {} },
+  };
 }
 
 function getItemLastModified(item: Record<string, unknown>): number {
-  if (typeof item.lastModified === "number" && Number.isFinite(item.lastModified)) {
+  if (
+    typeof item.lastModified === 'number' &&
+    Number.isFinite(item.lastModified)
+  ) {
     return item.lastModified;
   }
-  if (typeof item.updatedAt === "string") {
+  if (typeof item.updatedAt === 'string') {
     const parsed = Date.parse(item.updatedAt);
     if (Number.isFinite(parsed)) return parsed;
   }
-  if (typeof item.createdAt === "string") {
+  if (typeof item.createdAt === 'string') {
     const parsed = Date.parse(item.createdAt);
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
 }
 
-export function getChangedItems<T extends { id?: string; lastModified?: number; updatedAt?: string; createdAt?: string }>(
-  items: T[],
-  lastSyncVersions: Record<string, number>
-): T[] {
+export function getChangedItems<
+  T extends {
+    id?: string;
+    lastModified?: number;
+    updatedAt?: string;
+    createdAt?: string;
+  },
+>(items: T[], lastSyncVersions: Record<string, number>): T[] {
   return items.filter((item) => {
     if (!item.id) return false;
     const itemModified = getItemLastModified(item as Record<string, unknown>);
@@ -102,7 +112,14 @@ export function getDeltaItems<T extends { id?: string }>(
   return { changed, unchanged };
 }
 
-export function buildVersionMap<T extends { id?: string; lastModified?: number; updatedAt?: string; createdAt?: string }>(
+export function buildVersionMap<
+  T extends {
+    id?: string;
+    lastModified?: number;
+    updatedAt?: string;
+    createdAt?: string;
+  },
+>(
   items: T[],
   existingVersions: Record<string, number>
 ): Record<string, number> {
@@ -125,19 +142,22 @@ export interface CompactionMigrationResult {
 }
 
 function getUserSettingsRef(userId: string) {
-  return doc(db, "users", userId, "settings", "main");
+  return doc(db, 'users', userId, 'settings', 'main');
 }
 
 function getUserPresetsRef(userId: string) {
-  return doc(db, "users", userId, "settings", "presets");
+  return doc(db, 'users', userId, 'settings', 'presets');
 }
 
-function getHistoryCollectionRef(userId: string, type: "questionHistory" | "mcHistory") {
-  return collection(db, "users", userId, type);
+function getHistoryCollectionRef(
+  userId: string,
+  type: 'questionHistory' | 'mcHistory'
+) {
+  return collection(db, 'users', userId, type);
 }
 
 function getSavedSetsCollectionRef(userId: string) {
-  return collection(db, "users", userId, "savedSets");
+  return collection(db, 'users', userId, 'savedSets');
 }
 
 function removeUndefined(obj: unknown): unknown {
@@ -146,7 +166,7 @@ function removeUndefined(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     return obj.map(removeUndefined);
   }
-  if (typeof obj === "object") {
+  if (typeof obj === 'object') {
     const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       const cleanedValue = removeUndefined(value);
@@ -163,7 +183,11 @@ const FIRESTORE_OP_TIMEOUT_MS = 60000;
 const FIRESTORE_DOC_SAFE_BYTES = 950_000;
 const CLOUD_COMPACTION_VERSION = 1;
 
-async function withTimeout<T>(operation: Promise<T>, label: string, timeoutMs = FIRESTORE_OP_TIMEOUT_MS): Promise<T> {
+async function withTimeout<T>(
+  operation: Promise<T>,
+  label: string,
+  timeoutMs = FIRESTORE_OP_TIMEOUT_MS
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       reject(new Error(`Timed out while ${label} after ${timeoutMs}ms`));
@@ -189,9 +213,15 @@ function isRetryableError(error: unknown): boolean {
   if (!(error instanceof Error)) return true;
   const message = error.message.toLowerCase();
   const retryablePatterns = [
-    "network", "timeout", "timed out", "unavailable",
-    "deadline exceeded", "internal error", "aborted",
-    "failed to fetch", "fetch failed",
+    'network',
+    'timeout',
+    'timed out',
+    'unavailable',
+    'deadline exceeded',
+    'internal error',
+    'aborted',
+    'failed to fetch',
+    'fetch failed',
   ];
   return retryablePatterns.some((pattern) => message.includes(pattern));
 }
@@ -199,7 +229,7 @@ function isRetryableError(error: unknown): boolean {
 async function withRetry<T>(
   operation: () => Promise<T>,
   label: string,
-  maxAttempts = FIRESTORE_RETRY_MAX_ATTEMPTS,
+  maxAttempts = FIRESTORE_RETRY_MAX_ATTEMPTS
 ): Promise<T> {
   let lastError: unknown;
 
@@ -214,11 +244,11 @@ async function withRetry<T>(
       const jitter = Math.random() * 500;
       const exponentialDelay = Math.min(
         FIRESTORE_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1) + jitter,
-        FIRESTORE_RETRY_MAX_DELAY_MS,
+        FIRESTORE_RETRY_MAX_DELAY_MS
       );
       console.warn(
         `[Firebase] ${label} failed on attempt ${attempt}/${maxAttempts}, retrying in ${Math.round(exponentialDelay)}ms`,
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : error
       );
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, exponentialDelay);
@@ -236,28 +266,33 @@ export interface DeltaSyncResult {
 
 export async function getDeltaSyncData(
   userId: string,
-  localData: SyncableData,
+  localData: SyncableData
 ): Promise<DeltaSyncResult> {
   const changedItems: string[] = [];
   let totalChecked = 0;
 
   const checkCollection = async (
-    type: "questionHistory" | "mcHistory" | "savedSets",
+    type: 'questionHistory' | 'mcHistory' | 'savedSets'
   ) => {
     const localItems = localData[type] as Record<string, unknown>[];
     if (!localItems?.length) return;
 
-    const collectionRef = type === "savedSets"
-      ? getSavedSetsCollectionRef(userId)
-      : getHistoryCollectionRef(userId, type);
+    const collectionRef =
+      type === 'savedSets'
+        ? getSavedSetsCollectionRef(userId)
+        : getHistoryCollectionRef(userId, type);
 
     const localIdToModified = new Map<string, number>();
     for (const item of localItems) {
-      if (typeof item.id === "string") {
-        const lastMod = typeof item.lastModified === "number" ? item.lastModified
-          : typeof item.updatedAt === "string" ? Date.parse(item.updatedAt)
-          : typeof item.createdAt === "string" ? Date.parse(item.createdAt)
-          : 0;
+      if (typeof item.id === 'string') {
+        const lastMod =
+          typeof item.lastModified === 'number'
+            ? item.lastModified
+            : typeof item.updatedAt === 'string'
+              ? Date.parse(item.updatedAt)
+              : typeof item.createdAt === 'string'
+                ? Date.parse(item.createdAt)
+                : 0;
         localIdToModified.set(item.id, lastMod);
       }
     }
@@ -267,7 +302,7 @@ export async function getDeltaSyncData(
       const snapshot = await withTimeout(
         getDocs(query(collectionRef, limit(500))),
         `checking delta for ${type}`,
-        30000,
+        30000
       );
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -275,10 +310,12 @@ export async function getDeltaSyncData(
         remoteIds.add(remoteId);
         totalChecked++;
 
-        const remoteLastMod = typeof data._lastModified === "object" && data._lastModified?.toMillis
-          ? data._lastModified.toMillis()
-          : typeof data.lastModified === "number" ? data.lastModified
-          : 0;
+        const remoteLastMod =
+          typeof data._lastModified === 'object' && data._lastModified?.toMillis
+            ? data._lastModified.toMillis()
+            : typeof data.lastModified === 'number'
+              ? data.lastModified
+              : 0;
 
         const localLastMod = localIdToModified.get(remoteId) ?? 0;
         if (remoteLastMod > localLastMod) {
@@ -297,9 +334,9 @@ export async function getDeltaSyncData(
   };
 
   await Promise.all([
-    checkCollection("questionHistory"),
-    checkCollection("mcHistory"),
-    checkCollection("savedSets"),
+    checkCollection('questionHistory'),
+    checkCollection('mcHistory'),
+    checkCollection('savedSets'),
   ]);
 
   return { changedItems, totalChecked };
@@ -314,20 +351,22 @@ function estimateDocSizeBytes(value: unknown): number {
 }
 
 function clipString(value: unknown, max = 20_000): string {
-  if (typeof value !== "string") {
-    return "";
+  if (typeof value !== 'string') {
+    return '';
   }
   return value.length > max ? value.slice(0, max) : value;
 }
 
-function compactSubtopicInstructions(raw: unknown): Record<string, string> | undefined {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+function compactSubtopicInstructions(
+  raw: unknown
+): Record<string, string> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return undefined;
   }
 
   const next: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value !== "string") continue;
+    if (typeof value !== 'string') continue;
     const trimmedKey = key.trim();
     const trimmedValue = value.trim();
     if (!trimmedKey || !trimmedValue) continue;
@@ -339,11 +378,11 @@ function compactSubtopicInstructions(raw: unknown): Record<string, string> | und
 
 function expandSubtopicInstructions(raw: unknown): Record<string, string> {
   const merged: Record<string, string> = { ...SUBTOPIC_INSTRUCTIONS };
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return merged;
   }
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value !== "string") continue;
+    if (typeof value !== 'string') continue;
     const trimmedKey = key.trim();
     const trimmedValue = value.trim();
     if (!trimmedKey || !trimmedValue) continue;
@@ -352,11 +391,15 @@ function expandSubtopicInstructions(raw: unknown): Record<string, string> {
   return merged;
 }
 
-function compactQuestionHistoryEntry(rawItem: Record<string, unknown>): Record<string, unknown> {
+function compactQuestionHistoryEntry(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> {
   const compacted = removeUndefined(rawItem) as Record<string, unknown>;
-  const markResponse = typeof compacted.markResponse === "object" && compacted.markResponse !== null
-    ? (compacted.markResponse as Record<string, unknown>)
-    : {};
+  const markResponse =
+    typeof compacted.markResponse === 'object' &&
+    compacted.markResponse !== null
+      ? (compacted.markResponse as Record<string, unknown>)
+      : {};
 
   return {
     id: compacted.id,
@@ -364,27 +407,39 @@ function compactQuestionHistoryEntry(rawItem: Record<string, unknown>): Record<s
     lastModified: compacted.lastModified,
     question: compacted.question,
     uploadedAnswer: clipString(compacted.uploadedAnswer, 20_000),
-    workedSolutionMarkdown: clipString(compacted.workedSolutionMarkdown, 20_000),
+    workedSolutionMarkdown: clipString(
+      compacted.workedSolutionMarkdown,
+      20_000
+    ),
     markResponse: {
       verdict: markResponse.verdict,
       achievedMarks: markResponse.achievedMarks,
       maxMarks: markResponse.maxMarks,
       scoreOutOf10: markResponse.scoreOutOf10,
       vcaaMarkingScheme: markResponse.vcaaMarkingScheme,
-      comparisonToSolutionMarkdown: clipString(markResponse.comparisonToSolutionMarkdown, 20_000),
+      comparisonToSolutionMarkdown: clipString(
+        markResponse.comparisonToSolutionMarkdown,
+        20_000
+      ),
       feedbackMarkdown: clipString(markResponse.feedbackMarkdown, 20_000),
-      workedSolutionMarkdown: clipString(markResponse.workedSolutionMarkdown, 20_000),
+      workedSolutionMarkdown: clipString(
+        markResponse.workedSolutionMarkdown,
+        20_000
+      ),
     },
     generationTelemetry: compacted.generationTelemetry,
     analytics: compacted.analytics,
   };
 }
 
-function compactMcHistoryEntry(rawItem: Record<string, unknown>): Record<string, unknown> {
+function compactMcHistoryEntry(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> {
   const compacted = removeUndefined(rawItem) as Record<string, unknown>;
-  const question = typeof compacted.question === "object" && compacted.question !== null
-    ? (compacted.question as Record<string, unknown>)
-    : null;
+  const question =
+    typeof compacted.question === 'object' && compacted.question !== null
+      ? (compacted.question as Record<string, unknown>)
+      : null;
 
   return {
     type: compacted.type,
@@ -407,15 +462,19 @@ function compactMcHistoryEntry(rawItem: Record<string, unknown>): Record<string,
   };
 }
 
-function compactSavedSet(rawItem: Record<string, unknown>): Record<string, unknown> {
+function compactSavedSet(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> {
   const compacted = removeUndefined(rawItem) as Record<string, unknown>;
   const preferences =
-    typeof compacted.preferences === "object" && compacted.preferences !== null
+    typeof compacted.preferences === 'object' && compacted.preferences !== null
       ? { ...(compacted.preferences as Record<string, unknown>) }
       : undefined;
 
   if (preferences) {
-    const compactInstructions = compactSubtopicInstructions(preferences.subtopicInstructions);
+    const compactInstructions = compactSubtopicInstructions(
+      preferences.subtopicInstructions
+    );
     if (compactInstructions) {
       preferences.subtopicInstructions = compactInstructions;
     } else {
@@ -424,20 +483,21 @@ function compactSavedSet(rawItem: Record<string, unknown>): Record<string, unkno
   }
 
   const writtenSession =
-    typeof compacted.writtenSession === "object" && compacted.writtenSession !== null
+    typeof compacted.writtenSession === 'object' &&
+    compacted.writtenSession !== null
       ? {
           ...(compacted.writtenSession as Record<string, unknown>),
-          rawModelOutput: "",
+          rawModelOutput: '',
           imagesByQuestionId: {},
           feedbackByQuestionId: {},
         }
       : undefined;
 
   const mcSession =
-    typeof compacted.mcSession === "object" && compacted.mcSession !== null
+    typeof compacted.mcSession === 'object' && compacted.mcSession !== null
       ? {
           ...(compacted.mcSession as Record<string, unknown>),
-          rawModelOutput: "",
+          rawModelOutput: '',
         }
       : undefined;
 
@@ -454,33 +514,45 @@ function compactSavedSet(rawItem: Record<string, unknown>): Record<string, unkno
   };
 }
 
-function inflateSavedSet(rawItem: Record<string, unknown>): Record<string, unknown> {
+function inflateSavedSet(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> {
   const copy = { ...rawItem };
-  if (typeof copy.preferences === "object" && copy.preferences !== null) {
+  if (typeof copy.preferences === 'object' && copy.preferences !== null) {
     const preferences = { ...(copy.preferences as Record<string, unknown>) };
-    preferences.subtopicInstructions = expandSubtopicInstructions(preferences.subtopicInstructions);
+    preferences.subtopicInstructions = expandSubtopicInstructions(
+      preferences.subtopicInstructions
+    );
     copy.preferences = preferences;
   }
   return copy;
 }
 
-function prepareSavedSetForFirestore(rawItem: Record<string, unknown>): Record<string, unknown> | null {
+function prepareSavedSetForFirestore(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> | null {
   const cleaned = removeUndefined(rawItem) as Record<string, unknown>;
   if (estimateDocSizeBytes(cleaned) <= FIRESTORE_DOC_SAFE_BYTES) {
     return cleaned;
   }
 
   const removeRawOutputs = { ...cleaned };
-  if (typeof removeRawOutputs.writtenSession === "object" && removeRawOutputs.writtenSession !== null) {
+  if (
+    typeof removeRawOutputs.writtenSession === 'object' &&
+    removeRawOutputs.writtenSession !== null
+  ) {
     removeRawOutputs.writtenSession = {
       ...(removeRawOutputs.writtenSession as Record<string, unknown>),
-      rawModelOutput: "",
+      rawModelOutput: '',
     };
   }
-  if (typeof removeRawOutputs.mcSession === "object" && removeRawOutputs.mcSession !== null) {
+  if (
+    typeof removeRawOutputs.mcSession === 'object' &&
+    removeRawOutputs.mcSession !== null
+  ) {
     removeRawOutputs.mcSession = {
       ...(removeRawOutputs.mcSession as Record<string, unknown>),
-      rawModelOutput: "",
+      rawModelOutput: '',
     };
   }
   if (estimateDocSizeBytes(removeRawOutputs) <= FIRESTORE_DOC_SAFE_BYTES) {
@@ -488,7 +560,10 @@ function prepareSavedSetForFirestore(rawItem: Record<string, unknown>): Record<s
   }
 
   const removeImages = { ...removeRawOutputs };
-  if (typeof removeImages.writtenSession === "object" && removeImages.writtenSession !== null) {
+  if (
+    typeof removeImages.writtenSession === 'object' &&
+    removeImages.writtenSession !== null
+  ) {
     removeImages.writtenSession = {
       ...(removeImages.writtenSession as Record<string, unknown>),
       imagesByQuestionId: {},
@@ -499,7 +574,10 @@ function prepareSavedSetForFirestore(rawItem: Record<string, unknown>): Record<s
   }
 
   const removeFeedback = { ...removeImages };
-  if (typeof removeFeedback.writtenSession === "object" && removeFeedback.writtenSession !== null) {
+  if (
+    typeof removeFeedback.writtenSession === 'object' &&
+    removeFeedback.writtenSession !== null
+  ) {
     removeFeedback.writtenSession = {
       ...(removeFeedback.writtenSession as Record<string, unknown>),
       feedbackByQuestionId: {},
@@ -525,7 +603,9 @@ function prepareSavedSetForFirestore(rawItem: Record<string, unknown>): Record<s
   return null;
 }
 
-function prepareQuestionHistoryEntryForFirestore(rawItem: Record<string, unknown>): Record<string, unknown> | null {
+function prepareQuestionHistoryEntryForFirestore(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> | null {
   const cleaned = removeUndefined(rawItem) as Record<string, unknown>;
   if (estimateDocSizeBytes(cleaned) <= FIRESTORE_DOC_SAFE_BYTES) {
     return cleaned;
@@ -538,7 +618,10 @@ function prepareQuestionHistoryEntryForFirestore(rawItem: Record<string, unknown
   }
 
   const trimmedMarking = { ...withoutImage };
-  if (typeof trimmedMarking.markResponse === "object" && trimmedMarking.markResponse !== null) {
+  if (
+    typeof trimmedMarking.markResponse === 'object' &&
+    trimmedMarking.markResponse !== null
+  ) {
     const mr = trimmedMarking.markResponse as Record<string, unknown>;
     trimmedMarking.markResponse = {
       verdict: mr.verdict,
@@ -546,14 +629,20 @@ function prepareQuestionHistoryEntryForFirestore(rawItem: Record<string, unknown
       maxMarks: mr.maxMarks,
       scoreOutOf10: mr.scoreOutOf10,
       vcaaMarkingScheme: mr.vcaaMarkingScheme,
-      comparisonToSolutionMarkdown: "",
-      feedbackMarkdown: "",
-      workedSolutionMarkdown: "",
+      comparisonToSolutionMarkdown: '',
+      feedbackMarkdown: '',
+      workedSolutionMarkdown: '',
     };
   }
-  trimmedMarking.workedSolutionMarkdown = "";
-  if (typeof trimmedMarking.uploadedAnswer === "string" && trimmedMarking.uploadedAnswer.length > 20_000) {
-    trimmedMarking.uploadedAnswer = trimmedMarking.uploadedAnswer.slice(0, 20_000);
+  trimmedMarking.workedSolutionMarkdown = '';
+  if (
+    typeof trimmedMarking.uploadedAnswer === 'string' &&
+    trimmedMarking.uploadedAnswer.length > 20_000
+  ) {
+    trimmedMarking.uploadedAnswer = trimmedMarking.uploadedAnswer.slice(
+      0,
+      20_000
+    );
   }
   if (estimateDocSizeBytes(trimmedMarking) <= FIRESTORE_DOC_SAFE_BYTES) {
     return trimmedMarking;
@@ -564,17 +653,27 @@ function prepareQuestionHistoryEntryForFirestore(rawItem: Record<string, unknown
     createdAt: trimmedMarking.createdAt,
     lastModified: trimmedMarking.lastModified,
     question: (() => {
-      if (typeof trimmedMarking.question !== "object" || trimmedMarking.question === null) return undefined;
+      if (
+        typeof trimmedMarking.question !== 'object' ||
+        trimmedMarking.question === null
+      )
+        return undefined;
       const q = trimmedMarking.question as Record<string, unknown>;
       return {
         id: q.id,
         topic: q.topic,
         subtopic: q.subtopic,
         maxMarks: q.maxMarks,
-        promptMarkdown: typeof q.promptMarkdown === "string" ? q.promptMarkdown.slice(0, 20_000) : "",
+        promptMarkdown:
+          typeof q.promptMarkdown === 'string'
+            ? q.promptMarkdown.slice(0, 20_000)
+            : '',
       };
     })(),
-    uploadedAnswer: typeof trimmedMarking.uploadedAnswer === "string" ? trimmedMarking.uploadedAnswer.slice(0, 20_000) : "",
+    uploadedAnswer:
+      typeof trimmedMarking.uploadedAnswer === 'string'
+        ? trimmedMarking.uploadedAnswer.slice(0, 20_000)
+        : '',
     markResponse: trimmedMarking.markResponse,
   };
   if (estimateDocSizeBytes(metadataOnly) <= FIRESTORE_DOC_SAFE_BYTES) {
@@ -584,19 +683,24 @@ function prepareQuestionHistoryEntryForFirestore(rawItem: Record<string, unknown
   return null;
 }
 
-function prepareMcHistoryEntryForFirestore(rawItem: Record<string, unknown>): Record<string, unknown> | null {
+function prepareMcHistoryEntryForFirestore(
+  rawItem: Record<string, unknown>
+): Record<string, unknown> | null {
   const cleaned = removeUndefined(rawItem) as Record<string, unknown>;
   if (estimateDocSizeBytes(cleaned) <= FIRESTORE_DOC_SAFE_BYTES) {
     return cleaned;
   }
 
   const trimmed = { ...cleaned };
-  if (typeof trimmed.question === "object" && trimmed.question !== null) {
+  if (typeof trimmed.question === 'object' && trimmed.question !== null) {
     const q = trimmed.question as Record<string, unknown>;
     trimmed.question = {
       ...q,
-      promptMarkdown: typeof q.promptMarkdown === "string" ? q.promptMarkdown.slice(0, 20_000) : "",
-      explanationMarkdown: "",
+      promptMarkdown:
+        typeof q.promptMarkdown === 'string'
+          ? q.promptMarkdown.slice(0, 20_000)
+          : '',
+      explanationMarkdown: '',
     };
   }
   if (estimateDocSizeBytes(trimmed) <= FIRESTORE_DOC_SAFE_BYTES) {
@@ -613,13 +717,17 @@ function prepareMcHistoryEntryForFirestore(rawItem: Record<string, unknown>): Re
     awardedMarks: trimmed.awardedMarks,
     maxMarks: trimmed.maxMarks,
     question: (() => {
-      if (typeof trimmed.question !== "object" || trimmed.question === null) return undefined;
+      if (typeof trimmed.question !== 'object' || trimmed.question === null)
+        return undefined;
       const q = trimmed.question as Record<string, unknown>;
       return {
         id: q.id,
         topic: q.topic,
         subtopic: q.subtopic,
-        promptMarkdown: typeof q.promptMarkdown === "string" ? q.promptMarkdown.slice(0, 20_000) : "",
+        promptMarkdown:
+          typeof q.promptMarkdown === 'string'
+            ? q.promptMarkdown.slice(0, 20_000)
+            : '',
       };
     })(),
   };
@@ -653,7 +761,11 @@ export async function saveUserData(
   userId: string,
   data: SyncableData,
   options: SaveOptions = {}
-): Promise<{ totalWrites: number; skippedUnchanged: number; deltaSavings: number }> {
+): Promise<{
+  totalWrites: number;
+  skippedUnchanged: number;
+  deltaSavings: number;
+}> {
   const { deltaSyncVersions, fullSync = false, deletedIds } = options;
   const startTime = Date.now();
   let totalWrites = 0;
@@ -665,11 +777,15 @@ export async function saveUserData(
     const deletePromises: Promise<void>[] = [];
 
     if (deletedIds.questionHistory.length > 0) {
-      const historyRef = getHistoryCollectionRef(userId, "questionHistory");
+      const historyRef = getHistoryCollectionRef(userId, 'questionHistory');
       for (const id of deletedIds.questionHistory) {
         deletePromises.push(
           withRetry(
-            () => withTimeout(deleteDoc(doc(historyRef, id)), `deleting questionHistory ${id}`),
+            () =>
+              withTimeout(
+                deleteDoc(doc(historyRef, id)),
+                `deleting questionHistory ${id}`
+              ),
             `deleting questionHistory ${id}`
           )
         );
@@ -677,11 +793,15 @@ export async function saveUserData(
     }
 
     if (deletedIds.mcHistory.length > 0) {
-      const historyRef = getHistoryCollectionRef(userId, "mcHistory");
+      const historyRef = getHistoryCollectionRef(userId, 'mcHistory');
       for (const id of deletedIds.mcHistory) {
         deletePromises.push(
           withRetry(
-            () => withTimeout(deleteDoc(doc(historyRef, id)), `deleting mcHistory ${id}`),
+            () =>
+              withTimeout(
+                deleteDoc(doc(historyRef, id)),
+                `deleting mcHistory ${id}`
+              ),
             `deleting mcHistory ${id}`
           )
         );
@@ -693,7 +813,11 @@ export async function saveUserData(
       for (const id of deletedIds.savedSets) {
         deletePromises.push(
           withRetry(
-            () => withTimeout(deleteDoc(doc(savedSetsRef, id)), `deleting savedSet ${id}`),
+            () =>
+              withTimeout(
+                deleteDoc(doc(savedSetsRef, id)),
+                `deleting savedSet ${id}`
+              ),
             `deleting savedSet ${id}`
           )
         );
@@ -702,7 +826,9 @@ export async function saveUserData(
 
     if (deletePromises.length > 0) {
       await Promise.all(deletePromises);
-      console.log(`[Firebase] Deleted ${deletePromises.length} documents from Firestore`);
+      console.log(
+        `[Firebase] Deleted ${deletePromises.length} documents from Firestore`
+      );
     }
   }
 
@@ -711,15 +837,24 @@ export async function saveUserData(
   let savedSetsToSave = data.savedSets || [];
 
   if (!fullSync && deltaSyncVersions) {
-    const qhChanged = getChangedItems(questionHistoryToSave, deltaSyncVersions.questionHistory);
-    const mcChanged = getChangedItems(mcHistoryToSave, deltaSyncVersions.mcHistory);
-    const ssChanged = getChangedItems(savedSetsToSave, deltaSyncVersions.savedSets);
-
-    skippedUnchanged = (
-      (questionHistoryToSave.length - qhChanged.length) +
-      (mcHistoryToSave.length - mcChanged.length) +
-      (savedSetsToSave.length - ssChanged.length)
+    const qhChanged = getChangedItems(
+      questionHistoryToSave,
+      deltaSyncVersions.questionHistory
     );
+    const mcChanged = getChangedItems(
+      mcHistoryToSave,
+      deltaSyncVersions.mcHistory
+    );
+    const ssChanged = getChangedItems(
+      savedSetsToSave,
+      deltaSyncVersions.savedSets
+    );
+
+    skippedUnchanged =
+      questionHistoryToSave.length -
+      qhChanged.length +
+      (mcHistoryToSave.length - mcChanged.length) +
+      (savedSetsToSave.length - ssChanged.length);
     deltaSavings = skippedUnchanged;
 
     questionHistoryToSave = qhChanged;
@@ -727,42 +862,57 @@ export async function saveUserData(
     savedSetsToSave = ssChanged;
   }
 
-  console.log("[Firebase] saveUserData started", {
-    userId, fullSync,
+  console.log('[Firebase] saveUserData started', {
+    userId,
+    fullSync,
     questionHistory: questionHistoryToSave.length,
     mcHistory: mcHistoryToSave.length,
     savedSets: savedSetsToSave.length,
-    deltaSavings, skippedUnchanged,
+    deltaSavings,
+    skippedUnchanged,
   });
 
   try {
-    const cleanedSettings = removeUndefined(data.settings) as Record<string, unknown>;
+    const cleanedSettings = removeUndefined(data.settings) as Record<
+      string,
+      unknown
+    >;
     if (Object.keys(cleanedSettings).length > 0) {
       await withRetry(
-        () => withTimeout(
-          setDoc(getUserSettingsRef(userId), {
-            settings: cleanedSettings,
-            _lastModified: serverTimestamp(),
-          }, { merge: true }),
-          "saving settings"
-        ),
-        "saving settings"
+        () =>
+          withTimeout(
+            setDoc(
+              getUserSettingsRef(userId),
+              {
+                settings: cleanedSettings,
+                _lastModified: serverTimestamp(),
+              },
+              { merge: true }
+            ),
+            'saving settings'
+          ),
+        'saving settings'
       );
       totalWrites++;
     }
 
     if (data.studyGoals || data.streakData) {
-      const goalsRef = doc(db, "users", userId, "settings", "goals");
+      const goalsRef = doc(db, 'users', userId, 'settings', 'goals');
       await withRetry(
-        () => withTimeout(
-          setDoc(goalsRef, {
-            studyGoals: removeUndefined(data.studyGoals ?? {}),
-            streakData: removeUndefined(data.streakData ?? {}),
-            _lastModified: serverTimestamp(),
-          }, { merge: true }),
-          "saving goals data"
-        ),
-        "saving goals data"
+        () =>
+          withTimeout(
+            setDoc(
+              goalsRef,
+              {
+                studyGoals: removeUndefined(data.studyGoals ?? {}),
+                streakData: removeUndefined(data.streakData ?? {}),
+                _lastModified: serverTimestamp(),
+              },
+              { merge: true }
+            ),
+            'saving goals data'
+          ),
+        'saving goals data'
       );
       totalWrites++;
     }
@@ -771,25 +921,35 @@ export async function saveUserData(
       const presetsRef = getUserPresetsRef(userId);
       if (data.presets.length > 0) {
         await withRetry(
-          () => withTimeout(
-            setDoc(presetsRef, {
-              presets: removeUndefined(data.presets),
-              _lastModified: serverTimestamp(),
-            }, { merge: false }),
-            "saving presets"
-          ),
-          "saving presets"
+          () =>
+            withTimeout(
+              setDoc(
+                presetsRef,
+                {
+                  presets: removeUndefined(data.presets),
+                  _lastModified: serverTimestamp(),
+                },
+                { merge: false }
+              ),
+              'saving presets'
+            ),
+          'saving presets'
         );
       } else {
         await withRetry(
-          () => withTimeout(
-            setDoc(presetsRef, {
-              presets: [],
-              _lastModified: serverTimestamp(),
-            }, { merge: false }),
-            "clearing presets"
-          ),
-          "clearing presets"
+          () =>
+            withTimeout(
+              setDoc(
+                presetsRef,
+                {
+                  presets: [],
+                  _lastModified: serverTimestamp(),
+                },
+                { merge: false }
+              ),
+              'clearing presets'
+            ),
+          'clearing presets'
         );
       }
       totalWrites++;
@@ -799,7 +959,7 @@ export async function saveUserData(
 
     if (questionHistoryToSave.length > 0) {
       const saveQhPromise = (async () => {
-        const historyRef = getHistoryCollectionRef(userId, "questionHistory");
+        const historyRef = getHistoryCollectionRef(userId, 'questionHistory');
         const batches: Array<Promise<void>> = [];
         for (let i = 0; i < questionHistoryToSave.length; i += BATCH_SIZE_QH) {
           const batchItems = questionHistoryToSave.slice(i, i + BATCH_SIZE_QH);
@@ -814,18 +974,28 @@ export async function saveUserData(
                 if (!item.id) continue;
                 const docRef = doc(historyRef, item.id as string);
                 const compacted = compactQuestionHistoryEntry(item);
-                const prepared = prepareQuestionHistoryEntryForFirestore(compacted);
+                const prepared =
+                  prepareQuestionHistoryEntryForFirestore(compacted);
                 if (!prepared) {
-                  console.warn(`[Firebase] Skipping oversize questionHistory entry ${String(item.id)}`);
+                  console.warn(
+                    `[Firebase] Skipping oversize questionHistory entry ${String(item.id)}`
+                  );
                   continue;
                 }
-                batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
+                batch.set(docRef, {
+                  ...prepared,
+                  _lastModified: serverTimestamp(),
+                });
                 batchWrites++;
               }
 
               if (batchWrites > 0) {
                 await withRetry(
-                  () => withTimeout(batch.commit(), `committing questionHistory batch ${batchNum}`),
+                  () =>
+                    withTimeout(
+                      batch.commit(),
+                      `committing questionHistory batch ${batchNum}`
+                    ),
                   `questionHistory batch ${batchNum}`
                 );
                 totalWrites += batchWrites;
@@ -841,7 +1011,7 @@ export async function saveUserData(
 
     if (mcHistoryToSave.length > 0) {
       const saveMcPromise = (async () => {
-        const historyRef = getHistoryCollectionRef(userId, "mcHistory");
+        const historyRef = getHistoryCollectionRef(userId, 'mcHistory');
         const batches: Array<Promise<void>> = [];
         for (let i = 0; i < mcHistoryToSave.length; i += BATCH_SIZE_MC) {
           const batchItems = mcHistoryToSave.slice(i, i + BATCH_SIZE_MC);
@@ -858,16 +1028,25 @@ export async function saveUserData(
                 const compacted = compactMcHistoryEntry(item);
                 const prepared = prepareMcHistoryEntryForFirestore(compacted);
                 if (!prepared) {
-                  console.warn(`[Firebase] Skipping oversize mcHistory entry ${String(item.id)}`);
+                  console.warn(
+                    `[Firebase] Skipping oversize mcHistory entry ${String(item.id)}`
+                  );
                   continue;
                 }
-                batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
+                batch.set(docRef, {
+                  ...prepared,
+                  _lastModified: serverTimestamp(),
+                });
                 batchWrites++;
               }
 
               if (batchWrites > 0) {
                 await withRetry(
-                  () => withTimeout(batch.commit(), `committing mcHistory batch ${batchNum}`),
+                  () =>
+                    withTimeout(
+                      batch.commit(),
+                      `committing mcHistory batch ${batchNum}`
+                    ),
                   `mcHistory batch ${batchNum}`
                 );
                 totalWrites += batchWrites;
@@ -885,20 +1064,29 @@ export async function saveUserData(
       const saveSsPromise = (async () => {
         const savedSetsRef = getSavedSetsCollectionRef(userId);
 
-        const pendingWrites: Array<{ id: string; payload: Record<string, unknown> }> = [];
+        const pendingWrites: Array<{
+          id: string;
+          payload: Record<string, unknown>;
+        }> = [];
         for (const item of savedSetsToSave) {
           if (!item.id) continue;
           const compacted = compactSavedSet(item);
           const prepared = prepareSavedSetForFirestore(compacted);
           if (!prepared) {
-            console.warn(`[Firebase] Skipping oversize savedSet ${String(item.id)}`);
+            console.warn(
+              `[Firebase] Skipping oversize savedSet ${String(item.id)}`
+            );
             continue;
           }
           pendingWrites.push({ id: String(item.id), payload: prepared });
         }
 
         const chunks: Array<Promise<void>> = [];
-        for (let i = 0; i < pendingWrites.length; i += CONCURRENT_SAVESETS_WRITES) {
+        for (
+          let i = 0;
+          i < pendingWrites.length;
+          i += CONCURRENT_SAVESETS_WRITES
+        ) {
           const chunk = pendingWrites.slice(i, i + CONCURRENT_SAVESETS_WRITES);
           chunks.push(
             Promise.all(
@@ -907,7 +1095,10 @@ export async function saveUserData(
                 await withRetry(
                   () =>
                     withTimeout(
-                      setDoc(docRef, { ...payload, _lastModified: serverTimestamp() }),
+                      setDoc(docRef, {
+                        ...payload,
+                        _lastModified: serverTimestamp(),
+                      }),
                       `saving savedSet ${id}`,
                       FIRESTORE_OP_TIMEOUT_MS
                     ),
@@ -929,24 +1120,32 @@ export async function saveUserData(
     }
 
     const elapsed = Date.now() - startTime;
-    console.log("[Firebase] saveUserData completed", {
-      userId, totalWrites, deltaSavings, skippedUnchanged,
+    console.log('[Firebase] saveUserData completed', {
+      userId,
+      totalWrites,
+      deltaSavings,
+      skippedUnchanged,
       elapsedMs: elapsed,
     });
 
     return { totalWrites, skippedUnchanged, deltaSavings };
   } catch (error) {
-    console.error("[Firebase] saveUserData error:", error);
+    console.error('[Firebase] saveUserData error:', error);
     throw error;
   }
 }
 
-export async function loadUserData(userId: string): Promise<SyncableData | null> {
-  console.log("[Firebase] loadUserData started for:", userId);
+export async function loadUserData(
+  userId: string
+): Promise<SyncableData | null> {
+  console.log('[Firebase] loadUserData started for:', userId);
   const startTime = Date.now();
 
   const settingsRef = getUserSettingsRef(userId);
-  const settingsSnapshot = await withTimeout(getDoc(settingsRef), "loading settings");
+  const settingsSnapshot = await withTimeout(
+    getDoc(settingsRef),
+    'loading settings'
+  );
 
   const result: SyncableData = {
     settings: {},
@@ -960,39 +1159,68 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
     result.settings = data.settings || {};
   }
 
-  const goalsRef = doc(db, "users", userId, "settings", "goals");
+  const goalsRef = doc(db, 'users', userId, 'settings', 'goals');
   const presetsRef = getUserPresetsRef(userId);
-  const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult, presetsSnap] = await Promise.all([
-    withTimeout(
-      getDocs(query(getHistoryCollectionRef(userId, "questionHistory"), orderBy("createdAt", "desc"), limit(1000))),
-      "loading questionHistory"
-    ),
-    withTimeout(
-      getDocs(query(getHistoryCollectionRef(userId, "mcHistory"), orderBy("createdAt", "desc"), limit(1000))),
-      "loading mcHistory"
-    ),
-    withTimeout(
-      getDocs(query(getSavedSetsCollectionRef(userId), orderBy("updatedAt", "desc"), limit(100))),
-      "loading savedSets"
-    ),
-    withTimeout(getDoc(goalsRef), "loading goals data")
-      .then((snap) => {
-        if (!snap.exists()) return { studyGoals: null, streakData: null };
-        const data = snap.data();
-        return {
-          studyGoals: typeof data.studyGoals === "object" && data.studyGoals !== null && !Array.isArray(data.studyGoals) ? data.studyGoals : null,
-          streakData: typeof data.streakData === "object" && data.streakData !== null && !Array.isArray(data.streakData) ? data.streakData : null,
-        };
-      })
-      .catch(() => ({ studyGoals: null, streakData: null })),
-    withTimeout(getDoc(presetsRef), "loading presets")
-      .then((snap) => {
-        if (!snap.exists()) return [];
-        const data = snap.data();
-        return Array.isArray(data.presets) ? data.presets : [];
-      })
-      .catch(() => []),
-  ]);
+  const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult, presetsSnap] =
+    await Promise.all([
+      withTimeout(
+        getDocs(
+          query(
+            getHistoryCollectionRef(userId, 'questionHistory'),
+            orderBy('createdAt', 'desc'),
+            limit(1000)
+          )
+        ),
+        'loading questionHistory'
+      ),
+      withTimeout(
+        getDocs(
+          query(
+            getHistoryCollectionRef(userId, 'mcHistory'),
+            orderBy('createdAt', 'desc'),
+            limit(1000)
+          )
+        ),
+        'loading mcHistory'
+      ),
+      withTimeout(
+        getDocs(
+          query(
+            getSavedSetsCollectionRef(userId),
+            orderBy('updatedAt', 'desc'),
+            limit(100)
+          )
+        ),
+        'loading savedSets'
+      ),
+      withTimeout(getDoc(goalsRef), 'loading goals data')
+        .then((snap) => {
+          if (!snap.exists()) return { studyGoals: null, streakData: null };
+          const data = snap.data();
+          return {
+            studyGoals:
+              typeof data.studyGoals === 'object' &&
+              data.studyGoals !== null &&
+              !Array.isArray(data.studyGoals)
+                ? data.studyGoals
+                : null,
+            streakData:
+              typeof data.streakData === 'object' &&
+              data.streakData !== null &&
+              !Array.isArray(data.streakData)
+                ? data.streakData
+                : null,
+          };
+        })
+        .catch(() => ({ studyGoals: null, streakData: null })),
+      withTimeout(getDoc(presetsRef), 'loading presets')
+        .then((snap) => {
+          if (!snap.exists()) return [];
+          const data = snap.data();
+          return Array.isArray(data.presets) ? data.presets : [];
+        })
+        .catch(() => []),
+    ]);
 
   qhSnapshot.forEach((doc) => {
     const data = doc.data();
@@ -1017,9 +1245,13 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
   if (presetsSnap.length > 0) result.presets = presetsSnap;
 
   const elapsed = Date.now() - startTime;
-  console.log("[Firebase] loadUserData completed", {
-    userId, elapsedMs: elapsed,
-    totalDocs: result.questionHistory.length + result.mcHistory.length + result.savedSets.length
+  console.log('[Firebase] loadUserData completed', {
+    userId,
+    elapsedMs: elapsed,
+    totalDocs:
+      result.questionHistory.length +
+      result.mcHistory.length +
+      result.savedSets.length,
   });
 
   return result;
@@ -1027,7 +1259,11 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
 
 export async function loadChangedItems(
   userId: string,
-  changedItemIds: { questionHistory?: string[]; mcHistory?: string[]; savedSets?: string[] }
+  changedItemIds: {
+    questionHistory?: string[];
+    mcHistory?: string[];
+    savedSets?: string[];
+  }
 ): Promise<{
   questionHistory: Record<string, unknown>[];
   mcHistory: Record<string, unknown>[];
@@ -1044,10 +1280,13 @@ export async function loadChangedItems(
   if (changedItemIds.questionHistory?.length) {
     loadPromises.push(
       (async () => {
-        const qhRef = getHistoryCollectionRef(userId, "questionHistory");
+        const qhRef = getHistoryCollectionRef(userId, 'questionHistory');
         const promises = changedItemIds.questionHistory!.map(async (id) => {
           const docRef = doc(qhRef, id);
-          const docSnap = await withTimeout(getDoc(docRef), `loading questionHistory ${id}`);
+          const docSnap = await withTimeout(
+            getDoc(docRef),
+            `loading questionHistory ${id}`
+          );
           if (docSnap.exists()) {
             const data = docSnap.data();
             delete data._lastModified;
@@ -1062,10 +1301,13 @@ export async function loadChangedItems(
   if (changedItemIds.mcHistory?.length) {
     loadPromises.push(
       (async () => {
-        const mchRef = getHistoryCollectionRef(userId, "mcHistory");
+        const mchRef = getHistoryCollectionRef(userId, 'mcHistory');
         const promises = changedItemIds.mcHistory!.map(async (id) => {
           const docRef = doc(mchRef, id);
-          const docSnap = await withTimeout(getDoc(docRef), `loading mcHistory ${id}`);
+          const docSnap = await withTimeout(
+            getDoc(docRef),
+            `loading mcHistory ${id}`
+          );
           if (docSnap.exists()) {
             const data = docSnap.data();
             delete data._lastModified;
@@ -1083,7 +1325,10 @@ export async function loadChangedItems(
         const ssRef = getSavedSetsCollectionRef(userId);
         const promises = changedItemIds.savedSets!.map(async (id) => {
           const docRef = doc(ssRef, id);
-          const docSnap = await withTimeout(getDoc(docRef), `loading savedSet ${id}`);
+          const docSnap = await withTimeout(
+            getDoc(docRef),
+            `loading savedSet ${id}`
+          );
           if (docSnap.exists()) {
             const data = docSnap.data();
             delete data._lastModified;
@@ -1101,38 +1346,63 @@ export async function loadChangedItems(
 
 export async function migrateUserDataForCompaction(
   userId: string,
-  preloadedRemoteData?: SyncableData | null,
+  preloadedRemoteData?: SyncableData | null
 ): Promise<CompactionMigrationResult> {
   const settingsRef = getUserSettingsRef(userId);
   const settingsSnapshot = await withTimeout(
     getDoc(settingsRef),
-    "loading settings for compaction migration",
+    'loading settings for compaction migration'
   );
 
-  const rawVersion = settingsSnapshot.exists() ? settingsSnapshot.data()?._syncCompactionVersion : undefined;
-  const fromVersion = typeof rawVersion === "number" && Number.isFinite(rawVersion) ? rawVersion : 0;
+  const rawVersion = settingsSnapshot.exists()
+    ? settingsSnapshot.data()?._syncCompactionVersion
+    : undefined;
+  const fromVersion =
+    typeof rawVersion === 'number' && Number.isFinite(rawVersion)
+      ? rawVersion
+      : 0;
   if (fromVersion >= CLOUD_COMPACTION_VERSION) {
     return {
-      migrated: false, fromVersion, toVersion: fromVersion,
-      questionHistoryCount: 0, mcHistoryCount: 0, savedSetsCount: 0,
+      migrated: false,
+      fromVersion,
+      toVersion: fromVersion,
+      questionHistoryCount: 0,
+      mcHistoryCount: 0,
+      savedSetsCount: 0,
     };
   }
 
-  console.log("[Firebase] Running one-time cloud compaction migration", { userId, fromVersion, toVersion: CLOUD_COMPACTION_VERSION });
+  console.log('[Firebase] Running one-time cloud compaction migration', {
+    userId,
+    fromVersion,
+    toVersion: CLOUD_COMPACTION_VERSION,
+  });
 
-  const remoteData = preloadedRemoteData ?? await loadUserData(userId);
+  const remoteData = preloadedRemoteData ?? (await loadUserData(userId));
   const rewritePayload: SyncableData = remoteData ?? {
-    settings: {}, questionHistory: [], mcHistory: [], savedSets: [],
+    settings: {},
+    questionHistory: [],
+    mcHistory: [],
+    savedSets: [],
   };
 
   await saveUserData(userId, rewritePayload);
   await withTimeout(
-    setDoc(settingsRef, { _syncCompactionVersion: CLOUD_COMPACTION_VERSION, _lastModified: serverTimestamp() }, { merge: true }),
-    "saving compaction migration marker",
+    setDoc(
+      settingsRef,
+      {
+        _syncCompactionVersion: CLOUD_COMPACTION_VERSION,
+        _lastModified: serverTimestamp(),
+      },
+      { merge: true }
+    ),
+    'saving compaction migration marker'
   );
 
   return {
-    migrated: true, fromVersion, toVersion: CLOUD_COMPACTION_VERSION,
+    migrated: true,
+    fromVersion,
+    toVersion: CLOUD_COMPACTION_VERSION,
     questionHistoryCount: rewritePayload.questionHistory.length,
     mcHistoryCount: rewritePayload.mcHistory.length,
     savedSetsCount: rewritePayload.savedSets.length,
@@ -1141,15 +1411,15 @@ export async function migrateUserDataForCompaction(
 
 export async function deleteArchivedItems(
   userId: string,
-  type: "questionHistory" | "mcHistory",
-  keepIds: Set<string>,
+  type: 'questionHistory' | 'mcHistory',
+  keepIds: Set<string>
 ): Promise<number> {
   const collectionRef = getHistoryCollectionRef(userId, type);
   let deleted = 0;
   try {
     const snapshot = await withTimeout(
       getDocs(query(collectionRef, limit(1000))),
-      `loading ${type} for archiving`,
+      `loading ${type} for archiving`
     );
     const batch = writeBatch(db);
     let batchSize = 0;
@@ -1161,7 +1431,7 @@ export async function deleteArchivedItems(
         if (batchSize >= 400) {
           await withRetry(
             () => withTimeout(batch.commit(), `archiving ${type} batch`),
-            `archiving ${type}`,
+            `archiving ${type}`
           );
           break;
         }
@@ -1170,7 +1440,7 @@ export async function deleteArchivedItems(
     if (batchSize > 0 && batchSize < 400) {
       await withRetry(
         () => withTimeout(batch.commit(), `archiving ${type} batch`),
-        `archiving ${type}`,
+        `archiving ${type}`
       );
     }
   } catch (error) {
@@ -1194,7 +1464,7 @@ export interface DailyUsageRecord {
 
 function getDayKey(date: string | number): string {
   const d = new Date(date);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export async function saveDailyUsage(
@@ -1209,15 +1479,19 @@ export async function saveDailyUsage(
     };
   }>,
   questionHistory: Array<{ createdAt: string }>,
-  mcHistory: Array<{ createdAt: string }>,
+  mcHistory: Array<{ createdAt: string }>
 ): Promise<void> {
   const byDay = new Map<string, DailyUsageRecord>();
 
   for (const record of generationHistory) {
     const day = getDayKey(record.timestamp);
     const bucket = byDay.get(day) ?? {
-      totalTokens: 0, promptTokens: 0, completionTokens: 0,
-      estimatedCostUsd: 0, generationCount: 0, questionCount: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      estimatedCostUsd: 0,
+      generationCount: 0,
+      questionCount: 0,
     };
     bucket.totalTokens += record.outputs?.totalTokens ?? 0;
     bucket.promptTokens += record.outputs?.promptTokens ?? 0;
@@ -1230,8 +1504,12 @@ export async function saveDailyUsage(
   for (const e of questionHistory) {
     const day = getDayKey(e.createdAt);
     const bucket = byDay.get(day) ?? {
-      totalTokens: 0, promptTokens: 0, completionTokens: 0,
-      estimatedCostUsd: 0, generationCount: 0, questionCount: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      estimatedCostUsd: 0,
+      generationCount: 0,
+      questionCount: 0,
     };
     bucket.questionCount += 1;
     byDay.set(day, bucket);
@@ -1240,29 +1518,37 @@ export async function saveDailyUsage(
   for (const e of mcHistory) {
     const day = getDayKey(e.createdAt);
     const bucket = byDay.get(day) ?? {
-      totalTokens: 0, promptTokens: 0, completionTokens: 0,
-      estimatedCostUsd: 0, generationCount: 0, questionCount: 0,
+      totalTokens: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      estimatedCostUsd: 0,
+      generationCount: 0,
+      questionCount: 0,
     };
     bucket.questionCount += 1;
     byDay.set(day, bucket);
   }
 
-  const usageCollection = collection(db, "users", userId, "usage");
+  const usageCollection = collection(db, 'users', userId, 'usage');
   const batch = writeBatch(db);
   let writes = 0;
 
   for (const [date, record] of byDay) {
     const docRef = doc(usageCollection, date);
-    batch.set(docRef, {
-      ...record,
-      totalTokens: increment(record.totalTokens),
-      promptTokens: increment(record.promptTokens),
-      completionTokens: increment(record.completionTokens),
-      estimatedCostUsd: increment(record.estimatedCostUsd),
-      generationCount: increment(record.generationCount),
-      questionCount: increment(record.questionCount),
-      _lastModified: serverTimestamp(),
-    }, { merge: true });
+    batch.set(
+      docRef,
+      {
+        ...record,
+        totalTokens: increment(record.totalTokens),
+        promptTokens: increment(record.promptTokens),
+        completionTokens: increment(record.completionTokens),
+        estimatedCostUsd: increment(record.estimatedCostUsd),
+        generationCount: increment(record.generationCount),
+        questionCount: increment(record.questionCount),
+        _lastModified: serverTimestamp(),
+      },
+      { merge: true }
+    );
     writes++;
   }
 

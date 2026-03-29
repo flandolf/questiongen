@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
-import { useMultipleChoiceSession, useWrittenSession } from "../AppContext";
-import { useAppStore } from "../store";
-import { McHistoryEntry, QuestionHistoryEntry } from "../types";
+import { useMemo, useState } from 'react';
+import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
+import { useAppStore } from '../store';
+import { McHistoryEntry, QuestionHistoryEntry } from '../types';
 
-export const UNSPECIFIED_SUBTOPIC = "Unspecified";
-export const ALL_TOPICS = "All topics";
+export const UNSPECIFIED_SUBTOPIC = 'Unspecified';
+export const ALL_TOPICS = 'All topics';
 export const LOW_SAMPLE_THRESHOLD = 3;
 export const RECENT_WRITTEN_CRITERIA_WINDOW = 20;
 
@@ -12,7 +12,7 @@ export type AnalyticsBucket = { total: number; correct: number };
 
 export type AttemptRow = {
   id: string;
-  mode: "written" | "multiple-choice";
+  mode: 'written' | 'multiple-choice';
   createdAt: string;
   topic: string;
   subtopic: string;
@@ -90,23 +90,23 @@ export function average(total: number, count: number) {
 }
 
 export function scoreBucketLabel(scorePercent: number) {
-  if (scorePercent >= 100) return "100";
-  if (scorePercent >= 75) return "75-99";
-  if (scorePercent >= 50) return "50-74";
-  if (scorePercent >= 25) return "25-49";
-  return "0-24";
+  if (scorePercent >= 100) return '100';
+  if (scorePercent >= 75) return '75-99';
+  if (scorePercent >= 50) return '50-74';
+  if (scorePercent >= 25) return '25-49';
+  return '0-24';
 }
 
 export function wordBucketLabel(wordCount: number) {
-  if (wordCount >= 150) return "150+";
-  if (wordCount >= 75) return "75-149";
-  if (wordCount >= 25) return "25-74";
-  return "0-24";
+  if (wordCount >= 150) return '150+';
+  if (wordCount >= 75) return '75-149';
+  if (wordCount >= 25) return '25-74';
+  return '0-24';
 }
 
 export function normalizeCriterionLabel(value: string) {
-  const cleaned = value.trim().replace(/\s+/g, " ");
-  return cleaned.length > 0 ? cleaned : "Unnamed criterion";
+  const cleaned = value.trim().replace(/\s+/g, ' ');
+  return cleaned.length > 0 ? cleaned : 'Unnamed criterion';
 }
 
 export function useAnalyticsData() {
@@ -120,13 +120,16 @@ export function useAnalyticsData() {
       const attemptKind = entry.analytics?.attemptKind;
       return {
         id: entry.id,
-        mode: "written" as const,
+        mode: 'written' as const,
         createdAt: entry.createdAt,
         topic: entry.question.topic,
         subtopic: normalizeSubtopic(entry.question.subtopic),
-        isCorrect: entry.markResponse.verdict.toLowerCase() === "correct",
-        isFirstAttempt: !attemptKind || attemptKind === "initial",
-        scorePercent: percent(entry.markResponse.achievedMarks, entry.markResponse.maxMarks),
+        isCorrect: entry.markResponse.verdict.toLowerCase() === 'correct',
+        isFirstAttempt: !attemptKind || attemptKind === 'initial',
+        scorePercent: percent(
+          entry.markResponse.achievedMarks,
+          entry.markResponse.maxMarks
+        ),
         responseLatencyMs: entry.analytics?.responseLatencyMs,
         markingLatencyMs: entry.analytics?.markingLatencyMs,
         attemptKind,
@@ -140,17 +143,18 @@ export function useAnalyticsData() {
   const mcAttempts = useMemo<AttemptRow[]>(() => {
     return mcHistory.map((entry: McHistoryEntry) => {
       const maxMarks = entry.maxMarks ?? 1;
-      const achievedMarks = entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
+      const achievedMarks =
+        entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
       const attemptKind = entry.analytics?.attemptKind;
 
       return {
         id: entry.id,
-        mode: "multiple-choice" as const,
+        mode: 'multiple-choice' as const,
         createdAt: entry.createdAt,
         topic: entry.question.topic,
         subtopic: normalizeSubtopic(entry.question.subtopic),
         isCorrect: achievedMarks >= maxMarks,
-        isFirstAttempt: !attemptKind || attemptKind === "initial",
+        isFirstAttempt: !attemptKind || attemptKind === 'initial',
         scorePercent: percent(achievedMarks, maxMarks),
         responseLatencyMs: entry.analytics?.responseLatencyMs,
         attemptKind,
@@ -163,7 +167,7 @@ export function useAnalyticsData() {
 
   const allAttempts = useMemo(() => {
     return [...writtenAttempts, ...mcAttempts].sort(
-      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
+      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)
     );
   }, [mcAttempts, writtenAttempts]);
 
@@ -209,8 +213,8 @@ export function useAnalyticsData() {
         markingLatencyTotal += attempt.markingLatencyMs;
         markingLatencyCount += 1;
       }
-      if (attempt.attemptKind === "appeal") appealCount += 1;
-      else if (attempt.attemptKind === "override") overrideCount += 1;
+      if (attempt.attemptKind === 'appeal') appealCount += 1;
+      else if (attempt.attemptKind === 'override') overrideCount += 1;
     }
 
     let mcCorrect = 0;
@@ -236,14 +240,26 @@ export function useAnalyticsData() {
       writtenAverageScore: average(writtenScoreTotal, writtenAttempts.length),
       writtenFirstAttemptTotal,
       writtenFirstAttemptCorrect,
-      writtenFirstAttemptAverageScore: average(writtenFirstAttemptScoreTotal, writtenFirstAttemptTotal),
+      writtenFirstAttemptAverageScore: average(
+        writtenFirstAttemptScoreTotal,
+        writtenFirstAttemptTotal
+      ),
       mcAttempts: mcAttempts.length,
       mcCorrect,
       mcFirstAttemptTotal,
       mcFirstAttemptCorrect,
-      mcFirstAttemptAccuracy: percent(mcFirstAttemptCorrect, mcFirstAttemptTotal),
-      averageMarkingLatencyMs: average(markingLatencyTotal, markingLatencyCount),
-      averageGenerationLatencyMs: average(generationLatencyTotal, generationLatencyCount),
+      mcFirstAttemptAccuracy: percent(
+        mcFirstAttemptCorrect,
+        mcFirstAttemptTotal
+      ),
+      averageMarkingLatencyMs: average(
+        markingLatencyTotal,
+        markingLatencyCount
+      ),
+      averageGenerationLatencyMs: average(
+        generationLatencyTotal,
+        generationLatencyCount
+      ),
       appealCount,
       overrideCount,
     };
@@ -268,7 +284,7 @@ export function useAnalyticsData() {
         if (attempt.isCorrect) firstAttemptCorrect += 1;
       }
 
-      if (attempt.mode === "written") {
+      if (attempt.mode === 'written') {
         writtenTotal += 1;
         if (attempt.isCorrect) writtenCorrect += 1;
       } else {
@@ -279,8 +295,12 @@ export function useAnalyticsData() {
       return {
         label: `#${index + 1}`,
         overallAccuracy: percent(overallCorrect, overallTotal),
-        firstAttemptAccuracy: firstAttemptTotal > 0 ? percent(firstAttemptCorrect, firstAttemptTotal) : null,
-        writtenAccuracy: writtenTotal > 0 ? percent(writtenCorrect, writtenTotal) : null,
+        firstAttemptAccuracy:
+          firstAttemptTotal > 0
+            ? percent(firstAttemptCorrect, firstAttemptTotal)
+            : null,
+        writtenAccuracy:
+          writtenTotal > 0 ? percent(writtenCorrect, writtenTotal) : null,
         mcAccuracy: mcTotal > 0 ? percent(mcCorrect, mcTotal) : null,
       };
     });
@@ -301,8 +321,8 @@ export function useAnalyticsData() {
 
       existing.attempts += 1;
       existing.correct += attempt.isCorrect ? 1 : 0;
-      existing.writtenAttempts += attempt.mode === "written" ? 1 : 0;
-      existing.mcAttempts += attempt.mode === "multiple-choice" ? 1 : 0;
+      existing.writtenAttempts += attempt.mode === 'written' ? 1 : 0;
+      existing.mcAttempts += attempt.mode === 'multiple-choice' ? 1 : 0;
       existing.accuracy = percent(existing.correct, existing.attempts);
       bucketByTopic.set(attempt.topic, existing);
     }
@@ -315,7 +335,12 @@ export function useAnalyticsData() {
   const subtopicPerformance = useMemo<SubtopicPerformanceRow[]>(() => {
     const bucketByTopicSubtopic = new Map<
       string,
-      AnalyticsBucket & { topic: string; subtopic: string; writtenAttempts: number; mcAttempts: number }
+      AnalyticsBucket & {
+        topic: string;
+        subtopic: string;
+        writtenAttempts: number;
+        mcAttempts: number;
+      }
     >();
 
     for (const attempt of allAttempts) {
@@ -331,8 +356,8 @@ export function useAnalyticsData() {
 
       bucket.total += 1;
       bucket.correct += attempt.isCorrect ? 1 : 0;
-      bucket.writtenAttempts += attempt.mode === "written" ? 1 : 0;
-      bucket.mcAttempts += attempt.mode === "multiple-choice" ? 1 : 0;
+      bucket.writtenAttempts += attempt.mode === 'written' ? 1 : 0;
+      bucket.mcAttempts += attempt.mode === 'multiple-choice' ? 1 : 0;
       bucketByTopicSubtopic.set(key, bucket);
     }
 
@@ -358,7 +383,7 @@ export function useAnalyticsData() {
   }, [subtopicPerformance, topicFilter]);
 
   const writtenMarksDistribution = useMemo(() => {
-    const labels = ["0-24", "25-49", "50-74", "75-99", "100"];
+    const labels = ['0-24', '25-49', '50-74', '75-99', '100'];
     const buckets = new Map(labels.map((label) => [label, 0]));
 
     for (const attempt of writtenAttempts) {
@@ -366,12 +391,17 @@ export function useAnalyticsData() {
       buckets.set(bucket, (buckets.get(bucket) ?? 0) + 1);
     }
 
-    return labels.map((label) => ({ label, attempts: buckets.get(label) ?? 0 }));
+    return labels.map((label) => ({
+      label,
+      attempts: buckets.get(label) ?? 0,
+    }));
   }, [writtenAttempts]);
 
   const writtenEffortDistribution = useMemo(() => {
-    const labels = ["0-24", "25-74", "75-149", "150+"];
-    const buckets = new Map(labels.map((label) => [label, { attempts: 0, totalScorePercent: 0 }]));
+    const labels = ['0-24', '25-74', '75-149', '150+'];
+    const buckets = new Map(
+      labels.map((label) => [label, { attempts: 0, totalScorePercent: 0 }])
+    );
 
     for (const attempt of writtenAttempts) {
       if ((attempt.answerWordCount ?? 0) <= 0) {
@@ -389,7 +419,10 @@ export function useAnalyticsData() {
     }
 
     return labels.map((label) => {
-      const bucket = buckets.get(label) ?? { attempts: 0, totalScorePercent: 0 };
+      const bucket = buckets.get(label) ?? {
+        attempts: 0,
+        totalScorePercent: 0,
+      };
       return {
         label,
         attempts: bucket.attempts,
@@ -400,20 +433,35 @@ export function useAnalyticsData() {
 
   const writtenAttemptTypeData = useMemo(() => {
     const counts = new Map<string, number>([
-      ["initial", 0],
-      ["appeal", 0],
-      ["override", 0],
+      ['initial', 0],
+      ['appeal', 0],
+      ['override', 0],
     ]);
 
     for (const attempt of writtenAttempts) {
-      const key = attempt.attemptKind ?? "initial";
+      const key = attempt.attemptKind ?? 'initial';
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
     return [
-      { name: "initial", label: "Initial", value: counts.get("initial") ?? 0, fill: "var(--color-initial)" },
-      { name: "appeal", label: "Appeal", value: counts.get("appeal") ?? 0, fill: "var(--color-appeal)" },
-      { name: "override", label: "Override", value: counts.get("override") ?? 0, fill: "var(--color-override)" },
+      {
+        name: 'initial',
+        label: 'Initial',
+        value: counts.get('initial') ?? 0,
+        fill: 'var(--color-initial)',
+      },
+      {
+        name: 'appeal',
+        label: 'Appeal',
+        value: counts.get('appeal') ?? 0,
+        fill: 'var(--color-appeal)',
+      },
+      {
+        name: 'override',
+        label: 'Override',
+        value: counts.get('override') ?? 0,
+        fill: 'var(--color-override)',
+      },
     ].filter((item) => item.value > 0);
   }, [writtenAttempts]);
 
@@ -453,8 +501,14 @@ export function useAnalyticsData() {
         bucket.attempts += 1;
         bucket.achievedMarks += criterion.achievedMarks;
         bucket.availableMarks += criterion.maxMarks;
-        bucket.lostMarks += Math.max(0, criterion.maxMarks - criterion.achievedMarks);
-        bucket.topics.set(entry.question.topic, (bucket.topics.get(entry.question.topic) ?? 0) + 1);
+        bucket.lostMarks += Math.max(
+          0,
+          criterion.maxMarks - criterion.achievedMarks
+        );
+        bucket.topics.set(
+          entry.question.topic,
+          (bucket.topics.get(entry.question.topic) ?? 0) + 1
+        );
 
         if (Date.parse(entry.createdAt) > Date.parse(bucket.lastSeenAt)) {
           bucket.lastSeenAt = entry.createdAt;
@@ -470,7 +524,7 @@ export function useAnalyticsData() {
           .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
           .slice(0, 2)
           .map(([topic, count]) => `${topic} x${count}`)
-          .join(" • ");
+          .join(' • ');
 
         return {
           criterion,
@@ -484,7 +538,12 @@ export function useAnalyticsData() {
           lastSeenAt: bucket.lastSeenAt,
         };
       })
-      .sort((a, b) => b.lostPercent - a.lostPercent || b.lostMarks - a.lostMarks || b.attempts - a.attempts)
+      .sort(
+        (a, b) =>
+          b.lostPercent - a.lostPercent ||
+          b.lostMarks - a.lostMarks ||
+          b.attempts - a.attempts
+      )
       .slice(0, 6);
   }, [questionHistory]);
 
@@ -492,7 +551,10 @@ export function useAnalyticsData() {
     const bucketByTopic = new Map<string, AnalyticsBucket>();
 
     for (const attempt of mcAttempts) {
-      const bucket = bucketByTopic.get(attempt.topic) ?? { total: 0, correct: 0 };
+      const bucket = bucketByTopic.get(attempt.topic) ?? {
+        total: 0,
+        correct: 0,
+      };
       bucket.total += 1;
       bucket.correct += attempt.isCorrect ? 1 : 0;
       bucketByTopic.set(attempt.topic, bucket);
@@ -508,14 +570,20 @@ export function useAnalyticsData() {
   }, [mcAttempts]);
 
   const mcResponseLatency = useMemo(() => {
-    const bucketByTopic = new Map<string, { attempts: number; totalMs: number }>();
+    const bucketByTopic = new Map<
+      string,
+      { attempts: number; totalMs: number }
+    >();
 
     for (const attempt of mcAttempts) {
       if (attempt.responseLatencyMs === undefined) {
         continue;
       }
 
-      const bucket = bucketByTopic.get(attempt.topic) ?? { attempts: 0, totalMs: 0 };
+      const bucket = bucketByTopic.get(attempt.topic) ?? {
+        attempts: 0,
+        totalMs: 0,
+      };
       bucket.attempts += 1;
       bucket.totalMs += attempt.responseLatencyMs;
       bucketByTopic.set(attempt.topic, bucket);
@@ -570,7 +638,8 @@ export function useAnalyticsData() {
     for (const entry of questionHistory) {
       const bucket = getBucket(entry.question.topic);
       bucket.sampleCount += 1;
-      bucket.correct += entry.markResponse.verdict.toLowerCase() === "correct" ? 1 : 0;
+      bucket.correct +=
+        entry.markResponse.verdict.toLowerCase() === 'correct' ? 1 : 0;
       if (entry.generationTelemetry?.durationMs !== undefined) {
         bucket.durationTotal += entry.generationTelemetry.durationMs;
         bucket.durationCount += 1;
@@ -615,7 +684,10 @@ export function useAnalyticsData() {
         bucket.depthTotal += record.outputs.multiStepDepthAvg;
         bucket.depthCount += 1;
       }
-      if (record.outputs?.estimatedCostUsd !== undefined && record.inputs.questionCount > 0) {
+      if (
+        record.outputs?.estimatedCostUsd !== undefined &&
+        record.inputs.questionCount > 0
+      ) {
         bucket.costTotal += record.outputs.estimatedCostUsd;
         bucket.costCount += record.inputs.questionCount;
       }
@@ -626,47 +698,88 @@ export function useAnalyticsData() {
         topic,
         sampleCount: bucket.sampleCount,
         accuracy: percent(bucket.correct, bucket.sampleCount),
-        avgDurationSeconds: average(bucket.durationTotal, bucket.durationCount) / 1000,
+        avgDurationSeconds:
+          average(bucket.durationTotal, bucket.durationCount) / 1000,
         distinctnessAvg:
           bucket.distinctnessCount > 0
             ? average(bucket.distinctnessTotal, bucket.distinctnessCount)
             : undefined,
         multiStepDepthAvg:
-          bucket.depthCount > 0 ? average(bucket.depthTotal, bucket.depthCount) : undefined,
+          bucket.depthCount > 0
+            ? average(bucket.depthTotal, bucket.depthCount)
+            : undefined,
         avgCostPerQuestion:
-          bucket.costCount > 0 ? bucket.costTotal / bucket.costCount : undefined,
+          bucket.costCount > 0
+            ? bucket.costTotal / bucket.costCount
+            : undefined,
       }))
       .sort((a, b) => a.topic.localeCompare(b.topic));
   }, [mcHistory, questionHistory, generationHistory]);
 
   const lowestScoringWritten = useMemo(() => {
     return [...writtenAttempts]
-      .sort((a, b) => a.scorePercent - b.scorePercent || Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      .sort(
+        (a, b) =>
+          a.scorePercent - b.scorePercent ||
+          Date.parse(b.createdAt) - Date.parse(a.createdAt)
+      )
       .slice(0, 5);
   }, [writtenAttempts]);
 
   // Early/recent accuracy splits for delta KPI badges
   // Split all attempts in half; compute accuracy for each half
-  const { earlyOverallAccuracy, recentOverallAccuracy, earlyWrittenAvg, recentWrittenAvg, earlyMcAccuracy, recentMcAccuracy, earlyFirstAttemptAccuracy, recentFirstAttemptAccuracy } = useMemo(() => {
+  const {
+    earlyOverallAccuracy,
+    recentOverallAccuracy,
+    earlyWrittenAvg,
+    recentWrittenAvg,
+    earlyMcAccuracy,
+    recentMcAccuracy,
+    earlyFirstAttemptAccuracy,
+    recentFirstAttemptAccuracy,
+  } = useMemo(() => {
     if (allAttempts.length < 6) {
-      return { earlyOverallAccuracy: null, recentOverallAccuracy: null, earlyWrittenAvg: null, recentWrittenAvg: null, earlyMcAccuracy: null, recentMcAccuracy: null, earlyFirstAttemptAccuracy: null, recentFirstAttemptAccuracy: null };
+      return {
+        earlyOverallAccuracy: null,
+        recentOverallAccuracy: null,
+        earlyWrittenAvg: null,
+        recentWrittenAvg: null,
+        earlyMcAccuracy: null,
+        recentMcAccuracy: null,
+        earlyFirstAttemptAccuracy: null,
+        recentFirstAttemptAccuracy: null,
+      };
     }
     const half = Math.floor(allAttempts.length / 2);
     const early = allAttempts.slice(0, half);
     const recent = allAttempts.slice(half);
 
-    const calcOverall = (arr: AttemptRow[]) => arr.length > 0 ? percent(arr.filter(a => a.isCorrect).length, arr.length) : null;
+    const calcOverall = (arr: AttemptRow[]) =>
+      arr.length > 0
+        ? percent(arr.filter((a) => a.isCorrect).length, arr.length)
+        : null;
     const calcFirstAttempt = (arr: AttemptRow[]) => {
-      const fa = arr.filter(a => a.isFirstAttempt);
-      return fa.length > 0 ? percent(fa.filter(a => a.isCorrect).length, fa.length) : null;
+      const fa = arr.filter((a) => a.isFirstAttempt);
+      return fa.length > 0
+        ? percent(fa.filter((a) => a.isCorrect).length, fa.length)
+        : null;
     };
     const calcWrittenAvg = (arr: AttemptRow[]) => {
-      const w = arr.filter(a => a.mode === "written" && a.isFirstAttempt);
-      return w.length > 0 ? average(w.reduce((s, a) => s + a.scorePercent, 0), w.length) : null;
+      const w = arr.filter((a) => a.mode === 'written' && a.isFirstAttempt);
+      return w.length > 0
+        ? average(
+            w.reduce((s, a) => s + a.scorePercent, 0),
+            w.length
+          )
+        : null;
     };
     const calcMc = (arr: AttemptRow[]) => {
-      const mc = arr.filter(a => a.mode === "multiple-choice" && a.isFirstAttempt);
-      return mc.length > 0 ? percent(mc.filter(a => a.isCorrect).length, mc.length) : null;
+      const mc = arr.filter(
+        (a) => a.mode === 'multiple-choice' && a.isFirstAttempt
+      );
+      return mc.length > 0
+        ? percent(mc.filter((a) => a.isCorrect).length, mc.length)
+        : null;
     };
 
     return {

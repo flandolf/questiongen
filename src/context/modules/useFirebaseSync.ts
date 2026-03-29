@@ -1,23 +1,54 @@
-import { AppState, useAppStore, setSuppressPersistUntil } from "@/store";
-import { QuestionHistoryEntry, McHistoryEntry, SavedQuestionSet, Preset } from "@/types";
-import { useEffect, useState, useCallback, useRef } from "react";
-import { SyncableData, FirebaseUser, SyncMetadata, onAuthChange, saveUserData, buildVersionMap, signUpWithEmail, signInWithEmail, loadUserData, migrateUserDataForCompaction, deleteArchivedItems, saveDailyUsage, getDeltaSyncData } from "./useFirebase";
-
+import { AppState, useAppStore, setSuppressPersistUntil } from '@/store';
+import {
+  QuestionHistoryEntry,
+  McHistoryEntry,
+  SavedQuestionSet,
+  Preset,
+} from '@/types';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  SyncableData,
+  FirebaseUser,
+  SyncMetadata,
+  onAuthChange,
+  saveUserData,
+  buildVersionMap,
+  signUpWithEmail,
+  signInWithEmail,
+  loadUserData,
+  migrateUserDataForCompaction,
+  deleteArchivedItems,
+  saveDailyUsage,
+  getDeltaSyncData,
+} from './useFirebase';
 
 // Helper to normalize remote SyncableData to local SyncableData
-function normalizeRemoteSyncableData(remote: SyncableData | null): SyncableData | null {
+function normalizeRemoteSyncableData(
+  remote: SyncableData | null
+): SyncableData | null {
   if (!remote) return null;
   return {
     settings: {},
-    questionHistory: Array.isArray(remote.questionHistory) ? (remote.questionHistory as QuestionHistoryEntry[]) : [],
-    mcHistory: Array.isArray(remote.mcHistory) ? (remote.mcHistory as McHistoryEntry[]) : [],
-    savedSets: Array.isArray(remote.savedSets) ? (remote.savedSets as SavedQuestionSet[]) : [],
+    questionHistory: Array.isArray(remote.questionHistory)
+      ? (remote.questionHistory as QuestionHistoryEntry[])
+      : [],
+    mcHistory: Array.isArray(remote.mcHistory)
+      ? (remote.mcHistory as McHistoryEntry[])
+      : [],
+    savedSets: Array.isArray(remote.savedSets)
+      ? (remote.savedSets as SavedQuestionSet[])
+      : [],
     presets: Array.isArray(remote.presets) ? (remote.presets as Preset[]) : [],
-    studyGoals: remote.studyGoals && typeof remote.studyGoals === "object" ? remote.studyGoals : undefined,
-    streakData: remote.streakData && typeof remote.streakData === "object" ? remote.streakData : undefined,
+    studyGoals:
+      remote.studyGoals && typeof remote.studyGoals === 'object'
+        ? remote.studyGoals
+        : undefined,
+    streakData:
+      remote.streakData && typeof remote.streakData === 'object'
+        ? remote.streakData
+        : undefined,
   };
 }
-
 
 const SYNC_DEBUG = true;
 
@@ -26,13 +57,13 @@ const DEBUG_LOG_LIMIT = 50;
 const SYNC_EVENT_LIMIT = 30;
 
 // Persist sync-enabled preference so it survives reloads
-const SYNC_ENABLED_STORAGE_KEY = "firebase_sync_enabled";
+const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
 
 function readPersistedSyncEnabled(): boolean {
   try {
     const stored = localStorage.getItem(SYNC_ENABLED_STORAGE_KEY);
     if (stored === null) return true; // Default to enabled for new users
-    return stored === "true";
+    return stored === 'true';
   } catch {
     return true;
   }
@@ -47,12 +78,12 @@ function writePersistedSyncEnabled(enabled: boolean): void {
 }
 
 function getUserId(user: FirebaseUser | null): string {
-  return user?.uid ?? "anonymous";
+  return user?.uid ?? 'anonymous';
 }
 
 function mergeSyncableData(
   local: SyncableData | null,
-  remote: import("./useFirebase").SyncableData | null
+  remote: import('./useFirebase').SyncableData | null
 ): SyncableData {
   const defaultData: SyncableData = {
     settings: {},
@@ -62,10 +93,10 @@ function mergeSyncableData(
     presets: [],
   };
 
-    // Helper to cast remote arrays to correct types
-    function castArray<T>(arr: unknown[] | undefined): T[] {
-      return Array.isArray(arr) ? (arr as T[]) : [];
-    }
+  // Helper to cast remote arrays to correct types
+  function castArray<T>(arr: unknown[] | undefined): T[] {
+    return Array.isArray(arr) ? (arr as T[]) : [];
+  }
 
   if (!local && !remote) {
     return defaultData;
@@ -73,7 +104,9 @@ function mergeSyncableData(
   if (!local) {
     return {
       settings: {},
-      questionHistory: castArray<QuestionHistoryEntry>(remote?.questionHistory ?? []),
+      questionHistory: castArray<QuestionHistoryEntry>(
+        remote?.questionHistory ?? []
+      ),
       mcHistory: castArray<McHistoryEntry>(remote?.mcHistory ?? []),
       savedSets: castArray<SavedQuestionSet>(remote?.savedSets ?? []),
       presets: castArray<Preset>(remote?.presets ?? []),
@@ -86,10 +119,22 @@ function mergeSyncableData(
   }
   return {
     settings: {},
-    questionHistory: mergeById(local.questionHistory, castArray<QuestionHistoryEntry>(remote.questionHistory)),
-    mcHistory: mergeById(local.mcHistory, castArray<McHistoryEntry>(remote.mcHistory)),
-    savedSets: mergeById(local.savedSets, castArray<SavedQuestionSet>(remote.savedSets)),
-    presets: mergeById(local.presets!, castArray<Preset>(remote?.presets ?? [])),
+    questionHistory: mergeById(
+      local.questionHistory,
+      castArray<QuestionHistoryEntry>(remote.questionHistory)
+    ),
+    mcHistory: mergeById(
+      local.mcHistory,
+      castArray<McHistoryEntry>(remote.mcHistory)
+    ),
+    savedSets: mergeById(
+      local.savedSets,
+      castArray<SavedQuestionSet>(remote.savedSets)
+    ),
+    presets: mergeById(
+      local.presets!,
+      castArray<Preset>(remote?.presets ?? [])
+    ),
     studyGoals: remote.studyGoals ?? local.studyGoals,
     streakData: remote.streakData ?? local.streakData,
   };
@@ -99,13 +144,17 @@ function hasRemoteData(data: SyncableData | null): boolean {
   if (!data) {
     return false;
   }
-  const hasSettings = Boolean(data.settings && Object.keys(data.settings).length > 0);
-  return hasSettings
-    || (data.questionHistory?.length ?? 0) > 0
-    || (data.mcHistory?.length ?? 0) > 0
-    || (data.savedSets?.length ?? 0) > 0
-    || (data.presets?.length ?? 0) > 0
-    || Boolean(data.studyGoals && Object.keys(data.studyGoals).length > 0);
+  const hasSettings = Boolean(
+    data.settings && Object.keys(data.settings).length > 0
+  );
+  return (
+    hasSettings ||
+    (data.questionHistory?.length ?? 0) > 0 ||
+    (data.mcHistory?.length ?? 0) > 0 ||
+    (data.savedSets?.length ?? 0) > 0 ||
+    (data.presets?.length ?? 0) > 0 ||
+    Boolean(data.studyGoals && Object.keys(data.studyGoals).length > 0)
+  );
 }
 
 interface HasId {
@@ -145,7 +194,10 @@ function mergeById<T extends HasId>(local: T[], remote: T[]): T[] {
 }
 
 function getItemLastModified(item: HasId): number {
-  if (typeof item.lastModified === "number" && Number.isFinite(item.lastModified)) {
+  if (
+    typeof item.lastModified === 'number' &&
+    Number.isFinite(item.lastModified)
+  ) {
     return item.lastModified;
   }
 
@@ -184,17 +236,26 @@ function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
     mcHistory: (data.mcHistory as McHistoryEntry[]) ?? [],
     savedSets: (data.savedSets as SavedQuestionSet[]) ?? [],
     presets: (data.presets as Preset[]) ?? [],
-    studyGoals: data.studyGoals ? (data.studyGoals as unknown as AppState["studyGoals"]) : undefined,
-    streakData: data.streakData ? (data.streakData as unknown as AppState["streakData"]) : undefined,
+    studyGoals: data.studyGoals
+      ? (data.studyGoals as unknown as AppState['studyGoals'])
+      : undefined,
+    streakData: data.streakData
+      ? (data.streakData as unknown as AppState['streakData'])
+      : undefined,
   };
 }
 
-export type SyncStatus = "idle" | "connecting" | "syncing" | "error" | "offline";
+export type SyncStatus =
+  | 'idle'
+  | 'connecting'
+  | 'syncing'
+  | 'error'
+  | 'offline';
 
 export interface SyncEvent {
   id: string;
   timestamp: number;
-  type: "upload" | "download" | "error" | "conflict" | "archive" | "retry";
+  type: 'upload' | 'download' | 'error' | 'conflict' | 'archive' | 'retry';
   description: string;
 }
 
@@ -217,7 +278,11 @@ export interface UseFirebaseSyncReturn {
   syncEvents: SyncEvent[];
   debugLogs: DebugLogEntry[];
   pendingChanges: number;
-  enableSync: (email: string, password: string, isSignUp?: boolean) => Promise<void>;
+  enableSync: (
+    email: string,
+    password: string,
+    isSignUp?: boolean
+  ) => Promise<void>;
   disableSync: () => Promise<void>;
   toggleSync: () => void;
   forceSync: () => Promise<void>;
@@ -227,18 +292,20 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isSyncEnabled, setIsSyncEnabled] = useState(() => readPersistedSyncEnabled());
+  const [isSyncEnabled, setIsSyncEnabled] = useState(() =>
+    readPersistedSyncEnabled()
+  );
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncEvents, setSyncEvents] = useState<SyncEvent[]>([]);
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingChanges, setPendingChanges] = useState(0);
 
   const debugLog = useCallback((message: string, data?: unknown) => {
     if (SYNC_DEBUG) {
-      console.log("[FirebaseSync]", message, data);
+      console.log('[FirebaseSync]', message, data);
       const entry: DebugLogEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         timestamp: Date.now(),
@@ -249,21 +316,26 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }
   }, []);
 
-  const addSyncEvent = useCallback((type: SyncEvent["type"], description: string) => {
-    const event: SyncEvent = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      timestamp: Date.now(),
-      type,
-      description,
-    };
-    debugLog(`Sync event: ${type} - ${description}`);
-    setSyncEvents((prev) => [event, ...prev].slice(0, SYNC_EVENT_LIMIT));
-  }, [debugLog]);
+  const addSyncEvent = useCallback(
+    (type: SyncEvent['type'], description: string) => {
+      const event: SyncEvent = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        timestamp: Date.now(),
+        type,
+        description,
+      };
+      debugLog(`Sync event: ${type} - ${description}`);
+      setSyncEvents((prev) => [event, ...prev].slice(0, SYNC_EVENT_LIMIT));
+    },
+    [debugLog]
+  );
 
   const localDataRef = useRef<SyncableData | null>(null);
   const isInitializedRef = useRef(false);
   const suppressAutoSaveRef = useRef(false);
-  const suppressAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Track sync metadata for delta sync
   const syncMetadataRef = useRef<SyncMetadata>({
@@ -279,7 +351,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   });
 
   // Snapshot of last-synced data for detecting pending changes
-  const lastSyncedSnapshotRef = useRef<string>("");
+  const lastSyncedSnapshotRef = useRef<string>('');
 
   const suppressAutoSaveTemporarily = useCallback((ms = 1200) => {
     suppressAutoSaveRef.current = true;
@@ -306,21 +378,45 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       if (!state.isHydrated) return;
       const syncable = extractSyncableData(state);
       const snapshot = JSON.stringify({
-        qh: syncable.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        mch: syncable.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        ss: syncable.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        pr: syncable.presets?.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })) ?? [],
+        qh: syncable.questionHistory.map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
+        mch: syncable.mcHistory.map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
+        ss: syncable.savedSets.map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
+        pr:
+          syncable.presets?.map((q) => ({
+            id: q.id,
+            lm: getItemLastModified(q as HasId),
+          })) ?? [],
       });
 
       if (snapshot !== lastSyncedSnapshotRef.current) {
         // Count how many items differ
         let count = 0;
         try {
-          const lastParsed = JSON.parse(lastSyncedSnapshotRef.current || '{"qh":[],"mch":[],"ss":[],"pr":[]}');
-          const lastQhIds = new Set(lastParsed.qh.map((i: { id: string }) => i.id));
-          const lastMcIds = new Set(lastParsed.mch.map((i: { id: string }) => i.id));
-          const lastSsIds = new Set(lastParsed.ss.map((i: { id: string }) => i.id));
-          const lastPrIds = new Set((lastParsed.pr ?? []).map((i: { id: string }) => i.id));
+          const lastParsed = JSON.parse(
+            lastSyncedSnapshotRef.current ||
+              '{"qh":[],"mch":[],"ss":[],"pr":[]}'
+          );
+          const lastQhIds = new Set(
+            lastParsed.qh.map((i: { id: string }) => i.id)
+          );
+          const lastMcIds = new Set(
+            lastParsed.mch.map((i: { id: string }) => i.id)
+          );
+          const lastSsIds = new Set(
+            lastParsed.ss.map((i: { id: string }) => i.id)
+          );
+          const lastPrIds = new Set(
+            (lastParsed.pr ?? []).map((i: { id: string }) => i.id)
+          );
           for (const q of syncable.questionHistory) {
             if (!lastQhIds.has(q.id)) count++;
           }
@@ -330,7 +426,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           for (const q of syncable.savedSets) {
             if (!lastSsIds.has(q.id)) count++;
           }
-          for (const q of (syncable.presets ?? [])) {
+          for (const q of syncable.presets ?? []) {
             if (!lastPrIds.has(q.id)) count++;
           }
         } catch {
@@ -358,15 +454,15 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
-      debugLog("Auth changed:", firebaseUser?.uid ?? "null");
+      debugLog('Auth changed:', firebaseUser?.uid ?? 'null');
       setUser(firebaseUser);
       if (!firebaseUser) {
         setIsSyncEnabled(false);
         isInitializedRef.current = false;
-        setSyncStatus("idle");
+        setSyncStatus('idle');
       } else {
         const persisted = readPersistedSyncEnabled();
-        debugLog("Persisted sync preference:", persisted);
+        debugLog('Persisted sync preference:', persisted);
         if (persisted) {
           setIsSyncEnabled(true);
         }
@@ -381,212 +477,274 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      setSyncStatus((prev) => prev === "offline" ? "idle" : prev);
+      setSyncStatus((prev) => (prev === 'offline' ? 'idle' : prev));
     };
     const handleOffline = () => {
       setIsOnline(false);
-      setSyncStatus("offline");
+      setSyncStatus('offline');
     };
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  const enableSync = useCallback(async (email: string, password: string, isSignUp = false) => {
-    debugLog("enableSync called", { email, isSignUp });
-    setSyncError(null);
-    setSyncStatus("connecting");
+  const enableSync = useCallback(
+    async (email: string, password: string, isSignUp = false) => {
+      debugLog('enableSync called', { email, isSignUp });
+      setSyncError(null);
+      setSyncStatus('connecting');
 
-    try {
-      let firebaseUser: FirebaseUser | null = null;
+      try {
+        let firebaseUser: FirebaseUser | null = null;
 
-      if (isSignUp) {
-        debugLog("Signing up...");
-        firebaseUser = await signUpWithEmail(email, password);
-      } else {
-        debugLog("Signing in...");
-        firebaseUser = await signInWithEmail(email, password);
-      }
+        if (isSignUp) {
+          debugLog('Signing up...');
+          firebaseUser = await signUpWithEmail(email, password);
+        } else {
+          debugLog('Signing in...');
+          firebaseUser = await signInWithEmail(email, password);
+        }
 
-      if (!firebaseUser) {
-        setSyncError("Failed to sign in");
-        return;
-      }
+        if (!firebaseUser) {
+          setSyncError('Failed to sign in');
+          return;
+        }
 
-      debugLog("User authenticated:", firebaseUser.uid);
-      setUser(firebaseUser);
+        debugLog('User authenticated:', firebaseUser.uid);
+        setUser(firebaseUser);
 
-      const userId = getUserId(firebaseUser);
-      debugLog("Loading user data for:", userId);
-      isInitializedRef.current = false;
+        const userId = getUserId(firebaseUser);
+        debugLog('Loading user data for:', userId);
+        isInitializedRef.current = false;
 
-      let remoteData = await loadUserData(userId);
-      const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
-      debugLog("Remote data loaded:", {
-        hasData: remoteHasData,
-        settings: !!remoteData?.settings,
-        questionHistory: remoteData?.questionHistory?.length,
-        mcHistory: remoteData?.mcHistory?.length,
-        savedSets: remoteData?.savedSets?.length,
-      });
+        let remoteData = await loadUserData(userId);
+        const remoteHasData = hasRemoteData(
+          normalizeRemoteSyncableData(remoteData)
+        );
+        debugLog('Remote data loaded:', {
+          hasData: remoteHasData,
+          settings: !!remoteData?.settings,
+          questionHistory: remoteData?.questionHistory?.length,
+          mcHistory: remoteData?.mcHistory?.length,
+          savedSets: remoteData?.savedSets?.length,
+        });
 
-      if (remoteHasData) {
-        const migrationResult = await migrateUserDataForCompaction(userId, remoteData);
-        debugLog("Compaction migration result", migrationResult);
-        if (migrationResult.migrated) {
-          addSyncEvent(
-            "upload",
-            `Cloud compaction migrated ${migrationResult.questionHistoryCount} written, ${migrationResult.mcHistoryCount} MC, ${migrationResult.savedSetsCount} saved sets`
+        if (remoteHasData) {
+          const migrationResult = await migrateUserDataForCompaction(
+            userId,
+            remoteData
           );
-          remoteData = await loadUserData(userId);
-          debugLog("Remote data reloaded after compaction migration:", {
-            hasData: hasRemoteData(normalizeRemoteSyncableData(remoteData)),
-            questionHistory: remoteData?.questionHistory?.length,
-            mcHistory: remoteData?.mcHistory?.length,
-            savedSets: remoteData?.savedSets?.length,
+          debugLog('Compaction migration result', migrationResult);
+          if (migrationResult.migrated) {
+            addSyncEvent(
+              'upload',
+              `Cloud compaction migrated ${migrationResult.questionHistoryCount} written, ${migrationResult.mcHistoryCount} MC, ${migrationResult.savedSetsCount} saved sets`
+            );
+            remoteData = await loadUserData(userId);
+            debugLog('Remote data reloaded after compaction migration:', {
+              hasData: hasRemoteData(normalizeRemoteSyncableData(remoteData)),
+              questionHistory: remoteData?.questionHistory?.length,
+              mcHistory: remoteData?.mcHistory?.length,
+              savedSets: remoteData?.savedSets?.length,
+            });
+          }
+        }
+
+        const localState = useAppStore.getState();
+        const localData = extractSyncableData(localState);
+
+        localDataRef.current = localData;
+
+        if (hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
+          const merged = mergeSyncableData(localData, remoteData ?? null);
+          const storeUpdates = applySyncableDataToStore(merged);
+          setSuppressPersistUntil(Date.now() + 1500);
+          suppressAutoSaveTemporarily();
+          useAppStore.setState(storeUpdates);
+          localDataRef.current = merged;
+
+          // Initialize sync metadata from merged data
+          const now = Date.now();
+          syncMetadataRef.current.lastSyncTime = now;
+          syncMetadataRef.current.questionHistorySyncTime = now;
+          syncMetadataRef.current.mcHistorySyncTime = now;
+          syncMetadataRef.current.savedSetsSyncTime = now;
+          syncMetadataRef.current.lastSyncVersions.questionHistory =
+            buildVersionMap(
+              merged.questionHistory as Array<Record<string, unknown>>,
+              {}
+            );
+          syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+            merged.mcHistory as Array<Record<string, unknown>>,
+            {}
+          );
+          syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+            merged.savedSets as Array<Record<string, unknown>>,
+            {}
+          );
+
+          // Set snapshot so pending changes shows 0 after initial merge
+          lastSyncedSnapshotRef.current = JSON.stringify({
+            qh: merged.questionHistory.map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+            mch: merged.mcHistory.map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+            ss: merged.savedSets.map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+            pr: (merged.presets ?? []).map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+          });
+
+          debugLog('Sync metadata initialized', {
+            questionHistoryVersions: Object.keys(
+              syncMetadataRef.current.lastSyncVersions.questionHistory
+            ).length,
+            mcHistoryVersions: Object.keys(
+              syncMetadataRef.current.lastSyncVersions.mcHistory
+            ).length,
+            savedSetsVersions: Object.keys(
+              syncMetadataRef.current.lastSyncVersions.savedSets
+            ).length,
+          });
+
+          addSyncEvent(
+            'download',
+            `Synced ${remoteData?.questionHistory?.length || 0} question history items`
+          );
+
+          // Archive old items from Firestore after merge
+          const qhKeepIds = new Set(
+            merged.questionHistory.map((item) => String(item.id ?? ''))
+          );
+          const mcKeepIds = new Set(
+            merged.mcHistory.map((item) => String(item.id ?? ''))
+          );
+          void deleteArchivedItems(userId, 'questionHistory', qhKeepIds).then(
+            (deleted) => {
+              if (deleted > 0)
+                addSyncEvent(
+                  'archive',
+                  `Archived ${deleted} old question history items`
+                );
+            }
+          );
+          void deleteArchivedItems(userId, 'mcHistory', mcKeepIds).then(
+            (deleted) => {
+              if (deleted > 0)
+                addSyncEvent(
+                  'archive',
+                  `Archived ${deleted} old MC history items`
+                );
+            }
+          );
+        }
+
+        if (!hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
+          // Initialize sync metadata for first-time sync
+          const now = Date.now();
+          syncMetadataRef.current.lastSyncTime = now;
+          syncMetadataRef.current.questionHistorySyncTime = now;
+          syncMetadataRef.current.mcHistorySyncTime = now;
+          syncMetadataRef.current.savedSetsSyncTime = now;
+          syncMetadataRef.current.lastSyncVersions.questionHistory =
+            buildVersionMap(
+              localDataRef.current.questionHistory as Array<
+                Record<string, unknown>
+              >,
+              {}
+            );
+          syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+            localDataRef.current.mcHistory as Array<Record<string, unknown>>,
+            {}
+          );
+          syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+            localDataRef.current.savedSets as Array<Record<string, unknown>>,
+            {}
+          );
+
+          // Full sync for first upload
+          await saveUserData(userId, localDataRef.current, { fullSync: true });
+          addSyncEvent('upload', 'Initial data uploaded to cloud');
+
+          lastSyncedSnapshotRef.current = JSON.stringify({
+            qh: localDataRef.current.questionHistory.map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+            mch: localDataRef.current.mcHistory.map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+            ss: localDataRef.current.savedSets.map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
+            pr: (localDataRef.current.presets ?? []).map((q) => ({
+              id: q.id,
+              lm: getItemLastModified(q as HasId),
+            })),
           });
         }
+        isInitializedRef.current = true;
+        setPendingChanges(0);
+        setIsSyncEnabled(true);
+        setSyncError(null);
+        setSyncStatus('idle');
+        setLastSyncTime(Date.now());
+      } catch (error: unknown) {
+        console.error('Failed to enable sync:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to enable sync';
+        setSyncError(errorMessage);
+        addSyncEvent('error', `Connection failed: ${errorMessage}`);
+        setIsSyncEnabled(false);
+        setSyncStatus('error');
       }
-
-      const localState = useAppStore.getState();
-      const localData = extractSyncableData(localState);
-
-      localDataRef.current = localData;
-
-      if (hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
-        const merged = mergeSyncableData(localData, remoteData ?? null);
-        const storeUpdates = applySyncableDataToStore(merged);
-        setSuppressPersistUntil(Date.now() + 1500);
-        suppressAutoSaveTemporarily();
-        useAppStore.setState(storeUpdates);
-        localDataRef.current = merged;
-
-        // Initialize sync metadata from merged data
-        const now = Date.now();
-        syncMetadataRef.current.lastSyncTime = now;
-        syncMetadataRef.current.questionHistorySyncTime = now;
-        syncMetadataRef.current.mcHistorySyncTime = now;
-        syncMetadataRef.current.savedSetsSyncTime = now;
-        syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
-          merged.questionHistory as Array<Record<string, unknown>>,
-          {}
-        );
-        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-          merged.mcHistory as Array<Record<string, unknown>>,
-          {}
-        );
-        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-          merged.savedSets as Array<Record<string, unknown>>,
-          {}
-        );
-
-        // Set snapshot so pending changes shows 0 after initial merge
-        lastSyncedSnapshotRef.current = JSON.stringify({
-          qh: merged.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-          mch: merged.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-          ss: merged.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-          pr: (merged.presets ?? []).map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        });
-
-        debugLog("Sync metadata initialized", {
-          questionHistoryVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.questionHistory).length,
-          mcHistoryVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.mcHistory).length,
-          savedSetsVersions: Object.keys(syncMetadataRef.current.lastSyncVersions.savedSets).length,
-        });
-
-        addSyncEvent("download", `Synced ${remoteData?.questionHistory?.length || 0} question history items`);
-
-        // Archive old items from Firestore after merge
-        const qhKeepIds = new Set(merged.questionHistory.map((item) => String(item.id ?? "")));
-        const mcKeepIds = new Set(merged.mcHistory.map((item) => String(item.id ?? "")));
-        void deleteArchivedItems(userId, "questionHistory", qhKeepIds).then((deleted) => {
-          if (deleted > 0) addSyncEvent("archive", `Archived ${deleted} old question history items`);
-        });
-        void deleteArchivedItems(userId, "mcHistory", mcKeepIds).then((deleted) => {
-          if (deleted > 0) addSyncEvent("archive", `Archived ${deleted} old MC history items`);
-        });
-      }
-
-      if (!hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
-        // Initialize sync metadata for first-time sync
-        const now = Date.now();
-        syncMetadataRef.current.lastSyncTime = now;
-        syncMetadataRef.current.questionHistorySyncTime = now;
-        syncMetadataRef.current.mcHistorySyncTime = now;
-        syncMetadataRef.current.savedSetsSyncTime = now;
-        syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
-          localDataRef.current.questionHistory as Array<Record<string, unknown>>,
-          {}
-        );
-        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-          localDataRef.current.mcHistory as Array<Record<string, unknown>>,
-          {}
-        );
-        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-          localDataRef.current.savedSets as Array<Record<string, unknown>>,
-          {}
-        );
-
-        // Full sync for first upload
-        await saveUserData(userId, localDataRef.current, { fullSync: true });
-        addSyncEvent("upload", "Initial data uploaded to cloud");
-
-        lastSyncedSnapshotRef.current = JSON.stringify({
-          qh: localDataRef.current.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-          mch: localDataRef.current.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-          ss: localDataRef.current.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-          pr: (localDataRef.current.presets ?? []).map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        });
-      }
-      isInitializedRef.current = true;
-      setPendingChanges(0);
-      setIsSyncEnabled(true);
-      setSyncError(null);
-      setSyncStatus("idle");
-      setLastSyncTime(Date.now());
-    } catch (error: unknown) {
-      console.error("Failed to enable sync:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to enable sync";
-      setSyncError(errorMessage);
-      addSyncEvent("error", `Connection failed: ${errorMessage}`);
-      setIsSyncEnabled(false);
-      setSyncStatus("error");
-    }
-  }, [debugLog, addSyncEvent, suppressAutoSaveTemporarily]);
+    },
+    [debugLog, addSyncEvent, suppressAutoSaveTemporarily]
+  );
 
   const disableSync = useCallback(async () => {
     setIsSyncEnabled(false);
     isInitializedRef.current = false;
-    setSyncStatus("idle");
-    addSyncEvent("upload", "Disconnected from cloud sync");
+    setSyncStatus('idle');
+    addSyncEvent('upload', 'Disconnected from cloud sync');
   }, [addSyncEvent]);
 
   const toggleSync = useCallback(() => {
     if (isSyncEnabled) {
       setIsSyncEnabled(false);
       isInitializedRef.current = false;
-      setSyncStatus("idle");
-      addSyncEvent("upload", "Cloud sync paused");
+      setSyncStatus('idle');
+      addSyncEvent('upload', 'Cloud sync paused');
     } else if (user) {
       setIsSyncEnabled(true);
-      setSyncStatus("idle");
-      addSyncEvent("download", "Cloud sync resumed");
+      setSyncStatus('idle');
+      addSyncEvent('download', 'Cloud sync resumed');
     }
   }, [isSyncEnabled, user, addSyncEvent]);
 
   const forceSync = useCallback(async () => {
     if (!user) {
-      setSyncError("Not signed in");
+      setSyncError('Not signed in');
       return;
     }
 
-    debugLog("Manual sync started");
+    debugLog('Manual sync started');
     setIsSyncing(true);
-    setSyncStatus("syncing");
+    setSyncStatus('syncing');
     setIsSyncEnabled(true);
     isInitializedRef.current = true;
 
@@ -595,7 +753,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     try {
       const state = useAppStore.getState();
       const localData = extractSyncableData(state);
-      debugLog("Manual sync local snapshot", {
+      debugLog('Manual sync local snapshot', {
         questionHistory: localData.questionHistory?.length,
         mcHistory: localData.mcHistory?.length,
         savedSets: localData.savedSets?.length,
@@ -603,8 +761,10 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
       // 1. Read remote (1 read per doc, but only once per manual sync)
       const remoteData = await loadUserData(userId);
-      const remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
-      debugLog("Manual sync remote snapshot", {
+      const remoteHasData = hasRemoteData(
+        normalizeRemoteSyncableData(remoteData)
+      );
+      debugLog('Manual sync remote snapshot', {
         hasData: remoteHasData,
         questionHistory: remoteData?.questionHistory?.length ?? 0,
         mcHistory: remoteData?.mcHistory?.length ?? 0,
@@ -621,11 +781,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         setSuppressPersistUntil(Date.now() + 1500);
         suppressAutoSaveTemporarily();
         useAppStore.setState(storeUpdates);
-        addSyncEvent("download", "Merged remote updates");
+        addSyncEvent('download', 'Merged remote updates');
       }
 
       // 3. Write only changed items (delta sync)
-      debugLog("Uploading merged data", {
+      debugLog('Uploading merged data', {
         questionHistory: merged.questionHistory?.length,
         mcHistory: merged.mcHistory?.length,
         savedSets: merged.savedSets?.length,
@@ -633,14 +793,14 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
       const deltaResult = await getDeltaSyncData(userId, merged);
       if (deltaResult.changedItems.length === 0 && !remoteHasData) {
-        debugLog("No changes to sync");
-        addSyncEvent("upload", "No changes to sync");
+        debugLog('No changes to sync');
+        addSyncEvent('upload', 'No changes to sync');
       } else {
         await saveUserData(userId, merged, {
           deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
           fullSync: false,
         });
-        addSyncEvent("upload", "Data synced to cloud");
+        addSyncEvent('upload', 'Data synced to cloud');
       }
 
       // 4. Sync daily usage (bundled into manual sync)
@@ -649,11 +809,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           userId,
           state.generationHistory,
           state.questionHistory,
-          state.mcHistory,
+          state.mcHistory
         );
-        debugLog("Daily usage synced");
+        debugLog('Daily usage synced');
       } catch (usageError) {
-        console.warn("[Firebase] Daily usage sync failed:", usageError);
+        console.warn('[Firebase] Daily usage sync failed:', usageError);
       }
 
       localDataRef.current = merged;
@@ -664,10 +824,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       syncMetadataRef.current.questionHistorySyncTime = now;
       syncMetadataRef.current.mcHistorySyncTime = now;
       syncMetadataRef.current.savedSetsSyncTime = now;
-      syncMetadataRef.current.lastSyncVersions.questionHistory = buildVersionMap(
-        merged.questionHistory as Array<Record<string, unknown>>,
-        syncMetadataRef.current.lastSyncVersions.questionHistory
-      );
+      syncMetadataRef.current.lastSyncVersions.questionHistory =
+        buildVersionMap(
+          merged.questionHistory as Array<Record<string, unknown>>,
+          syncMetadataRef.current.lastSyncVersions.questionHistory
+        );
       syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
         merged.mcHistory as Array<Record<string, unknown>>,
         syncMetadataRef.current.lastSyncVersions.mcHistory
@@ -679,23 +840,40 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
       // Update snapshot for pending change tracking
       lastSyncedSnapshotRef.current = JSON.stringify({
-        qh: merged.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        mch: merged.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        ss: merged.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
-        pr: (merged.presets ?? []).map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        qh: merged.questionHistory.map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
+        mch: merged.mcHistory.map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
+        ss: merged.savedSets.map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
+        pr: (merged.presets ?? []).map((q) => ({
+          id: q.id,
+          lm: getItemLastModified(q as HasId),
+        })),
       });
 
       setPendingChanges(0);
       setLastSyncTime(Date.now());
       setSyncError(null);
-      setSyncStatus("idle");
-      debugLog("Manual sync completed successfully");
+      setSyncStatus('idle');
+      debugLog('Manual sync completed successfully');
     } catch (error) {
-      console.error("Force sync failed:", error);
-      setSyncError(error instanceof Error ? error.message : "Force sync failed");
-      setSyncStatus("error");
-      addSyncEvent("error", `Manual sync failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-      debugLog("Manual sync failed", error);
+      console.error('Force sync failed:', error);
+      setSyncError(
+        error instanceof Error ? error.message : 'Force sync failed'
+      );
+      setSyncStatus('error');
+      addSyncEvent(
+        'error',
+        `Manual sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      debugLog('Manual sync failed', error);
     } finally {
       setIsSyncing(false);
     }

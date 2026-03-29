@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useCollapsibleHeight(defaultOpen = true) {
   const [open, setOpen] = useState(defaultOpen);
-  const [height, setHeight] = useState<string | number>(defaultOpen ? "auto" : 0);
+  const [height, setHeight] = useState<string | number>(
+    defaultOpen ? 'auto' : 0
+  );
   const innerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -10,7 +12,7 @@ export function useCollapsibleHeight(defaultOpen = true) {
     if (!el) return;
     const ro = new ResizeObserver(() => {
       setHeight((h) => {
-        if (h === "auto" || h === 0) return h;
+        if (h === 'auto' || h === 0) return h;
         return el.scrollHeight;
       });
     });
@@ -23,14 +25,18 @@ export function useCollapsibleHeight(defaultOpen = true) {
     if (!el) return;
     if (open) {
       setHeight(el.scrollHeight);
-      requestAnimationFrame(() => { requestAnimationFrame(() => setHeight(0)); });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setHeight(0));
+      });
     } else {
       setHeight(el.scrollHeight);
     }
     setOpen((v) => !v);
   }, [open]);
 
-  const handleTransitionEnd = useCallback(() => { if (open) setHeight("auto"); }, [open]);
+  const handleTransitionEnd = useCallback(() => {
+    if (open) setHeight('auto');
+  }, [open]);
 
   return { open, height, innerRef, toggle, handleTransitionEnd };
 }

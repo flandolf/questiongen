@@ -1,26 +1,51 @@
-import { useState, useMemo, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState, useMemo, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import {
-  Wand2, Loader2, CheckCircle2, AlertTriangle, Pencil, ChevronDown, ChevronUp,
-  X, Check, Sparkles, ArrowUpDown, Eye, EyeOff, CheckSquare, Square,
+  Wand2,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  Pencil,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Check,
+  Sparkles,
+  ArrowUpDown,
+  Eye,
+  EyeOff,
+  CheckSquare,
+  Square,
   ThumbsUp,
-} from "lucide-react";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { readBackendError } from "../../../lib/app-utils";
-import { useAppContext } from "../../../AppContext";
+} from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { readBackendError } from '../../../lib/app-utils';
+import { useAppContext } from '../../../AppContext';
 import {
-  SectionHeader, FieldGroup, Divider, ErrorBanner, Card, ModelSelectRow,
-} from "../SettingsUI";
-import { PRESET_MODELS } from "../constants";
+  SectionHeader,
+  FieldGroup,
+  Divider,
+  ErrorBanner,
+  Card,
+  ModelSelectRow,
+} from '../SettingsUI';
+import { PRESET_MODELS } from '../constants';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "../../../components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../components/ui/select';
 import {
-  TOPICS, MATH_METHODS_SUBTOPICS, SPECIALIST_MATH_SUBTOPICS,
-  CHEMISTRY_SUBTOPICS, PHYSICAL_EDUCATION_SUBTOPICS,
+  TOPICS,
+  MATH_METHODS_SUBTOPICS,
+  SPECIALIST_MATH_SUBTOPICS,
+  CHEMISTRY_SUBTOPICS,
+  PHYSICAL_EDUCATION_SUBTOPICS,
   type Topic,
-} from "../../../types";
+} from '../../../types';
 
 const CANONICAL_TOPICS: string[] = [...TOPICS];
 
@@ -72,7 +97,7 @@ function similarity(a: string, b: string): number {
   if (lenA === 0 || lenB === 0) return 0;
 
   const matrix: number[][] = Array.from({ length: lenA + 1 }, (_, i) =>
-    Array.from({ length: lenB + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+    Array.from({ length: lenB + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
   );
 
   for (let i = 1; i <= lenA; i++) {
@@ -81,7 +106,7 @@ function similarity(a: string, b: string): number {
       matrix[i][j] = Math.min(
         matrix[i - 1][j] + 1,
         matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
+        matrix[i - 1][j - 1] + cost
       );
     }
   }
@@ -90,7 +115,10 @@ function similarity(a: string, b: string): number {
   return 1 - distance / Math.max(lenA, lenB);
 }
 
-function findBestMatch(item: string, options: string[]): { match: string; score: number } | null {
+function findBestMatch(
+  item: string,
+  options: string[]
+): { match: string; score: number } | null {
   let best: { match: string; score: number } | null = null;
   for (const opt of options) {
     const score = similarity(item, opt);
@@ -113,19 +141,19 @@ function ManualFixPanel({
 }: {
   unknownItems: string[];
   canonicalOptions: string[];
-  mappingKind: "topic" | "subtopic";
+  mappingKind: 'topic' | 'subtopic';
   onApply: (mapping: Record<string, string>) => number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [resultCount, setResultCount] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"alpha" | "similarity">("similarity");
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'alpha' | 'similarity'>('similarity');
   const [showPreview, setShowPreview] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
-  const [bulkValue, setBulkValue] = useState("");
+  const [bulkValue, setBulkValue] = useState('');
 
   // Compute best matches for all unknown items
   const bestMatches = useMemo(() => {
@@ -142,7 +170,7 @@ function ManualFixPanel({
   // Sort items
   const sortedUnknownItems = useMemo(() => {
     const items = [...unknownItems];
-    if (sortBy === "alpha") {
+    if (sortBy === 'alpha') {
       items.sort((a, b) => a.localeCompare(b));
     } else {
       // Sort by best match score descending (most confident suggestions first)
@@ -162,13 +190,13 @@ function ManualFixPanel({
     return sortedUnknownItems.filter(
       (item) =>
         item.toLowerCase().includes(q) ||
-        (bestMatches[item]?.match.toLowerCase().includes(q)),
+        bestMatches[item]?.match.toLowerCase().includes(q)
     );
   }, [search, sortedUnknownItems, bestMatches]);
 
   const handleSelect = (unknown: string, value: string) => {
     setSelections((prev) => ({ ...prev, [unknown]: value }));
-    if (value !== "__custom__") {
+    if (value !== '__custom__') {
       setCustomInputs((prev) => {
         const next = { ...prev };
         delete next[unknown];
@@ -179,16 +207,16 @@ function ManualFixPanel({
 
   const handleCustomInput = (unknown: string, text: string) => {
     setCustomInputs((prev) => ({ ...prev, [unknown]: text }));
-    setSelections((prev) => ({ ...prev, [unknown]: "__custom__" }));
+    setSelections((prev) => ({ ...prev, [unknown]: '__custom__' }));
   };
 
   const buildMapping = (): Record<string, string> => {
     const mapping: Record<string, string> = {};
     for (const item of unknownItems) {
       const sel = selections[item];
-      if (!sel || sel === "") continue;
-      if (sel === "__custom__") {
-        const custom = (customInputs[item] ?? "").trim();
+      if (!sel || sel === '') continue;
+      if (sel === '__custom__') {
+        const custom = (customInputs[item] ?? '').trim();
         if (custom) mapping[item] = custom;
       } else {
         mapping[item] = sel;
@@ -222,7 +250,7 @@ function ManualFixPanel({
     setSelections(newSelections);
     setBulkSelected(new Set());
     setBulkMode(false);
-    setBulkValue("");
+    setBulkValue('');
   };
 
   const toggleBulkItem = (item: string) => {
@@ -247,15 +275,15 @@ function ManualFixPanel({
 
   const resolvedCount = Object.keys(selections).filter((k) => {
     const sel = selections[k];
-    if (!sel || sel === "") return false;
-    if (sel === "__custom__") return !!(customInputs[k] ?? "").trim();
+    if (!sel || sel === '') return false;
+    if (sel === '__custom__') return !!(customInputs[k] ?? '').trim();
     return true;
   }).length;
 
   const unresolvedCount = unknownItems.filter((item) => {
     const sel = selections[item];
-    if (!sel || sel === "") return true;
-    if (sel === "__custom__") return !(customInputs[item] ?? "").trim();
+    if (!sel || sel === '') return true;
+    if (sel === '__custom__') return !(customInputs[item] ?? '').trim();
     return false;
   }).length;
 
@@ -270,7 +298,7 @@ function ManualFixPanel({
   const handleExpandToggle = () => {
     setExpanded((v) => {
       if (v) {
-        setSearch("");
+        setSearch('');
         setBulkMode(false);
         setBulkSelected(new Set());
         setShowPreview(false);
@@ -284,7 +312,9 @@ function ManualFixPanel({
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          <p className="text-sm font-medium">Manual {mappingKind === "topic" ? "Topic" : "Subtopic"} Fix Complete</p>
+          <p className="text-sm font-medium">
+            Manual {mappingKind === 'topic' ? 'Topic' : 'Subtopic'} Fix Complete
+          </p>
         </div>
         <p className="text-xs text-muted-foreground">
           Updated {resultCount} {mappingKind}(s) across your history.
@@ -303,9 +333,12 @@ function ManualFixPanel({
         <div className="flex items-center gap-2">
           <Pencil className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">
-            Manually Fix Unknown {mappingKind === "topic" ? "Topics" : "Subtopics"}
+            Manually Fix Unknown{' '}
+            {mappingKind === 'topic' ? 'Topics' : 'Subtopics'}
           </span>
-          <span className="text-xs text-muted-foreground">({unknownItems.length})</span>
+          <span className="text-xs text-muted-foreground">
+            ({unknownItems.length})
+          </span>
           {Object.keys(bestMatches).length > 0 && (
             <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-0.5">
               <Sparkles className="h-3 w-3" />
@@ -313,7 +346,11 @@ function ManualFixPanel({
             </span>
           )}
         </div>
-        {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        {expanded ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
       </button>
 
       {expanded && (
@@ -330,20 +367,30 @@ function ManualFixPanel({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setSortBy((s) => (s === "alpha" ? "similarity" : "alpha"))}
+              onClick={() =>
+                setSortBy((s) => (s === 'alpha' ? 'similarity' : 'alpha'))
+              }
               className="h-7 gap-1 text-xs"
-              title={sortBy === "alpha" ? "Sort by best match" : "Sort alphabetically"}
+              title={
+                sortBy === 'alpha'
+                  ? 'Sort by best match'
+                  : 'Sort alphabetically'
+              }
             >
               <ArrowUpDown className="h-3 w-3" />
-              {sortBy === "alpha" ? "A-Z" : "Best match"}
+              {sortBy === 'alpha' ? 'A-Z' : 'Best match'}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => setBulkMode((v) => !v)}
-              className={`h-7 gap-1 text-xs ${bulkMode ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700" : ""}`}
+              className={`h-7 gap-1 text-xs ${bulkMode ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : ''}`}
             >
-              {bulkMode ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+              {bulkMode ? (
+                <CheckSquare className="h-3 w-3" />
+              ) : (
+                <Square className="h-3 w-3" />
+              )}
               Bulk
             </Button>
             <Button
@@ -353,8 +400,12 @@ function ManualFixPanel({
               className="h-7 gap-1 text-xs"
               disabled={resolvedCount === 0}
             >
-              {showPreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-              Preview {resolvedCount > 0 ? `(${resolvedCount})` : ""}
+              {showPreview ? (
+                <EyeOff className="h-3 w-3" />
+              ) : (
+                <Eye className="h-3 w-3" />
+              )}
+              Preview {resolvedCount > 0 ? `(${resolvedCount})` : ''}
             </Button>
           </div>
 
@@ -367,7 +418,8 @@ function ManualFixPanel({
               className="gap-1.5 text-xs border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
             >
               <Sparkles className="h-3 w-3" />
-              Auto-fill {Object.keys(bestMatches).length} best match{Object.keys(bestMatches).length !== 1 ? "es" : ""}
+              Auto-fill {Object.keys(bestMatches).length} best match
+              {Object.keys(bestMatches).length !== 1 ? 'es' : ''}
             </Button>
           )}
 
@@ -377,10 +429,20 @@ function ManualFixPanel({
               <span className="text-xs text-muted-foreground">
                 {bulkSelected.size} selected
               </span>
-              <Button size="sm" variant="ghost" onClick={selectAllBulk} className="h-6 text-xs px-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={selectAllBulk}
+                className="h-6 text-xs px-2"
+              >
                 Select all
               </Button>
-              <Button size="sm" variant="ghost" onClick={deselectAllBulk} className="h-6 text-xs px-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={deselectAllBulk}
+                className="h-6 text-xs px-2"
+              >
                 Deselect all
               </Button>
               <div className="flex-1" />
@@ -390,7 +452,9 @@ function ManualFixPanel({
                 </SelectTrigger>
                 <SelectContent>
                   {canonicalOptions.map((opt) => (
-                    <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                    <SelectItem key={opt} value={opt} className="text-xs">
+                      {opt}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -409,12 +473,19 @@ function ManualFixPanel({
           {/* Preview panel */}
           {showPreview && previewMapping.length > 0 && (
             <div className="rounded border border-border bg-muted/30 p-3 space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Mapping Preview ({previewMapping.length} change{previewMapping.length !== 1 ? "s" : ""}):</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Mapping Preview ({previewMapping.length} change
+                {previewMapping.length !== 1 ? 's' : ''}):
+              </p>
               {previewMapping.map(([from, to]) => (
                 <div key={from} className="text-xs flex items-center gap-1.5">
-                  <span className="font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 line-through truncate max-w-[45%]">{from}</span>
+                  <span className="font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 line-through truncate max-w-[45%]">
+                    {from}
+                  </span>
                   <span className="text-muted-foreground shrink-0">→</span>
-                  <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 truncate max-w-[45%]">{to}</span>
+                  <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 truncate max-w-[45%]">
+                    {to}
+                  </span>
                 </div>
               ))}
             </div>
@@ -423,12 +494,12 @@ function ManualFixPanel({
           {/* Item list */}
           {filteredUnknownItems.length === 0 ? (
             <div className="text-xs text-muted-foreground">
-              {search.trim() ? "No matches found." : "No unknown items."}
+              {search.trim() ? 'No matches found.' : 'No unknown items.'}
             </div>
           ) : (
             filteredUnknownItems.map((item) => {
-              const sel = selections[item] ?? "";
-              const isCustom = sel === "__custom__";
+              const sel = selections[item] ?? '';
+              const isCustom = sel === '__custom__';
               const best = bestMatches[item];
               const isBulkChecked = bulkSelected.has(item);
 
@@ -441,9 +512,11 @@ function ManualFixPanel({
                         onClick={() => toggleBulkItem(item)}
                         className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {isBulkChecked
-                          ? <CheckSquare className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                          : <Square className="h-3.5 w-3.5" />}
+                        {isBulkChecked ? (
+                          <CheckSquare className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        ) : (
+                          <Square className="h-3.5 w-3.5" />
+                        )}
                       </button>
                     )}
                     <div className="shrink-0 flex flex-col items-start">
@@ -457,10 +530,12 @@ function ManualFixPanel({
                         </span>
                       )}
                     </div>
-                    <span className="text-muted-foreground text-xs shrink-0">→</span>
+                    <span className="text-muted-foreground text-xs shrink-0">
+                      →
+                    </span>
                     <div className="min-w-0 flex-1">
                       <Select
-                        value={isCustom ? "__custom__" : sel}
+                        value={isCustom ? '__custom__' : sel}
                         onValueChange={(v) => handleSelect(item, v)}
                       >
                         <SelectTrigger className="w-full h-7 text-xs">
@@ -468,24 +543,35 @@ function ManualFixPanel({
                         </SelectTrigger>
                         <SelectContent>
                           {canonicalOptions.map((opt) => {
-                            const matchScore = best && opt === best.match ? best.score : null;
+                            const matchScore =
+                              best && opt === best.match ? best.score : null;
                             return (
-                              <SelectItem key={opt} value={opt} className="text-xs">
+                              <SelectItem
+                                key={opt}
+                                value={opt}
+                                className="text-xs"
+                              >
                                 {opt}
-                                {matchScore !== null && matchScore >= CONFIDENCE_THRESHOLD
+                                {matchScore !== null &&
+                                matchScore >= CONFIDENCE_THRESHOLD
                                   ? ` (${Math.round(matchScore * 100)}%)`
-                                  : ""}
+                                  : ''}
                               </SelectItem>
                             );
                           })}
-                          <SelectItem value="__custom__" className="text-xs text-muted-foreground">Custom value…</SelectItem>
+                          <SelectItem
+                            value="__custom__"
+                            className="text-xs text-muted-foreground"
+                          >
+                            Custom value…
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   {isCustom && (
                     <Input
-                      value={customInputs[item] ?? ""}
+                      value={customInputs[item] ?? ''}
                       onChange={(e) => handleCustomInput(item, e.target.value)}
                       placeholder="Type custom canonical value…"
                       className="h-7 text-xs font-mono"
@@ -505,7 +591,7 @@ function ManualFixPanel({
               className="gap-1.5"
             >
               <Check className="h-3.5 w-3.5" />
-              Apply {resolvedCount > 0 ? `(${resolvedCount})` : ""}
+              Apply {resolvedCount > 0 ? `(${resolvedCount})` : ''}
             </Button>
             <Button
               size="sm"
@@ -530,17 +616,26 @@ function ManualFixPanel({
 // ─── Main Section ─────────────────────────────────────────────────────────────
 
 export function CleanupSection() {
-  const { apiKey, questionHistory, setQuestionHistory, mcHistory, setMcHistory } = useAppContext();
+  const {
+    apiKey,
+    questionHistory,
+    setQuestionHistory,
+    mcHistory,
+    setMcHistory,
+  } = useAppContext();
 
   const [selectedModel, setSelectedModel] = useState(PRESET_MODELS[0].id);
 
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicError, setTopicError] = useState<string | null>(null);
-  const [topicResult, setTopicResult] = useState<TopicCleanupResult | null>(null);
+  const [topicResult, setTopicResult] = useState<TopicCleanupResult | null>(
+    null
+  );
 
   const [subtopicLoading, setSubtopicLoading] = useState(false);
   const [subtopicError, setSubtopicError] = useState<string | null>(null);
-  const [subtopicResult, setSubtopicResult] = useState<SubtopicCleanupResult | null>(null);
+  const [subtopicResult, setSubtopicResult] =
+    useState<SubtopicCleanupResult | null>(null);
 
   const scan = useMemo((): ScanResult => {
     const topicSet = new Set<string>();
@@ -595,7 +690,7 @@ export function CleanupSection() {
       setMcHistory(newMc);
       return count;
     },
-    [questionHistory, mcHistory, setQuestionHistory, setMcHistory],
+    [questionHistory, mcHistory, setQuestionHistory, setMcHistory]
   );
 
   const applySubtopicMapping = useCallback(
@@ -626,20 +721,20 @@ export function CleanupSection() {
       setMcHistory(newMc);
       return count;
     },
-    [questionHistory, mcHistory, setQuestionHistory, setMcHistory],
+    [questionHistory, mcHistory, setQuestionHistory, setMcHistory]
   );
 
   const handleCleanupTopics = useCallback(async () => {
     if (!apiKey.trim()) {
-      setTopicError("API key is required.");
+      setTopicError('API key is required.');
       return;
     }
-    if (selectedModel === "custom") {
-      setTopicError("Select a specific model (not custom).");
+    if (selectedModel === 'custom') {
+      setTopicError('Select a specific model (not custom).');
       return;
     }
     if (scan.unknownTopics.length === 0) {
-      setTopicError("No unknown topics found.");
+      setTopicError('No unknown topics found.');
       return;
     }
 
@@ -648,7 +743,7 @@ export function CleanupSection() {
     setTopicResult(null);
 
     try {
-      const response = await invoke<TopicsCleanupResponse>("cleanup_topics", {
+      const response = await invoke<TopicsCleanupResponse>('cleanup_topics', {
         request: {
           model: selectedModel,
           apiKey,
@@ -670,15 +765,15 @@ export function CleanupSection() {
 
   const handleCleanupSubtopics = useCallback(async () => {
     if (!apiKey.trim()) {
-      setSubtopicError("API key is required.");
+      setSubtopicError('API key is required.');
       return;
     }
-    if (selectedModel === "custom") {
-      setSubtopicError("Select a specific model (not custom).");
+    if (selectedModel === 'custom') {
+      setSubtopicError('Select a specific model (not custom).');
       return;
     }
     if (scan.unknownSubtopics.length === 0) {
-      setSubtopicError("No unknown subtopics found.");
+      setSubtopicError('No unknown subtopics found.');
       return;
     }
 
@@ -687,14 +782,17 @@ export function CleanupSection() {
     setSubtopicResult(null);
 
     try {
-      const response = await invoke<SubtopicsCleanupResponse>("cleanup_subtopics", {
-        request: {
-          model: selectedModel,
-          apiKey,
-          unknownSubtopics: scan.unknownSubtopics,
-          canonicalSubtopics: CANONICAL_SUBTOPICS,
-        },
-      });
+      const response = await invoke<SubtopicsCleanupResponse>(
+        'cleanup_subtopics',
+        {
+          request: {
+            model: selectedModel,
+            apiKey,
+            unknownSubtopics: scan.unknownSubtopics,
+            canonicalSubtopics: CANONICAL_SUBTOPICS,
+          },
+        }
+      );
 
       const subtopicMapping = response.subtopicMapping ?? {};
       const subtopicsUpdated = applySubtopicMapping(subtopicMapping);
@@ -724,30 +822,46 @@ export function CleanupSection() {
           <p className="text-sm font-medium">Scan Results</p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Scanning {scan.totalWritten} written and {scan.totalMc} multiple-choice history entries.
+          Scanning {scan.totalWritten} written and {scan.totalMc}{' '}
+          multiple-choice history entries.
         </p>
         {!hasUnknowns ? (
           <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4" />All topics and subtopics are canonical.
+            <CheckCircle2 className="h-4 w-4" />
+            All topics and subtopics are canonical.
           </p>
         ) : (
           <div className="space-y-2">
             {hasUnknownTopics && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Unknown topics ({scan.unknownTopics.length}):</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  Unknown topics ({scan.unknownTopics.length}):
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {scan.unknownTopics.map((t) => (
-                    <span key={t} className="inline-flex items-center px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-mono">{t}</span>
+                    <span
+                      key={t}
+                      className="inline-flex items-center px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-mono"
+                    >
+                      {t}
+                    </span>
                   ))}
                 </div>
               </div>
             )}
             {hasUnknownSubtopics && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Unknown subtopics ({scan.unknownSubtopics.length}):</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  Unknown subtopics ({scan.unknownSubtopics.length}):
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {scan.unknownSubtopics.map((st) => (
-                    <span key={st} className="inline-flex items-center px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-mono">{st}</span>
+                    <span
+                      key={st}
+                      className="inline-flex items-center px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-mono"
+                    >
+                      {st}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -770,7 +884,8 @@ export function CleanupSection() {
               />
             </FieldGroup>
             <p className="text-xs text-muted-foreground">
-              The selected model will map non-canonical values to their closest canonical match.
+              The selected model will map non-canonical values to their closest
+              canonical match.
             </p>
           </section>
 
@@ -779,11 +894,15 @@ export function CleanupSection() {
               {topicError && <ErrorBanner message={topicError} />}
               <Button
                 onClick={handleCleanupTopics}
-                disabled={topicLoading || !apiKey || selectedModel === "custom"}
+                disabled={topicLoading || !apiKey || selectedModel === 'custom'}
                 className="gap-2"
               >
-                {topicLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                {topicLoading ? "Normalizing Topics…" : "Normalize Topics"}
+                {topicLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                {topicLoading ? 'Normalizing Topics…' : 'Normalize Topics'}
               </Button>
             </div>
           )}
@@ -802,11 +921,19 @@ export function CleanupSection() {
               {subtopicError && <ErrorBanner message={subtopicError} />}
               <Button
                 onClick={handleCleanupSubtopics}
-                disabled={subtopicLoading || !apiKey || selectedModel === "custom"}
+                disabled={
+                  subtopicLoading || !apiKey || selectedModel === 'custom'
+                }
                 className="gap-2"
               >
-                {subtopicLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                {subtopicLoading ? "Normalizing Subtopics…" : "Normalize Subtopics"}
+                {subtopicLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                {subtopicLoading
+                  ? 'Normalizing Subtopics…'
+                  : 'Normalize Subtopics'}
               </Button>
             </div>
           )}
@@ -835,15 +962,26 @@ export function CleanupSection() {
             </p>
             {Object.keys(topicResult.topicMapping).length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Topic mappings:</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  Topic mappings:
+                </p>
                 <div className="space-y-1">
-                  {Object.entries(topicResult.topicMapping).map(([from, to]) => (
-                    <div key={from} className="text-xs flex items-center gap-1.5">
-                      <span className="font-mono px-1.5 py-0.5 rounded bg-muted line-through">{from}</span>
-                      <span className="text-muted-foreground">→</span>
-                      <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200">{to}</span>
-                    </div>
-                  ))}
+                  {Object.entries(topicResult.topicMapping).map(
+                    ([from, to]) => (
+                      <div
+                        key={from}
+                        className="text-xs flex items-center gap-1.5"
+                      >
+                        <span className="font-mono px-1.5 py-0.5 rounded bg-muted line-through">
+                          {from}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200">
+                          {to}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -860,19 +998,31 @@ export function CleanupSection() {
               <p className="text-sm font-medium">Subtopic Cleanup Complete</p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Updated {subtopicResult.subtopicsUpdated} subtopic(s) across your history.
+              Updated {subtopicResult.subtopicsUpdated} subtopic(s) across your
+              history.
             </p>
             {Object.keys(subtopicResult.subtopicMapping).length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Subtopic mappings:</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  Subtopic mappings:
+                </p>
                 <div className="space-y-1">
-                  {Object.entries(subtopicResult.subtopicMapping).map(([from, to]) => (
-                    <div key={from} className="text-xs flex items-center gap-1.5">
-                      <span className="font-mono px-1.5 py-0.5 rounded bg-muted line-through">{from}</span>
-                      <span className="text-muted-foreground">→</span>
-                      <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200">{to}</span>
-                    </div>
-                  ))}
+                  {Object.entries(subtopicResult.subtopicMapping).map(
+                    ([from, to]) => (
+                      <div
+                        key={from}
+                        className="text-xs flex items-center gap-1.5"
+                      >
+                        <span className="font-mono px-1.5 py-0.5 rounded bg-muted line-through">
+                          {from}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200">
+                          {to}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             )}

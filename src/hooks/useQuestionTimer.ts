@@ -1,12 +1,19 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { PerQuestionTiming, QuestionTimerState, PersistedTimerState, GenerationMode, GeneratedQuestion, McQuestion } from "@/types";
-import { useAppStore } from "@/store";
+import { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  PerQuestionTiming,
+  QuestionTimerState,
+  PersistedTimerState,
+  GenerationMode,
+  GeneratedQuestion,
+  McQuestion,
+} from '@/types';
+import { useAppStore } from '@/store';
 
 // Utility: format seconds as mm:ss
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export interface UseQuestionTimerReturn {
@@ -25,7 +32,7 @@ export interface UseQuestionTimerReturn {
 
   bankedSeconds: number;
   formattedBank: string;
-  bankStatus: "ahead" | "behind" | "on-pace";
+  bankStatus: 'ahead' | 'behind' | 'on-pace';
 
   isQuestionExpired: boolean;
   shouldAutoAdvance: boolean;
@@ -77,7 +84,7 @@ function toPersisted(s: QuestionTimerState): PersistedTimerState {
 function buildFreshState(
   mode: GenerationMode,
   totalTimeLimitSeconds: number,
-  questions: Array<GeneratedQuestion | McQuestion>,
+  questions: Array<GeneratedQuestion | McQuestion>
 ): QuestionTimerState {
   const par = Math.floor(totalTimeLimitSeconds / (questions.length || 1));
   const byQuestionId: Record<string, PerQuestionTiming> = {};
@@ -113,14 +120,14 @@ export function useQuestionTimer(
   questions: Array<GeneratedQuestion | McQuestion>,
   activeQuestionIndex: number,
   /** "written" or "mc" — determines which Zustand slice to read/write */
-  sessionKey: "written" | "mc"
+  sessionKey: 'written' | 'mc'
 ): UseQuestionTimerReturn {
   // --- Zustand selectors ---
   const zustandTimerState = useAppStore((s) =>
-    sessionKey === "written" ? s.writtenTimerState : s.mcTimerState
+    sessionKey === 'written' ? s.writtenTimerState : s.mcTimerState
   );
   const setZustandTimerState = useAppStore((s) =>
-    sessionKey === "written" ? s.setWrittenTimerState : s.setMcTimerState
+    sessionKey === 'written' ? s.setWrittenTimerState : s.setMcTimerState
   );
 
   // --- Local state, initialized from Zustand ---
@@ -136,26 +143,36 @@ export function useQuestionTimer(
 
   // Stable ref for questions to avoid recreating the interval on question changes
   const questionsRef = useRef(questions);
-  useEffect(() => { questionsRef.current = questions; }, [questions]);
+  useEffect(() => {
+    questionsRef.current = questions;
+  }, [questions]);
 
   // Stable ref for timerState so getQuestionTiming doesn't depend on timerState
   const timerStateRef = useRef(timerState);
-  useEffect(() => { timerStateRef.current = timerState; }, [timerState]);
+  useEffect(() => {
+    timerStateRef.current = timerState;
+  }, [timerState]);
 
   // Stable ref for activeQuestionIndex so the interval always ticks the correct question
   const activeIndexRef = useRef(activeQuestionIndex);
-  useEffect(() => { activeIndexRef.current = activeQuestionIndex; }, [activeQuestionIndex]);
+  useEffect(() => {
+    activeIndexRef.current = activeQuestionIndex;
+  }, [activeQuestionIndex]);
 
   // --- Sync local state → Zustand on every change ---
-  const syncToZustand = useCallback((s: QuestionTimerState) => {
-    setZustandTimerState(toPersisted(s));
-  }, [setZustandTimerState]);
+  const syncToZustand = useCallback(
+    (s: QuestionTimerState) => {
+      setZustandTimerState(toPersisted(s));
+    },
+    [setZustandTimerState]
+  );
 
   // Helper: compute total effective paused ms, including any in-progress pause
   const getEffectivePausedMs = useCallback((s: QuestionTimerState): number => {
-    const inProgressPause = s.isPaused && pauseStartedAtRef.current
-      ? Date.now() - pauseStartedAtRef.current
-      : 0;
+    const inProgressPause =
+      s.isPaused && pauseStartedAtRef.current
+        ? Date.now() - pauseStartedAtRef.current
+        : 0;
     return s.pausedDurationMs + inProgressPause;
   }, []);
 
@@ -183,7 +200,10 @@ export function useQuestionTimer(
       if (q.startedAt !== null && q.answeredAt === null && !q.isExpired) {
         const pausedAtPresentationSec = q.pausedDurationMsAtPresentation / 1000;
         const effectivePauseSec = totalPausedSec - pausedAtPresentationSec;
-        const timeUsed = Math.max(0, Math.floor(nowSec - q.startedAt - effectivePauseSec));
+        const timeUsed = Math.max(
+          0,
+          Math.floor(nowSec - q.startedAt - effectivePauseSec)
+        );
         const isExpired = timeUsed >= q.timeLimitSeconds;
         updatedByQuestionId[qId] = {
           ...q,
@@ -213,14 +233,20 @@ export function useQuestionTimer(
 
   // --- Timer tick logic ---
   useEffect(() => {
-    if (timerState.isPaused || timerState.sessionStartedAt === null || timerState.sessionFinishedAt !== null) return;
+    if (
+      timerState.isPaused ||
+      timerState.sessionStartedAt === null ||
+      timerState.sessionFinishedAt !== null
+    )
+      return;
     const interval = setInterval(() => {
-      setTimerState(s => {
+      setTimerState((s) => {
         const qs = questionsRef.current;
         const currentQ = qs[activeIndexRef.current];
         if (!currentQ) return s;
         const q = s.byQuestionId[currentQ.id];
-        if (!q || q.startedAt === null || q.isExpired || q.answeredAt !== null) return s;
+        if (!q || q.startedAt === null || q.isExpired || q.answeredAt !== null)
+          return s;
 
         // Use pausedDurationMsAtPresentation from the PerQuestionTiming record
         // for consistent per-question pause accounting
@@ -228,12 +254,16 @@ export function useQuestionTimer(
         const pausedAtPresentationSec = q.pausedDurationMsAtPresentation / 1000;
         const effectivePauseSec = totalPausedSec - pausedAtPresentationSec;
         const nowSec = Date.now() / 1000;
-        const timeUsed = Math.max(0, Math.floor(nowSec - q.startedAt - effectivePauseSec));
+        const timeUsed = Math.max(
+          0,
+          Math.floor(nowSec - q.startedAt - effectivePauseSec)
+        );
         const isExpired = timeUsed >= q.timeLimitSeconds;
         const newTimeUsed = Math.min(timeUsed, q.timeLimitSeconds);
 
         // Only update if the value actually changed
-        if (q.timeUsedSeconds === newTimeUsed && q.isExpired === isExpired) return s;
+        if (q.timeUsedSeconds === newTimeUsed && q.isExpired === isExpired)
+          return s;
 
         const byQuestionId = {
           ...s.byQuestionId,
@@ -261,26 +291,38 @@ export function useQuestionTimer(
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setTimerState(s => {
-          if (s.sessionStartedAt === null || s.sessionFinishedAt !== null || s.isPaused) return s;
+        setTimerState((s) => {
+          if (
+            s.sessionStartedAt === null ||
+            s.sessionFinishedAt !== null ||
+            s.isPaused
+          )
+            return s;
           pauseStartedAtRef.current = Date.now();
           const next = { ...s, isPaused: true };
           syncToZustand(next);
           return next;
         });
       } else {
-        setTimerState(s => {
+        setTimerState((s) => {
           if (!s.isPaused || s.sessionStartedAt === null) return s;
-          const additionalPause = pauseStartedAtRef.current ? (Date.now() - pauseStartedAtRef.current) : 0;
+          const additionalPause = pauseStartedAtRef.current
+            ? Date.now() - pauseStartedAtRef.current
+            : 0;
           pauseStartedAtRef.current = null;
-          const next = { ...s, isPaused: false, pausedDurationMs: s.pausedDurationMs + additionalPause };
+          const next = {
+            ...s,
+            isPaused: false,
+            pausedDurationMs: s.pausedDurationMs + additionalPause,
+          };
           syncToZustand(next);
           return next;
         });
       }
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [syncToZustand]);
 
   // --- Derived values ---
@@ -288,29 +330,43 @@ export function useQuestionTimer(
   const qTiming = currentQ ? timerState.byQuestionId[currentQ.id] : null;
   const currentQuestionTimeUsed = qTiming?.timeUsedSeconds ?? 0;
   const currentQuestionTimeLimit = qTiming?.timeLimitSeconds ?? 0;
-  const currentQuestionRemaining = Math.max(0, currentQuestionTimeLimit - currentQuestionTimeUsed);
-  const formattedQuestionTime = formatTime(mode === "exam" ? currentQuestionRemaining : currentQuestionTimeUsed);
+  const currentQuestionRemaining = Math.max(
+    0,
+    currentQuestionTimeLimit - currentQuestionTimeUsed
+  );
+  const formattedQuestionTime = formatTime(
+    mode === 'exam' ? currentQuestionRemaining : currentQuestionTimeUsed
+  );
   const parTimeSeconds = timerState.parTimeSeconds;
   const bankedSeconds = timerState.bankedSeconds;
   const formattedBank = formatTime(Math.abs(bankedSeconds));
-  const bankStatus = bankedSeconds > 0 ? "ahead" : bankedSeconds < 0 ? "behind" : "on-pace";
+  const bankStatus =
+    bankedSeconds > 0 ? 'ahead' : bankedSeconds < 0 ? 'behind' : 'on-pace';
   const isQuestionExpired = !!qTiming?.isExpired;
   const shouldAutoAdvance = false; // Never auto-advance in exam mode — questions are guides only
 
   // Session elapsed time accounts for pauses via pausedDurationMs + current active pause
   const effectivePausedMs = getEffectivePausedMs(timerState);
-  const sessionElapsedSeconds = timerState.sessionStartedAt === null
-    ? 0
-    : Math.floor(
-        ((timerState.sessionFinishedAt ?? Date.now() / 1000) - timerState.sessionStartedAt - (effectivePausedMs / 1000))
-      );
-  const sessionRemainingSeconds = Math.max(0, timerState.totalTimeLimitSeconds - sessionElapsedSeconds);
-  const formattedSessionTime = formatTime(mode === "exam" ? sessionRemainingSeconds : sessionElapsedSeconds);
+  const sessionElapsedSeconds =
+    timerState.sessionStartedAt === null
+      ? 0
+      : Math.floor(
+          (timerState.sessionFinishedAt ?? Date.now() / 1000) -
+            timerState.sessionStartedAt -
+            effectivePausedMs / 1000
+        );
+  const sessionRemainingSeconds = Math.max(
+    0,
+    timerState.totalTimeLimitSeconds - sessionElapsedSeconds
+  );
+  const formattedSessionTime = formatTime(
+    mode === 'exam' ? sessionRemainingSeconds : sessionElapsedSeconds
+  );
   const isPaused = timerState.isPaused;
 
   // --- Actions ---
   const togglePause = useCallback(() => {
-    setTimerState(s => {
+    setTimerState((s) => {
       if (!s.sessionStartedAt) return s;
       const willPause = !s.isPaused;
       if (willPause) {
@@ -319,145 +375,185 @@ export function useQuestionTimer(
         syncToZustand(next);
         return next;
       }
-      const additionalPause = pauseStartedAtRef.current ? (Date.now() - pauseStartedAtRef.current) : 0;
+      const additionalPause = pauseStartedAtRef.current
+        ? Date.now() - pauseStartedAtRef.current
+        : 0;
       pauseStartedAtRef.current = null;
-      const next = { ...s, isPaused: false, pausedDurationMs: s.pausedDurationMs + additionalPause };
+      const next = {
+        ...s,
+        isPaused: false,
+        pausedDurationMs: s.pausedDurationMs + additionalPause,
+      };
       syncToZustand(next);
       return next;
     });
   }, [syncToZustand]);
 
-  const setPaused = useCallback((paused: boolean) => {
-    setTimerState(s => {
-      if (!s.sessionStartedAt || s.isPaused === paused) return s;
-      if (paused) {
-        pauseStartedAtRef.current = Date.now();
-        const next = { ...s, isPaused: true };
+  const setPaused = useCallback(
+    (paused: boolean) => {
+      setTimerState((s) => {
+        if (!s.sessionStartedAt || s.isPaused === paused) return s;
+        if (paused) {
+          pauseStartedAtRef.current = Date.now();
+          const next = { ...s, isPaused: true };
+          syncToZustand(next);
+          return next;
+        }
+        const additionalPause = pauseStartedAtRef.current
+          ? Date.now() - pauseStartedAtRef.current
+          : 0;
+        pauseStartedAtRef.current = null;
+        const next = {
+          ...s,
+          isPaused: false,
+          pausedDurationMs: s.pausedDurationMs + additionalPause,
+        };
         syncToZustand(next);
         return next;
-      }
-      const additionalPause = pauseStartedAtRef.current ? (Date.now() - pauseStartedAtRef.current) : 0;
-      pauseStartedAtRef.current = null;
-      const next = { ...s, isPaused: false, pausedDurationMs: s.pausedDurationMs + additionalPause };
-      syncToZustand(next);
-      return next;
-    });
-  }, [syncToZustand]);
+      });
+    },
+    [syncToZustand]
+  );
 
-  const startTiming = useCallback((qs: GeneratedQuestion[] | McQuestion[]) => {
-    setTimerState(s => {
-      if (s.sessionStartedAt) return s;
-      const nowSec = Date.now() / 1000;
-      const par = Math.floor(totalTimeLimitSeconds / (qs.length || 1));
-      const byQuestionId: Record<string, PerQuestionTiming> = {};
-      for (const q of qs) {
-        byQuestionId[q.id] = {
-          timeLimitSeconds: par,
-          originalTimeLimitSeconds: par,
-          startedAt: null,
-          answeredAt: null,
-          timeUsedSeconds: 0,
-          isExpired: false,
-          finishedEarly: false,
-          pausedDurationMsAtPresentation: 0,
-        };
-      }
-      pauseStartedAtRef.current = null;
-      const next = {
-        ...s,
-        byQuestionId,
-        totalTimeLimitSeconds,
-        sessionStartedAt: nowSec,
-        sessionFinishedAt: null,
-        isPaused: false,
-        pausedDurationMs: 0,
-        activeQuestionIndex: 0,
-        mode,
-      };
-      syncToZustand(next);
-      return next;
-    });
-  }, [totalTimeLimitSeconds, mode, syncToZustand]);
-
-  const onQuestionPresented = useCallback((questionId: string) => {
-    setTimerState(s => {
-      const nowSec = Date.now() / 1000;
-      const q = s.byQuestionId[questionId];
-      if (!q || q.startedAt !== null) return s;
-      // Snapshot the current global pausedMs for per-question pause accounting.
-      // Store it in both the ref (for immediate reads) and the PerQuestionTiming
-      // record (for persistence).
-      const currentPausedMs = getEffectivePausedMs(s);
-      const next = {
-        ...s,
-        byQuestionId: {
-          ...s.byQuestionId,
-          [questionId]: {
-            ...q,
-            startedAt: nowSec,
-            pausedDurationMsAtPresentation: currentPausedMs,
-          },
-        },
-      };
-      syncToZustand(next);
-      return next;
-    });
-  }, [syncToZustand, getEffectivePausedMs]);
-
-  const onQuestionAnswered = useCallback((questionId: string) => {
-    setTimerState(s => {
-      const q = s.byQuestionId[questionId];
-      if (!q || q.answeredAt !== null) return s;
-      let timeUsedSeconds = q.timeUsedSeconds;
-      if (q.startedAt !== null) {
-        // Compute time using the same formula as the tick interval
+  const startTiming = useCallback(
+    (qs: GeneratedQuestion[] | McQuestion[]) => {
+      setTimerState((s) => {
+        if (s.sessionStartedAt) return s;
         const nowSec = Date.now() / 1000;
-        const totalPausedSec = getEffectivePausedMs(s) / 1000;
-        const pausedAtPresentationSec = q.pausedDurationMsAtPresentation / 1000;
-        const effectivePauseSec = totalPausedSec - pausedAtPresentationSec;
-        timeUsedSeconds = Math.max(0, Math.floor(nowSec - q.startedAt - effectivePauseSec));
-      }
-      const finishedEarly = timeUsedSeconds < q.timeLimitSeconds;
-      const bankDelta = q.timeLimitSeconds - timeUsedSeconds;
-      const next = {
-        ...s,
-        bankedSeconds: s.bankedSeconds + bankDelta,
-        byQuestionId: {
-          ...s.byQuestionId,
-          [questionId]: {
-            ...q,
-            answeredAt: Date.now() / 1000,
-            finishedEarly,
-            timeUsedSeconds,
-          },
-        },
-      };
-      syncToZustand(next);
-      return next;
-    });
-  }, [syncToZustand, getEffectivePausedMs]);
+        const par = Math.floor(totalTimeLimitSeconds / (qs.length || 1));
+        const byQuestionId: Record<string, PerQuestionTiming> = {};
+        for (const q of qs) {
+          byQuestionId[q.id] = {
+            timeLimitSeconds: par,
+            originalTimeLimitSeconds: par,
+            startedAt: null,
+            answeredAt: null,
+            timeUsedSeconds: 0,
+            isExpired: false,
+            finishedEarly: false,
+            pausedDurationMsAtPresentation: 0,
+          };
+        }
+        pauseStartedAtRef.current = null;
+        const next = {
+          ...s,
+          byQuestionId,
+          totalTimeLimitSeconds,
+          sessionStartedAt: nowSec,
+          sessionFinishedAt: null,
+          isPaused: false,
+          pausedDurationMs: 0,
+          activeQuestionIndex: 0,
+          mode,
+        };
+        syncToZustand(next);
+        return next;
+      });
+    },
+    [totalTimeLimitSeconds, mode, syncToZustand]
+  );
 
-  const onQuestionIndexChanged = useCallback((newIndex: number) => {
-    setTimerState(s => {
-      const next = { ...s, activeQuestionIndex: newIndex };
-      syncToZustand(next);
-      return next;
-    });
-  }, [syncToZustand]);
+  const onQuestionPresented = useCallback(
+    (questionId: string) => {
+      setTimerState((s) => {
+        const nowSec = Date.now() / 1000;
+        const q = s.byQuestionId[questionId];
+        if (!q || q.startedAt !== null) return s;
+        // Snapshot the current global pausedMs for per-question pause accounting.
+        // Store it in both the ref (for immediate reads) and the PerQuestionTiming
+        // record (for persistence).
+        const currentPausedMs = getEffectivePausedMs(s);
+        const next = {
+          ...s,
+          byQuestionId: {
+            ...s.byQuestionId,
+            [questionId]: {
+              ...q,
+              startedAt: nowSec,
+              pausedDurationMsAtPresentation: currentPausedMs,
+            },
+          },
+        };
+        syncToZustand(next);
+        return next;
+      });
+    },
+    [syncToZustand, getEffectivePausedMs]
+  );
+
+  const onQuestionAnswered = useCallback(
+    (questionId: string) => {
+      setTimerState((s) => {
+        const q = s.byQuestionId[questionId];
+        if (!q || q.answeredAt !== null) return s;
+        let timeUsedSeconds = q.timeUsedSeconds;
+        if (q.startedAt !== null) {
+          // Compute time using the same formula as the tick interval
+          const nowSec = Date.now() / 1000;
+          const totalPausedSec = getEffectivePausedMs(s) / 1000;
+          const pausedAtPresentationSec =
+            q.pausedDurationMsAtPresentation / 1000;
+          const effectivePauseSec = totalPausedSec - pausedAtPresentationSec;
+          timeUsedSeconds = Math.max(
+            0,
+            Math.floor(nowSec - q.startedAt - effectivePauseSec)
+          );
+        }
+        const finishedEarly = timeUsedSeconds < q.timeLimitSeconds;
+        const bankDelta = q.timeLimitSeconds - timeUsedSeconds;
+        const next = {
+          ...s,
+          bankedSeconds: s.bankedSeconds + bankDelta,
+          byQuestionId: {
+            ...s.byQuestionId,
+            [questionId]: {
+              ...q,
+              answeredAt: Date.now() / 1000,
+              finishedEarly,
+              timeUsedSeconds,
+            },
+          },
+        };
+        syncToZustand(next);
+        return next;
+      });
+    },
+    [syncToZustand, getEffectivePausedMs]
+  );
+
+  const onQuestionIndexChanged = useCallback(
+    (newIndex: number) => {
+      setTimerState((s) => {
+        const next = { ...s, activeQuestionIndex: newIndex };
+        syncToZustand(next);
+        return next;
+      });
+    },
+    [syncToZustand]
+  );
 
   // Auto-present the current question when the index changes or session starts
   useEffect(() => {
-    if (timerState.sessionStartedAt === null || timerState.sessionFinishedAt !== null) return;
+    if (
+      timerState.sessionStartedAt === null ||
+      timerState.sessionFinishedAt !== null
+    )
+      return;
     const q = questions[activeQuestionIndex];
     if (!q) return;
     const timing = timerState.byQuestionId[q.id];
     if (timing && timing.startedAt === null) {
       onQuestionPresented(q.id);
     }
-  }, [activeQuestionIndex, timerState.sessionStartedAt, timerState.sessionFinishedAt, questions]);
+  }, [
+    activeQuestionIndex,
+    timerState.sessionStartedAt,
+    timerState.sessionFinishedAt,
+    questions,
+  ]);
 
   const finishSession = useCallback(() => {
-    setTimerState(s => {
+    setTimerState((s) => {
       const next = { ...s, sessionFinishedAt: Date.now() / 1000 };
       syncToZustand(next);
       return next;
@@ -475,27 +571,31 @@ export function useQuestionTimer(
 
   // Stable callback: reads from ref so it doesn't need timerState as a dep
   const getQuestionTiming = useCallback(
-    (questionId: string) => timerStateRef.current.byQuestionId[questionId] ?? null,
+    (questionId: string) =>
+      timerStateRef.current.byQuestionId[questionId] ?? null,
     []
   );
 
-  const removeQuestion = useCallback((questionId: string) => {
-    setTimerState(s => {
-      const q = s.byQuestionId[questionId];
-      if (!q) return s;
+  const removeQuestion = useCallback(
+    (questionId: string) => {
+      setTimerState((s) => {
+        const q = s.byQuestionId[questionId];
+        if (!q) return s;
 
-      // Subtract the question's timeUsedSeconds from bankedSeconds
-      // so the session timer reflects the removal
-      const { [questionId]: _, ...rest } = s.byQuestionId;
-      const next = {
-        ...s,
-        byQuestionId: rest,
-        bankedSeconds: s.bankedSeconds - q.timeUsedSeconds,
-      };
-      syncToZustand(next);
-      return next;
-    });
-  }, [syncToZustand]);
+        // Subtract the question's timeUsedSeconds from bankedSeconds
+        // so the session timer reflects the removal
+        const { [questionId]: _, ...rest } = s.byQuestionId;
+        const next = {
+          ...s,
+          byQuestionId: rest,
+          bankedSeconds: s.bankedSeconds - q.timeUsedSeconds,
+        };
+        syncToZustand(next);
+        return next;
+      });
+    },
+    [syncToZustand]
+  );
 
   return {
     sessionElapsedSeconds,

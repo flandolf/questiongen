@@ -7,8 +7,8 @@
  * so every consumer file is unchanged.
  */
 
-import { create } from "zustand";
-import { startTransition } from "react";
+import { create } from 'zustand';
+import { startTransition } from 'react';
 import {
   ChemistrySubtopic,
   Difficulty,
@@ -39,24 +39,20 @@ import {
   Topic,
   ExamRecord,
   GenerationRecord,
-} from "./types";
+} from './types';
 import {
   EMPTY_PERSISTED_APP_STATE,
   loadPersistedAppState,
   savePersistedAppState,
-} from "./lib/persistence";
-import {
-  createCard,
-  reviewCard,
-  isDue,
-} from "./lib/spaced-repetition";
+} from './lib/persistence';
+import { createCard, reviewCard, isDue } from './lib/spaced-repetition';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
-  const leadTopic = topics[0] ?? "Mixed Topics";
+  const leadTopic = topics[0] ?? 'Mixed Topics';
   const extraCount = Math.max(0, topics.length - 1);
-  const modeLabel = mode === "written" ? "Written" : "Multiple Choice";
+  const modeLabel = mode === 'written' ? 'Written' : 'Multiple Choice';
   return extraCount === 0
     ? `${leadTopic} ${modeLabel}`
     : `${leadTopic} +${extraCount} ${modeLabel}`;
@@ -64,7 +60,7 @@ function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
 
 // ─── State shape ──────────────────────────────────────────────────────────────
 
-import { Preset } from "./types";
+import { Preset } from './types';
 
 export interface AppState {
   // ── Hydration ──────────────────────────────────────────────────────────────
@@ -99,11 +95,11 @@ export interface AppState {
   examTimeLimitMinutes: number;
   subtopicInstructions: Record<string, string>;
 
-   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
-   aiDifficultyScalingEnabled: boolean;
-   difficultyThresholds: { increase: number; decrease: number };
+  // ── AI Difficulty Scaling ──────────────────────────────────────────────────
+  aiDifficultyScalingEnabled: boolean;
+  difficultyThresholds: { increase: number; decrease: number };
 
-   // ── Written session ────────────────────────────────────────────────────────
+  // ── Written session ────────────────────────────────────────────────────────
   questions: GeneratedQuestion[];
   activeQuestionIndex: number;
   writtenQuestionPresentedAtById: Record<string, number>;
@@ -156,11 +152,11 @@ export interface AppState {
 // ─── Actions shape ────────────────────────────────────────────────────────────
 
 export interface AppActions {
-    // Preset management (Firebase-synced)
-    setPresets: (presets: Preset[]) => void;
-    addPreset: (preset: Preset) => void;
-    updatePreset: (preset: Preset) => void;
-    deletePreset: (id: string) => void;
+  // Preset management (Firebase-synced)
+  setPresets: (presets: Preset[]) => void;
+  addPreset: (preset: Preset) => void;
+  updatePreset: (preset: Preset) => void;
+  deletePreset: (id: string) => void;
   // Settings
   setApiKey: (key: string) => void;
   setShowApiKey: (show: boolean) => void;
@@ -181,7 +177,9 @@ export interface AppActions {
   setTechMode: (mode: TechMode) => void;
   setAvoidSimilarQuestions: (enabled: boolean) => void;
   setMathMethodsSubtopics: (
-    subtopics: MathMethodsSubtopic[] | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[])
+    subtopics:
+      | MathMethodsSubtopic[]
+      | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[])
   ) => void;
   setSpecialistMathSubtopics: (
     subtopics:
@@ -189,7 +187,9 @@ export interface AppActions {
       | ((prev: SpecialistMathSubtopic[]) => SpecialistMathSubtopic[])
   ) => void;
   setChemistrySubtopics: (
-    subtopics: ChemistrySubtopic[] | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])
+    subtopics:
+      | ChemistrySubtopic[]
+      | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])
   ) => void;
   setPhysicalEducationSubtopics: (
     subtopics:
@@ -207,11 +207,14 @@ export interface AppActions {
       | ((prev: Record<string, string>) => Record<string, string>)
   ) => void;
 
-   // AI Difficulty Scaling
-   setAiDifficultyScalingEnabled: (enabled: boolean) => void;
-   setDifficultyThresholds: (thresholds: { increase: number; decrease: number }) => void;
+  // AI Difficulty Scaling
+  setAiDifficultyScalingEnabled: (enabled: boolean) => void;
+  setDifficultyThresholds: (thresholds: {
+    increase: number;
+    decrease: number;
+  }) => void;
 
-   // Written session
+  // Written session
   setQuestions: (questions: GeneratedQuestion[]) => void;
   setActiveQuestionIndex: (idx: number) => void;
   setWrittenQuestionPresentedAtById: (
@@ -220,7 +223,9 @@ export interface AppActions {
       | ((prev: Record<string, number>) => Record<string, number>)
   ) => void;
   setAnswersByQuestionId: (
-    answers: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)
+    answers:
+      | Record<string, string>
+      | ((prev: Record<string, string>) => Record<string, string>)
   ) => void;
   setImagesByQuestionId: (
     images:
@@ -232,7 +237,9 @@ export interface AppActions {
   setFeedbackByQuestionId: (
     feedback:
       | Record<string, MarkAnswerResponse>
-      | ((prev: Record<string, MarkAnswerResponse>) => Record<string, MarkAnswerResponse>)
+      | ((
+          prev: Record<string, MarkAnswerResponse>
+        ) => Record<string, MarkAnswerResponse>)
   ) => void;
   setQuestionHistory: (
     history:
@@ -240,7 +247,9 @@ export interface AppActions {
       | ((prev: QuestionHistoryEntry[]) => QuestionHistoryEntry[])
   ) => void;
   setWrittenRawModelOutput: (output: string) => void;
-  setWrittenGenerationTelemetry: (telemetry: GenerationTelemetry | null) => void;
+  setWrittenGenerationTelemetry: (
+    telemetry: GenerationTelemetry | null
+  ) => void;
   setActiveWrittenSavedSetId: (id: string | null) => void;
 
   // MC session
@@ -252,7 +261,9 @@ export interface AppActions {
       | ((prev: Record<string, number>) => Record<string, number>)
   ) => void;
   setMcAnswersByQuestionId: (
-    answers: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)
+    answers:
+      | Record<string, string>
+      | ((prev: Record<string, string>) => Record<string, string>)
   ) => void;
   setMcHistory: (
     history: McHistoryEntry[] | ((prev: McHistoryEntry[]) => McHistoryEntry[])
@@ -307,56 +318,77 @@ const defaultState: AppState = {
   showApiKey: false,
   model: EMPTY_PERSISTED_APP_STATE.settings.model,
   markingModel: EMPTY_PERSISTED_APP_STATE.settings.markingModel,
-  useSeparateMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel,
+  useSeparateMarkingModel:
+    EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel,
   imageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.imageMarkingModel,
-  useSeparateImageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
+  useSeparateImageMarkingModel:
+    EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
-  includeExamContext: EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
+  includeExamContext:
+    EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
 
   // Preferences
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
   difficulty: EMPTY_PERSISTED_APP_STATE.preferences.difficulty,
   techMode: EMPTY_PERSISTED_APP_STATE.preferences.techMode,
-  avoidSimilarQuestions: EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
-  mathMethodsSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
-  specialistMathSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
+  avoidSimilarQuestions:
+    EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
+  mathMethodsSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
+  specialistMathSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
   chemistrySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
-  physicalEducationSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
+  physicalEducationSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
-  averageMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
+  averageMarksPerQuestion:
+    EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
   questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
-  generationMode: EMPTY_PERSISTED_APP_STATE.preferences.generationMode ?? "practice",
-  examTimeLimitMinutes: EMPTY_PERSISTED_APP_STATE.preferences.examTimeLimitMinutes ?? 30,
-  subtopicInstructions: EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
+  generationMode:
+    EMPTY_PERSISTED_APP_STATE.preferences.generationMode ?? 'practice',
+  examTimeLimitMinutes:
+    EMPTY_PERSISTED_APP_STATE.preferences.examTimeLimitMinutes ?? 30,
+  subtopicInstructions:
+    EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
 
-   // AI Difficulty Scaling
-   aiDifficultyScalingEnabled: true,
-   difficultyThresholds: { increase: 85, decrease: 70 },
+  // AI Difficulty Scaling
+  aiDifficultyScalingEnabled: true,
+  difficultyThresholds: { increase: 85, decrease: 70 },
 
-   // Written session
+  // Written session
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
-  activeQuestionIndex: EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
+  activeQuestionIndex:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
   writtenQuestionPresentedAtById:
     EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
-  answersByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
-  imagesByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
-  feedbackByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
+  answersByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
+  imagesByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
+  feedbackByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
   questionHistory: EMPTY_PERSISTED_APP_STATE.questionHistory,
-  writtenRawModelOutput: EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
+  writtenRawModelOutput:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
   writtenGenerationTelemetry:
     EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
-  activeWrittenSavedSetId: EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null,
+  activeWrittenSavedSetId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null,
 
   // MC session
   mcQuestions: EMPTY_PERSISTED_APP_STATE.mcSession.questions,
-  activeMcQuestionIndex: EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
-  mcQuestionPresentedAtById: EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
-  mcAnswersByQuestionId: EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
+  activeMcQuestionIndex:
+    EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
+  mcQuestionPresentedAtById:
+    EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
+  mcAnswersByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
   mcHistory: EMPTY_PERSISTED_APP_STATE.mcHistory,
   mcRawModelOutput: EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput,
-  mcGenerationTelemetry: EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
+  mcGenerationTelemetry:
+    EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
   activeMcSavedSetId: EMPTY_PERSISTED_APP_STATE.mcSession.savedSetId ?? null,
 
   // Saved sets
@@ -382,7 +414,7 @@ const defaultState: AppState = {
   streakData: {
     currentStreak: 0,
     longestStreak: 0,
-    lastActiveDate: "",
+    lastActiveDate: '',
     dailyCompletions: {},
   },
 
@@ -398,7 +430,9 @@ const defaultState: AppState = {
 type Updater<T> = T | ((prev: T) => T);
 
 function resolve<T>(update: Updater<T>, previous: T): T {
-  return typeof update === "function" ? (update as (prev: T) => T)(previous) : update;
+  return typeof update === 'function'
+    ? (update as (prev: T) => T)(previous)
+    : update;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -419,10 +453,18 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         markingModel: s.settings.markingModel,
         useSeparateMarkingModel: Boolean(s.settings.useSeparateMarkingModel),
         imageMarkingModel: s.settings.imageMarkingModel,
-        useSeparateImageMarkingModel: Boolean(s.settings.useSeparateImageMarkingModel),
+        useSeparateImageMarkingModel: Boolean(
+          s.settings.useSeparateImageMarkingModel
+        ),
         debugMode: s.settings.debugMode,
-        questionTextSize: typeof s.settings.questionTextSize === "number" ? s.settings.questionTextSize : 16,
-        responseTextSize: typeof s.settings.responseTextSize === "number" ? s.settings.responseTextSize : 16,
+        questionTextSize:
+          typeof s.settings.questionTextSize === 'number'
+            ? s.settings.questionTextSize
+            : 16,
+        responseTextSize:
+          typeof s.settings.responseTextSize === 'number'
+            ? s.settings.responseTextSize
+            : 16,
         includeExamContext: Boolean(s.settings.includeExamContext),
 
         // Preferences
@@ -437,21 +479,27 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionCount: s.preferences.questionCount,
         averageMarksPerQuestion: s.preferences.averageMarksPerQuestion,
         questionMode: s.preferences.questionMode,
-        generationMode: s.preferences.generationMode ?? "practice",
+        generationMode: s.preferences.generationMode ?? 'practice',
         examTimeLimitMinutes: s.preferences.examTimeLimitMinutes ?? 30,
         subtopicInstructions: s.preferences.subtopicInstructions,
-        aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? true,
-        difficultyThresholds: s.preferences.difficultyThresholds ?? { increase: 85, decrease: 70 },
+        aiDifficultyScalingEnabled:
+          s.preferences.aiDifficultyScalingEnabled ?? true,
+        difficultyThresholds: s.preferences.difficultyThresholds ?? {
+          increase: 85,
+          decrease: 70,
+        },
 
         // Written session
         questions: s.writtenSession.questions,
         activeQuestionIndex: s.writtenSession.activeQuestionIndex,
-        writtenQuestionPresentedAtById: s.writtenSession.presentedAtByQuestionId,
+        writtenQuestionPresentedAtById:
+          s.writtenSession.presentedAtByQuestionId,
         answersByQuestionId: s.writtenSession.answersByQuestionId,
         imagesByQuestionId: s.writtenSession.imagesByQuestionId,
         feedbackByQuestionId: s.writtenSession.feedbackByQuestionId,
         writtenRawModelOutput: s.writtenSession.rawModelOutput,
-        writtenGenerationTelemetry: s.writtenSession.generationTelemetry ?? null,
+        writtenGenerationTelemetry:
+          s.writtenSession.generationTelemetry ?? null,
         activeWrittenSavedSetId: s.writtenSession.savedSetId ?? null,
 
         // MC session
@@ -483,7 +531,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         mcTimerState: s.mcTimerState ?? null,
       });
     } catch {
-      set({ errorMessage: "Could not load saved app data.", isHydrated: true });
+      set({ errorMessage: 'Could not load saved app data.', isHydrated: true });
     }
   },
 
@@ -495,7 +543,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({ examHistory: s.examHistory.filter((r) => r.id !== id) })),
   clearExamHistory: () => set({ examHistory: [] }),
   addGenerationRecord: (record) =>
-    set((s) => ({ generationHistory: [record, ...s.generationHistory].slice(0, 1000) })),
+    set((s) => ({
+      generationHistory: [record, ...s.generationHistory].slice(0, 1000),
+    })),
 
   // Timer state
   setWrittenTimerState: (writtenTimerState) => set({ writtenTimerState }),
@@ -505,7 +555,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setShowApiKey: (show) => set({ showApiKey: show }),
   setModel: (model) => set({ model }),
   setMarkingModel: (markingModel) => set({ markingModel }),
-  setUseSeparateMarkingModel: (useSeparateMarkingModel) => set({ useSeparateMarkingModel }),
+  setUseSeparateMarkingModel: (useSeparateMarkingModel) =>
+    set({ useSeparateMarkingModel }),
   setImageMarkingModel: (imageMarkingModel) => set({ imageMarkingModel }),
   setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) =>
     set({ useSeparateImageMarkingModel }),
@@ -513,13 +564,17 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
-  clearApiKey: () => set({ apiKey: "" }),
+  clearApiKey: () => set({ apiKey: '' }),
 
   // ── Preset management (Firebase-synced) ──────────────────────────────────
   setPresets: (presets) => set({ presets }),
   addPreset: (preset) => set((s) => ({ presets: [preset, ...s.presets] })),
-  updatePreset: (preset) => set((s) => ({ presets: s.presets.map((p) => p.id === preset.id ? preset : p) })),
-  deletePreset: (id) => set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
+  updatePreset: (preset) =>
+    set((s) => ({
+      presets: s.presets.map((p) => (p.id === preset.id ? preset : p)),
+    })),
+  deletePreset: (id) =>
+    set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
 
   // ── Preferences ────────────────────────────────────────────────────────────
 
@@ -527,26 +582,39 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({ selectedTopics: resolve(update, s.selectedTopics) })),
   setDifficulty: (difficulty) => set({ difficulty }),
   setTechMode: (techMode) => set({ techMode }),
-  setAvoidSimilarQuestions: (avoidSimilarQuestions) => set({ avoidSimilarQuestions }),
+  setAvoidSimilarQuestions: (avoidSimilarQuestions) =>
+    set({ avoidSimilarQuestions }),
   setMathMethodsSubtopics: (update) =>
-    set((s) => ({ mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics) })),
+    set((s) => ({
+      mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics),
+    })),
   setSpecialistMathSubtopics: (update) =>
-    set((s) => ({ specialistMathSubtopics: resolve(update, s.specialistMathSubtopics) })),
+    set((s) => ({
+      specialistMathSubtopics: resolve(update, s.specialistMathSubtopics),
+    })),
   setChemistrySubtopics: (update) =>
     set((s) => ({ chemistrySubtopics: resolve(update, s.chemistrySubtopics) })),
   setPhysicalEducationSubtopics: (update) =>
-    set((s) => ({ physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics) })),
+    set((s) => ({
+      physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics),
+    })),
   setQuestionCount: (questionCount) => set({ questionCount }),
-  setAverageMarksPerQuestion: (averageMarksPerQuestion) => set({ averageMarksPerQuestion }),
+  setAverageMarksPerQuestion: (averageMarksPerQuestion) =>
+    set({ averageMarksPerQuestion }),
   setQuestionMode: (questionMode) => set({ questionMode }),
   setGenerationMode: (generationMode) => set({ generationMode }),
-  setExamTimeLimitMinutes: (examTimeLimitMinutes) => set({ examTimeLimitMinutes }),
+  setExamTimeLimitMinutes: (examTimeLimitMinutes) =>
+    set({ examTimeLimitMinutes }),
   setSubtopicInstructions: (update) =>
-    set((s) => ({ subtopicInstructions: resolve(update, s.subtopicInstructions) })),
+    set((s) => ({
+      subtopicInstructions: resolve(update, s.subtopicInstructions),
+    })),
 
   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
-  setAiDifficultyScalingEnabled: (enabled) => set({ aiDifficultyScalingEnabled: enabled }),
-  setDifficultyThresholds: (thresholds) => set({ difficultyThresholds: thresholds }),
+  setAiDifficultyScalingEnabled: (enabled) =>
+    set({ aiDifficultyScalingEnabled: enabled }),
+  setDifficultyThresholds: (thresholds) =>
+    set({ difficultyThresholds: thresholds }),
 
   // ── Written session ────────────────────────────────────────────────────────
 
@@ -554,35 +622,50 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setActiveQuestionIndex: (activeQuestionIndex) => set({ activeQuestionIndex }),
   setWrittenQuestionPresentedAtById: (update) =>
     set((s) => ({
-      writtenQuestionPresentedAtById: resolve(update, s.writtenQuestionPresentedAtById),
+      writtenQuestionPresentedAtById: resolve(
+        update,
+        s.writtenQuestionPresentedAtById
+      ),
     })),
   setAnswersByQuestionId: (update) =>
-    set((s) => ({ answersByQuestionId: resolve(update, s.answersByQuestionId) })),
+    set((s) => ({
+      answersByQuestionId: resolve(update, s.answersByQuestionId),
+    })),
   setImagesByQuestionId: (update) =>
     set((s) => ({ imagesByQuestionId: resolve(update, s.imagesByQuestionId) })),
   setFeedbackByQuestionId: (update) =>
-    set((s) => ({ feedbackByQuestionId: resolve(update, s.feedbackByQuestionId) })),
+    set((s) => ({
+      feedbackByQuestionId: resolve(update, s.feedbackByQuestionId),
+    })),
   setQuestionHistory: (update) =>
     set((s) => ({
       questionHistory: resolve(update, s.questionHistory),
     })),
-  setWrittenRawModelOutput: (writtenRawModelOutput) => set({ writtenRawModelOutput }),
+  setWrittenRawModelOutput: (writtenRawModelOutput) =>
+    set({ writtenRawModelOutput }),
   setWrittenGenerationTelemetry: (writtenGenerationTelemetry) =>
     set({ writtenGenerationTelemetry }),
-  setActiveWrittenSavedSetId: (activeWrittenSavedSetId) => set({ activeWrittenSavedSetId }),
+  setActiveWrittenSavedSetId: (activeWrittenSavedSetId) =>
+    set({ activeWrittenSavedSetId }),
 
   // ── MC session ─────────────────────────────────────────────────────────────
 
   setMcQuestions: (mcQuestions) => set({ mcQuestions }),
-  setActiveMcQuestionIndex: (activeMcQuestionIndex) => set({ activeMcQuestionIndex }),
+  setActiveMcQuestionIndex: (activeMcQuestionIndex) =>
+    set({ activeMcQuestionIndex }),
   setMcQuestionPresentedAtById: (update) =>
-    set((s) => ({ mcQuestionPresentedAtById: resolve(update, s.mcQuestionPresentedAtById) })),
+    set((s) => ({
+      mcQuestionPresentedAtById: resolve(update, s.mcQuestionPresentedAtById),
+    })),
   setMcAnswersByQuestionId: (update) =>
-    set((s) => ({ mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId) })),
+    set((s) => ({
+      mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId),
+    })),
   setMcHistory: (update) =>
     set((s) => ({ mcHistory: resolve(update, s.mcHistory) })),
   setMcRawModelOutput: (mcRawModelOutput) => set({ mcRawModelOutput }),
-  setMcGenerationTelemetry: (mcGenerationTelemetry) => set({ mcGenerationTelemetry }),
+  setMcGenerationTelemetry: (mcGenerationTelemetry) =>
+    set({ mcGenerationTelemetry }),
   setActiveMcSavedSetId: (activeMcSavedSetId) => set({ activeMcSavedSetId }),
 
   // ── Status ─────────────────────────────────────────────────────────────────
@@ -600,10 +683,11 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const now = new Date().toISOString();
     const nowMs = Date.now();
 
-    if (s.questionMode === "written") {
+    if (s.questionMode === 'written') {
       if (s.questions.length === 0) return null;
 
-      const savedSetId = s.activeWrittenSavedSetId ?? `saved-written-${Date.now()}`;
+      const savedSetId =
+        s.activeWrittenSavedSetId ?? `saved-written-${Date.now()}`;
       const existing = s.savedSets.find((e) => e.id === savedSetId);
 
       const preferencesSnapshot: PersistedGeneratorPreferences = {
@@ -637,8 +721,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
       const nextEntry: SavedQuestionSet = {
         id: savedSetId,
-        title: buildSavedSetTitle("written", s.selectedTopics),
-        questionMode: "written",
+        title: buildSavedSetTitle('written', s.selectedTopics),
+        questionMode: 'written',
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         lastModified: nowMs,
@@ -654,9 +738,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
 
       // Immediate persist for explicit save
-      const persistedSnapshot = buildPersistedSnapshot({ ...s, savedSets: nextSavedSets });
+      const persistedSnapshot = buildPersistedSnapshot({
+        ...s,
+        savedSets: nextSavedSets,
+      });
       void savePersistedAppState(persistedSnapshot).catch(() =>
-        set((cur) => ({ errorMessage: cur.errorMessage ?? "Could not save app data." }))
+        set((cur) => ({
+          errorMessage: cur.errorMessage ?? 'Could not save app data.',
+        }))
       );
 
       return savedSetId;
@@ -697,8 +786,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
     const nextEntry: SavedQuestionSet = {
       id: savedSetId,
-      title: buildSavedSetTitle("multiple-choice", s.selectedTopics),
-      questionMode: "multiple-choice",
+      title: buildSavedSetTitle('multiple-choice', s.selectedTopics),
+      questionMode: 'multiple-choice',
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       lastModified: nowMs,
@@ -713,9 +802,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
     set({ savedSets: nextSavedSets, activeMcSavedSetId: savedSetId });
 
-    const persistedSnapshot = buildPersistedSnapshot({ ...s, savedSets: nextSavedSets });
+    const persistedSnapshot = buildPersistedSnapshot({
+      ...s,
+      savedSets: nextSavedSets,
+    });
     void savePersistedAppState(persistedSnapshot).catch(() =>
-      set((cur) => ({ errorMessage: cur.errorMessage ?? "Could not save app data." }))
+      set((cur) => ({
+        errorMessage: cur.errorMessage ?? 'Could not save app data.',
+      }))
     );
 
     return savedSetId;
@@ -730,12 +824,18 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
     // Timer state: resume from saved session start time
     let generationStartedAt: number | null = null;
-    if (entry.questionMode === "written" && entry.writtenSession) {
+    if (entry.questionMode === 'written' && entry.writtenSession) {
       const presented = entry.writtenSession.presentedAtByQuestionId;
-      generationStartedAt = presented && Object.values(presented).length > 0 ? Math.min(...Object.values(presented)) : Date.now();
-    } else if (entry.questionMode === "multiple-choice" && entry.mcSession) {
+      generationStartedAt =
+        presented && Object.values(presented).length > 0
+          ? Math.min(...Object.values(presented))
+          : Date.now();
+    } else if (entry.questionMode === 'multiple-choice' && entry.mcSession) {
       const presented = entry.mcSession.presentedAtByQuestionId;
-      generationStartedAt = presented && Object.values(presented).length > 0 ? Math.min(...Object.values(presented)) : Date.now();
+      generationStartedAt =
+        presented && Object.values(presented).length > 0
+          ? Math.min(...Object.values(presented))
+          : Date.now();
     }
 
     // Update the saved set's updatedAt in the store for persistence
@@ -753,33 +853,38 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         mathMethodsSubtopics: entry.preferences.mathMethodsSubtopics,
         specialistMathSubtopics: entry.preferences.specialistMathSubtopics,
         chemistrySubtopics: entry.preferences.chemistrySubtopics,
-        physicalEducationSubtopics: entry.preferences.physicalEducationSubtopics,
+        physicalEducationSubtopics:
+          entry.preferences.physicalEducationSubtopics,
         questionCount: entry.preferences.questionCount,
         questionMode: entry.questionMode,
-        generationMode: entry.preferences.generationMode ?? "practice",
+        generationMode: entry.preferences.generationMode ?? 'practice',
         examTimeLimitMinutes: entry.preferences.examTimeLimitMinutes ?? 30,
         subtopicInstructions: entry.preferences.subtopicInstructions,
-        ...(entry.questionMode === "written" && entry.writtenSession
+        ...(entry.questionMode === 'written' && entry.writtenSession
           ? {
               questions: entry.writtenSession.questions,
               activeQuestionIndex: entry.writtenSession.activeQuestionIndex,
-              writtenQuestionPresentedAtById: entry.writtenSession.presentedAtByQuestionId,
+              writtenQuestionPresentedAtById:
+                entry.writtenSession.presentedAtByQuestionId,
               answersByQuestionId: entry.writtenSession.answersByQuestionId,
               imagesByQuestionId: entry.writtenSession.imagesByQuestionId,
               feedbackByQuestionId: entry.writtenSession.feedbackByQuestionId,
               writtenRawModelOutput: entry.writtenSession.rawModelOutput,
-              writtenGenerationTelemetry: entry.writtenSession.generationTelemetry ?? null,
+              writtenGenerationTelemetry:
+                entry.writtenSession.generationTelemetry ?? null,
               activeWrittenSavedSetId: entry.id,
             }
           : {}),
-        ...(entry.questionMode === "multiple-choice" && entry.mcSession
+        ...(entry.questionMode === 'multiple-choice' && entry.mcSession
           ? {
               mcQuestions: entry.mcSession.questions,
               activeMcQuestionIndex: entry.mcSession.activeQuestionIndex,
-              mcQuestionPresentedAtById: entry.mcSession.presentedAtByQuestionId,
+              mcQuestionPresentedAtById:
+                entry.mcSession.presentedAtByQuestionId,
               mcAnswersByQuestionId: entry.mcSession.answersByQuestionId,
               mcRawModelOutput: entry.mcSession.rawModelOutput,
-              mcGenerationTelemetry: entry.mcSession.generationTelemetry ?? null,
+              mcGenerationTelemetry:
+                entry.mcSession.generationTelemetry ?? null,
               activeMcSavedSetId: entry.id,
             }
           : {}),
@@ -793,10 +898,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const entry = s.savedSets.find((c) => c.id === savedSetId);
     if (!entry) return false;
     const hasUnsaved =
-      (s.questionMode === "written" ? s.questions.length > 0 : s.mcQuestions.length > 0) &&
+      (s.questionMode === 'written'
+        ? s.questions.length > 0
+        : s.mcQuestions.length > 0) &&
       !(
         entry.id ===
-        (s.questionMode === "written" ? s.activeWrittenSavedSetId : s.activeMcSavedSetId)
+        (s.questionMode === 'written'
+          ? s.activeWrittenSavedSetId
+          : s.activeMcSavedSetId)
       );
     return hasUnsaved;
   },
@@ -805,8 +914,11 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({
       savedSets: s.savedSets.filter((e) => e.id !== savedSetId),
       activeWrittenSavedSetId:
-        s.activeWrittenSavedSetId === savedSetId ? null : s.activeWrittenSavedSetId,
-      activeMcSavedSetId: s.activeMcSavedSetId === savedSetId ? null : s.activeMcSavedSetId,
+        s.activeWrittenSavedSetId === savedSetId
+          ? null
+          : s.activeWrittenSavedSetId,
+      activeMcSavedSetId:
+        s.activeMcSavedSetId === savedSetId ? null : s.activeMcSavedSetId,
     }));
   },
 
@@ -823,9 +935,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   reviewSpacedCard: (questionId, quality) => {
     set((s) => {
       const existing = s.spacedRepetitionCards[questionId];
-      const updated = existing ? reviewCard(existing, quality) : reviewCard(createCard(), quality);
+      const updated = existing
+        ? reviewCard(existing, quality)
+        : reviewCard(createCard(), quality);
       return {
-        spacedRepetitionCards: { ...s.spacedRepetitionCards, [questionId]: updated },
+        spacedRepetitionCards: {
+          ...s.spacedRepetitionCards,
+          [questionId]: updated,
+        },
       };
     });
   },
@@ -835,7 +952,11 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     return Object.entries(cards)
       .filter(([, card]) => isDue(card))
       .map(([questionId, card]) => ({ questionId, card }))
-      .sort((a, b) => new Date(a.card.nextReviewDate).getTime() - new Date(b.card.nextReviewDate).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.card.nextReviewDate).getTime() -
+          new Date(b.card.nextReviewDate).getTime()
+      );
   },
 
   // ── Study goals & streaks ─────────────────────────────────────────────────
@@ -847,18 +968,23 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   recordCompletion: (mode) => {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     set((s) => {
-      const todayData = s.streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
+      const todayData = s.streakData.dailyCompletions[today] ?? {
+        total: 0,
+        written: 0,
+        mc: 0,
+      };
       const updatedDay = {
         total: todayData.total + 1,
-        written: todayData.written + (mode === "written" ? 1 : 0),
-        mc: todayData.mc + (mode === "multiple-choice" ? 1 : 0),
+        written: todayData.written + (mode === 'written' ? 1 : 0),
+        mc: todayData.mc + (mode === 'multiple-choice' ? 1 : 0),
       };
 
       // Calculate streak
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayKey = yesterday.toISOString().slice(0, 10);
-      const hadYesterday = s.streakData.dailyCompletions[yesterdayKey]?.total > 0;
+      const hadYesterday =
+        s.streakData.dailyCompletions[yesterdayKey]?.total > 0;
       const hadToday = todayData.total > 0;
 
       let newStreak = s.streakData.currentStreak;
@@ -884,7 +1010,13 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   getTodayCompletions: () => {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    return get().streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
+    return (
+      get().streakData.dailyCompletions[today] ?? {
+        total: 0,
+        written: 0,
+        mc: 0,
+      }
+    );
   },
 }));
 
@@ -894,10 +1026,13 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
   // Strip base64 dataUrls from images to reduce serialized payload size.
   // Images for the active session are kept in the store (in-memory) for marking;
   // only names are persisted so the UI can show which images were uploaded.
-  const strippedImages: Record<string, { name: string; dataUrl: string } | undefined> = {};
+  const strippedImages: Record<
+    string,
+    { name: string; dataUrl: string } | undefined
+  > = {};
   for (const [key, img] of Object.entries(s.imagesByQuestionId)) {
     if (img) {
-      strippedImages[key] = { name: img.name, dataUrl: "" };
+      strippedImages[key] = { name: img.name, dataUrl: '' };
     }
   }
 
@@ -957,7 +1092,13 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
     mcTimerState: s.mcTimerState,
     questionHistory: s.questionHistory.map((entry) =>
       entry.uploadedAnswerImage
-        ? { ...entry, uploadedAnswerImage: { name: entry.uploadedAnswerImage.name, dataUrl: "" } }
+        ? {
+            ...entry,
+            uploadedAnswerImage: {
+              name: entry.uploadedAnswerImage.name,
+              dataUrl: '',
+            },
+          }
         : entry
     ),
     mcHistory: s.mcHistory,
@@ -1003,7 +1144,7 @@ useAppStore.subscribe((state) => {
     const snapshot = buildPersistedSnapshot(state);
     void savePersistedAppState(snapshot).catch(() => {
       useAppStore.setState((cur) => ({
-        errorMessage: cur.errorMessage ?? "Could not save app data.",
+        errorMessage: cur.errorMessage ?? 'Could not save app data.',
       }));
     });
   }, 500);

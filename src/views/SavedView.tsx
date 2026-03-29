@@ -1,20 +1,37 @@
-import { Bookmark, Clock3, FolderOpen, Trash2, BarChart2, Hash, SortAsc, Search, PlusCircle, RotateCcw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useSavedSets } from "../AppContext";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader } from "../components/ui/card";
+import {
+  Bookmark,
+  Clock3,
+  FolderOpen,
+  Trash2,
+  BarChart2,
+  Hash,
+  SortAsc,
+  Search,
+  PlusCircle,
+  RotateCcw,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSavedSets } from '../AppContext';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader } from '../components/ui/card';
 // import { ScrollArea } from "../components/ui/scroll-area";
-import { formatDate } from "../lib/app-utils";
-import { EmptyState } from "../components/EmptyState";
-import { ConfirmModal } from "../components/ui/ConfirmModal";
-import { useState, useMemo, useRef, memo } from "react";
-import { PageContainer, PageHeader, Toolbar, FilterGroup, FilterButton } from "@/components/layout/primitives";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import type { SavedQuestionSet } from "../types";
+import { formatDate } from '../lib/app-utils';
+import { EmptyState } from '../components/EmptyState';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { useState, useMemo, useRef, memo } from 'react';
+import {
+  PageContainer,
+  PageHeader,
+  Toolbar,
+  FilterGroup,
+  FilterButton,
+} from '@/components/layout/primitives';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import type { SavedQuestionSet } from '../types';
 
-type SortKey = "updatedAt" | "title" | "progress";
-type ModeFilter = "all" | "written" | "mc";
+type SortKey = 'updatedAt' | 'title' | 'progress';
+type ModeFilter = 'all' | 'written' | 'mc';
 
 const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   sets,
@@ -34,32 +51,39 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   });
 
   return (
-    <div ref={parentRef} className="flex-1 overflow-auto" style={{ minHeight: 0 }}>
+    <div
+      ref={parentRef}
+      className="flex-1 overflow-auto"
+      style={{ minHeight: 0 }}
+    >
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
+          width: '100%',
+          position: 'relative',
         }}
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const savedSet = sets[virtualRow.index];
           const questionCount =
-            savedSet.questionMode === "written"
-              ? savedSet.writtenSession?.questions.length ?? 0
-              : savedSet.mcSession?.questions.length ?? 0;
+            savedSet.questionMode === 'written'
+              ? (savedSet.writtenSession?.questions.length ?? 0)
+              : (savedSet.mcSession?.questions.length ?? 0);
           const completedCount =
-            savedSet.questionMode === "written"
-              ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
-              : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
-          const progressPct = questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
+            savedSet.questionMode === 'written'
+              ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {})
+                  .length
+              : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {})
+                  .length;
+          const progressPct =
+            questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
           const topics = savedSet.preferences.selectedTopics;
-          const isWritten = savedSet.questionMode === "written";
+          const isWritten = savedSet.questionMode === 'written';
           const progressLabel =
             completedCount === 0
-              ? "Not started"
+              ? 'Not started'
               : completedCount === questionCount
-                ? "Complete"
+                ? 'Complete'
                 : `${progressPct.toFixed(0)}% complete`;
           return (
             <div
@@ -67,10 +91,10 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
               style={{
-                position: "absolute",
+                position: 'absolute',
                 top: 0,
                 left: 0,
-                width: "100%",
+                width: '100%',
                 transform: `translateY(${virtualRow.start}px)`,
                 paddingBottom: 16,
               }}
@@ -80,15 +104,18 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-light truncate">{savedSet.title}</span>
+                        <span className="text-base font-light truncate">
+                          {savedSet.title}
+                        </span>
                         <Badge
                           variant="secondary"
-                          className={`shrink-0 text-xs ${isWritten
-                            ? "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
-                            : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
-                            }`}
+                          className={`shrink-0 text-xs ${
+                            isWritten
+                              ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+                              : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+                          }`}
                         >
-                          {isWritten ? "Written" : "Multiple Choice"}
+                          {isWritten ? 'Written' : 'Multiple Choice'}
                         </Badge>
                       </div>
                       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -122,50 +149,75 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                 </CardHeader>
                 <CardContent className="px-4 py-3 space-y-3">
                   <div className="flex flex-wrap gap-1.5">
-                    {topics.length > 0
-                      ? topics.map((topic: string) => (
-                        <Badge key={topic} variant="outline" className="text-xs px-2 py-0.5">
+                    {topics.length > 0 ? (
+                      topics.map((topic: string) => (
+                        <Badge
+                          key={topic}
+                          variant="outline"
+                          className="text-xs px-2 py-0.5"
+                        >
                           {topic}
                         </Badge>
                       ))
-                      : <Badge variant="outline" className="text-xs px-2 py-0.5">Mixed topics</Badge>}
+                    ) : (
+                      <Badge variant="outline" className="text-xs px-2 py-0.5">
+                        Mixed topics
+                      </Badge>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <BarChart2 className="h-3 w-3 shrink-0" />
-                        <span className="text-xs font-light uppercase tracking-wide">Difficulty</span>
+                        <span className="text-xs font-light uppercase tracking-wide">
+                          Difficulty
+                        </span>
                       </div>
-                      <div className="text-xs font-light capitalize">{savedSet.preferences.difficulty}</div>
+                      <div className="text-xs font-light capitalize">
+                        {savedSet.preferences.difficulty}
+                      </div>
                     </div>
                     <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Hash className="h-3 w-3 shrink-0" />
-                        <span className="text-xs font-light uppercase tracking-wide">Progress</span>
+                        <span className="text-xs font-light uppercase tracking-wide">
+                          Progress
+                        </span>
                       </div>
-                      <div className="text-xs font-medium">{completedCount}/{questionCount}</div>
+                      <div className="text-xs font-medium">
+                        {completedCount}/{questionCount}
+                      </div>
                     </div>
                     <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock3 className="h-3 w-3 shrink-0" />
-                        <span className="text-xs font-semibold uppercase tracking-wide">Saved</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide">
+                          Saved
+                        </span>
                       </div>
-                      <div className="text-xs font-medium truncate">{formatDate(savedSet.updatedAt)}</div>
+                      <div className="text-xs font-medium truncate">
+                        {formatDate(savedSet.updatedAt)}
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-1">
                     <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${isWritten ? "bg-sky-500" : "bg-violet-500"}`}
+                        className={`h-full rounded-full transition-all duration-500 ${isWritten ? 'bg-sky-500' : 'bg-violet-500'}`}
                         style={{ width: `${progressPct}%` }}
                       />
                     </div>
-                    <p className={`text-xs text-right font-medium ${completedCount === 0
-                      ? "text-muted-foreground/60 italic"
-                      : completedCount === questionCount
-                        ? isWritten ? "text-sky-600 dark:text-sky-400" : "text-violet-600 dark:text-violet-400"
-                        : "text-muted-foreground"
-                      }`}>
+                    <p
+                      className={`text-xs text-right font-medium ${
+                        completedCount === 0
+                          ? 'text-muted-foreground/60 italic'
+                          : completedCount === questionCount
+                            ? isWritten
+                              ? 'text-sky-600 dark:text-sky-400'
+                              : 'text-violet-600 dark:text-violet-400'
+                            : 'text-muted-foreground'
+                      }`}
+                    >
                       {progressLabel}
                     </p>
                   </div>
@@ -181,17 +233,27 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
 
 export function SavedView() {
   const navigate = useNavigate();
-  const { savedSets, loadSavedSet, deleteSavedSet, deleteAllSavedSets, needsSaveBeforeLoad, saveCurrentSet } = useSavedSets();
+  const {
+    savedSets,
+    loadSavedSet,
+    deleteSavedSet,
+    deleteAllSavedSets,
+    needsSaveBeforeLoad,
+    saveCurrentSet,
+  } = useSavedSets();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const [loadConfirmOpen, setLoadConfirmOpen] = useState(false);
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null);
 
   // --- #1: Sort + filter state ---
-  const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
-  const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
-  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
+  const [search, setSearch] = useState('');
 
   function handleOpen(savedSetId: string) {
     if (needsSaveBeforeLoad(savedSetId)) {
@@ -200,16 +262,20 @@ export function SavedView() {
       return;
     }
     loadSavedSet(savedSetId);
-    navigate("/");
+    navigate('/');
   }
 
   function performLoadConfirmed() {
     if (!pendingLoadId) return;
-    try { saveCurrentSet(); } catch { /* ignore */ }
+    try {
+      saveCurrentSet();
+    } catch {
+      /* ignore */
+    }
     loadSavedSet(pendingLoadId);
     setPendingLoadId(null);
     setLoadConfirmOpen(false);
-    navigate("/");
+    navigate('/');
   }
 
   function handleDelete(savedSetId: string, title: string) {
@@ -229,9 +295,11 @@ export function SavedView() {
     let result = [...savedSets];
 
     // Mode filter
-    if (modeFilter !== "all") {
+    if (modeFilter !== 'all') {
       result = result.filter((s) =>
-        modeFilter === "written" ? s.questionMode === "written" : s.questionMode !== "written"
+        modeFilter === 'written'
+          ? s.questionMode === 'written'
+          : s.questionMode !== 'written'
       );
     }
 
@@ -247,16 +315,17 @@ export function SavedView() {
 
     // Sort
     result.sort((a, b) => {
-      if (sortKey === "updatedAt") return b.updatedAt.localeCompare(a.updatedAt);
-      if (sortKey === "title") return a.title.localeCompare(b.title);
-      if (sortKey === "progress") {
+      if (sortKey === 'updatedAt')
+        return b.updatedAt.localeCompare(a.updatedAt);
+      if (sortKey === 'title') return a.title.localeCompare(b.title);
+      if (sortKey === 'progress') {
         const progressOf = (s: typeof a) => {
           const total =
-            s.questionMode === "written"
-              ? s.writtenSession?.questions.length ?? 0
-              : s.mcSession?.questions.length ?? 0;
+            s.questionMode === 'written'
+              ? (s.writtenSession?.questions.length ?? 0)
+              : (s.mcSession?.questions.length ?? 0);
           const done =
-            s.questionMode === "written"
+            s.questionMode === 'written'
               ? Object.keys(s.writtenSession?.feedbackByQuestionId ?? {}).length
               : Object.keys(s.mcSession?.answersByQuestionId ?? {}).length;
           return total > 0 ? done / total : 0;
@@ -270,17 +339,24 @@ export function SavedView() {
   }, [savedSets, modeFilter, search, sortKey]);
 
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
-  const confirmDeleteTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirmDeleteTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   function handleDeleteAll() {
     if (confirmDeleteAll) {
       deleteAllSavedSets();
       setConfirmDeleteAll(false);
-      if (confirmDeleteTimeout.current) clearTimeout(confirmDeleteTimeout.current);
+      if (confirmDeleteTimeout.current)
+        clearTimeout(confirmDeleteTimeout.current);
     } else {
       setConfirmDeleteAll(true);
-      if (confirmDeleteTimeout.current) clearTimeout(confirmDeleteTimeout.current);
-      confirmDeleteTimeout.current = setTimeout(() => setConfirmDeleteAll(false), 3000);
+      if (confirmDeleteTimeout.current)
+        clearTimeout(confirmDeleteTimeout.current);
+      confirmDeleteTimeout.current = setTimeout(
+        () => setConfirmDeleteAll(false),
+        3000
+      );
     }
   }
 
@@ -295,7 +371,12 @@ export function SavedView() {
         icon={Bookmark}
         // --- #13: CTA to generator ---
         actions={
-          <Button variant="default" size="sm" className="gap-2 mt-2" onClick={() => navigate("/")}>
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-2 mt-2"
+            onClick={() => navigate('/')}
+          >
             <PlusCircle className="h-4 w-4" />
             Generate your first set
           </Button>
@@ -324,13 +405,13 @@ export function SavedView() {
         </div>
 
         <FilterGroup>
-          {(["all", "written", "mc"] as ModeFilter[]).map((mode) => (
+          {(['all', 'written', 'mc'] as ModeFilter[]).map((mode) => (
             <FilterButton
               key={mode}
               active={modeFilter === mode}
               onClick={() => setModeFilter(mode)}
             >
-              {mode === "all" ? "All" : mode === "written" ? "Written" : "MC"}
+              {mode === 'all' ? 'All' : mode === 'written' ? 'Written' : 'MC'}
             </FilterButton>
           ))}
         </FilterGroup>
@@ -347,14 +428,21 @@ export function SavedView() {
             <option value="progress">Progress</option>
           </select>
         </div>
-        <Button variant="outline" size="sm" onClick={handleDeleteAll} className="h-8 gap-1.5 text-xs">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDeleteAll}
+          className="h-8 gap-1.5 text-xs"
+        >
           <RotateCcw className="h-3.5 w-3.5" />
-          {confirmDeleteAll ? "Confirm clear" : "Clear all"}
+          {confirmDeleteAll ? 'Confirm clear' : 'Clear all'}
         </Button>
       </Toolbar>
 
       {filteredSets.length === 0 && (
-        <p className="text-sm text-muted-foreground px-1">No sets match your filters.</p>
+        <p className="text-sm text-muted-foreground px-1">
+          No sets match your filters.
+        </p>
       )}
 
       <div className="flex-1">
@@ -376,7 +464,10 @@ export function SavedView() {
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={performDeleteConfirmed}
-        onCancel={() => { setConfirmOpen(false); setPendingDelete(null); }}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingDelete(null);
+        }}
       />
 
       {/* --- #4 + #14: Reframed load confirm with set title --- */}
@@ -386,12 +477,15 @@ export function SavedView() {
         description={
           pendingLoadSet
             ? `Your current session will be saved automatically before opening "${pendingLoadSet.title}".`
-            : "Your current session will be saved automatically before loading."
+            : 'Your current session will be saved automatically before loading.'
         }
         confirmText="Continue"
         cancelText="Cancel"
         onConfirm={performLoadConfirmed}
-        onCancel={() => { setLoadConfirmOpen(false); setPendingLoadId(null); }}
+        onCancel={() => {
+          setLoadConfirmOpen(false);
+          setPendingLoadId(null);
+        }}
       />
     </PageContainer>
   );

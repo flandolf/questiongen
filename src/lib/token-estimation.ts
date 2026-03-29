@@ -1,4 +1,10 @@
-import type { GenerationRecord, Topic, Difficulty, QuestionMode, TechMode } from "../types"
+import type {
+  GenerationRecord,
+  Topic,
+  Difficulty,
+  QuestionMode,
+  TechMode,
+} from '../types';
 
 export interface EstimatedTokensAndCost {
   totalTokensPerQuestion: number;
@@ -29,31 +35,31 @@ const PER_QUESTION_PROMPT_TOKENS = 500;
  * Topic-specific token adjustments applied to the per-question prompt budget.
  */
 const TOPIC_BASE_TOKENS: Record<string, number> = {
-  "Mathematical Methods": 850,
-  "Specialist Mathematics": 950,
-  "Chemistry": 800,
-  "Physical Education": 700,
+  'Mathematical Methods': 850,
+  'Specialist Mathematics': 950,
+  Chemistry: 800,
+  'Physical Education': 700,
 };
 
 const DEFAULT_TOPIC_BASE_TOKENS = 800;
 
 const DIFFICULTY_MULTIPLIERS: Record<string, number> = {
-  "Essential Skills": 0.7,
-  "Easy": 0.85,
-  "Medium": 1.0,
-  "Hard": 1.25,
-  "Extreme": 1.5,
+  'Essential Skills': 0.7,
+  Easy: 0.85,
+  Medium: 1.0,
+  Hard: 1.25,
+  Extreme: 1.5,
 };
 
 const TECH_MODE_MULTIPLIERS: Record<string, number> = {
-  "tech-free": 0.9,
-  "mix": 1.0,
-  "tech-active": 1.1,
+  'tech-free': 0.9,
+  mix: 1.0,
+  'tech-active': 1.1,
 };
 
 const QUESTION_MODE_RATIOS = {
-  "multiple-choice": { prompt: 0.6, completion: 0.4 },
-  "written": { prompt: 0.35, completion: 0.65 },
+  'multiple-choice': { prompt: 0.6, completion: 0.4 },
+  written: { prompt: 0.35, completion: 0.65 },
 };
 
 const PARAMETER_WEIGHTS = {
@@ -91,41 +97,46 @@ const DEFAULT_LOG_REGRESSION_COEFFICIENTS: LogRegressionCoefficients = {
   logTotalMarks: 0.3,
   totalMarks: 0,
   topicCoefficients: {
-    "Mathematical Methods": 0.05,
-    "Specialist Mathematics": 0.12,
-    "Chemistry": -0.02,
-    "Physical Education": -0.1,
+    'Mathematical Methods': 0.05,
+    'Specialist Mathematics': 0.12,
+    Chemistry: -0.02,
+    'Physical Education': -0.1,
   },
   difficultyCoefficients: {
-    "Essential Skills": -0.15,
-    "Easy": -0.05,
-    "Medium": 0,
-    "Hard": 0.1,
-    "Extreme": 0.2,
+    'Essential Skills': -0.15,
+    Easy: -0.05,
+    Medium: 0,
+    Hard: 0.1,
+    Extreme: 0.2,
   },
   questionModeCoefficients: {
-    "multiple-choice": -0.2,
-    "written": 0.15,
+    'multiple-choice': -0.2,
+    written: 0.15,
   },
   techModeCoefficients: {
-    "tech-free": -0.05,
-    "mix": 0,
-    "tech-active": 0.03,
+    'tech-free': -0.05,
+    mix: 0,
+    'tech-active': 0.03,
   },
   subtopicsCoefficient: 0.02,
   hasCustomFocusCoefficient: 0.05,
-  modelVersion: "1.0.0",
+  modelVersion: '1.0.0',
   trainedAt: 0,
   sampleSize: 0,
   rSquared: 0,
 };
 
-const LOG_REGRESSION_STORAGE_KEY = "token-estimation-log-reg-v1";
+const LOG_REGRESSION_STORAGE_KEY = 'token-estimation-log-reg-v1';
 
-export function persistLogRegressionCoefficients(coeffs: LogRegressionCoefficients): void {
+export function persistLogRegressionCoefficients(
+  coeffs: LogRegressionCoefficients
+): void {
   try {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LOG_REGRESSION_STORAGE_KEY, JSON.stringify(coeffs));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        LOG_REGRESSION_STORAGE_KEY,
+        JSON.stringify(coeffs)
+      );
     }
   } catch {
     // best-effort only
@@ -134,11 +145,14 @@ export function persistLogRegressionCoefficients(coeffs: LogRegressionCoefficien
 
 export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
   try {
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(LOG_REGRESSION_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (typeof parsed.bias === "number" && typeof parsed.logQuestionCount === "number") {
+        if (
+          typeof parsed.bias === 'number' &&
+          typeof parsed.logQuestionCount === 'number'
+        ) {
           return { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS, ...parsed };
         }
       }
@@ -174,7 +188,8 @@ function extractLogRegressionFeatures(
     questionModeCoeff: coeffs.questionModeCoefficients[questionMode] ?? 0,
     techModeCoeff: coeffs.techModeCoefficients[techMode] ?? 0,
     subtopicsLog: Math.log((subtopics?.length ?? 0) + 1),
-    hasCustomFocus: customFocusArea && customFocusArea.trim().length > 0 ? 1 : 0,
+    hasCustomFocus:
+      customFocusArea && customFocusArea.trim().length > 0 ? 1 : 0,
   };
 }
 
@@ -192,7 +207,8 @@ function predictTokensLogRegression(
   linearPrediction += features.questionModeCoeff;
   linearPrediction += features.techModeCoeff;
   linearPrediction += coeffs.subtopicsCoefficient * features.subtopicsLog;
-  linearPrediction += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+  linearPrediction +=
+    coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
 
   return Math.round(Math.exp(linearPrediction));
 }
@@ -202,7 +218,7 @@ export function trainLogRegressionModel(
   existingCoeffs?: LogRegressionCoefficients
 ): { coefficients: LogRegressionCoefficients; rSquared: number } {
   const validRecords = records.filter(
-    r =>
+    (r) =>
       r.outputs.totalTokens != null &&
       r.outputs.totalTokens > 0 &&
       r.inputs.questionCount > 0
@@ -210,19 +226,25 @@ export function trainLogRegressionModel(
 
   if (validRecords.length < 5) {
     return {
-      coefficients: { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS, trainedAt: Date.now(), sampleSize: validRecords.length },
+      coefficients: {
+        ...DEFAULT_LOG_REGRESSION_COEFFICIENTS,
+        trainedAt: Date.now(),
+        sampleSize: validRecords.length,
+      },
       rSquared: 0,
     };
   }
 
-  const coeffs = existingCoeffs ? { ...existingCoeffs } : { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
+  const coeffs = existingCoeffs
+    ? { ...existingCoeffs }
+    : { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
   coeffs.topicCoefficients = { ...coeffs.topicCoefficients };
   coeffs.difficultyCoefficients = { ...coeffs.difficultyCoefficients };
   coeffs.questionModeCoefficients = { ...coeffs.questionModeCoefficients };
   coeffs.techModeCoefficients = { ...coeffs.techModeCoefficients };
 
   const buildTrainingData = () =>
-    validRecords.map(record => ({
+    validRecords.map((record) => ({
       record,
       features: extractLogRegressionFeatures(
         record.inputs.questionCount,
@@ -244,8 +266,13 @@ export function trainLogRegressionModel(
   for (let iter = 0; iter < iterations; iter++) {
     const trainingData = buildTrainingData();
 
-    let gradBias = 0, gradLogQ = 0, gradQ = 0, gradLogM = 0, gradM = 0;
-    let gradSub = 0, gradFocus = 0;
+    let gradBias = 0,
+      gradLogQ = 0,
+      gradQ = 0,
+      gradLogM = 0,
+      gradM = 0;
+    let gradSub = 0,
+      gradFocus = 0;
 
     const gradTopic: Record<string, number> = {};
     const gradDiff: Record<string, number> = {};
@@ -298,22 +325,28 @@ export function trainLogRegressionModel(
 
     const catScale = scale * 0.1;
     for (const [level, grad] of Object.entries(gradTopic)) {
-      coeffs.topicCoefficients[level] = (coeffs.topicCoefficients[level] ?? 0) - grad * catScale;
+      coeffs.topicCoefficients[level] =
+        (coeffs.topicCoefficients[level] ?? 0) - grad * catScale;
     }
     for (const [level, grad] of Object.entries(gradDiff)) {
-      coeffs.difficultyCoefficients[level] = (coeffs.difficultyCoefficients[level] ?? 0) - grad * catScale;
+      coeffs.difficultyCoefficients[level] =
+        (coeffs.difficultyCoefficients[level] ?? 0) - grad * catScale;
     }
     for (const [level, grad] of Object.entries(gradMode)) {
-      coeffs.questionModeCoefficients[level] = (coeffs.questionModeCoefficients[level] ?? 0) - grad * catScale;
+      coeffs.questionModeCoefficients[level] =
+        (coeffs.questionModeCoefficients[level] ?? 0) - grad * catScale;
     }
     for (const [level, grad] of Object.entries(gradTech)) {
-      coeffs.techModeCoefficients[level] = (coeffs.techModeCoefficients[level] ?? 0) - grad * catScale;
+      coeffs.techModeCoefficients[level] =
+        (coeffs.techModeCoefficients[level] ?? 0) - grad * catScale;
     }
   }
 
   const finalData = buildTrainingData();
-  const meanTarget = finalData.reduce((sum, d) => sum + d.target, 0) / finalData.length;
-  let ssRes = 0, ssTot = 0;
+  const meanTarget =
+    finalData.reduce((sum, d) => sum + d.target, 0) / finalData.length;
+  let ssRes = 0,
+    ssTot = 0;
   for (const { features, target } of finalData) {
     const pred = Math.log(predictTokensLogRegression(coeffs, features));
     ssRes += (pred - target) ** 2;
@@ -324,7 +357,7 @@ export function trainLogRegressionModel(
   return {
     coefficients: {
       ...coeffs,
-      modelVersion: "1.0.0",
+      modelVersion: '1.0.0',
       trainedAt: Date.now(),
       sampleSize: validRecords.length,
       rSquared: Math.max(0, rSquared),
@@ -343,11 +376,19 @@ function estimateTokensLogRegression(
   subtopics?: string[],
   customFocusArea?: string,
   historyRecords?: GenerationRecord[]
-): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
+): {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  confidence: number;
+} {
   let coeffs = loadLogRegressionCoefficients();
 
   if (historyRecords && historyRecords.length > coeffs.sampleSize + 10) {
-    const { coefficients, rSquared } = trainLogRegressionModel(historyRecords, coeffs);
+    const { coefficients, rSquared } = trainLogRegressionModel(
+      historyRecords,
+      coeffs
+    );
     if (rSquared > coeffs.rSquared) {
       coeffs = coefficients;
       persistLogRegressionCoefficients(coeffs);
@@ -372,7 +413,10 @@ function estimateTokensLogRegression(
   const promptTokens = Math.round(totalTokens * ratios.prompt);
   const completionTokens = Math.round(totalTokens * ratios.completion);
 
-  const confidence = Math.min(0.95, coeffs.rSquared * Math.min(1, coeffs.sampleSize / 50));
+  const confidence = Math.min(
+    0.95,
+    coeffs.rSquared * Math.min(1, coeffs.sampleSize / 50)
+  );
 
   return { promptTokens, completionTokens, totalTokens, confidence };
 }
@@ -390,18 +434,27 @@ function calculateSimilarity(
   let score = 0;
 
   if (record.inputs.topic === topic) score += PARAMETER_WEIGHTS.topic;
-  if (record.inputs.difficulty === difficulty) score += PARAMETER_WEIGHTS.difficulty;
-  if (record.inputs.questionMode === questionMode) score += PARAMETER_WEIGHTS.questionMode;
+  if (record.inputs.difficulty === difficulty)
+    score += PARAMETER_WEIGHTS.difficulty;
+  if (record.inputs.questionMode === questionMode)
+    score += PARAMETER_WEIGHTS.questionMode;
   if (record.inputs.techMode === techMode) score += PARAMETER_WEIGHTS.techMode;
 
   const marksMatch =
-    (averageMarksPerQuestion == null && record.inputs.averageMarksPerQuestion == null) ||
-    (averageMarksPerQuestion != null && record.inputs.averageMarksPerQuestion === averageMarksPerQuestion);
+    (averageMarksPerQuestion == null &&
+      record.inputs.averageMarksPerQuestion == null) ||
+    (averageMarksPerQuestion != null &&
+      record.inputs.averageMarksPerQuestion === averageMarksPerQuestion);
   if (marksMatch) score += 0.1;
 
   if (subtopics && record.inputs.subtopics) {
-    const overlap = subtopics.filter(s => record.inputs.subtopics!.includes(s)).length;
-    const maxLength = Math.max(subtopics.length, record.inputs.subtopics!.length);
+    const overlap = subtopics.filter((s) =>
+      record.inputs.subtopics!.includes(s)
+    ).length;
+    const maxLength = Math.max(
+      subtopics.length,
+      record.inputs.subtopics!.length
+    );
     if (maxLength > 0) {
       score += 0.05 * (overlap / maxLength);
     }
@@ -422,7 +475,10 @@ function projectTokensForCount(
 ): number {
   const n = Math.max(recordQuestionCount, 1);
   const perQuestion = (recordTotalTokens - SYSTEM_PROMPT_TOKENS) / n;
-  const safePerQuestion = Math.max(perQuestion, PER_QUESTION_PROMPT_TOKENS * 0.5);
+  const safePerQuestion = Math.max(
+    perQuestion,
+    PER_QUESTION_PROMPT_TOKENS * 0.5
+  );
   return SYSTEM_PROMPT_TOKENS + requestedQuestionCount * safePerQuestion;
 }
 
@@ -436,7 +492,12 @@ function estimateTokensAdvanced(
   averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string
-): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
+): {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  confidence: number;
+} {
   const logRegResult = estimateTokensLogRegression(
     questionCount,
     averageMarksPerQuestion,
@@ -454,28 +515,57 @@ function estimateTokensAdvanced(
   }
 
   const validRecords = generationHistory.filter(
-    record =>
+    (record) =>
       record.outputs.totalTokens != null &&
       record.outputs.promptTokens != null &&
       record.outputs.completionTokens != null
   );
 
   if (validRecords.length === 0) {
-    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, subtopics, customFocusArea);
+    return estimateStaticTokens(
+      topic,
+      difficulty,
+      questionCount,
+      questionMode,
+      techMode,
+      averageMarksPerQuestion,
+      subtopics,
+      customFocusArea
+    );
   }
 
   const recordsWithSimilarity = validRecords
-    .map(record => ({
+    .map((record) => ({
       record,
-      similarity: calculateSimilarity(record, topic, difficulty, questionMode, techMode, averageMarksPerQuestion, subtopics, customFocusArea),
+      similarity: calculateSimilarity(
+        record,
+        topic,
+        difficulty,
+        questionMode,
+        techMode,
+        averageMarksPerQuestion,
+        subtopics,
+        customFocusArea
+      ),
       recencyWeight: Math.exp(
-        -0.1 * ((Date.now() - new Date(record.timestamp).getTime()) / (1000 * 60 * 60 * 24))
+        -0.1 *
+          ((Date.now() - new Date(record.timestamp).getTime()) /
+            (1000 * 60 * 60 * 24))
       ),
     }))
-    .filter(item => item.similarity > 0.3);
+    .filter((item) => item.similarity > 0.3);
 
   if (recordsWithSimilarity.length === 0) {
-    return estimateStaticTokens(topic, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, subtopics, customFocusArea);
+    return estimateStaticTokens(
+      topic,
+      difficulty,
+      questionCount,
+      questionMode,
+      techMode,
+      averageMarksPerQuestion,
+      subtopics,
+      customFocusArea
+    );
   }
 
   recordsWithSimilarity.sort(
@@ -501,8 +591,10 @@ function estimateTokensAdvanced(
 
     weightedTotalTokens += projectedTotal * combinedWeight;
 
-    const recordPromptRatio = record.outputs.promptTokens! / record.outputs.totalTokens!;
-    const recordCompletionRatio = record.outputs.completionTokens! / record.outputs.totalTokens!;
+    const recordPromptRatio =
+      record.outputs.promptTokens! / record.outputs.totalTokens!;
+    const recordCompletionRatio =
+      record.outputs.completionTokens! / record.outputs.totalTokens!;
     weightedPromptRatio += recordPromptRatio * combinedWeight;
     weightedCompletionRatio += recordCompletionRatio * combinedWeight;
   }
@@ -511,9 +603,14 @@ function estimateTokensAdvanced(
   const avgPromptRatio = weightedPromptRatio / totalWeight;
   const avgCompletionRatio = weightedCompletionRatio / totalWeight;
 
-  const avgSimilarity = topMatches.reduce((sum, m) => sum + m.similarity, 0) / topMatches.length;
-  const avgRecency = topMatches.reduce((sum, m) => sum + m.recencyWeight, 0) / topMatches.length;
-  const confidence = Math.min(1.0, (topMatches.length / 3) * avgSimilarity * avgRecency);
+  const avgSimilarity =
+    topMatches.reduce((sum, m) => sum + m.similarity, 0) / topMatches.length;
+  const avgRecency =
+    topMatches.reduce((sum, m) => sum + m.recencyWeight, 0) / topMatches.length;
+  const confidence = Math.min(
+    1.0,
+    (topMatches.length / 3) * avgSimilarity * avgRecency
+  );
 
   return {
     promptTokens: Math.round(projectedTotal * avgPromptRatio),
@@ -532,7 +629,12 @@ function estimateStaticTokens(
   averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string
-): { promptTokens: number; completionTokens: number; totalTokens: number; confidence: number } {
+): {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  confidence: number;
+} {
   const topicBase = TOPIC_BASE_TOKENS[topic] ?? DEFAULT_TOPIC_BASE_TOKENS;
   const difficultyMultiplier = DIFFICULTY_MULTIPLIERS[difficulty] ?? 1.0;
   const techMultiplier = TECH_MODE_MULTIPLIERS[techMode] ?? 1.0;
@@ -540,24 +642,29 @@ function estimateStaticTokens(
   const marks = averageMarksPerQuestion ?? DEFAULT_MARKS;
   const marksTokens = marks * TOKENS_PER_MARK;
 
-  const subtopicsBonus = subtopics && subtopics.length > 0
-    ? (subtopics.length - 1) * 15
-    : 0;
+  const subtopicsBonus =
+    subtopics && subtopics.length > 0 ? (subtopics.length - 1) * 15 : 0;
 
-  const focusBonus = customFocusArea && customFocusArea.trim().length > 0 ? 60 : 0;
+  const focusBonus =
+    customFocusArea && customFocusArea.trim().length > 0 ? 60 : 0;
 
   const perQuestionPromptBase =
     (topicBase + marksTokens + subtopicsBonus + focusBonus) *
-    difficultyMultiplier *
-    techMultiplier +
+      difficultyMultiplier *
+      techMultiplier +
     PER_QUESTION_PROMPT_TOKENS;
 
   const ratios = QUESTION_MODE_RATIOS[questionMode];
 
-  const totalPromptTokens = Math.round(SYSTEM_PROMPT_TOKENS + questionCount * perQuestionPromptBase);
+  const totalPromptTokens = Math.round(
+    SYSTEM_PROMPT_TOKENS + questionCount * perQuestionPromptBase
+  );
 
-  const perQuestionCompletion = (perQuestionPromptBase * ratios.completion) / ratios.prompt;
-  const totalCompletionTokens = Math.round(questionCount * perQuestionCompletion);
+  const perQuestionCompletion =
+    (perQuestionPromptBase * ratios.completion) / ratios.prompt;
+  const totalCompletionTokens = Math.round(
+    questionCount * perQuestionCompletion
+  );
 
   return {
     promptTokens: totalPromptTokens,
@@ -580,27 +687,35 @@ export function estimateTokensAndCost(
   promptPricePerToken?: number | null,
   completionPricePerToken?: number | null
 ): EstimatedTokensAndCost {
-  const { promptTokens, completionTokens, totalTokens, confidence } = estimateTokensAdvanced(
-    generationHistory,
-    topic,
-    difficulty,
-    questionCount,
-    questionMode,
-    techMode,
-    averageMarksPerQuestion,
-    subtopics,
-    customFocusArea
-  );
+  const { promptTokens, completionTokens, totalTokens, confidence } =
+    estimateTokensAdvanced(
+      generationHistory,
+      topic,
+      difficulty,
+      questionCount,
+      questionMode,
+      techMode,
+      averageMarksPerQuestion,
+      subtopics,
+      customFocusArea
+    );
 
   const variablePromptTokens = Math.max(promptTokens - SYSTEM_PROMPT_TOKENS, 0);
   const promptTokensPerQuestion = Math.round(
     SYSTEM_PROMPT_TOKENS / questionCount + variablePromptTokens / questionCount
   );
-  const completionTokensPerQuestion = Math.round(completionTokens / questionCount);
-  const totalTokensPerQuestion = promptTokensPerQuestion + completionTokensPerQuestion;
+  const completionTokensPerQuestion = Math.round(
+    completionTokens / questionCount
+  );
+  const totalTokensPerQuestion =
+    promptTokensPerQuestion + completionTokensPerQuestion;
 
-  const promptCost = promptPricePerToken != null ? promptPricePerToken * promptTokens : null;
-  const completionCost = completionPricePerToken != null ? completionPricePerToken * completionTokens : null;
+  const promptCost =
+    promptPricePerToken != null ? promptPricePerToken * promptTokens : null;
+  const completionCost =
+    completionPricePerToken != null
+      ? completionPricePerToken * completionTokens
+      : null;
   const totalCost = (promptCost ?? 0) + (completionCost ?? 0);
 
   return {

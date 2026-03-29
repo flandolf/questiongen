@@ -24,21 +24,23 @@ export default function Titlebar() {
         style={{ userSelect: 'none', position: 'relative', zIndex: 50 }}
         onMouseDown={handleMouseDown}
       >
-        <span className="flex-1 font-light text-sm text-muted-foreground" >questiongen</span>
+        <span className="flex-1 font-light text-sm text-muted-foreground">
+          questiongen
+        </span>
         <div className="flex gap-1">
           <button
             aria-label="Minimize"
             className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs"
             onClick={() => getCurrentWindow().minimize()}
           >
-              <Minus className="w-3 h-3" />
+            <Minus className="w-3 h-3" />
           </button>
           <button
             aria-label="Maximize"
             className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs"
             onClick={() => getCurrentWindow().toggleMaximize()}
           >
-          <Maximize className="w-3 h-3" />
+            <Maximize className="w-3 h-3" />
           </button>
           <button
             aria-label="Close"

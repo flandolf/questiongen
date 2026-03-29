@@ -1,6 +1,6 @@
-import { useShallow } from "zustand/react/shallow";
-import { useAppStore } from "@/store";
-import { useAppSettings } from "@/AppContext";
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore } from '@/store';
+import { useAppSettings } from '@/AppContext';
 
 /**
  * Hook that provides all generator settings from Zustand store,

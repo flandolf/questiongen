@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type ReactNode,
+} from 'react';
 
 export interface TimerBarData {
   questionNumber: number;
@@ -10,10 +16,10 @@ export interface TimerBarData {
   parTimeSeconds: number;
   bankedSeconds: number;
   formattedBank: string;
-  bankStatus: "ahead" | "behind" | "on-pace";
+  bankStatus: 'ahead' | 'behind' | 'on-pace';
   formattedSessionTime: string;
   isQuestionExpired: boolean;
-  mode: "exam" | "practice";
+  mode: 'exam' | 'practice';
 }
 
 interface TimerBarContextValue {
@@ -27,7 +33,9 @@ const TimerBarContext = createContext<TimerBarContextValue>({
 });
 
 export function TimerBarProvider({ children }: { children: ReactNode }) {
-  const [timerBarData, setTimerBarDataState] = useState<TimerBarData | null>(null);
+  const [timerBarData, setTimerBarDataState] = useState<TimerBarData | null>(
+    null
+  );
 
   const setTimerBarData = useCallback((data: TimerBarData | null) => {
     setTimerBarDataState(data);
