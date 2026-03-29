@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Bookmark, Trash2, Info, RefreshCw, Flag, Clock, PiggyBank, Timer } from "lucide-react";
+import { ArrowLeft, ArrowRight, Trash2, Info, RefreshCw, Flag, Clock, PiggyBank, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,14 +18,11 @@ type WrittenSessionHeaderProps = {
   isMathTopic: boolean;
   isAtLast: boolean;
   canAdvance: boolean;
-  hasSavedSet: boolean;
-  lastSavedAt?: string | null;
   generationStartedAt: number | null;
   telemetry: GenerationTelemetry | null;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
   onPrev: () => void;
   onNext: () => void;
-  onSave: () => void;
   onDelete: () => void;
   onExit: () => void;
   onRegenerate?: () => void;
@@ -38,10 +35,10 @@ type WrittenSessionHeaderProps = {
 export function WrittenSessionHeader({
   questionIndex, totalQuestions, completedCount,
   topic, difficulty, maxMarks, techAllowed, isMathTopic,
-  isAtLast, canAdvance, hasSavedSet,
+  isAtLast, canAdvance,
   generationStartedAt, telemetry,
   getDifficultyBadgeClasses,
-  onPrev, onNext, onSave, onDelete, onExit,
+  onPrev, onNext, onDelete, onExit,
   onRegenerate,
   generationMode = "practice",
   formattedCountdownTime,
@@ -196,10 +193,6 @@ export function WrittenSessionHeader({
               </Tooltip>
             </TooltipProvider>
 
-            <Button variant={hasSavedSet ? "default" : "outline"} size="sm" onClick={onSave} className="h-9 gap-1.5 text-xs px-3 rounded-full">
-              <Bookmark className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{hasSavedSet ? "Saved" : "Save"}</span>
-            </Button>
             {onRegenerate && (
               <Button variant="ghost" size="sm" onClick={onRegenerate} className="h-9 w-9 p-0 rounded-full">
                 <RefreshCw className="w-3.5 h-3.5" />

@@ -14,6 +14,7 @@ import { isDue, daysUntilReview } from "../lib/spaced-repetition";
 import {
     ChevronDown, ChevronUp, Shuffle, BookOpen, Target,
     RotateCcw, Trophy, Trash2, Brain,
+    CheckCircle2, XCircle, Clock,
 } from "lucide-react";
 import { PageContainer, PageHeader, Toolbar, FilterGroup, FilterButton } from "@/components/layout/primitives";
 import { WrittenSessionHeader } from "@/components/generator/WrittenSessionHeader";
@@ -23,6 +24,7 @@ import { WrittenAnswerCard } from "@/components/generator/WrittenAnswerCard";
 import { WrittenFeedbackPanel } from "@/components/generator/WrittenFeedbackPanel";
 import { McQuestionCard } from "@/components/generator/McQuestionCard";
 import { McAnswerPanel } from "@/components/generator/McAnswerPanel";
+import { useTimerBar, type TimerBarData } from "@/context/TimerBarContext";
 
 // --- Generator parity reattempt view (restored full UI) ---
 import type { MarkAnswerResponse } from "../types";
@@ -32,7 +34,7 @@ type WrittenWrongEntry = QuestionHistoryEntry & { kind: "written" };
 type McWrongEntry = McHistoryEntry & { kind: "multiple-choice" };
 type WrongEntry = WrittenWrongEntry | McWrongEntry;
 type ViewMode = "list" | "reattempt" | "summary";
-type ReattemptResult = { id: string; correct: boolean };
+type ReattemptResult = { id: string; correct: boolean; timeSeconds: number };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -314,6 +316,30 @@ function McExpandedBody({ entry }: { entry: McWrongEntry }) {
 }
 
 
+// ─── Per-question saved state ─────────────────────────────────────────────────
+
+interface WrittenQuestionState {
+    writtenAnswer: string;
+    image: { name: string; dataUrl: string } | undefined;
+    feedback: MarkAnswerResponse | null;
+    markingScheme: MarkAnswerResponse["vcaaMarkingScheme"] | null;
+    appealText: string;
+    overrideInput: string;
+    result: ReattemptResult | null;
+    timeSeconds: number;
+}
+
+interface McQuestionState {
+    selectedAnswer: string;
+    awardedMarks: number | undefined;
+    mcAppealText: string;
+    mcOverrideInput: string;
+    result: ReattemptResult | null;
+    timeSeconds: number;
+}
+
+type QuestionState = WrittenQuestionState | McQuestionState;
+
 // ─── Reattempt view ───────────────────────────────────────────────────────────
 
 interface ReattemptViewProps {
@@ -327,15 +353,20 @@ interface ReattemptViewProps {
 function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorrect }: ReattemptViewProps) {
     const [idx, setIdx] = useState<number>(0);
     const [results, setResults] = useState<ReattemptResult[]>([]);
+    // Per-question state snapshots keyed by question id
+    const [savedStates, setSavedStates] = useState<Record<string, QuestionState>>({});
+    // Per-question timing: start timestamp for current question
+    const [questionStartedAt, setQuestionStartedAt] = useState<number>(() => Date.now());
+
     const entry = questions[idx];
     const isWritten = entry.kind === "written";
     const writtenEntry = isWritten ? entry : null;
     const isLast = idx === questions.length - 1;
     const completedCount = results.filter((r) => r.correct).length;
-    // Timer: mimic generator (no persistence, just elapsed in-session)
+
+    // Session timer
     const [startedAt] = useState(() => Date.now());
     const [now, setNow] = useState(Date.now());
-    // Tick timer
     useEffect(() => {
         const t = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(t);
@@ -343,12 +374,47 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
     const elapsedSeconds = Math.floor((now - startedAt) / 1000);
     const formattedElapsedTime = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, "0")}:${String(elapsedSeconds % 60).padStart(2, "0")}`;
 
+    // Current question elapsed time
+    const [questionNow, setQuestionNow] = useState(Date.now());
+    useEffect(() => {
+        setQuestionNow(Date.now());
+        const t = setInterval(() => setQuestionNow(Date.now()), 1000);
+        return () => clearInterval(t);
+    }, [questionStartedAt]);
+    const currentQuestionSeconds = Math.floor((questionNow - questionStartedAt) / 1000);
+    const formattedQuestionTime = `${String(Math.floor(currentQuestionSeconds / 60)).padStart(2, "0")}:${String(currentQuestionSeconds % 60).padStart(2, "0")}`;
+
+    // --- Timer bar integration ---
+    const { setTimerBarData } = useTimerBar();
+    useEffect(() => {
+        const data: TimerBarData = {
+            questionNumber: idx + 1,
+            totalQuestions: questions.length,
+            currentQuestionTimeUsed: currentQuestionSeconds,
+            currentQuestionTimeLimit: 0,
+            currentQuestionRemaining: 0,
+            formattedQuestionTime: formattedQuestionTime,
+            parTimeSeconds: 0,
+            bankedSeconds: 0,
+            formattedBank: "0:00",
+            bankStatus: "on-pace",
+            formattedSessionTime: formattedElapsedTime,
+            isQuestionExpired: false,
+            mode: "practice",
+        };
+        setTimerBarData(data);
+    }, [currentQuestionSeconds, idx, questions.length, formattedQuestionTime, formattedElapsedTime, setTimerBarData]);
+
+    // Clear timer bar on unmount
+    useEffect(() => {
+        return () => { setTimerBarData(null); };
+    }, [setTimerBarData]);
+
     // --- Written state ---
     const [writtenAnswer, setWrittenAnswer] = useState<string>("");
     const [image, setImage] = useState<{ name: string; dataUrl: string } | undefined>(undefined);
     const [isMarking, setIsMarking] = useState<boolean>(false);
     const [feedback, setFeedback] = useState<MarkAnswerResponse | null>(null);
-    // Local state for interactive rubric (marking scheme)
     const [markingScheme, setMarkingScheme] = useState<MarkAnswerResponse["vcaaMarkingScheme"] | null>(null);
     const [appealText, setAppealText] = useState<string>("");
     const [overrideInput, setOverrideInput] = useState<string>("");
@@ -359,27 +425,62 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
     const [mcAppealText, setMcAppealText] = useState<string>("");
     const [mcOverrideInput, setMcOverrideInput] = useState<string>("");
 
-    // --- Navigation logic ---
-    const handlePrev = () => setIdx((i) => Math.max(0, i - 1));
-    const handleExit = () => onExit(results);
-    const handleDeleteCurrent = () => { onDelete(entry); handleNext(null); };
+    // --- Save current question state before leaving it ---
+    const saveCurrentState = useCallback(() => {
+        const currentEntry = questions[idx];
+        if (!currentEntry) return;
+        const qElapsed = Math.floor((Date.now() - questionStartedAt) / 1000);
+        const existing = savedStates[currentEntry.id];
+        const totalTime = (existing?.timeSeconds ?? 0) + qElapsed;
+        const state: QuestionState = currentEntry.kind === "written"
+            ? { writtenAnswer, image, feedback, markingScheme, appealText, overrideInput, result: results.find(r => r.id === currentEntry.id) ?? null, timeSeconds: totalTime }
+            : { selectedAnswer, awardedMarks, mcAppealText, mcOverrideInput, result: results.find(r => r.id === currentEntry.id) ?? null, timeSeconds: totalTime };
+        setSavedStates(prev => ({ ...prev, [currentEntry.id]: state }));
+    }, [idx, questions, writtenAnswer, image, feedback, markingScheme, appealText, overrideInput, selectedAnswer, awardedMarks, mcAppealText, mcOverrideInput, results, questionStartedAt]);
+
+    // --- Restore state for a question ---
+    const restoreState = useCallback((entryId: string) => {
+        const state = savedStates[entryId];
+        if (!state) {
+            // Fresh question - reset everything
+            setWrittenAnswer(""); setImage(undefined); setFeedback(null); setMarkingScheme(null); setAppealText(""); setOverrideInput("");
+            setSelectedAnswer(""); setAwardedMarks(undefined); setMcAppealText(""); setMcOverrideInput("");
+            return;
+        }
+        if ('writtenAnswer' in state) {
+            setWrittenAnswer(state.writtenAnswer);
+            setImage(state.image);
+            setFeedback(state.feedback);
+            setMarkingScheme(state.markingScheme);
+            setAppealText(state.appealText);
+            setOverrideInput(state.overrideInput);
+        } else {
+            setSelectedAnswer(state.selectedAnswer);
+            setAwardedMarks(state.awardedMarks);
+            setMcAppealText(state.mcAppealText);
+            setMcOverrideInput(state.mcOverrideInput);
+        }
+    }, [savedStates]);
 
     // --- Determine correctness for current question ---
     const getCurrentResult = (): ReattemptResult => {
+        const existing = savedStates[entry.id];
+        const qElapsed = Math.floor((Date.now() - questionStartedAt) / 1000);
+        const timeSeconds = (existing?.timeSeconds ?? 0) + qElapsed;
         if (isWritten) {
-            // For written, use feedback (after marking or override)
-            if (!feedback) return { id: entry.id, correct: false };
+            if (!feedback) return { id: entry.id, correct: false, timeSeconds };
             const max = feedback.maxMarks ?? writtenEntry?.question.maxMarks ?? 0;
             return {
                 id: entry.id,
                 correct: max > 0 ? feedback.achievedMarks >= max : false,
+                timeSeconds,
             };
         } else {
-            // For MC, use awardedMarks or selectedAnswer
             const correctAnswer = (entry as McWrongEntry).question.correctAnswer;
             return {
                 id: entry.id,
                 correct: selectedAnswer === correctAnswer,
+                timeSeconds,
             };
         }
     };
@@ -415,11 +516,10 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
     };
 
     // --- Interactive rubric logic ---
-    const handleCriterionChange = (idx: number, achievedMarks: number, rationale: string) => {
+    const handleCriterionChange = (cIdx: number, achievedMarks: number, rationale: string) => {
         if (!feedback || !markingScheme) return;
-        const updated = markingScheme.map((c, i) => i === idx ? { ...c, achievedMarks, rationale } : c);
+        const updated = markingScheme.map((c, i) => i === cIdx ? { ...c, achievedMarks, rationale } : c);
         setMarkingScheme(updated);
-        // Optionally update achievedMarks in feedback as sum of all achievedMarks
         const totalAchieved = updated.reduce((sum, c) => sum + (c.achievedMarks || 0), 0);
         setFeedback({ ...feedback, achievedMarks: totalAchieved, vcaaMarkingScheme: updated });
         setOverrideInput(String(totalAchieved));
@@ -436,19 +536,48 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
         setAwardedMarks(marks);
     };
 
+    // --- Navigation logic ---
+    const handlePrev = () => {
+        saveCurrentState();
+        const prevIdx = Math.max(0, idx - 1);
+        setIdx(prevIdx);
+        restoreState(questions[prevIdx].id);
+        setQuestionStartedAt(Date.now());
+    };
+    const handleExit = () => {
+        saveCurrentState();
+        // Build final results from current state + saved states
+        const resultMap = new Map<string, ReattemptResult>();
+        // Add previously stored results
+        for (const r of results) resultMap.set(r.id, r);
+        // Add current question result
+        const currentResult = getCurrentResult();
+        resultMap.set(currentResult.id, currentResult);
+        // Add any saved state results that have been answered
+        for (const [id, state] of Object.entries(savedStates)) {
+            if (state.result && !resultMap.has(id)) {
+                resultMap.set(id, { ...state.result, timeSeconds: state.timeSeconds });
+            }
+        }
+        onExit(Array.from(resultMap.values()));
+    };
+    const handleDeleteCurrent = () => { onDelete(entry); handleNext(null); };
+
     // --- Advance logic ---
     const handleNext = (result: ReattemptResult | null) => {
-        // If result is null, try to get from current state (for delete/skip, pass null)
         const actualResult = result ?? getCurrentResult();
-        // Only add if not already present for this id
+        // Save current state before advancing
+        saveCurrentState();
+        // Merge result
         const merged = actualResult ? [...results.filter((r) => r.id !== entry.id), actualResult] : results;
         if (actualResult?.correct) onMarkCorrect(entry);
         if (isLast) { onExit(merged); return; }
-        setResults(merged); setIdx((i) => i + 1);
-        // Reset per-question state
-        setWrittenAnswer(""); setImage(undefined); setIsMarking(false); setFeedback(null); setAppealText(""); setOverrideInput("");
-        setMarkingScheme(null);
-        setSelectedAnswer(""); setAwardedMarks(undefined); setMcAppealText(""); setMcOverrideInput("");
+        setResults(merged);
+        const nextIdx = idx + 1;
+        setIdx(nextIdx);
+        // Restore or reset next question state
+        restoreState(questions[nextIdx].id);
+        setQuestionStartedAt(Date.now());
     };
 
     // --- Session header parity ---
@@ -564,33 +693,154 @@ function ReattemptView({ questions, apiKey, model, onExit, onDelete, onMarkCorre
 
 interface ReattemptSummaryProps {
     results: ReattemptResult[];
-    total: number;
+    questions: WrongEntry[];
     onRetry: () => void;
     onBack: () => void;
 }
-function ReattemptSummary({ results, total, onRetry, onBack }: ReattemptSummaryProps) {
-    const correct = results.filter((r) => r.correct).length;
-    const accuracyPercent = total > 0 ? (correct / total) * 100 : 0;
-    return (
-        <div className="flex flex-col w-full h-full">
-            <div className="text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto">
-                    <Trophy className="w-8 h-8 text-emerald-500" />
-                </div>
-                <h2 className="text-2xl font-bold">Reattempt Complete</h2>
-                <p className="text-sm text-muted-foreground">
-                    You got <span className="font-medium text-emerald-600 dark:text-emerald-400">{correct}</span> out of <span className="font-medium">{total}</span> correct ({accuracyPercent.toFixed(1)}%).
-                </p>
-            </div>
-            <div className="flex flex-row items-center justif">
 
-                <Button className="mt-6 mx-auto" onClick={onRetry}>
+function formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function ReattemptSummary({ results, questions, onRetry, onBack }: ReattemptSummaryProps) {
+    const correct = results.filter((r) => r.correct).length;
+    const total = questions.length;
+    const accuracyPercent = total > 0 ? (correct / total) * 100 : 0;
+    const totalTime = results.reduce((sum, r) => sum + (r.timeSeconds ?? 0), 0);
+    const [showDetails, setShowDetails] = useState(false);
+
+    const ringColor = accuracyPercent >= 80 ? "#10b981" : accuracyPercent >= 60 ? "#f59e0b" : "#f43f5e";
+    const ringLabel = accuracyPercent >= 80 ? "Excellent" : accuracyPercent >= 60 ? "Good" : "Needs work";
+
+    // Per-question detail rows
+    const rows = useMemo(() => {
+        return questions.map((q, i) => {
+            const r = results.find((rr) => rr.id === q.id);
+            return {
+                index: i + 1,
+                id: q.id,
+                topic: q.question.topic,
+                subtopic: q.question.subtopic,
+                kind: q.kind,
+                correct: r?.correct ?? false,
+                timeSeconds: r?.timeSeconds ?? 0,
+                prompt: q.question.promptMarkdown,
+            };
+        });
+    }, [questions, results]);
+
+    // Topic breakdown
+    const topicStats = useMemo(() => {
+        const map = new Map<string, { correct: number; total: number }>();
+        for (const row of rows) {
+            const b = map.get(row.topic) ?? { correct: 0, total: 0 };
+            b.total += 1;
+            if (row.correct) b.correct += 1;
+            map.set(row.topic, b);
+        }
+        return Array.from(map.entries())
+            .map(([topic, b]) => ({ topic, correct: b.correct, total: b.total, pct: b.total > 0 ? (b.correct / b.total) * 100 : 0 }))
+            .sort((a, b) => a.pct - b.pct);
+    }, [rows]);
+
+    const weakTopics = topicStats.filter(t => t.pct < 100);
+
+    return (
+        <div className="max-w-2xl mx-auto py-6 px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="text-center space-y-3">
+                <div className="relative w-28 h-28 mx-auto">
+                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
+                        <circle
+                            cx="50" cy="50" r="42" fill="none"
+                            stroke={ringColor}
+                            strokeWidth="8"
+                            strokeLinecap="round"
+                            strokeDasharray={`${accuracyPercent * 2.64} 264`}
+                            className="transition-all duration-1000 ease-out"
+                        />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-black tabular-nums" style={{ color: ringColor }}>
+                            {accuracyPercent.toFixed(0)}%
+                        </span>
+                        <span className="text-[10px] font-semibold text-muted-foreground">{ringLabel}</span>
+                    </div>
+                </div>
+                <h2 className="text-xl font-bold">Reattempt Complete</h2>
+                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                    <span>
+                        <span className="font-semibold text-foreground">{correct}/{total}</span> correct
+                    </span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span className="font-semibold text-foreground">{formatTime(totalTime)}</span>
+                    </span>
+                </div>
+            </div>
+
+            {/* Weak topics */}
+            {weakTopics.length > 0 && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Topics to review</p>
+                    {topicStats.filter(t => t.pct < 100).map(({ topic, correct: c, total: t, pct }) => (
+                        <div key={topic} className="flex items-center gap-3 text-xs">
+                            <span className="flex-1 font-medium text-foreground truncate">{topic}</span>
+                            <span className="tabular-nums text-muted-foreground">{c}/{t}</span>
+                            <span className={`shrink-0 tabular-nums font-semibold w-10 text-right ${pct >= 50 ? "text-amber-500" : "text-rose-500"}`}>
+                                {pct.toFixed(0)}%
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Details toggle */}
+            <div className="border-t pt-3">
+                <button
+                    type="button"
+                    onClick={() => setShowDetails(v => !v)}
+                    className="w-full flex items-center justify-between py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                    <span>Question breakdown</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`} />
+                </button>
+                {showDetails && (
+                    <div className="rounded-xl border divide-y divide-border/40 overflow-hidden mt-2">
+                        {rows.map((r) => (
+                            <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 text-xs ${r.correct ? "bg-emerald-500/5" : "bg-rose-500/5"}`}>
+                                <span className="shrink-0 w-5 text-muted-foreground font-mono">{r.index}</span>
+                                <div className={`shrink-0 w-5 h-5 rounded-md flex items-center justify-center ${r.kind === "written" ? "bg-sky-500/10" : "bg-violet-500/10"}`}>
+                                    {r.kind === "written" ? <BookOpen className="w-2.5 h-2.5 text-sky-500" /> : <Target className="w-2.5 h-2.5 text-violet-500" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-foreground truncate block">{r.topic}</span>
+                                    {r.subtopic && <span className="text-muted-foreground truncate block">{r.subtopic}</span>}
+                                </div>
+                                <span className="shrink-0 tabular-nums text-muted-foreground font-mono">{formatTime(r.timeSeconds)}</span>
+                                {r.correct
+                                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    : <XCircle className="w-4 h-4 text-rose-400 shrink-0" />}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-center gap-3 pt-2">
+                <Button onClick={onRetry} className="gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5" />
                     Retry
                 </Button>
-                <Button variant="link" className="mt-2 mx-auto" onClick={onBack}>   Back to list
+                <Button variant="outline" onClick={onBack}>
+                    Back to list
                 </Button>
             </div>
-
         </div>
     );
 }
@@ -718,7 +968,7 @@ export default function WrongQuestionView() {
         return (
             <div className="min-h-full px-3 sm:px-5 py-4">
                 <ReattemptSummary
-                    results={reattemptResults} total={reattemptQueue.length}
+                    results={reattemptResults} questions={reattemptQueue}
                     onRetry={() => { setReattemptQueue(shuffleArray(filteredQuestions)); setReattemptResults(null); setViewMode("reattempt"); }}
                     onBack={() => { setViewMode("list"); setReattemptResults(null); }}
                 />

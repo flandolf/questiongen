@@ -501,6 +501,7 @@ export type PersistedWrittenSession = {
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;
   savedSetId?: string | null;
+  timerState?: PersistedTimerState;
 };
 
 export type PersistedMcSession = {
@@ -511,6 +512,7 @@ export type PersistedMcSession = {
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;
   savedSetId?: string | null;
+  timerState?: PersistedTimerState;
 };
 
 export type SavedQuestionSet = {
@@ -540,6 +542,8 @@ export type PersistedAppState = {
   examHistory?: ExamRecord[];
   generationHistory?: GenerationRecord[];
   presets?: Preset[];
+  writtenTimerState?: PersistedTimerState | null;
+  mcTimerState?: PersistedTimerState | null;
 };
 
 // ─── Per-Question Timing ──────────────────────────────────────────────────────
@@ -560,10 +564,26 @@ export type PerQuestionTiming = {
   isExpired: boolean;
   /** True when the user finished before their allocation ran out */
   finishedEarly: boolean;
+  /** Snapshot of global pausedDurationMs at the moment this question was presented */
+  pausedDurationMsAtPresentation: number;
 };
 
 /** Session-level timer state shape (mirrors the hook's internal state). */
 export type QuestionTimerState = {
+  byQuestionId: Record<string, PerQuestionTiming>;
+  totalTimeLimitSeconds: number;
+  sessionStartedAt: number | null;
+  sessionFinishedAt: number | null;
+  bankedSeconds: number;
+  parTimeSeconds: number;
+  isPaused: boolean;
+  pausedDurationMs: number;
+  activeQuestionIndex: number;
+  mode: GenerationMode;
+};
+
+/** Serializable timer state for persistence (survives app restarts). */
+export type PersistedTimerState = {
   byQuestionId: Record<string, PerQuestionTiming>;
   totalTimeLimitSeconds: number;
   sessionStartedAt: number | null;

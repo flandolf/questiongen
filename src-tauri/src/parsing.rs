@@ -397,10 +397,154 @@ fn normalise_typography(s: &str) -> String {
         .replace('\u{2026}', "...")
 }
 
+// --- Topic / subtopic correction ----------------------------------------------
+
+/// Canonical subject names that are valid values for the `topic` field.
+const CANONICAL_TOPICS: &[&str] = &[
+    "Mathematical Methods",
+    "Specialist Mathematics",
+    "Chemistry",
+    "Physical Education",
+];
+
+/// Map each canonical subtopic (lowercased) to its parent subject.
+/// This is used to fix cases where the LLM puts a subtopic into the `topic` field.
+fn subtopic_to_subject() -> std::collections::HashMap<&'static str, &'static str> {
+    let kk = crate::constants::subtopic_key_knowledge();
+    // All subtopics from Mathematical Methods
+    let mm_subs = [
+        "functions and graphs",
+        "transformation of graphs",
+        "algebra and structure",
+        "trigonometric functions",
+        "exponential and logarithmic functions",
+        "differentiation",
+        "integration",
+        "probability and statistics",
+        "discrete random variables",
+        "continuous random variables",
+    ];
+    // All subtopics from Specialist Mathematics
+    let sm_subs = [
+        "additional algebra and number systems",
+        "sequences and series",
+        "reciprocals and rational functions",
+        "combinatorics and matrices",
+        "trigonometric functions and identities",
+        "proof",
+        "modulus",
+        "algorithms and graph theory",
+        "graphing relations",
+        "complex numbers",
+        "transformations and vectors in the plane",
+    ];
+    // All subtopics from Chemistry
+    let chem_subs = [
+        "periodic trends: structure, periodic organisation, and critical or endangered elements",
+        "molecular structure: lewis structures, vsepr geometry, polarity, and intermolecular forces",
+        "metallic bonding: metallic lattices and the reactivity series",
+        "ionic chemistry: ionic bonding, precipitation reactions, and solubility tables",
+        "chemical quantities: moles, molar mass, percentage composition, and empirical/molecular formulas",
+        "separation techniques: chromatography and rf value identification",
+        "organic classification: alkanes, alkenes, alcohols, carboxylic acids, haloalkanes, and iupac naming",
+        "polymer chemistry: addition and condensation polymerisation, plastics, and recycling",
+        "sustainability: green chemistry, circular economy, and sustainable development",
+        "water chemistry: hydrogen bonding and unique physical properties of water",
+        "acid\u{2013}base chemistry: br\u{f8}nsted\u{2013}lowry theory, ph, neutralisation, and applications",
+        "redox chemistry: electron transfer, half-equations, displacement, and corrosion",
+        "solutions: concentration units and solubility relationships",
+        "volumetric analysis: acid\u{2013}base titration, standard solutions, and indicators",
+        "gas chemistry: ideal gas equation and greenhouse gases",
+        "analytical techniques: electrical conductivity, stoichiometry, and colorimetry/uv\u{2013}vis spectroscopy",
+    ];
+    // All subtopics from Physical Education
+    let pe_subs = [
+        "skill acquisition: classification, stages of learning, and practice scheduling",
+        "coaching and feedback: theories of acquisition and psychological strategies",
+        "applied biomechanics: forces, momentum, impulse, newton's laws, projectile motion, and levers",
+        "movement analysis: qualitative analysis and equilibrium in sport",
+        "energy system interplay: atp-cp, anaerobic glycolysis, and aerobic systems",
+        "cardiorespiratory dynamics: oxygen uptake, epoc, and vo2 max/lip",
+        "physiological responses: acute responses and fatigue mechanisms",
+        "recovery and nutrition: hydration and nutritional strategies for homeostasis",
+        "training foundation: activity analysis, fitness components, and testing",
+        "program design: training principles, methods, and chronic adaptations",
+    ];
+
+    let mut m = std::collections::HashMap::new();
+    for s in mm_subs {
+        m.insert(s, "Mathematical Methods");
+    }
+    for s in sm_subs {
+        m.insert(s, "Specialist Mathematics");
+    }
+    for s in chem_subs {
+        // Only insert if it's actually a known subtopic key
+        if kk.contains_key(s) {
+            m.insert(s, "Chemistry");
+        }
+    }
+    for s in pe_subs {
+        if kk.contains_key(s) {
+            m.insert(s, "Physical Education");
+        }
+    }
+    m
+}
+
+/// If the `topic` field is not a canonical subject, try to detect whether the LLM
+/// put a subtopic value there instead. If so, move it to `subtopic` and set
+/// `topic` to the correct parent subject.
+///
+/// `selected_topics` are the user-selected subjects (e.g. ["Mathematical Methods"]).
+fn fix_topic_field(topic: &mut String, subtopic: &mut Option<String>, selected_topics: &[String]) {
+    let trimmed = topic.trim();
+    if CANONICAL_TOPICS
+        .iter()
+        .any(|t| t.eq_ignore_ascii_case(trimmed))
+    {
+        return; // Already a valid subject.
+    }
+
+    // Try to match against known subtopics (case-insensitive).
+    let lookup = trimmed.to_ascii_lowercase();
+    let map = subtopic_to_subject();
+
+    if let Some(&subject) = map.get(lookup.as_str()) {
+        // The LLM put a subtopic into the topic field.
+        // Move the old topic value to subtopic (if subtopic is empty).
+        if subtopic.is_none() || subtopic.as_deref().map(str::is_empty).unwrap_or(true) {
+            *subtopic = Some(trimmed.to_string());
+        }
+        *topic = subject.to_string();
+        return;
+    }
+
+    // Fuzzy match: check if any canonical subtopic is a substring of the topic value.
+    for (&sub, &subject) in &map {
+        if lookup.contains(sub) || sub.contains(&lookup) {
+            if subtopic.is_none() || subtopic.as_deref().map(str::is_empty).unwrap_or(true) {
+                *subtopic = Some(trimmed.to_string());
+            }
+            *topic = subject.to_string();
+            return;
+        }
+    }
+
+    // If there's only one selected topic, assume that's the subject.
+    if selected_topics.len() == 1 {
+        if subtopic.is_none() || subtopic.as_deref().map(str::is_empty).unwrap_or(true) {
+            *subtopic = Some(trimmed.to_string());
+        }
+        *topic = selected_topics[0].clone();
+    }
+}
+
 // --- Normalise + validate written questions ----------------------------------
 
 pub fn normalise_written(
     questions: &mut [GeneratedQuestion],
+    selected_topics: &[String],
     selected_subtopics: Option<&Vec<String>>,
 ) {
     let sole_subtopic = selected_subtopics
@@ -417,6 +561,8 @@ pub fn normalise_written(
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .or_else(|| sole_subtopic.cloned());
+
+        fix_topic_field(&mut q.topic, &mut q.subtopic, selected_topics);
 
         let marks = if q.max_marks == 0 {
             default_max_marks()
@@ -473,7 +619,11 @@ const DISALLOWED_SELF_TALK: &[&str] = &[
     "i'll update",
 ];
 
-pub fn normalise_mc(questions: &mut [McQuestion], selected_subtopics: Option<&Vec<String>>) {
+pub fn normalise_mc(
+    questions: &mut [McQuestion],
+    selected_topics: &[String],
+    selected_subtopics: Option<&Vec<String>>,
+) {
     let sole_subtopic = selected_subtopics
         .filter(|s| s.len() == 1)
         .and_then(|s| s.first());
@@ -490,6 +640,9 @@ pub fn normalise_mc(questions: &mut [McQuestion], selected_subtopics: Option<&Ve
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .or_else(|| sole_subtopic.cloned());
+
+        fix_topic_field(&mut q.topic, &mut q.subtopic, selected_topics);
+
         for opt in &mut q.options {
             opt.label = opt.label.trim().to_uppercase();
             opt.text = clean_field(opt.text.trim());
@@ -650,7 +803,10 @@ mod tests {
         let protected = protect_latex_in_raw_json(raw);
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
         let result = v["q"].as_str().unwrap();
-        assert!(result.contains(r"\frac"), "\\frac missing after display math: {result}");
+        assert!(
+            result.contains(r"\frac"),
+            "\\frac missing after display math: {result}"
+        );
     }
 
     #[test]
@@ -704,7 +860,10 @@ mod tests {
 
     #[test]
     fn smart_quotes_normalised_to_ascii() {
-        assert_eq!(clean_field("\u{2018}it\u{2019}s Newton\u{2019}s law\u{201D}"), "\"it's Newton's law\"");
+        assert_eq!(
+            clean_field("\u{2018}it\u{2019}s Newton\u{2019}s law\u{201D}"),
+            "\"it's Newton's law\""
+        );
     }
 
     #[test]
@@ -732,7 +891,10 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
         let field = v["q"].as_str().unwrap();
         let cleaned = clean_field(field);
-        assert!(cleaned.contains(r"\frac"), "\\frac lost in pipeline: {cleaned}");
+        assert!(
+            cleaned.contains(r"\frac"),
+            "\\frac lost in pipeline: {cleaned}"
+        );
         assert_eq!(cleaned, r"Evaluate $\frac{1}{2} + \frac{3}{4}$.");
     }
 
@@ -743,7 +905,10 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
         let field = v["q"].as_str().unwrap();
         let cleaned = clean_field(field);
-        assert!(cleaned.contains(r"\text"), "\\text lost in pipeline: {cleaned}");
+        assert!(
+            cleaned.contains(r"\text"),
+            "\\text lost in pipeline: {cleaned}"
+        );
     }
 
     #[test]

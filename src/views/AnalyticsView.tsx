@@ -301,7 +301,7 @@ export function AnalyticsView() {
   }, []);
 
   return (
-    <div className="min-h-full px-6 py-10 space-y-16">
+    <div className="min-h-full px-6 pt-6 pb-10 space-y-16">
 
       {/* ── Dashboard Header & KPIs ── */}
       <section className="flex flex-col lg:flex-row gap-12">

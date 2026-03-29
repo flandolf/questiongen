@@ -212,14 +212,17 @@ fn written_system() -> String {
          {{\n\
            \"questions\": [\n\
              {{\n\
-               \"topic\": string,\n\
-               \"subtopic\": string | null,\n\
+               \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
+               \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
                \"promptMarkdown\": string,\n\
                \"maxMarks\": integer (1–30),\n\
                \"techAllowed\": boolean\n\
              }}\n\
            ]\n\
          }}\n\
+         CRITICAL DISTINCTION: The \"topic\" field is the SUBJECT (e.g. \"Mathematical Methods\", \"Specialist Mathematics\", \"Chemistry\", \"Physical Education\"). \
+         The \"subtopic\" field is the focus area within that subject (e.g. \"Functions and Graphs\", \"Differentiation\", \"Complex numbers\"). \
+         Do NOT put the subtopic value into the topic field.\n\
          ADDITIONAL EXAM ALIGNMENT:\n\
          - For Mathematical Methods: Questions should include graphing on provided axes, solving equations, \
          differentiation/integration with proper notation, probability distributions with tables/graphs.\n\
@@ -235,14 +238,14 @@ fn written_system() -> String {
            \"questions\": [\n\
              {{\n\
                \"topic\": \"Mathematical Methods\",\n\
-               \"subtopic\": \"Functions and graphs\",\n\
+               \"subtopic\": \"Functions and Graphs\",\n\
                \"promptMarkdown\": \"Let $f(x) = \\\\cos(2x + 1)$.\n(a) State the range of f. [1 mark]\n\n(b) Sketch the graph of y = f(x) for x ∈ [0, π]. Label the endpoints. [2 marks]\",\n\
                \"maxMarks\": 3,\n\
                \"techAllowed\": false\n\
              }},\n\
              {{\n\
                \"topic\": \"Mathematical Methods\",\n\
-               \"subtopic\": \"Probability\",\n\
+               \"subtopic\": \"Probability and Statistics\",\n\
                \"promptMarkdown\": \"A random variable X has the probability distribution shown in the table below.\n\nx | 1 | 2 | 3\nPr(X = x) | 0.2 | k | 0.5\n\n(a) Show that k = 0.3. [2 marks]\n\n(b) Find E(X). [1 mark]\",\n\
                \"maxMarks\": 3,\n\
                \"techAllowed\": false\n\
@@ -279,8 +282,8 @@ fn mc_system() -> String {
          {{\n\
            \"questions\": [\n\
              {{\n\
-               \"topic\": string,\n\
-               \"subtopic\": string | null,\n\
+               \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
+               \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
                \"promptMarkdown\": string,\n\
                \"options\": [\n\
                  {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
@@ -291,6 +294,9 @@ fn mc_system() -> String {
              }}\n\
            ]\n\
          }}\n\
+         CRITICAL DISTINCTION: The \"topic\" field is the SUBJECT (e.g. \"Mathematical Methods\", \"Specialist Mathematics\", \"Chemistry\", \"Physical Education\"). \
+         The \"subtopic\" field is the focus area within that subject (e.g. \"Functions and Graphs\", \"Differentiation\", \"Complex numbers\"). \
+         Do NOT put the subtopic value into the topic field.\n\
          STRICT RULE FOR PROMPT MARKDOWN:\n\
          The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
          including the answer options (A, B, C, D) inside the \"promptMarkdown\" string, as these \
@@ -305,7 +311,7 @@ fn mc_system() -> String {
            \"questions\": [\n\
              {{\n\
                \"topic\": \"Mathematical Methods\",\n\
-               \"subtopic\": \"Functions and graphs\",\n\
+               \"subtopic\": \"Functions and Graphs\",\n\
                \"promptMarkdown\": \"The graph of $y = f(x)$ is shown below. Which of the following could be the graph of $y = f'(x)$?\",\n\
                \"options\": [\n\
                  {{\"label\": \"A\", \"text\": \"Option A description\"}},\n\
@@ -907,7 +913,7 @@ async fn generate_questions(
     );
 
     let mut payload: WrittenQuestionsPayload = parse_questions_payload(&result.content)?;
-    normalise_written(&mut payload.questions, selected_subs);
+    normalise_written(&mut payload.questions, &request.topics, selected_subs);
     validate_written(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
 
@@ -1132,7 +1138,7 @@ async fn generate_mc_questions(
     );
 
     let mut payload: McQuestionsPayload = parse_questions_payload(&result.content)?;
-    normalise_mc(&mut payload.questions, selected_subs);
+    normalise_mc(&mut payload.questions, &request.topics, selected_subs);
     validate_mc(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
 
@@ -1655,6 +1661,81 @@ fn validate_and_filter_mappings(
     result
 }
 
+const CLEANUP_BATCH_SIZE: usize = 10;
+
+/// Process unknowns in batches of `CLEANUP_BATCH_SIZE` via LLM calls,
+/// merging results into a single mapping. Auto-maps exact matches first,
+/// then sends remaining unknowns in chunks to avoid overwhelming the model.
+async fn batch_cleanup(
+    unknowns: &[String],
+    canonical: &[String],
+    api_key: &str,
+    model: &str,
+    temperature: f32,
+    top_p: f32,
+    seed: Option<u64>,
+) -> CommandResult<HashMap<String, String>> {
+    // Auto-map exact (case-insensitive) matches first
+    let (mut mapping, remaining) = auto_map_exact(unknowns, canonical);
+    if remaining.is_empty() {
+        return Ok(mapping);
+    }
+
+    let schema = json_schema_format(
+        "cleanup_mappings",
+        serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mappings"],
+            "properties": {
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["unknown", "canonical"],
+                        "properties": {
+                            "unknown": { "type": "string" },
+                            "canonical": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        }),
+    );
+
+    let system_prompt = cleanup_system_prompt();
+
+    for chunk in remaining.chunks(CLEANUP_BATCH_SIZE) {
+        let user_prompt = format!(
+            "Map each 'Unknown' item to the closest 'Canonical' item.\n\n\
+             Canonical items:\n- {}\n\n\
+             Unknown items to map:\n- {}\n\n\
+             The \"canonical\" value MUST be an exact copy from the list above.",
+            canonical.join("\n- "),
+            chunk.join("\n- ")
+        );
+
+        let result = call_openrouter(
+            api_key,
+            model,
+            system_prompt,
+            serde_json::Value::String(user_prompt),
+            &schema,
+            2048,
+            temperature,
+            top_p,
+            seed,
+        )
+        .await?;
+
+        let raw_mappings = parse_cleanup_mappings(&result.content)?;
+        mapping = validate_and_filter_mappings(raw_mappings, canonical, &mapping);
+    }
+
+    Ok(mapping)
+}
+
 // ─── Tauri command: cleanup topics only ───────────────────────────────────────
 
 #[tauri::command]
@@ -1681,61 +1762,16 @@ async fn cleanup_topics(
         .filter(|s| !s.is_empty())
         .collect();
 
-    // Auto-map exact (case-insensitive) matches — no LLM call needed
-    let (mut topic_mapping, remaining_unknowns) =
-        auto_map_exact(&request.unknown_topics, &canonical_topics);
-
-    if remaining_unknowns.is_empty() {
-        return Ok(CleanupTopicsResponse { topic_mapping });
-    }
-
-    let topic_schema = json_schema_format(
-        "topic_cleanup",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["mappings"],
-            "properties": {
-                "mappings": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["unknown", "canonical"],
-                        "properties": {
-                            "unknown": { "type": "string" },
-                            "canonical": { "type": "string" }
-                        }
-                    }
-                }
-            }
-        }),
-    );
-
-    let user_prompt = format!(
-        "Map each 'Unknown' topic to the closest 'Canonical' topic.\n\n\
-         Canonical topics:\n- {}\n\n\
-         Unknown topics to map:\n- {}\n\n\
-         The \"canonical\" value MUST be an exact copy from the list above.",
-        canonical_topics.join("\n- "),
-        remaining_unknowns.join("\n- ")
-    );
-
-    let result = call_openrouter(
+    let topic_mapping = batch_cleanup(
+        &request.unknown_topics,
+        &canonical_topics,
         &request.api_key,
         &request.model,
-        cleanup_system_prompt(),
-        serde_json::Value::String(user_prompt),
-        &topic_schema,
-        2048,
         request.temperature.unwrap_or(0.0),
         request.top_p.unwrap_or(0.9),
         request.seed,
     )
     .await?;
-
-    let raw_mappings = parse_cleanup_mappings(&result.content)?;
-    topic_mapping = validate_and_filter_mappings(raw_mappings, &canonical_topics, &topic_mapping);
 
     Ok(CleanupTopicsResponse { topic_mapping })
 }
@@ -1765,61 +1801,16 @@ async fn cleanup_subtopics(
         .filter(|s| !s.is_empty())
         .collect();
 
-    let (mut subtopic_mapping, remaining_unknowns) =
-        auto_map_exact(&request.unknown_subtopics, &canonical_subtopics);
-
-    if remaining_unknowns.is_empty() {
-        return Ok(CleanupSubtopicsResponse { subtopic_mapping });
-    }
-
-    let subtopic_schema = json_schema_format(
-        "subtopic_cleanup",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["mappings"],
-            "properties": {
-                "mappings": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["unknown", "canonical"],
-                        "properties": {
-                            "unknown": { "type": "string" },
-                            "canonical": { "type": "string" }
-                        }
-                    }
-                }
-            }
-        }),
-    );
-
-    let user_prompt = format!(
-        "Map each 'Unknown' subtopic to the closest 'Canonical' subtopic.\n\n\
-         Canonical subtopics:\n- {}\n\n\
-         Unknown subtopics to map:\n- {}\n\n\
-         The \"canonical\" value MUST be an exact copy from the list above.",
-        canonical_subtopics.join("\n- "),
-        remaining_unknowns.join("\n- ")
-    );
-
-    let result = call_openrouter(
+    let subtopic_mapping = batch_cleanup(
+        &request.unknown_subtopics,
+        &canonical_subtopics,
         &request.api_key,
         &request.model,
-        cleanup_system_prompt(),
-        serde_json::Value::String(user_prompt),
-        &subtopic_schema,
-        2048,
         request.temperature.unwrap_or(0.0),
         request.top_p.unwrap_or(0.9),
         request.seed,
     )
     .await?;
-
-    let raw_mappings = parse_cleanup_mappings(&result.content)?;
-    subtopic_mapping =
-        validate_and_filter_mappings(raw_mappings, &canonical_subtopics, &subtopic_mapping);
 
     Ok(CleanupSubtopicsResponse { subtopic_mapping })
 }
