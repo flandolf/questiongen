@@ -775,7 +775,7 @@ export function GeneratorView() {
         finalAnswerChangedAtMs: responseAt,
       },
     };
-    setMcHistory((prev) => [entry, ...prev].slice(0, 200));
+    setMcHistory((prev) => [entry, ...prev]);
   }
 
   function updateLatestMcHistoryEntry(questionId: string, selectedAnswer: string, awardedMarks: number, responseEnteredAtMs?: number) {
@@ -824,7 +824,7 @@ export function GeneratorView() {
         markingLatencyMs: options?.markingLatencyMs,
       },
     };
-    setQuestionHistory((prev) => [entry, ...prev].slice(0, 200));
+    setQuestionHistory((prev) => [entry, ...prev]);
   }
 
   // ── Batch progress helpers ───────────────────────────────────────────────────
