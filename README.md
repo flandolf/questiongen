@@ -56,11 +56,6 @@ npm run tauri
 ### Configuration
 
 1. Copy `.env.example` to `.env`
-2. Add your OpenRouter API key:
-   ```
-   VITE_OPENROUTER_API_KEY=your_key_here
-   ```
-3. Configure Firebase credentials in `src/context/modules/firebase-init.ts` if using cloud sync
 
 ## Project Structure
 
