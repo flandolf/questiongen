@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::Manager;
 
 use crate::constants::APP_STATE_FILE_NAME;
@@ -57,6 +57,9 @@ pub fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> 
     let tmp = path.with_extension("tmp");
     fs::write(&tmp, payload)
         .map_err(|e| AppError::new("PERSISTENCE_WRITE_ERROR", format!("Write error: {e}")))?;
+    // On Unix, fs::rename atomically replaces the target if it exists.
+    // On Windows, rename fails if the target exists, so remove first.
+    #[cfg(windows)]
     remove_if_exists(&path)?;
     fs::rename(&tmp, &path)
         .map_err(|e| AppError::new("PERSISTENCE_RENAME_ERROR", format!("Rename error: {e}")))?;
@@ -75,6 +78,7 @@ fn state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
         })
 }
 
+#[cfg(windows)]
 fn remove_if_exists(path: &Path) -> CommandResult<()> {
     fs::remove_file(path).or_else(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {

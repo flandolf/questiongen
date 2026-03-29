@@ -237,20 +237,6 @@ async function loadRawPersistedState(): Promise<unknown> {
   }
 }
 
-// Expose a helper to persist generation history when saving entire state
-export function persistGenerationHistory(history: GenerationRecord[]) {
-  try {
-    // Best-effort localStorage write for non-Tauri runtime
-    if (typeof window !== "undefined") {
-      const existing = JSON.parse(window.localStorage.getItem(APP_STATE_STORAGE_KEY) || "{}");
-      existing.generationHistory = history;
-      window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(existing));
-    }
-  } catch {
-    // best-effort only
-  }
-}
-
 function normalizeSettings(raw: unknown): PersistedSettings {
   const data = isRecord(raw) ? raw : {};
   return {

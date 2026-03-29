@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownMath } from "../MarkdownMath";
 import { MarkAnswerResponse, StudentAnswerImage } from "../../types";
+import { scoreColorClass, scoreRingColor } from "@/lib/score-utils";
 
 type WrittenFeedbackPanelProps = {
   questionId: string;
@@ -33,7 +34,7 @@ type WrittenFeedbackPanelProps = {
 // Polished SVG Ring with smoother animations and monospaced typography
 function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
   const pct = max > 0 ? achieved / max : 0;
-  const color = pct >= 0.75 ? "#10b981" : pct >= 0.5 ? "#f59e0b" : "#f43f5e";
+  const color = scoreRingColor(pct * 100);
   const r = 32;
   const circ = 2 * Math.PI * r;
   const dash = circ * pct;
@@ -72,7 +73,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   onCriterionChange,
 }: WrittenFeedbackPanelProps) {
   const pct = feedback.maxMarks > 0 ? feedback.achievedMarks / feedback.maxMarks : 0;
-  const scoreColor = pct >= 0.75 ? "text-emerald-500" : pct >= 0.5 ? "text-amber-500" : "text-rose-500";
+  const scoreColor = scoreColorClass(pct);
   const verdict = feedback.verdict?.toLowerCase();
   const isCorrect = verdict === "correct";
 
@@ -188,7 +189,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
             <div className="flex flex-col gap-3">
               {feedback.vcaaMarkingScheme.map((item, idx) => {
                 const isFullMarks = item.achievedMarks === item.maxMarks;
-                const pct = item.maxMarks > 0 ? item.achievedMarks / item.maxMarks : 0;
+                const criterionPct = item.maxMarks > 0 ? item.achievedMarks / item.maxMarks : 0;
                 const isPartial = item.achievedMarks > 0 && !isFullMarks;
 
                 return (
@@ -251,7 +252,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                     <div className="hidden xl:block w-1.5 self-stretch rounded-full bg-muted/30 overflow-hidden">
                       <div 
                         className={`w-full rounded-full transition-all duration-500 ${isFullMarks ? "bg-emerald-500" : isPartial ? "bg-amber-500" : "bg-muted-foreground/30"}`}
-                        style={{ height: `${pct * 100}%` }}
+                        style={{ height: `${criterionPct * 100}%` }}
                       />
                     </div>
                   </div>

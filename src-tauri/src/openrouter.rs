@@ -4,6 +4,13 @@ use futures_util::StreamExt;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use tauri::Emitter;
 
+/// Shared HTTP client — reuses TLS context and connection pool across all requests.
+fn http_client() -> &'static reqwest::Client {
+    use std::sync::OnceLock;
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(reqwest::Client::new)
+}
+
 /// Result of a single OpenRouter call: raw content string + token usage.
 pub struct OpenRouterResult {
     pub content: String,
@@ -70,7 +77,7 @@ pub async fn call_openrouter_with_plugins(
         body["seed"] = serde_json::json!(seed);
     }
 
-    let response = reqwest::Client::new()
+    let response = http_client()
         .post(OPENROUTER_CHAT_URL)
         .header(AUTHORIZATION, format!("Bearer {api_key}"))
         .header(CONTENT_TYPE, "application/json")
@@ -175,8 +182,7 @@ pub async fn call_openrouter_streaming_with_plugins(
         body["seed"] = serde_json::json!(seed);
     }
 
-    let http = reqwest::Client::new();
-    let response = http
+    let response = http_client()
         .post(OPENROUTER_CHAT_URL)
         .header(AUTHORIZATION, format!("Bearer {api_key}"))
         .header(CONTENT_TYPE, "application/json")
@@ -214,7 +220,7 @@ pub async fn call_openrouter_streaming_with_plugins(
                 None => break,
                 Some(pos) => {
                     let line = buf[..pos].trim_end_matches('\r').to_owned();
-                    buf = buf[pos + 1..].to_owned();
+                    buf.drain(..=pos);
 
                     if line.is_empty() || line == ": OPENROUTER PROCESSING" {
                         continue;
