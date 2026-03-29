@@ -1,4 +1,4 @@
-import { Bookmark, Clock3, FolderOpen, Trash2, BarChart2, Hash, SortAsc, Search, PlusCircle } from "lucide-react";
+import { Bookmark, Clock3, FolderOpen, Trash2, BarChart2, Hash, SortAsc, Search, PlusCircle, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSavedSets } from "../AppContext";
 import { Badge } from "../components/ui/badge";
@@ -180,7 +180,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
 
 export function SavedView() {
   const navigate = useNavigate();
-  const { savedSets, loadSavedSet, deleteSavedSet, needsSaveBeforeLoad, saveCurrentSet } = useSavedSets();
+  const { savedSets, loadSavedSet, deleteSavedSet, deleteAllSavedSets, needsSaveBeforeLoad, saveCurrentSet } = useSavedSets();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
@@ -268,6 +268,8 @@ export function SavedView() {
     return result;
   }, [savedSets, modeFilter, search, sortKey]);
 
+  const [confirmDelete, setConfirmDelete] = useState<number>(0);
+
   // Find the pending-load set's title for contextual confirm copy (#14)
   const pendingLoadSet = savedSets.find((s) => s.id === pendingLoadId);
 
@@ -331,6 +333,16 @@ export function SavedView() {
             <option value="progress">Progress</option>
           </select>
         </div>
+        <Button variant="outline" size="sm" onClick={() => { 
+          setConfirmDelete(1);
+          if (confirmDelete === 1) {
+            deleteAllSavedSets();
+            setConfirmDelete(0);
+          }
+         }} className="h-8 gap-1.5 text-xs">
+          <RotateCcw className="h-3.5 w-3.5" />
+          {confirmDelete === 1 ? "Confirm clear" : "Clear all"}
+        </Button>
       </Toolbar>
 
       {filteredSets.length === 0 && (

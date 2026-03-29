@@ -225,13 +225,13 @@ export function GeneratorView() {
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
   const addExamRecord = useAppStore((s) => s.addExamRecord);
+  const setWrittenTimerState = useAppStore((s) => s.setWrittenTimerState);
+  const setMcTimerState = useAppStore((s) => s.setMcTimerState);
 
   const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const [pendingCancelType, setPendingCancelType] = useState<null | "written" | "mc">(null);
-
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   const [streamText, setStreamText] = useState("");
 
@@ -256,13 +256,15 @@ export function GeneratorView() {
     generationMode,
     examTimeLimitMinutes * 60,
     questions,
-    activeQuestionIndex
+    activeQuestionIndex,
+    "written",
   );
   const mcTimer = useQuestionTimer(
     generationMode,
     examTimeLimitMinutes * 60,
     mcQuestions,
-    activeMcQuestionIndex
+    activeMcQuestionIndex,
+    "mc",
   );
 
 
@@ -321,9 +323,6 @@ export function GeneratorView() {
     () => mcQuestions.filter((q) => mcAnswersByQuestionId[q.id]).length,
     [mcAnswersByQuestionId, mcQuestions],
   );
-
-  const lastWrittenCompletedCountRef = useRef(completedCount);
-  const lastMcCompletedCountRef = useRef(mcCompletedCount);
 
   const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && completedCount === questions.length;
   const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && mcCompletedCount === mcQuestions.length;
@@ -456,20 +455,7 @@ export function GeneratorView() {
   useEffect(() => {
     if (showCompletionScreen) setHasShownCompletionScreen(true);
   }, [showCompletionScreen]);
-  useEffect(() => { setLastSavedAt(null); }, [activeWrittenSavedSetId, activeMcSavedSetId]);
   useEffect(() => { setExamRecordSaved(false); }, [completionSetKey, generationMode]);
-
-  useEffect(() => {
-    const prev = lastWrittenCompletedCountRef.current;
-    if (questionMode === "written" && activeWrittenSavedSetId && questions.length > 0 && completedCount > prev) saveCurrentSet();
-    lastWrittenCompletedCountRef.current = completedCount;
-  }, [activeWrittenSavedSetId, completedCount, questionMode, questions.length, saveCurrentSet]);
-
-  useEffect(() => {
-    const prev = lastMcCompletedCountRef.current;
-    if (questionMode === "multiple-choice" && activeMcSavedSetId && mcQuestions.length > 0 && mcCompletedCount > prev) saveCurrentSet();
-    lastMcCompletedCountRef.current = mcCompletedCount;
-  }, [activeMcSavedSetId, mcCompletedCount, mcQuestions.length, questionMode, saveCurrentSet]);
 
   // ── Timer actions ─────────────────────────────────────────────────────────────
   function startStopwatch() {
@@ -482,13 +468,14 @@ export function GeneratorView() {
   }
 
   // Start timer only after questions or mcQuestions are populated
+  // The hook handles resumption from Zustand internally — this just starts new sessions
   useEffect(() => {
     if (questionMode === "written" && questions.length > 0) {
       writtenTimer.startTiming(questions);
     } else if (questionMode === "multiple-choice" && mcQuestions.length > 0) {
       mcTimer.startTiming(mcQuestions);
     }
-  }, [questionMode, questions, mcQuestions, writtenTimer, mcTimer]);
+  }, [questionMode, questions.length, mcQuestions.length]);
 
   // Pause timers while marking in practice mode
   useEffect(() => {
@@ -671,6 +658,10 @@ export function GeneratorView() {
       setMarkAppealByQuestionId((p) => removeKey(p, id));
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
+      // Remove from history if it was already answered
+      setQuestionHistory((prev: any) => prev.filter((e: QuestionHistoryEntry) => e.question.id !== id));
+      // Subtract question time from session timer
+      writtenTimer.removeQuestion(id);
       setErrorMessage(null);
     }
     if (pendingCancelType === "mc" && activeMcQuestion) {
@@ -685,12 +676,16 @@ export function GeneratorView() {
       setMcMarkAppealByQuestionId((p) => removeKey(p, id));
       setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
+      // Remove from history if it was already answered
+      setMcHistory((prev: any) => prev.filter((e: McHistoryEntry) => e.question.id !== id));
+      // Subtract question time from session timer
+      mcTimer.removeQuestion(id);
       setErrorMessage(null);
     }
     setPendingCancelType(null);
     setConfirmOpen(false);
     setConfirmMessage(null);
-  }, [pendingCancelType, activeQuestion, activeQuestionIndex, activeMcQuestion, activeMcQuestionIndex, questions, mcQuestions, setQuestions, setActiveWrittenSavedSetId, setActiveQuestionIndex, setWrittenQuestionPresentedAtById, setAnswersByQuestionId, setImagesByQuestionId, setFeedbackByQuestionId, setMarkAppealByQuestionId, setMarkOverrideInputByQuestionId, setWrittenResponseEnteredAtById, setMcQuestions, setActiveMcSavedSetId, setActiveMcQuestionIndex, setMcQuestionPresentedAtById, setMcAnswersByQuestionId, setMcMarkAppealByQuestionId, setMcMarkOverrideInputByQuestionId, setMcAwardedMarksByQuestionId, setErrorMessage]);
+  }, [pendingCancelType, activeQuestion, activeQuestionIndex, activeMcQuestion, activeMcQuestionIndex, questions, mcQuestions, setQuestions, setActiveWrittenSavedSetId, setActiveQuestionIndex, setWrittenQuestionPresentedAtById, setAnswersByQuestionId, setImagesByQuestionId, setFeedbackByQuestionId, setMarkAppealByQuestionId, setMarkOverrideInputByQuestionId, setWrittenResponseEnteredAtById, setQuestionHistory, writtenTimer, setMcQuestions, setActiveMcSavedSetId, setActiveMcQuestionIndex, setMcQuestionPresentedAtById, setMcAnswersByQuestionId, setMcMarkAppealByQuestionId, setMcMarkOverrideInputByQuestionId, setMcAwardedMarksByQuestionId, setMcHistory, mcTimer, setErrorMessage]);
 
   // ── Topic / subtopic toggles ─────────────────────────────────────────────────
   const toggleTopic = useCallback((topic: Topic) => {
@@ -994,6 +989,7 @@ export function GeneratorView() {
       }
 
       setQuestions(finalQuestions);
+      setWrittenTimerState(null); // Clear persisted timer for new session
       startTiming();
       setWrittenRawModelOutput("");
       setWrittenGenerationTelemetry(totalTelemetry);
@@ -1001,7 +997,6 @@ export function GeneratorView() {
       setShowWrittenRawOutput(false);
       setActiveQuestionIndex(0);
       setActiveWrittenSavedSetId(null);
-      setLastSavedAt(null);
       setWrittenQuestionPresentedAtById({});
       setWrittenResponseEnteredAtById({});
       setAnswersByQuestionId({});
@@ -1139,6 +1134,7 @@ export function GeneratorView() {
       }
 
       setMcQuestions(finalQuestions);
+      setMcTimerState(null); // Clear persisted timer for new session
       startTiming();
       setMcRawModelOutput("");
       setMcGenerationTelemetry(totalTelemetry);
@@ -1146,7 +1142,6 @@ export function GeneratorView() {
       setShowMcRawOutput(false);
       setActiveMcQuestionIndex(0);
       setActiveMcSavedSetId(null);
-      setLastSavedAt(null);
       setMcQuestionPresentedAtById({});
       setMcAnswersByQuestionId({});
       setMcMarkAppealByQuestionId({});
@@ -1177,17 +1172,12 @@ export function GeneratorView() {
       setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
       setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(response.achievedMarks) }));
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "initial", markingLatencyMs, responseEnteredAtMs });
+      writtenTimer.onQuestionAnswered(activeQuestion.id);
       useAppStore.getState().recordCompletion("written");
     } catch (error) { setErrorMessage(readBackendError(error)); setLastFailedAction("mark-written"); }
     finally { setIsMarking(false); }
   }
   submitRef.current = handleSubmitForMarking;
-
-  const handleSave = useCallback(() => {
-    const id = saveCurrentSet();
-    if (id) setLastSavedAt(new Date().toISOString());
-    return id;
-  }, [saveCurrentSet]);
 
   async function handleArgueForMark() {
     if (!activeQuestion || !activeFeedback) return;
@@ -1258,6 +1248,7 @@ export function GeneratorView() {
       updateLatestMcHistoryEntry(activeMcQuestion.id, selectedLabel, awardedMarks, responseEnteredAtMs);
     } else {
       appendMcHistoryEntry(activeMcQuestion, selectedLabel, awardedMarks, "initial", responseEnteredAtMs);
+      mcTimer.onQuestionAnswered(activeMcQuestion.id);
       useAppStore.getState().recordCompletion("multiple-choice");
     }
   }
@@ -1310,8 +1301,8 @@ export function GeneratorView() {
 
   // ── Start over ───────────────────────────────────────────────────────────────
   const handleStartOver = useCallback(() => {
-    if ((questionMode === "written" && questions.length > 0 && !activeWrittenSavedSetId) ||
-      (questionMode === "multiple-choice" && mcQuestions.length > 0 && !activeMcSavedSetId)) saveCurrentSet();
+    if (questionMode === "written" && questions.length > 0) saveCurrentSet();
+    else if (questionMode === "multiple-choice" && mcQuestions.length > 0) saveCurrentSet();
     resetStopwatch();
     setBatchProgress([]);
     setGenerationStatus(null); // Reset status so summary shows
@@ -1324,6 +1315,8 @@ export function GeneratorView() {
     setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
     setExamRecordSaved(false);
+    setWrittenTimerState(null);
+    setMcTimerState(null);
   }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);
   startOverRef.current = handleStartOver;
 
@@ -1534,9 +1527,7 @@ export function GeneratorView() {
           formattedElapsedTime={completionFormattedElapsedTime}
           completedCount={questionMode === "written" ? completedCount : mcCompletedCount}
           totalCount={questionMode === "written" ? questions.length : mcQuestions.length}
-          hasSavedSet={Boolean(questionMode === "written" ? activeWrittenSavedSetId : activeMcSavedSetId)}
           onReview={() => setShowCompletionScreen(false)}
-          onSave={handleSave}
           onStartOver={handleStartOver}
           perQuestionTiming={questionMode === "written"
             ? questions.map(q => {
@@ -1576,14 +1567,11 @@ export function GeneratorView() {
             isMathTopic={isMathTopic(activeQuestion?.topic)}
             isAtLast={isAtLastWrittenQuestion}
             canAdvance={canAdvanceWritten}
-            hasSavedSet={Boolean(activeWrittenSavedSetId)}
             generationStartedAt={generationStartedAt}
             telemetry={writtenGenerationTelemetry}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))}
             onNext={handleNextWrittenQuestion}
-            onSave={handleSave}
-            lastSavedAt={lastSavedAt}
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
             generationMode={generationMode}
@@ -1661,14 +1649,11 @@ export function GeneratorView() {
             isMathTopic={isMathTopic(activeMcQuestion?.topic)}
             isAtLast={isAtLastMcQuestion}
             canAdvance={canAdvanceMc}
-            hasSavedSet={Boolean(activeMcSavedSetId)}
             generationStartedAt={generationStartedAt}
             telemetry={mcGenerationTelemetry}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() => setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))}
             onNext={handleNextMcQuestion}
-            onSave={handleSave}
-            lastSavedAt={lastSavedAt}
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
             generationMode={generationMode}

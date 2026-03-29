@@ -1,5 +1,5 @@
 import {
-  CheckCircle2, BookOpen, Save, RefreshCw,
+  CheckCircle2, BookOpen, RefreshCw,
   AlertTriangle,
   XCircle, ChevronDown,
 } from "lucide-react";
@@ -34,9 +34,7 @@ type CompletionScreenProps = {
   formattedElapsedTime: string;
   completedCount: number;
   totalCount: number;
-  hasSavedSet: boolean;
   onReview: () => void;
-  onSave: () => void;
   onStartOver: () => void;
   perQuestionTiming?: PerQuestionTiming[];
   parTimeSeconds?: number;
@@ -109,9 +107,7 @@ export function CompletionScreen({
   formattedElapsedTime,
   completedCount,
   totalCount,
-  hasSavedSet,
   onReview,
-  onSave,
   onStartOver,
   perQuestionTiming,
 }: CompletionScreenProps) {
@@ -340,7 +336,7 @@ export function CompletionScreen({
                     {writtenResults.map((r, i) => {
                       const pct = r.scorePercent;
                       const col = pct >= 100 ? "text-emerald-500" : pct >= 50 ? "text-amber-500" : "text-rose-500";
-                      const bg = pct >= 100 ? "bg-emerald-500/5" : pct < 50 ? "bg-rose-500/5" : "";
+                      const bg = pct >= 100 ? "bg-emerald-500/5" : pct >= 50 ? "bg-amber-500/5" : "bg-rose-500/5";
                       return (
                         <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 text-xs ${bg}`}>
                           <span className="shrink-0 w-5 text-muted-foreground font-mono">{i + 1}</span>
@@ -366,7 +362,7 @@ export function CompletionScreen({
                       <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 text-xs ${r.correct ? "bg-emerald-500/5" : "bg-rose-500/5"}`}>
                         <span className="shrink-0 w-5 text-muted-foreground font-mono">{i + 1}</span>
                         <div className="flex-1 min-w-0">
-                          <span className="font-medium text-foreground truncate block">{r.topic}</span>
+                          <span className="font-medium text-foreground truncate block">{r.subtopic}</span>
                         </div>
                         <span className="font-mono text-muted-foreground">
                           {r.correct ? "" : `${r.selected}→`}{r.correctAnswer}
@@ -450,10 +446,6 @@ export function CompletionScreen({
         <Button variant="ghost" size="sm" onClick={onReview} className="gap-1.5 h-8">
           <BookOpen className="w-3.5 h-3.5" />
           Review
-        </Button>
-        <Button variant="outline" size="sm" onClick={onSave} className="gap-1.5 h-8">
-          <Save className="w-3.5 h-3.5" />
-          {hasSavedSet ? "Update Saved" : "Save Set"}
         </Button>
         <Button size="sm" onClick={onStartOver} className="gap-1.5 h-8">
           <RefreshCw className="w-3.5 h-3.5" />

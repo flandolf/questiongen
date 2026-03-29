@@ -310,6 +310,7 @@ export function useSavedSets() {
       saveCurrentSet: s.saveCurrentSet,
       loadSavedSet: s.loadSavedSet,
       deleteSavedSet: s.deleteSavedSet,
+      deleteAllSavedSets: s.deleteAllSavedSets,
       needsSaveBeforeLoad: s.needsSaveBeforeLoad,
     }))
   );

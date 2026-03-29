@@ -13,10 +13,12 @@ import {
   McQuestion,
   PHYSICAL_EDUCATION_SUBTOPICS,
   PERSISTED_APP_STATE_VERSION,
+  PerQuestionTiming,
   PersistedAppState,
   PersistedGeneratorPreferences,
   PersistedMcSession,
   PersistedSettings,
+  PersistedTimerState,
   PersistedWrittenSession,
   QUESTION_HISTORY_STORAGE_KEY,
   QuestionHistoryEntry,
@@ -155,6 +157,8 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     examHistory: normalizeExamHistory(data.examHistory),
     generationHistory: normalizeGenerationHistory(data.generationHistory),
     presets: normalizePresets(data.presets),
+    writtenTimerState: normalizeTimerState(data.writtenTimerState),
+    mcTimerState: normalizeTimerState(data.mcTimerState),
   };
 }
 
@@ -322,6 +326,7 @@ function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
     savedSetId: normalizeNullableString(data.savedSetId),
+    timerState: normalizeTimerState(data.timerState) ?? undefined,
   };
 }
 
@@ -337,6 +342,7 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
     savedSetId: normalizeNullableString(data.savedSetId),
+    timerState: normalizeTimerState(data.timerState) ?? undefined,
   };
 }
 
@@ -849,5 +855,40 @@ function normalizePreset(raw: unknown): Preset | null {
     createdAt: asString(data.createdAt) || new Date(0).toISOString(),
     updatedAt: asString(data.updatedAt) || new Date(0).toISOString(),
     lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? undefined,
+  };
+}
+
+function normalizeTimerState(raw: unknown): PersistedTimerState | null {
+  const data = isRecord(raw) ? raw : null;
+  if (!data) return null;
+  if (data.sessionStartedAt === null || data.sessionStartedAt === undefined) return null;
+
+  const byQuestionIdRaw = isRecord(data.byQuestionId) ? data.byQuestionId : {};
+  const byQuestionId: Record<string, PerQuestionTiming> = {};
+  for (const [key, val] of Object.entries(byQuestionIdRaw)) {
+    if (!isRecord(val)) continue;
+    byQuestionId[key] = {
+      timeLimitSeconds: asFiniteNumber(val.timeLimitSeconds) ?? 0,
+      originalTimeLimitSeconds: asFiniteNumber(val.originalTimeLimitSeconds) ?? 0,
+      startedAt: asFiniteNumber(val.startedAt) ?? null,
+      answeredAt: asFiniteNumber(val.answeredAt) ?? null,
+      timeUsedSeconds: asFiniteNumber(val.timeUsedSeconds) ?? 0,
+      isExpired: Boolean(val.isExpired),
+      finishedEarly: Boolean(val.finishedEarly),
+      pausedDurationMsAtPresentation: asFiniteNumber(val.pausedDurationMsAtPresentation) ?? 0,
+    };
+  }
+
+  return {
+    byQuestionId,
+    totalTimeLimitSeconds: asFiniteNumber(data.totalTimeLimitSeconds) ?? 0,
+    sessionStartedAt: asFiniteNumber(data.sessionStartedAt) ?? null,
+    sessionFinishedAt: asFiniteNumber(data.sessionFinishedAt) ?? null,
+    bankedSeconds: asFiniteNumber(data.bankedSeconds) ?? 0,
+    parTimeSeconds: asFiniteNumber(data.parTimeSeconds) ?? 0,
+    isPaused: Boolean(data.isPaused),
+    pausedDurationMs: asFiniteNumber(data.pausedDurationMs) ?? 0,
+    activeQuestionIndex: clampWholeNumber(data.activeQuestionIndex, 0, 0, 999),
+    mode: data.mode === "exam" ? "exam" : "practice",
   };
 }

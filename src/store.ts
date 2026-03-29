@@ -23,6 +23,7 @@ import {
   PersistedAppState,
   PersistedGeneratorPreferences,
   PersistedMcSession,
+  PersistedTimerState,
   PersistedWrittenSession,
   PhysicalEducationSubtopic,
   QuestionHistoryEntry,
@@ -145,6 +146,10 @@ export interface AppState {
 
   // ─── Generator Parameter Presets (Firebase-synced) ─────────────
   presets: Preset[];
+
+  // ── Timer state (survives navigation) ──────────────────────────
+  writtenTimerState: PersistedTimerState | null;
+  mcTimerState: PersistedTimerState | null;
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -266,6 +271,7 @@ export interface AppActions {
   loadSavedSet: (savedSetId: string) => void;
   needsSaveBeforeLoad: (savedSetId: string) => boolean;
   deleteSavedSet: (savedSetId: string) => void;
+  deleteAllSavedSets: () => void;
 
   // Spaced repetition
   reviewSpacedCard: (questionId: string, quality: ReviewQuality) => void;
@@ -283,6 +289,10 @@ export interface AppActions {
   deleteExamRecord: (id: string) => void;
   clearExamHistory: () => void;
   addGenerationRecord: (record: GenerationRecord) => void;
+
+  // Timer state
+  setWrittenTimerState: (state: PersistedTimerState | null) => void;
+  setMcTimerState: (state: PersistedTimerState | null) => void;
 }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -376,6 +386,8 @@ const defaultState: AppState = {
   examHistory: [],
   generationHistory: [],
   presets: [],
+  writtenTimerState: null,
+  mcTimerState: null,
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -463,6 +475,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         examHistory: s.examHistory ?? [],
         generationHistory: s.generationHistory ?? [],
         presets: s.presets ?? [],
+        writtenTimerState: s.writtenTimerState ?? null,
+        mcTimerState: s.mcTimerState ?? null,
       });
     } catch {
       set({ errorMessage: "Could not load saved app data.", isHydrated: true });
@@ -478,6 +492,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   clearExamHistory: () => set({ examHistory: [] }),
   addGenerationRecord: (record) =>
     set((s) => ({ generationHistory: [record, ...s.generationHistory].slice(0, 1000) })),
+
+  // Timer state
+  setWrittenTimerState: (writtenTimerState) => set({ writtenTimerState }),
+  setMcTimerState: (mcTimerState) => set({ mcTimerState }),
 
   setApiKey: (key) => set({ apiKey: key }),
   setShowApiKey: (show) => set({ showApiKey: show }),
@@ -787,6 +805,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     }));
   },
 
+  deleteAllSavedSets: () => {
+    set({
+      savedSets: [],
+      activeWrittenSavedSetId: null,
+      activeMcSavedSetId: null,
+    });
+  },
+
   // ── Spaced repetition ─────────────────────────────────────────────────────
 
   reviewSpacedCard: (questionId, quality) => {
@@ -921,6 +947,8 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       generationTelemetry: s.mcGenerationTelemetry,
       savedSetId: s.activeMcSavedSetId,
     },
+    writtenTimerState: s.writtenTimerState,
+    mcTimerState: s.mcTimerState,
     questionHistory: s.questionHistory.map((entry) =>
       entry.uploadedAnswerImage
         ? { ...entry, uploadedAnswerImage: { name: entry.uploadedAnswerImage.name, dataUrl: "" } }

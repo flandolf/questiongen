@@ -24,7 +24,7 @@ export default function Titlebar() {
         style={{ userSelect: 'none', position: 'relative', zIndex: 50 }}
         onMouseDown={handleMouseDown}
       >
-        <span className="flex-1 font-semibold text-sm text-primary" >questiongen</span>
+        <span className="flex-1 font-light text-sm text-muted-foreground" >questiongen</span>
         <div className="flex gap-1">
           <button
             aria-label="Minimize"

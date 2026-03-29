@@ -1,6 +1,10 @@
 import { useState, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Wand2, Loader2, CheckCircle2, AlertTriangle, Pencil, ChevronDown, ChevronUp, X, Check } from "lucide-react";
+import {
+  Wand2, Loader2, CheckCircle2, AlertTriangle, Pencil, ChevronDown, ChevronUp,
+  X, Check, Sparkles, ArrowUpDown, Eye, EyeOff, CheckSquare, Square,
+  ThumbsUp,
+} from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { readBackendError } from "../../../lib/app-utils";
@@ -52,6 +56,53 @@ type ScanResult = {
   totalMc: number;
 };
 
+// ─── Fuzzy Matching ───────────────────────────────────────────────────────────
+
+function similarity(a: string, b: string): number {
+  const la = a.toLowerCase().trim();
+  const lb = b.toLowerCase().trim();
+  if (la === lb) return 1;
+
+  // Check substring containment
+  if (lb.includes(la) || la.includes(lb)) return 0.85;
+
+  // Levenshtein-based similarity
+  const lenA = la.length;
+  const lenB = lb.length;
+  if (lenA === 0 || lenB === 0) return 0;
+
+  const matrix: number[][] = Array.from({ length: lenA + 1 }, (_, i) =>
+    Array.from({ length: lenB + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+
+  for (let i = 1; i <= lenA; i++) {
+    for (let j = 1; j <= lenB; j++) {
+      const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  const distance = matrix[lenA][lenB];
+  return 1 - distance / Math.max(lenA, lenB);
+}
+
+function findBestMatch(item: string, options: string[]): { match: string; score: number } | null {
+  let best: { match: string; score: number } | null = null;
+  for (const opt of options) {
+    const score = similarity(item, opt);
+    if (!best || score > best.score) {
+      best = { match: opt, score };
+    }
+  }
+  return best;
+}
+
+const CONFIDENCE_THRESHOLD = 0.4;
+
 // ─── Manual Fix Panel ─────────────────────────────────────────────────────────
 
 function ManualFixPanel({
@@ -66,12 +117,54 @@ function ManualFixPanel({
   onApply: (mapping: Record<string, string>) => number;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // For each unknown value, store either a canonical pick or a custom text override.
-  // "custom:<text>" prefix denotes a custom entry.
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"alpha" | "similarity">("similarity");
+  const [showPreview, setShowPreview] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkValue, setBulkValue] = useState("");
+
+  // Compute best matches for all unknown items
+  const bestMatches = useMemo(() => {
+    const map: Record<string, { match: string; score: number }> = {};
+    for (const item of unknownItems) {
+      const result = findBestMatch(item, canonicalOptions);
+      if (result && result.score >= CONFIDENCE_THRESHOLD) {
+        map[item] = result;
+      }
+    }
+    return map;
+  }, [unknownItems, canonicalOptions]);
+
+  // Sort items
+  const sortedUnknownItems = useMemo(() => {
+    const items = [...unknownItems];
+    if (sortBy === "alpha") {
+      items.sort((a, b) => a.localeCompare(b));
+    } else {
+      // Sort by best match score descending (most confident suggestions first)
+      items.sort((a, b) => {
+        const scoreA = bestMatches[a]?.score ?? 0;
+        const scoreB = bestMatches[b]?.score ?? 0;
+        return scoreB - scoreA;
+      });
+    }
+    return items;
+  }, [unknownItems, sortBy, bestMatches]);
+
+  // Filter by search
+  const filteredUnknownItems = useMemo(() => {
+    if (!search.trim()) return sortedUnknownItems;
+    const q = search.trim().toLowerCase();
+    return sortedUnknownItems.filter(
+      (item) =>
+        item.toLowerCase().includes(q) ||
+        (bestMatches[item]?.match.toLowerCase().includes(q)),
+    );
+  }, [search, sortedUnknownItems, bestMatches]);
 
   const handleSelect = (unknown: string, value: string) => {
     setSelections((prev) => ({ ...prev, [unknown]: value }));
@@ -89,7 +182,7 @@ function ManualFixPanel({
     setSelections((prev) => ({ ...prev, [unknown]: "__custom__" }));
   };
 
-  const handleApply = () => {
+  const buildMapping = (): Record<string, string> => {
     const mapping: Record<string, string> = {};
     for (const item of unknownItems) {
       const sel = selections[item];
@@ -101,9 +194,55 @@ function ManualFixPanel({
         mapping[item] = sel;
       }
     }
+    return mapping;
+  };
+
+  const handleApply = () => {
+    const mapping = buildMapping();
     if (Object.keys(mapping).length === 0) return;
     const count = onApply(mapping);
     setResultCount(count);
+  };
+
+  const handleApplyAllBestMatches = () => {
+    const newSelections = { ...selections };
+    for (const [item, best] of Object.entries(bestMatches)) {
+      newSelections[item] = best.match;
+    }
+    setSelections(newSelections);
+    setCustomInputs({});
+  };
+
+  const handleBulkApply = () => {
+    if (!bulkValue || bulkSelected.size === 0) return;
+    const newSelections = { ...selections };
+    for (const item of bulkSelected) {
+      newSelections[item] = bulkValue;
+    }
+    setSelections(newSelections);
+    setBulkSelected(new Set());
+    setBulkMode(false);
+    setBulkValue("");
+  };
+
+  const toggleBulkItem = (item: string) => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(item)) {
+        next.delete(item);
+      } else {
+        next.add(item);
+      }
+      return next;
+    });
+  };
+
+  const selectAllBulk = () => {
+    setBulkSelected(new Set(filteredUnknownItems));
+  };
+
+  const deselectAllBulk = () => {
+    setBulkSelected(new Set());
   };
 
   const resolvedCount = Object.keys(selections).filter((k) => {
@@ -113,17 +252,29 @@ function ManualFixPanel({
     return true;
   }).length;
 
-  // Filter unknown items by search query
-  const filteredUnknownItems = useMemo(() => {
-    if (!search.trim()) return unknownItems;
-    const q = search.trim().toLowerCase();
-    return unknownItems.filter((item) => item.toLowerCase().includes(q));
-  }, [search, unknownItems]);
+  const unresolvedCount = unknownItems.filter((item) => {
+    const sel = selections[item];
+    if (!sel || sel === "") return true;
+    if (sel === "__custom__") return !(customInputs[item] ?? "").trim();
+    return false;
+  }).length;
 
-  // Reset search when panel is collapsed
+  // Live preview mapping
+  const previewMapping = useMemo(() => {
+    const mapping = buildMapping();
+    return Object.entries(mapping);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selections, customInputs, unknownItems]);
+
+  // Reset state when panel collapses
   const handleExpandToggle = () => {
     setExpanded((v) => {
-      if (v) setSearch("");
+      if (v) {
+        setSearch("");
+        setBulkMode(false);
+        setBulkSelected(new Set());
+        setShowPreview(false);
+      }
       return !v;
     });
   };
@@ -155,31 +306,157 @@ function ManualFixPanel({
             Manually Fix Unknown {mappingKind === "topic" ? "Topics" : "Subtopics"}
           </span>
           <span className="text-xs text-muted-foreground">({unknownItems.length})</span>
+          {Object.keys(bestMatches).length > 0 && (
+            <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-0.5">
+              <Sparkles className="h-3 w-3" />
+              {Object.keys(bestMatches).length} suggestions
+            </span>
+          )}
         </div>
         {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
       </button>
 
       {expanded && (
         <div className="border-t border-border p-4 space-y-4">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search unknown ${mappingKind}s…`}
-            className="h-7 text-xs font-mono mb-2"
-            autoFocus
-          />
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={`Search unknown ${mappingKind}s or canonical matches…`}
+              className="h-7 text-xs font-mono flex-1 min-w-[180px]"
+              autoFocus
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSortBy((s) => (s === "alpha" ? "similarity" : "alpha"))}
+              className="h-7 gap-1 text-xs"
+              title={sortBy === "alpha" ? "Sort by best match" : "Sort alphabetically"}
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              {sortBy === "alpha" ? "A-Z" : "Best match"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkMode((v) => !v)}
+              className={`h-7 gap-1 text-xs ${bulkMode ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700" : ""}`}
+            >
+              {bulkMode ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+              Bulk
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowPreview((v) => !v)}
+              className="h-7 gap-1 text-xs"
+              disabled={resolvedCount === 0}
+            >
+              {showPreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              Preview {resolvedCount > 0 ? `(${resolvedCount})` : ""}
+            </Button>
+          </div>
+
+          {/* Apply all best matches */}
+          {Object.keys(bestMatches).length > 0 && unresolvedCount > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleApplyAllBestMatches}
+              className="gap-1.5 text-xs border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+            >
+              <Sparkles className="h-3 w-3" />
+              Auto-fill {Object.keys(bestMatches).length} best match{Object.keys(bestMatches).length !== 1 ? "es" : ""}
+            </Button>
+          )}
+
+          {/* Bulk mode toolbar */}
+          {bulkMode && (
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <span className="text-xs text-muted-foreground">
+                {bulkSelected.size} selected
+              </span>
+              <Button size="sm" variant="ghost" onClick={selectAllBulk} className="h-6 text-xs px-2">
+                Select all
+              </Button>
+              <Button size="sm" variant="ghost" onClick={deselectAllBulk} className="h-6 text-xs px-2">
+                Deselect all
+              </Button>
+              <div className="flex-1" />
+              <Select value={bulkValue} onValueChange={setBulkValue}>
+                <SelectTrigger className="h-6 text-xs w-[200px]">
+                  <SelectValue placeholder="Map all selected to…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {canonicalOptions.map((opt) => (
+                    <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={handleBulkApply}
+                disabled={bulkSelected.size === 0 || !bulkValue}
+                className="h-6 text-xs gap-1"
+              >
+                <Check className="h-3 w-3" />
+                Apply
+              </Button>
+            </div>
+          )}
+
+          {/* Preview panel */}
+          {showPreview && previewMapping.length > 0 && (
+            <div className="rounded border border-border bg-muted/30 p-3 space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Mapping Preview ({previewMapping.length} change{previewMapping.length !== 1 ? "s" : ""}):</p>
+              {previewMapping.map(([from, to]) => (
+                <div key={from} className="text-xs flex items-center gap-1.5">
+                  <span className="font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 line-through truncate max-w-[45%]">{from}</span>
+                  <span className="text-muted-foreground shrink-0">→</span>
+                  <span className="font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 truncate max-w-[45%]">{to}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Item list */}
           {filteredUnknownItems.length === 0 ? (
-            <div className="text-xs text-muted-foreground">No matches found.</div>
+            <div className="text-xs text-muted-foreground">
+              {search.trim() ? "No matches found." : "No unknown items."}
+            </div>
           ) : (
             filteredUnknownItems.map((item) => {
               const sel = selections[item] ?? "";
               const isCustom = sel === "__custom__";
+              const best = bestMatches[item];
+              const isBulkChecked = bulkSelected.has(item);
+
               return (
                 <div key={item} className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 shrink-0">
-                      {item}
-                    </span>
+                    {bulkMode && (
+                      <button
+                        type="button"
+                        onClick={() => toggleBulkItem(item)}
+                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {isBulkChecked
+                          ? <CheckSquare className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                          : <Square className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                    <div className="shrink-0 flex flex-col items-start">
+                      <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
+                        {item}
+                      </span>
+                      {best && (
+                        <span className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-0.5">
+                          <ThumbsUp className="h-2.5 w-2.5" />
+                          {Math.round(best.score * 100)}% → {best.match}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-muted-foreground text-xs shrink-0">→</span>
                     <div className="min-w-0 flex-1">
                       <Select
@@ -190,9 +467,17 @@ function ManualFixPanel({
                           <SelectValue placeholder="Choose canonical…" />
                         </SelectTrigger>
                         <SelectContent>
-                          {canonicalOptions.map((opt) => (
-                            <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
-                          ))}
+                          {canonicalOptions.map((opt) => {
+                            const matchScore = best && opt === best.match ? best.score : null;
+                            return (
+                              <SelectItem key={opt} value={opt} className="text-xs">
+                                {opt}
+                                {matchScore !== null && matchScore >= CONFIDENCE_THRESHOLD
+                                  ? ` (${Math.round(matchScore * 100)}%)`
+                                  : ""}
+                              </SelectItem>
+                            );
+                          })}
                           <SelectItem value="__custom__" className="text-xs text-muted-foreground">Custom value…</SelectItem>
                         </SelectContent>
                       </Select>
@@ -211,6 +496,7 @@ function ManualFixPanel({
             })
           )}
 
+          {/* Action buttons */}
           <div className="flex items-center gap-2 pt-2">
             <Button
               size="sm"
@@ -227,6 +513,7 @@ function ManualFixPanel({
               onClick={() => {
                 setSelections({});
                 setCustomInputs({});
+                setBulkSelected(new Set());
               }}
               className="gap-1.5 text-muted-foreground"
             >
