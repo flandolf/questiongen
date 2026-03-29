@@ -138,6 +138,26 @@ pub struct MarkAnswerRequest {
     pub seed: Option<u64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchMarkRequest {
+    pub items: Vec<MarkAnswerRequest>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchMarkResponse {
+    pub results: Vec<BatchMarkItem>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchMarkItem {
+    pub question_id: String,
+    pub response: Option<MarkAnswerResponse>,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkAnswerResponse {
