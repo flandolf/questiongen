@@ -11,12 +11,8 @@ import {
   Flame,
   Trophy,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, getTodayKey } from '../../lib/utils';
 import { useAppStore } from '../../store';
-
-function getTodayKey(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function GoalProgressBar({
   label,
