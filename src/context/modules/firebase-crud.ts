@@ -128,6 +128,10 @@ function getUserSettingsRef(userId: string) {
   return doc(db, "users", userId, "settings", "main");
 }
 
+function getUserPresetsRef(userId: string) {
+  return doc(db, "users", userId, "settings", "presets");
+}
+
 function getHistoryCollectionRef(userId: string, type: "questionHistory" | "mcHistory") {
   return collection(db, "users", userId, type);
 }
@@ -763,6 +767,34 @@ export async function saveUserData(
       totalWrites++;
     }
 
+    if (data.presets) {
+      const presetsRef = getUserPresetsRef(userId);
+      if (data.presets.length > 0) {
+        await withRetry(
+          () => withTimeout(
+            setDoc(presetsRef, {
+              presets: removeUndefined(data.presets),
+              _lastModified: serverTimestamp(),
+            }, { merge: false }),
+            "saving presets"
+          ),
+          "saving presets"
+        );
+      } else {
+        await withRetry(
+          () => withTimeout(
+            setDoc(presetsRef, {
+              presets: [],
+              _lastModified: serverTimestamp(),
+            }, { merge: false }),
+            "clearing presets"
+          ),
+          "clearing presets"
+        );
+      }
+      totalWrites++;
+    }
+
     const savePromises: Promise<void>[] = [];
 
     if (questionHistoryToSave.length > 0) {
@@ -929,7 +961,8 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
   }
 
   const goalsRef = doc(db, "users", userId, "settings", "goals");
-  const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult] = await Promise.all([
+  const presetsRef = getUserPresetsRef(userId);
+  const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult, presetsSnap] = await Promise.all([
     withTimeout(
       getDocs(query(getHistoryCollectionRef(userId, "questionHistory"), orderBy("createdAt", "desc"), limit(1000))),
       "loading questionHistory"
@@ -952,6 +985,13 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
         };
       })
       .catch(() => ({ studyGoals: null, streakData: null })),
+    withTimeout(getDoc(presetsRef), "loading presets")
+      .then((snap) => {
+        if (!snap.exists()) return [];
+        const data = snap.data();
+        return Array.isArray(data.presets) ? data.presets : [];
+      })
+      .catch(() => []),
   ]);
 
   qhSnapshot.forEach((doc) => {
@@ -974,6 +1014,7 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
 
   if (goalsResult.studyGoals) result.studyGoals = goalsResult.studyGoals;
   if (goalsResult.streakData) result.streakData = goalsResult.streakData;
+  if (presetsSnap.length > 0) result.presets = presetsSnap;
 
   const elapsed = Date.now() - startTime;
   console.log("[Firebase] loadUserData completed", {
