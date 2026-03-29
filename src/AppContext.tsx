@@ -10,11 +10,11 @@
  * the Zustand store (store.ts).
  */
 
-import React, { useEffect } from "react";
-import { useShallow } from "zustand/react/shallow";
-import { listen } from "@tauri-apps/api/event";
-import { GenerationStatusEvent } from "./types";
-import { useAppStore } from "./store";
+import React, { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { listen } from '@tauri-apps/api/event';
+import { GenerationStatusEvent } from './types';
+import { useAppStore } from './store';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
 
-    void listen<GenerationStatusEvent>("generation-status", (event) => {
+    void listen<GenerationStatusEvent>('generation-status', (event) => {
       setGenerationStatus(event.payload);
     }).then((fn) => {
       if (cancelled) {

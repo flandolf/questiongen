@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
   title: string;
@@ -8,12 +8,19 @@ interface PageHeaderProps {
   className?: string;
 }
 
-export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  className,
+}: PageHeaderProps) {
   return (
-    <div className={cn("flex items-start justify-between gap-4", className)}>
+    <div className={cn('flex items-start justify-between gap-4', className)}>
       <div className="space-y-1">
         <h1 className="text-3xl font-black tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground mb-2">{description}</p>}
+        {description && (
+          <p className="text-sm text-muted-foreground mb-2">{description}</p>
+        )}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
@@ -41,7 +48,7 @@ interface SectionProps {
 }
 
 export function Section({ children, className }: SectionProps) {
-  return <section className={cn("space-y-4", className)}>{children}</section>;
+  return <section className={cn('space-y-4', className)}>{children}</section>;
 }
 
 interface ContentGridProps {
@@ -50,7 +57,7 @@ interface ContentGridProps {
 }
 
 export function ContentGrid({ children, className }: ContentGridProps) {
-  return <div className={cn("grid gap-6", className)}>{children}</div>;
+  return <div className={cn('grid gap-6', className)}>{children}</div>;
 }
 
 interface StatCardProps {
@@ -61,15 +68,30 @@ interface StatCardProps {
   accentColor?: string;
 }
 
-export function StatCard({ label, value, subValue, icon, accentColor }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  subValue,
+  icon,
+  accentColor,
+}: StatCardProps) {
   return (
-    <div className={cn("rounded-xl border bg-muted/20 px-4 py-3 space-y-0.5", accentColor)}>
+    <div
+      className={cn(
+        'rounded-xl border bg-muted/20 px-4 py-3 space-y-0.5',
+        accentColor
+      )}
+    >
       <div className="flex items-center gap-1.5 text-muted-foreground">
         {icon && <span className="h-3 w-3">{icon}</span>}
-        <span className="text-[10px] font-light uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] font-light uppercase tracking-wider">
+          {label}
+        </span>
       </div>
       <div className="text-xl font-black tabular-nums">{value}</div>
-      {subValue && <div className="text-[11px] text-muted-foreground">{subValue}</div>}
+      {subValue && (
+        <div className="text-[11px] text-muted-foreground">{subValue}</div>
+      )}
     </div>
   );
 }
@@ -82,9 +104,20 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({ title, description, icon, actions, className }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  icon,
+  actions,
+  className,
+}: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-4 py-20 text-center", className)}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-4 py-20 text-center',
+        className
+      )}
+    >
       {icon && (
         <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
           {icon}
@@ -106,7 +139,7 @@ interface ToolbarProps {
 
 export function Toolbar({ children, className }: ToolbarProps) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    <div className={cn('flex flex-wrap items-center gap-2', className)}>
       {children}
     </div>
   );
@@ -119,7 +152,12 @@ interface FilterGroupProps {
 
 export function FilterGroup({ children, className }: FilterGroupProps) {
   return (
-    <div className={cn("flex items-center gap-1 rounded-lg border bg-muted/30 p-0.5 self-start", className)}>
+    <div
+      className={cn(
+        'flex items-center gap-1 rounded-lg border bg-muted/30 p-0.5 self-start',
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -137,10 +175,10 @@ export function FilterButton({ children, active, onClick }: FilterButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        "px-3 py-1.5 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5",
+        'px-3 py-1.5 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5',
         active
-          ? "bg-background shadow-sm text-foreground"
-          : "text-muted-foreground hover:text-foreground"
+          ? 'bg-background shadow-sm text-foreground'
+          : 'text-muted-foreground hover:text-foreground'
       )}
     >
       {children}
@@ -155,9 +193,14 @@ interface SearchInputProps {
   className?: string;
 }
 
-export function SearchInput({ value, onChange, placeholder = "Search...", className }: SearchInputProps) {
+export function SearchInput({
+  value,
+  onChange,
+  placeholder = 'Search...',
+  className,
+}: SearchInputProps) {
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn('relative', className)}>
       <input
         type="text"
         value={value}
@@ -168,11 +211,21 @@ export function SearchInput({ value, onChange, placeholder = "Search...", classN
       {value && (
         <button
           type="button"
-          onClick={() => onChange("")}
+          onClick={() => onChange('')}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       )}
@@ -185,7 +238,7 @@ interface DividerProps {
 }
 
 export function Divider({ className }: DividerProps) {
-  return <div className={cn("border-t border-border/40", className)} />;
+  return <div className={cn('border-t border-border/40', className)} />;
 }
 
 interface KpiRowProps {
@@ -194,11 +247,7 @@ interface KpiRowProps {
 }
 
 export function KpiRow({ children, className }: KpiRowProps) {
-  return (
-    <div className={cn("grid gap-3", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn('grid gap-3', className)}>{children}</div>;
 }
 
 interface PageContainerProps {
@@ -207,9 +256,19 @@ interface PageContainerProps {
   noPadding?: boolean;
 }
 
-export function PageContainer({ children, className, noPadding }: PageContainerProps) {
+export function PageContainer({
+  children,
+  className,
+  noPadding,
+}: PageContainerProps) {
   return (
-    <div className={cn("min-h-full h-full flex flex-col gap-4", noPadding ? "" : "p-6", className)}>
+    <div
+      className={cn(
+        'min-h-full h-full flex flex-col gap-4',
+        noPadding ? '' : 'p-6',
+        className
+      )}
+    >
       {children}
     </div>
   );

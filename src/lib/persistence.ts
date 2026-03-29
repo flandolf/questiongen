@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from '@tauri-apps/api/core';
 import {
   AnswerAnalytics,
   API_KEY_STORAGE_KEY,
@@ -29,20 +29,20 @@ import {
   TOPICS,
   WrittenAnswerAnalytics,
   SPECIALIST_MATH_SUBTOPICS,
-   StudyGoals,
-   StreakData,
-   ExamRecord,
-   GenerationRecord,
-   Preset,
-} from "../types";
-import { clampWholeNumber, normalizeMarkResponse } from "./app-utils";
+  StudyGoals,
+  StreakData,
+  ExamRecord,
+  GenerationRecord,
+  Preset,
+} from '../types';
+import { clampWholeNumber, normalizeMarkResponse } from './app-utils';
 
 const DEFAULT_SETTINGS: PersistedSettings = {
-  apiKey: "",
-  model: "google/gemini-3.1-flash-lite-preview",
-  markingModel: "google/gemini-3.1-flash-lite-preview",
+  apiKey: '',
+  model: 'google/gemini-3.1-flash-lite-preview',
+  markingModel: 'google/gemini-3.1-flash-lite-preview',
   useSeparateMarkingModel: false,
-  imageMarkingModel: "google/gemini-3.1-flash-lite-preview",
+  imageMarkingModel: 'google/gemini-3.1-flash-lite-preview',
   useSeparateImageMarkingModel: false,
   debugMode: false,
   questionTextSize: 16,
@@ -52,8 +52,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   selectedTopics: [],
-  difficulty: "Medium",
-  techMode: "mix",
+  difficulty: 'Medium',
+  techMode: 'mix',
   avoidSimilarQuestions: false,
   mathMethodsSubtopics: [],
   specialistMathSubtopics: [],
@@ -61,8 +61,8 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   physicalEducationSubtopics: [],
   questionCount: 3,
   averageMarksPerQuestion: 10,
-  questionMode: "written",
-  generationMode: "practice",
+  questionMode: 'written',
+  generationMode: 'practice',
   examTimeLimitMinutes: 30,
   subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
   aiDifficultyScalingEnabled: true,
@@ -76,7 +76,7 @@ const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
   answersByQuestionId: {},
   imagesByQuestionId: {},
   feedbackByQuestionId: {},
-  rawModelOutput: "",
+  rawModelOutput: '',
   generationTelemetry: null,
   savedSetId: null,
 };
@@ -86,7 +86,7 @@ const DEFAULT_MC_SESSION: PersistedMcSession = {
   activeQuestionIndex: 0,
   presentedAtByQuestionId: {},
   answersByQuestionId: {},
-  rawModelOutput: "",
+  rawModelOutput: '',
   generationTelemetry: null,
   savedSetId: null,
 };
@@ -101,7 +101,7 @@ const DEFAULT_STUDY_GOALS: StudyGoals = {
 const DEFAULT_STREAK_DATA: StreakData = {
   currentStreak: 0,
   longestStreak: 0,
-  lastActiveDate: "",
+  lastActiveDate: '',
   dailyCompletions: {},
 };
 
@@ -127,9 +127,11 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
   return hasDurableState ? normalized : applyLegacyMigration(normalized);
 }
 
-export async function savePersistedAppState(state: PersistedAppState): Promise<void> {
+export async function savePersistedAppState(
+  state: PersistedAppState
+): Promise<void> {
   if (isTauriRuntime()) {
-    await invoke("save_persisted_state", { state });
+    await invoke('save_persisted_state', { state });
     clearLegacyLocalStorage();
     return;
   }
@@ -165,36 +167,40 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
 
 function normalizeExamHistory(raw: unknown): ExamRecord[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is ExamRecord =>
-    isRecord(item) &&
-    typeof item.id === "string" &&
-    typeof item.createdAt === "string" &&
-    typeof item.topic === "string" &&
-    Array.isArray(item.questionResults)
+  return raw.filter(
+    (item): item is ExamRecord =>
+      isRecord(item) &&
+      typeof item.id === 'string' &&
+      typeof item.createdAt === 'string' &&
+      typeof item.topic === 'string' &&
+      Array.isArray(item.questionResults)
   );
 }
 
 function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is GenerationRecord =>
-    isRecord(item) &&
-    typeof item.id === "string" &&
-    typeof item.timestamp === "string" &&
-    isRecord(item.inputs) &&
-    typeof item.inputs.topic === "string" &&
-    typeof item.inputs.difficulty === "string" &&
-    typeof item.inputs.questionCount === "number" &&
-    typeof item.inputs.questionMode === "string" &&
-    typeof item.inputs.techMode === "string" &&
-    isRecord(item.outputs) &&
-    typeof item.outputs.durationMs === "number"
+  return raw.filter(
+    (item): item is GenerationRecord =>
+      isRecord(item) &&
+      typeof item.id === 'string' &&
+      typeof item.timestamp === 'string' &&
+      isRecord(item.inputs) &&
+      typeof item.inputs.topic === 'string' &&
+      typeof item.inputs.difficulty === 'string' &&
+      typeof item.inputs.questionCount === 'number' &&
+      typeof item.inputs.questionMode === 'string' &&
+      typeof item.inputs.techMode === 'string' &&
+      isRecord(item.outputs) &&
+      typeof item.outputs.durationMs === 'number'
   );
 }
 
 function applyLegacyMigration(state: PersistedAppState): PersistedAppState {
   const next = { ...state };
-  const legacyApiKey = window.localStorage.getItem(API_KEY_STORAGE_KEY)?.trim() ?? "";
-  const legacyDebugMode = window.localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === "true";
+  const legacyApiKey =
+    window.localStorage.getItem(API_KEY_STORAGE_KEY)?.trim() ?? '';
+  const legacyDebugMode =
+    window.localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === 'true';
 
   if (legacyApiKey.length > 0) {
     next.settings = { ...next.settings, apiKey: legacyApiKey };
@@ -203,12 +209,16 @@ function applyLegacyMigration(state: PersistedAppState): PersistedAppState {
     next.settings = { ...next.settings, debugMode: true };
   }
 
-  const legacyWrittenHistory = parseJsonArray(window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY));
+  const legacyWrittenHistory = parseJsonArray(
+    window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY)
+  );
   if (legacyWrittenHistory.length > 0) {
     next.questionHistory = normalizeQuestionHistory(legacyWrittenHistory);
   }
 
-  const legacyMcHistory = parseJsonArray(window.localStorage.getItem(MC_HISTORY_STORAGE_KEY));
+  const legacyMcHistory = parseJsonArray(
+    window.localStorage.getItem(MC_HISTORY_STORAGE_KEY)
+  );
   if (legacyMcHistory.length > 0) {
     next.mcHistory = normalizeMcHistory(legacyMcHistory);
   }
@@ -219,7 +229,7 @@ function applyLegacyMigration(state: PersistedAppState): PersistedAppState {
 async function loadRawPersistedState(): Promise<unknown> {
   if (isTauriRuntime()) {
     try {
-      return await invoke("load_persisted_state");
+      return await invoke('load_persisted_state');
     } catch {
       return {};
     }
@@ -231,7 +241,7 @@ async function loadRawPersistedState(): Promise<unknown> {
   }
 
   try {
-  return JSON.parse(serialized);
+    return JSON.parse(serialized);
   } catch {
     window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
     return {};
@@ -243,14 +253,34 @@ function normalizeSettings(raw: unknown): PersistedSettings {
   return {
     apiKey: asString(data.apiKey),
     model: asString(data.model) || DEFAULT_SETTINGS.model,
-    markingModel: asString(data.markingModel) || asString(data.model) || DEFAULT_SETTINGS.markingModel,
+    markingModel:
+      asString(data.markingModel) ||
+      asString(data.model) ||
+      DEFAULT_SETTINGS.markingModel,
     useSeparateMarkingModel: Boolean(data.useSeparateMarkingModel),
-    imageMarkingModel: asString(data.imageMarkingModel) || asString(data.markingModel) || asString(data.model) || DEFAULT_SETTINGS.imageMarkingModel,
+    imageMarkingModel:
+      asString(data.imageMarkingModel) ||
+      asString(data.markingModel) ||
+      asString(data.model) ||
+      DEFAULT_SETTINGS.imageMarkingModel,
     useSeparateImageMarkingModel: Boolean(data.useSeparateImageMarkingModel),
     debugMode: Boolean(data.debugMode),
-    questionTextSize: clampWholeNumber(data.questionTextSize, DEFAULT_SETTINGS.questionTextSize ?? 16, 12, 28),
-    responseTextSize: clampWholeNumber(data.responseTextSize, DEFAULT_SETTINGS.responseTextSize ?? 16, 12, 28),
-    includeExamContext: data.includeExamContext !== undefined ? Boolean(data.includeExamContext) : DEFAULT_SETTINGS.includeExamContext,
+    questionTextSize: clampWholeNumber(
+      data.questionTextSize,
+      DEFAULT_SETTINGS.questionTextSize ?? 16,
+      12,
+      28
+    ),
+    responseTextSize: clampWholeNumber(
+      data.responseTextSize,
+      DEFAULT_SETTINGS.responseTextSize ?? 16,
+      12,
+      28
+    ),
+    includeExamContext:
+      data.includeExamContext !== undefined
+        ? Boolean(data.includeExamContext)
+        : DEFAULT_SETTINGS.includeExamContext,
   };
 }
 
@@ -259,19 +289,56 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
 
   return {
     selectedTopics: filterStringLiterals(data.selectedTopics, TOPICS),
-    difficulty: isDifficulty(data.difficulty) ? data.difficulty : DEFAULT_PREFERENCES.difficulty,
-    techMode: isTechMode(data.techMode) ? data.techMode : DEFAULT_PREFERENCES.techMode,
+    difficulty: isDifficulty(data.difficulty)
+      ? data.difficulty
+      : DEFAULT_PREFERENCES.difficulty,
+    techMode: isTechMode(data.techMode)
+      ? data.techMode
+      : DEFAULT_PREFERENCES.techMode,
     avoidSimilarQuestions: Boolean(data.avoidSimilarQuestions),
-    mathMethodsSubtopics: filterStringLiterals(data.mathMethodsSubtopics, MATH_METHODS_SUBTOPICS),
-    specialistMathSubtopics: filterStringLiterals(data.specialistMathSubtopics, SPECIALIST_MATH_SUBTOPICS),
-    chemistrySubtopics: filterStringLiterals(data.chemistrySubtopics, CHEMISTRY_SUBTOPICS),
-    physicalEducationSubtopics: filterStringLiterals(data.physicalEducationSubtopics, PHYSICAL_EDUCATION_SUBTOPICS),
-    questionCount: clampWholeNumber(data.questionCount, DEFAULT_PREFERENCES.questionCount, 1, 20),
-    averageMarksPerQuestion: clampWholeNumber(data.averageMarksPerQuestion, DEFAULT_PREFERENCES.averageMarksPerQuestion, 1, 30),
-    questionMode: isQuestionMode(data.questionMode) ? data.questionMode : DEFAULT_PREFERENCES.questionMode,
-    generationMode: isGenerationMode(data.generationMode) ? data.generationMode : DEFAULT_PREFERENCES.generationMode,
-    examTimeLimitMinutes: clampWholeNumber(data.examTimeLimitMinutes, DEFAULT_PREFERENCES.examTimeLimitMinutes ?? 30, 5, 180),
-    subtopicInstructions: normalizeSubtopicInstructions(data.subtopicInstructions),
+    mathMethodsSubtopics: filterStringLiterals(
+      data.mathMethodsSubtopics,
+      MATH_METHODS_SUBTOPICS
+    ),
+    specialistMathSubtopics: filterStringLiterals(
+      data.specialistMathSubtopics,
+      SPECIALIST_MATH_SUBTOPICS
+    ),
+    chemistrySubtopics: filterStringLiterals(
+      data.chemistrySubtopics,
+      CHEMISTRY_SUBTOPICS
+    ),
+    physicalEducationSubtopics: filterStringLiterals(
+      data.physicalEducationSubtopics,
+      PHYSICAL_EDUCATION_SUBTOPICS
+    ),
+    questionCount: clampWholeNumber(
+      data.questionCount,
+      DEFAULT_PREFERENCES.questionCount,
+      1,
+      20
+    ),
+    averageMarksPerQuestion: clampWholeNumber(
+      data.averageMarksPerQuestion,
+      DEFAULT_PREFERENCES.averageMarksPerQuestion,
+      1,
+      30
+    ),
+    questionMode: isQuestionMode(data.questionMode)
+      ? data.questionMode
+      : DEFAULT_PREFERENCES.questionMode,
+    generationMode: isGenerationMode(data.generationMode)
+      ? data.generationMode
+      : DEFAULT_PREFERENCES.generationMode,
+    examTimeLimitMinutes: clampWholeNumber(
+      data.examTimeLimitMinutes,
+      DEFAULT_PREFERENCES.examTimeLimitMinutes ?? 30,
+      5,
+      180
+    ),
+    subtopicInstructions: normalizeSubtopicInstructions(
+      data.subtopicInstructions
+    ),
   };
 }
 
@@ -286,7 +353,7 @@ function normalizeSubtopicInstructions(raw: unknown): Record<string, string> {
     if (!normalizedKey) {
       continue;
     }
-    if (typeof value !== "string") {
+    if (typeof value !== 'string') {
       continue;
     }
     const normalizedValue = value.trim();
@@ -302,12 +369,17 @@ function normalizeSubtopicInstructions(raw: unknown): Record<string, string> {
 function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
   const data = isRecord(raw) ? raw : {};
   const questions = normalizeGeneratedQuestions(data.questions);
-  const feedbackByQuestionId = normalizeFeedbackRecord(data.feedbackByQuestionId, questions);
+  const feedbackByQuestionId = normalizeFeedbackRecord(
+    data.feedbackByQuestionId,
+    questions
+  );
 
   return {
     questions,
     activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
-    presentedAtByQuestionId: normalizeNumberRecord(data.presentedAtByQuestionId),
+    presentedAtByQuestionId: normalizeNumberRecord(
+      data.presentedAtByQuestionId
+    ),
     answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
     imagesByQuestionId: normalizeImageRecord(data.imagesByQuestionId),
     feedbackByQuestionId,
@@ -325,7 +397,9 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
   return {
     questions,
     activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
-    presentedAtByQuestionId: normalizeNumberRecord(data.presentedAtByQuestionId),
+    presentedAtByQuestionId: normalizeNumberRecord(
+      data.presentedAtByQuestionId
+    ),
     answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
@@ -350,8 +424,10 @@ function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
     return null;
   }
 
-  const questionMode = isQuestionMode(data.questionMode) ? data.questionMode : "written";
-  const title = asString(data.title) || "Saved set";
+  const questionMode = isQuestionMode(data.questionMode)
+    ? data.questionMode
+    : 'written';
+  const title = asString(data.title) || 'Saved set';
   const id = asString(data.id);
   const createdAt = asString(data.createdAt) || new Date(0).toISOString();
   const updatedAt = asString(data.updatedAt) || createdAt;
@@ -373,10 +449,17 @@ function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
     questionMode,
     createdAt,
     updatedAt,
-    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
+    lastModified:
+      asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
     preferences: normalizePreferences(data.preferences),
-    writtenSession: questionMode === "written" ? normalizeWrittenSession(data.writtenSession) : undefined,
-    mcSession: questionMode === "multiple-choice" ? normalizeMcSession(data.mcSession) : undefined,
+    writtenSession:
+      questionMode === 'written'
+        ? normalizeWrittenSession(data.writtenSession)
+        : undefined,
+    mcSession:
+      questionMode === 'multiple-choice'
+        ? normalizeMcSession(data.mcSession)
+        : undefined,
   };
 }
 
@@ -390,7 +473,9 @@ function normalizeQuestionHistory(raw: unknown): QuestionHistoryEntry[] {
     .filter((entry): entry is QuestionHistoryEntry => entry !== null);
 }
 
-function normalizeQuestionHistoryEntry(raw: unknown): QuestionHistoryEntry | null {
+function normalizeQuestionHistoryEntry(
+  raw: unknown
+): QuestionHistoryEntry | null {
   const data = isRecord(raw) ? raw : null;
   if (!data) {
     return null;
@@ -402,7 +487,7 @@ function normalizeQuestionHistoryEntry(raw: unknown): QuestionHistoryEntry | nul
   }
 
   const createdAt = asString(data.createdAt) || new Date(0).toISOString();
-  const fallbackId = deterministicId("qh", {
+  const fallbackId = deterministicId('qh', {
     createdAt,
     questionId: question.id,
     topic: question.topic,
@@ -416,13 +501,15 @@ function normalizeQuestionHistoryEntry(raw: unknown): QuestionHistoryEntry | nul
   return {
     id: asString(data.id) || fallbackId,
     createdAt,
-    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
+    lastModified:
+      asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
     question,
     uploadedAnswer: asString(data.uploadedAnswer),
     uploadedAnswerImage: normalizeImage(data.uploadedAnswerImage) ?? undefined,
     workedSolutionMarkdown: asString(data.workedSolutionMarkdown),
     markResponse: normalizeMarkResponse(data.markResponse, question.maxMarks),
-    generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
+    generationTelemetry:
+      normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
     analytics: normalizeWrittenAnswerAnalytics(data.analytics) ?? undefined,
   };
 }
@@ -449,7 +536,7 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
   }
 
   const createdAt = asString(data.createdAt) || new Date(0).toISOString();
-  const fallbackId = deterministicId("mch", {
+  const fallbackId = deterministicId('mch', {
     createdAt,
     questionId: question.id,
     topic: question.topic,
@@ -461,14 +548,16 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
   const fallbackLastModified = Number.isFinite(createdAtMs) ? createdAtMs : 0;
 
   return {
-    type: "multiple-choice",
+    type: 'multiple-choice',
     id: asString(data.id) || fallbackId,
     createdAt,
-    lastModified: asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
+    lastModified:
+      asFiniteNonNegativeNumber(data.lastModified) ?? fallbackLastModified,
     question,
     selectedAnswer: asString(data.selectedAnswer),
     correct: Boolean(data.correct),
-    generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
+    generationTelemetry:
+      normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
     analytics: normalizeMcAnswerAnalytics(data.analytics) ?? undefined,
   };
 }
@@ -479,7 +568,13 @@ function normalizeGeneratedQuestions(raw: unknown) {
   }
   return raw
     .map((question) => normalizeGeneratedQuestion(question))
-    .filter((question): question is NonNullable<ReturnType<typeof normalizeGeneratedQuestion>> => question !== null);
+    .filter(
+      (
+        question
+      ): question is NonNullable<
+        ReturnType<typeof normalizeGeneratedQuestion>
+      > => question !== null
+    );
 }
 
 function normalizeGeneratedQuestion(raw: unknown) {
@@ -501,7 +596,8 @@ function normalizeGeneratedQuestion(raw: unknown) {
     subtopic: normalizeNullableString(data.subtopic) ?? undefined,
     promptMarkdown,
     maxMarks: clampWholeNumber(data.maxMarks, 10, 1, 30),
-    techAllowed: typeof data.techAllowed === "boolean" ? data.techAllowed : undefined,
+    techAllowed:
+      typeof data.techAllowed === 'boolean' ? data.techAllowed : undefined,
     distinctnessScore: asFiniteNumber(data.distinctnessScore),
     multiStepDepth: asFiniteNumber(data.multiStepDepth),
   };
@@ -529,7 +625,14 @@ function normalizeMcQuestion(raw: unknown): McQuestion | null {
   const explanationMarkdown = asString(data.explanationMarkdown);
   const options = normalizeMcOptions(data.options);
 
-  if (!id || !topic || !promptMarkdown || !correctAnswer || !explanationMarkdown || options.length === 0) {
+  if (
+    !id ||
+    !topic ||
+    !promptMarkdown ||
+    !correctAnswer ||
+    !explanationMarkdown ||
+    options.length === 0
+  ) {
     return null;
   }
 
@@ -541,7 +644,8 @@ function normalizeMcQuestion(raw: unknown): McQuestion | null {
     options,
     correctAnswer,
     explanationMarkdown,
-    techAllowed: typeof data.techAllowed === "boolean" ? data.techAllowed : undefined,
+    techAllowed:
+      typeof data.techAllowed === 'boolean' ? data.techAllowed : undefined,
     distinctnessScore: asFiniteNumber(data.distinctnessScore),
     multiStepDepth: asFiniteNumber(data.multiStepDepth),
   };
@@ -568,13 +672,20 @@ function normalizeMcOptions(raw: unknown): McOption[] {
     .filter((option): option is McOption => option !== null);
 }
 
-function normalizeFeedbackRecord(raw: unknown, questions: Array<{ id: string; maxMarks: number }>) {
+function normalizeFeedbackRecord(
+  raw: unknown,
+  questions: Array<{ id: string; maxMarks: number }>
+) {
   if (!isRecord(raw)) {
     return {};
   }
 
-  const maxMarksById = new Map(questions.map((question) => [question.id, question.maxMarks]));
-  return Object.entries(raw).reduce<Record<string, ReturnType<typeof normalizeMarkResponse>>>((acc, [key, value]) => {
+  const maxMarksById = new Map(
+    questions.map((question) => [question.id, question.maxMarks])
+  );
+  return Object.entries(raw).reduce<
+    Record<string, ReturnType<typeof normalizeMarkResponse>>
+  >((acc, [key, value]) => {
     acc[key] = normalizeMarkResponse(value, maxMarksById.get(key) ?? 10);
     return acc;
   }, {});
@@ -585,12 +696,15 @@ function normalizeStringRecord(raw: unknown): Record<string, string> {
     return {};
   }
 
-  return Object.entries(raw).reduce<Record<string, string>>((acc, [key, value]) => {
-    if (typeof value === "string") {
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
+  return Object.entries(raw).reduce<Record<string, string>>(
+    (acc, [key, value]) => {
+      if (typeof value === 'string') {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {}
+  );
 }
 
 function normalizeNumberRecord(raw: unknown): Record<string, number> {
@@ -598,20 +712,27 @@ function normalizeNumberRecord(raw: unknown): Record<string, number> {
     return {};
   }
 
-  return Object.entries(raw).reduce<Record<string, number>>((acc, [key, value]) => {
-    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
+  return Object.entries(raw).reduce<Record<string, number>>(
+    (acc, [key, value]) => {
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    {}
+  );
 }
 
-function normalizeImageRecord(raw: unknown): Record<string, StudentAnswerImage | undefined> {
+function normalizeImageRecord(
+  raw: unknown
+): Record<string, StudentAnswerImage | undefined> {
   if (!isRecord(raw)) {
     return {};
   }
 
-  return Object.entries(raw).reduce<Record<string, StudentAnswerImage | undefined>>((acc, [key, value]) => {
+  return Object.entries(raw).reduce<
+    Record<string, StudentAnswerImage | undefined>
+  >((acc, [key, value]) => {
     const image = normalizeImage(value);
     if (image) {
       acc[key] = image;
@@ -642,17 +763,39 @@ function normalizeGenerationTelemetry(raw: unknown) {
   }
 
   return {
-    durationMs: clampWholeNumber(data.durationMs, 0, 0, Number.MAX_SAFE_INTEGER),
-    promptTokens: clampWholeNumber(data.promptTokens, 0, 0, Number.MAX_SAFE_INTEGER),
-    completionTokens: clampWholeNumber(data.completionTokens, 0, 0, Number.MAX_SAFE_INTEGER),
-    totalTokens: clampWholeNumber(data.totalTokens, 0, 0, Number.MAX_SAFE_INTEGER),
+    durationMs: clampWholeNumber(
+      data.durationMs,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER
+    ),
+    promptTokens: clampWholeNumber(
+      data.promptTokens,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER
+    ),
+    completionTokens: clampWholeNumber(
+      data.completionTokens,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER
+    ),
+    totalTokens: clampWholeNumber(
+      data.totalTokens,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER
+    ),
     estimatedCostUsd: asFiniteNumber(data.estimatedCostUsd),
     distinctnessAvg: asFiniteNumber(data.distinctnessAvg),
     multiStepDepthAvg: asFiniteNumber(data.multiStepDepthAvg),
   };
 }
 
-function normalizeWrittenAnswerAnalytics(raw: unknown): WrittenAnswerAnalytics | null {
+function normalizeWrittenAnswerAnalytics(
+  raw: unknown
+): WrittenAnswerAnalytics | null {
   const base = normalizeAnswerAnalytics(raw);
   const data = isRecord(raw) ? raw : null;
   if (!base || !data) {
@@ -661,7 +804,9 @@ function normalizeWrittenAnswerAnalytics(raw: unknown): WrittenAnswerAnalytics |
 
   return {
     ...base,
-    attemptKind: isWrittenAttemptKind(data.attemptKind) ? data.attemptKind : "initial",
+    attemptKind: isWrittenAttemptKind(data.attemptKind)
+      ? data.attemptKind
+      : 'initial',
     markingLatencyMs: asFiniteNumber(data.markingLatencyMs),
   };
 }
@@ -677,7 +822,12 @@ function normalizeAnswerAnalytics(raw: unknown): AnswerAnalytics | null {
   }
 
   const attemptSequence = clampWholeNumber(data.attemptSequence, 1, 1, 999);
-  const answerCharacterCount = clampWholeNumber(data.answerCharacterCount, 0, 0, 1_000_000);
+  const answerCharacterCount = clampWholeNumber(
+    data.answerCharacterCount,
+    0,
+    0,
+    1_000_000
+  );
   const answerWordCount = clampWholeNumber(data.answerWordCount, 0, 0, 200_000);
 
   return {
@@ -689,8 +839,10 @@ function normalizeAnswerAnalytics(raw: unknown): AnswerAnalytics | null {
   };
 }
 
-function isWrittenAttemptKind(raw: unknown): raw is WrittenAnswerAnalytics["attemptKind"] {
-  return raw === "initial" || raw === "appeal" || raw === "override";
+function isWrittenAttemptKind(
+  raw: unknown
+): raw is WrittenAnswerAnalytics['attemptKind'] {
+  return raw === 'initial' || raw === 'appeal' || raw === 'override';
 }
 
 function clampIndex(raw: unknown, length: number): number {
@@ -720,18 +872,20 @@ function clearLegacyLocalStorage() {
   window.localStorage.removeItem(MC_HISTORY_STORAGE_KEY);
 }
 
-const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+const isTauri =
+  typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
 
 function isTauriRuntime() {
   return isTauri;
 }
 
 function isRecord(value: unknown): value is Record<string, any> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  return typeof value === 'string' ? value : '';
 }
 
 function normalizeNullableString(value: unknown): string | null {
@@ -740,7 +894,7 @@ function normalizeNullableString(value: unknown): string | null {
 }
 
 function asFiniteNumber(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     return undefined;
   }
   return value;
@@ -754,7 +908,10 @@ function asFiniteNonNegativeNumber(value: unknown): number | undefined {
   return parsed;
 }
 
-function deterministicId(prefix: string, payload: Record<string, unknown>): string {
+function deterministicId(
+  prefix: string,
+  payload: Record<string, unknown>
+): string {
   const input = JSON.stringify(payload);
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
@@ -764,59 +921,112 @@ function deterministicId(prefix: string, payload: Record<string, unknown>): stri
   return `${prefix}-${(hash >>> 0).toString(36)}`;
 }
 
-function isDifficulty(value: unknown): value is PersistedGeneratorPreferences["difficulty"] {
-  return value === "Essential Skills" || value === "Easy" || value === "Medium" || value === "Hard" || value === "Extreme";
+function isDifficulty(
+  value: unknown
+): value is PersistedGeneratorPreferences['difficulty'] {
+  return (
+    value === 'Essential Skills' ||
+    value === 'Easy' ||
+    value === 'Medium' ||
+    value === 'Hard' ||
+    value === 'Extreme'
+  );
 }
 
-function isTechMode(value: unknown): value is PersistedGeneratorPreferences["techMode"] {
-  return value === "tech-free" || value === "tech-active" || value === "mix";
+function isTechMode(
+  value: unknown
+): value is PersistedGeneratorPreferences['techMode'] {
+  return value === 'tech-free' || value === 'tech-active' || value === 'mix';
 }
 
 function isQuestionMode(value: unknown): value is QuestionMode {
-  return value === "written" || value === "multiple-choice";
+  return value === 'written' || value === 'multiple-choice';
 }
 
-function isGenerationMode(value: unknown): value is "practice" | "exam" {
-  return value === "practice" || value === "exam";
+function isGenerationMode(value: unknown): value is 'practice' | 'exam' {
+  return value === 'practice' || value === 'exam';
 }
 
-function filterStringLiterals<T extends readonly string[]>(value: unknown, allowed: T): T[number][] {
+function filterStringLiterals<T extends readonly string[]>(
+  value: unknown,
+  allowed: T
+): T[number][] {
   if (!Array.isArray(value)) {
     return [];
   }
 
   const allowedSet = new Set<string>(allowed);
-  return value.filter((item): item is T[number] => typeof item === "string" && allowedSet.has(item));
+  return value.filter(
+    (item): item is T[number] =>
+      typeof item === 'string' && allowedSet.has(item)
+  );
 }
 
 function normalizeStudyGoals(raw: unknown): StudyGoals {
   if (!isRecord(raw)) return DEFAULT_STUDY_GOALS;
   return {
-    dailyQuestionGoal: clampWholeNumber(raw.dailyQuestionGoal, DEFAULT_STUDY_GOALS.dailyQuestionGoal, 1, 50),
-    dailyWrittenGoal: clampWholeNumber(raw.dailyWrittenGoal, DEFAULT_STUDY_GOALS.dailyWrittenGoal, 0, 20),
-    dailyMcGoal: clampWholeNumber(raw.dailyMcGoal, DEFAULT_STUDY_GOALS.dailyMcGoal, 0, 20),
-    weeklyStreakGoal: clampWholeNumber(raw.weeklyStreakGoal, DEFAULT_STUDY_GOALS.weeklyStreakGoal, 1, 7),
+    dailyQuestionGoal: clampWholeNumber(
+      raw.dailyQuestionGoal,
+      DEFAULT_STUDY_GOALS.dailyQuestionGoal,
+      1,
+      50
+    ),
+    dailyWrittenGoal: clampWholeNumber(
+      raw.dailyWrittenGoal,
+      DEFAULT_STUDY_GOALS.dailyWrittenGoal,
+      0,
+      20
+    ),
+    dailyMcGoal: clampWholeNumber(
+      raw.dailyMcGoal,
+      DEFAULT_STUDY_GOALS.dailyMcGoal,
+      0,
+      20
+    ),
+    weeklyStreakGoal: clampWholeNumber(
+      raw.weeklyStreakGoal,
+      DEFAULT_STUDY_GOALS.weeklyStreakGoal,
+      1,
+      7
+    ),
   };
 }
 
 function normalizeStreakData(raw: unknown): StreakData {
   if (!isRecord(raw)) return DEFAULT_STREAK_DATA;
-  const completions: Record<string, { total: number; written: number; mc: number }> = {};
+  const completions: Record<
+    string,
+    { total: number; written: number; mc: number }
+  > = {};
   if (isRecord(raw.dailyCompletions)) {
     for (const [key, val] of Object.entries(raw.dailyCompletions)) {
       if (isRecord(val)) {
         completions[key] = {
-          total: typeof val.total === "number" && val.total >= 0 ? Math.floor(val.total) : 0,
-          written: typeof val.written === "number" && val.written >= 0 ? Math.floor(val.written) : 0,
-          mc: typeof val.mc === "number" && val.mc >= 0 ? Math.floor(val.mc) : 0,
+          total:
+            typeof val.total === 'number' && val.total >= 0
+              ? Math.floor(val.total)
+              : 0,
+          written:
+            typeof val.written === 'number' && val.written >= 0
+              ? Math.floor(val.written)
+              : 0,
+          mc:
+            typeof val.mc === 'number' && val.mc >= 0 ? Math.floor(val.mc) : 0,
         };
       }
     }
   }
   return {
-    currentStreak: typeof raw.currentStreak === "number" && raw.currentStreak >= 0 ? Math.floor(raw.currentStreak) : 0,
-    longestStreak: typeof raw.longestStreak === "number" && raw.longestStreak >= 0 ? Math.floor(raw.longestStreak) : 0,
-    lastActiveDate: typeof raw.lastActiveDate === "string" ? raw.lastActiveDate : "",
+    currentStreak:
+      typeof raw.currentStreak === 'number' && raw.currentStreak >= 0
+        ? Math.floor(raw.currentStreak)
+        : 0,
+    longestStreak:
+      typeof raw.longestStreak === 'number' && raw.longestStreak >= 0
+        ? Math.floor(raw.longestStreak)
+        : 0,
+    lastActiveDate:
+      typeof raw.lastActiveDate === 'string' ? raw.lastActiveDate : '',
     dailyCompletions: completions,
   };
 }
@@ -849,7 +1059,8 @@ function normalizePreset(raw: unknown): Preset | null {
 function normalizeTimerState(raw: unknown): PersistedTimerState | null {
   const data = isRecord(raw) ? raw : null;
   if (!data) return null;
-  if (data.sessionStartedAt === null || data.sessionStartedAt === undefined) return null;
+  if (data.sessionStartedAt === null || data.sessionStartedAt === undefined)
+    return null;
 
   const byQuestionIdRaw = isRecord(data.byQuestionId) ? data.byQuestionId : {};
   const byQuestionId: Record<string, PerQuestionTiming> = {};
@@ -857,13 +1068,15 @@ function normalizeTimerState(raw: unknown): PersistedTimerState | null {
     if (!isRecord(val)) continue;
     byQuestionId[key] = {
       timeLimitSeconds: asFiniteNumber(val.timeLimitSeconds) ?? 0,
-      originalTimeLimitSeconds: asFiniteNumber(val.originalTimeLimitSeconds) ?? 0,
+      originalTimeLimitSeconds:
+        asFiniteNumber(val.originalTimeLimitSeconds) ?? 0,
       startedAt: asFiniteNumber(val.startedAt) ?? null,
       answeredAt: asFiniteNumber(val.answeredAt) ?? null,
       timeUsedSeconds: asFiniteNumber(val.timeUsedSeconds) ?? 0,
       isExpired: Boolean(val.isExpired),
       finishedEarly: Boolean(val.finishedEarly),
-      pausedDurationMsAtPresentation: asFiniteNumber(val.pausedDurationMsAtPresentation) ?? 0,
+      pausedDurationMsAtPresentation:
+        asFiniteNumber(val.pausedDurationMsAtPresentation) ?? 0,
     };
   }
 
@@ -877,6 +1090,6 @@ function normalizeTimerState(raw: unknown): PersistedTimerState | null {
     isPaused: Boolean(data.isPaused),
     pausedDurationMs: asFiniteNumber(data.pausedDurationMs) ?? 0,
     activeQuestionIndex: clampWholeNumber(data.activeQuestionIndex, 0, 0, 999),
-    mode: data.mode === "exam" ? "exam" : "practice",
+    mode: data.mode === 'exam' ? 'exam' : 'practice',
   };
 }

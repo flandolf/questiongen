@@ -1,5 +1,10 @@
-export { app, auth, db, type FirebaseUser } from "./firebase-init";
-export { signInWithEmail, signUpWithEmail, signOutFirebase, onAuthChange } from "./firebase-auth";
+export { app, auth, db, type FirebaseUser } from './firebase-init';
+export {
+  signInWithEmail,
+  signUpWithEmail,
+  signOutFirebase,
+  onAuthChange,
+} from './firebase-auth';
 export {
   type SyncableData,
   type SyncMetadata,
@@ -18,4 +23,4 @@ export {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   saveDailyUsage,
-} from "./firebase-crud";
+} from './firebase-crud';

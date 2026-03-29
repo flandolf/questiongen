@@ -6,7 +6,7 @@
  * 3 = correct with difficulty, 4 = correct, 5 = perfect recall.
  */
 
-import type { SpacedRepetitionCard, ReviewQuality } from "../types";
+import type { SpacedRepetitionCard, ReviewQuality } from '../types';
 
 const DEFAULT_EASINESS_FACTOR = 2.5;
 const MIN_EASINESS_FACTOR = 1.3;
@@ -39,7 +39,10 @@ export function createCard(nextReviewDate?: string): SpacedRepetitionCard {
  *   - repetitions >= 2 → interval *= easinessFactor
  * - Update easinessFactor based on quality
  */
-export function reviewCard(card: SpacedRepetitionCard, quality: ReviewQuality): SpacedRepetitionCard {
+export function reviewCard(
+  card: SpacedRepetitionCard,
+  quality: ReviewQuality
+): SpacedRepetitionCard {
   const now = new Date();
   const nowIso = now.toISOString();
 
@@ -133,21 +136,29 @@ export function scoreToQuality(scorePercent: number): ReviewQuality {
  */
 export function qualityLabel(q: ReviewQuality): string {
   switch (q) {
-    case 0: return "Complete blackout";
-    case 1: return "Incorrect";
-    case 2: return "Incorrect, but remembered on seeing answer";
-    case 3: return "Correct with difficulty";
-    case 4: return "Correct";
-    case 5: return "Perfect";
+    case 0:
+      return 'Complete blackout';
+    case 1:
+      return 'Incorrect';
+    case 2:
+      return 'Incorrect, but remembered on seeing answer';
+    case 3:
+      return 'Correct with difficulty';
+    case 4:
+      return 'Correct';
+    case 5:
+      return 'Perfect';
   }
 }
 
 /**
  * Get urgency level for display.
  */
-export function urgencyLevel(card: SpacedRepetitionCard): "overdue" | "due-today" | "upcoming" {
+export function urgencyLevel(
+  card: SpacedRepetitionCard
+): 'overdue' | 'due-today' | 'upcoming' {
   const days = daysUntilReview(card);
-  if (days < 0) return "overdue";
-  if (days === 0) return "due-today";
-  return "upcoming";
+  if (days < 0) return 'overdue';
+  if (days === 0) return 'due-today';
+  return 'upcoming';
 }

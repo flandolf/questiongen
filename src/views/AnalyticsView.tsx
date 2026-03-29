@@ -15,10 +15,10 @@ import {
   Sector,
   XAxis,
   YAxis,
-} from "recharts";
-import type { PieSectorShapeProps } from "recharts";
-import { Clock3, Type, PlusCircle } from "lucide-react";
-import { Button } from "../components/ui/button";
+} from 'recharts';
+import type { PieSectorShapeProps } from 'recharts';
+import { Clock3, Type, PlusCircle } from 'lucide-react';
+import { Button } from '../components/ui/button';
 import {
   ChartConfig,
   ChartContainer,
@@ -26,82 +26,124 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
-} from "../components/ui/chart";
-import { EmptyState } from "../components/EmptyState";
-import { MarkdownMath } from "../components/MarkdownMath";
-import { formatDurationMs, formatPercent } from "../lib/app-utils";
-import { useAnalyticsData, ALL_TOPICS } from "./useAnalyticsData";
-import { useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
-import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
-import { useAppStore } from "../store";
-import type { QuestionHistoryEntry, McHistoryEntry, GenerationRecord } from "../types";
-import type { CriterionWeakPointRow, SubtopicPerformanceRow, AttemptRow } from "./useAnalyticsData";
-import { PageHeader } from "@/components/layout/primitives";
+} from '../components/ui/chart';
+import { EmptyState } from '../components/EmptyState';
+import { MarkdownMath } from '../components/MarkdownMath';
+import { formatDurationMs, formatPercent } from '../lib/app-utils';
+import { useAnalyticsData, ALL_TOPICS } from './useAnalyticsData';
+import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useWrittenSession, useMultipleChoiceSession } from '../AppContext';
+import { useAppStore } from '../store';
+import type {
+  QuestionHistoryEntry,
+  McHistoryEntry,
+  GenerationRecord,
+} from '../types';
+import type {
+  CriterionWeakPointRow,
+  SubtopicPerformanceRow,
+  AttemptRow,
+} from './useAnalyticsData';
+import { PageHeader } from '@/components/layout/primitives';
 
 // ─── Chart configs (Restored Vibrant Palette) ─────────────────────────────────
 
 const trendChartConfig = {
-  firstAttemptAccuracy: { label: "First attempt", color: "hsl(158 64% 52%)" },
-  overallAccuracy: { label: "Overall (incl. reattempts)", color: "hsl(34 100% 50%)" },
-  writtenAccuracy: { label: "Written", color: "hsl(220 83% 60%)" },
-  mcAccuracy: { label: "Multiple choice", color: "hsl(340 82% 52%)" },
+  firstAttemptAccuracy: { label: 'First attempt', color: 'hsl(158 64% 52%)' },
+  overallAccuracy: {
+    label: 'Overall (incl. reattempts)',
+    color: 'hsl(34 100% 50%)',
+  },
+  writtenAccuracy: { label: 'Written', color: 'hsl(220 83% 60%)' },
+  mcAccuracy: { label: 'Multiple choice', color: 'hsl(340 82% 52%)' },
 } satisfies ChartConfig;
 
 const topicChartConfig = {
-  accuracy: { label: "Accuracy", color: "hsl(158 64% 52%)" },
+  accuracy: { label: 'Accuracy', color: 'hsl(158 64% 52%)' },
 } satisfies ChartConfig;
 
 const marksChartConfig = {
-  attempts: { label: "Attempts", color: "hsl(34 100% 50%)" },
+  attempts: { label: 'Attempts', color: 'hsl(34 100% 50%)' },
 } satisfies ChartConfig;
 
 const effortChartConfig = {
-  avgScorePercent: { label: "Average score", color: "hsl(220 83% 60%)" },
+  avgScorePercent: { label: 'Average score', color: 'hsl(220 83% 60%)' },
 } satisfies ChartConfig;
 
 const responseLatencyChartConfig = {
-  avgResponseSeconds: { label: "Avg response seconds", color: "hsl(220 83% 60%)" },
+  avgResponseSeconds: {
+    label: 'Avg response seconds',
+    color: 'hsl(220 83% 60%)',
+  },
 } satisfies ChartConfig;
 
 const subjectSpreadChartConfig = {
-  count: { label: "Attempts", color: "hsl(158 64% 52%)" },
+  count: { label: 'Attempts', color: 'hsl(158 64% 52%)' },
 } satisfies ChartConfig;
 
 const FOCUS_AREA_COLORS: readonly string[] = [
-  "hsl(158 64% 52%)",
-  "hsl(220 83% 60%)",
-  "hsl(34 100% 50%)",
-  "hsl(340 82% 52%)",
-  "hsl(190 70% 45%)",
-  "hsl(270 60% 55%)",
-  "hsl(60 80% 45%)",
-  "hsl(120 50% 45%)",
-  "hsl(0 70% 55%)",
-  "hsl(30 90% 50%)",
+  'hsl(158 64% 52%)',
+  'hsl(220 83% 60%)',
+  'hsl(34 100% 50%)',
+  'hsl(340 82% 52%)',
+  'hsl(190 70% 45%)',
+  'hsl(270 60% 55%)',
+  'hsl(60 80% 45%)',
+  'hsl(120 50% 45%)',
+  'hsl(0 70% 55%)',
+  'hsl(30 90% 50%)',
 ] as const;
 
 // ─── Custom Pie Shape ─────────────────────────────────────────────────────────
 
 function CustomPieShape(props: PieSectorShapeProps) {
-  return <Sector {...props} fill={props.fill ?? FOCUS_AREA_COLORS[(props.index ?? 0) % FOCUS_AREA_COLORS.length]} />;
+  return (
+    <Sector
+      {...props}
+      fill={
+        props.fill ??
+        FOCUS_AREA_COLORS[(props.index ?? 0) % FOCUS_AREA_COLORS.length]
+      }
+    />
+  );
 }
 
 // ─── Helpers & UI Wrappers ────────────────────────────────────────────────────
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function Card({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-xl border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}>
+    <div
+      className={`rounded-xl border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}
+    >
       {children}
     </div>
   );
 }
 
-function SectionHeading({ title, description }: { title: string; description?: string }) {
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
   return (
     <div className="mb-4">
-      <h2 className="text-lg font-medium tracking-tight text-foreground">{title}</h2>
-      {description && <p className="text-sm font-light text-muted-foreground">{description}</p>}
+      <h2 className="text-lg font-medium tracking-tight text-foreground">
+        {title}
+      </h2>
+      {description && (
+        <p className="text-sm font-light text-muted-foreground">
+          {description}
+        </p>
+      )}
     </div>
   );
 }
@@ -115,10 +157,10 @@ function ChartEmpty({ message }: { message: string }) {
 }
 
 function accuracyColor(pct: number | undefined): string {
-  if (pct === undefined) return "text-muted-foreground";
-  if (pct >= 75) return "text-emerald-500";
-  if (pct >= 50) return "text-amber-500";
-  return "text-rose-500";
+  if (pct === undefined) return 'text-muted-foreground';
+  if (pct >= 75) return 'text-emerald-500';
+  if (pct >= 50) return 'text-amber-500';
+  return 'text-rose-500';
 }
 
 function Kpi({
@@ -131,28 +173,35 @@ function Kpi({
   label: string;
   value: string;
   detail: string;
-  accent?: "default" | "success" | "warning" | "danger";
+  accent?: 'default' | 'success' | 'warning' | 'danger';
   delta?: number | null;
 }) {
   const valueColor = {
-    default: "text-foreground",
-    success: "text-emerald-500",
-    warning: "text-amber-500",
-    danger: "text-rose-500",
-  }[accent ?? "default"];
+    default: 'text-foreground',
+    success: 'text-emerald-500',
+    warning: 'text-amber-500',
+    danger: 'text-rose-500',
+  }[accent ?? 'default'];
 
   return (
     <Card className="flex flex-col p-6 space-y-2">
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <div className="flex items-baseline gap-2">
-        <span className={`text-3xl font-light tracking-tighter ${valueColor}`}>{value}</span>
+        <span className={`text-3xl font-light tracking-tighter ${valueColor}`}>
+          {value}
+        </span>
         {delta !== null && delta !== undefined && (
-          <span className={`text-xs font-medium ${delta > 0 ? "text-emerald-500" : "text-rose-500"}`}>
-            {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
+          <span
+            className={`text-xs font-medium ${delta > 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+          >
+            {delta > 0 ? '+' : ''}
+            {delta.toFixed(1)}%
           </span>
         )}
       </div>
-      <span className="text-xs font-light text-muted-foreground/70 truncate">{detail}</span>
+      <span className="text-xs font-light text-muted-foreground/70 truncate">
+        {detail}
+      </span>
     </Card>
   );
 }
@@ -164,8 +213,8 @@ function getDayKey(isoString: string): string {
 }
 
 function formatCostShort(v: number) {
-  if (v === 0) return "$0";
-  if (v < 0.001) return "<$0.001";
+  if (v === 0) return '$0';
+  if (v < 0.001) return '<$0.001';
   if (v < 0.01) return `$${v.toFixed(3)}`;
   return `$${v.toFixed(2)}`;
 }
@@ -176,9 +225,16 @@ function formatTokensShort(v: number) {
   return String(v);
 }
 
-function useDailyStats(questionHistory: QuestionHistoryEntry[], mcHistory: McHistoryEntry[], generationHistory: GenerationRecord[]) {
+function useDailyStats(
+  questionHistory: QuestionHistoryEntry[],
+  mcHistory: McHistoryEntry[],
+  generationHistory: GenerationRecord[]
+) {
   return useMemo(() => {
-    const byDay = new Map<string, { tokens: number; cost: number; questions: number }>();
+    const byDay = new Map<
+      string,
+      { tokens: number; cost: number; questions: number }
+    >();
 
     const addQuestion = (createdAt: string) => {
       const day = getDayKey(createdAt);
@@ -193,14 +249,25 @@ function useDailyStats(questionHistory: QuestionHistoryEntry[], mcHistory: McHis
     for (const record of generationHistory) {
       const day = getDayKey(record.timestamp);
       const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
-      if (record.outputs?.totalTokens) bucket.tokens += record.outputs.totalTokens;
-      if (record.outputs?.estimatedCostUsd) bucket.cost += record.outputs.estimatedCostUsd;
+      if (record.outputs?.totalTokens)
+        bucket.tokens += record.outputs.totalTokens;
+      if (record.outputs?.estimatedCostUsd)
+        bucket.cost += record.outputs.estimatedCostUsd;
       byDay.set(day, bucket);
     }
 
-    const sorted = Array.from(byDay.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-30);
+    const sorted = Array.from(byDay.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-30);
     const totalDays = sorted.length;
-    if (totalDays === 0) return { sorted: [], avgTokens: 0, avgCost: 0, avgQuestions: 0, totalDays: 0 };
+    if (totalDays === 0)
+      return {
+        sorted: [],
+        avgTokens: 0,
+        avgCost: 0,
+        avgQuestions: 0,
+        totalDays: 0,
+      };
 
     const totalTokens = sorted.reduce((s, [, d]) => s + d.tokens, 0);
     const totalCost = sorted.reduce((s, [, d]) => s + d.cost, 0);
@@ -209,7 +276,10 @@ function useDailyStats(questionHistory: QuestionHistoryEntry[], mcHistory: McHis
     return {
       sorted: sorted.map(([day, data]) => ({
         day,
-        label: new Date(day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        label: new Date(day + 'T12:00:00').toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+        }),
         ...data,
       })),
       avgTokens: totalTokens / totalDays,
@@ -251,7 +321,11 @@ export function AnalyticsView() {
     recentFirstAttemptAccuracy,
   } = useAnalyticsData();
 
-  const dailyStats = useDailyStats(questionHistory, mcHistory, generationHistory);
+  const dailyStats = useDailyStats(
+    questionHistory,
+    mcHistory,
+    generationHistory
+  );
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
   const hasAnyAttempts = allAttempts.length > 0;
 
@@ -273,7 +347,7 @@ export function AnalyticsView() {
       : allAttempts;
     const counts = new Map<string, number>();
     for (const attempt of filtered) {
-      const area = attempt.subtopic ?? "Unspecified";
+      const area = attempt.subtopic ?? 'Unspecified';
       counts.set(area, (counts.get(area) ?? 0) + 1);
     }
     return Array.from(counts.entries())
@@ -298,15 +372,35 @@ export function AnalyticsView() {
   const firstAttemptPct = summary.firstAttemptAccuracy;
   const overallPct = summary.overallAccuracy;
   const writtenPct = summary.writtenAverageScore;
-  const mcPct = summary.mcAttempts ? (summary.mcCorrect / summary.mcAttempts) * 100 : 0;
+  const mcPct = summary.mcAttempts
+    ? (summary.mcCorrect / summary.mcAttempts) * 100
+    : 0;
 
   const toAccent = (pct: number) =>
-    pct >= 75 ? "success" : pct >= 50 ? "warning" : pct > 0 ? "danger" : "default";
+    pct >= 75
+      ? 'success'
+      : pct >= 50
+        ? 'warning'
+        : pct > 0
+          ? 'danger'
+          : 'default';
 
-  const firstAttemptDelta = recentFirstAttemptAccuracy != null && earlyFirstAttemptAccuracy != null ? recentFirstAttemptAccuracy - earlyFirstAttemptAccuracy : null;
-  const overallDelta = recentOverallAccuracy != null && earlyOverallAccuracy != null ? recentOverallAccuracy - earlyOverallAccuracy : null;
-  const writtenDelta = recentWrittenAvg != null && earlyWrittenAvg != null ? recentWrittenAvg - earlyWrittenAvg : null;
-  const mcDelta = recentMcAccuracy != null && earlyMcAccuracy != null ? recentMcAccuracy - earlyMcAccuracy : null;
+  const firstAttemptDelta =
+    recentFirstAttemptAccuracy != null && earlyFirstAttemptAccuracy != null
+      ? recentFirstAttemptAccuracy - earlyFirstAttemptAccuracy
+      : null;
+  const overallDelta =
+    recentOverallAccuracy != null && earlyOverallAccuracy != null
+      ? recentOverallAccuracy - earlyOverallAccuracy
+      : null;
+  const writtenDelta =
+    recentWrittenAvg != null && earlyWrittenAvg != null
+      ? recentWrittenAvg - earlyWrittenAvg
+      : null;
+  const mcDelta =
+    recentMcAccuracy != null && earlyMcAccuracy != null
+      ? recentMcAccuracy - earlyMcAccuracy
+      : null;
 
   if (!hasAnyAttempts) {
     return (
@@ -314,7 +408,15 @@ export function AnalyticsView() {
         <EmptyState
           title="Blank canvas."
           description="Complete sessions to populate analytics."
-          actions={<Button variant="outline" className="mt-4 font-light" onClick={() => navigate("/")}>Begin</Button>}
+          actions={
+            <Button
+              variant="outline"
+              className="mt-4 font-light"
+              onClick={() => navigate('/')}
+            >
+              Begin
+            </Button>
+          }
         />
       </div>
     );
@@ -322,30 +424,98 @@ export function AnalyticsView() {
 
   return (
     <div className="min-h-full px-6 pt-6 pb-12 space-y-4 bg-background">
-
-      <PageHeader title="Analytics" description="In-depth performance insights and trends." />
+      <PageHeader
+        title="Analytics"
+        description="In-depth performance insights and trends."
+      />
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Kpi label="Overall Accuracy" value={formatPercent(overallPct)} detail={`${summary.totalCorrect} / ${summary.totalAttempts}`} accent={toAccent(overallPct)} delta={overallDelta} />
-        <Kpi label="First Attempt" value={formatPercent(firstAttemptPct)} detail={`${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal}`} accent={toAccent(firstAttemptPct)} delta={firstAttemptDelta} />
-        <Kpi label="Written Average" value={formatPercent(writtenPct)} detail={`${summary.writtenAttempts} attempts`} accent={toAccent(writtenPct)} delta={writtenDelta} />
-        <Kpi label="Multiple Choice" value={formatPercent(mcPct)} detail={`${summary.mcCorrect} / ${summary.mcAttempts}`} accent={toAccent(mcPct)} delta={mcDelta} />
+        <Kpi
+          label="Overall Accuracy"
+          value={formatPercent(overallPct)}
+          detail={`${summary.totalCorrect} / ${summary.totalAttempts}`}
+          accent={toAccent(overallPct)}
+          delta={overallDelta}
+        />
+        <Kpi
+          label="First Attempt"
+          value={formatPercent(firstAttemptPct)}
+          detail={`${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal}`}
+          accent={toAccent(firstAttemptPct)}
+          delta={firstAttemptDelta}
+        />
+        <Kpi
+          label="Written Average"
+          value={formatPercent(writtenPct)}
+          detail={`${summary.writtenAttempts} attempts`}
+          accent={toAccent(writtenPct)}
+          delta={writtenDelta}
+        />
+        <Kpi
+          label="Multiple Choice"
+          value={formatPercent(mcPct)}
+          detail={`${summary.mcCorrect} / ${summary.mcAttempts}`}
+          accent={toAccent(mcPct)}
+          delta={mcDelta}
+        />
       </div>
 
       {/* Main Trend Chart */}
       <Card className="p-6">
-        <SectionHeading title="Performance Trends" description="Accuracy progression over recent attempts." />
+        <SectionHeading
+          title="Performance Trends"
+          description="Accuracy progression over recent attempts."
+        />
         <div className="h-[350px] mt-4">
           <ChartContainer config={trendChartConfig} className="h-full w-full">
-            <LineChart data={trendData} margin={{ left: -20, right: 10, top: 10, bottom: 0 }}>
-              <CartesianGrid vertical={false} horizontal={true} strokeDasharray="3 3" opacity={0.1} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} dy={10} />
-              <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
-              <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-              <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-6" />
-              <Line type="monotone" dataKey="firstAttemptAccuracy" stroke="var(--color-firstAttemptAccuracy)" strokeWidth={3} dot={false} connectNulls />
-              <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+            <LineChart
+              data={trendData}
+              margin={{ left: -20, right: 10, top: 10, bottom: 0 }}
+            >
+              <CartesianGrid
+                vertical={false}
+                horizontal={true}
+                strokeDasharray="3 3"
+                opacity={0.1}
+              />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                dy={10}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+              />
+              <ChartTooltip
+                content={<ChartTooltipContent indicator="line" />}
+              />
+              <ChartLegend
+                content={<ChartLegendContent payload={undefined} />}
+                className="pt-6"
+              />
+              <Line
+                type="monotone"
+                dataKey="firstAttemptAccuracy"
+                stroke="var(--color-firstAttemptAccuracy)"
+                strokeWidth={3}
+                dot={false}
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="overallAccuracy"
+                stroke="var(--color-overallAccuracy)"
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                dot={false}
+              />
             </LineChart>
           </ChartContainer>
         </div>
@@ -354,22 +524,51 @@ export function AnalyticsView() {
       {/* Daily Usage - Only show if data exists */}
       {dailyStats.totalDays > 0 && (
         <Card className="p-6">
-          <SectionHeading title="System Usage" description="Token and cost metrics over active days." />
+          <SectionHeading
+            title="System Usage"
+            description="Token and cost metrics over active days."
+          />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-6">
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-muted-foreground">Avg questions / day</span>
-              <span className="text-2xl font-light">{dailyStats.avgQuestions.toFixed(1)}</span>
-              <span className="text-xs text-muted-foreground/60">over {dailyStats.totalDays} active days</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Avg questions / day
+              </span>
+              <span className="text-2xl font-light">
+                {dailyStats.avgQuestions.toFixed(1)}
+              </span>
+              <span className="text-xs text-muted-foreground/60">
+                over {dailyStats.totalDays} active days
+              </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-muted-foreground">Avg tokens / day</span>
-              <span className="text-2xl font-light">{formatTokensShort(Math.round(dailyStats.avgTokens))}</span>
-              <span className="text-xs text-muted-foreground/60">{formatTokensShort(dailyStats.sorted.reduce((s, d) => s + d.tokens, 0))} total</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Avg tokens / day
+              </span>
+              <span className="text-2xl font-light">
+                {formatTokensShort(Math.round(dailyStats.avgTokens))}
+              </span>
+              <span className="text-xs text-muted-foreground/60">
+                {formatTokensShort(
+                  dailyStats.sorted.reduce((s, d) => s + d.tokens, 0)
+                )}{' '}
+                total
+              </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-muted-foreground">Avg cost / day</span>
-              <span className="text-2xl font-light">{dailyStats.avgCost === 0 ? "—" : formatCostShort(dailyStats.avgCost)}</span>
-              <span className="text-xs text-muted-foreground/60">{formatCostShort(dailyStats.sorted.reduce((s, d) => s + d.cost, 0))} total</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Avg cost / day
+              </span>
+              <span className="text-2xl font-light">
+                {dailyStats.avgCost === 0
+                  ? '—'
+                  : formatCostShort(dailyStats.avgCost)}
+              </span>
+              <span className="text-xs text-muted-foreground/60">
+                {formatCostShort(
+                  dailyStats.sorted.reduce((s, d) => s + d.cost, 0)
+                )}{' '}
+                total
+              </span>
             </div>
           </div>
         </Card>
@@ -377,38 +576,91 @@ export function AnalyticsView() {
 
       {/* Two Column Layout for Deep Dives */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
         {/* Left Column: Written Insights */}
         <div className="flex flex-col gap-6">
           <Card className="p-6">
-            <SectionHeading title="Written Insights" description="Distribution of marks and effort." />
+            <SectionHeading
+              title="Written Insights"
+              description="Distribution of marks and effort."
+            />
 
             <div className="mt-6 space-y-8">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-4">Score Distribution</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                  Score Distribution
+                </h3>
                 <div className="h-[200px]">
-                  <ChartContainer config={marksChartConfig} className="w-full h-full">
-                    <BarChart data={writtenMarksDistribution} margin={{ top: 0, bottom: 0, left: -20, right: 0 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                  <ChartContainer
+                    config={marksChartConfig}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={writtenMarksDistribution}
+                      margin={{ top: 0, bottom: 0, left: -20, right: 0 }}
+                    >
+                      <CartesianGrid
+                        vertical={false}
+                        strokeDasharray="3 3"
+                        opacity={0.1}
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="attempts" fill="var(--color-attempts)" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="attempts"
+                        fill="var(--color-attempts)"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ChartContainer>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-4">Effort vs Score</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                  Effort vs Score
+                </h3>
                 <div className="h-[200px]">
-                  <ChartContainer config={effortChartConfig} className="w-full h-full">
-                    <BarChart data={writtenEffortDistribution} margin={{ top: 0, bottom: 0, left: -20, right: 0 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
-                      <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                  <ChartContainer
+                    config={effortChartConfig}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={writtenEffortDistribution}
+                      margin={{ top: 0, bottom: 0, left: -20, right: 0 }}
+                    >
+                      <CartesianGrid
+                        vertical={false}
+                        strokeDasharray="3 3"
+                        opacity={0.1}
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `${v}%`}
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="avgScorePercent" fill="var(--color-avgScorePercent)" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="avgScorePercent"
+                        fill="var(--color-avgScorePercent)"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ChartContainer>
                 </div>
@@ -417,14 +669,25 @@ export function AnalyticsView() {
           </Card>
 
           <Card className="p-6">
-            <SectionHeading title="Format Distribution" description="Multiple Choice versus Written attempts." />
+            <SectionHeading
+              title="Format Distribution"
+              description="Multiple Choice versus Written attempts."
+            />
             <div className="h-[250px] mt-4">
               <ChartContainer config={{}} className="w-full h-full">
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Multiple Choice", value: summary.mcAttempts, fill: "#2563eb" },
-                      { name: "Written", value: summary.writtenAttempts, fill: "#8b5cf6" },
+                      {
+                        name: 'Multiple Choice',
+                        value: summary.mcAttempts,
+                        fill: '#2563eb',
+                      },
+                      {
+                        name: 'Written',
+                        value: summary.writtenAttempts,
+                        fill: '#8b5cf6',
+                      },
                     ]}
                     cx="50%"
                     cy="50%"
@@ -434,9 +697,15 @@ export function AnalyticsView() {
                     nameKey="name"
                     paddingAngle={3}
                     stroke="none"
-                    shape={(props: PieSectorShapeProps) => <Sector {...props} fill={props.fill} />}
+                    shape={(props: PieSectorShapeProps) => (
+                      <Sector {...props} fill={props.fill} />
+                    )}
                   >
-                    <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 12 }} />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      wrapperStyle={{ fontSize: 12 }}
+                    />
                   </Pie>
                   <ChartTooltip content={<ChartTooltipContent />} />
                 </PieChart>
@@ -445,52 +714,94 @@ export function AnalyticsView() {
           </Card>
 
           <Card className="p-6">
-            <SectionHeading title="Needs Improvement" description="Lowest scoring written attempts." />
+            <SectionHeading
+              title="Needs Improvement"
+              description="Lowest scoring written attempts."
+            />
             <div className="mt-4">
               {lowestScoringWritten.length === 0 ? (
                 <ChartEmpty message="No written attempts to display." />
               ) : (
                 <div className="flex flex-col gap-4">
-                  {lowestScoringWritten.slice(0, 3).map((attempt: AttemptRow) => {
-                    const scorePct = attempt.scorePercent ?? 0;
-                    return (
-                      <div key={attempt.id} className="flex flex-col gap-2 pb-4 border-b border-border/20 last:border-0 last:pb-0">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <h3 className="text-sm font-medium">{attempt.topic}</h3>
-                            <p className="text-xs text-muted-foreground">{attempt.subtopic}</p>
+                  {lowestScoringWritten
+                    .slice(0, 3)
+                    .map((attempt: AttemptRow) => {
+                      const scorePct = attempt.scorePercent ?? 0;
+                      return (
+                        <div
+                          key={attempt.id}
+                          className="flex flex-col gap-2 pb-4 border-b border-border/20 last:border-0 last:pb-0"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium">
+                                {attempt.topic}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {attempt.subtopic}
+                              </p>
+                            </div>
+                            <span
+                              className={`text-lg font-medium ${accuracyColor(scorePct)}`}
+                            >
+                              {formatPercent(scorePct)}
+                            </span>
                           </div>
-                          <span className={`text-lg font-medium ${accuracyColor(scorePct)}`}>{formatPercent(scorePct)}</span>
+                          <div className="flex gap-4 text-xs text-muted-foreground/70">
+                            <span className="flex items-center gap-1.5">
+                              <Type className="h-3.5 w-3.5" />{' '}
+                              {attempt.answerWordCount ?? 0} words
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <Clock3 className="h-3.5 w-3.5" />{' '}
+                              {formatDurationMs(attempt.markingLatencyMs)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex gap-4 text-xs text-muted-foreground/70">
-                          <span className="flex items-center gap-1.5"><Type className="h-3.5 w-3.5" /> {attempt.answerWordCount ?? 0} words</span>
-                          <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> {formatDurationMs(attempt.markingLatencyMs)}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
             </div>
           </Card>
 
           <Card className="p-6">
-            <SectionHeading title="Subject Spread" description="Question distribution across subjects." />
+            <SectionHeading
+              title="Subject Spread"
+              description="Question distribution across subjects."
+            />
             <div className="h-[300px] mt-4">
               {subjectSpreadData.length === 0 ? (
                 <ChartEmpty message="No attempts to display." />
               ) : (
-
-                <ChartContainer config={subjectSpreadChartConfig} className="w-full h-full">
-                  <RadarChart data={subjectSpreadData} cx="50%" cy="50%" outerRadius="70%">
+                <ChartContainer
+                  config={subjectSpreadChartConfig}
+                  className="w-full h-full"
+                >
+                  <RadarChart
+                    data={subjectSpreadData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="70%"
+                  >
                     <PolarGrid stroke="var(--border)" strokeOpacity={0.3} />
-                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} />
-                    <PolarRadiusAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
-                    <Radar name="Attempts" dataKey="count" stroke="var(--color-count)" fill="var(--color-count)" fillOpacity={0.25} />
+                    <PolarAngleAxis
+                      dataKey="subject"
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                    />
+                    <PolarRadiusAxis
+                      tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                    />
+                    <Radar
+                      name="Attempts"
+                      dataKey="count"
+                      stroke="var(--color-count)"
+                      fill="var(--color-count)"
+                      fillOpacity={0.25}
+                    />
                     <ChartTooltip content={<ChartTooltipContent />} />
                   </RadarChart>
                 </ChartContainer>
-
               )}
             </div>
           </Card>
@@ -499,87 +810,186 @@ export function AnalyticsView() {
         {/* Right Column: MC & Topic Insights */}
         <div className="flex flex-col gap-6">
           <Card className="p-6">
-            <SectionHeading title="Topic Performance" description="Accuracy and response metrics across subjects." />
+            <SectionHeading
+              title="Topic Performance"
+              description="Accuracy and response metrics across subjects."
+            />
 
             <div className="mt-6 space-y-8">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-4">Overall Topic Accuracy</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                  Overall Topic Accuracy
+                </h3>
                 <div className="h-[200px]">
-                  <ChartContainer config={topicChartConfig} className="w-full h-full">
-                    <BarChart data={topicPerformance} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.1} />
+                  <ChartContainer
+                    config={topicChartConfig}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={topicPerformance}
+                      layout="vertical"
+                      margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        horizontal={false}
+                        strokeDasharray="3 3"
+                        opacity={0.1}
+                      />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <YAxis
+                        dataKey="topic"
+                        type="category"
+                        tickLine={false}
+                        axisLine={false}
+                        width={120}
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} barSize={12} />
+                      <Bar
+                        dataKey="accuracy"
+                        fill="var(--color-accuracy)"
+                        radius={[0, 4, 4, 0]}
+                        barSize={12}
+                      />
                     </BarChart>
                   </ChartContainer>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-4">MC Accuracy by Topic</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                  MC Accuracy by Topic
+                </h3>
                 <div className="h-[200px]">
-                  <ChartContainer config={topicChartConfig} className="w-full h-full">
-                    <BarChart data={mcTopicAccuracy} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.1} />
+                  <ChartContainer
+                    config={topicChartConfig}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={mcTopicAccuracy}
+                      layout="vertical"
+                      margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        horizontal={false}
+                        strokeDasharray="3 3"
+                        opacity={0.1}
+                      />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <YAxis
+                        dataKey="topic"
+                        type="category"
+                        tickLine={false}
+                        axisLine={false}
+                        width={120}
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} barSize={12} />
+                      <Bar
+                        dataKey="accuracy"
+                        fill="var(--color-accuracy)"
+                        radius={[0, 4, 4, 0]}
+                        barSize={12}
+                      />
                     </BarChart>
                   </ChartContainer>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-4">MC Response Time</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">
+                  MC Response Time
+                </h3>
                 <div className="h-[200px]">
-
-                  <ChartContainer config={responseLatencyChartConfig} className="w-full h-full">
-                    <BarChart data={mcResponseLatency} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}s`} />
-                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                  <ChartContainer
+                    config={responseLatencyChartConfig}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={mcResponseLatency}
+                      layout="vertical"
+                      margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        horizontal={false}
+                        strokeDasharray="3 3"
+                        opacity={0.1}
+                      />
+                      <XAxis
+                        type="number"
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(v) => `${v}s`}
+                      />
+                      <YAxis
+                        dataKey="topic"
+                        type="category"
+                        tickLine={false}
+                        axisLine={false}
+                        width={120}
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="avgResponseSeconds" fill="var(--color-avgResponseSeconds)" radius={[0, 4, 4, 0]} barSize={12} />
+                      <Bar
+                        dataKey="avgResponseSeconds"
+                        fill="var(--color-avgResponseSeconds)"
+                        radius={[0, 4, 4, 0]}
+                        barSize={12}
+                      />
                     </BarChart>
                   </ChartContainer>
-
                 </div>
               </div>
             </div>
           </Card>
 
           <Card className="p-6">
-            <SectionHeading title="Focus Areas" description={subjectFilter ? `Filtered by ${subjectFilter}` : "Question spread across all subjects"} />
+            <SectionHeading
+              title="Focus Areas"
+              description={
+                subjectFilter
+                  ? `Filtered by ${subjectFilter}`
+                  : 'Question spread across all subjects'
+              }
+            />
 
             <div className="flex flex-wrap gap-2 mt-4 mb-6">
               <button
                 type="button"
                 onClick={() => setSubjectFilter(null)}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === null
-                  ? "border-foreground/30 bg-secondary text-secondary-foreground"
-                  : "border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                  }`}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${
+                  subjectFilter === null
+                    ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                    : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                }`}
               >
                 All subjects
-                <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">{allAttempts.length}</span>
+                <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">
+                  {allAttempts.length}
+                </span>
               </button>
               {subjectList.map((topic) => {
-                const count = allAttempts.filter((a) => a.topic === topic).length;
+                const count = allAttempts.filter(
+                  (a) => a.topic === topic
+                ).length;
                 return (
                   <button
                     key={topic}
                     type="button"
-                    onClick={() => setSubjectFilter(subjectFilter === topic ? null : topic)}
-                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === topic
-                      ? "border-foreground/30 bg-secondary text-secondary-foreground"
-                      : "border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                      }`}
+                    onClick={() =>
+                      setSubjectFilter(subjectFilter === topic ? null : topic)
+                    }
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${
+                      subjectFilter === topic
+                        ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                        : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                    }`}
                   >
                     {topic}
-                    <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">{count}</span>
+                    <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">
+                      {count}
+                    </span>
                   </button>
                 );
               })}
@@ -589,7 +999,6 @@ export function AnalyticsView() {
               {focusAreaData.length === 0 ? (
                 <ChartEmpty message="No attempts to display." />
               ) : (
-
                 <ChartContainer config={{}} className="w-full h-full">
                   <PieChart>
                     <Pie
@@ -607,30 +1016,56 @@ export function AnalyticsView() {
                     <ChartTooltip content={<ChartTooltipContent />} />
                   </PieChart>
                 </ChartContainer>
-
               )}
             </div>
           </Card>
 
           <Card className="p-6">
-            <SectionHeading title="Actionable Review" description="Specific subtopics and criteria to target next." />
+            <SectionHeading
+              title="Actionable Review"
+              description="Specific subtopics and criteria to target next."
+            />
             <div className="mt-4 space-y-6">
-
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground border-b border-border/20 pb-2 mb-3">Subtopics</h3>
+                <h3 className="text-sm font-medium text-muted-foreground border-b border-border/20 pb-2 mb-3">
+                  Subtopics
+                </h3>
                 <div className="space-y-1">
                   {displayedSubtopics
-                    .filter((row: SubtopicPerformanceRow) => topicFilter === ALL_TOPICS || row.topic === topicFilter)
+                    .filter(
+                      (row: SubtopicPerformanceRow) =>
+                        topicFilter === ALL_TOPICS || row.topic === topicFilter
+                    )
                     .slice(0, 4)
                     .map((row: SubtopicPerformanceRow) => (
-                      <div key={row.key} className="flex justify-between items-center py-2 group hover:bg-muted/50 rounded-md px-2 -mx-2 transition-colors">
+                      <div
+                        key={row.key}
+                        className="flex justify-between items-center py-2 group hover:bg-muted/50 rounded-md px-2 -mx-2 transition-colors"
+                      >
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">{row.subtopic}</span>
-                          <span className="text-xs text-muted-foreground">{row.topic}</span>
+                          <span className="text-sm font-medium">
+                            {row.subtopic}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {row.topic}
+                          </span>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className={`text-sm font-medium ${accuracyColor(row.accuracy)}`}>{formatPercent(row.accuracy)}</span>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => navigate(`/?topic=${encodeURIComponent(row.topic)}&subtopic=${encodeURIComponent(row.subtopic)}`)}>
+                          <span
+                            className={`text-sm font-medium ${accuracyColor(row.accuracy)}`}
+                          >
+                            {formatPercent(row.accuracy)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() =>
+                              navigate(
+                                `/?topic=${encodeURIComponent(row.topic)}&subtopic=${encodeURIComponent(row.subtopic)}`
+                              )
+                            }
+                          >
                             <PlusCircle className="h-4 w-4" />
                           </Button>
                         </div>
@@ -640,28 +1075,45 @@ export function AnalyticsView() {
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground border-b border-border/20 pb-2 mb-3 mt-6">Criterion Drop-offs</h3>
+                <h3 className="text-sm font-medium text-muted-foreground border-b border-border/20 pb-2 mb-3 mt-6">
+                  Criterion Drop-offs
+                </h3>
                 <div className="space-y-4">
                   {recentCriterionWeakPoints
-                    .filter((row: CriterionWeakPointRow) => topicFilter === ALL_TOPICS || row.topicSummary === topicFilter)
+                    .filter(
+                      (row: CriterionWeakPointRow) =>
+                        topicFilter === ALL_TOPICS ||
+                        row.topicSummary === topicFilter
+                    )
                     .slice(0, 3)
                     .map((row: CriterionWeakPointRow) => (
-                      <div key={row.criterion} className="flex flex-col gap-1.5 pb-4 border-b border-border/20 last:border-0 last:pb-0">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">{row.topicSummary || "Mixed"}</span>
-                        <div className="text-sm font-light leading-relaxed text-foreground"><MarkdownMath content={row.criterion} /></div>
+                      <div
+                        key={row.criterion}
+                        className="flex flex-col gap-1.5 pb-4 border-b border-border/20 last:border-0 last:pb-0"
+                      >
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">
+                          {row.topicSummary || 'Mixed'}
+                        </span>
+                        <div className="text-sm font-light leading-relaxed text-foreground">
+                          <MarkdownMath content={row.criterion} />
+                        </div>
                         <div className="flex justify-between items-center mt-2 bg-secondary/30 rounded-md px-3 py-2">
-                          <span className={`text-xs font-medium ${accuracyColor(row.successPercent)}`}>{formatPercent(row.successPercent)} success</span>
-                          <span className="text-xs text-muted-foreground font-medium">{row.achievedMarks}/{row.availableMarks} kept</span>
+                          <span
+                            className={`text-xs font-medium ${accuracyColor(row.successPercent)}`}
+                          >
+                            {formatPercent(row.successPercent)} success
+                          </span>
+                          <span className="text-xs text-muted-foreground font-medium">
+                            {row.achievedMarks}/{row.availableMarks} kept
+                          </span>
                         </div>
                       </div>
                     ))}
                 </div>
               </div>
-
             </div>
           </Card>
         </div>
-
       </div>
     </div>
   );

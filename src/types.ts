@@ -8,85 +8,90 @@ export type Preset = {
   updatedAt: string; // ISO date
   lastModified?: number;
 };
-export type Difficulty =  "Essential Skills" | "Easy" | "Medium" | "Hard" | "Extreme";
+export type Difficulty =
+  | 'Essential Skills'
+  | 'Easy'
+  | 'Medium'
+  | 'Hard'
+  | 'Extreme';
 
-export type TechMode = "tech-free" | "tech-active" | "mix";
+export type TechMode = 'tech-free' | 'tech-active' | 'mix';
 
 export const MATH_METHODS_SUBTOPICS = [
-  "Functions and Graphs",
-  "Transformation of Graphs",
-  "Algebra and Structure",
-  "Trigonometric Functions",
-  "Exponential and Logarithmic Functions",
-  "Differentiation",
-  "Integration",
-  "Probability and Statistics",
-  "Discrete Random Variables",
-  "Continuous Random Variables",
+  'Functions and Graphs',
+  'Transformation of Graphs',
+  'Algebra and Structure',
+  'Trigonometric Functions',
+  'Exponential and Logarithmic Functions',
+  'Differentiation',
+  'Integration',
+  'Probability and Statistics',
+  'Discrete Random Variables',
+  'Continuous Random Variables',
 ] as const;
 
-export type MathMethodsSubtopic = typeof MATH_METHODS_SUBTOPICS[number];
+export type MathMethodsSubtopic = (typeof MATH_METHODS_SUBTOPICS)[number];
 
 export const SPECIALIST_MATH_SUBTOPICS = [
-  "Additional Algebra and Number Systems",
-  "Sequences and Series",
-  "Reciprocals and Rational Functions",
-  "Combinatorics and Matrices",
-  "Trigonometric Functions and Identities",
-  "Proof",
-  "Modulus",
-  "Algorithms and Graph Theory",
-  "Graphing relations",
-  "Complex numbers",
-  "Transformations and Vectors in the plane",
+  'Additional Algebra and Number Systems',
+  'Sequences and Series',
+  'Reciprocals and Rational Functions',
+  'Combinatorics and Matrices',
+  'Trigonometric Functions and Identities',
+  'Proof',
+  'Modulus',
+  'Algorithms and Graph Theory',
+  'Graphing relations',
+  'Complex numbers',
+  'Transformations and Vectors in the plane',
 ] as const;
 
-export type SpecialistMathSubtopic = typeof SPECIALIST_MATH_SUBTOPICS[number];
+export type SpecialistMathSubtopic = (typeof SPECIALIST_MATH_SUBTOPICS)[number];
 
 export const PHYSICAL_EDUCATION_SUBTOPICS = [
-  "Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling",
-  "Coaching and Feedback: Theories of Acquisition and Psychological Strategies",
-  "Applied Biomechanics: Forces, Momentum, Impulse, Newton’s Laws, Projectile Motion, and Levers",
-  "Movement Analysis: Qualitative Analysis and Equilibrium in Sport",
-  "Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems",
-  "Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP",
-  "Physiological Responses: Acute Responses and Fatigue Mechanisms",
-  "Recovery and Nutrition: Hydration and Nutritional Strategies for Homeostasis",
-  "Training Foundation: Activity Analysis, Fitness Components, and Testing",
-  "Program Design: Training Principles, Methods, and Chronic Adaptations",
+  'Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling',
+  'Coaching and Feedback: Theories of Acquisition and Psychological Strategies',
+  'Applied Biomechanics: Forces, Momentum, Impulse, Newton’s Laws, Projectile Motion, and Levers',
+  'Movement Analysis: Qualitative Analysis and Equilibrium in Sport',
+  'Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems',
+  'Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP',
+  'Physiological Responses: Acute Responses and Fatigue Mechanisms',
+  'Recovery and Nutrition: Hydration and Nutritional Strategies for Homeostasis',
+  'Training Foundation: Activity Analysis, Fitness Components, and Testing',
+  'Program Design: Training Principles, Methods, and Chronic Adaptations',
 ] as const;
 
-export type PhysicalEducationSubtopic = typeof PHYSICAL_EDUCATION_SUBTOPICS[number];
+export type PhysicalEducationSubtopic =
+  (typeof PHYSICAL_EDUCATION_SUBTOPICS)[number];
 
 export const CHEMISTRY_SUBTOPICS = [
-  "Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements",
-  "Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces",
-  "Metallic Bonding: Metallic Lattices and the Reactivity Series",
-  "Ionic Chemistry: Ionic Bonding, Precipitation Reactions, and Solubility Tables",
-  "Chemical Quantities: Moles, Molar Mass, Percentage Composition, and Empirical/Molecular Formulas",
-  "Separation Techniques: Chromatography and Rf Value Identification",
-  "Organic Classification: Alkanes, Alkenes, Alcohols, Carboxylic Acids, Haloalkanes, and IUPAC Naming",
-  "Polymer Chemistry: Addition and Condensation Polymerisation, Plastics, and Recycling",
-  "Sustainability: Green Chemistry, Circular Economy, and Sustainable Development",
-  "Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water",
-  "Acid–Base Chemistry: Brønsted–Lowry Theory, pH, Neutralisation, and Applications",
-  "Redox Chemistry: Electron Transfer, Half-Equations, Displacement, and Corrosion",
-  "Solutions: Concentration Units and Solubility Relationships",
-  "Volumetric Analysis: Acid–Base Titration, Standard Solutions, and Indicators",
-  "Gas Chemistry: Ideal Gas Equation and Greenhouse Gases",
-  "Analytical Techniques: Electrical Conductivity, Stoichiometry, and Colorimetry/UV–Vis Spectroscopy"
+  'Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements',
+  'Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces',
+  'Metallic Bonding: Metallic Lattices and the Reactivity Series',
+  'Ionic Chemistry: Ionic Bonding, Precipitation Reactions, and Solubility Tables',
+  'Chemical Quantities: Moles, Molar Mass, Percentage Composition, and Empirical/Molecular Formulas',
+  'Separation Techniques: Chromatography and Rf Value Identification',
+  'Organic Classification: Alkanes, Alkenes, Alcohols, Carboxylic Acids, Haloalkanes, and IUPAC Naming',
+  'Polymer Chemistry: Addition and Condensation Polymerisation, Plastics, and Recycling',
+  'Sustainability: Green Chemistry, Circular Economy, and Sustainable Development',
+  'Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water',
+  'Acid–Base Chemistry: Brønsted–Lowry Theory, pH, Neutralisation, and Applications',
+  'Redox Chemistry: Electron Transfer, Half-Equations, Displacement, and Corrosion',
+  'Solutions: Concentration Units and Solubility Relationships',
+  'Volumetric Analysis: Acid–Base Titration, Standard Solutions, and Indicators',
+  'Gas Chemistry: Ideal Gas Equation and Greenhouse Gases',
+  'Analytical Techniques: Electrical Conductivity, Stoichiometry, and Colorimetry/UV–Vis Spectroscopy',
 ] as const;
 
-export type ChemistrySubtopic = typeof CHEMISTRY_SUBTOPICS[number];
+export type ChemistrySubtopic = (typeof CHEMISTRY_SUBTOPICS)[number];
 
 export const SUBTOPIC_INSTRUCTIONS: Record<string, string> = {
-
   // ─────────────────────────────────────────────
   // MATHEMATICAL METHODS
   // Only exam technique notes NOT in Study Design key knowledge
   // ─────────────────────────────────────────────
 
-  "Functions and Graphs": `
+  'Functions and Graphs': `
 NOTATION (mandatory):
 - Write functions as f : domain → R, f(x) = ...
 - Domain/range: interval notation [a, b] or set notation {x ∈ R : condition}
@@ -97,7 +102,7 @@ EXAM STYLE:
 - NEVER omit domain specification
 `,
 
-  "Transformation of Graphs": `
+  'Transformation of Graphs': `
 NOTATION (mandatory):
 - General form: y = a·f(b(x − h)) + k
 - Describe each transformation as a numbered sequence in plain language
@@ -107,14 +112,14 @@ EXAM STYLE:
 - Common errors to probe: x-axis vs y-axis dilation confusion, translation sign errors
 `,
 
-  "Algebra and Structure": `
+  'Algebra and Structure': `
 EXAM STYLE:
 - Vary: composition/inverse → parametric simultaneous equations → substitution reduction
 - Always specify domain for composite/inverse questions
 - Algorithm tracing: define termination condition; track variable values in a table
 `,
 
-  "Trigonometric Functions": `
+  'Trigonometric Functions': `
 NOTATION (mandatory):
 - Write as y = a·sin(b(x − h)) + k or y = a·cos(b(x − h)) + k
 - Period: 2π/b (sin/cos), π/b (tan); Amplitude: |a|
@@ -123,7 +128,7 @@ EXAM STYLE:
 - Periodicity questions: find smallest positive period; determine largest valid interval
 `,
 
-  "Exponential and Logarithmic Functions": `
+  'Exponential and Logarithmic Functions': `
 NOTATION (mandatory):
 - VCARD uses log_e; log_e and ln both acceptable
 - For d/dx[a·log_e(bx)]: the b cancels → result is a/x
@@ -132,7 +137,7 @@ EXAM STYLE:
 - Multi-step: set up → apply log laws → solve → verify domain (f(x) > 0)
 `,
 
-  "Differentiation": `
+  Differentiation: `
 NOTATION (mandatory):
 - Gradient table format: columns = x values (either side + at point); rows = sign of f′(x) + arrows
 - Tangent: y − f(a) = f′(a)(x − a); Normal: y − f(a) = −1/f′(a)(x − a)
@@ -141,7 +146,7 @@ EXAM STYLE:
 - Exam 1: exact answers ONLY — no decimal approximations
 `,
 
-  "Integration": `
+  Integration: `
 NOTATION (mandatory):
 - Write ∫f(x) dx = F(x) + c (indefinite); ∫_a^b f(x) dx = [F(x)]_a^b = F(b) − F(a) (definite)
 - Average value: (1/(b−a))∫_a^b f(x) dx
@@ -150,7 +155,7 @@ EXAM STYLE:
 - Exam 1: exact answers — express in terms of log_e, π, etc.
 `,
 
-  "Probability and Statistics": `
+  'Probability and Statistics': `
 NOTATION (mandatory):
 - Pr(A|B) = Pr(A ∩ B) / Pr(B); Independence: Pr(A|B) = Pr(A)
 - 95% CI: p̂ ± 1.96√(p̂(1−p̂)/n)
@@ -160,7 +165,7 @@ EXAM STYLE:
 - Confidence intervals: recover p̂ = (L+U)/2; solve for n = (2·1.96·SE/MOE)²
 `,
 
-  "Discrete Random Variables": `
+  'Discrete Random Variables': `
 NOTATION (mandatory):
 - p(x) = Pr(X = x); E(X) = Σx·p(x); Var(X) = E(X²) − μ²
 - Binomial: X ~ Bi(n, p), Pr(X=x) = C(n,x)pˣ(1−p)ⁿ⁻ˣ
@@ -169,7 +174,7 @@ EXAM STYLE:
 - Use small n ≤ 8 for exact arithmetic feasibility
 `,
 
-  "Continuous Random Variables": `
+  'Continuous Random Variables': `
 NOTATION (mandatory):
 - PDF: f(x) ≥ 0, ∫_{−∞}^{∞} f(x) dx = 1
 - Pr(a < X < b) = ∫_a^b f(x) dx; for continuous: Pr(X = a) = 0
@@ -183,7 +188,7 @@ EXAM STYLE:
   // Only exam technique notes NOT in Study Design key knowledge
   // ─────────────────────────────────────────────
 
-  "Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling": `
+  'Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling': `
 EXAM STYLE:
 - Classification: ALWAYS justify using BOTH category name AND defining features
 - Stage identification: present a coach observation scenario; require stage + two supporting evidences
@@ -191,7 +196,7 @@ EXAM STYLE:
 - Multi-part progression: single-classification → multi-classification → athlete comparison → practice plan
 `,
 
-  "Coaching and Feedback: Theories of Acquisition and Psychological Strategies": `
+  'Coaching and Feedback: Theories of Acquisition and Psychological Strategies': `
 EXAM STYLE:
 - Theory questions: apply named theory to described scenario — NOT mere definition
 - Feedback: identify type AND justify appropriateness for learner's stage
@@ -207,62 +212,61 @@ EXAM STYLE:
 - FOCUS on conceptual understanding and application — NOT pure calculations
 `,
 
-  "Movement Analysis: Qualitative Analysis and Equilibrium in Sport": `
+  'Movement Analysis: Qualitative Analysis and Equilibrium in Sport': `
 EXAM STYLE:
 - Planes/axes: require BOTH plane AND axis — never accept one without the other
 - Equilibrium: present two contrasting positions; compare stability using ≥2 factors with justification
 - Multi-part: observe error → identify critical feature violated → name plane/axis → recommend drill
 `,
 
-  "Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems": `
+  'Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems': `
 EXAM STYLE:
 - ALWAYS anchor to specific sporting context; justify system dominance using intensity, duration, oxygen
 - Include: ATP resynthesis reactions, by-product identification, ATP yield comparison, recovery times
 - Interplay questions: describe changing game situation; explain system dominance shifts
 `,
 
-  "Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP": `
+  'Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP': `
 EXAM STYLE:
 - EPOC: explain BOTH fast (alactic) AND slow (lactic) components with specific physiological processes
 - VO₂ max: explain one limiting factor AND one training adaptation; link mechanism to performance
 - LIP: use graph interpretation format; explain what happens above LIP; justify why training shifts it
 `,
 
-  "Physiological Responses: Acute Responses and Fatigue Mechanisms": `
+  'Physiological Responses: Acute Responses and Fatigue Mechanisms': `
 EXAM STYLE:
 - Describe specific exercise bout (intensity, duration, modality); explain ONE system's response
 - Fatigue: specify exercise type — high-intensity/brief (H⁺/PC focus) vs prolonged moderate (glycogen/central)
 - AVOID: asking students to list responses without mechanism explanation
 `,
 
-  "Recovery and Nutrition: Hydration and Nutritional Strategies for Homeostasis": `
+  'Recovery and Nutrition: Hydration and Nutritional Strategies for Homeostasis': `
 EXAM STYLE:
 - Recovery: specify exercise type; justify strategy linking physiological mechanism to recovery need
 - Hydration: describe performance decrement; explain physiological chain from dehydration to effect
 - Nutrition: design pre/during/post plan; justify each component with reference to energy systems
 `,
 
-  "Training Foundation: Activity Analysis, Fitness Components, and Testing": `
+  'Training Foundation: Activity Analysis, Fitness Components, and Testing': `
 EXAM STYLE:
 - Activity analysis: identify dominant energy systems (with justification), top 3 fitness components, appropriate tests
 - Fitness components: define AND justify importance to named sport using activity analysis reasoning
 - Testing: evaluate test's validity/reliability for specific athlete/sport; justify test selection
 `,
 
-  "Program Design: Training Principles, Methods, and Chronic Adaptations": `
+  'Program Design: Training Principles, Methods, and Chronic Adaptations': `
 EXAM STYLE:
 - Principles: present training scenario (e.g. athlete plateauing 6 weeks); identify violated principle
 - Method selection: specify athlete profile (sport, training phase, goal); recommend AND justify TWO methods
 - Adaptations: explain specific chronic adaptation including mechanism AND performance effect
 `,
-
 };
 
 export type Topic =
-  | "Mathematical Methods"
-  | "Specialist Mathematics"
-  | "Chemistry"
-  | "Physical Education";
+  | 'Mathematical Methods'
+  | 'Specialist Mathematics'
+  | 'Chemistry'
+  | 'Physical Education';
 
 export type GeneratedQuestion = {
   id: string;
@@ -302,11 +306,11 @@ export type GenerationRecord = {
 };
 
 export type GenerationStatusStage =
-  | "preparing"
-  | "generating"
-  | "parsing"
-  | "completed"
-  | "failed";
+  | 'preparing'
+  | 'generating'
+  | 'parsing'
+  | 'completed'
+  | 'failed';
 
 export type GenerationStatusEvent = {
   mode: QuestionMode;
@@ -360,8 +364,8 @@ export type StudentAnswerImage = {
   dataUrl: string;
 };
 
-export type WrittenAttemptKind = "initial" | "appeal" | "override";
-export type McAttemptKind = "initial" | "appeal" | "override";
+export type WrittenAttemptKind = 'initial' | 'appeal' | 'override';
+export type McAttemptKind = 'initial' | 'appeal' | 'override';
 
 export type AnswerAnalytics = {
   attemptSequence: number;
@@ -400,22 +404,22 @@ export type BackendError = {
 };
 
 export const TOPICS: Topic[] = [
-  "Mathematical Methods",
-  "Specialist Mathematics",
-  "Chemistry",
-  "Physical Education",
+  'Mathematical Methods',
+  'Specialist Mathematics',
+  'Chemistry',
+  'Physical Education',
 ];
 
-export const API_KEY_STORAGE_KEY = "questiongen.openrouterApiKey";
-export const QUESTION_HISTORY_STORAGE_KEY = "questiongen.history";
-export const MC_HISTORY_STORAGE_KEY = "questiongen.mcHistory";
-export const DEBUG_MODE_STORAGE_KEY = "questiongen.debugMode";
-export const APP_STATE_STORAGE_KEY = "questiongen.appState";
+export const API_KEY_STORAGE_KEY = 'questiongen.openrouterApiKey';
+export const QUESTION_HISTORY_STORAGE_KEY = 'questiongen.history';
+export const MC_HISTORY_STORAGE_KEY = 'questiongen.mcHistory';
+export const DEBUG_MODE_STORAGE_KEY = 'questiongen.debugMode';
+export const APP_STATE_STORAGE_KEY = 'questiongen.appState';
 
 export const PERSISTED_APP_STATE_VERSION = 2;
 
-export type QuestionMode = "written" | "multiple-choice";
-export type GenerationMode = "practice" | "exam";
+export type QuestionMode = 'written' | 'multiple-choice';
+export type GenerationMode = 'practice' | 'exam';
 
 export type McOption = {
   label: string;
@@ -447,7 +451,7 @@ export type GenerateMcQuestionsResponse = {
 };
 
 export type McHistoryEntry = {
-  type: "multiple-choice";
+  type: 'multiple-choice';
   id: string;
   createdAt: string;
   lastModified?: number;
@@ -604,7 +608,7 @@ export type ExamRecord = {
   createdAt: string;
   topic: string;
   difficulty: Difficulty;
-  questionMode: "written" | "multiple-choice";
+  questionMode: 'written' | 'multiple-choice';
   techMode: TechMode;
   questionCount: number;
   timeUsedSeconds: number;
@@ -657,7 +661,10 @@ export type StreakData = {
   longestStreak: number;
   lastActiveDate: string;
   /** Map of date string (YYYY-MM-DD) → questions completed that day */
-  dailyCompletions: Record<string, { total: number; written: number; mc: number }>;
+  dailyCompletions: Record<
+    string,
+    { total: number; written: number; mc: number }
+  >;
 };
 
 // ─── Exam Simulation ──────────────────────────────────────────────────────────
@@ -707,7 +714,7 @@ export type ExamQuestionResult = {
 export interface BatchTopicProgress {
   topic: Topic;
   questionCount: number;
-  status: "waiting" | "active" | "done" | "error";
+  status: 'waiting' | 'active' | 'done' | 'error';
   stage?: string;
   message?: string;
   errorMessage?: string;

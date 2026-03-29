@@ -1,23 +1,36 @@
-import { lazy, Suspense } from "react";
-import { HashRouter, Routes, Route } from "react-router-dom";
-import { MathJaxContext } from "better-react-mathjax";
-import { AppProvider } from "./AppContext";
-import { useAppStore } from "./store";
-import { FirebaseSyncProvider } from "./context/FirebaseSyncContext";
-import { TimerBarProvider } from "./context/TimerBarContext";
-import { Layout } from "./components/layout/Layout";
-import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { lazy, Suspense } from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
+import { MathJaxContext } from 'better-react-mathjax';
+import { AppProvider } from './AppContext';
+import { useAppStore } from './store';
+import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
+import { TimerBarProvider } from './context/TimerBarContext';
+import { Layout } from './components/layout/Layout';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
-const MATHJAX_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js";
+const MATHJAX_CDN_URL =
+  'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
 
-const GeneratorView = lazy(() => import("./views/GeneratorView").then((m) => ({ default: m.GeneratorView })));
-const HistoryView = lazy(() => import("./views/HistoryView").then((m) => ({ default: m.HistoryView })));
-const AnalyticsView = lazy(() => import("./views/AnalyticsView").then((m) => ({ default: m.AnalyticsView })));
-const SavedView = lazy(() => import("./views/SavedView").then((m) => ({ default: m.SavedView })));
-const SettingsView = lazy(() => import("./views/SettingsView").then((m) => ({ default: m.SettingsView })));
-const ExamHistoryView = lazy(() => import("./views/ExamHistoryView"));
-const WrongQuestionView = lazy(() => import("./views/WrongQuestionView"));
-const NotFound = lazy(() => import("./views/NotFound").then((m) => ({ default: m.NotFound })));
+const GeneratorView = lazy(() =>
+  import('./views/GeneratorView').then((m) => ({ default: m.GeneratorView }))
+);
+const HistoryView = lazy(() =>
+  import('./views/HistoryView').then((m) => ({ default: m.HistoryView }))
+);
+const AnalyticsView = lazy(() =>
+  import('./views/AnalyticsView').then((m) => ({ default: m.AnalyticsView }))
+);
+const SavedView = lazy(() =>
+  import('./views/SavedView').then((m) => ({ default: m.SavedView }))
+);
+const SettingsView = lazy(() =>
+  import('./views/SettingsView').then((m) => ({ default: m.SettingsView }))
+);
+const ExamHistoryView = lazy(() => import('./views/ExamHistoryView'));
+const WrongQuestionView = lazy(() => import('./views/WrongQuestionView'));
+const NotFound = lazy(() =>
+  import('./views/NotFound').then((m) => ({ default: m.NotFound }))
+);
 
 function RouteFallback() {
   return (
@@ -37,8 +50,12 @@ function AppRoutes() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Loading your workspace</h1>
-          <p className="text-sm text-muted-foreground">Restoring saved question sets, history, and analytics.</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Loading your workspace
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Restoring saved question sets, history, and analytics.
+          </p>
         </div>
       </div>
     );
@@ -48,16 +65,16 @@ function AppRoutes() {
     <HashRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<GeneratorView />} />
-              <Route path="history" element={<HistoryView />} />
-              <Route path="exam-history" element={<ExamHistoryView />} />
-              <Route path="analytics" element={<AnalyticsView />} />
-              <Route path="mistakes" element={<WrongQuestionView />} />
-              <Route path="saved" element={<SavedView />} />
-              <Route path="settings" element={<SettingsView />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<GeneratorView />} />
+            <Route path="history" element={<HistoryView />} />
+            <Route path="exam-history" element={<ExamHistoryView />} />
+            <Route path="analytics" element={<AnalyticsView />} />
+            <Route path="mistakes" element={<WrongQuestionView />} />
+            <Route path="saved" element={<SavedView />} />
+            <Route path="settings" element={<SettingsView />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
         </Routes>
       </Suspense>
     </HashRouter>
@@ -71,14 +88,14 @@ export default function App() {
       src={MATHJAX_CDN_URL}
       config={{
         tex: {
-          inlineMath: [["$", "$"]],
-          displayMath: [["$$", "$$"]],
+          inlineMath: [['$', '$']],
+          displayMath: [['$$', '$$']],
           packages: {
-            "[+]": ["textmacros"],
+            '[+]': ['textmacros'],
           },
         },
         loader: {
-          load: ["[tex]/textmacros"],
+          load: ['[tex]/textmacros'],
         },
       }}
     >

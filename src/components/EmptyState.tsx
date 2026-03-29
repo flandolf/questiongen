@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
-import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ReactNode } from 'react';
+import { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type EmptyStateProps = {
   title: string;
@@ -22,9 +22,9 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex h-full flex-col items-center justify-center gap-3 text-center",
-        compact ? "p-4" : "p-3 sm:p-4 lg:p-5",
-        className,
+        'flex h-full flex-col items-center justify-center gap-3 text-center',
+        compact ? 'p-4' : 'p-3 sm:p-4 lg:p-5',
+        className
       )}
     >
       {Icon ? (

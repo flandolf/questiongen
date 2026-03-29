@@ -30,16 +30,30 @@ export interface ModelSearchResult {
   supportsImages: boolean;
 }
 
-export type SortKey = "speed" | "priceIn" | "priceOut" | "priceCombined" | "latency" | "context";
-export type SortDir = "asc" | "desc";
-export type Section = "api" | "models" | "credits" | "appearance" | "goals" | "debug" | "sync" | "cleanup";
+export type SortKey =
+  | 'speed'
+  | 'priceIn'
+  | 'priceOut'
+  | 'priceCombined'
+  | 'latency'
+  | 'context';
+export type SortDir = 'asc' | 'desc';
+export type Section =
+  | 'api'
+  | 'models'
+  | 'credits'
+  | 'appearance'
+  | 'goals'
+  | 'debug'
+  | 'sync'
+  | 'cleanup';
 
 export type ImageValidationState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "supported" }
-  | { status: "unsupported" }
-  | { status: "error"; message: string };
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'supported' }
+  | { status: 'unsupported' }
+  | { status: 'error'; message: string };
 
 export interface StatsColumn {
   stats: ModelStats | null;
@@ -47,4 +61,4 @@ export interface StatsColumn {
   loading: boolean;
 }
 
-export const APP_VERSION = "2.3.10";
+export const APP_VERSION = '2.3.10';
