@@ -386,6 +386,57 @@ pub fn clean_field(s: &str) -> String {
     normalise_typography(&sanitise_latex(&decode_escapes(s)))
 }
 
+/// Strip characters that cause OpenRouter (or any JSON-based API) to reject
+/// the payload as "invalid input".
+///
+/// Removes:
+/// - Null bytes (`\0`) — invalid in JSON strings.
+/// - C0 control characters U+0001–U+0008, U+000B, U+000C, U+000E–U+001F —
+///   invalid in JSON strings per RFC 8259.  Tab (U+0009), LF (U+000A), and
+///   CR (U+000D) are kept because they are valid JSON escapes and commonly
+///   appear in user text.
+/// - DEL (U+007F) — technically a C0 control, rarely intentional.
+/// - Lone Unicode surrogates (U+D800–U+DFFF) — invalid UTF-8 sequences that
+///   can appear when strings are assembled from sloppy sources; serde_json
+///   will reject or mangle them.
+/// - Unicode noncharacters (U+FFFE, U+FFFF, U+1FFFE, … U+10FFFF) — reserved
+///   code points that some JSON validators reject.
+pub fn sanitize_for_api(s: &str) -> String {
+    s.chars()
+        .filter(|&c| {
+            // Keep tab, newline, carriage return — valid JSON whitespace.
+            if c == '\t' || c == '\n' || c == '\r' {
+                return true;
+            }
+            // Drop null byte and all other C0 controls (U+0000–U+001F).
+            if c < '\u{0020}' {
+                return false;
+            }
+            // Drop DEL.
+            if c == '\u{007F}' {
+                return false;
+            }
+            // Drop lone surrogates.
+            // Surrogates (U+D800–U+DFFF) can't appear in valid Rust chars,
+            // but we guard against them via numeric comparison in case the
+            // input was assembled from sloppy byte sequences.
+            let cp = c as u32;
+            if cp >= 0xD800 && cp <= 0xDFFF {
+                return false;
+            }
+            // Drop Unicode noncharacters: U+FFFE and U+FFFF per plane,
+            // plus U+FDD0–U+FDEF.
+            if cp >= 0xFDD0 && cp <= 0xFDEF {
+                return false;
+            }
+            if (cp & 0xFFFE) == 0xFFFE {
+                return false;
+            }
+            true
+        })
+        .collect()
+}
+
 /// Replace Unicode typographic characters with their plain ASCII equivalents.
 fn normalise_typography(s: &str) -> String {
     s.replace('\u{2018}', "'")

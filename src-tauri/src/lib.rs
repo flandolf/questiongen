@@ -58,7 +58,7 @@ use openrouter::{
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
     clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
-    protect_latex_in_raw_json, validate_mc, validate_written,
+    protect_latex_in_raw_json, sanitize_for_api, validate_mc, validate_written,
 };
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
@@ -932,21 +932,21 @@ async fn generate_questions(
          {focus_lock}{exam_context_preamble}\n\
          Output exactly {count} questions.",
         count                 = request.question_count,
-        topics                = request.topics.join(", "),
+        topics                = sanitize_for_api(&request.topics.join(", ")),
         difficulty            = adjusted_difficulty,
         diff_rules            = difficulty_guidance(&adjusted_difficulty),
-        subs_note             = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
-        custom_note           = custom_note,
+        subs_note             = sanitize_for_api(&subtopics_note(selected_subs, request.subtopic_instructions.as_ref())),
+        custom_note           = sanitize_for_api(&custom_note),
         tech                  = tech_note(tech_mode),
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
-        focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
+        focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
         exam_context_preamble = exam_context_preamble,
         average_marks         = average_marks,
-        sim_note              = similarity_note(
+        sim_note              = sanitize_for_api(&similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
-        ),
+        )),
     );
 
     let _ = app.emit(
@@ -971,12 +971,15 @@ async fn generate_questions(
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
-        let mut parts = vec![serde_json::json!({ "type": "text", "text": &prompt })];
+        let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
         let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
         let report_parts = build_report_file_parts(&app, &request.topics);
         parts.extend(report_parts);
-        let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
+        let reanchor = sanitize_for_api(&pdf_reanchor_note(
+            selected_subs,
+            request.custom_focus_area.as_deref(),
+        ));
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
     } else {
@@ -1159,20 +1162,20 @@ async fn generate_mc_questions(
          {focus_lock}{exam_context_preamble}\
          Output exactly {count} questions.",
         count                 = request.question_count,
-        topics                = request.topics.join(", "),
+        topics                = sanitize_for_api(&request.topics.join(", ")),
         difficulty            = adjusted_difficulty,
         diff_rules            = difficulty_guidance(&adjusted_difficulty),
-        subs_note             = subtopics_note(selected_subs, request.subtopic_instructions.as_ref()),
-        custom_note           = custom_note,
+        subs_note             = sanitize_for_api(&subtopics_note(selected_subs, request.subtopic_instructions.as_ref())),
+        custom_note           = sanitize_for_api(&custom_note),
         tech                  = tech_note(tech_mode),
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
-        focus_lock            = focus_lock_note(selected_subs, request.custom_focus_area.as_deref()),
+        focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
         exam_context_preamble = exam_context_preamble,
-        sim_note              = similarity_note(
+        sim_note              = sanitize_for_api(&similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
-        ),
+        )),
     );
 
     let _ = app.emit(
@@ -1201,12 +1204,15 @@ async fn generate_mc_questions(
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
-        let mut parts = vec![serde_json::json!({ "type": "text", "text": &prompt })];
+        let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
         let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
         let report_parts = build_report_file_parts(&app, &request.topics);
         parts.extend(report_parts);
-        let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
+        let reanchor = sanitize_for_api(&pdf_reanchor_note(
+            selected_subs,
+            request.custom_focus_area.as_deref(),
+        ));
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
     } else {
@@ -1338,36 +1344,36 @@ async fn mark_answer(
     }
 
     const MAX_ANSWER_CHARS: usize = 12_000;
-    let mut answer = request
-        .student_answer
-        .replace("\r\n", "\n")
-        .lines()
-        .map(str::trim_end)
-        .collect::<Vec<_>>()
-        .join("\n")
-        .trim()
-        .to_string();
+    let mut answer = sanitize_for_api(
+        &request
+            .student_answer
+            .replace("\r\n", "\n")
+            .lines()
+            .map(str::trim_end)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim()
+            .to_string(),
+    );
     if answer.chars().count() > MAX_ANSWER_CHARS {
         answer = answer.chars().take(MAX_ANSWER_CHARS).collect();
         answer.push_str("\n\n[Truncated: answer exceeded length limit.]");
     }
 
-    let is_chem = request
-        .question
-        .topic
-        .trim()
-        .eq_ignore_ascii_case(CHEMISTRY_TOPIC);
+    // Sanitize question fields that go into the API prompt.
+    let question_topic = sanitize_for_api(request.question.topic.trim());
+    let question_subtopic =
+        sanitize_for_api(request.question.subtopic.as_deref().unwrap_or("—").trim());
+    let question_prompt = sanitize_for_api(&request.question.prompt_markdown);
+
+    let is_chem = question_topic.eq_ignore_ascii_case(CHEMISTRY_TOPIC);
     let chem_note = if is_chem {
         CHEMISTRY_LATEX_GUIDANCE
     } else {
         ""
     };
 
-    let is_pe = request
-        .question
-        .topic
-        .trim()
-        .eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC);
+    let is_pe = question_topic.eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC);
     let pe_note = if is_pe {
         " For Physical Education questions, consider the specific demands of the question when awarding marks for partial working. \
          For example, if a question asks for an evaluation of a training program's effectiveness and the student provides a justified evaluation but omits some supporting evidence, you may award partial marks for the evaluation itself while noting the missing evidence in your feedback.\
@@ -1383,7 +1389,7 @@ async fn mark_answer(
     let max_marks = request.question.max_marks;
 
     // Load VCAA examiners' report PDFs for the question's topic to guide marking.
-    let report_parts = build_report_file_parts(&app, &[request.question.topic.clone()]);
+    let report_parts = build_report_file_parts(&app, &[question_topic.clone()]);
     let has_reports = !report_parts.is_empty();
 
     let report_preamble = if has_reports {
@@ -1412,9 +1418,9 @@ async fn mark_answer(
          - Produce one criterion per mark (or group closely related marks where natural).\n\
          - The workedSolution must show every step a student would need to write to receive full marks.\
          {report_preamble}",
-        topic    = request.question.topic,
-        subtopic = request.question.subtopic.as_deref().unwrap_or("—"),
-        question = request.question.prompt_markdown,
+        topic    = question_topic,
+        subtopic = question_subtopic,
+        question = question_prompt,
         max      = max_marks,
         answer   = answer,
         report_preamble = report_preamble,
@@ -1422,8 +1428,7 @@ async fn mark_answer(
 
     // Build user content: text prompt + optional image + optional report PDFs.
     let mut content_parts: Vec<serde_json::Value> = Vec::new();
-    content_parts.push(serde_json::json!({ "type": "text", "text": &prompt }));
-
+    content_parts.push(serde_json::json!({ "type": "text", "text": prompt }));
     if let Some(url) = request
         .student_answer_image_data_url
         .as_deref()
@@ -1434,6 +1439,15 @@ async fn mark_answer(
             return Err(AppError::new(
                 "VALIDATION_ERROR",
                 "Image must be a valid data URL.",
+            ));
+        }
+        // Reject impossibly large image payloads (>20 MB base64 ≈ 15 MB raw)
+        // that would exceed OpenRouter's request size limits.
+        const MAX_IMAGE_DATA_URL_LEN: usize = 20 * 1024 * 1024;
+        if url.len() > MAX_IMAGE_DATA_URL_LEN {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                "Image is too large. Please use a smaller image.",
             ));
         }
         content_parts.push(serde_json::json!({ "type": "image_url", "image_url": { "url": url } }));
@@ -1916,7 +1930,7 @@ async fn batch_cleanup(
              Unknown items to map:\n- {}\n\n\
              The \"canonical\" value MUST be an exact copy from the list above.",
             canonical.join("\n- "),
-            chunk.join("\n- ")
+            sanitize_for_api(&chunk.join("\n- "))
         );
 
         let result = call_openrouter(
