@@ -35,3 +35,4 @@ src-tauri/gen/android/app/google-services.json
 .env.local
 
 .tsbuildinfo
+.kilo/
