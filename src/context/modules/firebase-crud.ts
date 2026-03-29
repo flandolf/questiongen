@@ -931,11 +931,11 @@ export async function loadUserData(userId: string): Promise<SyncableData | null>
   const goalsRef = doc(db, "users", userId, "settings", "goals");
   const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult] = await Promise.all([
     withTimeout(
-      getDocs(query(getHistoryCollectionRef(userId, "questionHistory"), orderBy("createdAt", "desc"), limit(500))),
+      getDocs(query(getHistoryCollectionRef(userId, "questionHistory"), orderBy("createdAt", "desc"), limit(1000))),
       "loading questionHistory"
     ),
     withTimeout(
-      getDocs(query(getHistoryCollectionRef(userId, "mcHistory"), orderBy("createdAt", "desc"), limit(500))),
+      getDocs(query(getHistoryCollectionRef(userId, "mcHistory"), orderBy("createdAt", "desc"), limit(1000))),
       "loading mcHistory"
     ),
     withTimeout(
@@ -1107,7 +1107,7 @@ export async function deleteArchivedItems(
   let deleted = 0;
   try {
     const snapshot = await withTimeout(
-      getDocs(query(collectionRef, limit(500))),
+      getDocs(query(collectionRef, limit(1000))),
       `loading ${type} for archiving`,
     );
     const batch = writeBatch(db);
