@@ -6,6 +6,9 @@ import { useAppStore } from "./store";
 import { FirebaseSyncProvider } from "./context/FirebaseSyncContext";
 import { TimerBarProvider } from "./context/TimerBarContext";
 import { Layout } from "./components/layout/Layout";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+
+const MATHJAX_CDN_URL = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js";
 
 const GeneratorView = lazy(() => import("./views/GeneratorView").then((m) => ({ default: m.GeneratorView })));
 const HistoryView = lazy(() => import("./views/HistoryView").then((m) => ({ default: m.HistoryView })));
@@ -14,6 +17,7 @@ const SavedView = lazy(() => import("./views/SavedView").then((m) => ({ default:
 const SettingsView = lazy(() => import("./views/SettingsView").then((m) => ({ default: m.SettingsView })));
 const ExamHistoryView = lazy(() => import("./views/ExamHistoryView"));
 const WrongQuestionView = lazy(() => import("./views/WrongQuestionView"));
+const NotFound = lazy(() => import("./views/NotFound").then((m) => ({ default: m.NotFound })));
 
 function RouteFallback() {
   return (
@@ -52,6 +56,7 @@ function AppRoutes() {
               <Route path="mistakes" element={<WrongQuestionView />} />
               <Route path="saved" element={<SavedView />} />
               <Route path="settings" element={<SettingsView />} />
+              <Route path="*" element={<NotFound />} />
             </Route>
         </Routes>
       </Suspense>
@@ -63,7 +68,7 @@ export default function App() {
   return (
     <MathJaxContext
       version={4}
-      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"
+      src={MATHJAX_CDN_URL}
       config={{
         tex: {
           inlineMath: [["$", "$"]],
@@ -80,7 +85,9 @@ export default function App() {
       <AppProvider>
         <FirebaseSyncProvider>
           <TimerBarProvider>
-            <AppRoutes />
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
           </TimerBarProvider>
         </FirebaseSyncProvider>
       </AppProvider>

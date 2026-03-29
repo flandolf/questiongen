@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Loader2, CheckCircle2, XCircle, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ type McAnswerPanelProps = {
   onApplyOverride: () => void;
 };
 
-export function McAnswerPanel({
+export const McAnswerPanel = memo(function McAnswerPanel({
   options,
   correctAnswer,
   explanationMarkdown,
@@ -76,8 +77,8 @@ export function McAnswerPanel({
                 isCorrect ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-rose-100 dark:bg-rose-900/50"
               }`}>
                 {isCorrect
-                  ? <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" />
-                  : <XCircle className="w-4.5 h-4.5 text-rose-600 dark:text-rose-400" />}
+                  ? <CheckCircle2 className="w-[18px] h-[18px] text-emerald-600 dark:text-emerald-400" />
+                  : <XCircle className="w-[18px] h-[18px] text-rose-600 dark:text-rose-400" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`font-bold text-sm mb-2 ${isCorrect ? "text-emerald-900 dark:text-emerald-100" : "text-rose-900 dark:text-rose-100"}`}>
@@ -144,4 +145,4 @@ export function McAnswerPanel({
       </div>
     </div>
   );
-}
+});

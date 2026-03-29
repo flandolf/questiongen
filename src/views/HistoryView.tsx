@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardContent } from "../components/ui/card";
 import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDate } from "../lib/app-utils";
+import { scoreColorBgClass } from "../lib/score-utils";
 
 import { Badge } from "../components/ui/badge";
 import {
@@ -42,13 +43,6 @@ type SortOrder = "newest" | "oldest" | "score-high" | "score-low";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function scoreColor(score: number, max: number): string {
-  const pct = max > 0 ? score / max : 0;
-  if (pct >= 0.9) return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300";
-  if (pct >= 0.5) return "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300";
-  return "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300";
-}
 
 function getEntryScore(item: AnyEntry): number {
   if (item.kind === "written") {
@@ -412,7 +406,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   const pct = item.markResponse.maxMarks > 0
     ? Math.round((item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100)
     : 0;
-  const colorClass = scoreColor(score, 10);
+  const colorClass = scoreColorBgClass(score / 10);
 
   return (
     <Card

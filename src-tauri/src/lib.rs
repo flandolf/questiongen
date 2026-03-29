@@ -858,7 +858,7 @@ async fn generate_questions(
 
     let written_sys = written_system();
     let written_fmt = written_format();
-    let max_tokens = (request.question_count as u32) * 4000 + 4000;
+    let max_tokens = ((request.question_count as u32) * 4000 + 4000).min(64_000);
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
@@ -866,14 +866,14 @@ async fn generate_questions(
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
-        let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
+        let mut parts = vec![serde_json::json!({ "type": "text", "text": &prompt })];
         let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
     } else {
-        serde_json::Value::String(prompt.clone())
+        serde_json::Value::String(prompt)
     };
 
     // Determine temperature, top_p, seed (difficulty-aware tuning)
@@ -1091,14 +1091,14 @@ async fn generate_mc_questions(
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
-        let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt.clone() })];
+        let mut parts = vec![serde_json::json!({ "type": "text", "text": &prompt })];
         let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
     } else {
-        serde_json::Value::String(prompt.clone())
+        serde_json::Value::String(prompt)
     };
 
     // MC: τ = 0.6, top-p = 0.9 by default, difficulty-aware tuning
@@ -1824,8 +1824,10 @@ pub fn run() {
             #[cfg(target_os = "android")]
             {
                 let ctx = ndk_context::android_context();
-                let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
-                let mut env = vm.attach_current_thread().unwrap();
+                let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
+                    .expect("failed to obtain JavaVM from Android context");
+                let mut env = vm.attach_current_thread()
+                    .expect("failed to attach current thread to JavaVM");
                 let context = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
                 rustls_platform_verifier::android::init_with_env(&mut env, context)
                     .expect("failed to initialize rustls-platform-verifier on Android");
@@ -1942,132 +1944,5 @@ mod tests {
         let sys_10 = marking_system(10, "");
         assert!(sys_10.contains("≤600 words"));
     }
-
-    // --- Cleanup helpers -------------------------------------------------------
-
-    #[test]
-    fn parse_cleanup_mappings_from_wrapped_json() {
-        let raw = r#"{"mappings":[{"unknown":"Maths Methods","canonical":"Mathematical Methods"}]}"#;
-        let result = parse_cleanup_mappings(raw).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, "Maths Methods");
-        assert_eq!(result[0].1, "Mathematical Methods");
-    }
-
-    #[test]
-    fn parse_cleanup_mappings_from_bare_array() {
-        let raw = r#"[{"unknown":"Chem","canonical":"Chemistry"}]"#;
-        let result = parse_cleanup_mappings(raw).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, "Chem");
-        assert_eq!(result[0].1, "Chemistry");
-    }
-
-    #[test]
-    fn parse_cleanup_mappings_from_fenced_json() {
-        let raw = "```json\n{\"mappings\":[{\"unknown\":\"PE\",\"canonical\":\"Physical Education\"}]}\n```";
-        let result = parse_cleanup_mappings(raw).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, "PE");
-        assert_eq!(result[0].1, "Physical Education");
-    }
-
-    #[test]
-    fn parse_cleanup_mappings_skips_empty_entries() {
-        let raw = r#"{"mappings":[{"unknown":"","canonical":"Chemistry"},{"unknown":"PE","canonical":""},{"unknown":"Math","canonical":"Mathematical Methods"}]}"#;
-        let result = parse_cleanup_mappings(raw).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, "Math");
-    }
-
-    #[test]
-    fn parse_cleanup_mappings_trims_whitespace() {
-        let raw = r#"{"mappings":[{"unknown":"  Chem  ","canonical":"  Chemistry  "}]}"#;
-        let result = parse_cleanup_mappings(raw).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, "Chem");
-        assert_eq!(result[0].1, "Chemistry");
-    }
-
-    #[test]
-    fn parse_cleanup_mappings_with_preamble_text() {
-        let raw = "Sure, here is the JSON:\n\n{\"mappings\":[{\"unknown\":\"Bio\",\"canonical\":\"Biology\"}]}";
-        let result = parse_cleanup_mappings(raw).unwrap();
-        assert_eq!(result.len(), 1);
-        assert_eq!(result[0].0, "Bio");
-    }
-
-    #[test]
-    fn auto_map_exact_case_insensitive() {
-        let unknowns = vec!["Mathematical Methods".into(), "chem".into()];
-        let canonical = vec![
-            "Mathematical Methods".into(),
-            "Chemistry".into(),
-        ];
-        let (mapping, remaining) = auto_map_exact(&unknowns, &canonical);
-        assert_eq!(mapping.len(), 1);
-        assert_eq!(mapping["Mathematical Methods"], "Mathematical Methods");
-        assert_eq!(remaining.len(), 1);
-        assert_eq!(remaining[0], "chem");
-    }
-
-    #[test]
-    fn auto_map_exact_handles_whitespace() {
-        let unknowns = vec!["  Chemistry  ".into()];
-        let canonical = vec!["Chemistry".into()];
-        let (mapping, remaining) = auto_map_exact(&unknowns, &canonical);
-        assert_eq!(mapping.len(), 1);
-        assert!(remaining.is_empty());
-    }
-
-    #[test]
-    fn validate_and_filter_rejects_non_canonical() {
-        let raw = vec![
-            ("Chem".to_string(), "Biology".to_string()), // Biology not in canonical
-            ("Math".to_string(), "Mathematical Methods".to_string()),
-        ];
-        let canonical = vec!["Mathematical Methods".into(), "Chemistry".into()];
-        let existing = HashMap::new();
-        let result = validate_and_filter_mappings(raw, &canonical, &existing);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result["Math"], "Mathematical Methods");
-    }
-
-    #[test]
-    fn validate_and_filter_skips_self_maps() {
-        let raw = vec![
-            ("Chemistry".to_string(), "Chemistry".to_string()),
-        ];
-        let canonical = vec!["Chemistry".into()];
-        let existing = HashMap::new();
-        let result = validate_and_filter_mappings(raw, &canonical, &existing);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn validate_and_filter_deduplicates() {
-        let raw = vec![
-            ("Chem".to_string(), "Chemistry".to_string()),
-            ("Chem".to_string(), "Biology".to_string()), // duplicate, second ignored
-        ];
-        let canonical = vec!["Chemistry".into(), "Biology".into()];
-        let existing = HashMap::new();
-        let result = validate_and_filter_mappings(raw, &canonical, &existing);
-        assert_eq!(result.len(), 1);
-        assert_eq!(result["Chem"], "Chemistry"); // first mapping wins
-    }
-
-    #[test]
-    fn validate_and_filter_preserves_existing() {
-        let mut existing = HashMap::new();
-        existing.insert("Math".to_string(), "Mathematical Methods".to_string());
-        let raw = vec![
-            ("Chem".to_string(), "Chemistry".to_string()),
-        ];
-        let canonical = vec!["Mathematical Methods".into(), "Chemistry".into()];
-        let result = validate_and_filter_mappings(raw, &canonical, &existing);
-        assert_eq!(result.len(), 2);
-        assert_eq!(result["Math"], "Mathematical Methods");
-        assert_eq!(result["Chem"], "Chemistry");
-    }
+    
 }

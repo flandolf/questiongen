@@ -32,6 +32,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { formatCostUsd, estimateTokensAndCost } from "@/lib/app-utils";
+import { useCollapsibleHeight } from "@/hooks/useCollapsibleHeight";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -118,36 +119,7 @@ export function CollapsibleStep({
   children: React.ReactNode;
   defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const [height, setHeight] = useState<string | number>(defaultOpen ? "auto" : 0);
-  const innerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = innerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setHeight((h) => {
-        if (h === "auto" || h === 0) return h;
-        return el.scrollHeight;
-      });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const toggle = () => {
-    const el = innerRef.current;
-    if (!el) return;
-    if (open) {
-      setHeight(el.scrollHeight);
-      requestAnimationFrame(() => { requestAnimationFrame(() => setHeight(0)); });
-    } else {
-      setHeight(el.scrollHeight);
-    }
-    setOpen((v) => !v);
-  };
-
-  const handleTransitionEnd = () => { if (open) setHeight("auto"); };
+  const { open, height, innerRef, toggle, handleTransitionEnd } = useCollapsibleHeight(defaultOpen);
 
   return (
     <div>
@@ -249,13 +221,6 @@ type AdvancedOptionsAccordionProps = {
   onSetAiDifficultyScalingEnabled: (enabled: boolean) => void;
   difficultyThresholds: { increase: number; decrease: number };
   onSetDifficultyThresholds: (thresholds: { increase: number; decrease: number }) => void;
-  // Preset section props
-  selectedTopicsAll: Topic[];
-  difficulty: Difficulty;
-  techModeAll: TechMode;
-  avoidSimilarQuestionsAll: boolean;
-  generationMode: GenerationMode;
-  examTimeLimitMinutes: number;
 };
 
 function AdvancedOptionsAccordion({
@@ -273,36 +238,7 @@ function AdvancedOptionsAccordion({
   aiDifficultyScalingEnabled, onSetAiDifficultyScalingEnabled,
   difficultyThresholds, onSetDifficultyThresholds
 }: AdvancedOptionsAccordionProps) {
-  const [open, setOpen] = useState(false);
-  const [height, setHeight] = useState<string | number>(0);
-  const innerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = innerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setHeight((h) => {
-        if (h === "auto" || h === 0) return h;
-        return el.scrollHeight;
-      });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const toggle = () => {
-    const el = innerRef.current;
-    if (!el) return;
-    if (open) {
-      setHeight(el.scrollHeight);
-      requestAnimationFrame(() => { requestAnimationFrame(() => setHeight(0)); });
-    } else {
-      setHeight(el.scrollHeight);
-    }
-    setOpen((v) => !v);
-  };
-
-  const handleTransitionEnd = () => { if (open) setHeight("auto"); };
+  const { open, height, innerRef, toggle, handleTransitionEnd } = useCollapsibleHeight(false);
 
   return (
     <div className="rounded-xl border border-border/60 overflow-hidden mb-4">
@@ -960,19 +896,19 @@ function SetupPanelImpl({
     { label: "Marathon", count: 20, time: 90 },
   ];
 
-  const getSelectedSubtopics = () => Array.from(new Set([
+  const selectedSubtopics = useMemo(() => Array.from(new Set([
     ...(selectedTopics.includes("Mathematical Methods") ? mathMethodsSubtopics : []),
     ...(selectedTopics.includes("Specialist Mathematics") ? specialistMathSubtopics : []),
     ...(selectedTopics.includes("Chemistry") ? chemistrySubtopics : []),
     ...(selectedTopics.includes("Physical Education") ? physicalEducationSubtopics : []),
-  ]));
+  ])), [selectedTopics, mathMethodsSubtopics, specialistMathSubtopics, chemistrySubtopics, physicalEducationSubtopics]);
 
   useEffect(() => {
     let cancelled = false;
     async function fetchStats() {
       if (!apiKey || !model || model === "custom") return;
       try {
-        const stats = await invoke<any>("get_model_stats", { apiKey, modelId: model });
+        const stats = await invoke<{ promptPricePerToken?: number | null; completionPricePerToken?: number | null }>("get_model_stats", { apiKey, modelId: model });
         if (cancelled) return;
         setPromptPricePerToken(stats.promptPricePerToken ?? null);
         setCompletionPricePerToken(stats.completionPricePerToken ?? null);
@@ -987,7 +923,6 @@ function SetupPanelImpl({
 
   const estimated = useMemo(() => {
     const primaryTopic = selectedTopics[0] || "Mathematical Methods";
-    const selectedSubtopics = getSelectedSubtopics();
     return estimateTokensAndCost(
       generationHistory,
       primaryTopic,
@@ -1001,7 +936,7 @@ function SetupPanelImpl({
       promptPricePerToken ?? undefined,
       completionPricePerToken ?? undefined,
     );
-  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, customFocusArea, promptPricePerToken, completionPricePerToken]);
+  }, [generationHistory, selectedTopics, difficulty, questionCount, questionMode, techMode, averageMarksPerQuestion, customFocusArea, promptPricePerToken, completionPricePerToken, selectedSubtopics]);
 
   const handleGenerate = () => {
     onGenerate();
@@ -1213,12 +1148,6 @@ function SetupPanelImpl({
           onSetAiDifficultyScalingEnabled={onSetAiDifficultyScalingEnabled}
           difficultyThresholds={difficultyThresholds}
           onSetDifficultyThresholds={onSetDifficultyThresholds}
-          selectedTopicsAll={selectedTopics}
-          difficulty={difficulty}
-          techModeAll={techMode}
-          avoidSimilarQuestionsAll={avoidSimilarQuestions}
-          generationMode={generationMode}
-          examTimeLimitMinutes={examTimeLimitMinutes}
         />
 
         {/* ── API key warning ── */}

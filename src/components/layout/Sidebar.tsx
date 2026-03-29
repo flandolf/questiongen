@@ -14,6 +14,44 @@ import {
 import { cn } from "../../lib/utils";
 import { useAppStore } from "../../store";
 
+function getTodayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function GoalProgressBar({
+  label,
+  current,
+  goal,
+  color,
+}: {
+  label: string;
+  current: number;
+  goal: number;
+  color: string;
+}) {
+  const pct = Math.min(100, (current / goal) * 100);
+  const complete = current >= goal;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{label}</p>
+        <p className="text-[10px] font-bold tabular-nums">{current}/{goal}</p>
+      </div>
+      <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.18, ease: "linear" }}
+          className={cn(
+            "h-full rounded-full",
+            complete ? color : "bg-primary"
+          )}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
@@ -22,13 +60,9 @@ export function Sidebar() {
   const hasActiveSession = questions.length > 0 || mcQuestions.length > 0;
 
   const todayCompletions = useMemo(() => {
-    const today = new Date().toLocaleDateString('en-CA');
+    const today = getTodayKey();
     return streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
   }, [streakData.dailyCompletions]);
-
-  const dailyProgress = studyGoals.dailyQuestionGoal > 0
-    ? Math.min(100, (todayCompletions.total / studyGoals.dailyQuestionGoal) * 100)
-    : 0;
 
   const topLinks = [
     { to: "/", label: "Generator", icon: Sparkles, showSessionDot: true },
@@ -85,63 +119,30 @@ export function Sidebar() {
               )}
 
               {studyGoals.dailyQuestionGoal > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Daily Goal</p>
-                    <p className="text-[10px] font-bold tabular-nums">{todayCompletions.total}/{studyGoals.dailyQuestionGoal}</p>
-                  </div>
-                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${dailyProgress}%` }}
-                      transition={{ duration: 0.18, ease: "linear" }}
-                      className={cn(
-                        "h-full rounded-full",
-                        dailyProgress >= 100 ? "bg-emerald-500" : "bg-primary"
-                      )}
-                    />
-                  </div>
-                </div>
+                <GoalProgressBar
+                  label="Daily Goal"
+                  current={todayCompletions.total}
+                  goal={studyGoals.dailyQuestionGoal}
+                  color="bg-emerald-500"
+                />
               )}
 
               {studyGoals.dailyMcGoal > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">MC Goal</p>
-                    <p className="text-[10px] font-bold tabular-nums">{todayCompletions.mc}/{studyGoals.dailyMcGoal}</p>
-                  </div>
-                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (todayCompletions.mc / studyGoals.dailyMcGoal) * 100)}%` }}
-                      transition={{ duration: 0.18, ease: "linear" }}
-                      className={cn(
-                        "h-full rounded-full",
-                        todayCompletions.mc >= studyGoals.dailyMcGoal ? "bg-violet-500" : "bg-primary"
-                      )}
-                    />
-                  </div>
-                </div>
+                <GoalProgressBar
+                  label="MC Goal"
+                  current={todayCompletions.mc}
+                  goal={studyGoals.dailyMcGoal}
+                  color="bg-violet-500"
+                />
               )}
 
               {studyGoals.dailyWrittenGoal > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Written Goal</p>
-                    <p className="text-[10px] font-bold tabular-nums">{todayCompletions.written}/{studyGoals.dailyWrittenGoal}</p>
-                  </div>
-                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden p-[2px]">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (todayCompletions.written / studyGoals.dailyWrittenGoal) * 100)}%` }}
-                      transition={{ duration: 0.18, ease: "linear" }}
-                      className={cn(
-                        "h-full rounded-full",
-                        todayCompletions.written >= studyGoals.dailyWrittenGoal ? "bg-blue-500" : "bg-primary"
-                      )}
-                    />
-                  </div>
-                </div>
+                <GoalProgressBar
+                  label="Written Goal"
+                  current={todayCompletions.written}
+                  goal={studyGoals.dailyWrittenGoal}
+                  color="bg-blue-500"
+                />
               )}
         </div>
 

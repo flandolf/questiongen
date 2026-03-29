@@ -840,7 +840,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   },
 
   recordCompletion: (mode) => {
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     set((s) => {
       const todayData = s.streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
       const updatedDay = {
@@ -852,7 +852,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       // Calculate streak
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayKey = yesterday.toLocaleDateString('en-CA');
+      const yesterdayKey = yesterday.toISOString().slice(0, 10);
       const hadYesterday = s.streakData.dailyCompletions[yesterdayKey]?.total > 0;
       const hadToday = todayData.total > 0;
 
@@ -878,7 +878,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   },
 
   getTodayCompletions: () => {
-    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     return get().streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
   },
 }));

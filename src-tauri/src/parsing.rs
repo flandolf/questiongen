@@ -409,87 +409,75 @@ const CANONICAL_TOPICS: &[&str] = &[
 
 /// Map each canonical subtopic (lowercased) to its parent subject.
 /// This is used to fix cases where the LLM puts a subtopic into the `topic` field.
-fn subtopic_to_subject() -> std::collections::HashMap<&'static str, &'static str> {
-    let kk = crate::constants::subtopic_key_knowledge();
-    // All subtopics from Mathematical Methods
-    let mm_subs = [
-        "functions and graphs",
-        "transformation of graphs",
-        "algebra and structure",
-        "trigonometric functions",
-        "exponential and logarithmic functions",
-        "differentiation",
-        "integration",
-        "probability and statistics",
-        "discrete random variables",
-        "continuous random variables",
-    ];
-    // All subtopics from Specialist Mathematics
-    let sm_subs = [
-        "additional algebra and number systems",
-        "sequences and series",
-        "reciprocals and rational functions",
-        "combinatorics and matrices",
-        "trigonometric functions and identities",
-        "proof",
-        "modulus",
-        "algorithms and graph theory",
-        "graphing relations",
-        "complex numbers",
-        "transformations and vectors in the plane",
-    ];
-    // All subtopics from Chemistry
-    let chem_subs = [
-        "periodic trends: structure, periodic organisation, and critical or endangered elements",
-        "molecular structure: lewis structures, vsepr geometry, polarity, and intermolecular forces",
-        "metallic bonding: metallic lattices and the reactivity series",
-        "ionic chemistry: ionic bonding, precipitation reactions, and solubility tables",
-        "chemical quantities: moles, molar mass, percentage composition, and empirical/molecular formulas",
-        "separation techniques: chromatography and rf value identification",
-        "organic classification: alkanes, alkenes, alcohols, carboxylic acids, haloalkanes, and iupac naming",
-        "polymer chemistry: addition and condensation polymerisation, plastics, and recycling",
-        "sustainability: green chemistry, circular economy, and sustainable development",
-        "water chemistry: hydrogen bonding and unique physical properties of water",
-        "acid\u{2013}base chemistry: br\u{f8}nsted\u{2013}lowry theory, ph, neutralisation, and applications",
-        "redox chemistry: electron transfer, half-equations, displacement, and corrosion",
-        "solutions: concentration units and solubility relationships",
-        "volumetric analysis: acid\u{2013}base titration, standard solutions, and indicators",
-        "gas chemistry: ideal gas equation and greenhouse gases",
-        "analytical techniques: electrical conductivity, stoichiometry, and colorimetry/uv\u{2013}vis spectroscopy",
-    ];
-    // All subtopics from Physical Education
-    let pe_subs = [
-        "skill acquisition: classification, stages of learning, and practice scheduling",
-        "coaching and feedback: theories of acquisition and psychological strategies",
-        "applied biomechanics: forces, momentum, impulse, newton's laws, projectile motion, and levers",
-        "movement analysis: qualitative analysis and equilibrium in sport",
-        "energy system interplay: atp-cp, anaerobic glycolysis, and aerobic systems",
-        "cardiorespiratory dynamics: oxygen uptake, epoc, and vo2 max/lip",
-        "physiological responses: acute responses and fatigue mechanisms",
-        "recovery and nutrition: hydration and nutritional strategies for homeostasis",
-        "training foundation: activity analysis, fitness components, and testing",
-        "program design: training principles, methods, and chronic adaptations",
-    ];
+fn subtopic_to_subject() -> &'static std::collections::HashMap<&'static str, &'static str> {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    static MAP: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    MAP.get_or_init(|| {
+        let kk = crate::constants::subtopic_key_knowledge();
+        let mm_subs = [
+            "functions and graphs",
+            "transformation of graphs",
+            "algebra and structure",
+            "trigonometric functions",
+            "exponential and logarithmic functions",
+            "differentiation",
+            "integration",
+            "probability and statistics",
+            "discrete random variables",
+            "continuous random variables",
+        ];
+        let sm_subs = [
+            "additional algebra and number systems",
+            "sequences and series",
+            "reciprocals and rational functions",
+            "combinatorics and matrices",
+            "trigonometric functions and identities",
+            "proof",
+            "modulus",
+            "algorithms and graph theory",
+            "graphing relations",
+            "complex numbers",
+            "transformations and vectors in the plane",
+        ];
+        let chem_subs = [
+            "periodic trends: structure, periodic organisation, and critical or endangered elements",
+            "molecular structure: lewis structures, vsepr geometry, polarity, and intermolecular forces",
+            "metallic bonding: metallic lattices and the reactivity series",
+            "ionic chemistry: ionic bonding, precipitation reactions, and solubility tables",
+            "chemical quantities: moles, molar mass, percentage composition, and empirical/molecular formulas",
+            "separation techniques: chromatography and rf value identification",
+            "organic classification: alkanes, alkenes, alcohols, carboxylic acids, haloalkanes, and iupac naming",
+            "polymer chemistry: addition and condensation polymerisation, plastics, and recycling",
+            "sustainability: green chemistry, circular economy, and sustainable development",
+            "water chemistry: hydrogen bonding and unique physical properties of water",
+            "acid\u{2013}base chemistry: br\u{f8}nsted\u{2013}lowry theory, ph, neutralisation, and applications",
+            "redox chemistry: electron transfer, half-equations, displacement, and corrosion",
+            "solutions: concentration units and solubility relationships",
+            "volumetric analysis: acid\u{2013}base titration, standard solutions, and indicators",
+            "gas chemistry: ideal gas equation and greenhouse gases",
+            "analytical techniques: electrical conductivity, stoichiometry, and colorimetry/uv\u{2013}vis spectroscopy",
+        ];
+        let pe_subs = [
+            "skill acquisition: classification, stages of learning, and practice scheduling",
+            "coaching and feedback: theories of acquisition and psychological strategies",
+            "applied biomechanics: forces, momentum, impulse, newton's laws, projectile motion, and levers",
+            "movement analysis: qualitative analysis and equilibrium in sport",
+            "energy system interplay: atp-cp, anaerobic glycolysis, and aerobic systems",
+            "cardiorespiratory dynamics: oxygen uptake, epoc, and vo2 max/lip",
+            "physiological responses: acute responses and fatigue mechanisms",
+            "recovery and nutrition: hydration and nutritional strategies for homeostasis",
+            "training foundation: activity analysis, fitness components, and testing",
+            "program design: training principles, methods, and chronic adaptations",
+        ];
 
-    let mut m = std::collections::HashMap::new();
-    for s in mm_subs {
-        m.insert(s, "Mathematical Methods");
-    }
-    for s in sm_subs {
-        m.insert(s, "Specialist Mathematics");
-    }
-    for s in chem_subs {
-        // Only insert if it's actually a known subtopic key
-        if kk.contains_key(s) {
-            m.insert(s, "Chemistry");
-        }
-    }
-    for s in pe_subs {
-        if kk.contains_key(s) {
-            m.insert(s, "Physical Education");
-        }
-    }
-    m
+        let mut m = HashMap::new();
+        for s in mm_subs { m.insert(s, "Mathematical Methods"); }
+        for s in sm_subs { m.insert(s, "Specialist Mathematics"); }
+        for s in chem_subs { if kk.contains_key(s) { m.insert(s, "Chemistry"); } }
+        for s in pe_subs { if kk.contains_key(s) { m.insert(s, "Physical Education"); } }
+        m
+    })
 }
 
 /// If the `topic` field is not a canonical subject, try to detect whether the LLM
@@ -521,7 +509,7 @@ fn fix_topic_field(topic: &mut String, subtopic: &mut Option<String>, selected_t
     }
 
     // Fuzzy match: check if any canonical subtopic is a substring of the topic value.
-    for (&sub, &subject) in &map {
+    for (&sub, &subject) in map {
         if lookup.contains(sub) || sub.contains(&lookup) {
             if subtopic.is_none() || subtopic.as_deref().map(str::is_empty).unwrap_or(true) {
                 *subtopic = Some(trimmed.to_string());

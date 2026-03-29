@@ -11,6 +11,7 @@ import { ConfirmModal } from "../components/ui/ConfirmModal";
 import { useState, useMemo, useRef, memo } from "react";
 import { PageContainer, PageHeader, Toolbar, FilterGroup, FilterButton } from "@/components/layout/primitives";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { SavedQuestionSet } from "../types";
 
 type SortKey = "updatedAt" | "title" | "progress";
 type ModeFilter = "all" | "written" | "mc";
@@ -20,7 +21,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   onOpen,
   onDelete,
 }: {
-  sets: any[];
+  sets: SavedQuestionSet[];
   onOpen: (id: string) => void;
   onDelete: (id: string, title: string) => void;
 }) {
@@ -33,10 +34,10 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   });
 
   return (
-    <div ref={parentRef} style={{ height: "100vh", overflow: "auto" }}>
+    <div ref={parentRef} className="flex-1 overflow-auto" style={{ minHeight: 0 }}>
       <div
         style={{
-          height: `100vh`,
+          height: `${rowVirtualizer.getTotalSize()}px`,
           width: "100%",
           position: "relative",
         }}
@@ -268,7 +269,20 @@ export function SavedView() {
     return result;
   }, [savedSets, modeFilter, search, sortKey]);
 
-  const [confirmDelete, setConfirmDelete] = useState<number>(0);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const confirmDeleteTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleDeleteAll() {
+    if (confirmDeleteAll) {
+      deleteAllSavedSets();
+      setConfirmDeleteAll(false);
+      if (confirmDeleteTimeout.current) clearTimeout(confirmDeleteTimeout.current);
+    } else {
+      setConfirmDeleteAll(true);
+      if (confirmDeleteTimeout.current) clearTimeout(confirmDeleteTimeout.current);
+      confirmDeleteTimeout.current = setTimeout(() => setConfirmDeleteAll(false), 3000);
+    }
+  }
 
   // Find the pending-load set's title for contextual confirm copy (#14)
   const pendingLoadSet = savedSets.find((s) => s.id === pendingLoadId);
@@ -333,15 +347,9 @@ export function SavedView() {
             <option value="progress">Progress</option>
           </select>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { 
-          setConfirmDelete(1);
-          if (confirmDelete === 1) {
-            deleteAllSavedSets();
-            setConfirmDelete(0);
-          }
-         }} className="h-8 gap-1.5 text-xs">
+        <Button variant="outline" size="sm" onClick={handleDeleteAll} className="h-8 gap-1.5 text-xs">
           <RotateCcw className="h-3.5 w-3.5" />
-          {confirmDelete === 1 ? "Confirm clear" : "Clear all"}
+          {confirmDeleteAll ? "Confirm clear" : "Clear all"}
         </Button>
       </Toolbar>
 

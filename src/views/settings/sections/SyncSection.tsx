@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppSettings } from "../../../AppContext";
 import { useFirebaseSyncContext } from "../../../context/FirebaseSyncContext";
+import { signOutFirebase } from "../../../context/modules/firebase-auth";
 import { SectionHeader, FieldGroup, Card } from "../SettingsUI";
 
 export function SyncSection() {
@@ -52,6 +53,15 @@ export function SyncSection() {
     console.log("[FirebaseSync] Manual sync initiated by user");
     await forceSync();
   };
+
+  const handleSignOut = async () => {
+    try {
+      await signOutFirebase();
+    } catch (error) {
+      // Optionally handle error UI here
+      console.error("Sign out failed:", error);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -140,6 +150,14 @@ export function SyncSection() {
                 onClick={disableSync}
               >
                 Disconnect
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleSignOut}
+              >
+                Sign out
               </Button>
             </div>
           )}

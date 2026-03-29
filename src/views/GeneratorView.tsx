@@ -659,7 +659,7 @@ export function GeneratorView() {
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
       // Remove from history if it was already answered
-      setQuestionHistory((prev: any) => prev.filter((e: QuestionHistoryEntry) => e.question.id !== id));
+      setQuestionHistory((prev) => prev.filter((e: QuestionHistoryEntry) => e.question.id !== id));
       // Subtract question time from session timer
       writtenTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -677,7 +677,7 @@ export function GeneratorView() {
       setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
       // Remove from history if it was already answered
-      setMcHistory((prev: any) => prev.filter((e: McHistoryEntry) => e.question.id !== id));
+      setMcHistory((prev) => prev.filter((e: McHistoryEntry) => e.question.id !== id));
       // Subtract question time from session timer
       mcTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -775,13 +775,13 @@ export function GeneratorView() {
         finalAnswerChangedAtMs: responseAt,
       },
     };
-    setMcHistory((prev: any) => [entry, ...prev].slice(0, 200));
+    setMcHistory((prev) => [entry, ...prev].slice(0, 200));
   }
 
   function updateLatestMcHistoryEntry(questionId: string, selectedAnswer: string, awardedMarks: number, responseEnteredAtMs?: number) {
     const now = Date.now();
     const responseAt = responseEnteredAtMs ?? now;
-    setMcHistory((prev: any) => {
+    setMcHistory((prev) => {
       const idx = prev.findIndex((e: McHistoryEntry) => e.question.id === questionId && (e.analytics?.attemptKind ?? "initial") === "initial");
       if (idx === -1) return prev;
       const entry = prev[idx];
@@ -793,7 +793,11 @@ export function GeneratorView() {
         awardedMarks,
         lastModified: now,
         analytics: {
-          ...entry.analytics,
+          attemptSequence: entry.analytics?.attemptSequence ?? 0,
+          answerCharacterCount: entry.analytics?.answerCharacterCount ?? 0,
+          answerWordCount: entry.analytics?.answerWordCount ?? 0,
+          usedImageUpload: entry.analytics?.usedImageUpload ?? false,
+          attemptKind: entry.analytics?.attemptKind,
           responseLatencyMs: entry.analytics?.responseLatencyMs,
           finalAnswerChangedAtMs: responseAt,
         },
@@ -820,7 +824,7 @@ export function GeneratorView() {
         markingLatencyMs: options?.markingLatencyMs,
       },
     };
-    setQuestionHistory((prev: any) => [entry, ...prev].slice(0, 200));
+    setQuestionHistory((prev) => [entry, ...prev].slice(0, 200));
   }
 
   // ── Batch progress helpers ───────────────────────────────────────────────────
@@ -1169,7 +1173,7 @@ export function GeneratorView() {
       });
       const markingLatencyMs = Date.now() - markStartedAt;
       const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
-      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
+      setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: response }));
       setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(response.achievedMarks) }));
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "initial", markingLatencyMs, responseEnteredAtMs });
       writtenTimer.onQuestionAnswered(activeQuestion.id);
@@ -1192,7 +1196,7 @@ export function GeneratorView() {
         request: { question: activeQuestion, studentAnswer: arguedAnswer, studentAnswerImageDataUrl: activeQuestionImage?.dataUrl, model: markModel, apiKey },
       });
       const response = normalizeMarkResponse(rawResponse, activeQuestion.maxMarks);
-      setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: response }));
+      setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: response }));
       setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(response.achievedMarks) }));
       appendWrittenHistoryEntry(activeQuestion, response, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "appeal", markingLatencyMs: Date.now() - markStartedAt, responseEnteredAtMs });
     } catch (error) { setErrorMessage(readBackendError(error)); setLastFailedAction("mark-written"); }
@@ -1206,7 +1210,7 @@ export function GeneratorView() {
     const clamped = Math.max(0, Math.min(activeFeedback.maxMarks, Math.round(parsed)));
     const updated = { ...activeFeedback, achievedMarks: clamped, scoreOutOf10: Math.round((clamped / activeFeedback.maxMarks) * 10), verdict: clamped === activeFeedback.maxMarks ? "Correct" : clamped === 0 ? "Incorrect" : "Overridden" };
     setErrorMessage(null);
-    setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: updated }));
+    setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: updated }));
     setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(clamped) }));
     appendWrittenHistoryEntry(activeQuestion, updated, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "override", responseEnteredAtMs: Date.now() });
   }
@@ -1224,7 +1228,7 @@ export function GeneratorView() {
       scoreOutOf10: Math.round((totalAchieved / Math.max(1, totalMax)) * 10),
       verdict: totalAchieved === totalMax ? "Correct" : totalAchieved === 0 ? "Incorrect" : "Overridden",
     };
-    setFeedbackByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: nextFeedback }));
+    setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: nextFeedback }));
     setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(nextFeedback.achievedMarks) }));
     appendWrittenHistoryEntry(activeQuestion, nextFeedback, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "override", responseEnteredAtMs: Date.now() });
   }
@@ -1241,7 +1245,7 @@ export function GeneratorView() {
     if (existingAnswer === selectedLabel) return;
     const responseEnteredAtMs = Date.now();
     const awardedMarks = selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
-    setMcAnswersByQuestionId((prev: any) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
+    setMcAnswersByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: selectedLabel }));
     setMcAwardedMarksByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: awardedMarks }));
     setMcMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeMcQuestion.id]: String(awardedMarks) }));
     if (existingAnswer) {
@@ -1412,7 +1416,7 @@ export function GeneratorView() {
     try {
       const dataUrl = await fileToDataUrl(file);
       setErrorMessage(null);
-      setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: { name: file.name, dataUrl } }));
+      setImagesByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: { name: file.name, dataUrl } }));
       setWrittenResponseEnteredAtById((prev) => {
         if (prev[activeQuestion.id] !== undefined) return prev;
         return { ...prev, [activeQuestion.id]: Date.now() };
@@ -1434,7 +1438,7 @@ export function GeneratorView() {
 
   const handleImageRemove = useCallback(() => {
     if (!activeQuestion) return;
-    setImagesByQuestionId((prev: any) => ({ ...prev, [activeQuestion.id]: undefined }));
+    setImagesByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: undefined }));
   }, [activeQuestion, setImagesByQuestionId]);
 
   const handleAppealChange = useCallback((v: string) => {

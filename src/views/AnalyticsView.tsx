@@ -29,6 +29,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
 import { useAppStore } from "../store";
 import type { QuestionHistoryEntry, McHistoryEntry, GenerationRecord } from "../types";
+import type { CriterionWeakPointRow, SubtopicPerformanceRow, AttemptRow } from "./useAnalyticsData";
 
 // ─── Chart configs (Restored Vibrant Palette) ─────────────────────────────────
 
@@ -62,7 +63,7 @@ const responseLatencyChartConfig = {
   avgResponseSeconds: { label: "Avg response seconds", color: "hsl(220 83% 60%)" },
 } satisfies ChartConfig;
 
-const FOCUS_AREA_COLORS = [
+const FOCUS_AREA_COLORS: readonly string[] = [
   "hsl(158 64% 52%)",
   "hsl(220 83% 60%)",
   "hsl(34 100% 50%)",
@@ -73,7 +74,7 @@ const FOCUS_AREA_COLORS = [
   "hsl(120 50% 45%)",
   "hsl(0 70% 55%)",
   "hsl(30 90% 50%)",
-];
+] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -408,9 +409,9 @@ export function AnalyticsView() {
           <div className="space-y-4">
             <h3 className="text-xs font-light text-muted-foreground">Criterion Drop-offs</h3>
             {recentCriterionWeakPoints
-              .filter((row: any) => topicFilter === ALL_TOPICS || row.topic === topicFilter || row.topicSummary === topicFilter)
+              .filter((row: CriterionWeakPointRow) => topicFilter === ALL_TOPICS || row.topicSummary === topicFilter)
               .slice(0, 3)
-              .map((row: any) => (
+              .map((row: CriterionWeakPointRow) => (
                 <div key={row.criterion} className="flex flex-col gap-1 pb-4 border-b border-border/10 last:border-0">
                   <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50">{row.topicSummary || "Mixed"}</span>
                   <div className="text-sm font-light leading-relaxed"><MarkdownMath content={row.criterion} /></div>
@@ -478,9 +479,9 @@ export function AnalyticsView() {
           <div className="space-y-4 pt-4">
             <h3 className="text-xs font-light text-muted-foreground">Actionable Subtopics</h3>
             {displayedSubtopics
-              .filter((row: any) => topicFilter === ALL_TOPICS || row.topic === topicFilter)
+              .filter((row: SubtopicPerformanceRow) => topicFilter === ALL_TOPICS || row.topic === topicFilter)
               .slice(0, 4)
-              .map((row: any) => (
+              .map((row: SubtopicPerformanceRow) => (
                 <div key={row.key} className="flex justify-between items-center py-2 group">
                   <div className="flex flex-col">
                     <span className="text-sm font-light">{row.subtopic}</span>
@@ -508,7 +509,7 @@ export function AnalyticsView() {
             <ChartEmpty message="No written attempts to display." />
           ) : (
             <div className="flex flex-col gap-4">
-              {lowestScoringWritten.slice(0, 3).map((attempt: any) => {
+              {lowestScoringWritten.slice(0, 3).map((attempt: AttemptRow) => {
                 const scorePct = attempt.scorePercent ?? 0;
                 return (
                   <div key={attempt.id} className="flex flex-col gap-2 pb-4 border-b border-border/10 last:border-0">
