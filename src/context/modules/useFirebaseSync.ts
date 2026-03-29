@@ -104,6 +104,7 @@ function hasRemoteData(data: SyncableData | null): boolean {
     || (data.questionHistory?.length ?? 0) > 0
     || (data.mcHistory?.length ?? 0) > 0
     || (data.savedSets?.length ?? 0) > 0
+    || (data.presets?.length ?? 0) > 0
     || Boolean(data.studyGoals && Object.keys(data.studyGoals).length > 0);
 }
 
@@ -308,16 +309,18 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         qh: syncable.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
         mch: syncable.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
         ss: syncable.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        pr: syncable.presets?.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })) ?? [],
       });
 
       if (snapshot !== lastSyncedSnapshotRef.current) {
         // Count how many items differ
         let count = 0;
         try {
-          const lastParsed = JSON.parse(lastSyncedSnapshotRef.current || '{"qh":[],"mch":[],"ss":[]}');
+          const lastParsed = JSON.parse(lastSyncedSnapshotRef.current || '{"qh":[],"mch":[],"ss":[],"pr":[]}');
           const lastQhIds = new Set(lastParsed.qh.map((i: { id: string }) => i.id));
           const lastMcIds = new Set(lastParsed.mch.map((i: { id: string }) => i.id));
           const lastSsIds = new Set(lastParsed.ss.map((i: { id: string }) => i.id));
+          const lastPrIds = new Set((lastParsed.pr ?? []).map((i: { id: string }) => i.id));
           for (const q of syncable.questionHistory) {
             if (!lastQhIds.has(q.id)) count++;
           }
@@ -326,6 +329,9 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           }
           for (const q of syncable.savedSets) {
             if (!lastSsIds.has(q.id)) count++;
+          }
+          for (const q of (syncable.presets ?? [])) {
+            if (!lastPrIds.has(q.id)) count++;
           }
         } catch {
           count = -1; // unknown
@@ -483,6 +489,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           qh: merged.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
           mch: merged.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
           ss: merged.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+          pr: (merged.presets ?? []).map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
         });
 
         debugLog("Sync metadata initialized", {
@@ -532,6 +539,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           qh: localDataRef.current.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
           mch: localDataRef.current.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
           ss: localDataRef.current.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+          pr: (localDataRef.current.presets ?? []).map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
         });
       }
       isInitializedRef.current = true;
@@ -674,6 +682,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         qh: merged.questionHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
         mch: merged.mcHistory.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
         ss: merged.savedSets.map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
+        pr: (merged.presets ?? []).map(q => ({ id: q.id, lm: getItemLastModified(q as HasId) })),
       });
 
       setPendingChanges(0);

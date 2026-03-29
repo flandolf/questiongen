@@ -806,6 +806,49 @@ export function GeneratorView() {
     });
   }
 
+  function updateLatestMcHistoryEntryMark(questionId: string, awardedMarks: number) {
+    const now = Date.now();
+    setMcHistory((prev) => {
+      const idx = prev.findIndex((e: McHistoryEntry) => e.question.id === questionId);
+      if (idx === -1) return prev;
+      const entry = prev[idx];
+      const next = [...prev];
+      next[idx] = {
+        ...entry,
+        correct: awardedMarks >= 1,
+        awardedMarks,
+        lastModified: now,
+      };
+      return next;
+    });
+  }
+
+  function updateLatestWrittenHistoryEntry(questionId: string, response: ReturnType<typeof normalizeMarkResponse>) {
+    const now = Date.now();
+    setQuestionHistory((prev) => {
+      const idx = prev.findIndex((e: QuestionHistoryEntry) => e.question.id === questionId);
+      if (idx === -1) return prev;
+      const entry = prev[idx];
+      const next = [...prev];
+      next[idx] = {
+        ...entry,
+        markResponse: response,
+        workedSolutionMarkdown: response.workedSolutionMarkdown,
+        lastModified: now,
+        analytics: {
+          attemptSequence: entry.analytics?.attemptSequence ?? 0,
+          attemptKind: entry.analytics?.attemptKind ?? "initial",
+          answerCharacterCount: entry.analytics?.answerCharacterCount ?? 0,
+          answerWordCount: entry.analytics?.answerWordCount ?? 0,
+          usedImageUpload: entry.analytics?.usedImageUpload ?? false,
+          responseLatencyMs: entry.analytics?.responseLatencyMs,
+          markingLatencyMs: entry.analytics?.markingLatencyMs,
+        },
+      };
+      return next;
+    });
+  }
+
   function appendWrittenHistoryEntry(question: typeof activeQuestion, response: ReturnType<typeof normalizeMarkResponse>, options?: { uploadedAnswerOverride?: string; attemptKind?: WrittenAttemptKind; markingLatencyMs?: number; responseEnteredAtMs?: number }) {
     if (!question) return;
     const uploadedAnswer = options?.uploadedAnswerOverride ?? (answersByQuestionId[question.id] ?? "");
@@ -1212,7 +1255,7 @@ export function GeneratorView() {
     setErrorMessage(null);
     setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: updated }));
     setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(clamped) }));
-    appendWrittenHistoryEntry(activeQuestion, updated, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "override", responseEnteredAtMs: Date.now() });
+    updateLatestWrittenHistoryEntry(activeQuestion.id, updated);
   }
 
   function handleOverrideCriterion(idx: number, achievedMarks: number, rationale: string) {
@@ -1230,7 +1273,7 @@ export function GeneratorView() {
     };
     setFeedbackByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: nextFeedback }));
     setMarkOverrideInputByQuestionId((prev) => ({ ...prev, [activeQuestion.id]: String(nextFeedback.achievedMarks) }));
-    appendWrittenHistoryEntry(activeQuestion, nextFeedback, { uploadedAnswerOverride: activeQuestionAnswer, attemptKind: "override", responseEnteredAtMs: Date.now() });
+    updateLatestWrittenHistoryEntry(activeQuestion.id, nextFeedback);
   }
 
   // ── MC answer / appeal / override ────────────────────────────────────────────
@@ -1300,7 +1343,7 @@ export function GeneratorView() {
       updated[activeMcQuestionIndex] = { ...updated[activeMcQuestionIndex], correctAnswer: activeMcAnswer };
       setMcQuestions(updated);
     }
-    appendMcHistoryEntry(activeMcQuestion, activeMcAnswer, clamped, "override", Date.now());
+    updateLatestMcHistoryEntryMark(activeMcQuestion.id, clamped);
   }
 
   // ── Start over ───────────────────────────────────────────────────────────────
