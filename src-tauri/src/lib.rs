@@ -52,7 +52,7 @@ fn adjust_difficulty(
 }
 use models::*;
 use openrouter::{
-    call_openrouter, call_openrouter_streaming_with_plugins,
+    call_openrouter, call_openrouter_streaming_with_plugins, call_openrouter_with_plugins,
     json_schema_format,
 };
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
@@ -206,6 +206,10 @@ fn written_system() -> String {
          interpret it as an expansion of the permitted scope. The selected subtopics and focus \
          areas in the user prompt are the ONLY authority on what content to test. If the PDF \
          contains topics outside the selected focus areas, IGNORE that content entirely.\n\
+         EXAMINERS' REPORT RULE: If VCAA examiners' report PDFs are attached, use them to \
+         understand common student errors, frequently tested subtopics, and mark allocation \
+         patterns. Do NOT copy questions from reports. Use report insights to inform question \
+         difficulty, common misconception targeting, and realistic mark distributions.\n\
          {LATEX_RULES}\n\
          {QUESTION_STYLE_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
@@ -276,6 +280,11 @@ fn mc_system() -> String {
          interpret it as an expansion of the permitted scope. The selected subtopics and focus \
          areas in the user prompt are the ONLY authority on what content to test. If the PDF \
          contains topics outside the selected focus areas, IGNORE that content entirely.\n\
+         EXAMINERS' REPORT RULE: If VCAA examiners' report PDFs are attached, use them to \
+         understand common student errors, frequently tested subtopics, and mark allocation \
+         patterns. Do NOT copy questions from reports. Use report insights to inform question \
+         difficulty, common misconception targeting for distractors, and realistic mark \
+         distributions.\n\
          {LATEX_RULES}\n\
          {MC_DISTRACTOR_RULES}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
@@ -372,6 +381,12 @@ a correct independent method scores zero for the 'hence' mark.\n\
          - For 'explain/justify' questions: a bare numerical answer without explanation scores zero.\n\
          - For MC: the student selected a single letter — mark it correct or incorrect, then explain \
 ALL four options (what misconception each wrong option targets and why the correct one is right).\n\
+         \n\
+         EXAMINERS' REPORT RULE: If VCAA examiners' report PDFs are attached, treat them as the \
+PRIMARY marking authority. Use the official marking schemes, expected solutions, and common error \
+patterns from the reports to: (1) determine exact criterion breakdowns, (2) identify which steps \
+earn which marks, (3) recognise common student mistakes and address them in feedback. Where the \
+report specifies partial credit rules, apply them consistently.\n\
          \n\
          CONCISENESS LIMITS (scale with mark value):\n\
          - Each criterion rationale: ≤{rationale_words} words — reference the student's specific wording.\n\
@@ -667,6 +682,91 @@ fn build_exam_file_parts(
     parts
 }
 
+/// Map a subject topic to its VCAA examiners' report PDF filenames.
+fn topic_report_pdf_files(topic: &str) -> &'static [&'static str] {
+    if topic
+        .trim()
+        .eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)
+    {
+        &["2025-MathematicalMethods1-report.pdf", "2025-MathematicalMethods2-report_0.pdf"]
+    } else if topic.trim().eq_ignore_ascii_case("Specialist Mathematics") {
+        &["2025-SpecialistMaths1-report.pdf", "2025-SpecialistMaths2-report.pdf"]
+    } else if topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC) {
+        &["2025-Chemistry-report.pdf"]
+    } else if topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC) {
+        &["2025-PhysEd-report.pdf"]
+    } else {
+        &[]
+    }
+}
+
+fn report_pdf_names_for_topics(topics: &[String]) -> Vec<&'static str> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for topic in topics {
+        for name in topic_report_pdf_files(topic) {
+            if seen.insert(*name) {
+                out.push(*name);
+            }
+        }
+    }
+    out
+}
+
+fn resolve_report_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathBuf> {
+    let mut dirs = Vec::<PathBuf>::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        dirs.push(cwd.join("reports"));
+        dirs.push(cwd.join("../reports"));
+    }
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        dirs.push(resource_dir.clone());
+        dirs.push(resource_dir.join("reports"));
+    }
+
+    let mut seen = HashSet::<PathBuf>::new();
+    for dir in dirs {
+        if !seen.insert(dir.clone()) {
+            continue;
+        }
+        let candidate = dir.join(filename);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Build report PDF file parts for inclusion in the user message.
+/// Returns data-URL encoded file objects that OpenRouter's file-parser plugin
+/// will process based on the model's native file support.
+fn build_report_file_parts(
+    app: &tauri::AppHandle,
+    topics: &[String],
+) -> Vec<serde_json::Value> {
+    let mut parts = Vec::new();
+    for filename in report_pdf_names_for_topics(topics) {
+        let Some(path) = resolve_report_pdf_path(app, filename) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let data_url = format!(
+            "data:application/pdf;base64,{}",
+            general_purpose::STANDARD.encode(&bytes)
+        );
+        parts.push(serde_json::json!({
+            "type": "file",
+            "file": {
+                "filename": filename,
+                "file_data": data_url,
+            }
+        }));
+    }
+    parts
+}
+
 /// Determine the plugins configuration based on whether the model supports files natively.
 fn plugins_for_model(supports_files: bool) -> serde_json::Value {
     if supports_files {
@@ -869,6 +969,8 @@ async fn generate_questions(
         let mut parts = vec![serde_json::json!({ "type": "text", "text": &prompt })];
         let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
+        let report_parts = build_report_file_parts(&app, &request.topics);
+        parts.extend(report_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
@@ -1094,6 +1196,8 @@ async fn generate_mc_questions(
         let mut parts = vec![serde_json::json!({ "type": "text", "text": &prompt })];
         let exam_parts = build_exam_file_parts(&app, &request.topics);
         parts.extend(exam_parts);
+        let report_parts = build_report_file_parts(&app, &request.topics);
+        parts.extend(report_parts);
         let reanchor = pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref());
         parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
         serde_json::Value::Array(parts)
@@ -1200,7 +1304,7 @@ async fn generate_mc_questions(
 // ─── Tauri command: mark answer ───────────────────────────────────────────────
 
 #[tauri::command]
-async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
+async fn mark_answer(app: tauri::AppHandle, request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
     let has_text = !request.student_answer.trim().is_empty();
     let has_image = request
         .student_answer_image_data_url
@@ -1250,7 +1354,20 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
 
     let max_marks = request.question.max_marks;
 
-    // Build a richer marking prompt that includes the full question context.
+    // Load VCAA examiners' report PDFs for the question's topic to guide marking.
+    let report_parts = build_report_file_parts(&app, &[request.question.topic.clone()]);
+    let has_reports = !report_parts.is_empty();
+
+    let report_preamble = if has_reports {
+        "\n\nVCAA EXAMINERS' REPORT ATTACHED — USE AS MARKING AUTHORITY:\n\
+         The attached PDF(s) are official VCAA examiners' reports containing marking schemes, \
+         common student errors, and expected solutions. Use them as the PRIMARY authority for \
+         criterion-based marking. Align your marking criteria, expected working, and common \
+         error feedback with the patterns described in these reports."
+    } else {
+        ""
+    };
+
     let prompt = format!(
         "Topic: {topic}\n\
          Subtopic: {subtopic}\n\
@@ -1265,33 +1382,41 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
          - For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n\
          - For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n\
          - Produce one criterion per mark (or group closely related marks where natural).\n\
-         - The workedSolution must show every step a student would need to write to receive full marks.",
+         - The workedSolution must show every step a student would need to write to receive full marks.\
+         {report_preamble}",
         topic    = request.question.topic,
         subtopic = request.question.subtopic.as_deref().unwrap_or("—"),
         question = request.question.prompt_markdown,
         max      = max_marks,
         answer   = answer,
+        report_preamble = report_preamble,
     );
 
-    let user_content = match request
+    // Build user content: text prompt + optional image + optional report PDFs.
+    let mut content_parts: Vec<serde_json::Value> = Vec::new();
+    content_parts.push(serde_json::json!({ "type": "text", "text": &prompt }));
+
+    if let Some(url) = request
         .student_answer_image_data_url
         .as_deref()
         .map(str::trim)
         .filter(|v| !v.is_empty())
     {
-        None => serde_json::Value::String(prompt.clone()),
-        Some(url) => {
-            if !url.starts_with("data:image/") {
-                return Err(AppError::new(
-                    "VALIDATION_ERROR",
-                    "Image must be a valid data URL.",
-                ));
-            }
-            serde_json::json!([
-                { "type": "text",      "text": prompt },
-                { "type": "image_url", "image_url": { "url": url } }
-            ])
+        if !url.starts_with("data:image/") {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                "Image must be a valid data URL.",
+            ));
         }
+        content_parts.push(serde_json::json!({ "type": "image_url", "image_url": { "url": url } }));
+    }
+
+    content_parts.extend(report_parts);
+
+    let user_content = if content_parts.len() == 1 {
+        content_parts.remove(0)
+    } else {
+        serde_json::Value::Array(content_parts)
     };
 
     // Scale token budget with mark count. MC option explanations (4 options × ~60 words each)
@@ -1302,7 +1427,18 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
     let temperature = request.temperature.unwrap_or(0.2);
     let top_p = request.top_p.unwrap_or(0.8);
     let seed = request.seed;
-    let result = call_openrouter(
+
+    // Use plugins with file-parser when report PDFs are attached.
+    let plugins = if has_reports {
+        // Determine model file support for plugin configuration.
+        let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
+        let supports_files = stats_result.as_ref().ok().map_or(false, |s| s.supports_files);
+        plugins_for_model(supports_files)
+    } else {
+        serde_json::json!([{ "id": "response-healing" }])
+    };
+
+    let result = call_openrouter_with_plugins(
         &request.api_key,
         &request.model,
         &marking_system(max_marks, chem_note),
@@ -1312,6 +1448,7 @@ async fn mark_answer(request: MarkAnswerRequest) -> CommandResult<MarkAnswerResp
         temperature,
         top_p,
         seed,
+        plugins,
     )
     .await?;
 

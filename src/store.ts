@@ -80,6 +80,7 @@ export interface AppState {
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
   questionTextSize: number;
+  responseTextSize: number;
   includeExamContext: boolean;
 
   // ── Preferences ────────────────────────────────────────────────────────────
@@ -171,6 +172,7 @@ export interface AppActions {
   setDebugMode: (enabled: boolean) => void;
   clearApiKey: () => void;
   setQuestionTextSize: (size: number) => void;
+  setResponseTextSize: (size: number) => void;
   setIncludeExamContext: (enabled: boolean) => void;
 
   // Preferences
@@ -310,6 +312,7 @@ const defaultState: AppState = {
   useSeparateImageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
+  responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
   includeExamContext: EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
 
   // Preferences
@@ -419,6 +422,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         useSeparateImageMarkingModel: Boolean(s.settings.useSeparateImageMarkingModel),
         debugMode: s.settings.debugMode,
         questionTextSize: typeof s.settings.questionTextSize === "number" ? s.settings.questionTextSize : 16,
+        responseTextSize: typeof s.settings.responseTextSize === "number" ? s.settings.responseTextSize : 16,
         includeExamContext: Boolean(s.settings.includeExamContext),
 
         // Preferences
@@ -507,6 +511,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({ useSeparateImageMarkingModel }),
   setDebugMode: (debugMode) => set({ debugMode }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
+  setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
   clearApiKey: () => set({ apiKey: "" }),
 
@@ -907,6 +912,7 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
       useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
       debugMode: s.debugMode,
       questionTextSize: s.questionTextSize,
+      responseTextSize: s.responseTextSize,
       includeExamContext: s.includeExamContext,
     },
     preferences: {

@@ -469,6 +469,7 @@ export type PersistedSettings = {
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
   questionTextSize?: number;
+  responseTextSize?: number;
   includeExamContext?: boolean;
 };
 

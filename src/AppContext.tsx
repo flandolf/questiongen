@@ -100,6 +100,8 @@ export function useAppContext() {
       setDebugMode: s.setDebugMode,
       questionTextSize: s.questionTextSize,
       setQuestionTextSize: s.setQuestionTextSize,
+      responseTextSize: s.responseTextSize,
+      setResponseTextSize: s.setResponseTextSize,
       questionMode: s.questionMode,
       setQuestionMode: s.setQuestionMode,
       generationMode: s.generationMode,
@@ -247,6 +249,8 @@ export function useAppSettings() {
       clearApiKey: s.clearApiKey,
       questionTextSize: s.questionTextSize,
       setQuestionTextSize: s.setQuestionTextSize,
+      responseTextSize: s.responseTextSize,
+      setResponseTextSize: s.setResponseTextSize,
       includeExamContext: s.includeExamContext,
       setIncludeExamContext: s.setIncludeExamContext,
     }))

@@ -46,6 +46,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   useSeparateImageMarkingModel: false,
   debugMode: false,
   questionTextSize: 16,
+  responseTextSize: 16,
   includeExamContext: true,
 };
 
@@ -248,6 +249,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
     useSeparateImageMarkingModel: Boolean(data.useSeparateImageMarkingModel),
     debugMode: Boolean(data.debugMode),
     questionTextSize: clampWholeNumber(data.questionTextSize, DEFAULT_SETTINGS.questionTextSize ?? 16, 12, 28),
+    responseTextSize: clampWholeNumber(data.responseTextSize, DEFAULT_SETTINGS.responseTextSize ?? 16, 12, 28),
     includeExamContext: data.includeExamContext !== undefined ? Boolean(data.includeExamContext) : DEFAULT_SETTINGS.includeExamContext,
   };
 }

@@ -4,7 +4,7 @@ import { useAppSettings } from "../../../AppContext";
 import { SectionHeader, FieldGroup, Card } from "../SettingsUI";
 
 export function AppearanceSection() {
-  const { questionTextSize, setQuestionTextSize } = useAppSettings();
+  const { questionTextSize, setQuestionTextSize, responseTextSize, setResponseTextSize } = useAppSettings();
 
   return (
     <div className="space-y-6">
@@ -33,6 +33,26 @@ export function AppearanceSection() {
           </div>
           <div className="p-3 rounded border border-border bg-muted/10 text-sm" style={{ fontSize: `${questionTextSize}px` }}>
             The quick brown fox jumps over the lazy dog — question preview.
+          </div>
+        </div>
+      </FieldGroup>
+      <FieldGroup label="Response text size" htmlFor="response-text-size" hint="Adjust the font size used for AI response and feedback text.">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <Slider
+                id="response-text-size"
+                min={12}
+                max={28}
+                step={1}
+                value={[responseTextSize]}
+                onValueChange={(v) => setResponseTextSize(v[0])}
+              />
+            </div>
+            <div className="w-14 text-right text-sm text-muted-foreground">{responseTextSize}px</div>
+          </div>
+          <div className="p-3 rounded border border-border bg-muted/10 text-sm" style={{ fontSize: `${responseTextSize}px` }}>
+            The quick brown fox jumps over the lazy dog — response preview.
           </div>
         </div>
       </FieldGroup>
