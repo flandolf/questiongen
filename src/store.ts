@@ -46,6 +46,7 @@ import {
   savePersistedAppState,
 } from './lib/persistence';
 import { createCard, reviewCard, isDue } from './lib/spaced-repetition';
+import { getTodayKey } from './lib/utils';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -966,7 +967,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   },
 
   recordCompletion: (mode) => {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = getTodayKey(); // YYYY-MM-DD (local time)
     set((s) => {
       const todayData = s.streakData.dailyCompletions[today] ?? {
         total: 0,
@@ -982,7 +983,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       // Calculate streak
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayKey = yesterday.toISOString().slice(0, 10);
+      const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
       const hadYesterday =
         s.streakData.dailyCompletions[yesterdayKey]?.total > 0;
       const hadToday = todayData.total > 0;
@@ -1009,7 +1010,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   },
 
   getTodayCompletions: () => {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = getTodayKey(); // YYYY-MM-DD (local time)
     return (
       get().streakData.dailyCompletions[today] ?? {
         total: 0,

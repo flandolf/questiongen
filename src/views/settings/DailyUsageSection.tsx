@@ -1,13 +1,9 @@
 import { useMemo } from 'react';
 import { Card, EmptyState } from './SettingsUI';
-import { cn } from '@/lib/utils';
+import { cn, getDayKey } from '@/lib/utils';
 import { TrendingUp, DollarSign, BarChart2, Calendar } from 'lucide-react';
 import { fmt } from './formatters';
 import { useWrittenSession, useMultipleChoiceSession } from '../../AppContext';
-
-function getDayKey(isoString: string): string {
-  return isoString.slice(0, 10);
-}
 
 function computeDailyUsage(
   questionHistory: ReturnType<typeof useWrittenSession>['questionHistory'],

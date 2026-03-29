@@ -46,6 +46,7 @@ import type {
   AttemptRow,
 } from './useAnalyticsData';
 import { PageHeader } from '@/components/layout/primitives';
+import { getDayKey } from '@/lib/utils';
 
 // ─── Chart configs (Restored Vibrant Palette) ─────────────────────────────────
 
@@ -207,10 +208,6 @@ function Kpi({
 }
 
 // ─── Daily usage helpers ──────────────────────────────────────────────────────
-
-function getDayKey(isoString: string): string {
-  return isoString.slice(0, 10);
-}
 
 function formatCostShort(v: number) {
   if (v === 0) return '$0';

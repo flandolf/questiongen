@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase-init';
 import { SUBTOPIC_INSTRUCTIONS, type Preset } from '@/types';
+import { getDayKey } from '@/lib/utils';
 
 export interface SyncableData {
   settings: Record<string, unknown>;
@@ -1460,11 +1461,6 @@ export interface DailyUsageRecord {
   estimatedCostUsd: number;
   generationCount: number;
   questionCount: number;
-}
-
-function getDayKey(date: string | number): string {
-  const d = new Date(date);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export async function saveDailyUsage(
