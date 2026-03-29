@@ -233,6 +233,7 @@ export function GeneratorView() {
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
   const [pendingCancelType, setPendingCancelType] = useState<null | "written" | "mc">(null);
   const [isSubmittingExam, setIsSubmittingExam] = useState(false);
+  const [examSubmitted, setExamSubmitted] = useState(false);
 
   const [streamText, setStreamText] = useState("");
 
@@ -337,12 +338,12 @@ export function GeneratorView() {
 
   const isWrittenSetComplete = questionMode === "written" && questions.length > 0 && (
     generationMode === "exam"
-      ? showCompletionScreen // In exam mode, set is "complete" when exam is submitted
+      ? examSubmitted // In exam mode, set is "complete" once submitted (persists across Review)
       : completedCount === questions.length
   );
   const isMcSetComplete = questionMode === "multiple-choice" && mcQuestions.length > 0 && (
     generationMode === "exam"
-      ? showCompletionScreen
+      ? examSubmitted
       : mcCompletedCount === mcQuestions.length
   );
   const isSetComplete = isWrittenSetComplete || isMcSetComplete;
@@ -404,14 +405,19 @@ export function GeneratorView() {
   }, [remainingSeconds]);
 
   // Exam mode: auto-submit when time runs out
+  // Uses a ref to prevent re-triggering when the user clicks "Review" to go back
+  // to the question view after an auto-submit (showCompletionScreen→false would
+  // re-run this effect with remainingSeconds still 0).
+  const examAutoSubmittedRef = useRef(false);
   useEffect(() => {
-    if (generationMode !== "exam") return;
+    if (generationMode !== "exam") { examAutoSubmittedRef.current = false; return; }
     if (!activeTimer.sessionElapsedSeconds && activeTimer.sessionElapsedSeconds !== 0) return;
-    if (showCompletionScreen || isSetComplete) return;
-    if (activeTimer.sessionRemainingSeconds > 0) return;
+    if (activeTimer.sessionRemainingSeconds > 0) { examAutoSubmittedRef.current = false; return; }
+    if (examAutoSubmittedRef.current) return;
     // Time's up — force-submit the exam (marks all answers)
+    examAutoSubmittedRef.current = true;
     handleSubmitExam();
-  }, [generationMode, activeTimer.sessionRemainingSeconds, isSetComplete, showCompletionScreen]);
+  }, [generationMode, activeTimer.sessionRemainingSeconds]);
 
   // --- Timer bar context (for header display) ---
   const { setTimerBarData } = useTimerBar();
@@ -474,7 +480,7 @@ export function GeneratorView() {
   useEffect(() => {
     if (showCompletionScreen) setHasShownCompletionScreen(true);
   }, [showCompletionScreen]);
-  useEffect(() => { setExamRecordSaved(false); }, [completionSetKey, generationMode]);
+  useEffect(() => { setExamRecordSaved(false); setExamSubmitted(false); }, [completionSetKey, generationMode]);
 
   // ── Timer actions ─────────────────────────────────────────────────────────────
   function startStopwatch() {
@@ -605,6 +611,7 @@ export function GeneratorView() {
     if (generationMode !== "exam") return;
     setIsSubmittingExam(true);
     setErrorMessage(null);
+    setExamSubmitted(true);
 
     try {
       if (questionMode === "written") {
@@ -1450,6 +1457,7 @@ export function GeneratorView() {
     setActiveMcQuestionIndex(0); setActiveMcSavedSetId(null); setMcQuestionPresentedAtById({});
     setMcAnswersByQuestionId({}); setMcMarkAppealByQuestionId({}); setMcMarkOverrideInputByQuestionId({}); setMcAwardedMarksByQuestionId({});
     setExamRecordSaved(false);
+    setExamSubmitted(false);
     setWrittenTimerState(null);
     setMcTimerState(null);
   }, [questionMode, questions.length, mcQuestions.length, activeWrittenSavedSetId, activeMcSavedSetId, saveCurrentSet]);

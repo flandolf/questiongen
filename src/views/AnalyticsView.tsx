@@ -2,14 +2,21 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  Legend,
   Line,
   LineChart,
   Pie,
   PieChart,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  Sector,
   XAxis,
   YAxis,
 } from "recharts";
+import type { PieSectorShapeProps } from "recharts";
 import { Clock3, Type, PlusCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -25,11 +32,12 @@ import { MarkdownMath } from "../components/MarkdownMath";
 import { formatDurationMs, formatPercent } from "../lib/app-utils";
 import { useAnalyticsData, ALL_TOPICS } from "./useAnalyticsData";
 import { useNavigate } from "react-router-dom";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useWrittenSession, useMultipleChoiceSession } from "../AppContext";
 import { useAppStore } from "../store";
 import type { QuestionHistoryEntry, McHistoryEntry, GenerationRecord } from "../types";
 import type { CriterionWeakPointRow, SubtopicPerformanceRow, AttemptRow } from "./useAnalyticsData";
+import { PageHeader } from "@/components/layout/primitives";
 
 // ─── Chart configs (Restored Vibrant Palette) ─────────────────────────────────
 
@@ -52,15 +60,12 @@ const effortChartConfig = {
   avgScorePercent: { label: "Average score", color: "hsl(220 83% 60%)" },
 } satisfies ChartConfig;
 
-const attemptTypeChartConfig = {
-  value: { label: "Attempts", color: "hsl(220 83% 60%)" },
-  initial: { label: "Initial", color: "hsl(158 64% 52%)" },
-  appeal: { label: "Appeal", color: "hsl(34 100% 50% / 0.7)" },
-  override: { label: "Override", color: "hsl(340 82% 52% / 0.7)" },
-} satisfies ChartConfig;
-
 const responseLatencyChartConfig = {
   avgResponseSeconds: { label: "Avg response seconds", color: "hsl(220 83% 60%)" },
+} satisfies ChartConfig;
+
+const subjectSpreadChartConfig = {
+  count: { label: "Attempts", color: "hsl(158 64% 52%)" },
 } satisfies ChartConfig;
 
 const FOCUS_AREA_COLORS: readonly string[] = [
@@ -76,29 +81,44 @@ const FOCUS_AREA_COLORS: readonly string[] = [
   "hsl(30 90% 50%)",
 ] as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Custom Pie Shape ─────────────────────────────────────────────────────────
+
+function CustomPieShape(props: PieSectorShapeProps) {
+  return <Sector {...props} fill={props.fill ?? FOCUS_AREA_COLORS[(props.index ?? 0) % FOCUS_AREA_COLORS.length]} />;
+}
+
+// ─── Helpers & UI Wrappers ────────────────────────────────────────────────────
+
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeading({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="mb-4">
+      <h2 className="text-lg font-medium tracking-tight text-foreground">{title}</h2>
+      {description && <p className="text-sm font-light text-muted-foreground">{description}</p>}
+    </div>
+  );
+}
+
+function ChartEmpty({ message }: { message: string }) {
+  return (
+    <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border/50 text-sm text-muted-foreground/60 font-light">
+      {message}
+    </div>
+  );
+}
 
 function accuracyColor(pct: number | undefined): string {
   if (pct === undefined) return "text-muted-foreground";
   if (pct >= 75) return "text-emerald-500";
   if (pct >= 50) return "text-amber-500";
   return "text-rose-500";
-}
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-lg font-light tracking-tight text-foreground mb-4">
-      {children}
-    </h2>
-  );
-}
-
-function ChartEmpty({ message }: { message: string }) {
-  return (
-    <div className="flex h-32 items-center justify-center text-xs text-muted-foreground/50 font-light">
-      {message}
-    </div>
-  );
 }
 
 function Kpi({
@@ -122,18 +142,18 @@ function Kpi({
   }[accent ?? "default"];
 
   return (
-    <div className="flex flex-col space-y-1">
-      <span className="text-xs font-light text-muted-foreground">{label}</span>
+    <Card className="flex flex-col p-6 space-y-2">
+      <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <div className="flex items-baseline gap-2">
         <span className={`text-3xl font-light tracking-tighter ${valueColor}`}>{value}</span>
         {delta !== null && delta !== undefined && (
-          <span className="text-xs font-light text-muted-foreground">
+          <span className={`text-xs font-medium ${delta > 0 ? "text-emerald-500" : "text-rose-500"}`}>
             {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
           </span>
         )}
       </div>
-      <span className="text-[10px] font-light text-muted-foreground/60 truncate">{detail}</span>
-    </div>
+      <span className="text-xs font-light text-muted-foreground/70 truncate">{detail}</span>
+    </Card>
   );
 }
 
@@ -217,7 +237,6 @@ export function AnalyticsView() {
     displayedSubtopics,
     writtenMarksDistribution,
     writtenEffortDistribution,
-    writtenAttemptTypeData,
     recentCriterionWeakPoints,
     mcTopicAccuracy,
     mcResponseLatency,
@@ -266,6 +285,16 @@ export function AnalyticsView() {
       .sort((a, b) => b.value - a.value);
   }, [allAttempts, subjectFilter]);
 
+  const subjectSpreadData = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const attempt of allAttempts) {
+      counts.set(attempt.topic, (counts.get(attempt.topic) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([subject, count]) => ({ subject, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [allAttempts]);
+
   const firstAttemptPct = summary.firstAttemptAccuracy;
   const overallPct = summary.overallAccuracy;
   const writtenPct = summary.writtenAverageScore;
@@ -281,7 +310,7 @@ export function AnalyticsView() {
 
   if (!hasAnyAttempts) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-8">
+      <div className="flex h-full w-full items-center justify-center p-8 bg-background">
         <EmptyState
           title="Blank canvas."
           description="Complete sessions to populate analytics."
@@ -291,318 +320,349 @@ export function AnalyticsView() {
     );
   }
 
-  const kpiRef = useRef<HTMLDivElement>(null);
-  const [kpiHeight, setKpiHeight] = useState<number>(0);
-
-  useEffect(() => {
-    if (!kpiRef.current) return;
-    const ro = new ResizeObserver(([entry]) => setKpiHeight(entry.contentRect.height));
-    ro.observe(kpiRef.current);
-    return () => ro.disconnect();
-  }, []);
-
   return (
-    <div className="min-h-full px-6 pt-6 pb-10 space-y-16">
+    <div className="min-h-full px-6 pt-6 pb-12 space-y-4 bg-background">
 
-      {/* ── Dashboard Header & KPIs ── */}
-      <section className="flex flex-col lg:flex-row gap-12">
-        <div ref={kpiRef} className="lg:w-1/4 space-y-8">
-          <div>
-            <h1 className="text-3xl font-light tracking-tight">Analytics</h1>
-            <p className="text-xs text-muted-foreground mt-1 font-light">{allAttempts.length} total attempts</p>
-          </div>
+      <PageHeader title="Analytics" description="In-depth performance insights and trends." />
 
-          <div className="flex flex-col gap-6">
-            <Kpi label="Overall Accuracy" value={formatPercent(overallPct)} detail={`${summary.totalCorrect} / ${summary.totalAttempts}`} accent={toAccent(overallPct)} delta={overallDelta} />
-            <Kpi label="First Attempt" value={formatPercent(firstAttemptPct)} detail={`${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal}`} accent={toAccent(firstAttemptPct)} delta={firstAttemptDelta} />
-            <Kpi label="Written Average" value={formatPercent(writtenPct)} detail={`${summary.writtenAttempts} attempts`} accent={toAccent(writtenPct)} delta={writtenDelta} />
-            <Kpi label="Multiple Choice" value={formatPercent(mcPct)} detail={`${summary.mcCorrect} / ${summary.mcAttempts}`} accent={toAccent(mcPct)} delta={mcDelta} />
-          </div>
-        </div>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Kpi label="Overall Accuracy" value={formatPercent(overallPct)} detail={`${summary.totalCorrect} / ${summary.totalAttempts}`} accent={toAccent(overallPct)} delta={overallDelta} />
+        <Kpi label="First Attempt" value={formatPercent(firstAttemptPct)} detail={`${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal}`} accent={toAccent(firstAttemptPct)} delta={firstAttemptDelta} />
+        <Kpi label="Written Average" value={formatPercent(writtenPct)} detail={`${summary.writtenAttempts} attempts`} accent={toAccent(writtenPct)} delta={writtenDelta} />
+        <Kpi label="Multiple Choice" value={formatPercent(mcPct)} detail={`${summary.mcCorrect} / ${summary.mcAttempts}`} accent={toAccent(mcPct)} delta={mcDelta} />
+      </div>
 
-{/* ── Main Trend Chart ── */}
-        <div className="lg:flex-1" style={{ height: kpiHeight || 300, overflow: 'hidden' }}>
-          <ChartContainer config={trendChartConfig} className="w-full" style={{ height: kpiHeight || 300 }}>
-            <LineChart data={trendData} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} horizontal={true} strokeDasharray="3 3" opacity={0.05} />
-              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} dy={10} />
-              <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} dx={-10} />
+      {/* Main Trend Chart */}
+      <Card className="p-6">
+        <SectionHeading title="Performance Trends" description="Accuracy progression over recent attempts." />
+        <div className="h-[350px] mt-4">
+          <ChartContainer config={trendChartConfig} className="h-full w-full">
+            <LineChart data={trendData} margin={{ left: -20, right: 10, top: 10, bottom: 0 }}>
+              <CartesianGrid vertical={false} horizontal={true} strokeDasharray="3 3" opacity={0.1} />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} dy={10} />
+              <YAxis tickLine={false} axisLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
               <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-              <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-4" />
-              <Line type="monotone" dataKey="firstAttemptAccuracy" stroke="var(--color-firstAttemptAccuracy)" strokeWidth={2} dot={false} connectNulls />
-              <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+              <ChartLegend content={<ChartLegendContent payload={undefined} />} className="pt-6" />
+              <Line type="monotone" dataKey="firstAttemptAccuracy" stroke="var(--color-firstAttemptAccuracy)" strokeWidth={3} dot={false} connectNulls />
+              <Line type="monotone" dataKey="overallAccuracy" stroke="var(--color-overallAccuracy)" strokeWidth={2} strokeDasharray="4 4" dot={false} />
             </LineChart>
           </ChartContainer>
         </div>
-      </section>
+      </Card>
 
-      {/* ── Daily Usage ── */}
+      {/* Daily Usage - Only show if data exists */}
       {dailyStats.totalDays > 0 && (
-        <section className="space-y-6">
-          <SectionHeading>Daily Usage</SectionHeading>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <Kpi label="Avg questions / day" value={dailyStats.avgQuestions.toFixed(1)} detail={`over ${dailyStats.totalDays} active days`} />
-            <Kpi label="Avg tokens / day" value={formatTokensShort(Math.round(dailyStats.avgTokens))} detail={`${formatTokensShort(dailyStats.sorted.reduce((s, d) => s + d.tokens, 0))} total`} />
-            <Kpi label="Avg cost / day" value={dailyStats.avgCost === 0 ? "—" : formatCostShort(dailyStats.avgCost)} detail={`${formatCostShort(dailyStats.sorted.reduce((s, d) => s + d.cost, 0))} total`} />
+        <Card className="p-6">
+          <SectionHeading title="System Usage" description="Token and cost metrics over active days." />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">Avg questions / day</span>
+              <span className="text-2xl font-light">{dailyStats.avgQuestions.toFixed(1)}</span>
+              <span className="text-xs text-muted-foreground/60">over {dailyStats.totalDays} active days</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">Avg tokens / day</span>
+              <span className="text-2xl font-light">{formatTokensShort(Math.round(dailyStats.avgTokens))}</span>
+              <span className="text-xs text-muted-foreground/60">{formatTokensShort(dailyStats.sorted.reduce((s, d) => s + d.tokens, 0))} total</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-muted-foreground">Avg cost / day</span>
+              <span className="text-2xl font-light">{dailyStats.avgCost === 0 ? "—" : formatCostShort(dailyStats.avgCost)}</span>
+              <span className="text-xs text-muted-foreground/60">{formatCostShort(dailyStats.sorted.reduce((s, d) => s + d.cost, 0))} total</span>
+            </div>
           </div>
-        </section>
+        </Card>
       )}
 
-      {/* ── Deep Dive ── */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+      {/* Two Column Layout for Deep Dives */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Written Focus */}
-        <div className="space-y-8">
-          <SectionHeading>Written Insights</SectionHeading>
+        {/* Left Column: Written Insights */}
+        <div className="flex flex-col gap-6">
+          <Card className="p-6">
+            <SectionHeading title="Written Insights" description="Distribution of marks and effort." />
 
-          {/* Marks distribution */}
-          <div>
-            <h3 className="text-xs font-light text-muted-foreground mb-3">Score Distribution</h3>
-            <div className="h-40">
-              <ChartContainer config={marksChartConfig} className="w-full h-full">
-                <BarChart data={writtenMarksDistribution} margin={{ top: 0, bottom: 0, left: 0, right: 0 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.05} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="attempts" fill="var(--color-attempts)" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </div>
-
-          {/* Effort distribution */}
-          <div>
-            <h3 className="text-xs font-light text-muted-foreground mb-3">Effort vs Score</h3>
-            <div className="h-40">
-              <ChartContainer config={effortChartConfig} className="w-full h-full">
-                <BarChart data={writtenEffortDistribution} margin={{ top: 0, bottom: 0, left: 0, right: 0 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.05} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                  <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} dx={-4} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="avgScorePercent" fill="var(--color-avgScorePercent)" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </div>
-
-          {/* Attempt types */}
-          <div>
-            <h3 className="text-xs font-light text-muted-foreground mb-3">Attempt Types</h3>
-            <div className="h-40">
-              <ChartContainer config={attemptTypeChartConfig} className="w-full h-full">
-                <BarChart data={writtenAttemptTypeData} margin={{ top: 0, bottom: 0, left: 0, right: 0 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.05} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} dx={-4} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="initial" stackId="a" fill="var(--color-initial)" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="appeal" stackId="a" fill="var(--color-appeal)" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="override" stackId="a" fill="var(--color-override)" radius={[2, 2, 0, 0]} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </div>
-
-          {/* Criterion drop-offs — filtered by topicFilter */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-light text-muted-foreground">Criterion Drop-offs</h3>
-            {recentCriterionWeakPoints
-              .filter((row: CriterionWeakPointRow) => topicFilter === ALL_TOPICS || row.topicSummary === topicFilter)
-              .slice(0, 3)
-              .map((row: CriterionWeakPointRow) => (
-                <div key={row.criterion} className="flex flex-col gap-1 pb-4 border-b border-border/10 last:border-0">
-                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50">{row.topicSummary || "Mixed"}</span>
-                  <div className="text-sm font-light leading-relaxed"><MarkdownMath content={row.criterion} /></div>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className={`text-xs font-light ${accuracyColor(row.successPercent)}`}>{formatPercent(row.successPercent)} success</span>
-                    <span className="text-[10px] text-muted-foreground">{row.achievedMarks}/{row.availableMarks} kept</span>
-                  </div>
+            <div className="mt-6 space-y-8">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">Score Distribution</h3>
+                <div className="h-[200px]">
+                  <ChartContainer config={marksChartConfig} className="w-full h-full">
+                    <BarChart data={writtenMarksDistribution} margin={{ top: 0, bottom: 0, left: -20, right: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="attempts" fill="var(--color-attempts)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
                 </div>
-              ))}
-          </div>
-        </div>
+              </div>
 
-        {/* MC Focus */}
-        <div className="space-y-8">
-          <div className="flex justify-between items-baseline mb-4">
-            <SectionHeading>Topic Accuracies</SectionHeading>
-          </div>
-
-          {/* Overall topic accuracy */}
-          <div className="h-40">
-            <ChartContainer config={topicChartConfig} className="w-full h-full">
-              <BarChart data={topicPerformance} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.05} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={100} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 2, 2, 0]} barSize={8} />
-              </BarChart>
-            </ChartContainer>
-          </div>
-
-          {/* MC per-topic accuracy */}
-          <div>
-            <h3 className="text-xs font-light text-muted-foreground mb-3">MC Accuracy by Topic</h3>
-            <div className="h-40">
-              <ChartContainer config={topicChartConfig} className="w-full h-full">
-                <BarChart data={mcTopicAccuracy} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                  <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.05} />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={100} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 2, 2, 0]} barSize={8} />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </div>
-
-          {/* MC response latency */}
-          <div>
-            <h3 className="text-xs font-light text-muted-foreground mb-3">MC Response Time by Topic</h3>
-            <div className="h-40">
-              <ChartContainer config={responseLatencyChartConfig} className="w-full h-full">
-                <BarChart data={mcResponseLatency} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-                  <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.05} />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} tickFormatter={(v) => `${v}s`} />
-                  <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={100} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="avgResponseSeconds" fill="var(--color-avgResponseSeconds)" radius={[0, 2, 2, 0]} barSize={8} />
-                </BarChart>
-              </ChartContainer>
-            </div>
-          </div>
-
-          {/* Actionable subtopics — filtered by topicFilter */}
-          <div className="space-y-4 pt-4">
-            <h3 className="text-xs font-light text-muted-foreground">Actionable Subtopics</h3>
-            {displayedSubtopics
-              .filter((row: SubtopicPerformanceRow) => topicFilter === ALL_TOPICS || row.topic === topicFilter)
-              .slice(0, 4)
-              .map((row: SubtopicPerformanceRow) => (
-                <div key={row.key} className="flex justify-between items-center py-2 group">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-light">{row.subtopic}</span>
-                    <span className="text-[10px] text-muted-foreground/50">{row.topic}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className={`text-sm ${accuracyColor(row.accuracy)}`}>{formatPercent(row.accuracy)}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => navigate(`/?topic=${encodeURIComponent(row.topic)}&subtopic=${encodeURIComponent(row.subtopic)}`)}>
-                      <PlusCircle className="h-3 w-3" />
-                    </Button>
-                  </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">Effort vs Score</h3>
+                <div className="h-[200px]">
+                  <ChartContainer config={effortChartConfig} className="w-full h-full">
+                    <BarChart data={writtenEffortDistribution} margin={{ top: 0, bottom: 0, left: -20, right: 0 }}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="avgScorePercent" fill="var(--color-avgScorePercent)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
                 </div>
-              ))}
-          </div>
-        </div>
-      </section>
+              </div>
+            </div>
+          </Card>
 
-      {/* ── Additional Analytics Grid ── */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <Card className="p-6">
+            <SectionHeading title="Format Distribution" description="Multiple Choice versus Written attempts." />
+            <div className="h-[250px] mt-4">
+              <ChartContainer config={{}} className="w-full h-full">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Multiple Choice", value: summary.mcAttempts, fill: "#2563eb" },
+                      { name: "Written", value: summary.writtenAttempts, fill: "#8b5cf6" },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    dataKey="value"
+                    nameKey="name"
+                    paddingAngle={3}
+                    stroke="none"
+                    shape={(props: PieSectorShapeProps) => <Sector {...props} fill={props.fill} />}
+                  >
+                    <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 12 }} />
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </PieChart>
+              </ChartContainer>
+            </div>
+          </Card>
 
-        {/* Lowest Scoring Written */}
-        <div className="space-y-6">
-          <SectionHeading>Needs Improvement</SectionHeading>
-          {lowestScoringWritten.length === 0 ? (
-            <ChartEmpty message="No written attempts to display." />
-          ) : (
-            <div className="flex flex-col gap-4">
-              {lowestScoringWritten.slice(0, 3).map((attempt: AttemptRow) => {
-                const scorePct = attempt.scorePercent ?? 0;
-                return (
-                  <div key={attempt.id} className="flex flex-col gap-2 pb-4 border-b border-border/10 last:border-0">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-light">{attempt.topic}</h3>
-                        <p className="text-[10px] text-muted-foreground/70">{attempt.subtopic}</p>
+          <Card className="p-6">
+            <SectionHeading title="Needs Improvement" description="Lowest scoring written attempts." />
+            <div className="mt-4">
+              {lowestScoringWritten.length === 0 ? (
+                <ChartEmpty message="No written attempts to display." />
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {lowestScoringWritten.slice(0, 3).map((attempt: AttemptRow) => {
+                    const scorePct = attempt.scorePercent ?? 0;
+                    return (
+                      <div key={attempt.id} className="flex flex-col gap-2 pb-4 border-b border-border/20 last:border-0 last:pb-0">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-medium">{attempt.topic}</h3>
+                            <p className="text-xs text-muted-foreground">{attempt.subtopic}</p>
+                          </div>
+                          <span className={`text-lg font-medium ${accuracyColor(scorePct)}`}>{formatPercent(scorePct)}</span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-muted-foreground/70">
+                          <span className="flex items-center gap-1.5"><Type className="h-3.5 w-3.5" /> {attempt.answerWordCount ?? 0} words</span>
+                          <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> {formatDurationMs(attempt.markingLatencyMs)}</span>
+                        </div>
                       </div>
-                      <span className={`text-lg font-light ${accuracyColor(scorePct)}`}>{formatPercent(scorePct)}</span>
-                    </div>
-                    <div className="flex gap-4 text-[10px] text-muted-foreground/50">
-                      <span className="flex items-center gap-1"><Type className="h-3 w-3" /> {attempt.answerWordCount ?? 0} words</span>
-                      <span className="flex items-center gap-1"><Clock3 className="h-3 w-3" /> {formatDurationMs(attempt.markingLatencyMs)}</span>
-                    </div>
-                  </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <SectionHeading title="Subject Spread" description="Question distribution across subjects." />
+            <div className="h-[300px] mt-4">
+              {subjectSpreadData.length === 0 ? (
+                <ChartEmpty message="No attempts to display." />
+              ) : (
+
+                <ChartContainer config={subjectSpreadChartConfig} className="w-full h-full">
+                  <RadarChart data={subjectSpreadData} cx="50%" cy="50%" outerRadius="70%">
+                    <PolarGrid stroke="var(--border)" strokeOpacity={0.3} />
+                    <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} />
+                    <PolarRadiusAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                    <Radar name="Attempts" dataKey="count" stroke="var(--color-count)" fill="var(--color-count)" fillOpacity={0.25} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </RadarChart>
+                </ChartContainer>
+
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Column: MC & Topic Insights */}
+        <div className="flex flex-col gap-6">
+          <Card className="p-6">
+            <SectionHeading title="Topic Performance" description="Accuracy and response metrics across subjects." />
+
+            <div className="mt-6 space-y-8">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">Overall Topic Accuracy</h3>
+                <div className="h-[200px]">
+                  <ChartContainer config={topicChartConfig} className="w-full h-full">
+                    <BarChart data={topicPerformance} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} barSize={12} />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">MC Accuracy by Topic</h3>
+                <div className="h-[200px]">
+                  <ChartContainer config={topicChartConfig} className="w-full h-full">
+                    <BarChart data={mcTopicAccuracy} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="accuracy" fill="var(--color-accuracy)" radius={[0, 4, 4, 0]} barSize={12} />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-4">MC Response Time</h3>
+                <div className="h-[200px]">
+
+                  <ChartContainer config={responseLatencyChartConfig} className="w-full h-full">
+                    <BarChart data={mcResponseLatency} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                      <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.1} />
+                      <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}s`} />
+                      <YAxis dataKey="topic" type="category" tickLine={false} axisLine={false} width={120} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="avgResponseSeconds" fill="var(--color-avgResponseSeconds)" radius={[0, 4, 4, 0]} barSize={12} />
+                    </BarChart>
+                  </ChartContainer>
+
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <SectionHeading title="Focus Areas" description={subjectFilter ? `Filtered by ${subjectFilter}` : "Question spread across all subjects"} />
+
+            <div className="flex flex-wrap gap-2 mt-4 mb-6">
+              <button
+                type="button"
+                onClick={() => setSubjectFilter(null)}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === null
+                  ? "border-foreground/30 bg-secondary text-secondary-foreground"
+                  : "border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  }`}
+              >
+                All subjects
+                <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">{allAttempts.length}</span>
+              </button>
+              {subjectList.map((topic) => {
+                const count = allAttempts.filter((a) => a.topic === topic).length;
+                return (
+                  <button
+                    key={topic}
+                    type="button"
+                    onClick={() => setSubjectFilter(subjectFilter === topic ? null : topic)}
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === topic
+                      ? "border-foreground/30 bg-secondary text-secondary-foreground"
+                      : "border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                      }`}
+                  >
+                    {topic}
+                    <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">{count}</span>
+                  </button>
                 );
               })}
             </div>
-          )}
-        </div>
 
-        {/* Focus Area Distribution */}
-        <div className="space-y-6">
-          <SectionHeading>
-            {subjectFilter ? `${subjectFilter} — Focus Areas` : "Question Spread"}
-          </SectionHeading>
+            <div className="h-[250px]">
+              {focusAreaData.length === 0 ? (
+                <ChartEmpty message="No attempts to display." />
+              ) : (
 
-          {/* Subject filter badges */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setSubjectFilter(null)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-light border transition-colors ${
-                subjectFilter === null
-                  ? "border-foreground/30 bg-foreground/10 text-foreground"
-                  : "border-border/30 bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/20"
-              }`}
-            >
-              All subjects
-              <span className="text-[10px] text-muted-foreground/60">{allAttempts.length}</span>
-            </button>
-            {subjectList.map((topic) => {
-              const count = allAttempts.filter((a) => a.topic === topic).length;
-              return (
-                <button
-                  key={topic}
-                  type="button"
-                  onClick={() => setSubjectFilter(subjectFilter === topic ? null : topic)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-light border transition-colors ${
-                    subjectFilter === topic
-                      ? "border-foreground/30 bg-foreground/10 text-foreground"
-                      : "border-border/30 bg-transparent text-muted-foreground hover:text-foreground hover:border-foreground/20"
-                  }`}
-                >
-                  {topic}
-                  <span className="text-[10px] text-muted-foreground/60">{count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Pie chart — focus area distribution for selected subject */}
-          {focusAreaData.length === 0 ? (
-            <ChartEmpty message="No attempts to display." />
-          ) : (
-            <>
-              <div className="h-64">
                 <ChartContainer config={{}} className="w-full h-full">
                   <PieChart>
                     <Pie
                       data={focusAreaData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={90}
+                      innerRadius={60}
+                      outerRadius={100}
                       dataKey="value"
                       nameKey="name"
-                      paddingAngle={2}
+                      paddingAngle={3}
                       stroke="none"
-                    >
-                      {focusAreaData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.fill} />
-                      ))}
-                    </Pie>
+                      shape={CustomPieShape}
+                    />
                     <ChartTooltip content={<ChartTooltipContent />} />
                   </PieChart>
                 </ChartContainer>
-              </div>
-            </>
-          )}
-        </div>
-      </section>
 
+              )}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <SectionHeading title="Actionable Review" description="Specific subtopics and criteria to target next." />
+            <div className="mt-4 space-y-6">
+
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground border-b border-border/20 pb-2 mb-3">Subtopics</h3>
+                <div className="space-y-1">
+                  {displayedSubtopics
+                    .filter((row: SubtopicPerformanceRow) => topicFilter === ALL_TOPICS || row.topic === topicFilter)
+                    .slice(0, 4)
+                    .map((row: SubtopicPerformanceRow) => (
+                      <div key={row.key} className="flex justify-between items-center py-2 group hover:bg-muted/50 rounded-md px-2 -mx-2 transition-colors">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{row.subtopic}</span>
+                          <span className="text-xs text-muted-foreground">{row.topic}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className={`text-sm font-medium ${accuracyColor(row.accuracy)}`}>{formatPercent(row.accuracy)}</span>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => navigate(`/?topic=${encodeURIComponent(row.topic)}&subtopic=${encodeURIComponent(row.subtopic)}`)}>
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground border-b border-border/20 pb-2 mb-3 mt-6">Criterion Drop-offs</h3>
+                <div className="space-y-4">
+                  {recentCriterionWeakPoints
+                    .filter((row: CriterionWeakPointRow) => topicFilter === ALL_TOPICS || row.topicSummary === topicFilter)
+                    .slice(0, 3)
+                    .map((row: CriterionWeakPointRow) => (
+                      <div key={row.criterion} className="flex flex-col gap-1.5 pb-4 border-b border-border/20 last:border-0 last:pb-0">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">{row.topicSummary || "Mixed"}</span>
+                        <div className="text-sm font-light leading-relaxed text-foreground"><MarkdownMath content={row.criterion} /></div>
+                        <div className="flex justify-between items-center mt-2 bg-secondary/30 rounded-md px-3 py-2">
+                          <span className={`text-xs font-medium ${accuracyColor(row.successPercent)}`}>{formatPercent(row.successPercent)} success</span>
+                          <span className="text-xs text-muted-foreground font-medium">{row.achievedMarks}/{row.availableMarks} kept</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+            </div>
+          </Card>
+        </div>
+
+      </div>
     </div>
   );
 }
