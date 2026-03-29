@@ -18,7 +18,6 @@ export interface TimerBarData {
   formattedBank: string;
   bankStatus: 'ahead' | 'behind' | 'on-pace';
   formattedSessionTime: string;
-  isQuestionExpired: boolean;
   mode: 'exam' | 'practice';
 }
 
