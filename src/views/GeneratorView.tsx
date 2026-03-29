@@ -609,7 +609,6 @@ export function GeneratorView() {
       formattedBank: timer.formattedBank,
       bankStatus: timer.bankStatus,
       formattedSessionTime: timer.formattedSessionTime,
-      isQuestionExpired: timer.isQuestionExpired,
       mode: generationMode,
     };
     setTimerBarData(data);
@@ -629,7 +628,6 @@ export function GeneratorView() {
     activeTimer.formattedBank,
     activeTimer.bankStatus,
     activeTimer.formattedSessionTime,
-    activeTimer.isQuestionExpired,
     generationMode,
     setTimerBarData,
   ]);
@@ -2560,8 +2558,6 @@ export function GeneratorView() {
                   showRawOutput={showWrittenRawOutput}
                   rawModelOutput={writtenRawModelOutput}
                   onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
-                  isQuestionExpired={writtenTimer.isQuestionExpired}
-                  generationMode={generationMode}
                   isSubmitDisabled={false}
                 />
                 {!activeFeedback ? (
@@ -2661,8 +2657,6 @@ export function GeneratorView() {
                   showRawOutput={showMcRawOutput}
                   rawModelOutput={mcRawModelOutput}
                   onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
-                  isQuestionExpired={mcTimer.isQuestionExpired}
-                  generationMode={generationMode}
                   isSubmitDisabled={false}
                 />
                 {countWords(activeMcQuestion.explanationMarkdown) >

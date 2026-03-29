@@ -518,7 +518,6 @@ function ReattemptView({
       formattedBank: '0:00',
       bankStatus: 'on-pace',
       formattedSessionTime: formattedElapsedTime,
-      isQuestionExpired: false,
       mode: 'practice',
     };
     setTimerBarData(data);

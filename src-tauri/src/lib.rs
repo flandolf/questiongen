@@ -1455,11 +1455,7 @@ async fn mark_answer(
 
     content_parts.extend(report_parts);
 
-    let user_content = if content_parts.len() == 1 {
-        content_parts.remove(0)
-    } else {
-        serde_json::Value::Array(content_parts)
-    };
+    let user_content = serde_json::Value::Array(content_parts);
 
     // Scale token budget with mark count. MC option explanations (4 options × ~60 words each)
     // add ~400 tokens on top of the written-question budget.
