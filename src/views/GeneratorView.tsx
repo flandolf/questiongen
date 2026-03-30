@@ -438,7 +438,8 @@ export function GeneratorView() {
     apiKey.trim().length > 0 &&
     markModel.trim().length > 0 &&
     !isMarking &&
-    !activeFeedback;
+    !activeFeedback &&
+    generationMode !== 'exam';
 
   const completedCount = useMemo(() => {
     if (generationMode === 'exam') {
@@ -2567,6 +2568,7 @@ export function GeneratorView() {
                     image={activeQuestionImage}
                     isMarking={isMarking}
                     canSubmit={canSubmitAnswer}
+                    isExamMode={generationMode === 'exam'}
                     onAnswerChange={handleAnswerChange}
                     onImageDrop={handleDropDropzone}
                     onImageRemove={handleImageRemove}
