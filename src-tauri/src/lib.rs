@@ -211,6 +211,12 @@ fn written_system() -> String {
          difficulty, common misconception targeting, and realistic mark distributions.\n\
          {LATEX_RULES}\n\
          {QUESTION_STYLE_RULES}\n\n\
+         MARK ALLOCATION RULE (HARD CONSTRAINT):\n\
+         - The user specifies a target average mark value per question.\n\
+         - The arithmetic mean of all \"maxMarks\" values MUST equal the target (round to nearest integer if needed).\n\
+         - If the target average is N and there are Q questions, the total marks across all questions must equal N × Q.\n\
+         - Vary individual question marks around the target (±1–2 marks) to reflect command-term demand, but the overall average must hit the target.\n\
+         - Example: target 6 marks, 5 questions → total 30 marks → e.g. [4, 5, 6, 7, 8] or [6, 6, 6, 6, 6].\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
            \"questions\": [\n\
@@ -886,6 +892,7 @@ async fn generate_questions(
     );
 
     let average_marks = request.average_marks_per_question.unwrap_or(10);
+    let total_marks = average_marks as usize * request.question_count;
     let custom_note = request
         .custom_focus_area
         .as_deref()
@@ -920,7 +927,11 @@ async fn generate_questions(
     let prompt = format!(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
-         Mark rules: assign maxMarks by command-term demand; the average mark value across all questions should be close to {average_marks}.\
+         CRITICAL MARK ALLOCATION RULE (you MUST follow this):\n\
+         - Target average marks per question: {average_marks}\n\
+         - Total marks across all {count} questions MUST equal {count} × {average_marks} = {total_marks}\n\
+         - Vary individual maxMarks to suit command-term demand, but the arithmetic mean of all maxMarks values MUST equal {average_marks}\n\
+         - Verify your output: sum all maxMarks and confirm it equals {total_marks}\n\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts/contexts/methods per question — no two questions should \
  test the same skill in the same way. No worked solutions in prompts.\
@@ -945,6 +956,7 @@ async fn generate_questions(
         focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
         exam_context_preamble = exam_context_preamble,
         average_marks         = average_marks,
+        total_marks           = total_marks,
         sim_note              = sanitize_for_api(&similarity_note(
             request.avoid_similar_questions.unwrap_or(false),
             request.prior_question_prompts.as_deref(),
@@ -1032,6 +1044,43 @@ async fn generate_questions(
     normalise_written(&mut payload.questions, &request.topics, selected_subs);
     validate_written(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
+
+    // Enforce average marks constraint: adjust marks to hit the target average.
+    if !payload.questions.is_empty() {
+        let current_total: i64 = payload.questions.iter().map(|q| q.max_marks as i64).sum();
+        let target_total = total_marks as i64;
+        let diff = target_total - current_total;
+        if diff != 0 {
+            // Distribute the difference across questions, adding/subtracting 1 mark at a time
+            // starting from the questions with the most marks (they can afford to lose some).
+            let q_count = payload.questions.len() as i64;
+            let mut adjustments: Vec<i64> = vec![diff / q_count; payload.questions.len()];
+            let remainder = diff % q_count;
+            for adj in adjustments.iter_mut().take(remainder.unsigned_abs() as usize) {
+                if remainder > 0 {
+                    *adj += 1;
+                } else {
+                    *adj -= 1;
+                }
+            }
+            // Sort indices by max_marks descending so we add to smaller questions / subtract from larger ones.
+            let mut indices: Vec<usize> = (0..payload.questions.len()).collect();
+            if diff > 0 {
+                // Adding marks: prefer questions with fewer marks first.
+                indices.sort_by_key(|&i| payload.questions[i].max_marks);
+            } else {
+                // Subtracting marks: prefer questions with more marks first.
+                indices.sort_by_key(|&i| std::cmp::Reverse(payload.questions[i].max_marks));
+            }
+            let mut adj_iter = adjustments.into_iter();
+            for i in indices {
+                if let Some(adj) = adj_iter.next() {
+                    let new_marks = (payload.questions[i].max_marks as i64 + adj).max(1).min(30);
+                    payload.questions[i].max_marks = new_marks as u8;
+                }
+            }
+        }
+    }
 
     let texts: Vec<String> = payload
         .questions
@@ -1389,13 +1438,16 @@ async fn mark_answer(
 
     let is_pe = question_topic.eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC);
     let pe_note = if is_pe {
-        " For Physical Education questions, consider the specific demands of the question when awarding marks for partial working. \
-         For example, if a question asks for an evaluation of a training program's effectiveness and the student provides a justified evaluation but omits some supporting evidence, you may award partial marks for the evaluation itself while noting the missing evidence in your feedback.\
-         Always align your marking with the VCAA's criterion-based approach, focusing on the quality of the response rather than penalising for missing steps when the student's reasoning is sound.
-         Furthermore, do not use the absence of working as a reason to deny marks for a correct final answer if the question's command term does not explicitly require working.\
-         In Physical Education, the emphasis is often on the quality of the analysis and evaluation, so consider awarding marks for well-reasoned answers even if some supporting working is not shown, as long as the student's understanding of the concepts is evident.
-         The use of precise formulas and calculations is less central in Physical Education compared to Mathematics, so focus on the student's ability to apply concepts and reasoning to the question rather than strictly penalising for missing mathematical working.
-         For the exemplar answer / feedback, avoid using formulas or calculations as the primary basis for awarding marks. Instead, focus on the quality of the evaluation, the justification provided, and the student's understanding of the concepts when determining how to allocate marks."
+        "\nPHYSICAL EDUCATION MARKING STYLE:\n\
+         - DO NOT use mathematical equations, derivations, or formula-based solutions in your \
+exemplar response, feedbackMarkdown, comparisonToSolutionMarkdown, or workedSolutionMarkdown.\n\
+         - VCE PE does not require formal mathematical working. Write all responses in clear \
+prose — paragraphs, bullet points, and short explanations.\n\
+         - Simple named formulas are acceptable where the Study Design requires them \
+(e.g. 'Fitt's principle', 'F = ma', 'VO₂max', '1RM') — but do NOT derive, rearrange, \
+or chain equations. Mention the formula by name, then explain its application in words.\n\
+         - Award marks for quality of analysis, evaluation, and justification — not for \
+mathematical rigour.\n"
     } else {
         ""
     };

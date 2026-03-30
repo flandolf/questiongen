@@ -132,6 +132,13 @@ and evidence-based reasoning. No pure physics calculations for biomechanics — 
 analysis and application to sport contexts.\n\
 Questions must be grounded STRICTLY in the VCE Units 3 & 4 Physical Education Study Design \
 key knowledge listed below. Do NOT introduce content outside this list.\n\n\
+WRITING STYLE FOR PHYSICAL EDUCATION:\n\
+- Do NOT use mathematical equations, derivations, or formula-heavy solutions.\n\
+- Write all worked solutions and exemplar responses in prose — paragraphs and bullet points.\n\
+- Simple named formulas are acceptable where the Study Design requires them \
+(e.g. 'Fitt's principle', 'VO₂max', '1RM', 'F = ma') — mention by name and explain application in words. \
+Do NOT rearrange, derive, or chain equations.\n\
+- Focus on qualitative analysis, evaluation, and justification rather than calculation.\n\n\
 UNIT 3 AREA OF STUDY 1 — How are movement skills improved?\n\
 - Classification of movement skills: fundamental movement skills (stability, locomotor, manipulative), \
 sport-specific skills, open and closed skills, gross and fine skills, discrete/serial/continuous motor skills\n\
