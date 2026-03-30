@@ -5,10 +5,15 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use tauri::Emitter;
 
 /// Shared HTTP client — reuses TLS context and connection pool across all requests.
-fn http_client() -> &'static reqwest::Client {
+pub fn http_client() -> &'static reqwest::Client {
     use std::sync::OnceLock;
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(reqwest::Client::new)
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
 }
 
 /// Result of a single OpenRouter call: raw content string + token usage.
@@ -208,11 +213,16 @@ pub async fn call_openrouter_streaming_with_plugins(
     let mut usage: Option<SseUsage> = None;
     // Rolling incomplete-line buffer (SSE lines can be split across chunks).
     let mut buf = String::new();
+    let mut done = false;
 
     while let Some(chunk) = stream.next().await {
         let chunk =
             chunk.map_err(|e| AppError::new("NETWORK_ERROR", format!("Stream error: {e}")))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
+
+        if done {
+            continue;
+        }
 
         // Process every complete line we've accumulated.
         loop {
@@ -233,6 +243,7 @@ pub async fn call_openrouter_streaming_with_plugins(
                     };
 
                     if data == "[DONE]" {
+                        done = true;
                         break;
                     }
 
@@ -247,6 +258,36 @@ pub async fn call_openrouter_streaming_with_plugins(
                     }
 
                     // Accumulate and emit content deltas.
+                    if let Some(choices) = chunk_val.choices {
+                        for choice in choices {
+                            if let Some(delta) = choice.delta {
+                                if let Some(text) = delta.content {
+                                    if !text.is_empty() {
+                                        assembled.push_str(&text);
+                                        let _ = app.emit(
+                                            "generation-token",
+                                            serde_json::json!({ "text": text }),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Process any remaining buffered content that wasn't terminated by a newline
+    if !done && !buf.is_empty() {
+        let trimmed = buf.trim_end_matches('\r').to_owned();
+        if let Some(rest) = trimmed.strip_prefix("data: ") {
+            let data = rest.trim();
+            if data != "[DONE]" {
+                if let Ok(chunk_val) = serde_json::from_str::<SseChunk>(data) {
+                    if let Some(u) = chunk_val.usage {
+                        usage = Some(u);
+                    }
                     if let Some(choices) = chunk_val.choices {
                         for choice in choices {
                             if let Some(delta) = choice.delta {

@@ -1,5 +1,4 @@
 export function scoreColorClass(pct: number): string {
-  if (pct >= 0.9) return 'text-emerald-500';
   if (pct >= 0.75) return 'text-emerald-500';
   if (pct >= 0.5) return 'text-amber-500';
   return 'text-rose-500';
@@ -14,8 +13,8 @@ export function scoreColorBgClass(pct: number): string {
 }
 
 export function scoreRingColor(pct: number): string {
-  if (pct >= 80) return '#10b981';
-  if (pct >= 50) return '#f59e0b';
+  if (pct >= 0.8) return '#10b981';
+  if (pct >= 0.5) return '#f59e0b';
   return '#f43f5e';
 }
 

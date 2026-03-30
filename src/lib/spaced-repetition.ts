@@ -119,15 +119,15 @@ export function binaryToQuality(correct: boolean): ReviewQuality {
 }
 
 /**
- * Map a percentage score (0-1) to an SM-2 quality rating.
+ * Map a fraction score (0-1) to an SM-2 quality rating.
  * For written questions with partial marks.
  */
-export function scoreToQuality(scorePercent: number): ReviewQuality {
-  if (scorePercent >= 0.95) return 5;
-  if (scorePercent >= 0.75) return 4;
-  if (scorePercent >= 0.5) return 3;
-  if (scorePercent >= 0.25) return 2;
-  if (scorePercent > 0) return 1;
+export function scoreToQuality(scoreFraction: number): ReviewQuality {
+  if (scoreFraction >= 0.95) return 5;
+  if (scoreFraction >= 0.75) return 4;
+  if (scoreFraction >= 0.5) return 3;
+  if (scoreFraction >= 0.25) return 2;
+  if (scoreFraction > 0) return 1;
   return 0;
 }
 

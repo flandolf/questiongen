@@ -1,4 +1,5 @@
 use crate::models::{AppError, CommandResult};
+use crate::openrouter::http_client;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use once_cell::sync::Lazy;
@@ -282,7 +283,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
 
     let (author, slug) = split_model_id(model_id.trim())?;
     let endpoints_url = format!("{OPENROUTER_BASE}/models/{author}/{slug}/endpoints");
-    let client = reqwest::Client::new();
+    let client = http_client();
 
     // ── Resolve image/file support ─────────────────────────────────────────────
     // Try the catalogue cache first (no I/O). On a miss, run both fetches in
@@ -403,7 +404,7 @@ pub async fn get_credits(api_key: String) -> CommandResult<CreditsInfo> {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = reqwest::Client::new()
+    let response = http_client()
         .get(format!("{OPENROUTER_BASE}/credits"))
         .header(AUTHORIZATION, format!("Bearer {api_key}"))
         .send()

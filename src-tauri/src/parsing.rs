@@ -86,11 +86,11 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
                             // thing as a LaTeX command that got mis-escaped — emit
                             // \\X so the JSON parser yields \X.
                             //
-                            // Exception: \n / \r followed by a letter is ambiguous
-                            // (could be newline + word). We handle \n conservatively
-                            // in decode_escapes later. Here we only protect the
-                            // LaTeX-specific collisions: \f, \t, \b.
-                            if matches!(next, b'f' | b't' | b'b')
+                            // Previously \n / \r were excluded, but LaTeX commands
+                            // like \nabla, \nu, \notin, \right, \rho, \rm are
+                            // common in math output and get corrupted by JSON
+                            // parsing. We now protect all three: \f, \t, \b, \n, \r.
+                            if matches!(next, b'f' | b't' | b'b' | b'n' | b'r')
                                 && i + 2 < len
                                 && bytes[i + 2].is_ascii_alphabetic()
                             {
@@ -416,16 +416,9 @@ pub fn sanitize_for_api(s: &str) -> String {
             if c == '\u{007F}' {
                 return false;
             }
-            // Drop lone surrogates.
-            // Surrogates (U+D800–U+DFFF) can't appear in valid Rust chars,
-            // but we guard against them via numeric comparison in case the
-            // input was assembled from sloppy byte sequences.
-            let cp = c as u32;
-            if cp >= 0xD800 && cp <= 0xDFFF {
-                return false;
-            }
             // Drop Unicode noncharacters: U+FFFE and U+FFFF per plane,
             // plus U+FDD0–U+FDEF.
+            let cp = c as u32;
             if cp >= 0xFDD0 && cp <= 0xFDEF {
                 return false;
             }

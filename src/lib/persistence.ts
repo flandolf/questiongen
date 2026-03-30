@@ -122,7 +122,14 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
   const raw = await loadRawPersistedState();
-  const hasDurableState = isRecord(raw) && Object.keys(raw).length > 0;
+  const hasDurableState =
+    isRecord(raw) &&
+    Object.keys(raw).some((key) => {
+      const val = (raw as Record<string, unknown>)[key];
+      if (Array.isArray(val)) return val.length > 0;
+      if (isRecord(val)) return Object.keys(val).length > 0;
+      return val !== '' && val !== null && val !== undefined;
+    });
   const normalized = normalizePersistedAppState(raw);
   return hasDurableState ? normalized : applyLegacyMigration(normalized);
 }
@@ -339,6 +346,29 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     subtopicInstructions: normalizeSubtopicInstructions(
       data.subtopicInstructions
     ),
+    aiDifficultyScalingEnabled:
+      typeof data.aiDifficultyScalingEnabled === 'boolean'
+        ? data.aiDifficultyScalingEnabled
+        : DEFAULT_PREFERENCES.aiDifficultyScalingEnabled,
+    difficultyThresholds:
+      isRecord(data.difficultyThresholds) &&
+      typeof data.difficultyThresholds.increase === 'number' &&
+      typeof data.difficultyThresholds.decrease === 'number'
+        ? {
+            increase: clampWholeNumber(
+              data.difficultyThresholds.increase,
+              DEFAULT_PREFERENCES.difficultyThresholds!.increase,
+              0,
+              100
+            ),
+            decrease: clampWholeNumber(
+              data.difficultyThresholds.decrease,
+              DEFAULT_PREFERENCES.difficultyThresholds!.decrease,
+              0,
+              100
+            ),
+          }
+        : DEFAULT_PREFERENCES.difficultyThresholds!,
   };
 }
 
@@ -912,7 +942,7 @@ function deterministicId(
   prefix: string,
   payload: Record<string, unknown>
 ): string {
-  const input = JSON.stringify(payload);
+  const input = JSON.stringify(payload, Object.keys(payload).sort());
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
     hash ^= input.charCodeAt(i);

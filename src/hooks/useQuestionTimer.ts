@@ -218,7 +218,7 @@ export function useQuestionTimer(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Detect external Zustand reset (e.g., setWrittenTimerState(null)) ---
+  // --- Detect external Zustand reset or post-hydration restore ---
   const prevZustandRef = useRef(zustandTimerState);
   useEffect(() => {
     if (zustandTimerState === null && prevZustandRef.current !== null) {
@@ -226,6 +226,38 @@ export function useQuestionTimer(
       const fresh = buildFreshState(mode, totalTimeLimitSeconds, questions);
       setTimerState(fresh);
       pauseStartedAtRef.current = null;
+    } else if (zustandTimerState !== null && prevZustandRef.current === null) {
+      // Hydration loaded an active timer after mount — restore it
+      if (
+        zustandTimerState.sessionStartedAt !== null &&
+        zustandTimerState.sessionFinishedAt === null
+      ) {
+        const restored = fromPersisted(zustandTimerState);
+        if (restored.isPaused) {
+          pauseStartedAtRef.current = Date.now();
+        }
+        const nowSec = Date.now() / 1000;
+        const totalPausedSec = restored.pausedDurationMs / 1000;
+        const updatedByQuestionId = { ...restored.byQuestionId };
+        for (const [qId, q] of Object.entries(updatedByQuestionId)) {
+          if (q.startedAt !== null && q.answeredAt === null && !q.isExpired) {
+            const pausedAtPresentationSec =
+              q.pausedDurationMsAtPresentation / 1000;
+            const effectivePauseSec = totalPausedSec - pausedAtPresentationSec;
+            const timeUsed = Math.max(
+              0,
+              Math.floor(nowSec - q.startedAt - effectivePauseSec)
+            );
+            const isExpired = timeUsed >= q.timeLimitSeconds;
+            updatedByQuestionId[qId] = {
+              ...q,
+              timeUsedSeconds: Math.min(timeUsed, q.timeLimitSeconds),
+              isExpired,
+            };
+          }
+        }
+        setTimerState({ ...restored, byQuestionId: updatedByQuestionId });
+      }
     }
     prevZustandRef.current = zustandTimerState;
   }, [zustandTimerState, mode, totalTimeLimitSeconds, questions]);
@@ -233,13 +265,13 @@ export function useQuestionTimer(
   // --- Timer tick logic ---
   useEffect(() => {
     if (
-      timerState.isPaused ||
       timerState.sessionStartedAt === null ||
       timerState.sessionFinishedAt !== null
     )
       return;
     const interval = setInterval(() => {
       setTimerState((s) => {
+        if (s.isPaused) return s;
         const qs = questionsRef.current;
         const currentQ = qs[activeIndexRef.current];
         if (!currentQ) return s;
@@ -279,7 +311,6 @@ export function useQuestionTimer(
     }, 1000);
     return () => clearInterval(interval);
   }, [
-    timerState.isPaused,
     timerState.sessionStartedAt,
     timerState.sessionFinishedAt,
     syncToZustand,
@@ -498,7 +529,8 @@ export function useQuestionTimer(
           );
         }
         const finishedEarly = timeUsedSeconds < q.timeLimitSeconds;
-        const bankDelta = q.timeLimitSeconds - timeUsedSeconds;
+        const cappedTimeUsed = Math.min(timeUsedSeconds, q.timeLimitSeconds);
+        const bankDelta = q.timeLimitSeconds - cappedTimeUsed;
         const next = {
           ...s,
           bankedSeconds: s.bankedSeconds + bankDelta,
@@ -508,7 +540,7 @@ export function useQuestionTimer(
               ...q,
               answeredAt: Date.now() / 1000,
               finishedEarly,
-              timeUsedSeconds,
+              timeUsedSeconds: cappedTimeUsed,
             },
           },
         };
@@ -580,13 +612,13 @@ export function useQuestionTimer(
         const q = s.byQuestionId[questionId];
         if (!q) return s;
 
-        // Subtract the question's timeUsedSeconds from bankedSeconds
-        // so the session timer reflects the removal
+        // Return the question's unspent time to the bank
         const { [questionId]: _, ...rest } = s.byQuestionId;
+        const unspentSeconds = q.timeLimitSeconds - q.timeUsedSeconds;
         const next = {
           ...s,
           byQuestionId: rest,
-          bankedSeconds: s.bankedSeconds - q.timeUsedSeconds,
+          bankedSeconds: s.bankedSeconds + unspentSeconds,
         };
         syncToZustand(next);
         return next;
