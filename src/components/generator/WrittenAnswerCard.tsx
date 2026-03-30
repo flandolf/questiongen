@@ -10,6 +10,7 @@ type WrittenAnswerCardProps = {
   image: StudentAnswerImage | undefined;
   isMarking: boolean;
   canSubmit: boolean;
+  isExamMode?: boolean;
   onAnswerChange: (value: string) => void;
   onImageDrop: (files: File[]) => void;
   onImageRemove: () => void;
@@ -26,6 +27,7 @@ export function WrittenAnswerCard({
   image,
   isMarking,
   canSubmit,
+  isExamMode,
   onAnswerChange,
   onImageDrop,
   onImageRemove,
@@ -46,7 +48,11 @@ export function WrittenAnswerCard({
           </span>
         ) : undefined
       }
-      footerNote="Your answer is marked immediately using the configured marking model."
+      footerNote={
+        isExamMode
+          ? 'Your answer will be submitted for marking when you complete the exam.'
+          : 'Your answer is marked immediately using the configured marking model.'
+      }
     >
       {/* Divider with "or" */}
       <div className="flex items-center gap-3 py-3">
@@ -89,26 +95,28 @@ export function WrittenAnswerCard({
       </div>
 
       {/* Submit */}
-      <Button
-        size="lg"
-        className={`mt-4 w-full h-12 text-sm font-bold gap-2 transition-all duration-200 rounded-full ${
-          hasContent && !isMarking
-            ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
-            : ''
-        }`}
-        onClick={onSubmit}
-        disabled={!canSubmit || isMarking}
-      >
-        {isMarking ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Evaluating…
-          </>
-        ) : (
-          <>
-            <CheckCircle2 className="w-4 h-4" /> Submit for Marking
-          </>
-        )}
-      </Button>
+      {!isExamMode && (
+        <Button
+          size="lg"
+          className={`mt-4 w-full h-12 text-sm font-bold gap-2 transition-all duration-200 rounded-full ${
+            hasContent && !isMarking
+              ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
+              : ''
+          }`}
+          onClick={onSubmit}
+          disabled={!canSubmit || isMarking}
+        >
+          {isMarking ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Evaluating…
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-4 h-4" /> Submit for Marking
+            </>
+          )}
+        </Button>
+      )}
     </UnifiedWrittenResponseCard>
   );
 }
