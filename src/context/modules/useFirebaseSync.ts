@@ -640,11 +640,38 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
         const localState = useAppStore.getState();
         const localData = extractSyncableData(localState);
+        const tombstones = localState.deletionTombstones;
 
         localDataRef.current = localData;
 
         if (hasRemoteData(normalizeRemoteSyncableData(remoteData))) {
-          const merged = mergeSyncableData(localData, remoteData ?? null);
+          // Apply tombstone filter before merge
+          const filteredLocalData: SyncableData = {
+            ...localData,
+            questionHistory: filterDeleted(
+              localData.questionHistory as Array<
+                Record<string, unknown> & { id?: string }
+              >,
+              tombstones.questionHistory
+            ),
+            mcHistory: filterDeleted(
+              localData.mcHistory as Array<
+                Record<string, unknown> & { id?: string }
+              >,
+              tombstones.mcHistory
+            ),
+            savedSets: filterDeleted(
+              localData.savedSets as Array<
+                Record<string, unknown> & { id?: string }
+              >,
+              tombstones.savedSets
+            ),
+          };
+
+          const merged = mergeSyncableData(
+            filteredLocalData,
+            remoteData ?? null
+          );
           const storeUpdates = applySyncableDataToStore(merged);
           setSuppressPersistUntil(Date.now() + 1500);
           suppressAutoSaveTemporarily();
@@ -758,9 +785,25 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             {}
           );
 
-          // Full sync for first upload
-          await saveUserData(userId, localDataRef.current, { fullSync: true });
+          // Full sync for first upload, including any pending deletions
+          const deletedIds = tombstonesToDeletedIds(tombstones);
+          const hasDeletions =
+            deletedIds.questionHistory.length > 0 ||
+            deletedIds.mcHistory.length > 0 ||
+            deletedIds.savedSets.length > 0;
+          await saveUserData(userId, localDataRef.current, {
+            fullSync: true,
+            ...(hasDeletions ? { deletedIds } : {}),
+          });
           addSyncEvent('upload', 'Initial data uploaded to cloud');
+          if (hasDeletions) {
+            useAppStore.setState({
+              deletionTombstones: purgePersistedTombstones(
+                tombstones,
+                deletedIds
+              ),
+            });
+          }
 
           lastSyncedSnapshotRef.current = JSON.stringify({
             qh: localDataRef.current.questionHistory.map((q) => ({
