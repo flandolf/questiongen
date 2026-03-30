@@ -93,6 +93,7 @@ export function normalizeMarkResponse(
     feedbackMarkdown: data.feedbackMarkdown || 'No feedback returned.',
     workedSolutionMarkdown:
       data.workedSolutionMarkdown || 'No worked solution returned.',
+    exemplarResponseMarkdown: data.exemplarResponseMarkdown || undefined,
   };
 }
 

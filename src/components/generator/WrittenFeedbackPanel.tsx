@@ -212,6 +212,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                   </Label>
                   <MarkdownMath
                     content={
+                      feedback.exemplarResponseMarkdown ||
                       feedback.workedSolutionMarkdown ||
                       'No exemplar available.'
                     }

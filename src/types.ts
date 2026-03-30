@@ -350,6 +350,7 @@ export type MarkAnswerResponse = {
   comparisonToSolutionMarkdown: string;
   feedbackMarkdown: string;
   workedSolutionMarkdown: string;
+  exemplarResponseMarkdown?: string;
 };
 
 export type MarkingCriterion = {
@@ -549,6 +550,7 @@ export type PersistedAppState = {
   presets?: Preset[];
   writtenTimerState?: PersistedTimerState | null;
   mcTimerState?: PersistedTimerState | null;
+  deletionTombstones?: Record<string, Record<string, number>>;
 };
 
 // ─── Per-Question Timing ──────────────────────────────────────────────────────

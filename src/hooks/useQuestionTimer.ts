@@ -158,6 +158,10 @@ export function useQuestionTimer(
     activeIndexRef.current = activeQuestionIndex;
   }, [activeQuestionIndex]);
 
+  // Track when startTiming just synced to Zustand so the hydration effect
+  // doesn't overwrite the freshly started state
+  const startTimingJustSynced = useRef(false);
+
   // --- Sync local state → Zustand on every change ---
   const syncToZustand = useCallback(
     (s: QuestionTimerState) => {
@@ -227,36 +231,43 @@ export function useQuestionTimer(
       setTimerState(fresh);
       pauseStartedAtRef.current = null;
     } else if (zustandTimerState !== null && prevZustandRef.current === null) {
-      // Hydration loaded an active timer after mount — restore it
-      if (
-        zustandTimerState.sessionStartedAt !== null &&
-        zustandTimerState.sessionFinishedAt === null
-      ) {
-        const restored = fromPersisted(zustandTimerState);
-        if (restored.isPaused) {
-          pauseStartedAtRef.current = Date.now();
-        }
-        const nowSec = Date.now() / 1000;
-        const totalPausedSec = restored.pausedDurationMs / 1000;
-        const updatedByQuestionId = { ...restored.byQuestionId };
-        for (const [qId, q] of Object.entries(updatedByQuestionId)) {
-          if (q.startedAt !== null && q.answeredAt === null && !q.isExpired) {
-            const pausedAtPresentationSec =
-              q.pausedDurationMsAtPresentation / 1000;
-            const effectivePauseSec = totalPausedSec - pausedAtPresentationSec;
-            const timeUsed = Math.max(
-              0,
-              Math.floor(nowSec - q.startedAt - effectivePauseSec)
-            );
-            const isExpired = timeUsed >= q.timeLimitSeconds;
-            updatedByQuestionId[qId] = {
-              ...q,
-              timeUsedSeconds: Math.min(timeUsed, q.timeLimitSeconds),
-              isExpired,
-            };
+      // Skip hydration if the state was just synced from startTiming —
+      // startTiming already set the correct state with startedAt values
+      if (startTimingJustSynced.current) {
+        startTimingJustSynced.current = false;
+      } else {
+        // Hydration loaded an active timer after mount — restore it
+        if (
+          zustandTimerState.sessionStartedAt !== null &&
+          zustandTimerState.sessionFinishedAt === null
+        ) {
+          const restored = fromPersisted(zustandTimerState);
+          if (restored.isPaused) {
+            pauseStartedAtRef.current = Date.now();
           }
+          const nowSec = Date.now() / 1000;
+          const totalPausedSec = restored.pausedDurationMs / 1000;
+          const updatedByQuestionId = { ...restored.byQuestionId };
+          for (const [qId, q] of Object.entries(updatedByQuestionId)) {
+            if (q.startedAt !== null && q.answeredAt === null && !q.isExpired) {
+              const pausedAtPresentationSec =
+                q.pausedDurationMsAtPresentation / 1000;
+              const effectivePauseSec =
+                totalPausedSec - pausedAtPresentationSec;
+              const timeUsed = Math.max(
+                0,
+                Math.floor(nowSec - q.startedAt - effectivePauseSec)
+              );
+              const isExpired = timeUsed >= q.timeLimitSeconds;
+              updatedByQuestionId[qId] = {
+                ...q,
+                timeUsedSeconds: Math.min(timeUsed, q.timeLimitSeconds),
+                isExpired,
+              };
+            }
+          }
+          setTimerState({ ...restored, byQuestionId: updatedByQuestionId });
         }
-        setTimerState({ ...restored, byQuestionId: updatedByQuestionId });
       }
     }
     prevZustandRef.current = zustandTimerState;
@@ -463,6 +474,16 @@ export function useQuestionTimer(
             pausedDurationMsAtPresentation: 0,
           };
         }
+        // Immediately present the first question so the timer tick interval
+        // can update it without relying on the auto-present effect
+        const firstQ = qs[0];
+        if (firstQ) {
+          byQuestionId[firstQ.id] = {
+            ...byQuestionId[firstQ.id],
+            startedAt: nowSec,
+            pausedDurationMsAtPresentation: 0,
+          };
+        }
         pauseStartedAtRef.current = null;
         const next = {
           ...s,
@@ -476,6 +497,7 @@ export function useQuestionTimer(
           mode,
         };
         syncToZustand(next);
+        startTimingJustSynced.current = true;
         return next;
       });
     },
