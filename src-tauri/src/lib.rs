@@ -142,7 +142,8 @@ fn marking_format() -> serde_json::Value {
             "additionalProperties": false,
             "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
                          "vcaaMarkingScheme","comparisonToSolutionMarkdown",
-                         "feedbackMarkdown","workedSolutionMarkdown","mcOptionExplanations"],
+                         "feedbackMarkdown","workedSolutionMarkdown",
+                         "exemplarResponseMarkdown","mcOptionExplanations"],
             "properties": {
                 "verdict":       { "type": "string" },
                 "achievedMarks": { "type": "integer", "minimum": 0 },
@@ -165,6 +166,7 @@ fn marking_format() -> serde_json::Value {
                 "comparisonToSolutionMarkdown": { "type": "string" },
                 "feedbackMarkdown":             { "type": "string" },
                 "workedSolutionMarkdown":       { "type": "string" },
+                "exemplarResponseMarkdown":     { "type": "string" },
                 // Present for MC questions; empty array for written questions.
                 "mcOptionExplanations": {
                     "type": "array",
@@ -394,16 +396,25 @@ earn which marks, (3) recognise common student mistakes and address them in feed
 report specifies partial credit rules, apply them consistently.\n\
          \n\
          CONCISENESS LIMITS (scale with mark value):\n\
+         - Verdict: \"Correct\" or \"Incorrect\" — do NOT hedge or use non-committal language.\n\
          - Each criterion rationale: ≤{rationale_words} words — reference the student's specific wording.\n\
          - comparisonToSolution: ≤{comparison_words} words.\n\
          - feedbackMarkdown: ≤{feedback_words} words — be specific and actionable, not generic.\n\
          - workedSolutionMarkdown: ≤{worked_words} words — show every step explicitly.\n\
          \n\
-        FEEDBACK STYLE:\n\
-         - Format `feedbackMarkdown` using Markdown (headings, bullet points, and short math/code fences where appropriate) so feedback is clear and scannable.\n\
+        FEEDBACK STYLE — STANDARDISED FORMAT (MANDATORY):\n\
+         - Format `feedbackMarkdown` using Markdown, following EXACTLY this Markdown structure (Notice the usage of headers):\n\
+           ## Strengths\n\
+           - (2–3 bullet points naming specific things the student did well, quoting their work)\n\
+           ## Areas for Improvement\n\
+           - (2–3 bullet points with specific, actionable advice — name the skill or step that needs work)\n\
+           ## Common Pitfalls\n\
+           - (1–2 bullet points on misconceptions this question typically targets)\n\
+         - Do NOT include an exemplar response inside feedbackMarkdown — it has its own field.\n\
+         - Do NOT add any other top-level headings to feedbackMarkdown.\n\
+         - Use Markdown headings, bullet points, and short math/code fences where appropriate.\n\
          - Also use Markdown in `comparisonToSolutionMarkdown` and `workedSolutionMarkdown` (headings, lists, and clear step structure).\n\
-         - At the end of `feedbackMarkdown` include an \"Exemplar response\" subsection showing an ideal student answer (concise, directly aligned to the marking scheme) that would earn full marks.\n\
-         - Keep exemplar focused on the key steps or reasoning required for full credit.\n\
+         - `exemplarResponseMarkdown`: a concise ideal student answer (aligned to the marking scheme) that would earn full marks. Keep it focused on the key steps or reasoning required. This is a SEPARATE field — do NOT duplicate it in feedbackMarkdown.\n\
         \n\
         {LATEX_RULES}{chem_note}\n\n\
         {phys_ed_note}\n\n\
@@ -422,9 +433,10 @@ report specifies partial credit rules, apply them consistently.\n\
 the student's answer to justify the mark)\n\
                  }}\n\
              ],\n\
-             \"comparisonToSolutionMarkdown\": string (≤{comparison_words} words),\n\
-             \"feedbackMarkdown\": string (≤{feedback_words} words — 2–3 specific, actionable improvements),\n\
-             \"workedSolutionMarkdown\": string (≤{worked_words} words — full step-by-step solution),\n\
+              \"comparisonToSolutionMarkdown\": string (≤{comparison_words} words),\n\
+              \"feedbackMarkdown\": string (≤{feedback_words} words — MUST use the ## Strengths / ## Areas for Improvement / ## Common Pitfalls format specified above),\n\
+              \"workedSolutionMarkdown\": string (≤{worked_words} words — full step-by-step solution),\n\
+              \"exemplarResponseMarkdown\": string (concise ideal student answer for full marks — do NOT repeat this in feedbackMarkdown),\n\
              \"mcOptionExplanations\": [\n\
                  {{\n\
                      \"option\": \"A\" | \"B\" | \"C\" | \"D\",\n\
@@ -1056,7 +1068,10 @@ async fn generate_questions(
             let q_count = payload.questions.len() as i64;
             let mut adjustments: Vec<i64> = vec![diff / q_count; payload.questions.len()];
             let remainder = diff % q_count;
-            for adj in adjustments.iter_mut().take(remainder.unsigned_abs() as usize) {
+            for adj in adjustments
+                .iter_mut()
+                .take(remainder.unsigned_abs() as usize)
+            {
                 if remainder > 0 {
                     *adj += 1;
                 } else {
@@ -1440,7 +1455,7 @@ async fn mark_answer(
     let pe_note = if is_pe {
         "\nPHYSICAL EDUCATION MARKING STYLE:\n\
          - DO NOT use mathematical equations, derivations, or formula-based solutions in your \
-exemplar response, feedbackMarkdown, comparisonToSolutionMarkdown, or workedSolutionMarkdown.\n\
+exemplarResponseMarkdown, feedbackMarkdown, comparisonToSolutionMarkdown, or workedSolutionMarkdown.\n\
          - VCE PE does not require formal mathematical working. Write all responses in clear \
 prose — paragraphs, bullet points, and short explanations.\n\
          - Simple named formulas are acceptable where the Study Design requires them \
@@ -1602,6 +1617,7 @@ mathematical rigour.\n"
     parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);
     parsed.worked_solution_markdown = clean_field(&parsed.worked_solution_markdown);
     parsed.comparison_to_solution_markdown = clean_field(&parsed.comparison_to_solution_markdown);
+    parsed.exemplar_response_markdown = clean_field(&parsed.exemplar_response_markdown);
     for c in &mut parsed.vcaa_marking_scheme {
         c.criterion = clean_field(&c.criterion);
         c.rationale = clean_field(&c.rationale);

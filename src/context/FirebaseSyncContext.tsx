@@ -26,10 +26,13 @@ export function FirebaseSyncProvider({
       syncEvents: firebaseSync.syncEvents,
       debugLogs: firebaseSync.debugLogs,
       pendingChanges: firebaseSync.pendingChanges,
+      pendingDeletions: firebaseSync.pendingDeletions,
+      conflicts: firebaseSync.conflicts,
       enableSync: firebaseSync.enableSync,
       disableSync: firebaseSync.disableSync,
       toggleSync: firebaseSync.toggleSync,
       forceSync: firebaseSync.forceSync,
+      resolveConflicts: firebaseSync.resolveConflicts,
     }),
     [
       firebaseSync.user,
@@ -43,10 +46,13 @@ export function FirebaseSyncProvider({
       firebaseSync.syncEvents,
       firebaseSync.debugLogs,
       firebaseSync.pendingChanges,
+      firebaseSync.pendingDeletions,
+      firebaseSync.conflicts,
       firebaseSync.enableSync,
       firebaseSync.disableSync,
       firebaseSync.toggleSync,
       firebaseSync.forceSync,
+      firebaseSync.resolveConflicts,
     ]
   );
   return (

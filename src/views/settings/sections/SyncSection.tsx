@@ -6,6 +6,7 @@ import {
   CloudOff,
   Loader2,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
@@ -14,6 +15,7 @@ import { useAppSettings } from '../../../AppContext';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
 import { signOutFirebase } from '../../../context/modules/firebase-auth';
 import { SectionHeader, FieldGroup, Card } from '../SettingsUI';
+import { ConflictResolutionDialog } from '../../../components/ConflictResolutionDialog';
 
 export function SyncSection() {
   const { debugMode } = useAppSettings();
@@ -38,9 +40,12 @@ export function SyncSection() {
     syncEvents,
     debugLogs,
     pendingChanges,
+    pendingDeletions,
+    conflicts,
     enableSync,
     disableSync,
     forceSync,
+    resolveConflicts,
   } = firebaseSync;
 
   const syncEnabled = isSyncEnabled;
@@ -149,6 +154,13 @@ export function SyncSection() {
                   {pendingChanges < 0
                     ? 'Changes pending'
                     : `${pendingChanges} change${pendingChanges === 1 ? '' : 's'} pending`}
+                </p>
+              )}
+              {syncEnabled && pendingDeletions > 0 && (
+                <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                  <Trash2 className="h-3 w-3" />
+                  {pendingDeletions} deletion{pendingDeletions === 1 ? '' : 's'}{' '}
+                  pending sync
                 </p>
               )}
             </div>
@@ -395,6 +407,16 @@ export function SyncSection() {
           </div>
         </Card>
       )}
+
+      <ConflictResolutionDialog
+        open={conflicts.length > 0}
+        conflicts={conflicts}
+        onResolve={resolveConflicts}
+        onCancel={() => {
+          // User cancelled — clear conflicts, sync stays paused
+          resolveConflicts(new Map(conflicts.map((c) => [c.id, 'delete'])));
+        }}
+      />
     </div>
   );
 }

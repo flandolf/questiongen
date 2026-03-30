@@ -21,8 +21,16 @@ import {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   saveDailyUsage,
-  getDeltaSyncData,
 } from './useFirebase';
+import {
+  SyncConflict,
+  tombstonesToDeletedIds,
+  purgePersistedTombstones,
+  detectDualDeletions,
+  buildConflictLabel,
+  filterDeleted,
+  removeTombstone,
+} from './deletion-tombstones';
 
 // Helper to normalize remote SyncableData to local SyncableData
 function normalizeRemoteSyncableData(
@@ -340,6 +348,8 @@ export interface UseFirebaseSyncReturn {
   syncEvents: SyncEvent[];
   debugLogs: DebugLogEntry[];
   pendingChanges: number;
+  pendingDeletions: number;
+  conflicts: SyncConflict[];
   enableSync: (
     email: string,
     password: string,
@@ -348,6 +358,7 @@ export interface UseFirebaseSyncReturn {
   disableSync: () => Promise<void>;
   toggleSync: () => void;
   forceSync: () => Promise<void>;
+  resolveConflicts: (resolutions: Map<string, 'keep' | 'delete'>) => void;
 }
 
 export function useFirebaseSync(): UseFirebaseSyncReturn {
@@ -364,6 +375,17 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingChanges, setPendingChanges] = useState(0);
+  const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+
+  const getPendingDeletions = useCallback((): number => {
+    const tombstones = useAppStore.getState().deletionTombstones;
+    return (
+      Object.keys(tombstones.questionHistory).length +
+      Object.keys(tombstones.mcHistory).length +
+      Object.keys(tombstones.savedSets).length +
+      Object.keys(tombstones.presets).length
+    );
+  }, []);
 
   const debugLog = useCallback((message: string, data?: unknown) => {
     if (SYNC_DEBUG) {
@@ -815,13 +837,19 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     try {
       const state = useAppStore.getState();
       const localData = extractSyncableData(state);
+      const tombstones = state.deletionTombstones;
+
       debugLog('Manual sync local snapshot', {
         questionHistory: localData.questionHistory?.length,
         mcHistory: localData.mcHistory?.length,
         savedSets: localData.savedSets?.length,
+        pendingDeletions:
+          Object.keys(tombstones.questionHistory).length +
+          Object.keys(tombstones.mcHistory).length +
+          Object.keys(tombstones.savedSets).length,
       });
 
-      // 1. Read remote (1 read per doc, but only once per manual sync)
+      // 1. Read remote
       const remoteData = await loadUserData(userId);
       const remoteHasData = hasRemoteData(
         normalizeRemoteSyncableData(remoteData)
@@ -833,10 +861,116 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         savedSets: remoteData?.savedSets?.length ?? 0,
       });
 
-      // 2. Merge local + remote (newer wins)
+      // 2. Detect dual-deletion conflicts before merging
+      const detectedConflicts: SyncConflict[] = [];
+      if (remoteHasData) {
+        const remoteQhIds = new Set(
+          (remoteData?.questionHistory ?? []).map(
+            (i: Record<string, unknown>) => String(i.id ?? '')
+          )
+        );
+        const remoteMcIds = new Set(
+          (remoteData?.mcHistory ?? []).map((i: Record<string, unknown>) =>
+            String(i.id ?? '')
+          )
+        );
+        const remoteSsIds = new Set(
+          (remoteData?.savedSets ?? []).map((i: Record<string, unknown>) =>
+            String(i.id ?? '')
+          )
+        );
+
+        const localQhItems = localData.questionHistory as Record<
+          string,
+          unknown
+        >[];
+        const localMcItems = localData.mcHistory as Record<string, unknown>[];
+        const localSsItems = localData.savedSets as Record<string, unknown>[];
+
+        // For each tombstone, check if the item is also absent from remote
+        // This means the remote deleted it too (or it was never there)
+        const qhConflicts = detectDualDeletions(
+          new Set(Object.keys(tombstones.questionHistory)),
+          remoteQhIds
+        );
+        for (const id of qhConflicts) {
+          detectedConflicts.push({
+            id,
+            collection: 'questionHistory',
+            label: buildConflictLabel('questionHistory', id, localQhItems),
+            localDeletedAt: tombstones.questionHistory[id],
+          });
+        }
+
+        const mcConflicts = detectDualDeletions(
+          new Set(Object.keys(tombstones.mcHistory)),
+          remoteMcIds
+        );
+        for (const id of mcConflicts) {
+          detectedConflicts.push({
+            id,
+            collection: 'mcHistory',
+            label: buildConflictLabel('mcHistory', id, localMcItems),
+            localDeletedAt: tombstones.mcHistory[id],
+          });
+        }
+
+        const ssConflicts = detectDualDeletions(
+          new Set(Object.keys(tombstones.savedSets)),
+          remoteSsIds
+        );
+        for (const id of ssConflicts) {
+          detectedConflicts.push({
+            id,
+            collection: 'savedSets',
+            label: buildConflictLabel('savedSets', id, localSsItems),
+            localDeletedAt: tombstones.savedSets[id],
+          });
+        }
+      }
+
+      // If there are conflicts, pause sync and prompt user
+      if (detectedConflicts.length > 0) {
+        debugLog('Dual-deletion conflicts detected', {
+          count: detectedConflicts.length,
+        });
+        setConflicts(detectedConflicts);
+        setIsSyncing(false);
+        setSyncStatus('idle');
+        addSyncEvent(
+          'conflict',
+          `${detectedConflicts.length} deletion conflict${detectedConflicts.length === 1 ? '' : 's'} detected — awaiting resolution`
+        );
+        return; // Sync paused until resolveConflicts is called
+      }
+
+      // 3. Apply tombstone filters: remove locally deleted items from what we merge/upload
+      const filteredLocalData: SyncableData = {
+        ...localData,
+        questionHistory: filterDeleted(
+          localData.questionHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.questionHistory
+        ),
+        mcHistory: filterDeleted(
+          localData.mcHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.mcHistory
+        ),
+        savedSets: filterDeleted(
+          localData.savedSets as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.savedSets
+        ),
+      };
+
+      // 4. Merge local + remote (newer wins)
       const merged = remoteHasData
-        ? mergeSyncableData(localData, remoteData)
-        : localData;
+        ? mergeSyncableData(filteredLocalData, remoteData)
+        : filteredLocalData;
 
       if (remoteHasData) {
         const storeUpdates = applySyncableDataToStore(merged);
@@ -846,26 +980,41 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         addSyncEvent('download', 'Merged remote updates');
       }
 
-      // 3. Write only changed items (delta sync)
+      // 5. Write with deletedIds to propagate deletions to Firestore
       debugLog('Uploading merged data', {
         questionHistory: merged.questionHistory?.length,
         mcHistory: merged.mcHistory?.length,
         savedSets: merged.savedSets?.length,
       });
 
-      const deltaResult = await getDeltaSyncData(userId, merged);
-      if (deltaResult.changedItems.length === 0 && !remoteHasData) {
-        debugLog('No changes to sync');
-        addSyncEvent('upload', 'No changes to sync');
-      } else {
-        await saveUserData(userId, merged, {
-          deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
-          fullSync: false,
+      const deletedIds = tombstonesToDeletedIds(tombstones);
+      const hasDeletions =
+        deletedIds.questionHistory.length > 0 ||
+        deletedIds.mcHistory.length > 0 ||
+        deletedIds.savedSets.length > 0;
+
+      await saveUserData(userId, merged, {
+        deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
+        fullSync: false,
+        ...(hasDeletions ? { deletedIds } : {}),
+      });
+
+      if (hasDeletions) {
+        addSyncEvent(
+          'upload',
+          `Deleted ${deletedIds.questionHistory.length + deletedIds.mcHistory.length + deletedIds.savedSets.length} items from cloud`
+        );
+      }
+      addSyncEvent('upload', 'Data synced to cloud');
+
+      // 6. Clear persisted tombstones after successful sync
+      if (hasDeletions) {
+        useAppStore.setState({
+          deletionTombstones: purgePersistedTombstones(tombstones, deletedIds),
         });
-        addSyncEvent('upload', 'Data synced to cloud');
       }
 
-      // 4. Sync daily usage (bundled into manual sync)
+      // 7. Sync daily usage (bundled into manual sync)
       try {
         await saveDailyUsage(
           userId,
@@ -941,6 +1090,57 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }
   }, [user, debugLog, addSyncEvent, suppressAutoSaveTemporarily]);
 
+  const resolveConflicts = useCallback(
+    (resolutions: Map<string, 'keep' | 'delete'>) => {
+      debugLog('Resolving conflicts', {
+        total: resolutions.size,
+        kept: Array.from(resolutions.values()).filter((r) => r === 'keep')
+          .length,
+        deleted: Array.from(resolutions.values()).filter((r) => r === 'delete')
+          .length,
+      });
+
+      const state = useAppStore.getState();
+      let tombstones = state.deletionTombstones;
+
+      for (const [id, resolution] of resolutions) {
+        const conflict = conflicts.find((c) => c.id === id);
+        if (!conflict) continue;
+
+        if (resolution === 'keep') {
+          // Remove tombstone — item will be kept on next sync
+          tombstones = removeTombstone(tombstones, conflict.collection, id);
+        }
+        // If 'delete', tombstone stays — it will be propagated on next sync
+      }
+
+      useAppStore.setState({ deletionTombstones: tombstones });
+      setConflicts([]);
+
+      const kept = Array.from(resolutions.values()).filter(
+        (r) => r === 'keep'
+      ).length;
+      const deleted = resolutions.size - kept;
+
+      if (kept > 0) {
+        addSyncEvent(
+          'conflict',
+          `Restored ${kept} item${kept === 1 ? '' : 's'} from deletion`
+        );
+      }
+      if (deleted > 0) {
+        addSyncEvent(
+          'conflict',
+          `Confirmed deletion of ${deleted} item${deleted === 1 ? '' : 's'}`
+        );
+      }
+
+      // Re-trigger sync now that conflicts are resolved
+      void forceSync();
+    },
+    [conflicts, debugLog, addSyncEvent, forceSync]
+  );
+
   return {
     user,
     isLoading,
@@ -953,9 +1153,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     syncEvents,
     debugLogs,
     pendingChanges,
+    pendingDeletions: getPendingDeletions(),
+    conflicts,
     enableSync,
     disableSync,
     toggleSync,
     forceSync,
+    resolveConflicts,
   };
 }

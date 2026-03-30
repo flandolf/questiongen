@@ -174,6 +174,9 @@ pub struct MarkAnswerResponse {
     pub comparison_to_solution_markdown: String,
     pub feedback_markdown: String,
     pub worked_solution_markdown: String,
+    /// Separate exemplar response showing an ideal student answer.
+    #[serde(default)]
+    pub exemplar_response_markdown: String,
     /// Per-option explanations for MC questions; empty for written questions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mc_option_explanations: Vec<McOptionExplanation>,

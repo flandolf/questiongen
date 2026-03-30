@@ -45,6 +45,11 @@ import {
   loadPersistedAppState,
   savePersistedAppState,
 } from './lib/persistence';
+import {
+  DeletionTombstones,
+  EMPTY_TOMBSTONES,
+  addTombstone,
+} from './context/modules/deletion-tombstones';
 import { createCard, reviewCard, isDue } from './lib/spaced-repetition';
 import { getTodayKey } from './lib/utils';
 
@@ -148,6 +153,9 @@ export interface AppState {
   // ── Timer state (survives navigation) ──────────────────────────
   writtenTimerState: PersistedTimerState | null;
   mcTimerState: PersistedTimerState | null;
+
+  // ── Deletion tombstones (tracks local deletes pending cloud sync) ─
+  deletionTombstones: DeletionTombstones;
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -286,6 +294,10 @@ export interface AppActions {
   needsSaveBeforeLoad: (savedSetId: string) => boolean;
   deleteSavedSet: (savedSetId: string) => void;
   deleteAllSavedSets: () => void;
+  deleteQuestionHistoryEntry: (id: string) => void;
+  deleteMcHistoryEntry: (id: string) => void;
+  clearQuestionHistory: () => void;
+  clearMcHistory: () => void;
 
   // Spaced repetition
   reviewSpacedCard: (questionId: string, quality: ReviewQuality) => void;
@@ -307,6 +319,9 @@ export interface AppActions {
   // Timer state
   setWrittenTimerState: (state: PersistedTimerState | null) => void;
   setMcTimerState: (state: PersistedTimerState | null) => void;
+
+  // Deletion tombstones
+  setDeletionTombstones: (tombstones: DeletionTombstones) => void;
 }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -424,6 +439,7 @@ const defaultState: AppState = {
   presets: [],
   writtenTimerState: null,
   mcTimerState: null,
+  deletionTombstones: { ...EMPTY_TOMBSTONES },
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -530,6 +546,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         presets: s.presets ?? [],
         writtenTimerState: s.writtenTimerState ?? null,
         mcTimerState: s.mcTimerState ?? null,
+        deletionTombstones: (s as Record<string, unknown>).deletionTombstones
+          ? ((s as Record<string, unknown>)
+              .deletionTombstones as DeletionTombstones)
+          : { ...EMPTY_TOMBSTONES },
       });
     } catch (err) {
       console.error('Hydration failed:', err);
@@ -552,6 +572,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   // Timer state
   setWrittenTimerState: (writtenTimerState) => set({ writtenTimerState }),
   setMcTimerState: (mcTimerState) => set({ mcTimerState }),
+
+  // Deletion tombstones
+  setDeletionTombstones: (deletionTombstones) => set({ deletionTombstones }),
 
   setApiKey: (key) => set({ apiKey: key }),
   setShowApiKey: (show) => set({ showApiKey: show }),
@@ -576,7 +599,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       presets: s.presets.map((p) => (p.id === preset.id ? preset : p)),
     })),
   deletePreset: (id) =>
-    set((s) => ({ presets: s.presets.filter((p) => p.id !== id) })),
+    set((s) => ({
+      presets: s.presets.filter((p) => p.id !== id),
+      deletionTombstones: addTombstone(s.deletionTombstones, 'presets', id),
+    })),
 
   // ── Preferences ────────────────────────────────────────────────────────────
 
@@ -947,14 +973,64 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
           : s.activeWrittenSavedSetId,
       activeMcSavedSetId:
         s.activeMcSavedSetId === savedSetId ? null : s.activeMcSavedSetId,
+      deletionTombstones: addTombstone(
+        s.deletionTombstones,
+        'savedSets',
+        savedSetId
+      ),
     }));
   },
 
   deleteAllSavedSets: () => {
-    set({
-      savedSets: [],
-      activeWrittenSavedSetId: null,
-      activeMcSavedSetId: null,
+    set((s) => {
+      let tombstones = s.deletionTombstones;
+      for (const ss of s.savedSets) {
+        tombstones = addTombstone(tombstones, 'savedSets', ss.id);
+      }
+      return {
+        savedSets: [],
+        activeWrittenSavedSetId: null,
+        activeMcSavedSetId: null,
+        deletionTombstones: tombstones,
+      };
+    });
+  },
+
+  deleteQuestionHistoryEntry: (id) => {
+    set((s) => ({
+      questionHistory: s.questionHistory.filter((e) => e.id !== id),
+      deletionTombstones: addTombstone(
+        s.deletionTombstones,
+        'questionHistory',
+        id
+      ),
+    }));
+  },
+
+  deleteMcHistoryEntry: (id) => {
+    set((s) => ({
+      mcHistory: s.mcHistory.filter((e) => e.id !== id),
+      deletionTombstones: addTombstone(s.deletionTombstones, 'mcHistory', id),
+    }));
+  },
+
+  clearQuestionHistory: () => {
+    set((s) => {
+      let tombstones = s.deletionTombstones;
+      for (const entry of s.questionHistory) {
+        tombstones = addTombstone(tombstones, 'questionHistory', entry.id);
+      }
+      return { questionHistory: [], deletionTombstones: tombstones };
+    });
+  },
+
+  clearMcHistory: () => {
+    set((s) => {
+      let tombstones = s.deletionTombstones;
+      for (const entry of s.mcHistory) {
+        tombstones = addTombstone(tombstones, 'mcHistory', entry.id);
+      }
+      return { mcHistory: [], deletionTombstones: tombstones };
     });
   },
 
@@ -1144,6 +1220,10 @@ function buildPersistedSnapshot(
     examHistory: s.examHistory,
     generationHistory: s.generationHistory,
     presets: s.presets,
+    deletionTombstones: s.deletionTombstones as unknown as Record<
+      string,
+      Record<string, number>
+    >,
   };
 }
 

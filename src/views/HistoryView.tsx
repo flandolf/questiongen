@@ -674,8 +674,10 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
 
 export function HistoryView() {
   const navigate = useNavigate();
-  const { questionHistory, setQuestionHistory } = useWrittenSession();
-  const { mcHistory, setMcHistory } = useMultipleChoiceSession();
+  const { questionHistory, deleteQuestionHistoryEntry, clearQuestionHistory } =
+    useWrittenSession();
+  const { mcHistory, deleteMcHistoryEntry, clearMcHistory } =
+    useMultipleChoiceSession();
 
   const combined = useMemo<AnyEntry[]>(() => {
     const written = questionHistory.map((e) => ({
@@ -803,13 +805,9 @@ export function HistoryView() {
   function performSingleDeleteConfirmed() {
     if (!pendingDeleteEntry) return;
     if (pendingDeleteEntry.kind === 'written') {
-      setQuestionHistory((prev: QuestionHistoryEntry[]) =>
-        prev.filter((e) => e.id !== pendingDeleteEntry.id)
-      );
+      deleteQuestionHistoryEntry(pendingDeleteEntry.id);
     } else {
-      setMcHistory((prev: McHistoryEntry[]) =>
-        prev.filter((e) => e.id !== pendingDeleteEntry.id)
-      );
+      deleteMcHistoryEntry(pendingDeleteEntry.id);
     }
     setExpandedEntryKeys((cur) => {
       const next = new Set(cur);
@@ -829,8 +827,8 @@ export function HistoryView() {
   }
 
   function performClearConfirmed() {
-    setQuestionHistory([]);
-    setMcHistory([]);
+    clearQuestionHistory();
+    clearMcHistory();
     setSubjectFilter(null);
     setModeFilter('all');
     setSearchQuery('');
