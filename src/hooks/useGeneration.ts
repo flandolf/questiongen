@@ -75,8 +75,13 @@ export function useGeneration() {
   ]);
 
   const getSelectedSubtopicInstructions = useCallback(() => {
+    const subs = getSelectedSubtopics();
+    const hasInstructions = subs.some((sub) =>
+      subtopicInstructions[sub]?.trim()
+    );
+    if (!hasInstructions) return {};
     const result: Record<string, string> = {};
-    for (const sub of getSelectedSubtopics()) {
+    for (const sub of subs) {
       const instr = subtopicInstructions[sub]?.trim();
       if (instr) result[sub] = instr;
     }

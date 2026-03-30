@@ -2,10 +2,12 @@ export const PRESET_MODELS = [
   { id: 'google/gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite' },
   { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash' },
   { id: 'google/gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+  { id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5' },
+  { id: 'deepseek/deepseek-v3.2:nitro', name: 'DeepSeek v3.2 (Nitro)' },
   { id: 'openai/gpt-5.4-nano', name: 'GPT-5.4 Nano' },
   { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B' },
   { id: 'openai/gpt-oss-120b:nitro', name: 'GPT-OSS 120B (Nitro)' },
-  { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B' },
+  { id: 'openai/gpt-oss-20b:nitro', name: 'GPT-OSS 20B (Nitro)' },
   { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast' },
   { id: 'nvidia/nemotron-3-super-120b-a12b', name: 'Nemotron 3 Super 120B' },
   {

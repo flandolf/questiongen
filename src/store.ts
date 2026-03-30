@@ -531,7 +531,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         writtenTimerState: s.writtenTimerState ?? null,
         mcTimerState: s.mcTimerState ?? null,
       });
-    } catch {
+    } catch (err) {
+      console.error('Hydration failed:', err);
       set({ errorMessage: 'Could not load saved app data.', isHydrated: true });
     }
   },
@@ -688,7 +689,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       if (s.questions.length === 0) return null;
 
       const savedSetId =
-        s.activeWrittenSavedSetId ?? `saved-written-${Date.now()}`;
+        s.activeWrittenSavedSetId ?? `saved-written-${crypto.randomUUID()}`;
       const existing = s.savedSets.find((e) => e.id === savedSetId);
 
       const preferencesSnapshot: PersistedGeneratorPreferences = {
@@ -739,10 +740,13 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
 
       // Immediate persist for explicit save
-      const persistedSnapshot = buildPersistedSnapshot({
-        ...s,
-        savedSets: nextSavedSets,
-      });
+      const persistedSnapshot = buildPersistedSnapshot(
+        {
+          ...s,
+          savedSets: nextSavedSets,
+        },
+        { preserveImages: true }
+      );
       void savePersistedAppState(persistedSnapshot).catch(() =>
         set((cur) => ({
           errorMessage: cur.errorMessage ?? 'Could not save app data.',
@@ -755,7 +759,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     // Multiple choice
     if (s.mcQuestions.length === 0) return null;
 
-    const savedSetId = s.activeMcSavedSetId ?? `saved-mc-${Date.now()}`;
+    const savedSetId =
+      s.activeMcSavedSetId ?? `saved-mc-${crypto.randomUUID()}`;
     const existing = s.savedSets.find((e) => e.id === savedSetId);
 
     const preferencesSnapshot: PersistedGeneratorPreferences = {
@@ -803,10 +808,13 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
     set({ savedSets: nextSavedSets, activeMcSavedSetId: savedSetId });
 
-    const persistedSnapshot = buildPersistedSnapshot({
-      ...s,
-      savedSets: nextSavedSets,
-    });
+    const persistedSnapshot = buildPersistedSnapshot(
+      {
+        ...s,
+        savedSets: nextSavedSets,
+      },
+      { preserveImages: true }
+    );
     void savePersistedAppState(persistedSnapshot).catch(() =>
       set((cur) => ({
         errorMessage: cur.errorMessage ?? 'Could not save app data.',
@@ -874,6 +882,15 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
               writtenGenerationTelemetry:
                 entry.writtenSession.generationTelemetry ?? null,
               activeWrittenSavedSetId: entry.id,
+              // Clear opposite mode's session
+              mcQuestions: [],
+              activeMcQuestionIndex: 0,
+              mcQuestionPresentedAtById: {},
+              mcAnswersByQuestionId: {},
+              mcHistory: [],
+              mcRawModelOutput: '',
+              mcGenerationTelemetry: null,
+              activeMcSavedSetId: null,
             }
           : {}),
         ...(entry.questionMode === 'multiple-choice' && entry.mcSession
@@ -887,6 +904,16 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
               mcGenerationTelemetry:
                 entry.mcSession.generationTelemetry ?? null,
               activeMcSavedSetId: entry.id,
+              // Clear opposite mode's session
+              questions: [],
+              activeQuestionIndex: 0,
+              writtenQuestionPresentedAtById: {},
+              answersByQuestionId: {},
+              imagesByQuestionId: {},
+              feedbackByQuestionId: {},
+              writtenRawModelOutput: '',
+              writtenGenerationTelemetry: null,
+              activeWrittenSavedSetId: null,
             }
           : {}),
         generationStartedAt,
@@ -955,8 +982,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       .map(([questionId, card]) => ({ questionId, card }))
       .sort(
         (a, b) =>
-          new Date(a.card.nextReviewDate).getTime() -
-          new Date(b.card.nextReviewDate).getTime()
+          new Date((a.card as SpacedRepetitionCard).nextReviewDate).getTime() -
+          new Date((b.card as SpacedRepetitionCard).nextReviewDate).getTime()
       );
   },
 
@@ -1023,7 +1050,11 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
 // ─── Persistence snapshot builder ────────────────────────────────────────────
 
-function buildPersistedSnapshot(s: AppState): PersistedAppState {
+function buildPersistedSnapshot(
+  s: AppState,
+  options?: { preserveImages?: boolean }
+): PersistedAppState {
+  const preserveImages = options?.preserveImages ?? false;
   // Strip base64 dataUrls from images to reduce serialized payload size.
   // Images for the active session are kept in the store (in-memory) for marking;
   // only names are persisted so the UI can show which images were uploaded.
@@ -1033,7 +1064,10 @@ function buildPersistedSnapshot(s: AppState): PersistedAppState {
   > = {};
   for (const [key, img] of Object.entries(s.imagesByQuestionId)) {
     if (img) {
-      strippedImages[key] = { name: img.name, dataUrl: '' };
+      strippedImages[key] = {
+        name: img.name,
+        dataUrl: preserveImages ? img.dataUrl : '',
+      };
     }
   }
 
@@ -1142,7 +1176,7 @@ useAppStore.subscribe((state) => {
   persistTimer = setTimeout(() => {
     if (!hydratedOnce) return;
     if (Date.now() < suppressPersistUntil) return;
-    const snapshot = buildPersistedSnapshot(state);
+    const snapshot = buildPersistedSnapshot(useAppStore.getState());
     void savePersistedAppState(snapshot).catch(() => {
       useAppStore.setState((cur) => ({
         errorMessage: cur.errorMessage ?? 'Could not save app data.',

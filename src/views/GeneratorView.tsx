@@ -64,7 +64,7 @@ function countWords(value: string) {
   return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
 }
 
-const MC_MAX_EXPLANATION_WORDS = 300;
+const MC_MAX_EXPLANATION_WORDS = 180;
 
 function isMathTopic(topic?: string) {
   return topic === 'Mathematical Methods' || topic === 'Specialist Mathematics';
@@ -330,8 +330,8 @@ export function GeneratorView() {
   const [streamText, setStreamText] = useState('');
 
   // Calculate recent average score for AI scaling
+  const examHistory = useAppStore((s) => s.examHistory);
   const recentAverageScore = useMemo(() => {
-    const examHistory = useAppStore.getState().examHistory;
     if (examHistory.length === 0) return null;
 
     // Take last 5 exams
@@ -341,7 +341,7 @@ export function GeneratorView() {
       0
     );
     return totalScore / recentExams.length;
-  }, []); // Recalculate when needed, but for now static
+  }, [examHistory]);
 
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
     import('@/types').GenerationTelemetry | null
@@ -557,6 +557,112 @@ export function GeneratorView() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }, [remainingSeconds]);
 
+  // ── Exam submission: mark all answers at once ─────────────────────────────────
+  const handleSubmitExam = useCallback(async () => {
+    if (generationMode !== 'exam') return;
+    setIsSubmittingExam(true);
+    setErrorMessage(null);
+    setExamSubmitted(true);
+
+    try {
+      if (questionMode === 'written') {
+        // Mark all unmarked written answers
+        const unmarkedQuestions = questions.filter(
+          (q) => !feedbackByQuestionId[q.id]
+        );
+        if (unmarkedQuestions.length > 0) {
+          const items = unmarkedQuestions
+            .filter((q) => {
+              const answer = answersByQuestionId[q.id]?.trim() ?? '';
+              const image = imagesByQuestionId[q.id];
+              return answer.length > 0 || Boolean(image?.dataUrl);
+            })
+            .map((q) => ({
+              question: q,
+              studentAnswer: answersByQuestionId[q.id] ?? '',
+              studentAnswerImageDataUrl: imagesByQuestionId[q.id]?.dataUrl,
+              model: markModel,
+              apiKey,
+            }));
+
+          if (items.length > 0) {
+            const response = await invoke<{
+              results: Array<{
+                questionId: string;
+                response: unknown;
+                error: string | null;
+              }>;
+            }>('batch_mark_answers', { request: { items } });
+            for (const item of response.results) {
+              if (item.response) {
+                const q = questions.find((q) => q.id === item.questionId);
+                const maxMarks = q?.maxMarks ?? 10;
+                const normalized = normalizeMarkResponse(
+                  item.response,
+                  maxMarks
+                );
+                setFeedbackByQuestionId((prev) => ({
+                  ...prev,
+                  [item.questionId]: normalized,
+                }));
+                setMarkOverrideInputByQuestionId((prev) => ({
+                  ...prev,
+                  [item.questionId]: String(normalized.achievedMarks),
+                }));
+              }
+            }
+          }
+        }
+      } else {
+        // MC mode: compute awarded marks for any unanswered questions (they get 0)
+        for (const q of mcQuestions) {
+          if (mcAwardedMarksByQuestionId[q.id] === undefined) {
+            const sel = mcAnswersByQuestionId[q.id];
+            const awarded = sel === q.correctAnswer ? 1 : 0;
+            setMcAwardedMarksByQuestionId((prev) => ({
+              ...prev,
+              [q.id]: awarded,
+            }));
+            setMcMarkOverrideInputByQuestionId((prev) => ({
+              ...prev,
+              [q.id]: String(awarded),
+            }));
+          }
+        }
+      }
+
+      writtenTimer.finishSession();
+      mcTimer.finishSession();
+      setShowCompletionScreen(true);
+    } catch (error) {
+      setErrorMessage(readBackendError(error));
+    } finally {
+      setIsSubmittingExam(false);
+    }
+  }, [
+    generationMode,
+    questionMode,
+    questions,
+    feedbackByQuestionId,
+    answersByQuestionId,
+    imagesByQuestionId,
+    mcQuestions,
+    mcAnswersByQuestionId,
+    mcAwardedMarksByQuestionId,
+    markModel,
+    apiKey,
+    setErrorMessage,
+    setFeedbackByQuestionId,
+    setMarkOverrideInputByQuestionId,
+    setMcAwardedMarksByQuestionId,
+    setMcMarkOverrideInputByQuestionId,
+    writtenTimer,
+    mcTimer,
+    setShowCompletionScreen,
+    setIsSubmittingExam,
+    setExamSubmitted,
+  ]);
+
   // Exam mode: auto-submit when time runs out
   // Uses a ref to prevent re-triggering when the user clicks "Review" to go back
   // to the question view after an auto-submit (showCompletionScreen→false would
@@ -580,7 +686,7 @@ export function GeneratorView() {
     // Time's up — force-submit the exam (marks all answers)
     examAutoSubmittedRef.current = true;
     handleSubmitExam();
-  }, [generationMode, activeTimer.sessionRemainingSeconds]);
+  }, [generationMode, activeTimer.sessionRemainingSeconds, handleSubmitExam]);
 
   // --- Timer bar context (for header display) ---
   const { setTimerBarData } = useTimerBar();
@@ -804,90 +910,6 @@ export function GeneratorView() {
     mcTimer,
     generationMode,
   ]);
-
-  // ── Exam submission: mark all answers at once ─────────────────────────────────
-  async function handleSubmitExam() {
-    if (generationMode !== 'exam') return;
-    setIsSubmittingExam(true);
-    setErrorMessage(null);
-    setExamSubmitted(true);
-
-    try {
-      if (questionMode === 'written') {
-        // Mark all unmarked written answers
-        const unmarkedQuestions = questions.filter(
-          (q) => !feedbackByQuestionId[q.id]
-        );
-        if (unmarkedQuestions.length > 0) {
-          const items = unmarkedQuestions
-            .filter((q) => {
-              const answer = answersByQuestionId[q.id]?.trim() ?? '';
-              const image = imagesByQuestionId[q.id];
-              return answer.length > 0 || Boolean(image?.dataUrl);
-            })
-            .map((q) => ({
-              question: q,
-              studentAnswer: answersByQuestionId[q.id] ?? '',
-              studentAnswerImageDataUrl: imagesByQuestionId[q.id]?.dataUrl,
-              model: markModel,
-              apiKey,
-            }));
-
-          if (items.length > 0) {
-            const response = await invoke<{
-              results: Array<{
-                questionId: string;
-                response: unknown;
-                error: string | null;
-              }>;
-            }>('batch_mark_answers', { request: { items } });
-            for (const item of response.results) {
-              if (item.response) {
-                const q = questions.find((q) => q.id === item.questionId);
-                const maxMarks = q?.maxMarks ?? 10;
-                const normalized = normalizeMarkResponse(
-                  item.response,
-                  maxMarks
-                );
-                setFeedbackByQuestionId((prev) => ({
-                  ...prev,
-                  [item.questionId]: normalized,
-                }));
-                setMarkOverrideInputByQuestionId((prev) => ({
-                  ...prev,
-                  [item.questionId]: String(normalized.achievedMarks),
-                }));
-              }
-            }
-          }
-        }
-      } else {
-        // MC mode: compute awarded marks for any unanswered questions (they get 0)
-        for (const q of mcQuestions) {
-          if (mcAwardedMarksByQuestionId[q.id] === undefined) {
-            const sel = mcAnswersByQuestionId[q.id];
-            const awarded = sel === q.correctAnswer ? 1 : 0;
-            setMcAwardedMarksByQuestionId((prev) => ({
-              ...prev,
-              [q.id]: awarded,
-            }));
-            setMcMarkOverrideInputByQuestionId((prev) => ({
-              ...prev,
-              [q.id]: String(awarded),
-            }));
-          }
-        }
-      }
-
-      writtenTimer.finishSession();
-      mcTimer.finishSession();
-      setShowCompletionScreen(true);
-    } catch (error) {
-      setErrorMessage(readBackendError(error));
-    } finally {
-      setIsSubmittingExam(false);
-    }
-  }
 
   const isInSession = !showSetup && !showCompletionScreen;
   function dismissKeyboardHint() {
@@ -1437,6 +1459,8 @@ export function GeneratorView() {
         distinctnessAvg: 0,
         multiStepDepthAvg: 0,
       };
+      let distinctnessWeight = 0;
+      let multiStepDepthWeight = 0;
       const failedTopics: string[] = [];
 
       for (let i = 0; i < selectedTopics.length; i++) {
@@ -1483,9 +1507,11 @@ export function GeneratorView() {
           totalTelemetry.totalTokens += response.totalTokens || 0;
           totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
           totalTelemetry.distinctnessAvg +=
-            (response.distinctnessAvg || 0) * count;
+            (response.distinctnessAvg || 0) * response.questions.length;
           totalTelemetry.multiStepDepthAvg +=
-            (response.multiStepDepthAvg || 0) * count;
+            (response.multiStepDepthAvg || 0) * response.questions.length;
+          distinctnessWeight += response.questions.length;
+          multiStepDepthWeight += response.questions.length;
 
           // Record this generation for cost estimation
           addGenerationRecord({
@@ -1531,8 +1557,14 @@ export function GeneratorView() {
       }
 
       if (allQuestions.length > 0) {
-        totalTelemetry.distinctnessAvg /= allQuestions.length;
-        totalTelemetry.multiStepDepthAvg /= allQuestions.length;
+        totalTelemetry.distinctnessAvg =
+          distinctnessWeight > 0
+            ? totalTelemetry.distinctnessAvg / distinctnessWeight
+            : 0;
+        totalTelemetry.multiStepDepthAvg =
+          multiStepDepthWeight > 0
+            ? totalTelemetry.multiStepDepthAvg / multiStepDepthWeight
+            : 0;
       }
 
       if (failedTopics.length > 0) {
@@ -1619,6 +1651,8 @@ export function GeneratorView() {
         distinctnessAvg: 0,
         multiStepDepthAvg: 0,
       };
+      let distinctnessWeight = 0;
+      let multiStepDepthWeight = 0;
       const failedTopics: string[] = [];
 
       for (let i = 0; i < selectedTopics.length; i++) {
@@ -1664,9 +1698,11 @@ export function GeneratorView() {
           totalTelemetry.totalTokens += response.totalTokens || 0;
           totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
           totalTelemetry.distinctnessAvg +=
-            (response.distinctnessAvg || 0) * count;
+            (response.distinctnessAvg || 0) * response.questions.length;
           totalTelemetry.multiStepDepthAvg +=
-            (response.multiStepDepthAvg || 0) * count;
+            (response.multiStepDepthAvg || 0) * response.questions.length;
+          distinctnessWeight += response.questions.length;
+          multiStepDepthWeight += response.questions.length;
 
           // Record this generation for cost estimation
           addGenerationRecord({
@@ -1710,8 +1746,14 @@ export function GeneratorView() {
       }
 
       if (allQuestions.length > 0) {
-        totalTelemetry.distinctnessAvg /= allQuestions.length;
-        totalTelemetry.multiStepDepthAvg /= allQuestions.length;
+        totalTelemetry.distinctnessAvg =
+          distinctnessWeight > 0
+            ? totalTelemetry.distinctnessAvg / distinctnessWeight
+            : 0;
+        totalTelemetry.multiStepDepthAvg =
+          multiStepDepthWeight > 0
+            ? totalTelemetry.multiStepDepthAvg / multiStepDepthWeight
+            : 0;
       }
 
       if (failedTopics.length > 0) {
@@ -1720,8 +1762,7 @@ export function GeneratorView() {
         );
       }
 
-      // Re-assign sequential IDs across the merged batch so that per-question
-      // state maps (answers, feedback, images) never collide between topics.
+      // Re-assign sequential IDs across the merged batch
       const rekeyedQuestions = rekeyMc(allQuestions);
 
       let finalQuestions = rekeyedQuestions;
@@ -2101,6 +2142,7 @@ export function GeneratorView() {
       saveCurrentSet();
     resetStopwatch();
     setBatchProgress([]);
+    setStreamText('');
     setGenerationStatus(null); // Reset status so summary shows
     setGenerationStartedAt(null);
     setQuestions([]);

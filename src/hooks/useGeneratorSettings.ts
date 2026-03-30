@@ -1,4 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
+import { useMemo } from 'react';
 import { useAppStore } from '@/store';
 import { useAppSettings } from '@/AppContext';
 
@@ -40,10 +41,11 @@ export function useGeneratorSettings() {
       difficultyThresholds: s.difficultyThresholds,
       setDifficultyThresholds: s.setDifficultyThresholds,
       subtopicInstructions: s.subtopicInstructions,
+      setSubtopicInstructions: s.setSubtopicInstructions,
     }))
   );
 
   const settings = useAppSettings();
 
-  return { ...prefs, ...settings };
+  return useMemo(() => ({ ...prefs, ...settings }), [prefs, settings]);
 }

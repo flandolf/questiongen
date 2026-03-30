@@ -279,7 +279,7 @@ export function ModelSearchPanel({
     return () => {
       signal.cancelled = true;
     };
-  }, [apiKey, target]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [apiKey, target]);
 
   async function handleLoadMore() {
     const cached = getCachedEntry(apiKey, target);

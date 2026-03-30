@@ -297,7 +297,7 @@ fn mc_system() -> String {
                  {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
                ],\n\
                \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-               \"explanationMarkdown\": string (≤300 words — name the misconception each wrong option targets),\n\
+                               \"explanationMarkdown\": string (≤180 words — name the misconception each wrong option targets),\n\
                \"techAllowed\": boolean\n\
              }}\n\
            ]\n\
@@ -895,13 +895,15 @@ async fn generate_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "written", "stage": "preparing",
             "message": "Building prompt.", "attempt": 1
         }),
-    );
+    ) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     let exam_context_preamble = if include_exam_context {
         "\n\n⚠ EXAM PDF ATTACHED — READ THIS FIRST:\n\
@@ -949,14 +951,16 @@ async fn generate_questions(
         )),
     );
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "written", "stage": "generating",
             "message": format!("Generating {} questions…", request.question_count),
             "attempt": 1
         }),
-    );
+    ) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     let written_sys = written_system();
     let written_fmt = written_format();
@@ -1013,14 +1017,16 @@ async fn generate_questions(
     )
     .await?;
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "written", "stage": "parsing",
             "message": "Parsing and validating questions.",
             "attempt": 1
         }),
-    );
+    ) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     let mut payload: WrittenQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_written(&mut payload.questions, &request.topics, selected_subs);
@@ -1049,7 +1055,7 @@ async fn generate_questions(
 
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "written", "stage": "completed",
@@ -1060,8 +1066,9 @@ async fn generate_questions(
             "completionTokens": result.completion_tokens,
             "estimatedCostUsd": estimated_cost_usd,
             "durationMs": duration_ms,
-        }),
-    );
+        }),) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     Ok(GenerateQuestionsResponse {
         questions: payload.questions,
@@ -1123,13 +1130,15 @@ async fn generate_mc_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "multiple-choice", "stage": "preparing",
             "message": "Building prompt.", "attempt": 1
         }),
-    );
+    ) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     let exam_context_preamble = if include_exam_context {
         "\n\n⚠ EXAM PDF ATTACHED — READ THIS FIRST:\n\
@@ -1150,7 +1159,7 @@ async fn generate_mc_questions(
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts and contexts across the batch. Each wrong option must \
  target a specific, named student misconception (not just a random wrong value).\n\
-         Explanation: ≤90 words — state the correct answer's reasoning and name the \
+         Explanation: ≤180 words — state the correct answer's reasoning and name the \
  misconception each wrong option targets. No chain-of-thought, no self-talk.\
          {sim_note}\n\n\
          STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
@@ -1178,14 +1187,16 @@ async fn generate_mc_questions(
         )),
     );
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "multiple-choice", "stage": "generating",
             "message": format!("Generating {} questions…", request.question_count),
             "attempt": 1
         }),
-    );
+    ) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     let mc_sys = mc_system();
     let mc_fmt = mc_format();
@@ -1246,14 +1257,16 @@ async fn generate_mc_questions(
     )
     .await?;
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "multiple-choice", "stage": "parsing",
             "message": "Parsing and validating questions.",
             "attempt": 1
         }),
-    );
+    ) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     let mut payload: McQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_mc(&mut payload.questions, &request.topics, selected_subs);
@@ -1290,7 +1303,7 @@ async fn generate_mc_questions(
 
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    let _ = app.emit(
+    if let Err(e) = app.emit(
         "generation-status",
         serde_json::json!({
             "mode": "multiple-choice", "stage": "completed",
@@ -1301,8 +1314,9 @@ async fn generate_mc_questions(
             "completionTokens": result.completion_tokens,
             "estimatedCostUsd": estimated_cost_usd,
             "durationMs": duration_ms,
-        }),
-    );
+        }),) {
+        eprintln!("app.emit failed: {e}");
+    }
 
     Ok(GenerateMcQuestionsResponse {
         questions: payload.questions,
@@ -1601,9 +1615,6 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
     }
 
     let path = Path::new(&request.image_path);
-    if !path.exists() {
-        return Err(AppError::new("VALIDATION_ERROR", "Image file not found."));
-    }
     let mime = path
         .extension()
         .and_then(|e| e.to_str())
@@ -1623,8 +1634,20 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
             )
         })?;
 
-    let bytes = std::fs::read(path)
-        .map_err(|e| AppError::new("IO_ERROR", format!("Failed to read image: {e}")))?;
+    let bytes = std::fs::read(path).map_err(|e| {
+        AppError::new(
+            if e.kind() == std::io::ErrorKind::NotFound {
+                "VALIDATION_ERROR"
+            } else {
+                "IO_ERROR"
+            },
+            if e.kind() == std::io::ErrorKind::NotFound {
+                "Image file not found.".to_string()
+            } else {
+                format!("Failed to read image: {e}").to_string()
+            },
+        )
+    })?;
     let data_url = format!(
         "data:{mime};base64,{}",
         general_purpose::STANDARD.encode(bytes)
@@ -2151,7 +2174,7 @@ mod tests {
     fn marking_system_scales_word_limits_with_marks() {
         // 1-mark question should hit the floors
         let sys_1 = marking_system(1, "", "");
-        assert!(sys_1.contains("≤150 words"));
+        assert!(sys_1.contains("≤100 words"));
 
         // 10-mark question should have generous limits
         let sys_10 = marking_system(10, "", "");

@@ -4,6 +4,8 @@ import {
   McHistoryEntry,
   SavedQuestionSet,
   Preset,
+  StudyGoals,
+  StreakData,
 } from '@/types';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
@@ -81,6 +83,58 @@ function getUserId(user: FirebaseUser | null): string {
   return user?.uid ?? 'anonymous';
 }
 
+function mergeStudyGoals(
+  local: StudyGoals | undefined,
+  remote: StudyGoals | undefined
+): StudyGoals | undefined {
+  if (!local && !remote) return undefined;
+  if (!local) return remote;
+  if (!remote) return local;
+  return {
+    dailyQuestionGoal: remote.dailyQuestionGoal ?? local.dailyQuestionGoal,
+    dailyWrittenGoal: remote.dailyWrittenGoal ?? local.dailyWrittenGoal,
+    dailyMcGoal: remote.dailyMcGoal ?? local.dailyMcGoal,
+    weeklyStreakGoal: remote.weeklyStreakGoal ?? local.weeklyStreakGoal,
+  };
+}
+
+function mergeStreakData(
+  local: StreakData | undefined,
+  remote: StreakData | undefined
+): StreakData | undefined {
+  if (!local && !remote) return undefined;
+  if (!local) return remote;
+  if (!remote) return local;
+
+  const mergedCompletions: Record<
+    string,
+    { total: number; written: number; mc: number }
+  > = { ...local.dailyCompletions };
+
+  for (const [date, remoteEntry] of Object.entries(remote.dailyCompletions)) {
+    const localEntry = mergedCompletions[date];
+    if (!localEntry) {
+      mergedCompletions[date] = remoteEntry;
+    } else {
+      mergedCompletions[date] = {
+        total: Math.max(localEntry.total, remoteEntry.total),
+        written: Math.max(localEntry.written, remoteEntry.written),
+        mc: Math.max(localEntry.mc, remoteEntry.mc),
+      };
+    }
+  }
+
+  return {
+    currentStreak: Math.max(local.currentStreak, remote.currentStreak),
+    longestStreak: Math.max(local.longestStreak, remote.longestStreak),
+    lastActiveDate:
+      local.lastActiveDate > remote.lastActiveDate
+        ? local.lastActiveDate
+        : remote.lastActiveDate,
+    dailyCompletions: mergedCompletions,
+  };
+}
+
 function mergeSyncableData(
   local: SyncableData | null,
   remote: import('./useFirebase').SyncableData | null
@@ -135,8 +189,14 @@ function mergeSyncableData(
       local.presets!,
       castArray<Preset>(remote?.presets ?? [])
     ),
-    studyGoals: remote.studyGoals ?? local.studyGoals,
-    streakData: remote.streakData ?? local.streakData,
+    studyGoals: mergeStudyGoals(
+      local.studyGoals as unknown as StudyGoals | undefined,
+      remote.studyGoals as unknown as StudyGoals | undefined
+    ),
+    streakData: mergeStreakData(
+      local.streakData as unknown as StreakData | undefined,
+      remote.streakData as unknown as StreakData | undefined
+    ),
   };
 }
 
@@ -153,7 +213,8 @@ function hasRemoteData(data: SyncableData | null): boolean {
     (data.mcHistory?.length ?? 0) > 0 ||
     (data.savedSets?.length ?? 0) > 0 ||
     (data.presets?.length ?? 0) > 0 ||
-    Boolean(data.studyGoals && Object.keys(data.studyGoals).length > 0)
+    Boolean(data.studyGoals && Object.keys(data.studyGoals).length > 0) ||
+    Boolean(data.streakData && Object.keys(data.streakData).length > 0)
   );
 }
 
@@ -231,18 +292,19 @@ function extractSyncableData(state: AppState): SyncableData {
 }
 
 function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
-  return {
+  const result: Partial<AppState> = {
     questionHistory: (data.questionHistory as QuestionHistoryEntry[]) ?? [],
     mcHistory: (data.mcHistory as McHistoryEntry[]) ?? [],
     savedSets: (data.savedSets as SavedQuestionSet[]) ?? [],
     presets: (data.presets as Preset[]) ?? [],
-    studyGoals: data.studyGoals
-      ? (data.studyGoals as unknown as AppState['studyGoals'])
-      : undefined,
-    streakData: data.streakData
-      ? (data.streakData as unknown as AppState['streakData'])
-      : undefined,
   };
+  if (data.studyGoals) {
+    result.studyGoals = data.studyGoals as unknown as AppState['studyGoals'];
+  }
+  if (data.streakData) {
+    result.streakData = data.streakData as unknown as AppState['streakData'];
+  }
+  return result;
 }
 
 export type SyncStatus =
