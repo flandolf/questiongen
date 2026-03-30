@@ -513,6 +513,22 @@ export function AnalyticsView() {
                 strokeDasharray="4 4"
                 dot={false}
               />
+              <Line
+                type="monotone"
+                dataKey="writtenAccuracy"
+                stroke="var(--color-writtenAccuracy)"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+              />
+              <Line
+                type="monotone"
+                dataKey="mcAccuracy"
+                stroke="var(--color-mcAccuracy)"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+              />
             </LineChart>
           </ChartContainer>
         </div>
