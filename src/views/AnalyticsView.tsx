@@ -121,7 +121,7 @@ function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}
+      className={`rounded-sm border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}
     >
       {children}
     </div>
@@ -151,7 +151,7 @@ function SectionHeading({
 
 function ChartEmpty({ message }: { message: string }) {
   return (
-    <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border/50 text-sm text-muted-foreground/60 font-light">
+    <div className="flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 font-light">
       {message}
     </div>
   );
@@ -971,14 +971,14 @@ export function AnalyticsView() {
               <button
                 type="button"
                 onClick={() => setSubjectFilter(null)}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${
+                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
                   subjectFilter === null
                     ? 'border-foreground/30 bg-secondary text-secondary-foreground'
                     : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                 }`}
               >
                 All subjects
-                <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
                   {allAttempts.length}
                 </span>
               </button>
@@ -993,14 +993,14 @@ export function AnalyticsView() {
                     onClick={() =>
                       setSubjectFilter(subjectFilter === topic ? null : topic)
                     }
-                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium border transition-colors ${
+                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
                       subjectFilter === topic
                         ? 'border-foreground/30 bg-secondary text-secondary-foreground'
                         : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                     }`}
                   >
                     {topic}
-                    <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
                       {count}
                     </span>
                   </button>
@@ -1053,7 +1053,7 @@ export function AnalyticsView() {
                     .map((row: SubtopicPerformanceRow) => (
                       <div
                         key={row.key}
-                        className="flex justify-between items-center py-2 group hover:bg-muted/50 rounded-md px-2 -mx-2 transition-colors"
+                        className="flex justify-between items-center py-2 group hover:bg-muted/50 rounded-sm px-2 -mx-2 transition-colors"
                       >
                         <div className="flex flex-col">
                           <span className="text-sm font-medium">
@@ -1110,7 +1110,7 @@ export function AnalyticsView() {
                         <div className="text-sm font-light leading-relaxed text-foreground">
                           <MarkdownMath content={row.criterion} />
                         </div>
-                        <div className="flex justify-between items-center mt-2 bg-secondary/30 rounded-md px-3 py-2">
+                        <div className="flex justify-between items-center mt-2 bg-secondary/30 rounded-sm px-3 py-2">
                           <span
                             className={`text-xs font-medium ${accuracyColor(row.successPercent)}`}
                           >

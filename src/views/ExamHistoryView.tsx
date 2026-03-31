@@ -127,7 +127,7 @@ function ExamRecordCard({
 
   return (
     <div
-      className={`rounded-xl border bg-muted/30 dark:bg-muted/20 overflow-hidden transition-all duration-200 hover:shadow-md ${isExpanded ? 'border-primary/20 shadow-md' : 'border-border/50 shadow-sm'}`}
+      className={`rounded-sm border bg-muted/30 dark:bg-muted/20 overflow-hidden transition-all duration-200 hover:shadow-md ${isExpanded ? 'border-primary/20 shadow-md' : 'border-border/50 shadow-sm'}`}
     >
       {/* Header */}
       <button
@@ -200,7 +200,7 @@ function ExamRecordCard({
 
         <div className="flex items-center gap-2 shrink-0">
           <div
-            className={`text-xs font-light px-2.5 py-1 rounded-full border ${scoreBg(pct)}`}
+            className={`text-xs font-light px-2.5 py-1 rounded-sm border ${scoreBg(pct)}`}
           >
             {pct >= 80
               ? 'Excellent'
@@ -223,7 +223,7 @@ function ExamRecordCard({
               e.stopPropagation();
               onDelete();
             }}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground/40 hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-1"
+            className="w-7 h-7 flex items-center justify-center rounded-sm text-muted-foreground/40 hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-1"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -235,7 +235,7 @@ function ExamRecordCard({
         <div className="border-t border-border/40 px-5 py-4 space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+            <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <BarChart2 className="w-3 h-3" />
                 <span className="text-[10px] font-light uppercase tracking-wider">
@@ -251,7 +251,7 @@ function ExamRecordCard({
                 {record.totalScore}/{record.totalMax}
               </div>
             </div>
-            <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+            <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="w-3 h-3" />
                 <span className="text-[10px] font-light uppercase tracking-wider">
@@ -267,7 +267,7 @@ function ExamRecordCard({
                   : ''}
               </div>
             </div>
-            <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+            <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Target className="w-3 h-3" />
                 <span className="text-[10px] font-light uppercase tracking-wider">
@@ -283,7 +283,7 @@ function ExamRecordCard({
                 {record.difficulty}
               </div>
             </div>
-            <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+            <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Zap className="w-3 h-3" />
                 <span className="text-[10px] font-light uppercase tracking-wider">
@@ -308,7 +308,7 @@ function ExamRecordCard({
             <p className="text-[10px] font-light uppercase tracking-wider text-muted-foreground/60 mb-2">
               Question Results
             </p>
-            <div className="rounded-xl border border-border/40 divide-y divide-border/30 overflow-hidden">
+            <div className="rounded-sm border border-border/40 divide-y divide-border/30 overflow-hidden">
               {record.questionResults.map((qr, i) => {
                 const qPct =
                   qr.maxMarks > 0
@@ -341,7 +341,7 @@ function ExamRecordCard({
                       {isWritten ? (
                         <>
                           <span
-                            className={`text-xs font-light tabular-nums px-1.5 py-0.5 rounded-md ${qPct >= 100 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : qPct >= 50 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700' : 'bg-rose-100 dark:bg-rose-900/40 text-rose-600'}`}
+                            className={`text-xs font-light tabular-nums px-1.5 py-0.5 rounded-sm ${qPct >= 100 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : qPct >= 50 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700' : 'bg-rose-100 dark:bg-rose-900/40 text-rose-600'}`}
                           >
                             {qr.achievedMarks}/{qr.maxMarks}
                           </span>
@@ -470,7 +470,7 @@ export default function ExamHistoryView() {
         }
       />
 
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur -mx-6 px-6 -mt-6 pb-4 pt-6 border-b border-border/40 space-y-3">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur pb-4 border-b border-border/40 space-y-3">
         {stats && (
           <div className="grid grid-cols-3 gap-2">
             <StatCard

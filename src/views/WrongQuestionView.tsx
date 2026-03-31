@@ -143,14 +143,14 @@ const ListEntryCard = memo(function ListEntryCard({
   }
 
   return (
-    <div className="rounded-lg border border-border/50 overflow-hidden transition-shadow hover:shadow-md bg-muted/30">
+    <div className="rounded-sm border border-border/50 overflow-hidden transition-shadow hover:shadow-md bg-muted/30">
       <div className="flex items-stretch">
         <button
           type="button"
           className="flex-1 text-left px-3.5 py-3 flex items-start gap-3 group min-w-0"
           onClick={onToggle}
         >
-          <span className="shrink-0 w-5 h-5 mt-0.5 rounded-md bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums">
+          <span className="shrink-0 w-5 h-5 mt-0.5 rounded-sm bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums">
             {index + 1}
           </span>
           <div className="flex-1 min-w-0 space-y-1">
@@ -188,7 +188,7 @@ const ListEntryCard = memo(function ListEntryCard({
           <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
             {srCard && (
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
                   daysUntilReview(srCard) < 0
                     ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                     : daysUntilReview(srCard) === 0
@@ -205,13 +205,13 @@ const ListEntryCard = memo(function ListEntryCard({
             )}
             {isWritten && scoreLabel && (
               <span
-                className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-full border ${scoreBg(pct)}`}
+                className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded-sm border ${scoreBg(pct)}`}
               >
                 {scoreLabel}
               </span>
             )}
             {!isWritten && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-sm border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400">
                 ✗
               </span>
             )}
@@ -335,7 +335,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
             Your answer
           </p>
-          <div className="rounded-lg border border-border/40 bg-muted/20 px-3.5 py-3 text-sm whitespace-pre-line leading-relaxed h-full min-h-[5rem]">
+          <div className="rounded-sm border border-border/40 bg-muted/20 px-3.5 py-3 text-sm whitespace-pre-line leading-relaxed h-full min-h-[5rem]">
             {entry.uploadedAnswer?.trim() || (
               <span className="italic text-muted-foreground/50">
                 No text answer
@@ -347,7 +347,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
             Worked solution
           </p>
-          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none h-full min-h-[5rem]">
+          <div className="rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none h-full min-h-[5rem]">
             <MarkdownMath
               content={
                 entry.workedSolutionMarkdown || 'No worked solution available.'
@@ -360,7 +360,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
           Feedback
         </p>
-        <div className="rounded-lg border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
+        <div className="rounded-sm border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
           <MarkdownMath
             content={
               entry.markResponse.feedbackMarkdown || 'No feedback available.'
@@ -373,7 +373,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
             Marking scheme
           </p>
-          <div className="divide-y divide-border/30 rounded-lg border border-border/40 overflow-hidden">
+          <div className="divide-y divide-border/30 rounded-sm border border-border/40 overflow-hidden">
             {entry.markResponse.vcaaMarkingScheme.map((c, i) => {
               const p = c.maxMarks > 0 ? c.achievedMarks / c.maxMarks : 0;
               return (
@@ -382,7 +382,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
                   className={`flex items-start gap-3 px-3.5 py-2.5 text-sm ${p >= 1 ? 'bg-emerald-500/5' : 'bg-rose-500/5'}`}
                 >
                   <span
-                    className={`shrink-0 font-bold text-xs mt-0.5 px-1.5 py-0.5 rounded-md ${criterionScoreClass(p)}`}
+                    className={`shrink-0 font-bold text-xs mt-0.5 px-1.5 py-0.5 rounded-sm ${criterionScoreClass(p)}`}
                   >
                     {c.achievedMarks}/{c.maxMarks}
                   </span>
@@ -414,7 +414,7 @@ function McExpandedBody({ entry }: { entry: McWrongEntry }) {
         <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
           Explanation
         </p>
-        <div className="rounded-lg border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
+        <div className="rounded-sm border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
           <MarkdownMath content={entry.question.explanationMarkdown} />
         </div>
       </div>
@@ -1033,7 +1033,7 @@ function ReattemptSummary({
 
       {/* Weak topics */}
       {weakTopics.length > 0 && (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
+        <div className="rounded-sm border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
             Topics to review
           </p>
@@ -1070,7 +1070,7 @@ function ReattemptSummary({
           />
         </button>
         {showDetails && (
-          <div className="rounded-xl border divide-y divide-border/40 overflow-hidden mt-2">
+          <div className="rounded-sm border divide-y divide-border/40 overflow-hidden mt-2">
             {rows.map((r) => (
               <div
                 key={r.id}
@@ -1080,7 +1080,7 @@ function ReattemptSummary({
                   {r.index}
                 </span>
                 <div
-                  className={`shrink-0 w-5 h-5 rounded-md flex items-center justify-center ${r.kind === 'written' ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
+                  className={`shrink-0 w-5 h-5 rounded-sm flex items-center justify-center ${r.kind === 'written' ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
                 >
                   {r.kind === 'written' ? (
                     <BookOpen className="w-2.5 h-2.5 text-sky-500" />
@@ -1359,7 +1359,7 @@ export default function WrongQuestionView() {
           <button
             type="button"
             onClick={() => setIsShuffled((s) => !s)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${isShuffled ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-xs font-medium transition-all ${isShuffled ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'}`}
           >
             <Shuffle className="w-3.5 h-3.5" />
             {isShuffled ? 'Shuffled' : 'Shuffle'}
@@ -1388,7 +1388,7 @@ export default function WrongQuestionView() {
           <div className="space-y-6">
             {/* Due for Review section */}
             {dueCards.length > 0 && (
-              <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 overflow-hidden">
+              <div className="rounded-sm border border-sky-500/20 bg-sky-500/5 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-sky-500/15 bg-sky-500/5">
                   <Brain className="w-4 h-4 text-sky-500" />
                   <span className="text-sm font-bold text-sky-700 dark:text-sky-300">
@@ -1415,7 +1415,7 @@ export default function WrongQuestionView() {
                         className="flex items-center gap-3 px-4 py-3 hover:bg-sky-500/5 transition-colors"
                       >
                         <div
-                          className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${isWritten ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
+                          className={`w-6 h-6 rounded-sm flex items-center justify-center shrink-0 ${isWritten ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
                         >
                           {isWritten ? (
                             <BookOpen className="w-3 h-3 text-sky-500" />
@@ -1444,7 +1444,7 @@ export default function WrongQuestionView() {
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${
                             isOverdue
                               ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                               : days === 0

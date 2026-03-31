@@ -75,7 +75,7 @@ export function SettingsView() {
             key={item.id}
             onClick={() => setActiveSection(item.id)}
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left group',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm transition-colors text-left group',
               activeSection === item.id
                 ? 'bg-primary/10 text-primary font-medium'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'

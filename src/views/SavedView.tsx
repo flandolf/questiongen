@@ -166,7 +166,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                    <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <BarChart2 className="h-3 w-3 shrink-0" />
                         <span className="text-xs font-light uppercase tracking-wide">
@@ -177,7 +177,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                         {savedSet.preferences.difficulty}
                       </div>
                     </div>
-                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                    <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Hash className="h-3 w-3 shrink-0" />
                         <span className="text-xs font-light uppercase tracking-wide">
@@ -188,7 +188,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                         {completedCount}/{questionCount}
                       </div>
                     </div>
-                    <div className="rounded-md border bg-muted/20 px-3 py-2 space-y-1">
+                    <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock3 className="h-3 w-3 shrink-0" />
                         <span className="text-xs font-semibold uppercase tracking-wide">
@@ -201,9 +201,9 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div className="h-1.5 w-full rounded-sm bg-muted overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${isWritten ? 'bg-sky-500' : 'bg-violet-500'}`}
+                        className={`h-full rounded-sm transition-all duration-500 ${isWritten ? 'bg-sky-500' : 'bg-violet-500'}`}
                         style={{ width: `${progressPct}%` }}
                       />
                     </div>
@@ -400,7 +400,7 @@ export function SavedView() {
             placeholder="Search sets…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 pl-8 pr-3 text-xs rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full h-8 pl-8 pr-3 text-xs rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
@@ -421,7 +421,7 @@ export function SavedView() {
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="h-8 px-2 text-xs rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-8 px-2 text-xs rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="updatedAt">Last saved</option>
             <option value="title">Title A–Z</option>

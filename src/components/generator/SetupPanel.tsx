@@ -20,11 +20,12 @@ import {
   Coins,
   DollarSign,
   FileText,
-  Save,
   Trash2,
-  Info,
   ChevronDown,
-  Pencil,
+  Edit3,
+  MoreHorizontal,
+  Plus,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppSettings } from '@/AppContext';
@@ -66,16 +67,18 @@ import {
 } from '@/components/layout/primitives';
 import { useAppStore } from '@/store';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '../ui/tooltip';
-import {
   GenerationTimeline,
   BatchTimeline,
   LastGenerationStats,
 } from './GenerationTimeline';
+import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenu,
+} from '../ui/dropdown-menu';
 
 export type { BatchTopicProgress } from '@/types';
 
@@ -173,7 +176,7 @@ export function CollapsibleStep({
         onClick={toggle}
         className="w-full flex items-center py-1 gap-3 mb-2 group cursor-pointer select-none"
       >
-        <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold mt-0.5">
+        <div className="shrink-0 w-6 h-6 rounded-sm bg-primary/10 text-primary flex items-center justify-center text-xs font-bold mt-0.5">
           {number}
         </div>
         <div className="flex-1 min-w-0 text-left">
@@ -238,7 +241,7 @@ function SubtopicGroup({
               key={item}
               type="button"
               onClick={() => onToggle(item)}
-              className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-150 cursor-pointer select-none
+              className={`text-xs px-2.5 py-1 rounded-sm border transition-all duration-150 cursor-pointer select-none
                 ${
                   active
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -324,13 +327,13 @@ function AdvancedOptionsAccordion({
     useCollapsibleHeight(false);
 
   return (
-    <div className="rounded-xl border border-border/60 overflow-hidden mb-4">
+    <div className="rounded-sm border border-border/60 overflow-hidden mb-4">
       <button
         type="button"
         onClick={toggle}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer select-none group"
       >
-        <div className="shrink-0 w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
+        <div className="shrink-0 w-7 h-7 rounded-sm bg-muted flex items-center justify-center">
           <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
         </div>
         <div className="flex-1 min-w-0 text-left">
@@ -383,7 +386,7 @@ function AdvancedOptionsAccordion({
               </div>
             </div>
             {selectedTopics.length > 1 && (
-              <div className="rounded-lg border bg-muted/20 px-3 py-2 space-y-1">
+              <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Questions per subject
                 </p>
@@ -453,7 +456,7 @@ function AdvancedOptionsAccordion({
                     1 mark (fixed)
                   </Badge>
                 </div>
-                <div className="h-6 bg-muted/30 rounded-md border border-border flex items-center px-3">
+                <div className="h-6 bg-muted/30 rounded-sm border border-border flex items-center px-3">
                   <span className="text-xs text-muted-foreground">
                     Multiple choice questions are always worth 1 mark each
                   </span>
@@ -548,7 +551,7 @@ function AdvancedOptionsAccordion({
                         key={value}
                         type="button"
                         onClick={() => onSetTechMode(value)}
-                        className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg border text-xs font-medium transition-all duration-150 cursor-pointer
+                        className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-sm border text-xs font-medium transition-all duration-150 cursor-pointer
                         ${isActive ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
                       >
                         {icon} {label}
@@ -568,7 +571,7 @@ function AdvancedOptionsAccordion({
             <button
               type="button"
               onClick={() => onSetAvoidSimilarQuestions(!avoidSimilarQuestions)}
-              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
+              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-sm border text-left transition-all duration-150 cursor-pointer
               ${avoidSimilarQuestions ? 'bg-primary/5 border-primary/40' : 'border-border hover:border-primary/30 hover:bg-muted/20'}`}
             >
               <Shuffle
@@ -580,7 +583,7 @@ function AdvancedOptionsAccordion({
                 >
                   Avoid Similar Questions
                   <span
-                    className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${avoidSimilarQuestions ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
+                    className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-sm ${avoidSimilarQuestions ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
                   >
                     {avoidSimilarQuestions ? 'On' : 'Off'}
                   </span>
@@ -596,7 +599,7 @@ function AdvancedOptionsAccordion({
               <button
                 type="button"
                 onClick={() => onSetShuffleQuestions(!shuffleQuestions)}
-                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150 cursor-pointer
+                className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-sm border text-left transition-all duration-150 cursor-pointer
               ${shuffleQuestions ? 'bg-primary/5 border-primary/40' : 'border-border hover:border-primary/30 hover:bg-muted/20'}`}
               >
                 <Shuffle
@@ -608,7 +611,7 @@ function AdvancedOptionsAccordion({
                   >
                     Shuffle Questions
                     <span
-                      className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-full ${shuffleQuestions ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
+                      className={`ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded-sm ${shuffleQuestions ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
                     >
                       {shuffleQuestions ? 'On' : 'Off'}
                     </span>
@@ -646,7 +649,7 @@ function AdvancedOptionsAccordion({
                 AI Difficulty Scaling
               </p>
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${aiDifficultyScalingEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm ${aiDifficultyScalingEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}
               >
                 {aiDifficultyScalingEnabled ? 'Enabled' : 'Disabled'}
               </span>
@@ -820,10 +823,41 @@ function PresetSection({
   const setDifficultyThresholds = useAppStore((s) => s.setDifficultyThresholds);
   const subtopicInstructions = useAppStore((s) => s.subtopicInstructions);
 
+  // State for existing logic
   const [presetName, setPresetName] = useState('');
+
+  // State for renaming logic
   const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus the input when entering rename mode
+  useEffect(() => {
+    if (renamingPresetId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingPresetId]);
+
+  const handleSaveRename = (preset: Preset) => {
+    const trimmedName = renamingValue.trim();
+    if (trimmedName && trimmedName !== preset.name) {
+      updatePreset({
+        ...preset,
+        name: trimmedName,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    setRenamingPresetId(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, preset: Preset) => {
+    if (e.key === 'Enter') {
+      handleSaveRename(preset);
+    } else if (e.key === 'Escape') {
+      setRenamingPresetId(null);
+    }
+  };
 
   const handleSavePreset = () => {
     const name = presetName.trim();
@@ -914,161 +948,140 @@ function PresetSection({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Input
-          value={presetName}
-          onChange={(e) => setPresetName(e.target.value)}
-          placeholder="Preset name…"
-          className="text-xs h-8 flex-1"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && presetName.trim()) {
-              e.preventDefault();
-              handleSavePreset();
-            }
-          }}
-        />
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 px-3 text-xs gap-1.5"
-          onClick={handleSavePreset}
-          disabled={!presetName.trim()}
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2">
+        <Label
+          htmlFor="preset-name"
+          className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium ml-1"
         >
-          <Save className="w-3 h-3" /> Save
-        </Button>
+          Create New Preset
+        </Label>
+        <div className="flex items-center gap-2">
+          <Input
+            id="preset-name"
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            placeholder="e.g. Exam Prep Alpha"
+            className="h-9 flex-1 bg-muted/50 focus-visible:bg-background transition-colors"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && presetName.trim()) {
+                e.preventDefault();
+                handleSavePreset();
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            className="h-9 px-4 shadow-sm"
+            onClick={handleSavePreset}
+            disabled={!presetName.trim()}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Save
+          </Button>
+        </div>
       </div>
 
-      {presets.length > 0 ? (
-        <div className="space-y-3">
-          {presets.map((preset) => (
-            <div
-              key={preset.id}
-              className="flex items-center px-3 py-3 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/20 transition-all duration-150 group"
-            >
-              {renamingPresetId === preset.id ? (
-                <div className="flex-1 min-w-0">
-                  <input
-                    ref={renameInputRef}
-                    type="text"
-                    value={renamingValue}
-                    onChange={(e) => setRenamingValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && renamingValue.trim()) {
-                        updatePreset({
-                          ...preset,
-                          name: renamingValue.trim(),
-                          updatedAt: new Date().toISOString(),
-                        });
-                        setRenamingPresetId(null);
-                      } else if (e.key === 'Escape') {
-                        setRenamingPresetId(null);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (
-                        renamingValue.trim() &&
-                        renamingValue.trim() !== preset.name
-                      ) {
-                        updatePreset({
-                          ...preset,
-                          name: renamingValue.trim(),
-                          updatedAt: new Date().toISOString(),
-                        });
-                      }
-                      setRenamingPresetId(null);
-                    }}
-                    className="w-full text-xs font-semibold bg-transparent border-b border-primary outline-none px-0 py-0.5"
-                    maxLength={60}
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Enter to save · Esc to cancel
-                  </p>
+      {presets.length > 0 && (
+        <div className="grid gap-1">
+          <Separator className="my-2" />
+          {presets.map((preset) => {
+            const isRenaming = renamingPresetId === preset.id;
+
+            return (
+              <div
+                key={preset.id}
+                className={`group flex items-center justify-between rounded-sm px-3 py-2 transition-colors ${
+                  isRenaming
+                    ? 'bg-accent/50 ring-1 ring-ring/20'
+                    : 'hover:bg-accent cursor-pointer'
+                }`}
+                onClick={() => !isRenaming && handleLoadPreset(preset)}
+              >
+                <div className="flex-1 mr-4">
+                  {isRenaming ? (
+                    <div
+                      className="flex items-center gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Input
+                        ref={renameInputRef}
+                        value={renamingValue}
+                        onChange={(e) => setRenamingValue(e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, preset)}
+                        onBlur={() => handleSaveRename(preset)}
+                        className="h-7 py-0 px-2 text-sm focus-visible:ring-1"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium leading-none">
+                        {preset.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {preset.preferences.selectedTopics.join(', ')} &middot;{' '}
+                        {preset.preferences.questionMode === 'written'
+                          ? 'Written'
+                          : 'Multiple Choice'}{' '}
+                        &middot;{' '}
+                        {preset.preferences.techMode === 'tech-free'
+                          ? 'Tech-Free'
+                          : preset.preferences.techMode === 'tech-active'
+                            ? 'Tech-Active'
+                            : 'Mixed'}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleLoadPreset(preset)}
-                  className="flex-1 min-w-0 text-left cursor-pointer"
-                >
-                  <p className="text-xs font-semibold truncate">
-                    {preset.name}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
-                    <span>
-                      {preset.preferences.selectedTopics
-                        .map((t) => t.split(' ')[0])
-                        .join(', ')}
-                    </span>
-                    <span>·</span>
-                    <span>{preset.preferences.difficulty}</span>
-                    <span>·</span>
-                    <span>{preset.preferences.questionCount}Q</span>
-                  </div>
-                </button>
-              )}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer">
-                    <Info className="w-3 h-3" />
-                  </TooltipTrigger>
-                  <TooltipContent className="flex flex-col" side="right">
-                    <p className="text-xs font-light mb-1">{preset.name}</p>
-                    <p className="text-[11px] font-light whitespace-pre-wrap">
-                      {`Topics: ${preset.preferences.selectedTopics.join(', ')}
-Difficulty: ${preset.preferences.difficulty}
-Question count: ${preset.preferences.questionCount}
-Tech mode: ${preset.preferences.techMode}
-Avoid similar questions: ${preset.preferences.avoidSimilarQuestions ? 'Yes' : 'No'}
-Math Methods subtopics: ${preset.preferences.mathMethodsSubtopics.join(', ') || 'None'}
-Specialist Math subtopics: ${preset.preferences.specialistMathSubtopics.join(', ') || 'None'}
-Chemistry subtopics: ${preset.preferences.chemistrySubtopics.join(', ') || 'None'}
-Physical Education subtopics: ${preset.preferences.physicalEducationSubtopics.join(', ') || 'None'}
-Average marks per question: ${preset.preferences.averageMarksPerQuestion}
-Question mode: ${preset.preferences.questionMode}
-Generation mode: ${preset.preferences.generationMode}
-Exam time limit: ${preset.preferences.examTimeLimitMinutes} minutes
-AI difficulty scaling: ${preset.preferences.aiDifficultyScalingEnabled ? 'Enabled' : 'Disabled'}
-Difficulty thresholds: Increase above ${preset.preferences.difficultyThresholds?.increase}%, decrease below ${preset.preferences.difficultyThresholds?.decrease}%`}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <button
-                type="button"
-                onClick={() => {
-                  setRenamingPresetId(preset.id);
-                  setRenamingValue(preset.name);
-                  setTimeout(() => renameInputRef.current?.focus(), 0);
-                }}
-                className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
-                title="Rename preset"
-              >
-                <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleUpdatePreset(preset)}
-                className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
-                title="Update preset with current settings"
-              >
-                <Save className="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeletePreset(preset.id)}
-                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-pointer"
-                title="Delete preset"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
+
+                {!isRenaming && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingPresetId(preset.id);
+                          setRenamingValue(preset.name);
+                        }}
+                      >
+                        <Edit3 className="mr-2 h-4 w-4" /> Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePreset(preset.id);
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdatePreset(preset);
+                        }}
+                      >
+                        <Save className="mr-2 h-4 w-4" /> Update with current
+                        settings
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ) : (
-        <p className="text-[11px] text-muted-foreground text-center py-2">
-          No presets saved yet. Configure your settings and save one above.
-        </p>
       )}
     </div>
   );
@@ -1326,30 +1339,27 @@ function SetupPanelImpl({
             {TOPICS.map((topic) => {
               const isSelected = selectedTopics.includes(topic);
               return (
-                <button
+                <Button
                   key={topic}
-                  type="button"
                   onClick={() => onToggleTopic(topic)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium text-left transition-all duration-150 cursor-pointer
-                  ${
-                    isSelected
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                      : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'
-                  }`}
+                  className={`
+                    flex items-center gap-2 px-3 py-4
+                    `}
+                  size={'lg'}
                 >
                   <span className="shrink-0">
                     {TOPIC_ICONS[topic] ?? <BookOpen className="w-3.5 h-3.5" />}
                   </span>
                   <span className="leading-tight">{topic}</span>
                   {isSelected && (
-                    <CheckCheck className="w-3.5 h-3.5 ml-auto shrink-0 opacity-80" />
+                    <CheckCheck className="w-3.5 h-3.5 shrink-0 opacity-80" />
                   )}
-                </button>
+                </Button>
               );
             })}
           </div>
           {includeExamContext && selectedTopics.length > 0 && (
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+            <div className="mt-3 flex items-start gap-2 rounded-sm border border-violet-500/20 bg-violet-500/5 p-3">
               <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
@@ -1379,7 +1389,7 @@ function SetupPanelImpl({
             <button
               type="button"
               onClick={() => onSetGenerationMode('practice')}
-              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === 'practice' ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/40 shadow-sm' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'}`}
+              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-sm border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === 'practice' ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/40 shadow-sm' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'}`}
             >
               <BookOpen className="w-4 h-4" /> Practice
               <span className="text-[10px] text-muted-foreground ml-1 hidden sm:inline">
@@ -1389,7 +1399,7 @@ function SetupPanelImpl({
             <button
               type="button"
               onClick={() => onSetGenerationMode('exam')}
-              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === 'exam' ? 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/40 shadow-sm' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'}`}
+              className={`flex items-center justify-center gap-2 px-3 py-3 rounded-sm border text-sm font-medium text-center transition-all duration-150 cursor-pointer ${generationMode === 'exam' ? 'bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/40 shadow-sm' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'}`}
             >
               <Clock3 className="w-4 h-4" /> Exam
               <span className="text-[10px] text-muted-foreground ml-1 hidden sm:inline">
@@ -1398,7 +1408,7 @@ function SetupPanelImpl({
             </button>
           </div>
           {generationMode === 'exam' && (
-            <div className="mt-3 space-y-3 rounded-lg border bg-muted/20 px-3 py-3">
+            <div className="mt-3 space-y-3 rounded-sm border bg-muted/20 px-3 py-3">
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label className="text-xs font-medium flex items-center gap-1.5">
@@ -1433,7 +1443,7 @@ function SetupPanelImpl({
                       onSetQuestionCount(preset.count);
                       onSetExamTimeLimitMinutes(preset.time);
                     }}
-                    className={`group p-2 text-left rounded-lg border transition-all duration-150 cursor-pointer ${questionCount === preset.count && examTimeLimitMinutes === preset.time ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/30'}`}
+                    className={`group p-2 text-left rounded-sm border transition-all duration-150 cursor-pointer ${questionCount === preset.count && examTimeLimitMinutes === preset.time ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/30'}`}
                   >
                     <p className="text-[11px] font-semibold leading-tight">
                       {preset.label}
@@ -1475,7 +1485,7 @@ function SetupPanelImpl({
                   key={level}
                   type="button"
                   onClick={() => onSetDifficulty(level)}
-                  className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg border text-center transition-all duration-150 cursor-pointer
+                  className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-sm border text-center transition-all duration-150 cursor-pointer
                   ${isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/30'}`}
                 >
                   <span
@@ -1552,7 +1562,7 @@ function SetupPanelImpl({
 
         {/* ── API key warning ── */}
         {!hasApiKey && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-500/5 px-3 py-2.5 mt-4">
+          <div className="flex items-start gap-3 rounded-sm border border-amber-400/40 bg-amber-500/5 px-3 py-2.5 mt-4">
             <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
@@ -1594,7 +1604,7 @@ function SetupPanelImpl({
                   selectedTopics.map((t) => (
                     <span
                       key={t}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[11px]"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary font-medium text-[11px]"
                     >
                       {TOPIC_ICONS[t as Topic] && (
                         <span className="opacity-70">

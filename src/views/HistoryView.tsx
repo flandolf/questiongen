@@ -91,7 +91,7 @@ const StatsBar = memo(function StatsBar({ entries }: { entries: AnyEntry[] }) {
   }, [entries]);
 
   return (
-    <div className="grid grid-cols-4 gap-3 py-3">
+    <div className="grid grid-cols-4 gap-3">
       {[
         {
           label: 'Total attempts',
@@ -125,7 +125,7 @@ const StatsBar = memo(function StatsBar({ entries }: { entries: AnyEntry[] }) {
       ].map((stat) => (
         <div
           key={stat.label}
-          className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3 flex flex-col gap-1"
+          className="rounded-sm border border-border/40 bg-muted/20 px-4 py-3 flex flex-col gap-1"
         >
           <div className={`flex items-center gap-1.5 text-muted-foreground/70`}>
             {stat.icon}
@@ -197,7 +197,7 @@ const ToggleButton = memo(function ToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-light transition-all duration-150 border ${
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px] font-light transition-all duration-150 border ${
         isExpanded
           ? 'bg-primary/10 text-primary border-primary/20'
           : 'text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40'
@@ -260,7 +260,7 @@ function ScorePill({ awarded, max }: { awarded: number; max: number }) {
   const isCorrect = awarded >= max;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-light px-2.5 py-1 rounded-full text-[11px] leading-none ${
+      className={`inline-flex items-center gap-1.5 font-light px-2.5 py-1 rounded-sm text-[11px] leading-none ${
         isCorrect
           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
           : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
@@ -307,7 +307,7 @@ const McEntryCard = memo(function McEntryCard({
           {/* Left: topic + meta */}
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div
-              className={`mt-0.5 shrink-0 w-7 h-7 rounded-md flex items-center justify-center ${
+              className={`mt-0.5 shrink-0 w-7 h-7 rounded-sm flex items-center justify-center ${
                 isCorrect
                   ? 'bg-emerald-100 dark:bg-emerald-950/50'
                   : 'bg-red-100 dark:bg-red-950/50'
@@ -350,7 +350,7 @@ const McEntryCard = memo(function McEntryCard({
             <button
               type="button"
               onClick={onDelete}
-              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="h-7 w-7 flex items-center justify-center rounded-sm text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
               title="Remove entry"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -387,7 +387,7 @@ const McEntryCard = memo(function McEntryCard({
 
         <ExpandableCardSection isExpanded={isExpanded}>
           <div className="space-y-4">
-            <div className="bg-muted/40 px-4 py-3 rounded-md border border-border/30 text-sm">
+            <div className="bg-muted/40 px-4 py-3 rounded-sm border border-border/30 text-sm">
               <MarkdownMath content={item.question.promptMarkdown} />
             </div>
             <div className="grid sm:grid-cols-2 gap-2">
@@ -395,7 +395,7 @@ const McEntryCard = memo(function McEntryCard({
                 const isChosen = item.selectedAnswer === opt.label;
                 const isCorrOpt = opt.label === item.question.correctAnswer;
                 let cls =
-                  'px-3 py-2.5 rounded-md border flex gap-2.5 items-start text-sm transition-colors';
+                  'px-3 py-2.5 rounded-sm border flex gap-2.5 items-start text-sm transition-colors';
                 if (isCorrOpt)
                   cls +=
                     ' border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-950/30';
@@ -405,7 +405,7 @@ const McEntryCard = memo(function McEntryCard({
                 return (
                   <div key={opt.label} className={cls}>
                     <span
-                      className={`font-light shrink-0 w-5 h-5 flex items-center justify-center rounded-md text-[11px] mt-0.5 ${
+                      className={`font-light shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${
                         isCorrOpt
                           ? 'bg-emerald-500 text-white'
                           : isChosen
@@ -422,7 +422,7 @@ const McEntryCard = memo(function McEntryCard({
                 );
               })}
             </div>
-            <div className="rounded-md border border-border/30 bg-muted/10 px-4 py-3">
+            <div className="rounded-sm border border-border/30 bg-muted/10 px-4 py-3">
               <SectionLabel>Explanation</SectionLabel>
               <div className="text-sm">
                 <MarkdownMath content={item.question.explanationMarkdown} />
@@ -498,7 +498,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           {/* Right: score + actions */}
           <div className="flex items-center gap-1.5 shrink-0">
             <span
-              className={`font-bold px-2.5 py-1 rounded-md text-[11px] leading-none ${colorClass}`}
+              className={`font-bold px-2.5 py-1 rounded-sm text-[11px] leading-none ${colorClass}`}
             >
               {score}/10
             </span>
@@ -506,7 +506,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             <button
               type="button"
               onClick={onDelete}
-              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="h-7 w-7 flex items-center justify-center rounded-sm text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
               title="Remove entry"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -550,7 +550,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
         <ExpandableCardSection isExpanded={isExpanded}>
           <div className="space-y-4">
             {/* Question prompt */}
-            <div className="bg-muted/40 px-4 py-3 rounded-md border border-border/30 text-sm">
+            <div className="bg-muted/40 px-4 py-3 rounded-sm border border-border/30 text-sm">
               <MarkdownMath content={item.question.promptMarkdown} />
             </div>
 
@@ -564,10 +564,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                     alt="Uploaded Answer"
                     loading="lazy"
                     decoding="async"
-                    className="rounded-md border max-w-full h-auto"
+                    className="rounded-sm border max-w-full h-auto"
                   />
                 ) : (
-                  <div className="whitespace-pre-wrap text-sm bg-muted/20 rounded-md border border-border/30 px-3 py-2.5 min-h-[4rem]">
+                  <div className="whitespace-pre-wrap text-sm bg-muted/20 rounded-sm border border-border/30 px-3 py-2.5 min-h-[4rem]">
                     {item.uploadedAnswer ? (
                       <MarkdownMath content={item.uploadedAnswer} />
                     ) : (
@@ -582,7 +582,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
               {/* Feedback */}
               <div className="space-y-2 mt-2">
                 <SectionLabel>AI Feedback</SectionLabel>
-                <div className="text-sm bg-muted/20 rounded-md border border-border/30 px-3 py-2.5">
+                <div className="text-sm bg-muted/20 rounded-sm border border-border/30 px-3 py-2.5">
                   <MarkdownMath content={item.markResponse.feedbackMarkdown} />
                 </div>
               </div>
@@ -598,7 +598,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-3 justify-between rounded-md border px-3 py-2.5 text-sm transition-colors ${
+                      className={`flex gap-3 justify-between rounded-sm border px-3 py-2.5 text-sm transition-colors ${
                         isFullMarks
                           ? 'border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20'
                           : 'border-border/30 bg-card'
@@ -607,13 +607,13 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                       <div className="flex-1 space-y-1.5 min-w-0">
                         <MarkdownMath content={criterion.criterion} />
                         {criterion.rationale?.trim() && (
-                          <div className="rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
+                          <div className="rounded-sm border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
                             <MarkdownMath content={criterion.rationale} />
                           </div>
                         )}
                       </div>
                       <span
-                        className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-md ${
+                        className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-sm ${
                           isFullMarks
                             ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300'
                             : 'bg-muted text-muted-foreground'
@@ -896,7 +896,7 @@ export function HistoryView() {
               placeholder="Search by topic, subtopic, or question…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-9 pl-9 pr-8 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 transition-shadow"
+              className="w-full h-9 pl-9 pr-8 text-sm rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 transition-shadow"
             />
             {searchQuery && (
               <button
@@ -912,7 +912,7 @@ export function HistoryView() {
           <button
             type="button"
             onClick={() => setShowFilters((p) => !p)}
-            className={`flex items-center gap-1.5 px-3 h-9 rounded-lg border text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-sm border text-sm font-medium transition-all ${
               showFilters || hasActiveFilters
                 ? 'bg-primary/10 border-primary/30 text-primary'
                 : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/40'
@@ -921,7 +921,7 @@ export function HistoryView() {
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters
             {hasActiveFilters && (
-              <span className="ml-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+              <span className="ml-0.5 w-4 h-4 rounded-sm bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
                 {
                   [
                     modeFilter !== 'all',
@@ -937,7 +937,7 @@ export function HistoryView() {
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-            className="h-9 px-2.5 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 text-muted-foreground"
+            className="h-9 px-2.5 text-sm rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50 text-muted-foreground"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -948,19 +948,19 @@ export function HistoryView() {
 
         {/* Expanded filters */}
         {showFilters && (
-          <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="rounded-sm border border-border/50 bg-muted/20 p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
             {/* Mode filter */}
             <div className="space-y-1.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
                 Mode
               </p>
-              <div className="flex items-center gap-1 rounded-lg border bg-background p-0.5 self-start w-fit">
+              <div className="flex items-center gap-1 rounded-sm border bg-background p-0.5 self-start w-fit">
                 {(['all', 'written', 'mc'] as ModeFilter[]).map((mode) => (
                   <button
                     key={mode}
                     type="button"
                     onClick={() => setModeFilter(mode)}
-                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-all duration-150 ${
+                    className={`px-3 py-1.5 text-xs rounded-sm font-medium transition-all duration-150 ${
                       modeFilter === mode
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -985,7 +985,7 @@ export function HistoryView() {
                 <button
                   type="button"
                   onClick={() => handleSubjectBadgeClick(null)}
-                  className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-all ${
+                  className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${
                     activeSubject === null
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
@@ -998,7 +998,7 @@ export function HistoryView() {
                     key={subject}
                     type="button"
                     onClick={() => handleSubjectBadgeClick(subject)}
-                    className={`px-2.5 py-1 text-xs rounded-full border font-medium transition-all ${
+                    className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${
                       activeSubject === subject
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
@@ -1040,7 +1040,7 @@ export function HistoryView() {
 
       {filteredHistory.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-muted/40 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-sm bg-muted/40 flex items-center justify-center">
             <Filter className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
