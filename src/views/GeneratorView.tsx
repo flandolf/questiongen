@@ -252,7 +252,6 @@ export function GeneratorView() {
     setGenerationMode,
     examTimeLimitMinutes,
     setExamTimeLimitMinutes,
-    subtopicInstructions,
     aiDifficultyScalingEnabled,
     setAiDifficultyScalingEnabled,
     difficultyThresholds,
@@ -1132,30 +1131,6 @@ export function GeneratorView() {
     }
   }
 
-  function getSelectedSubtopics() {
-    return Array.from(
-      new Set([
-        ...(selectedTopics.includes('Mathematical Methods')
-          ? mathMethodsSubtopics
-          : []),
-        ...(selectedTopics.includes('Specialist Mathematics')
-          ? specialistMathSubtopics
-          : []),
-        ...(selectedTopics.includes('Chemistry') ? chemistrySubtopics : []),
-        ...(selectedTopics.includes('Physical Education')
-          ? physicalEducationSubtopics
-          : []),
-      ])
-    );
-  }
-  function getSelectedSubtopicInstructions() {
-    const result: Record<string, string> = {};
-    for (const sub of getSelectedSubtopics()) {
-      const instr = subtopicInstructions[sub]?.trim();
-      if (instr) result[sub] = instr;
-    }
-    return result;
-  }
   function getCustomFocusArea() {
     const v = customFocusArea.trim();
     return v.length > 0 ? v : undefined;
@@ -1473,7 +1448,6 @@ export function GeneratorView() {
                 techMode,
                 includeExamContext,
                 subtopics: getSubtopicsForTopic(topic),
-                subtopicInstructions: getSelectedSubtopicInstructions(),
                 customFocusArea: getCustomFocusArea(),
                 avoidSimilarQuestions,
                 priorQuestionPrompts: avoidSimilarQuestions
@@ -1664,7 +1638,6 @@ export function GeneratorView() {
                 techMode,
                 includeExamContext,
                 subtopics: getSubtopicsForTopic(topic),
-                subtopicInstructions: getSelectedSubtopicInstructions(),
                 customFocusArea: getCustomFocusArea(),
                 avoidSimilarQuestions,
                 priorQuestionPrompts: avoidSimilarQuestions

@@ -503,34 +503,22 @@ fn tech_note(mode: &str) -> &'static str {
     }
 }
 
-fn subtopics_note(
-    selected: Option<&Vec<String>>,
-    instructions: Option<&HashMap<String, String>>,
-) -> String {
+fn subtopics_note(selected: Option<&Vec<String>>) -> String {
     let Some(subs) = selected.filter(|s| !s.is_empty()) else {
         return String::new();
     };
     let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
 
-    // Inject Study Design key knowledge for each selected subtopic.
+    // Inject Study Design key knowledge and exam technique notes for each selected subtopic.
     let kk_map = crate::constants::subtopic_key_knowledge();
+    let exam_map = crate::constants::subtopic_exam_technique_notes();
     for sub in subs {
         let key = sub.trim().to_ascii_lowercase();
         if let Some(kk) = kk_map.get(key.as_str()) {
             s.push_str(&format!("\n\n[{sub}]\n{kk}"));
         }
-    }
-
-    // User-supplied per-subtopic instructions override or supplement the above.
-    if let Some(instr) = instructions {
-        let lines: Vec<String> = subs
-            .iter()
-            .filter_map(|sub| instr.get(sub).map(|i| format!("- {sub}: {}", i.trim())))
-            .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
-            .collect();
-        if !lines.is_empty() {
-            s.push_str("\nSubtopic constraints (user-specified):\n");
-            s.push_str(&lines.join("\n"));
+        if let Some(exam) = exam_map.get(key.as_str()) {
+            s.push_str(&format!("\n{exam}"));
         }
     }
     s
@@ -973,7 +961,7 @@ async fn generate_questions(
         topics                = sanitize_for_api(&request.topics.join(", ")),
         difficulty            = adjusted_difficulty,
         diff_rules            = difficulty_guidance(&adjusted_difficulty),
-        subs_note             = sanitize_for_api(&subtopics_note(selected_subs, request.subtopic_instructions.as_ref())),
+        subs_note             = sanitize_for_api(&subtopics_note(selected_subs)),
         custom_note           = sanitize_for_api(&custom_note),
         tech                  = tech_note(tech_mode),
         topic_notes           = topic_notes(&request.topics, selected_subs),
@@ -1251,7 +1239,7 @@ async fn generate_mc_questions(
         topics                = sanitize_for_api(&request.topics.join(", ")),
         difficulty            = adjusted_difficulty,
         diff_rules            = difficulty_guidance(&adjusted_difficulty),
-        subs_note             = sanitize_for_api(&subtopics_note(selected_subs, request.subtopic_instructions.as_ref())),
+        subs_note             = sanitize_for_api(&subtopics_note(selected_subs)),
         custom_note           = sanitize_for_api(&custom_note),
         tech                  = tech_note(tech_mode),
         topic_notes           = topic_notes(&request.topics, selected_subs),

@@ -101,7 +101,6 @@ export interface AppState {
   questionMode: QuestionMode;
   generationMode: GenerationMode;
   examTimeLimitMinutes: number;
-  subtopicInstructions: Record<string, string>;
 
   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
   aiDifficultyScalingEnabled: boolean;
@@ -213,11 +212,6 @@ export interface AppActions {
   setQuestionMode: (mode: QuestionMode) => void;
   setGenerationMode: (mode: GenerationMode) => void;
   setExamTimeLimitMinutes: (minutes: number) => void;
-  setSubtopicInstructions: (
-    instructions:
-      | Record<string, string>
-      | ((prev: Record<string, string>) => Record<string, string>)
-  ) => void;
 
   // AI Difficulty Scaling
   setAiDifficultyScalingEnabled: (enabled: boolean) => void;
@@ -374,8 +368,6 @@ const defaultState: AppState = {
     EMPTY_PERSISTED_APP_STATE.preferences.generationMode ?? 'practice',
   examTimeLimitMinutes:
     EMPTY_PERSISTED_APP_STATE.preferences.examTimeLimitMinutes ?? 30,
-  subtopicInstructions:
-    EMPTY_PERSISTED_APP_STATE.preferences.subtopicInstructions,
 
   // AI Difficulty Scaling
   aiDifficultyScalingEnabled: true,
@@ -510,7 +502,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: s.preferences.questionMode,
         generationMode: s.preferences.generationMode ?? 'practice',
         examTimeLimitMinutes: s.preferences.examTimeLimitMinutes ?? 30,
-        subtopicInstructions: s.preferences.subtopicInstructions,
         aiDifficultyScalingEnabled:
           s.preferences.aiDifficultyScalingEnabled ?? true,
         difficultyThresholds: s.preferences.difficultyThresholds ?? {
@@ -647,10 +638,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setGenerationMode: (generationMode) => set({ generationMode }),
   setExamTimeLimitMinutes: (examTimeLimitMinutes) =>
     set({ examTimeLimitMinutes }),
-  setSubtopicInstructions: (update) =>
-    set((s) => ({
-      subtopicInstructions: resolve(update, s.subtopicInstructions),
-    })),
 
   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
   setAiDifficultyScalingEnabled: (enabled) =>
@@ -746,7 +733,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: s.questionMode,
         generationMode: s.generationMode,
         examTimeLimitMinutes: s.examTimeLimitMinutes,
-        subtopicInstructions: s.subtopicInstructions,
       };
 
       const writtenSession: PersistedWrittenSession = {
@@ -817,7 +803,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       questionMode: s.questionMode,
       generationMode: s.generationMode,
       examTimeLimitMinutes: s.examTimeLimitMinutes,
-      subtopicInstructions: s.subtopicInstructions,
     };
 
     const mcSession: PersistedMcSession = {
@@ -908,7 +893,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: entry.questionMode,
         generationMode: entry.preferences.generationMode ?? 'practice',
         examTimeLimitMinutes: entry.preferences.examTimeLimitMinutes ?? 30,
-        subtopicInstructions: entry.preferences.subtopicInstructions,
         ...(entry.questionMode === 'written' && entry.writtenSession
           ? {
               questions: entry.writtenSession.questions,
@@ -1204,7 +1188,6 @@ function buildPersistedSnapshot(
       questionMode: s.questionMode,
       generationMode: s.generationMode,
       examTimeLimitMinutes: s.examTimeLimitMinutes,
-      subtopicInstructions: s.subtopicInstructions,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
     },

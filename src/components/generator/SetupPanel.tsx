@@ -66,8 +66,8 @@ import {
   SpecialistMathSubtopic,
   CHEMISTRY_SUBTOPICS,
   ChemistrySubtopic,
-  PHYSICAL_EDUCATION_SUBTOPICS,
   PhysicalEducationSubtopic,
+  PE_SUBTOPIC_GROUPS,
   Difficulty,
   QuestionMode,
   GenerationMode,
@@ -222,6 +222,220 @@ function SubtopicGroup({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Grouped PE subtopic selector ─────────────────────────────────────────
+
+function PESubtopicGroups({
+  selected,
+  onToggle,
+}: {
+  selected: PhysicalEducationSubtopic[];
+  onToggle: (sub: PhysicalEducationSubtopic) => void;
+}) {
+  const [selectedUnits, setSelectedUnits] = useState<Set<string>>(() => {
+    const units = new Set<string>();
+    for (const group of PE_SUBTOPIC_GROUPS) {
+      if (group.subtopics.some((s) => selected.includes(s))) {
+        units.add(group.unit);
+      }
+    }
+    return units;
+  });
+
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    for (const group of PE_SUBTOPIC_GROUPS) {
+      if (group.subtopics.some((s) => selected.includes(s))) {
+        initial.add(group.label);
+      }
+    }
+    return initial;
+  });
+
+  const toggleUnit = (unit: string) => {
+    setSelectedUnits((prev) => {
+      const next = new Set(prev);
+      if (next.has(unit)) {
+        next.delete(unit);
+      } else {
+        next.add(unit);
+      }
+      return next;
+    });
+  };
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
+  const visibleGroups = PE_SUBTOPIC_GROUPS.filter((g) =>
+    selectedUnits.has(g.unit)
+  );
+
+  const units = ['Unit 3', 'Unit 4'] as const;
+
+  return (
+    <div className="mt-4 space-y-2">
+      <div className="flex items-baseline gap-2">
+        <p className="text-xs font-semibold">Physical Education</p>
+        <p className="text-[11px] text-muted-foreground">
+          Select unit, then area of study
+        </p>
+      </div>
+
+      {/* Unit selector */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {units.map((unit) => {
+          const isActive = selectedUnits.has(unit);
+          const unitGroups = PE_SUBTOPIC_GROUPS.filter((g) => g.unit === unit);
+          const totalSubs = unitGroups.reduce(
+            (sum, g) => sum + g.subtopics.length,
+            0
+          );
+          const selectedCount = unitGroups.reduce(
+            (sum, g) =>
+              sum + g.subtopics.filter((s) => selected.includes(s)).length,
+            0
+          );
+
+          return (
+            <button
+              key={unit}
+              type="button"
+              onClick={() => toggleUnit(unit)}
+              className={cn(
+                'flex items-center justify-between px-3 py-2.5 rounded-md border text-sm font-medium transition-all duration-150 cursor-pointer select-none',
+                isActive
+                  ? 'bg-primary/10 border-primary/50 text-primary shadow-sm'
+                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'
+              )}
+            >
+              <span>{unit}</span>
+              {selectedCount > 0 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {selectedCount}/{totalSubs}
+                </Badge>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* AoS groups for selected units */}
+      {visibleGroups.length > 0 && (
+        <div className="space-y-1">
+          {visibleGroups.map((group) => {
+            const isOpen = openGroups.has(group.label);
+            const groupSelected = group.subtopics.filter((s) =>
+              selected.includes(s)
+            );
+            const allSelected = groupSelected.length === group.subtopics.length;
+            const someSelected = groupSelected.length > 0 && !allSelected;
+
+            return (
+              <div
+                key={group.label}
+                className="rounded-md border border-border overflow-hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-medium truncate">
+                      {group.aos}
+                    </span>
+                    {groupSelected.length > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] shrink-0"
+                      >
+                        {groupSelected.length}/{group.subtopics.length}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (allSelected) {
+                          group.subtopics.forEach((s) => {
+                            if (selected.includes(s)) onToggle(s);
+                          });
+                        } else {
+                          group.subtopics.forEach((s) => {
+                            if (!selected.includes(s)) onToggle(s);
+                          });
+                        }
+                      }}
+                      className={cn(
+                        'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                        allSelected
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : someSelected
+                            ? 'bg-primary/20 text-primary border-primary/40'
+                            : 'border-border text-muted-foreground hover:border-primary/40'
+                      )}
+                    >
+                      {allSelected ? 'All' : someSelected ? 'Some' : 'None'}
+                    </button>
+                    <svg
+                      className={cn(
+                        'w-3.5 h-3.5 text-muted-foreground transition-transform duration-200',
+                        isOpen && 'rotate-180'
+                      )}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="px-3 pb-2.5 pt-1 border-t border-border/50">
+                    <div className="flex flex-wrap gap-1">
+                      {group.subtopics.map((item) => {
+                        const active = selected.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => onToggle(item)}
+                            className={cn(
+                              'text-xs px-2.5 py-1 rounded-md border transition-all duration-150 cursor-pointer select-none',
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                            )}
+                          >
+                            {item}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -492,10 +706,7 @@ function AdvancedOptionsAccordion({
                 />
               )}
               {selectedTopics.includes('Physical Education') && (
-                <SubtopicGroup
-                  label="Physical Education"
-                  hint="Unit 3/4"
-                  items={PHYSICAL_EDUCATION_SUBTOPICS}
+                <PESubtopicGroups
                   selected={physicalEducationSubtopics}
                   onToggle={
                     onTogglePhysicalEducationSubtopic as (s: string) => void
@@ -675,7 +886,6 @@ function buildPreferencesSnapshot(props: {
   questionMode: QuestionMode;
   generationMode: GenerationMode;
   examTimeLimitMinutes: number;
-  subtopicInstructions: Record<string, string>;
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
 }): PersistedGeneratorPreferences {
@@ -693,7 +903,6 @@ function buildPreferencesSnapshot(props: {
     questionMode: props.questionMode,
     generationMode: props.generationMode,
     examTimeLimitMinutes: props.examTimeLimitMinutes,
-    subtopicInstructions: props.subtopicInstructions,
     aiDifficultyScalingEnabled: props.aiDifficultyScalingEnabled,
     difficultyThresholds: props.difficultyThresholds,
   };
@@ -761,7 +970,6 @@ function PresetSection({
     (s) => s.setAiDifficultyScalingEnabled
   );
   const setDifficultyThresholds = useAppStore((s) => s.setDifficultyThresholds);
-  const subtopicInstructions = useAppStore((s) => s.subtopicInstructions);
 
   const [presetName, setPresetName] = useState('');
   const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
@@ -811,7 +1019,6 @@ function PresetSection({
       questionMode,
       generationMode,
       examTimeLimitMinutes,
-      subtopicInstructions,
       aiDifficultyScalingEnabled,
       difficultyThresholds,
     });
@@ -866,7 +1073,6 @@ function PresetSection({
       questionMode,
       generationMode,
       examTimeLimitMinutes,
-      subtopicInstructions,
       aiDifficultyScalingEnabled,
       difficultyThresholds,
     });

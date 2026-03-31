@@ -48,7 +48,6 @@ export interface ImportExportState {
   questionMode: PersistedAppState['preferences']['questionMode'];
   generationMode: 'practice' | 'exam';
   examTimeLimitMinutes: number;
-  subtopicInstructions: Record<string, string>;
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
   questions: PersistedAppState['writtenSession']['questions'];
@@ -351,7 +350,6 @@ export function mergeImportedState(
   merged.questionMode = imported.preferences.questionMode;
   merged.generationMode = imported.preferences.generationMode ?? 'practice';
   merged.examTimeLimitMinutes = imported.preferences.examTimeLimitMinutes ?? 30;
-  merged.subtopicInstructions = imported.preferences.subtopicInstructions;
   merged.aiDifficultyScalingEnabled =
     imported.preferences.aiDifficultyScalingEnabled ?? true;
   merged.difficultyThresholds = imported.preferences.difficultyThresholds ?? {
@@ -476,7 +474,6 @@ function buildExportSnapshot(
       questionMode: s.questionMode,
       generationMode: s.generationMode,
       examTimeLimitMinutes: s.examTimeLimitMinutes,
-      subtopicInstructions: s.subtopicInstructions,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
     },
