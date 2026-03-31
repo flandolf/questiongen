@@ -129,13 +129,11 @@ const StatsBar = memo(function StatsBar({ entries }: { entries: AnyEntry[] }) {
         >
           <div className={`flex items-center gap-1.5 text-muted-foreground/70`}>
             {stat.icon}
-            <span className="text-[10px] font-light uppercase tracking-wider truncate">
+            <span className="text-[10px] uppercase tracking-wider truncate">
               {stat.label}
             </span>
           </div>
-          <span
-            className={`text-xl font-light tabular-nums leading-none ${stat.color}`}
-          >
+          <span className={`text-xl tabular-nums leading-none ${stat.color}`}>
             {stat.value}
           </span>
         </div>
@@ -180,7 +178,7 @@ function ExpandableCardSection({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-light uppercase tracking-widest text-muted-foreground/70 mb-2">
+    <h3 className="text-[10px]  uppercase tracking-widest text-muted-foreground/70 mb-2">
       {children}
     </h3>
   );
@@ -197,7 +195,7 @@ const ToggleButton = memo(function ToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px] font-light transition-all duration-150 border ${
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px]  transition-all duration-150 border ${
         isExpanded
           ? 'bg-primary/10 text-primary border-primary/20'
           : 'text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40'
@@ -260,7 +258,7 @@ function ScorePill({ awarded, max }: { awarded: number; max: number }) {
   const isCorrect = awarded >= max;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-light px-2.5 py-1 rounded-sm text-[11px] leading-none ${
+      className={`inline-flex items-center gap-1.5  px-2.5 py-1 rounded-sm text-[11px] leading-none ${
         isCorrect
           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
           : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
@@ -321,12 +319,12 @@ const McEntryCard = memo(function McEntryCard({
             </div>
             <div className="space-y-0.5 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-light text-sm leading-tight">
+                <span className=" text-sm leading-tight">
                   {item.question.topic}
                 </span>
                 <Badge
                   variant="secondary"
-                  className="shrink-0 text-[10px] font-light bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 py-0.5 h-auto"
+                  className="shrink-0 text-[10px]  bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 py-0.5 h-auto"
                 >
                   MC
                 </Badge>
@@ -365,7 +363,7 @@ const McEntryCard = memo(function McEntryCard({
           <span>
             Selected{' '}
             <strong
-              className={`font-light ${
+              className={` ${
                 item.selectedAnswer === item.question.correctAnswer
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-red-600 dark:text-red-400'
@@ -377,7 +375,7 @@ const McEntryCard = memo(function McEntryCard({
           <span className="text-border">·</span>
           <span>
             Answer{' '}
-            <strong className="text-emerald-600 dark:text-emerald-400 font-light">
+            <strong className="text-emerald-600 dark:text-emerald-400 ">
               {item.question.correctAnswer}
             </strong>
           </span>
@@ -405,7 +403,7 @@ const McEntryCard = memo(function McEntryCard({
                 return (
                   <div key={opt.label} className={cls}>
                     <span
-                      className={`font-light shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${
+                      className={` shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${
                         isCorrOpt
                           ? 'bg-emerald-500 text-white'
                           : isChosen
@@ -473,7 +471,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             <AccuracyArc pct={pct} />
             <div className="space-y-0.5 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-light text-sm leading-tight">
+                <span className=" text-sm leading-tight">
                   {item.question.topic}
                 </span>
                 <Badge

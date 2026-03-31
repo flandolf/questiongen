@@ -878,7 +878,7 @@ function PresetSection({
   return (
     <div className="space-y-1">
       {/* Save new preset */}
-      <div className="flex items-center space-y-1">
+      <div className="flex items-center gap-1">
         <Input
           id="preset-name"
           value={presetName}
@@ -1697,7 +1697,7 @@ function SetupPanelImpl({
           )}
 
           {/* Generate button */}
-          <div className="px-6">
+          <div className="px-6 mt-2">
             <Button
               size="lg"
               className="w-full h-11 text-sm font-bold gap-2 transition-all duration-200"
@@ -1716,7 +1716,7 @@ function SetupPanelImpl({
                   <Sparkles className="w-4 h-4" />
                   {generationMode === 'exam'
                     ? 'Generate Exam Set'
-                    : 'Generate Revision Set'}
+                    : 'Generate Question Set'}
                 </>
               )}
             </Button>

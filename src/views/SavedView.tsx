@@ -104,7 +104,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-light truncate">
+                        <span className="text-base  truncate">
                           {savedSet.title}
                         </span>
                         <Badge
@@ -169,18 +169,18 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                     <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <BarChart2 className="h-3 w-3 shrink-0" />
-                        <span className="text-xs font-light uppercase tracking-wide">
+                        <span className="text-xs  uppercase tracking-wide">
                           Difficulty
                         </span>
                       </div>
-                      <div className="text-xs font-light capitalize">
+                      <div className="text-xs  capitalize">
                         {savedSet.preferences.difficulty}
                       </div>
                     </div>
                     <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Hash className="h-3 w-3 shrink-0" />
-                        <span className="text-xs font-light uppercase tracking-wide">
+                        <span className="text-xs  uppercase tracking-wide">
                           Progress
                         </span>
                       </div>

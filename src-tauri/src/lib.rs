@@ -606,8 +606,8 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
         .iter()
         .map(|p| {
             let p = p.trim().replace(['\n', '\r'], " ");
-            if p.len() > 260 {
-                format!("{}...", &p[..260])
+            if p.len() > 1000 {
+                format!("{}...", &p[..1000])
             } else {
                 p
             }
