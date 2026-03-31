@@ -755,6 +755,7 @@ export interface SaveOptions {
     questionHistory: string[];
     mcHistory: string[];
     savedSets: string[];
+    presets?: string[];
   };
 }
 

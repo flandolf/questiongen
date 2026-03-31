@@ -8,6 +8,7 @@ import {
   StreakData,
 } from '@/types';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import {
   SyncableData,
   FirebaseUser,
@@ -501,6 +502,18 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           const lastPrIds = new Set(
             (lastParsed.pr ?? []).map((i: { id: string }) => i.id)
           );
+
+          // Build current ID sets
+          const currentQhIds = new Set(
+            syncable.questionHistory.map((q) => q.id)
+          );
+          const currentMcIds = new Set(syncable.mcHistory.map((q) => q.id));
+          const currentSsIds = new Set(syncable.savedSets.map((q) => q.id));
+          const currentPrIds = new Set(
+            (syncable.presets ?? []).map((q) => q.id)
+          );
+
+          // Count additions (items in current but not in last synced)
           for (const q of syncable.questionHistory) {
             if (!lastQhIds.has(q.id)) count++;
           }
@@ -512,6 +525,20 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           }
           for (const q of syncable.presets ?? []) {
             if (!lastPrIds.has(q.id)) count++;
+          }
+
+          // Count deletions (items in last synced but not in current)
+          for (const id of lastQhIds) {
+            if (!currentQhIds.has(id)) count++;
+          }
+          for (const id of lastMcIds) {
+            if (!currentMcIds.has(id)) count++;
+          }
+          for (const id of lastSsIds) {
+            if (!currentSsIds.has(id)) count++;
+          }
+          for (const id of lastPrIds) {
+            if (!currentPrIds.has(id as string)) count++;
           }
         } catch {
           count = -1; // unknown
@@ -534,6 +561,41 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       unsubscribe();
     };
   }, [user, isSyncEnabled]);
+
+  // Sync daily usage (tokens/day, est. cost) to Firestore when generationHistory changes
+  useEffect(() => {
+    if (!user || !isSyncEnabled || !isInitializedRef.current) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      if (state.generationHistory === prevState.generationHistory) return;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          const current = useAppStore.getState();
+          if (!current.isHydrated) return;
+          await saveDailyUsage(
+            getUserId(user),
+            current.generationHistory,
+            current.questionHistory,
+            current.mcHistory
+          );
+          debugLog('Daily usage synced after generation');
+        } catch (err) {
+          console.warn(
+            '[Firebase] Daily usage sync after generation failed:',
+            err
+          );
+        }
+      }, 2000);
+    });
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribe();
+    };
+  }, [user, isSyncEnabled, debugLog]);
 
   // Auth state listener
   useEffect(() => {
@@ -666,12 +728,25 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
               >,
               tombstones.savedSets
             ),
+            presets: filterDeleted(
+              (localData.presets ?? []) as Array<
+                Record<string, unknown> & { id?: string }
+              >,
+              tombstones.presets
+            ) as typeof localData.presets,
           };
 
-          const merged = mergeSyncableData(
-            filteredLocalData,
-            remoteData ?? null
-          );
+          let merged = mergeSyncableData(filteredLocalData, remoteData ?? null);
+
+          // Remove any preset whose ID is in tombstones (mergeById may re-add from remote)
+          if (Object.keys(tombstones.presets).length > 0) {
+            merged = {
+              ...merged,
+              presets: (merged.presets ?? []).filter(
+                (p) => !p.id || !(p.id in tombstones.presets)
+              ),
+            };
+          }
           const storeUpdates = applySyncableDataToStore(merged);
           setSuppressPersistUntil(Date.now() + 1500);
           suppressAutoSaveTemporarily();
@@ -735,6 +810,22 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             `Synced ${remoteData?.questionHistory?.length || 0} question history items`
           );
 
+          // Sync daily usage (tokens/day, est. cost) to Firestore
+          try {
+            await saveDailyUsage(
+              userId,
+              localState.generationHistory,
+              localState.questionHistory,
+              localState.mcHistory
+            );
+            debugLog('Daily usage synced on connect');
+          } catch (usageError) {
+            console.warn(
+              '[Firebase] Daily usage sync failed on connect:',
+              usageError
+            );
+          }
+
           // Archive old items from Firestore after merge
           const qhKeepIds = new Set(
             merged.questionHistory.map((item) => String(item.id ?? ''))
@@ -790,11 +881,29 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           const hasDeletions =
             deletedIds.questionHistory.length > 0 ||
             deletedIds.mcHistory.length > 0 ||
-            deletedIds.savedSets.length > 0;
+            deletedIds.savedSets.length > 0 ||
+            deletedIds.presets.length > 0;
           await saveUserData(userId, localDataRef.current, {
             fullSync: true,
             ...(hasDeletions ? { deletedIds } : {}),
           });
+
+          // Sync daily usage (tokens/day, est. cost) to Firestore
+          try {
+            await saveDailyUsage(
+              userId,
+              localState.generationHistory,
+              localState.questionHistory,
+              localState.mcHistory
+            );
+            debugLog('Daily usage synced on initial upload');
+          } catch (usageError) {
+            console.warn(
+              '[Firebase] Daily usage sync failed on initial upload:',
+              usageError
+            );
+          }
+
           addSyncEvent('upload', 'Initial data uploaded to cloud');
           if (hasDeletions) {
             useAppStore.setState({
@@ -830,6 +939,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         setSyncError(null);
         setSyncStatus('idle');
         setLastSyncTime(Date.now());
+        toast.success('Cloud sync connected');
       } catch (error: unknown) {
         console.error('Failed to enable sync:', error);
         const errorMessage =
@@ -838,6 +948,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         addSyncEvent('error', `Connection failed: ${errorMessage}`);
         setIsSyncEnabled(false);
         setSyncStatus('error');
+        toast.error(`Sync failed: ${errorMessage}`);
       }
     },
     [debugLog, addSyncEvent, suppressAutoSaveTemporarily]
@@ -874,6 +985,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     setSyncStatus('syncing');
     setIsSyncEnabled(true);
     isInitializedRef.current = true;
+    toast.message('Syncing data...');
 
     const userId = getUserId(user);
 
@@ -923,6 +1035,17 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           )
         );
 
+        // Previously synced IDs — only flag conflicts for items that were synced before
+        const prevSyncedQh = new Set(
+          Object.keys(syncMetadataRef.current.lastSyncVersions.questionHistory)
+        );
+        const prevSyncedMc = new Set(
+          Object.keys(syncMetadataRef.current.lastSyncVersions.mcHistory)
+        );
+        const prevSyncedSs = new Set(
+          Object.keys(syncMetadataRef.current.lastSyncVersions.savedSets)
+        );
+
         const localQhItems = localData.questionHistory as Record<
           string,
           unknown
@@ -931,10 +1054,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         const localSsItems = localData.savedSets as Record<string, unknown>[];
 
         // For each tombstone, check if the item is also absent from remote
-        // This means the remote deleted it too (or it was never there)
+        // Only flag conflict if the item was previously synced (not a create-then-delete-before-sync)
         const qhConflicts = detectDualDeletions(
           new Set(Object.keys(tombstones.questionHistory)),
-          remoteQhIds
+          remoteQhIds,
+          prevSyncedQh
         );
         for (const id of qhConflicts) {
           detectedConflicts.push({
@@ -947,7 +1071,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
         const mcConflicts = detectDualDeletions(
           new Set(Object.keys(tombstones.mcHistory)),
-          remoteMcIds
+          remoteMcIds,
+          prevSyncedMc
         );
         for (const id of mcConflicts) {
           detectedConflicts.push({
@@ -960,7 +1085,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
         const ssConflicts = detectDualDeletions(
           new Set(Object.keys(tombstones.savedSets)),
-          remoteSsIds
+          remoteSsIds,
+          prevSyncedSs
         );
         for (const id of ssConflicts) {
           detectedConflicts.push({
@@ -970,6 +1096,10 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             localDeletedAt: tombstones.savedSets[id],
           });
         }
+
+        // Preset conflict detection — presets are stored as a single Firestore document,
+        // so individual items don't have per-item sync tracking. Skip dual-deletion detection
+        // for presets; deletions are always propagated silently by rewriting the full array.
       }
 
       // If there are conflicts, pause sync and prompt user
@@ -983,6 +1113,9 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         addSyncEvent(
           'conflict',
           `${detectedConflicts.length} deletion conflict${detectedConflicts.length === 1 ? '' : 's'} detected — awaiting resolution`
+        );
+        toast.warning(
+          `${detectedConflicts.length} deletion conflict${detectedConflicts.length === 1 ? '' : 's'} needs resolution`
         );
         return; // Sync paused until resolveConflicts is called
       }
@@ -1008,12 +1141,28 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           >,
           tombstones.savedSets
         ),
+        presets: filterDeleted(
+          (localData.presets ?? []) as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.presets
+        ) as typeof localData.presets,
       };
 
       // 4. Merge local + remote (newer wins)
-      const merged = remoteHasData
+      let merged = remoteHasData
         ? mergeSyncableData(filteredLocalData, remoteData)
         : filteredLocalData;
+
+      // Remove any preset whose ID is in tombstones (mergeById may re-add from remote)
+      if (Object.keys(tombstones.presets).length > 0) {
+        merged = {
+          ...merged,
+          presets: (merged.presets ?? []).filter(
+            (p) => !p.id || !(p.id in tombstones.presets)
+          ),
+        };
+      }
 
       if (remoteHasData) {
         const storeUpdates = applySyncableDataToStore(merged);
@@ -1034,7 +1183,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       const hasDeletions =
         deletedIds.questionHistory.length > 0 ||
         deletedIds.mcHistory.length > 0 ||
-        deletedIds.savedSets.length > 0;
+        deletedIds.savedSets.length > 0 ||
+        deletedIds.presets.length > 0;
 
       await saveUserData(userId, merged, {
         deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
@@ -1043,10 +1193,18 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       });
 
       if (hasDeletions) {
-        addSyncEvent(
-          'upload',
-          `Deleted ${deletedIds.questionHistory.length + deletedIds.mcHistory.length + deletedIds.savedSets.length} items from cloud`
-        );
+        const totalDeletions =
+          deletedIds.questionHistory.length +
+          deletedIds.mcHistory.length +
+          deletedIds.savedSets.length +
+          deletedIds.presets.length;
+        addSyncEvent('upload', `Deleted ${totalDeletions} items from cloud`);
+        if (deletedIds.presets.length > 0) {
+          addSyncEvent(
+            'upload',
+            `${deletedIds.presets.length} preset${deletedIds.presets.length === 1 ? '' : 's'} deleted from cloud`
+          );
+        }
       }
       addSyncEvent('upload', 'Data synced to cloud');
 
@@ -1117,17 +1275,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       setSyncError(null);
       setSyncStatus('idle');
       debugLog('Manual sync completed successfully');
+      toast.success('Sync complete');
     } catch (error) {
       console.error('Force sync failed:', error);
-      setSyncError(
-        error instanceof Error ? error.message : 'Force sync failed'
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Force sync failed';
+      setSyncError(errorMessage);
       setSyncStatus('error');
-      addSyncEvent(
-        'error',
-        `Manual sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      addSyncEvent('error', `Manual sync failed: ${errorMessage}`);
       debugLog('Manual sync failed', error);
+      toast.error(`Sync failed: ${errorMessage}`);
     } finally {
       setIsSyncing(false);
     }
