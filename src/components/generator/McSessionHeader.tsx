@@ -87,8 +87,9 @@ export function McSessionHeader({
 
   const timerBar = useTimerBar();
   const formatTimerValue = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const floored = Math.floor(Math.max(0, seconds));
+    const mins = Math.floor(floored / 60);
+    const secs = floored % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 

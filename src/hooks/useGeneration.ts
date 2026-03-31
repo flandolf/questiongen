@@ -20,7 +20,6 @@ export function useGeneration() {
     specialistMathSubtopics,
     chemistrySubtopics,
     physicalEducationSubtopics,
-    subtopicInstructions,
   } = useAppPreferences();
 
   const [streamText, setStreamText] = useState('');
@@ -73,20 +72,6 @@ export function useGeneration() {
     chemistrySubtopics,
     physicalEducationSubtopics,
   ]);
-
-  const getSelectedSubtopicInstructions = useCallback(() => {
-    const subs = getSelectedSubtopics();
-    const hasInstructions = subs.some((sub) =>
-      subtopicInstructions[sub]?.trim()
-    );
-    if (!hasInstructions) return {};
-    const result: Record<string, string> = {};
-    for (const sub of subs) {
-      const instr = subtopicInstructions[sub]?.trim();
-      if (instr) result[sub] = instr;
-    }
-    return result;
-  }, [getSelectedSubtopics, subtopicInstructions]);
 
   const canGenerate =
     selectedTopics.length > 0 &&
@@ -147,7 +132,6 @@ export function useGeneration() {
     canGenerate,
     getSubtopicsForTopic,
     getSelectedSubtopics,
-    getSelectedSubtopicInstructions,
     initBatchProgress,
     setBatchEntryActive,
     setBatchEntryDone,

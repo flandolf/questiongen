@@ -40,8 +40,6 @@ export function useGeneratorSettings() {
       setAiDifficultyScalingEnabled: s.setAiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
       setDifficultyThresholds: s.setDifficultyThresholds,
-      subtopicInstructions: s.subtopicInstructions,
-      setSubtopicInstructions: s.setSubtopicInstructions,
     }))
   );
 

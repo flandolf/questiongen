@@ -13,7 +13,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import { db } from './firebase-init';
-import { SUBTOPIC_INSTRUCTIONS, type Preset } from '@/types';
+import { type Preset } from '@/types';
 import { getDayKey } from '@/lib/utils';
 
 export interface SyncableData {
@@ -358,40 +358,6 @@ function clipString(value: unknown, max = 20_000): string {
   return value.length > max ? value.slice(0, max) : value;
 }
 
-function compactSubtopicInstructions(
-  raw: unknown
-): Record<string, string> | undefined {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return undefined;
-  }
-
-  const next: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value !== 'string') continue;
-    const trimmedKey = key.trim();
-    const trimmedValue = value.trim();
-    if (!trimmedKey || !trimmedValue) continue;
-    if (SUBTOPIC_INSTRUCTIONS[trimmedKey] === trimmedValue) continue;
-    next[trimmedKey] = trimmedValue;
-  }
-  return Object.keys(next).length > 0 ? next : undefined;
-}
-
-function expandSubtopicInstructions(raw: unknown): Record<string, string> {
-  const merged: Record<string, string> = { ...SUBTOPIC_INSTRUCTIONS };
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return merged;
-  }
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value !== 'string') continue;
-    const trimmedKey = key.trim();
-    const trimmedValue = value.trim();
-    if (!trimmedKey || !trimmedValue) continue;
-    merged[trimmedKey] = trimmedValue;
-  }
-  return merged;
-}
-
 function compactQuestionHistoryEntry(
   rawItem: Record<string, unknown>
 ): Record<string, unknown> {
@@ -473,14 +439,7 @@ function compactSavedSet(
       : undefined;
 
   if (preferences) {
-    const compactInstructions = compactSubtopicInstructions(
-      preferences.subtopicInstructions
-    );
-    if (compactInstructions) {
-      preferences.subtopicInstructions = compactInstructions;
-    } else {
-      delete preferences.subtopicInstructions;
-    }
+    delete preferences.subtopicInstructions;
   }
 
   const writtenSession =
@@ -521,9 +480,7 @@ function inflateSavedSet(
   const copy = { ...rawItem };
   if (typeof copy.preferences === 'object' && copy.preferences !== null) {
     const preferences = { ...(copy.preferences as Record<string, unknown>) };
-    preferences.subtopicInstructions = expandSubtopicInstructions(
-      preferences.subtopicInstructions
-    );
+    delete preferences.subtopicInstructions;
     copy.preferences = preferences;
   }
   return copy;

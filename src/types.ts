@@ -18,6 +18,7 @@ export type Difficulty =
 export type TechMode = 'tech-free' | 'tech-active' | 'mix';
 
 export const MATH_METHODS_SUBTOPICS = [
+  // Unit 3 - Functions and Graphs
   'Functions and Graphs',
   'Transformation of Graphs',
   'Algebra and Structure',
@@ -25,6 +26,7 @@ export const MATH_METHODS_SUBTOPICS = [
   'Exponential and Logarithmic Functions',
   'Differentiation',
   'Integration',
+  // Unit 4 - Probability and Statistics
   'Probability and Statistics',
   'Discrete Random Variables',
   'Continuous Random Variables',
@@ -33,6 +35,7 @@ export const MATH_METHODS_SUBTOPICS = [
 export type MathMethodsSubtopic = (typeof MATH_METHODS_SUBTOPICS)[number];
 
 export const SPECIALIST_MATH_SUBTOPICS = [
+  // Unit 1 - Number and Algebra
   'Additional Algebra and Number Systems',
   'Sequences and Series',
   'Reciprocals and Rational Functions',
@@ -49,20 +52,127 @@ export const SPECIALIST_MATH_SUBTOPICS = [
 export type SpecialistMathSubtopic = (typeof SPECIALIST_MATH_SUBTOPICS)[number];
 
 export const PHYSICAL_EDUCATION_SUBTOPICS = [
-  'Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling',
-  'Coaching and Feedback: Theories of Acquisition and Psychological Strategies',
-  'Applied Biomechanics: Forces, Momentum, Impulse, Newton’s Laws, Projectile Motion, and Levers',
-  'Movement Analysis: Qualitative Analysis and Equilibrium in Sport',
-  'Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems',
-  'Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP',
-  'Physiological Responses: Acute Responses and Fatigue Mechanisms',
-  'Recovery and Nutrition: Hydration and Nutritional Strategies for Homeostasis',
-  'Training Foundation: Activity Analysis, Fitness Components, and Testing',
-  'Program Design: Training Principles, Methods, and Chronic Adaptations',
+  // UNIT 3: Movement Skills and Energy - Skill Acquisition
+  'Movement Skill Classification: Fundamental, Sport-Specific, Open/Closed, Gross/Fine',
+  'Discrete, Serial, and Continuous Motor Skills: Temporal Characteristics',
+  'Stages of Learning: Cognitive, Associative, and Autonomous Stages',
+  'Skill Acquisition Theories: Linear vs. Non-Linear Learning Models',
+  'Learning Approaches: Direct Instruction vs. Constraint-Based Methods',
+  'Practice Scheduling: Type (Whole/Part), Distribution (Massed/Distributed), and Variability (Blocked/Random)',
+  'Feedback in Skill Acquisition: Intrinsic, Augmented, and Timing Optimization',
+  'Psychological Factors in Learning: Confidence, Motivation, Arousal, and Concentration',
+  'Coaching Strategies: Tailoring Instruction to Learner Needs and Performance Requirements',
+
+  // UNIT 3: Movement Skills and Energy - Biomechanics
+  'Linear and Angular Motion: Distance, Velocity, Force, and Torque in Movement',
+  'Momentum and Impulse: Conservation and Application in Physical Activities',
+  "Newton's Laws of Motion: Inertia, Acceleration, and Action-Reaction in Sport",
+  'Projectile Motion: Release Angle, Height, Speed, and Optimal Performance Trajectories',
+  'Center of Gravity, Base of Support, and Equilibrium: Balance and Stability Principles',
+  'Third Class Lever Systems: Mechanical Advantage and Force Application',
+  'Qualitative Movement Analysis: Systematic Observation, Evaluation, and Error Correction',
+  'Video Analysis and Biomechanical Assessment: Tools for Movement Improvement',
+
+  // UNIT 3: Movement Skills and Energy - Energy Systems
+  'ATP-CP System: High-Intensity Energy Supply and Recovery Characteristics',
+  'Anaerobic Glycolysis: Glucose Breakdown, Lactate Production, and Duration Capacity',
+  'Aerobic System: Oxidative Phosphorylation and Sustained Energy Production',
+  'Energy System Interplay: ATP-CP to Anaerobic to Aerobic Transition by Intensity and Duration',
+  'Oxygen Uptake: Oxygen Deficit, Steady State, and EPOC Recovery',
+  'VO2 Max and Lactate Inflection Point: Aerobic Capacity and Anaerobic Threshold',
+  'Fatigue Mechanisms: Metabolic, Muscular, Thermoregulatory, and Central Fatigue',
+  'Nutrition and Hydration Strategies: Fueling Performance and Enhancing Recovery',
+
+  // UNIT 4: Training to Improve Performance - Foundations
+  'Activity Analysis: Identifying Skill Frequencies, Movement Patterns, and Physiological Demands',
+  'Fitness Assessment: Testing Aerobic, Anaerobic, Strength, Endurance, Flexibility, Speed, and Agility',
+  'Test Reliability, Validity, and Accuracy: Standardized Protocols and Error Minimization',
+  'Pre-Participation Screening and Informed Consent',
+
+  // UNIT 4: Training to Improve Performance - Training Principles and Methods
+  'Training Principles: Frequency, Intensity, Time/Duration, Type, and Progression',
+  'Training Adaptation: Specificity, Individuality, Variety, and Diminishing Returns',
+  'Periodization and Planning: Macrocycles, Mesocycles, Microcycles, Tapering, and Detraining',
+  'Continuous and Interval Training: Steady-Intensity vs. High-Intensity Work-Rest Intervals',
+  'Specialized Training Methods: Fartlek, Circuit, Weight/Resistance, Flexibility, and Plyometric Training',
+  'Training Components: Warm-Up, Conditioning Phase, and Cool-Down Structure',
+  'Overtraining Syndrome: Prevention, Recognition, and Management',
+
+  // UNIT 4: Training to Improve Performance - Adaptations and Monitoring
+  'Cardiovascular Adaptations: Increased Stroke Volume, Cardiac Output, and VO2 Max',
+  'Respiratory Adaptations: Enhanced Oxygen Extraction and Capillarization',
+  'Muscular Adaptations: Strength Gains, Hypertrophy, Power Development, and Fiber Type Changes',
+  'Aerobic vs. Anaerobic Training Adaptations: Differential System Responses',
+  'Lactate Threshold and Metabolic Efficiency: Improved Lactate Tolerance and Fat Oxidation',
+  'Training Monitoring: Physiological, Psychological, and Sociological Data Collection',
+  'Training Diaries, Digital Tools, and Wearable Technology: Tracking Progress and Adjustments',
+  'Program Evaluation and Modification: Effectiveness Assessment and Data-Driven Adjustments',
+
+  // UNIT 4: Training to Improve Performance - Integration and Application
+  'Skill Acquisition and Training Integration: Combining Practice Scheduling With Training Methods',
+  'Biomechanical Optimization Within Training: Movement Efficiency and Technique Refinement',
+  'Energy System Alignment: Matching Training Methods to Physiological Activity Demands',
+  'Sport-Specific Performance Analysis: Integrated Assessment of Skill, Fitness, and Technique',
+  'Holistic Athlete Development: Physical, Psychological, and Social Integration',
+  'Recovery Strategies: Sleep, Nutrition, Active Recovery, and Regeneration Techniques',
+  'Fatigue Management: Balancing Training Stimulus With Recovery',
+  'Interdisciplinary Performance Optimization: Connecting Biomechanics, Physiology, and Psychology',
 ] as const;
 
 export type PhysicalEducationSubtopic =
   (typeof PHYSICAL_EDUCATION_SUBTOPICS)[number];
+
+export type PhysicalEducationSubtopicGroup = {
+  unit: string;
+  aos: string;
+  label: string;
+  subtopics: readonly PhysicalEducationSubtopic[];
+};
+
+export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] = [
+  {
+    unit: 'Unit 3',
+    aos: 'Skill Acquisition',
+    label: 'Unit 3 — Skill Acquisition',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(0, 9),
+  },
+  {
+    unit: 'Unit 3',
+    aos: 'Biomechanics',
+    label: 'Unit 3 — Biomechanics',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(9, 17),
+  },
+  {
+    unit: 'Unit 3',
+    aos: 'Energy Systems',
+    label: 'Unit 3 — Energy Systems',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(17, 25),
+  },
+  {
+    unit: 'Unit 4',
+    aos: 'Foundations of Training',
+    label: 'Unit 4 — Foundations of Training',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(25, 29),
+  },
+  {
+    unit: 'Unit 4',
+    aos: 'Training Principles and Methods',
+    label: 'Unit 4 — Training Principles and Methods',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(29, 36),
+  },
+  {
+    unit: 'Unit 4',
+    aos: 'Adaptations and Monitoring',
+    label: 'Unit 4 — Adaptations and Monitoring',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(36, 44),
+  },
+  {
+    unit: 'Unit 4',
+    aos: 'Integration and Application',
+    label: 'Unit 4 — Integration and Application',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(44, 53),
+  },
+] as const;
 
 export const CHEMISTRY_SUBTOPICS = [
   'Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements',
@@ -84,183 +194,6 @@ export const CHEMISTRY_SUBTOPICS = [
 ] as const;
 
 export type ChemistrySubtopic = (typeof CHEMISTRY_SUBTOPICS)[number];
-
-export const SUBTOPIC_INSTRUCTIONS: Record<string, string> = {
-  // ─────────────────────────────────────────────
-  // MATHEMATICAL METHODS
-  // Only exam technique notes NOT in Study Design key knowledge
-  // ─────────────────────────────────────────────
-
-  'Functions and Graphs': `
-NOTATION (mandatory):
-- Write functions as f : domain → R, f(x) = ...
-- Domain/range: interval notation [a, b] or set notation {x ∈ R : condition}
-- Composite: (f ∘ g)(x) = f(g(x)) — state domain requires range(g) ⊆ domain(f)
-EXAM STYLE:
-- Vary: identify features from equation, sketch graphs, find domains/ranges, composite/inverse rules
-- Multi-part: identification → manipulation → application
-- NEVER omit domain specification
-`,
-
-  'Transformation of Graphs': `
-NOTATION (mandatory):
-- General form: y = a·f(b(x − h)) + k
-- Describe each transformation as a numbered sequence in plain language
-EXAM STYLE:
-- Include non-trivial combined transformations (all four parameters a, b, h, k)
-- Test: parameter identification from graphs, equation comparison, coordinate tracking
-- Common errors to probe: x-axis vs y-axis dilation confusion, translation sign errors
-`,
-
-  'Algebra and Structure': `
-EXAM STYLE:
-- Vary: composition/inverse → parametric simultaneous equations → substitution reduction
-- Always specify domain for composite/inverse questions
-- Algorithm tracing: define termination condition; track variable values in a table
-`,
-
-  'Trigonometric Functions': `
-NOTATION (mandatory):
-- Write as y = a·sin(b(x − h)) + k or y = a·cos(b(x − h)) + k
-- Period: 2π/b (sin/cos), π/b (tan); Amplitude: |a|
-EXAM STYLE:
-- Solve equations: list ALL solutions using periodicity and CAST rule; express in terms of π
-- Periodicity questions: find smallest positive period; determine largest valid interval
-`,
-
-  'Exponential and Logarithmic Functions': `
-NOTATION (mandatory):
-- VCARD uses log_e; log_e and ln both acceptable
-- For d/dx[a·log_e(bx)]: the b cancels → result is a/x
-EXAM STYLE:
-- Exam 1: exact answers using log/exponential laws only, no CAS
-- Multi-step: set up → apply log laws → solve → verify domain (f(x) > 0)
-`,
-
-  Differentiation: `
-NOTATION (mandatory):
-- Gradient table format: columns = x values (either side + at point); rows = sign of f′(x) + arrows
-- Tangent: y − f(a) = f′(a)(x − a); Normal: y − f(a) = −1/f′(a)(x − a)
-EXAM STYLE:
-- Multi-part chain: differentiate → stationary points → classify → global max/min on closed interval
-- Exam 1: exact answers ONLY — no decimal approximations
-`,
-
-  Integration: `
-NOTATION (mandatory):
-- Write ∫f(x) dx = F(x) + c (indefinite); ∫_a^b f(x) dx = [F(x)]_a^b = F(b) − F(a) (definite)
-- Average value: (1/(b−a))∫_a^b f(x) dx
-EXAM STYLE:
-- Area between curves: identify which function is greater; split at intersection points
-- Exam 1: exact answers — express in terms of log_e, π, etc.
-`,
-
-  'Probability and Statistics': `
-NOTATION (mandatory):
-- Pr(A|B) = Pr(A ∩ B) / Pr(B); Independence: Pr(A|B) = Pr(A)
-- 95% CI: p̂ ± 1.96√(p̂(1−p̂)/n)
-EXAM STYLE:
-- Bayes questions: draw probability tree first; show all branch calculations
-- Exam 1 normal dist: use symmetry and given values only, no CAS
-- Confidence intervals: recover p̂ = (L+U)/2; solve for n = (2·1.96·SE/MOE)²
-`,
-
-  'Discrete Random Variables': `
-NOTATION (mandatory):
-- p(x) = Pr(X = x); E(X) = Σx·p(x); Var(X) = E(X²) − μ²
-- Binomial: X ~ Bi(n, p), Pr(X=x) = C(n,x)pˣ(1−p)ⁿ⁻ˣ
-EXAM STYLE:
-- Exam 1: exact fractional answers required (e.g. a/4⁶ or a/2ᵇ)
-- Use small n ≤ 8 for exact arithmetic feasibility
-`,
-
-  'Continuous Random Variables': `
-NOTATION (mandatory):
-- PDF: f(x) ≥ 0, ∫_{−∞}^{∞} f(x) dx = 1
-- Pr(a < X < b) = ∫_a^b f(x) dx; for continuous: Pr(X = a) = 0
-EXAM STYLE:
-- Exam 1: hand-manageable integrands only (polynomials, sin/cos, simple exponentials)
-- ALWAYS state the support of the pdf explicitly
-`,
-
-  // ─────────────────────────────────────────────
-  // PHYSICAL EDUCATION
-  // Only exam technique notes NOT in Study Design key knowledge
-  // ─────────────────────────────────────────────
-
-  'Skill Acquisition: Classification, Stages of Learning, and Practice Scheduling': `
-EXAM STYLE:
-- Classification: ALWAYS justify using BOTH category name AND defining features
-- Stage identification: present a coach observation scenario; require stage + two supporting evidences
-- Practice scheduling: recommend AND justify; link learner characteristics to schedule advantages
-- Multi-part progression: single-classification → multi-classification → athlete comparison → practice plan
-`,
-
-  'Coaching and Feedback: Theories of Acquisition and Psychological Strategies': `
-EXAM STYLE:
-- Theory questions: apply named theory to described scenario — NOT mere definition
-- Feedback: identify type AND justify appropriateness for learner's stage
-- Arousal: specify skill complexity + athlete's state; justify strategy linking theory to outcome
-- Multi-part: identify theory → explain mechanism → recommend intervention → justify with theory
-`,
-
-  "Applied Biomechanics: Forces, Momentum, Impulse, Newton's Laws, Projectile Motion, and Levers": `
-EXAM STYLE:
-- Newton's Laws: name the law AND explain it in the specific context — generic definitions score zero
-- Always name the object on which forces act; forces act on DIFFERENT objects (action-reaction)
-- Projectile: specify sport context; explain variable effects with reference to underlying principles
-- FOCUS on conceptual understanding and application — NOT pure calculations
-`,
-
-  'Movement Analysis: Qualitative Analysis and Equilibrium in Sport': `
-EXAM STYLE:
-- Planes/axes: require BOTH plane AND axis — never accept one without the other
-- Equilibrium: present two contrasting positions; compare stability using ≥2 factors with justification
-- Multi-part: observe error → identify critical feature violated → name plane/axis → recommend drill
-`,
-
-  'Energy System Interplay: ATP-CP, Anaerobic Glycolysis, and Aerobic Systems': `
-EXAM STYLE:
-- ALWAYS anchor to specific sporting context; justify system dominance using intensity, duration, oxygen
-- Include: ATP resynthesis reactions, by-product identification, ATP yield comparison, recovery times
-- Interplay questions: describe changing game situation; explain system dominance shifts
-`,
-
-  'Cardiorespiratory Dynamics: Oxygen Uptake, EPOC, and VO2 Max/LIP': `
-EXAM STYLE:
-- EPOC: explain BOTH fast (alactic) AND slow (lactic) components with specific physiological processes
-- VO₂ max: explain one limiting factor AND one training adaptation; link mechanism to performance
-- LIP: use graph interpretation format; explain what happens above LIP; justify why training shifts it
-`,
-
-  'Physiological Responses: Acute Responses and Fatigue Mechanisms': `
-EXAM STYLE:
-- Describe specific exercise bout (intensity, duration, modality); explain ONE system's response
-- Fatigue: specify exercise type — high-intensity/brief (H⁺/PC focus) vs prolonged moderate (glycogen/central)
-- AVOID: asking students to list responses without mechanism explanation
-`,
-
-  'Recovery and Nutrition: Hydration and Nutritional Strategies for Homeostasis': `
-EXAM STYLE:
-- Recovery: specify exercise type; justify strategy linking physiological mechanism to recovery need
-- Hydration: describe performance decrement; explain physiological chain from dehydration to effect
-- Nutrition: design pre/during/post plan; justify each component with reference to energy systems
-`,
-
-  'Training Foundation: Activity Analysis, Fitness Components, and Testing': `
-EXAM STYLE:
-- Activity analysis: identify dominant energy systems (with justification), top 3 fitness components, appropriate tests
-- Fitness components: define AND justify importance to named sport using activity analysis reasoning
-- Testing: evaluate test's validity/reliability for specific athlete/sport; justify test selection
-`,
-
-  'Program Design: Training Principles, Methods, and Chronic Adaptations': `
-EXAM STYLE:
-- Principles: present training scenario (e.g. athlete plateauing 6 weeks); identify violated principle
-- Method selection: specify athlete profile (sport, training phase, goal); recommend AND justify TWO methods
-- Adaptations: explain specific chronic adaptation including mechanism AND performance effect
-`,
-};
 
 export type Topic =
   | 'Mathematical Methods'
@@ -493,7 +426,6 @@ export type PersistedGeneratorPreferences = {
   questionMode: QuestionMode;
   generationMode?: GenerationMode;
   examTimeLimitMinutes?: number;
-  subtopicInstructions: Record<string, string>;
   aiDifficultyScalingEnabled?: boolean;
   difficultyThresholds?: { increase: number; decrease: number };
 };

@@ -24,7 +24,6 @@ import {
   QuestionHistoryEntry,
   QuestionMode,
   SavedQuestionSet,
-  SUBTOPIC_INSTRUCTIONS,
   StudentAnswerImage,
   TOPICS,
   WrittenAnswerAnalytics,
@@ -65,7 +64,6 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   questionMode: 'written',
   generationMode: 'practice',
   examTimeLimitMinutes: 30,
-  subtopicInstructions: SUBTOPIC_INSTRUCTIONS,
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
 };
@@ -349,9 +347,6 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
       5,
       180
     ),
-    subtopicInstructions: normalizeSubtopicInstructions(
-      data.subtopicInstructions
-    ),
     aiDifficultyScalingEnabled:
       typeof data.aiDifficultyScalingEnabled === 'boolean'
         ? data.aiDifficultyScalingEnabled
@@ -376,30 +371,6 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
           }
         : DEFAULT_PREFERENCES.difficultyThresholds!,
   };
-}
-
-function normalizeSubtopicInstructions(raw: unknown): Record<string, string> {
-  const merged: Record<string, string> = { ...SUBTOPIC_INSTRUCTIONS };
-  if (!isRecord(raw)) {
-    return merged;
-  }
-
-  for (const [key, value] of Object.entries(raw)) {
-    const normalizedKey = key.trim();
-    if (!normalizedKey) {
-      continue;
-    }
-    if (typeof value !== 'string') {
-      continue;
-    }
-    const normalizedValue = value.trim();
-    if (!normalizedValue) {
-      continue;
-    }
-    merged[normalizedKey] = normalizedValue;
-  }
-
-  return merged;
 }
 
 function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
