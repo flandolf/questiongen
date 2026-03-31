@@ -6,10 +6,18 @@ import {
   CloudOff,
   Loader2,
   RefreshCw,
+  Timer,
   Trash2,
 } from 'lucide-react';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../components/ui/select';
 import { cn } from '@/lib/utils';
 import { useAppSettings } from '../../../AppContext';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
@@ -18,7 +26,8 @@ import { SectionHeader, FieldGroup, Card } from '../SettingsUI';
 import { ConflictResolutionDialog } from '../../../components/ConflictResolutionDialog';
 
 export function SyncSection() {
-  const { debugMode } = useAppSettings();
+  const { debugMode, autoSyncIntervalMinutes, setAutoSyncIntervalMinutes } =
+    useAppSettings();
   const firebaseSync = useFirebaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<'signin' | 'signup'>(
@@ -210,6 +219,37 @@ export function SyncSection() {
             </Button>
           )}
         </div>
+
+        {isSignedIn && syncEnabled && (
+          <div className="pt-3 border-t border-border">
+            <FieldGroup label="Auto-Sync Interval" htmlFor="autosync-interval">
+              <div className="flex items-center gap-2">
+                <Timer className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Select
+                  value={String(autoSyncIntervalMinutes)}
+                  onValueChange={(v) => setAutoSyncIntervalMinutes(Number(v))}
+                >
+                  <SelectTrigger id="autosync-interval" className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Off</SelectItem>
+                    <SelectItem value="5">Every 5 minutes</SelectItem>
+                    <SelectItem value="10">Every 10 minutes</SelectItem>
+                    <SelectItem value="15">Every 15 minutes</SelectItem>
+                    <SelectItem value="30">Every 30 minutes</SelectItem>
+                    <SelectItem value="60">Every 1 hour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {autoSyncIntervalMinutes > 0
+                  ? `Automatically syncs every ${autoSyncIntervalMinutes} minute${autoSyncIntervalMinutes === 1 ? '' : 's'} when online.`
+                  : 'Auto-sync is disabled. Use "Sync Now" to sync manually.'}
+              </p>
+            </FieldGroup>
+          </div>
+        )}
 
         {!isSignedIn && (
           <div className="space-y-4 pt-2">

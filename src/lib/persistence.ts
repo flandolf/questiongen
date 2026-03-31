@@ -48,6 +48,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   questionTextSize: 16,
   responseTextSize: 16,
   includeExamContext: true,
+  autoSyncIntervalMinutes: 0,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -288,6 +289,11 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       data.includeExamContext !== undefined
         ? Boolean(data.includeExamContext)
         : DEFAULT_SETTINGS.includeExamContext,
+    autoSyncIntervalMinutes:
+      typeof data.autoSyncIntervalMinutes === 'number' &&
+      data.autoSyncIntervalMinutes >= 0
+        ? data.autoSyncIntervalMinutes
+        : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
   };
 }
 

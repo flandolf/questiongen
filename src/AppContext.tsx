@@ -253,6 +253,8 @@ export function useAppSettings() {
       setResponseTextSize: s.setResponseTextSize,
       includeExamContext: s.includeExamContext,
       setIncludeExamContext: s.setIncludeExamContext,
+      autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
+      setAutoSyncIntervalMinutes: s.setAutoSyncIntervalMinutes,
     }))
   );
 }

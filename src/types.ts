@@ -476,6 +476,7 @@ export type PersistedSettings = {
   questionTextSize?: number;
   responseTextSize?: number;
   includeExamContext?: boolean;
+  autoSyncIntervalMinutes?: number;
 };
 
 export type PersistedGeneratorPreferences = {

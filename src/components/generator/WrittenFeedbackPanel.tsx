@@ -184,17 +184,17 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
             <div className="grid grid-cols-1 gap-4">
               {answer.trim().length > 0 ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 p-5 rounded-lg text-foreground/90 leading-relaxed font-medium">
+                <div className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 p-5 rounded-md text-foreground/90 leading-relaxed font-medium">
                   <MarkdownMath content={answer} />
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center">
+                <div className="rounded-md border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center">
                   No typed answer was submitted.
                 </div>
               )}
 
               {image && (
-                <div className="rounded-lg border border-border/30 bg-muted/10 p-2 shadow-sm">
+                <div className="rounded-md border border-border/30 bg-muted/10 p-2 shadow-sm">
                   <img
                     src={image.dataUrl}
                     alt="Submitted working"
@@ -206,7 +206,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
             {showExemplar && (
               <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-amber-500/5 p-5 rounded-lg border-l-2 border-amber-500/40 text-foreground/90">
+                <div className="prose prose-sm dark:prose-invert max-w-none bg-amber-500/5 p-5 rounded-md text-foreground/90">
                   <Label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-amber-600 dark:text-amber-500 mb-3">
                     <Sparkles className="w-3.5 h-3.5" /> Ideal Solution
                   </Label>
@@ -265,7 +265,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                     {/* Mark Stepper - Now more prominent with color feedback */}
                     <div className="flex flex-row items-center gap-3 xl:w-28 shrink-0">
                       <div
-                        className={`flex items-center justify-center w-12 h-12 rounded-lg font-mono font-bold text-lg ${isFullMarks ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isPartial ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}
+                        className={`flex items-center justify-center w-12 h-12 rounded-md font-mono font-bold text-lg ${isFullMarks ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isPartial ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}
                       >
                         {item.achievedMarks}
                       </div>

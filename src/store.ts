@@ -52,6 +52,7 @@ import {
 } from './context/modules/deletion-tombstones';
 import { createCard, reviewCard, isDue } from './lib/spaced-repetition';
 import { getTodayKey } from './lib/utils';
+import { mergeImportedState, persistAndRehydrate } from './lib/import-export';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export interface AppState {
   questionTextSize: number;
   responseTextSize: number;
   includeExamContext: boolean;
+  autoSyncIntervalMinutes: number;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -179,6 +181,7 @@ export interface AppActions {
   setQuestionTextSize: (size: number) => void;
   setResponseTextSize: (size: number) => void;
   setIncludeExamContext: (enabled: boolean) => void;
+  setAutoSyncIntervalMinutes: (minutes: number) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
@@ -322,6 +325,9 @@ export interface AppActions {
 
   // Deletion tombstones
   setDeletionTombstones: (tombstones: DeletionTombstones) => void;
+
+  // Import / Export
+  importState: (imported: PersistedAppState) => void;
 }
 
 // ─── Default state ────────────────────────────────────────────────────────────
@@ -344,6 +350,8 @@ const defaultState: AppState = {
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
   includeExamContext:
     EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
+  autoSyncIntervalMinutes:
+    EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
 
   // Preferences
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -483,6 +491,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
             ? s.settings.responseTextSize
             : 16,
         includeExamContext: Boolean(s.settings.includeExamContext),
+        autoSyncIntervalMinutes:
+          typeof s.settings.autoSyncIntervalMinutes === 'number'
+            ? s.settings.autoSyncIntervalMinutes
+            : 0,
 
         // Preferences
         selectedTopics: s.preferences.selectedTopics,
@@ -589,6 +601,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
+  setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
+    set({ autoSyncIntervalMinutes }),
   clearApiKey: () => set({ apiKey: '' }),
 
   // ── Preset management (Firebase-synced) ──────────────────────────────────
@@ -1122,6 +1136,20 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       }
     );
   },
+
+  // ── Import / Export ──────────────────────────────────────────────────────
+
+  importState: (imported) => {
+    const s = get();
+    const merged = mergeImportedState(s, imported);
+    set(merged as Partial<AppState>);
+    // Persist immediately so the UI reflects the merged state
+    void persistAndRehydrate(get()).catch(() =>
+      set((cur) => ({
+        errorMessage: cur.errorMessage ?? 'Could not save imported data.',
+      }))
+    );
+  },
 }));
 
 // ─── Persistence snapshot builder ────────────────────────────────────────────
@@ -1160,6 +1188,7 @@ function buildPersistedSnapshot(
       questionTextSize: s.questionTextSize,
       responseTextSize: s.responseTextSize,
       includeExamContext: s.includeExamContext,
+      autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
     },
     preferences: {
       selectedTopics: s.selectedTopics,

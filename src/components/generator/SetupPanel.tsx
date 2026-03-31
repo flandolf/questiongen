@@ -197,12 +197,12 @@ function SubtopicGroup({
   onToggle: (item: string) => void;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="mt-4">
       <div className="flex items-baseline gap-2">
         <p className="text-xs font-semibold">{label}</p>
         {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1">
         {items.map((item) => {
           const active = selected.includes(item);
           return (
@@ -384,38 +384,36 @@ function AdvancedOptionsAccordion({
             </div>
 
             {selectedTopics.length > 1 && (
-              <Card className="bg-muted/20 border-border/60">
-                <CardContent className="px-3 py-2 space-y-1">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Per subject
-                  </p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                    {selectedTopics.map((topic, i) => {
-                      const base = Math.floor(
-                        questionCount / selectedTopics.length
-                      );
-                      const remainder = questionCount % selectedTopics.length;
-                      const count = base + (i < remainder ? 1 : 0);
-                      return (
-                        <span
-                          key={topic}
-                          className="text-[11px] text-foreground flex items-center gap-1"
-                        >
-                          <span className="text-muted-foreground">
-                            {TOPIC_ICONS[topic]}
+              <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-muted/20 border border-border/40 w-fit max-w-full">
+                <span className="text-[9px] font-bold text-muted-foreground/70 uppercase tracking-widest border-r border-border/50 pr-2.5 h-3 flex items-center shrink-0 leading-none">
+                  Topics
+                </span>
+                <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar">
+                  {selectedTopics.map((topic, i) => {
+                    const count =
+                      Math.floor(questionCount / selectedTopics.length) +
+                      (i < questionCount % selectedTopics.length ? 1 : 0);
+                    return (
+                      <div
+                        key={topic}
+                        className="flex items-center gap-1.5 shrink-0"
+                      >
+                        <span className="text-muted-foreground/80 w-3 h-3 flex items-center justify-center shrink-0">
+                          {TOPIC_ICONS[topic]}
+                        </span>
+                        <div className="flex items-center gap-1 text-[11px] leading-none">
+                          <span className="font-medium text-foreground/70 truncate">
+                            {topic}
                           </span>
-                          <span className="truncate max-w-[100px]">
-                            {topic.split(' ')[0]}
-                          </span>
-                          <span className="font-semibold tabular-nums text-primary">
+                          <span className="font-bold text-primary tabular-nums">
                             {count}
                           </span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {questionMode === 'written' ? (
