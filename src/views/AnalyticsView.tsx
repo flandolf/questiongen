@@ -141,9 +141,7 @@ function SectionHeading({
         {title}
       </h2>
       {description && (
-        <p className="text-sm font-light text-muted-foreground">
-          {description}
-        </p>
+        <p className="text-sm  text-muted-foreground">{description}</p>
       )}
     </div>
   );
@@ -151,7 +149,7 @@ function SectionHeading({
 
 function ChartEmpty({ message }: { message: string }) {
   return (
-    <div className="flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 font-light">
+    <div className="flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 ">
       {message}
     </div>
   );
@@ -188,7 +186,7 @@ function Kpi({
     <Card className="flex flex-col p-6 space-y-2">
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <div className="flex items-baseline gap-2">
-        <span className={`text-3xl font-light tracking-tighter ${valueColor}`}>
+        <span className={`text-3xl  tracking-tighter ${valueColor}`}>
           {value}
         </span>
         {delta !== null && delta !== undefined && (
@@ -200,7 +198,7 @@ function Kpi({
           </span>
         )}
       </div>
-      <span className="text-xs font-light text-muted-foreground/70 truncate">
+      <span className="text-xs text-muted-foreground/70 truncate">
         {detail}
       </span>
     </Card>
@@ -408,7 +406,7 @@ export function AnalyticsView() {
           actions={
             <Button
               variant="outline"
-              className="mt-4 font-light"
+              className="mt-4 "
               onClick={() => navigate('/')}
             >
               Begin
@@ -546,7 +544,7 @@ export function AnalyticsView() {
               <span className="text-sm font-medium text-muted-foreground">
                 Avg questions / day
               </span>
-              <span className="text-2xl font-light">
+              <span className="text-2xl ">
                 {dailyStats.avgQuestions.toFixed(1)}
               </span>
               <span className="text-xs text-muted-foreground/60">
@@ -557,7 +555,7 @@ export function AnalyticsView() {
               <span className="text-sm font-medium text-muted-foreground">
                 Avg tokens / day
               </span>
-              <span className="text-2xl font-light">
+              <span className="text-2xl ">
                 {formatTokensShort(Math.round(dailyStats.avgTokens))}
               </span>
               <span className="text-xs text-muted-foreground/60">
@@ -571,7 +569,7 @@ export function AnalyticsView() {
               <span className="text-sm font-medium text-muted-foreground">
                 Avg cost / day
               </span>
-              <span className="text-2xl font-light">
+              <span className="text-2xl ">
                 {dailyStats.avgCost === 0
                   ? '—'
                   : formatCostShort(dailyStats.avgCost)}
@@ -1107,7 +1105,7 @@ export function AnalyticsView() {
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/60">
                           {row.topicSummary || 'Mixed'}
                         </span>
-                        <div className="text-sm font-light leading-relaxed text-foreground">
+                        <div className="text-sm  leading-relaxed text-foreground">
                           <MarkdownMath content={row.criterion} />
                         </div>
                         <div className="flex justify-between items-center mt-2 bg-secondary/30 rounded-sm px-3 py-2">

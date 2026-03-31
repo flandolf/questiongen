@@ -32,7 +32,7 @@ import {
   FilterGroup,
   FilterButton,
 } from '@/components/layout/primitives';
-import { scoreColorClass, scoreRingColor } from '../lib/score-utils';
+import { scoreColorClass } from '../lib/score-utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 function formatTime(seconds: number): string {
@@ -74,42 +74,6 @@ function scoreBg(pct: number) {
   return 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400';
 }
 
-function ScoreRing({ pct, size = 64 }: { pct: number; size?: number }) {
-  const color = scoreRingColor(pct);
-  const r = size / 2 - 5;
-  const circ = 2 * Math.PI * r;
-  const dash = circ * (pct / 100);
-  return (
-    <svg
-      className="-rotate-90 shrink-0"
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-    >
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="5"
-        className="text-muted/25"
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth="5"
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        style={{ transition: 'stroke-dasharray 0.6s ease' }}
-      />
-    </svg>
-  );
-}
-
 function ExamRecordCard({
   record,
   isExpanded,
@@ -135,25 +99,12 @@ function ExamRecordCard({
         onClick={onToggle}
         className="w-full text-left px-5 py-4 flex items-center gap-4 group"
       >
-        <div className="relative shrink-0">
-          <ScoreRing pct={pct} size={56} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span
-              className={`text-sm font-light tabular-nums ${scoreColorClass(pct)}`}
-            >
-              {Math.round(pct)}%
-            </span>
-          </div>
-        </div>
-
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-light text-base leading-tight">
-              {record.topic}
-            </span>
+            <span className=" text-base leading-tight">{record.topic}</span>
             <Badge
               variant="outline"
-              className={`text-[10px] font-light px-1.5 py-0 h-4 ${
+              className={`text-[10px]  px-1.5 py-0 h-4 ${
                 isWritten
                   ? 'border-sky-400/40 text-sky-600 dark:text-sky-400'
                   : 'border-violet-400/40 text-violet-600 dark:text-violet-400'
@@ -173,7 +124,7 @@ function ExamRecordCard({
             </Badge>
             <Badge
               variant="outline"
-              className="text-[10px] font-light px-1.5 py-0 h-4 text-muted-foreground"
+              className="text-[10px]  px-1.5 py-0 h-4 text-muted-foreground"
             >
               {record.difficulty}
             </Badge>
@@ -191,7 +142,7 @@ function ExamRecordCard({
               <Clock className="w-3 h-3" />
               {formatTime(record.timeUsedSeconds)}
             </span>
-            <span className={`font-light ${scoreColorClass(pct)}`}>
+            <span className={` ${scoreColorClass(pct)}`}>
               {record.totalScore}/{record.totalMax}{' '}
               {isWritten ? 'marks' : 'correct'}
             </span>
@@ -200,7 +151,7 @@ function ExamRecordCard({
 
         <div className="flex items-center gap-2 shrink-0">
           <div
-            className={`text-xs font-light px-2.5 py-1 rounded-sm border ${scoreBg(pct)}`}
+            className={`text-xs  px-2.5 py-1 rounded-sm border ${scoreBg(pct)}`}
           >
             {pct >= 80
               ? 'Excellent'
@@ -238,13 +189,11 @@ function ExamRecordCard({
             <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <BarChart2 className="w-3 h-3" />
-                <span className="text-[10px] font-light uppercase tracking-wider">
+                <span className="text-[10px]  uppercase tracking-wider">
                   Score
                 </span>
               </div>
-              <div
-                className={`text-xl font-light tabular-nums ${scoreColorClass(pct)}`}
-              >
+              <div className={`text-xl  tabular-nums ${scoreColorClass(pct)}`}>
                 {Math.round(pct)}%
               </div>
               <div className="text-[11px] text-muted-foreground">
@@ -254,11 +203,11 @@ function ExamRecordCard({
             <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="w-3 h-3" />
-                <span className="text-[10px] font-light uppercase tracking-wider">
+                <span className="text-[10px]  uppercase tracking-wider">
                   Time
                 </span>
               </div>
-              <div className="text-xl font-light tabular-nums">
+              <div className="text-xl  tabular-nums">
                 {formatTime(record.timeUsedSeconds)}
               </div>
               <div className="text-[11px] text-muted-foreground">
@@ -270,13 +219,11 @@ function ExamRecordCard({
             <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Target className="w-3 h-3" />
-                <span className="text-[10px] font-light uppercase tracking-wider">
+                <span className="text-[10px]  uppercase tracking-wider">
                   Accuracy
                 </span>
               </div>
-              <div
-                className={`text-xl font-light tabular-nums ${scoreColorClass(pct)}`}
-              >
+              <div className={`text-xl  tabular-nums ${scoreColorClass(pct)}`}>
                 {record.totalScore}/{record.totalMax}
               </div>
               <div className="text-[11px] text-muted-foreground capitalize">
@@ -286,11 +233,11 @@ function ExamRecordCard({
             <div className="rounded-sm border bg-muted/20 p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Zap className="w-3 h-3" />
-                <span className="text-[10px] font-light uppercase tracking-wider">
+                <span className="text-[10px]  uppercase tracking-wider">
                   Mode
                 </span>
               </div>
-              <div className="text-xl font-light">
+              <div className="text-xl ">
                 {record.techMode === 'tech-free'
                   ? 'No CAS'
                   : record.techMode === 'tech-active'
@@ -305,7 +252,7 @@ function ExamRecordCard({
 
           {/* Question breakdown */}
           <div>
-            <p className="text-[10px] font-light uppercase tracking-wider text-muted-foreground/60 mb-2">
+            <p className="text-[10px]  uppercase tracking-wider text-muted-foreground/60 mb-2">
               Question Results
             </p>
             <div className="rounded-sm border border-border/40 divide-y divide-border/30 overflow-hidden">
@@ -341,7 +288,7 @@ function ExamRecordCard({
                       {isWritten ? (
                         <>
                           <span
-                            className={`text-xs font-light tabular-nums px-1.5 py-0.5 rounded-sm ${qPct >= 100 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : qPct >= 50 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700' : 'bg-rose-100 dark:bg-rose-900/40 text-rose-600'}`}
+                            className={`text-xs  tabular-nums px-1.5 py-0.5 rounded-sm ${qPct >= 100 ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : qPct >= 50 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700' : 'bg-rose-100 dark:bg-rose-900/40 text-rose-600'}`}
                           >
                             {qr.achievedMarks}/{qr.maxMarks}
                           </span>
@@ -355,7 +302,7 @@ function ExamRecordCard({
                         <>
                           {qr.selectedAnswer && (
                             <span
-                              className={`text-[11px] font-mono font-light px-1.5 py-0.5 rounded ${qr.correct ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700' : 'bg-rose-100 dark:bg-rose-900/40 text-rose-600'}`}
+                              className={`text-[11px] font-mono  px-1.5 py-0.5 rounded ${qr.correct ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700' : 'bg-rose-100 dark:bg-rose-900/40 text-rose-600'}`}
                             >
                               {qr.correct ? '' : `${qr.selectedAnswer}→`}
                               {qr.correctAnswer}
