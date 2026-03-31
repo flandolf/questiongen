@@ -1,5 +1,7 @@
 #!/bin/zsh
 
+export CARGO_BUILD_JOBS=16
+
 if [[ $1 == "-c" ]]; then
     ditto "src-tauri/target/release/bundle/macos/questiongen.app" "/Applications/questiongen.app"
 elif [[ $1 == "-a" ]]; then
