@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Cloud,
   Wand2,
+  HardDriveDownload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_VERSION, type Section } from './settings/types';
@@ -20,6 +21,7 @@ import { GoalsSection } from './settings/sections/GoalsSection';
 import { DebugSection } from './settings/sections/DebugSection';
 import { SyncSection } from './settings/sections/SyncSection';
 import { CleanupSection } from './settings/sections/CleanupSection';
+import { ImportExportSection } from './settings/sections/ImportExportSection';
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'api', label: 'API Key', icon: <Key className="h-4 w-4" /> },
@@ -38,6 +40,11 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'debug', label: 'Debug', icon: <Bug className="h-4 w-4" /> },
   { id: 'sync', label: 'Cloud Sync', icon: <Cloud className="h-4 w-4" /> },
   { id: 'cleanup', label: 'Data Cleanup', icon: <Wand2 className="h-4 w-4" /> },
+  {
+    id: 'import-export',
+    label: 'Import / Export',
+    icon: <HardDriveDownload className="h-4 w-4" />,
+  },
 ];
 
 function renderSection(activeSection: Section) {
@@ -58,6 +65,8 @@ function renderSection(activeSection: Section) {
       return <SyncSection />;
     case 'cleanup':
       return <CleanupSection />;
+    case 'import-export':
+      return <ImportExportSection />;
   }
 }
 

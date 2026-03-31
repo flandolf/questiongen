@@ -1341,6 +1341,46 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     [conflicts, debugLog, addSyncEvent, forceSync]
   );
 
+  // ── Autosync timer ─────────────────────────────────────────────────────────
+  const forceSyncRef = useRef(forceSync);
+  forceSyncRef.current = forceSync;
+  const autoSyncIntervalMinutes = useAppStore((s) => s.autoSyncIntervalMinutes);
+
+  useEffect(() => {
+    if (
+      !autoSyncIntervalMinutes ||
+      autoSyncIntervalMinutes <= 0 ||
+      !user ||
+      !isSyncEnabled
+    ) {
+      return;
+    }
+
+    const intervalMs = autoSyncIntervalMinutes * 60 * 1000;
+    debugLog('Autosync timer started', {
+      intervalMinutes: autoSyncIntervalMinutes,
+    });
+
+    const timerId = setInterval(() => {
+      const online = navigator.onLine;
+      if (!online) {
+        debugLog('Autosync skipped: offline');
+        return;
+      }
+      if (isSyncing) {
+        debugLog('Autosync skipped: sync already in progress');
+        return;
+      }
+      debugLog('Autosync triggered');
+      void forceSyncRef.current();
+    }, intervalMs);
+
+    return () => {
+      clearInterval(timerId);
+      debugLog('Autosync timer stopped');
+    };
+  }, [user, isSyncEnabled, isSyncing, autoSyncIntervalMinutes, debugLog]);
+
   return {
     user,
     isLoading,

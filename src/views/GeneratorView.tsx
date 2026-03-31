@@ -530,32 +530,18 @@ export function GeneratorView() {
   // Active timer hook based on current question mode
   const activeTimer = questionMode === 'written' ? writtenTimer : mcTimer;
 
-  // Session elapsed time from the active timer hook (single source of truth)
-  const elapsedSeconds = activeTimer.sessionElapsedSeconds;
+  // Use formattedSessionTime and formattedQuestionTime from the timer hook
+  const formattedSessionTime = activeTimer.formattedSessionTime;
+  // const formattedQuestionTime = activeTimer.formattedQuestionTime; // Only use if needed
 
-  const formattedElapsedTime = useMemo(() => {
-    const secs = elapsedSeconds;
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    if (h > 0)
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }, [elapsedSeconds]);
+  // For compatibility, if you need elapsed/remaining seconds, you can still use:
+  // const elapsedSeconds = activeTimer.sessionElapsedSeconds;
+  // const remainingSeconds = activeTimer.sessionRemainingSeconds;
 
-  const completionFormattedElapsedTime = formattedElapsedTime;
-
-  const remainingSeconds = activeTimer.sessionRemainingSeconds;
-
-  const formattedCountdownTime = useMemo(() => {
-    const secs = remainingSeconds;
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    if (h > 0)
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }, [remainingSeconds]);
+  // If you need to keep completionFormattedElapsedTime and formattedCountdownTime:
+  const completionFormattedElapsedTime = formattedSessionTime;
+  const formattedElapsedTime = formattedSessionTime;
+  const formattedCountdownTime = formattedSessionTime;
 
   // ── Exam submission: mark all answers at once ─────────────────────────────────
   const handleSubmitExam = useCallback(async () => {
@@ -2195,7 +2181,7 @@ export function GeneratorView() {
     const nowIso = new Date(now).toISOString();
     const timeUsedSeconds = Math.max(
       0,
-      Math.min(elapsedSeconds, examTimeLimitMinutes * 60)
+      Math.min(activeTimer.sessionElapsedSeconds, examTimeLimitMinutes * 60)
     );
 
     if (questionMode === 'written') {
@@ -2284,7 +2270,7 @@ export function GeneratorView() {
     showCompletionScreen,
     isSetComplete,
     examRecordSaved,
-    elapsedSeconds,
+    activeTimer.sessionElapsedSeconds,
     examTimeLimitMinutes,
     questionMode,
     questions,
@@ -2558,7 +2544,7 @@ export function GeneratorView() {
             isSubmittingExam={isSubmittingExam}
             generationMode={generationMode}
             formattedCountdownTime={formattedCountdownTime}
-            remainingSeconds={remainingSeconds}
+            remainingSeconds={activeTimer.sessionRemainingSeconds}
             formattedElapsedTime={formattedElapsedTime}
           />
           {showKeyboardHint && (
@@ -2589,8 +2575,8 @@ export function GeneratorView() {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
                 {generationMode === 'exam' &&
-                  remainingSeconds > 0 &&
-                  remainingSeconds <= 120 && (
+                  activeTimer.sessionRemainingSeconds > 0 &&
+                  activeTimer.sessionRemainingSeconds <= 120 && (
                     <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
                       Time warning: {formattedCountdownTime} remaining.
                     </div>
@@ -2662,7 +2648,7 @@ export function GeneratorView() {
             isSubmittingExam={isSubmittingExam}
             generationMode={generationMode}
             formattedCountdownTime={formattedCountdownTime}
-            remainingSeconds={remainingSeconds}
+            remainingSeconds={activeTimer.sessionRemainingSeconds}
             formattedElapsedTime={formattedElapsedTime}
           />
           {showKeyboardHint && (
@@ -2689,8 +2675,8 @@ export function GeneratorView() {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
                 {generationMode === 'exam' &&
-                  remainingSeconds > 0 &&
-                  remainingSeconds <= 120 && (
+                  activeTimer.sessionRemainingSeconds > 0 &&
+                  activeTimer.sessionRemainingSeconds <= 120 && (
                     <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
                       Time warning: {formattedCountdownTime} remaining.
                     </div>

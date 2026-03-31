@@ -46,7 +46,8 @@ export type Section =
   | 'goals'
   | 'debug'
   | 'sync'
-  | 'cleanup';
+  | 'cleanup'
+  | 'import-export';
 
 export type ImageValidationState =
   | { status: 'idle' }
@@ -61,4 +62,4 @@ export interface StatsColumn {
   loading: boolean;
 }
 
-export const APP_VERSION = '2.4.3';
+export const APP_VERSION = '2.4.4';
