@@ -313,7 +313,7 @@ export function Sidebar() {
                       label="Overall"
                       current={todayCompletions.total}
                       goal={studyGoals.dailyQuestionGoal}
-                      color="bg-blue-500"
+                      color="bg-emerald-500"
                     />
                   )}
                   {studyGoals.dailyMcGoal > 0 && (
@@ -350,19 +350,19 @@ export function Sidebar() {
                         label: 'Daily',
                         current: todayCompletions.total,
                         goal: studyGoals.dailyQuestionGoal,
-                        color: '#10b981',
+                        color: 'oklch(69.6% 0.17 162.48)',
                       },
                       {
                         label: 'MC',
                         current: todayCompletions.mc,
                         goal: studyGoals.dailyMcGoal,
-                        color: '#8b5cf6',
+                        color: 'oklch(60.6% 0.25 292.717)',
                       },
                       {
                         label: 'Written',
                         current: todayCompletions.written,
                         goal: studyGoals.dailyWrittenGoal,
-                        color: '#3b82f6',
+                        color: 'oklch(68.5% 0.169 237.323)',
                       },
                     ]}
                   />
