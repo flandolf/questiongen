@@ -89,8 +89,8 @@ function updateSettingsView(version: string): void {
     'utf-8'
   );
   const updated = content.replace(
-    /export const APP_VERSION = "[\d.]+";/,
-    `export const APP_VERSION = "${version}";`
+    /export const APP_VERSION = '[\d.]+';/,
+    `export const APP_VERSION = '${version}';`
   );
   writeFileSync(
     join(rootDir, 'src', 'views', 'settings', 'types.ts'),
