@@ -78,7 +78,7 @@ export function StatCard({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-muted/20 px-4 py-3 space-y-0.5',
+        'rounded-sm border bg-muted/20 px-4 py-3 space-y-0.5',
         accentColor
       )}
     >
@@ -119,7 +119,7 @@ export function EmptyState({
       )}
     >
       {icon && (
-        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+        <div className="w-12 h-12 rounded-sm bg-muted flex items-center justify-center">
           {icon}
         </div>
       )}
@@ -154,7 +154,7 @@ export function FilterGroup({ children, className }: FilterGroupProps) {
   return (
     <div
       className={cn(
-        'flex items-center gap-1 rounded-lg border bg-muted/30 p-0.5 self-start',
+        'flex items-center gap-1 rounded-sm border bg-muted/30 p-0.5 self-start',
         className
       )}
     >
@@ -175,7 +175,7 @@ export function FilterButton({ children, active, onClick }: FilterButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        'px-3 py-1.5 text-xs rounded-md font-medium transition-colors flex items-center gap-1.5',
+        'px-3 py-1.5 text-xs rounded-sm font-medium transition-colors flex items-center gap-1.5',
         active
           ? 'bg-background shadow-sm text-foreground'
           : 'text-muted-foreground hover:text-foreground'
@@ -206,7 +206,7 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 pl-9 pr-8 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+        className="h-9 pl-9 pr-8 text-sm rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
       />
       {value && (
         <button

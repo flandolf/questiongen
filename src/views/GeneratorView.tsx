@@ -2391,7 +2391,7 @@ export function GeneratorView() {
         <div
           role="alert"
           aria-live="assertive"
-          className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-xl text-sm flex items-center gap-3 shadow-sm"
+          className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-sm text-sm flex items-center gap-3 shadow-sm"
         >
           <XCircle className="w-5 h-5 shrink-0" />
           <p className="font-medium flex-1">{errorMessage}</p>
@@ -2591,7 +2591,7 @@ export function GeneratorView() {
                 {generationMode === 'exam' &&
                   remainingSeconds > 0 &&
                   remainingSeconds <= 120 && (
-                    <div className="rounded-lg border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                    <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
                       Time warning: {formattedCountdownTime} remaining.
                     </div>
                   )}
@@ -2691,7 +2691,7 @@ export function GeneratorView() {
                 {generationMode === 'exam' &&
                   remainingSeconds > 0 &&
                   remainingSeconds <= 120 && (
-                    <div className="rounded-lg border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                    <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
                       Time warning: {formattedCountdownTime} remaining.
                     </div>
                   )}
@@ -2705,7 +2705,7 @@ export function GeneratorView() {
                 />
                 {countWords(activeMcQuestion.explanationMarkdown) >
                   MC_MAX_EXPLANATION_WORDS && (
-                  <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-lg px-4 py-2 mb-2 text-sm">
+                  <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-sm px-4 py-2 mb-2 text-sm">
                     <strong>Warning:</strong> Explanation is{' '}
                     {countWords(activeMcQuestion.explanationMarkdown)} words
                     (max {MC_MAX_EXPLANATION_WORDS}). This may be rejected by
@@ -2739,7 +2739,7 @@ export function GeneratorView() {
 
       {/* ── Keyboard shortcut hint ── */}
       {isInSession && showKeyboardHint && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/90 text-background text-[11px] font-medium shadow-lg backdrop-blur-sm">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-sm bg-foreground/90 text-background text-[11px] font-medium shadow-lg backdrop-blur-sm">
           <span>Tip: Use</span>
           <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">
             ←
