@@ -56,7 +56,7 @@ const trendChartConfig = {
     label: 'Overall (incl. reattempts)',
     color: 'hsl(34 100% 50%)',
   },
-  writtenAccuracy: { label: 'Written', color: 'hsl(220 83% 60%)' },
+  writtenAccuracy: { label: 'Written score avg', color: 'hsl(220 83% 60%)' },
   mcAccuracy: { label: 'Multiple choice', color: 'hsl(340 82% 52%)' },
 } satisfies ChartConfig;
 

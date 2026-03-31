@@ -270,7 +270,7 @@ export function useAnalyticsData() {
     let overallTotal = 0;
     let firstAttemptCorrect = 0;
     let firstAttemptTotal = 0;
-    let writtenCorrect = 0;
+    let writtenScoreSum = 0;
     let writtenTotal = 0;
     let mcCorrect = 0;
     let mcTotal = 0;
@@ -286,7 +286,7 @@ export function useAnalyticsData() {
 
       if (attempt.mode === 'written') {
         writtenTotal += 1;
-        if (attempt.isCorrect) writtenCorrect += 1;
+        writtenScoreSum += attempt.scorePercent;
       } else {
         mcTotal += 1;
         if (attempt.isCorrect) mcCorrect += 1;
@@ -300,7 +300,7 @@ export function useAnalyticsData() {
             ? percent(firstAttemptCorrect, firstAttemptTotal)
             : null,
         writtenAccuracy:
-          writtenTotal > 0 ? percent(writtenCorrect, writtenTotal) : null,
+          writtenTotal > 0 ? average(writtenScoreSum, writtenTotal) : null,
         mcAccuracy: mcTotal > 0 ? percent(mcCorrect, mcTotal) : null,
       };
     });
