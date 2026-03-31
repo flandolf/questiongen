@@ -1,5 +1,8 @@
 pub fn difficulty_guidance(level: &str) -> &'static str {
-    match level.to_ascii_lowercase().as_str() {
+    let mark_constraint = "\nIMPORTANT: The complexity and number of sub-parts described above must be \
+        proportionate to the question's maxMarks value. Do NOT exceed the mark budget — \
+        if maxMarks is 3, produce at most 2 sub-parts totalling 3 marks, not a full multi-part essay.";
+    let base = match level.to_ascii_lowercase().as_str() {
         "essential skills" =>
             "- Direct recall of facts, definitions, and formulas; straightforward substitution into standard procedures.\n\
              - One or two-step calculations with explicit instructions; no ambiguity in required method.\n\
@@ -29,5 +32,7 @@ pub fn difficulty_guidance(level: &str) -> &'static str {
              - Student must select the appropriate method from several plausible options.\n\
              - May include distractors or require filtering of relevant information.\n\
              - Justification of steps and intermediate reasoning is expected.",
-    }
+    };
+    // Leak is acceptable: difficulty levels are finite and reused for the lifetime of the process.
+    Box::leak(format!("{base}{mark_constraint}").into_boxed_str())
 }

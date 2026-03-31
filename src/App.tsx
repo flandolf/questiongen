@@ -1,12 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { MathJaxContext } from 'better-react-mathjax';
+import { Toaster } from '@/components/ui/sonner';
 import { AppProvider } from './AppContext';
 import { useAppStore } from './store';
 import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
 import { TimerBarProvider } from './context/TimerBarContext';
-import { Layout } from './components/layout/Layout';
-import { ErrorBoundary } from './components/ui/ErrorBoundary';
+import { Layout } from '@/components/layout/Layout';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 const MATHJAX_CDN_URL =
   'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
@@ -104,6 +105,14 @@ export default function App() {
           <TimerBarProvider>
             <ErrorBoundary>
               <AppRoutes />
+              <Toaster
+                position="bottom-right"
+                richColors
+                closeButton
+                toastOptions={{
+                  duration: 4000,
+                }}
+              />
             </ErrorBoundary>
           </TimerBarProvider>
         </FirebaseSyncProvider>

@@ -64,11 +64,13 @@ export function tombstonesToDeletedIds(tombstones: DeletionTombstones): {
   questionHistory: string[];
   mcHistory: string[];
   savedSets: string[];
+  presets: string[];
 } {
   return {
     questionHistory: Object.keys(tombstones.questionHistory),
     mcHistory: Object.keys(tombstones.mcHistory),
     savedSets: Object.keys(tombstones.savedSets),
+    presets: Object.keys(tombstones.presets),
   };
 }
 
@@ -79,6 +81,7 @@ export function purgePersistedTombstones(
     questionHistory: string[];
     mcHistory: string[];
     savedSets: string[];
+    presets?: string[];
   }
 ): DeletionTombstones {
   return {
@@ -97,7 +100,11 @@ export function purgePersistedTombstones(
         ([id]) => !deletedIds.savedSets.includes(id)
       )
     ),
-    presets: { ...tombstones.presets },
+    presets: Object.fromEntries(
+      Object.entries(tombstones.presets).filter(
+        ([id]) => !(deletedIds.presets ?? []).includes(id)
+      )
+    ),
   };
 }
 
@@ -126,16 +133,24 @@ export function filterDeleted<T extends { id?: string }>(
  * This means the user deleted locally, and the remote also doesn't have the item
  * (either it was never there, or it was deleted remotely too).
  *
+ * If previouslySyncedIds is provided, only flag a conflict if the tombstoned ID
+ * was previously synced. Items created and deleted locally before ever syncing
+ * should not trigger conflict dialogs.
+ *
  * Returns the subset of tombstone IDs that are NOT present in remote data.
  */
 export function detectDualDeletions(
   tombstoneIds: Set<string>,
-  remoteItemIds: Set<string>
+  remoteItemIds: Set<string>,
+  previouslySyncedIds?: Set<string>
 ): Set<string> {
   const conflicts = new Set<string>();
   for (const id of tombstoneIds) {
     if (!remoteItemIds.has(id)) {
-      conflicts.add(id);
+      // Only flag as conflict if the item was previously synced (or no filter provided)
+      if (!previouslySyncedIds || previouslySyncedIds.has(id)) {
+        conflicts.add(id);
+      }
     }
   }
   return conflicts;

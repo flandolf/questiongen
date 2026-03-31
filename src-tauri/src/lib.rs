@@ -214,11 +214,20 @@ fn written_system() -> String {
          {LATEX_RULES}\n\
          {QUESTION_STYLE_RULES}\n\n\
          MARK ALLOCATION RULE (HARD CONSTRAINT):\n\
-         - The user specifies a target average mark value per question.\n\
-         - The arithmetic mean of all \"maxMarks\" values MUST equal the target (round to nearest integer if needed).\n\
-         - If the target average is N and there are Q questions, the total marks across all questions must equal N × Q.\n\
-         - Vary individual question marks around the target (±1–2 marks) to reflect command-term demand, but the overall average must hit the target.\n\
-         - Example: target 6 marks, 5 questions → total 30 marks → e.g. [4, 5, 6, 7, 8] or [6, 6, 6, 6, 6].\n\n\
+          - The user specifies a target average mark value per question.\n\
+          - The arithmetic mean of all \"maxMarks\" values MUST equal the target (round to nearest integer if needed).\n\
+          - If the target average is N and there are Q questions, the total marks across all questions must equal N × Q.\n\
+          - Vary individual question marks around the target (±1–2 marks) to reflect command-term demand, but the overall average must hit the target.\n\
+          - Example: target 6 marks, 5 questions → total 30 marks → e.g. [4, 5, 6, 7, 8] or [6, 6, 6, 6, 6].\n\n\
+         QUESTION COMPLEXITY MUST MATCH maxMarks (CRITICAL CONSTRAINT):\n\
+          - The question content — number of parts, depth of reasoning, and length — MUST be proportional to maxMarks. Do NOT write a 10-mark question when maxMarks is 3.\n\
+          - 1–2 marks: single direct question, one-step answer. No sub-parts labelled (a), (b), etc. unless each sub-part is worth 1 mark and there are exactly 2.\n\
+          - 3–4 marks: at most 2 sub-parts. Brief working or short explanation expected.\n\
+          - 5–6 marks: 2–3 sub-parts. Moderate working, one part may require multi-step reasoning.\n\
+          - 7–8 marks: 3–4 sub-parts. Multi-step reasoning, may combine two concepts.\n\
+          - 9–10 marks: 4–5 sub-parts. Extended response, synthesis of multiple ideas.\n\
+          - 11+ marks: complex multi-part question with substantial working.\n\
+          - BEFORE outputting, verify: count the total number of marks that a student could reasonably earn from your question parts. That count MUST equal maxMarks. If it exceeds maxMarks, remove or combine parts until it matches.\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
            \"questions\": [\n\
@@ -940,10 +949,14 @@ async fn generate_questions(
         "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
          CRITICAL MARK ALLOCATION RULE (you MUST follow this):\n\
-         - Target average marks per question: {average_marks}\n\
-         - Total marks across all {count} questions MUST equal {count} × {average_marks} = {total_marks}\n\
-         - Vary individual maxMarks to suit command-term demand, but the arithmetic mean of all maxMarks values MUST equal {average_marks}\n\
-         - Verify your output: sum all maxMarks and confirm it equals {total_marks}\n\
+          - Target average marks per question: {average_marks}\n\
+          - Total marks across all {count} questions MUST equal {count} × {average_marks} = {total_marks}\n\
+          - Vary individual maxMarks to suit command-term demand, but the arithmetic mean of all maxMarks values MUST equal {average_marks}\n\
+          - Verify your output: sum all maxMarks and confirm it equals {total_marks}\n\
+          - QUESTION LENGTH MUST MATCH maxMarks: A question worth {average_marks} marks on average must have proportional complexity. \
+  A 3-mark question must NOT have 10 marks worth of sub-parts. A 1–2 mark question is a single short task. \
+  A 3–4 mark question has at most 2 sub-parts. A 5–6 mark question has 2–3 sub-parts. \
+  Count the marks of all parts before outputting — the total must equal maxMarks.\n\
          {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts/contexts/methods per question — no two questions should \
  test the same skill in the same way. No worked solutions in prompts.\
