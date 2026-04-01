@@ -17,9 +17,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { MarkdownMath } from '../MarkdownMath';
 import { MarkAnswerResponse, StudentAnswerImage } from '../../types';
 import { scoreColorClass, scoreRingColor } from '@/lib/score-utils';
+import { UnifiedQuestionPromptCard } from '@/components/question/UnifiedQuestionBlocks';
 
 type WrittenFeedbackPanelProps = {
   questionId: string;
+  promptMarkdown: string;
+  topic: string;
+  subtopic?: string;
   answer: string;
   image: StudentAnswerImage | undefined;
   feedback: MarkAnswerResponse;
@@ -92,6 +96,9 @@ function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
 }
 
 export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
+  promptMarkdown,
+  topic,
+  subtopic,
   answer,
   image,
   feedback,
@@ -114,10 +121,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   const [aiFeedbackOpen, setAiFeedbackOpen] = useState(true);
 
   return (
-    <Card className="shadow-xs border-border/40 overflow-hidden bg-background">
+    <Card className="shadow-sm border-border/40 overflow-hidden bg-background">
       {/* HEADER BANNER - Sticky for persistent score context */}
       <div
-        className={`sticky top-0 z-10 bg-card/95 backdrop-blur-sm flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-3 border-b border-border/40`}
+        className={`sticky top-0 z-10 bg-card/95 backdrop-blur-sm flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-4 border-b border-border/40`}
       >
         <ScoreRing achieved={feedback.achievedMarks} max={feedback.maxMarks} />
         <div className="flex-1 min-w-0 space-y-1">
@@ -159,7 +166,24 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
       </div>
 
       <CardContent className="p-0">
-        <div className="px-4 sm:px-6 py-4 space-y-6">
+        <div className="px-4 sm:px-6 py-5 space-y-7">
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <span className="inline-flex items-center rounded-sm border border-border/50 bg-muted/30 px-2 py-1">
+                Original Question
+              </span>
+              <span className="inline-flex items-center rounded-sm border border-border/40 px-2 py-1 text-foreground/80">
+                {topic}
+              </span>
+              {subtopic && (
+                <span className="inline-flex items-center rounded-sm border border-border/30 px-2 py-1">
+                  {subtopic}
+                </span>
+              )}
+            </div>
+            <UnifiedQuestionPromptCard promptMarkdown={promptMarkdown} />
+          </section>
+
           {/* SUBMISSION & EXEMPLAR - Side-by-side on wide screens */}
           <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-border/30 pb-2">
@@ -182,10 +206,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="min-w-0">
                 {answer.trim().length > 0 ? (
-                  <div className="prose prose-base dark:prose-invert max-w-none bg-muted/30 p-4 sm:p-5 rounded-md text-foreground/90 leading-relaxed font-medium">
+                  <div className="prose prose-base dark:prose-invert max-w-none bg-muted/25 p-4 sm:p-5 rounded-md text-foreground/90 leading-relaxed font-medium border border-border/40">
                     <MarkdownMath content={answer} />
                   </div>
                 ) : (
@@ -207,7 +231,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
               {showExemplar && (
                 <div className="min-w-0 animate-in slide-in-from-top-2 fade-in duration-300">
-                  <div className="prose prose-base dark:prose-invert max-w-none bg-amber-500/5 p-4 sm:p-5 rounded-md text-foreground/90">
+                  <div className="prose prose-base dark:prose-invert max-w-none bg-amber-500/5 p-4 sm:p-5 rounded-md text-foreground/90 border border-amber-500/30">
                     <Label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-amber-600 dark:text-amber-500 mb-3">
                       <Sparkles className="w-3.5 h-3.5" /> Ideal Solution
                     </Label>
