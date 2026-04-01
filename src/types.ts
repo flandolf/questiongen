@@ -1,3 +1,34 @@
+import SUBTOPIC_CATALOG from './shared/subtopic-catalog.json';
+
+// ─── Shared subtopic catalog (frontend + backend) ───────────────────────────
+
+type SharedSubtopicEntry = {
+  name: string;
+  instruction: string | null;
+};
+
+type SharedTopicEntry = {
+  name:
+    | 'Mathematical Methods'
+    | 'Specialist Mathematics'
+    | 'Chemistry'
+    | 'Physical Education';
+  subtopics: SharedSubtopicEntry[];
+};
+
+const SHARED_SUBTOPIC_CATALOG = SUBTOPIC_CATALOG as {
+  topics: SharedTopicEntry[];
+};
+
+function getSharedSubtopics(
+  topicName: SharedTopicEntry['name']
+): readonly string[] {
+  const topic = SHARED_SUBTOPIC_CATALOG.topics.find(
+    (entry) => entry.name === topicName
+  );
+  return topic ? topic.subtopics.map((subtopic) => subtopic.name) : [];
+}
+
 // ─── Generator Parameter Preset ─────────────────────────────────────────────
 
 export type Preset = {
@@ -17,111 +48,22 @@ export type Difficulty =
 
 export type TechMode = 'tech-free' | 'tech-active' | 'mix';
 
-export const MATH_METHODS_SUBTOPICS = [
-  // Unit 3 - Functions and Graphs
-  'Functions and Graphs',
-  'Transformation of Graphs',
-  'Algebra and Structure',
-  'Trigonometric Functions',
-  'Exponential and Logarithmic Functions',
-  'Differentiation',
-  'Integration',
-  // Unit 4 - Probability and Statistics
-  'Probability and Statistics',
-  'Discrete Random Variables',
-  'Continuous Random Variables',
-] as const;
+export const MATH_METHODS_SUBTOPICS = getSharedSubtopics(
+  'Mathematical Methods'
+);
 
-export type MathMethodsSubtopic = (typeof MATH_METHODS_SUBTOPICS)[number];
+export type MathMethodsSubtopic = string;
 
-export const SPECIALIST_MATH_SUBTOPICS = [
-  // Unit 1 - Number and Algebra
-  'Additional Algebra and Number Systems',
-  'Sequences and Series',
-  'Reciprocals and Rational Functions',
-  'Combinatorics and Matrices',
-  'Trigonometric Functions and Identities',
-  'Proof',
-  'Modulus',
-  'Algorithms and Graph Theory',
-  'Graphing relations',
-  'Complex numbers',
-  'Transformations and Vectors in the plane',
-] as const;
+export const SPECIALIST_MATH_SUBTOPICS = getSharedSubtopics(
+  'Specialist Mathematics'
+);
 
-export type SpecialistMathSubtopic = (typeof SPECIALIST_MATH_SUBTOPICS)[number];
+export type SpecialistMathSubtopic = string;
 
-export const PHYSICAL_EDUCATION_SUBTOPICS = [
-  // UNIT 3: Movement Skills and Energy - Skill Acquisition
-  'Movement Skill Classification: Fundamental, Sport-Specific, Open/Closed, Gross/Fine',
-  'Discrete, Serial, and Continuous Motor Skills',
-  'Stages of Learning: Cognitive, Associative, and Autonomous Stages',
-  'Skill Acquisition Theories: Linear vs. Non-Linear Learning Models',
-  'Learning Approaches: Direct Instruction vs. Constraint-Based Methods',
-  'Practice Scheduling: Type (Whole/Part), Distribution (Massed/Distributed), and Variability (Blocked/Random)',
-  'Feedback in Skill Acquisition: Intrinsic, Augmented, and Timing Optimization',
-  'Psychological Factors in Learning: Confidence, Motivation, Arousal, and Concentration',
-  'Coaching Strategies: Tailoring Instruction to Learner Needs and Performance Requirements',
+export const PHYSICAL_EDUCATION_SUBTOPICS =
+  getSharedSubtopics('Physical Education');
 
-  // UNIT 3: Movement Skills and Energy - Biomechanics
-  'Linear Motion: Momentum, Displacement, Linear Velocity, Acceleration',
-  'Angular Motion: Angular Momentum, Moment of Inertia, Angular Velocity',
-  'Momentum and Impulse: Conservation and Application in Physical Activities',
-  "Newton's Laws of Motion: Inertia, Acceleration, and Action-Reaction in Sport",
-  'Projectile Motion: Release Angle, Height, Speed, and Optimal Performance Trajectories',
-  'Center of Gravity, Base of Support, and Equilibrium: Balance and Stability Principles',
-  'Third Class Lever Systems: Mechanical Advantage and Force Application',
-  'Qualitative Movement Analysis: Systematic Observation, Evaluation, and Error Correction',
-  'Video Analysis and Biomechanical Assessment: Tools for Movement Improvement',
-
-  // UNIT 3: Movement Skills and Energy - Energy Systems
-  'ATP-CP System: High-Intensity Energy Supply and Recovery Characteristics',
-  'Anaerobic Glycolysis: Glucose Breakdown, Lactate Production, and Duration Capacity',
-  'Aerobic System: Oxidative Phosphorylation and Sustained Energy Production',
-  'Energy System Interplay: ATP-CP to Anaerobic to Aerobic Transition by Intensity and Duration',
-  'Oxygen Uptake: Oxygen Deficit, Steady State, and EPOC Recovery',
-  'VO2 Max and Lactate Inflection Point: Aerobic Capacity and Anaerobic Threshold',
-  'Fatigue Mechanisms: Metabolic, Muscular, Thermoregulatory, and Central Fatigue',
-  'Nutrition and Hydration Strategies: Fueling Performance and Enhancing Recovery',
-
-  // UNIT 4: Training to Improve Performance - Foundations
-  'Activity Analysis: Identifying Skill Frequencies, Movement Patterns, and Physiological Demands',
-  'Fitness Assessment: Testing Aerobic, Anaerobic, Strength, Endurance, Flexibility, Speed, and Agility',
-  'Test Reliability, Validity, and Accuracy: Standardized Protocols and Error Minimization',
-  'Pre-Participation Screening and Informed Consent',
-
-  // UNIT 4: Training to Improve Performance - Training Principles and Methods
-  'Training Principles: Frequency, Intensity, Time/Duration, Type, and Progression',
-  'Training Adaptation: Specificity, Individuality, Variety, and Diminishing Returns',
-  'Periodization and Planning: Macrocycles, Mesocycles, Microcycles, Tapering, and Detraining',
-  'Continuous and Interval Training: Steady-Intensity vs. High-Intensity Work-Rest Intervals',
-  'Specialized Training Methods: Fartlek, Circuit, Weight/Resistance, Flexibility, and Plyometric Training',
-  'Training Components: Warm-Up, Conditioning Phase, and Cool-Down Structure',
-  'Overtraining Syndrome: Prevention, Recognition, and Management',
-
-  // UNIT 4: Training to Improve Performance - Adaptations and Monitoring
-  'Cardiovascular Adaptations: Increased Stroke Volume, Cardiac Output, and VO2 Max',
-  'Respiratory Adaptations: Enhanced Oxygen Extraction and Capillarization',
-  'Muscular Adaptations: Strength Gains, Hypertrophy, Power Development, and Fiber Type Changes',
-  'Aerobic vs. Anaerobic Training Adaptations: Differential System Responses',
-  'Lactate Threshold and Metabolic Efficiency: Improved Lactate Tolerance and Fat Oxidation',
-  'Training Monitoring: Physiological, Psychological, and Sociological Data Collection',
-  'Training Diaries, Digital Tools, and Wearable Technology: Tracking Progress and Adjustments',
-  'Program Evaluation and Modification: Effectiveness Assessment and Data-Driven Adjustments',
-
-  // UNIT 4: Training to Improve Performance - Integration and Application
-  'Skill Acquisition and Training Integration: Combining Practice Scheduling With Training Methods',
-  'Biomechanical Optimization Within Training: Movement Efficiency and Technique Refinement',
-  'Energy System Alignment: Matching Training Methods to Physiological Activity Demands',
-  'Sport-Specific Performance Analysis: Integrated Assessment of Skill, Fitness, and Technique',
-  'Holistic Athlete Development: Physical, Psychological, and Social Integration',
-  'Recovery Strategies: Sleep, Nutrition, Active Recovery, and Regeneration Techniques',
-  'Fatigue Management: Balancing Training Stimulus With Recovery',
-  'Interdisciplinary Performance Optimization: Connecting Biomechanics, Physiology, and Psychology',
-] as const;
-
-export type PhysicalEducationSubtopic =
-  (typeof PHYSICAL_EDUCATION_SUBTOPICS)[number];
+export type PhysicalEducationSubtopic = string;
 
 export type PhysicalEducationSubtopicGroup = {
   unit: string;
@@ -175,26 +117,9 @@ export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] = [
   },
 ] as const;
 
-export const CHEMISTRY_SUBTOPICS = [
-  'Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements',
-  'Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces',
-  'Metallic Bonding: Metallic Lattices and the Reactivity Series',
-  'Ionic Chemistry: Ionic Bonding, Precipitation Reactions, and Solubility Tables',
-  'Chemical Quantities: Moles, Molar Mass, Percentage Composition, and Empirical/Molecular Formulas',
-  'Separation Techniques: Chromatography and Rf Value Identification',
-  'Organic Classification: Alkanes, Alkenes, Alcohols, Carboxylic Acids, Haloalkanes, and IUPAC Naming',
-  'Polymer Chemistry: Addition and Condensation Polymerisation, Plastics, and Recycling',
-  'Sustainability: Green Chemistry, Circular Economy, and Sustainable Development',
-  'Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water',
-  'Acid–Base Chemistry: Brønsted–Lowry Theory, pH, Neutralisation, and Applications',
-  'Redox Chemistry: Electron Transfer, Half-Equations, Displacement, and Corrosion',
-  'Solutions: Concentration Units and Solubility Relationships',
-  'Volumetric Analysis: Acid–Base Titration, Standard Solutions, and Indicators',
-  'Gas Chemistry: Ideal Gas Equation and Greenhouse Gases',
-  'Analytical Techniques: Electrical Conductivity, Stoichiometry, and Colorimetry/UV–Vis Spectroscopy',
-] as const;
+export const CHEMISTRY_SUBTOPICS = getSharedSubtopics('Chemistry');
 
-export type ChemistrySubtopic = (typeof CHEMISTRY_SUBTOPICS)[number];
+export type ChemistrySubtopic = string;
 
 export type Topic =
   | 'Mathematical Methods'
@@ -338,12 +263,9 @@ export type BackendError = {
   message?: string;
 };
 
-export const TOPICS: Topic[] = [
-  'Mathematical Methods',
-  'Specialist Mathematics',
-  'Chemistry',
-  'Physical Education',
-];
+export const TOPICS: Topic[] = SHARED_SUBTOPIC_CATALOG.topics.map(
+  (topic) => topic.name
+);
 
 export const API_KEY_STORAGE_KEY = 'questiongen.openrouterApiKey';
 export const QUESTION_HISTORY_STORAGE_KEY = 'questiongen.history';

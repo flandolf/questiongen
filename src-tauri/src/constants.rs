@@ -1,3 +1,5 @@
+use once_cell::sync::Lazy;
+use serde::Deserialize;
 use std::collections::HashMap;
 
 pub const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
@@ -7,6 +9,54 @@ pub const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
 pub const CHEMISTRY_TOPIC: &str = "Chemistry";
 
 pub const APP_STATE_FILE_NAME: &str = "app-state.json";
+
+#[derive(Debug, Deserialize)]
+struct SharedSubtopicCatalog {
+    topics: Vec<SharedTopicEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SharedTopicEntry {
+    #[serde(rename = "name")]
+    _name: String,
+    subtopics: Vec<SharedSubtopicEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SharedSubtopicEntry {
+    name: String,
+    instruction: Option<String>,
+}
+
+static SHARED_SUBTOPIC_EXAM_NOTES: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    let raw = include_str!("../../src/shared/subtopic-catalog.json");
+    let Ok(catalog) = serde_json::from_str::<SharedSubtopicCatalog>(raw) else {
+        return HashMap::new();
+    };
+
+    let mut notes = HashMap::new();
+    for topic in catalog.topics {
+        for subtopic in topic.subtopics {
+            if let Some(instruction) = subtopic.instruction {
+                if !instruction.trim().is_empty() {
+                    notes.insert(subtopic.name.trim().to_ascii_lowercase(), instruction);
+                }
+            }
+        }
+    }
+
+    for (key, instruction) in subtopic_exam_technique_notes() {
+        notes
+            .entry(key.to_string())
+            .or_insert_with(|| instruction.to_string());
+    }
+
+    notes
+});
+
+pub fn shared_subtopic_exam_technique_notes() -> &'static HashMap<String, String> {
+    &SHARED_SUBTOPIC_EXAM_NOTES
+}
 
 /// Injected into every system prompt.
 pub const LATEX_RULES: &str = " LaTeX (STRICT):

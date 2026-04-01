@@ -1,0 +1,384 @@
+{
+  "topics": [
+    {
+      "name": "Mathematical Methods",
+      "subtopics": [
+        {
+          "name": "Functions and Graphs",
+          "instruction": "Formulate questions requiring the definition of functions using formal $f: \\text{domain} \\to \\mathbb{R}, f(x) = \\dots$ notation, ensuring the domain is explicitly specified for every rule. Questions should challenge students to identify key features such as intercepts, stationary points, and asymptotes from equations to sketch graphs, while strictly utilizing interval notation $[a, b]$ or set notation $\\{x \\in \\mathbb{R} : \\text{condition}\\}$ for domain and range. Incorporate multi-part problems that progress from basic feature identification to the construction of composite functions $(f \\circ g)(x)$, where students must verify the existence condition $\\text{ran}(g) \\subseteq \\text{dom}(f)$ and determine the resulting domain."
+        },
+        {
+          "name": "Transformation of Graphs",
+          "instruction": "Design problems based on the general form $y = a \\cdot f(b(x - h)) + k$, requiring students to describe transformations as a numbered sequence using precise language such as 'dilation from the $x$-axis' or 'translation.' Tasks should involve identifying parameters from provided graphs, comparing equations to determine a sequence of transformations, and tracking specific coordinate changes. Ensure questions probe common misconceptions, such as confusing $x$-axis and $y$-axis dilations or incorrectly identifying the direction of horizontal translations based on the sign of $h$."
+        },
+        {
+          "name": "Algebra and Structure",
+          "instruction": "Develop questions that test algebraic manipulation through parametric simultaneous equations, substitution reduction, and the determination of inverse functions. Every question involving inverse or composite functions must mandate an explicit domain specification to be considered complete. Include algorithm-tracing tasks where students must define termination conditions and track variable values through a logic flow using a structured table, simulating VCAA-style pseudo-code analysis."
+        },
+        {
+          "name": "Trigonometric Functions",
+          "instruction": "Construct questions involving sine, cosine, and tangent functions in the form $y = a \\cdot \\sin(b(x - h)) + k$, focusing on the calculation of the period ($2\\pi/b$ or $\\pi/b$) and amplitude $|a|$. Exam-style problems should require solving trigonometric equations over a specified interval, mandating the use of the CAST rule and periodicity to find all exact solutions in terms of $\\pi$. Include applications that ask for the smallest positive period or the largest valid interval for which a function remains one-to-one."
+        },
+        {
+          "name": "Exponential and Logarithmic Functions",
+          "instruction": "Create questions that require the application of logarithmic and exponential laws to find exact solutions, using $\\log_e$ or $\\ln$ notation. Questions should involve multi-step processes: setting up an equation from a context, applying laws to simplify, and solving for a variable while verifying that the final answer satisfies the domain constraint $f(x) > 0$. For calculus-based parts, ensure students recognize that in $\\frac{d}{dx}[a \\cdot \\log_e(bx)]$, the coefficient $b$ cancels to yield $a/x$."
+        },
+        {
+          "name": "Differentiation",
+          "instruction": "Generate multi-part problems that require students to differentiate functions using chain, product, or quotient rules to find stationary points and classify them as local maxima, minima, or points of inflexion. Students must use a formal gradient table with $x$-values and the sign/direction of $f'(x)$ to justify classifications and determine global extrema on closed intervals. Require exact answers for tangent and normal line equations in the form $y - f(a) = m(x - a)$, particularly for Exam 1 contexts where decimal approximations are prohibited."
+        },
+        {
+          "name": "Integration",
+          "instruction": "Formulate definite and indefinite integration problems that require students to include the constant of integration $+c$ for anti-derivatives and use the $[F(x)]_a^b$ notation for area calculations. Questions should focus on finding the area between curves by requiring students to first identify intersection points and determine which function is dominant $(f(x) \\geq g(x))$ over the interval. Include 'average value' questions using the formula $\\frac{1}{b-a} \\int_a^b f(x) dx$, ensuring all final results are expressed as exact values involving $\\log_e$ or $\\pi$."
+        },
+        {
+          "name": "Probability and Statistics",
+          "instruction": "Design problems centered on conditional probability $\\text{Pr}(A|B)$ and independence, frequently requiring students to draw a probability tree to visualize Bayes' Theorem applications. For statistics, focus on calculating 95% confidence intervals using $\\hat{p} \\pm 1.96\\sqrt{\\frac{\\hat{p}(1-\\hat{p})}{n}}$ and solving for sample size $n$ given a margin of error. Exam 1 style questions should utilize the symmetry of the normal distribution and given standard values to find probabilities without the use of technology."
+        },
+        {
+          "name": "Discrete Random Variables",
+          "instruction": "Create discrete probability distributions where students must calculate the expected value $E(X) = \\sum x \\cdot p(x)$ and variance $\\text{Var}(X) = E(X^2) - \\mu^2$. Incorporate binomial distribution questions $X \\sim \\text{Bi}(n, p)$ with small sample sizes $(n \\leq 8)$ to ensure manual calculation of exact fractional answers is feasible for Exam 1. Questions should emphasize the properties of probability mass functions, specifically that $\\sum p(x) = 1$ and $p(x) \\geq 0$."
+        },
+        {
+          "name": "Continuous Random Variables",
+          "instruction": "Develop problems involving probability density functions (PDFs) where students must verify that $\\int_{-\\infty}^{\\infty} f(x) dx = 1$ and $f(x) \\geq 0$. Tasks should include calculating probabilities over intervals $[a, b]$ and finding the median or mean using definite integrals of hand-manageable functions like polynomials or simple exponentials. Every response must explicitly state the support (the valid domain) of the PDF to align with formal VCAA requirements."
+        }
+      ]
+    },
+    {
+      "name": "Specialist Mathematics",
+      "subtopics": [
+        {
+          "name": "Additional Algebra and Number Systems",
+          "instruction": "Design questions involving the use of partial fractions to decompose rational expressions and the application of the factor theorem for higher-degree polynomials. Focus on identifying subsets of the complex and real number systems, including proofs of irrationality and the use of the Pigeonhole Principle in discrete contexts. Ensure problems require formal mathematical notation and logical step-by-step derivation to reflect Exam 1 rigor."
+        },
+        {
+          "name": "Sequences and Series",
+          "instruction": "Construct problems focusing on arithmetic and geometric sequences, requiring students to find general terms, specific terms, and sums to $n$ terms. Include questions on infinite geometric series where the condition for convergence $|r| < 1$ must be identified and applied. Integrate applications of first-order linear recurrence relations, asking students to model real-world growth or decay scenarios and solve for steady-state solutions where applicable."
+        },
+        {
+          "name": "Reciprocals and Rational Functions",
+          "instruction": "Formulate tasks involving the sketching of reciprocal functions such as $y = 1/f(x)$ and rational functions including those with oblique asymptotes. Students should be required to identify vertical and horizontal asymptotes, intercepts, and the behavior of the function as $x$ approaches infinity. Questions should emphasize the relationship between the features of $f(x)$ and its reciprocal, particularly regarding stationary points and zeros."
+        },
+        {
+          "name": "Combinatorics and Matrices",
+          "instruction": "Develop combinatorial problems involving permutations and combinations with constraints, such as items that must be 'together' or 'separated.' In the matrix section, focus on matrix algebra, including the calculation of determinants and inverses for $2 \\times 2$ matrices and their application in solving systems of linear equations. Include transformations in the plane where matrices are used to represent dilations, reflections, and rotations, requiring students to map coordinates accurately."
+        },
+        {
+          "name": "Trigonometric Functions and Identities",
+          "instruction": "Design questions requiring the use of compound angle, double angle, and Pythagorean identities to simplify expressions or solve complex trigonometric equations. Focus on the reciprocal functions (secant, cosecant, and cotangent) and the inverse trigonometric functions ($\\arcsin$, $\\arccos$, $\\arctan$), including their restricted domains and ranges. Exam-style tasks should involve proving identities or using substitutions to evaluate integrals involving trigonometric terms."
+        },
+        {
+          "name": "Proof",
+          "instruction": "Construct rigorous mathematical proof questions utilizing methods such as proof by induction, proof by contradiction, and proof by contrapositive. Focus on divisibility proofs, summation formulas, and inequality proofs, ensuring that students provide a clear 'Base Case,' 'Inductive Step,' and 'Conclusion' for induction. Questions should assess the ability to follow a logical chain of reasoning and use formal quantifiers like $\\forall$ and $\\exists$ correctly."
+        },
+        {
+          "name": "Modulus",
+          "instruction": "Create problems involving the modulus function $|f(x)|$, requiring students to solve absolute value equations and inequalities algebraically and graphically. Questions should include sketching graphs of $y = |f(x)|$ and $y = f(|x|)$, emphasizing the piecewise nature of the function. Ensure students can identify 'sharp' points (cusps) where the derivative is undefined and use the definition $|x| = \\sqrt{x^2}$ for algebraic manipulations."
+        },
+        {
+          "name": "Algorithms and Graph Theory",
+          "instruction": "Formulate questions on graph theory concepts including vertices, edges, paths, and cycles, specifically focusing on Eulerian and Hamiltonian circuits. Include algorithmic tasks such as Dijkstra’s algorithm for shortest paths or Prim’s/Kruskal’s algorithms for minimal spanning trees, requiring students to show their working through a table or step-by-step diagram. Problems should challenge students to analyze the efficiency or termination conditions of provided pseudo-code."
+        },
+        {
+          "name": "Graphing relations",
+          "instruction": "Design tasks involving the sketching of relations such as circles, ellipses, and hyperbolas, requiring students to identify centers, radii, vertices, and asymptotes. Questions should involve converting between general and standard forms using completing the square and determining the domain and range of the relation. Include problems where students must find the intersection points of a relation and a linear function or determine values of a parameter for which a line is tangent to a curve."
+        },
+        {
+          "name": "Complex numbers",
+          "instruction": "Construct questions involving complex numbers in Cartesian, polar, and exponential forms, requiring students to perform operations and convert between forms using $z = r\\text{cis}(\\theta)$. Focus on the Fundamental Theorem of Algebra, solving polynomial equations with complex roots, and the geometric representation of sets in the complex plane (loci) such as circles and perpendicular bisectors. Exam-style tasks should include the use of De Moivre’s Theorem to find powers and roots of complex numbers."
+        },
+        {
+          "name": "Transformations and Vectors in the plane",
+          "instruction": "Develop problems using vector notation ($u = xi + yj$) to solve geometric problems in the plane, including the dot product for finding angles between vectors and projections. Include questions on vector equations of lines and the use of vectors to prove geometric theorems. Transformations should be explored through vector addition and scalar multiplication, as well as matrix-vector multiplication for mapping shapes within the Cartesian coordinate system."
+        }
+      ]
+    },
+    {
+      "name": "Chemistry",
+      "subtopics": [
+        {
+          "name": "Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements",
+          "instruction": "Create questions requiring the explanation of trends such as electronegativity, ionization energy, and atomic radius across periods and down groups using core charge and shielding effects. Include a sustainability focus by asking students to identify 'critical' elements used in modern technology and discuss the chemical or economic factors that lead to their endangerment. Students should justify the placement of elements in the periodic table based on their electronic configuration and resulting chemical properties."
+        },
+        {
+          "name": "Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces",
+          "instruction": "Design tasks where students must draw Lewis (electron dot) structures for molecules and polyatomic ions to predict 3D shapes using VSEPR theory (e.g., tetrahedral, V-shaped). Questions should require students to link molecular symmetry and bond dipoles to overall polarity and then determine the dominant intermolecular forces (dispersion, dipole-dipole, or hydrogen bonding). Ensure assessments ask for the correlation between these forces and physical properties like boiling points and solubility."
+        },
+        {
+          "name": "Metallic Bonding: Metallic Lattices and the Reactivity Series",
+          "instruction": "Formulate questions describing the metallic lattice as a sea of delocalized electrons surrounding fixed positive cations, requiring students to explain properties like malleability and electrical conductivity. Include problems involving the reactivity series of metals, where students predict the outcome of displacement reactions or the reaction of metals with water and acids. Tasks should challenge students to explain how alloying or heat treatment modifies the lattice structure to change the metal's properties."
+        },
+        {
+          "name": "Ionic Chemistry: Ionic Bonding, Precipitation Reactions, and Solubility Tables",
+          "instruction": "Construct problems requiring students to write balanced chemical and full ionic equations for precipitation reactions using provided solubility tables. Questions should focus on the electrostatic attraction in ionic lattices and ask students to explain high melting points and brittleness based on lattice structure. Students must be able to identify spectator ions and predict the formation of a precipitate when two aqueous solutions are mixed."
+        },
+        {
+          "name": "Chemical Quantities: Moles, Molar Mass, Percentage Composition, and Empirical/Molecular Formulas",
+          "instruction": "Develop stoichiometry problems requiring the use of $n=m/M$ and $n=N/N_A$ to calculate moles, masses, and numbers of particles. Questions should include determining empirical formulas from percentage composition by mass and then using molar mass to find the molecular formula. Ensure multi-step problems involve limiting reagent calculations and theoretical vs. actual yield percentages in a laboratory or industrial context."
+        },
+        {
+          "name": "Separation Techniques: Chromatography and Rf Value Identification",
+          "instruction": "Design questions centered on thin-layer or paper chromatography, requiring students to calculate $R_f$ values and interpret chromatograms based on the polarity of the stationary and mobile phases. Problems should ask students to predict the relative movement of components based on their affinity for each phase and explain how changing the solvent affects separation. Include applications of HPLC or GC, focusing on the interpretation of retention times and peak areas for qualitative and quantitative analysis."
+        },
+        {
+          "name": "Organic Classification: Alkanes, Alkenes, Alcohols, Carboxylic Acids, Haloalkanes, and IUPAC Naming",
+          "instruction": "Create tasks requiring the systematic IUPAC naming of organic molecules containing up to eight carbon atoms and various functional groups. Questions should involve drawing structural, semi-structural, and skeletal formulas and identifying isomers (structural and stereoisomers). Students must be able to classify alcohols as primary, secondary, or tertiary and predict the products of basic organic reactions like the addition of halogens to alkenes."
+        },
+        {
+          "name": "Polymer Chemistry: Addition and Condensation Polymerisation, Plastics, and Recycling",
+          "instruction": "Formulate questions on the formation of polymers from monomers, distinguishing between addition (e.g., polyethene) and condensation (e.g., polyesters, polyamides) processes. Students should be required to draw repeating units and identify the functional groups involved in the linkage. Include a discussion on the properties of thermoplastics versus thermosetting polymers and the environmental impact of plastic waste, focusing on the chemistry of recycling codes."
+        },
+        {
+          "name": "Sustainability: Green Chemistry, Circular Economy, and Sustainable Development",
+          "instruction": "Develop problems that require students to evaluate chemical processes using the 12 principles of Green Chemistry, such as atom economy and the use of renewable feedstocks. Questions should focus on the transition from a linear 'take-make-dispose' model to a circular economy, emphasizing the reduction of waste and environmental footprint. Students must justify the choice of specific catalysts or solvents based on their sustainability and safety profiles."
+        },
+        {
+          "name": "Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water",
+          "instruction": "Construct questions requiring the explanation of water's unique properties—such as high specific heat capacity, surface tension, and the density of ice—based on its extensive hydrogen bonding. Students should calculate energy changes using $q = mc\\Delta T$ and explain the biological and environmental significance of water’s ability to act as a universal solvent. Tasks should link the polarity of the water molecule to its interaction with various solutes through ion-dipole or hydrogen-bond forces."
+        },
+        {
+          "name": "Acid–Base Chemistry: Brønsted–Lowry Theory, pH, Neutralisation, and Applications",
+          "instruction": "Design problems based on the Brønsted–Lowry theory of proton transfer, requiring students to identify conjugate acid-base pairs in various reactions. Questions should involve calculating $\\text{pH}$, $[H^+]$, and $[OH^-]$ for strong acids and bases, as well as writing balanced equations for neutralization reactions. Include applications of buffers and the role of indicators in signaling the equivalence point of a reaction."
+        },
+        {
+          "name": "Redox Chemistry: Electron Transfer, Half-Equations, Displacement, and Corrosion",
+          "instruction": "Formulate redox problems where students must assign oxidation numbers to identify the species being oxidized and reduced. Tasks should involve writing and balancing complex half-equations (in acidic or basic conditions) and combining them into a full ionic equation. Include scenarios involving the electrochemical series to predict the spontaneity of displacement reactions and the chemistry of corrosion prevention, such as sacrificial anodes or galvanizing."
+        },
+        {
+          "name": "Solutions: Concentration Units and Solubility Relationships",
+          "instruction": "Create questions involving the calculation of concentration in various units, including mol/L ($M$), g/L, ppm, and $\\% v/v$ or $\\% w/w$. Students should be required to interpret solubility curves to determine if a solution is saturated, unsaturated, or supersaturated at a given temperature. Include dilution problems using $C_1V_1 = C_2V_2$ and ask students to explain the process of dissolving at a molecular level, focusing on the breaking and forming of intermolecular forces."
+        },
+        {
+          "name": "Volumetric Analysis: Acid–Base Titration, Standard Solutions, and Indicators",
+          "instruction": "Design multi-step stoichiometry problems based on titration data, requiring students to calculate the concentration of an unknown analyte. Questions should focus on the preparation of a primary standard solution, the selection of appropriate indicators based on $pK_a$, and the identification of concordant titers. Students must explain the difference between the equivalence point and the end point and identify potential sources of systematic or random error in the procedure."
+        },
+        {
+          "name": "Gas Chemistry: Ideal Gas Equation and Greenhouse Gases",
+          "instruction": "Construct problems using the ideal gas equation $PV = nRT$ and molar volume at SLC to calculate the properties of gases involved in chemical reactions. Questions should also address the greenhouse effect, requiring students to explain how certain gas molecules absorb infrared radiation based on their molecular vibrations. Students should be able to discuss the environmental impact of increased concentrations of $\\text{CO}_2$, $\\text{CH}_4$, and $\\text{N}_2\\text{O}$ in the atmosphere."
+        },
+        {
+          "name": "Analytical Techniques: Electrical Conductivity, Stoichiometry, and Colorimetry/UV–Vis Spectroscopy",
+          "instruction": "Formulate tasks where students interpret data from analytical instruments to determine the concentration or identity of a sample. Questions should focus on the use of calibration curves in colorimetry and UV–Vis spectroscopy to determine unknown concentrations based on absorbance. Students must also be able to use gravimetric stoichiometry to calculate the mass of a precipitate and relate electrical conductivity to the concentration of ions present in a solution."
+        }
+      ]
+    },
+    {
+      "name": "Physical Education",
+      "subtopics": [
+        {
+          "name": "Movement Skill Classification: Fundamental, Sport-Specific, Open/Closed, Gross/Fine",
+          "instruction": "Design questions that require the classification of skills across multiple continuums simultaneously, such as a 'gross, closed, sport-specific skill.' Students must provide a justification for each classification by referencing environmental predictability and the size of the muscle groups involved. Exam-style tasks should use specific sport scenarios to test the student’s ability to distinguish between open and closed environments, avoiding the common error of confusing environmental stability with the skill's complexity."
+        },
+        {
+          "name": "Discrete, Serial, and Continuous Motor Skills",
+          "instruction": "Formulate problems focusing on the temporal boundaries of skills, requiring students to identify whether a movement has a distinct beginning and end or is repetitive in nature. Questions should ask for an explanation of how serial skills are formed by combining discrete elements into a coordinated sequence. Include coaching implications, such as why continuous skills are better suited for 'whole practice' while discrete skills may benefit from 'part practice' during the early stages of learning."
+        },
+        {
+          "name": "Stages of Learning: Cognitive, Associative, and Autonomous Stages",
+          "instruction": "Construct scenario-based questions where students must identify a performer's stage of learning based on described characteristics such as error frequency, consistency, and attentional focus. Responses must justify the identification with evidence from the scenario and recommend a coaching strategy tailored to that stage, such as high-frequency augmented feedback for the cognitive stage. Ensure questions probe the transition between stages, particularly the shift from external to internal feedback dependency."
+        },
+        {
+          "name": "Skill Acquisition Theories: Linear vs. Non-Linear Learning Models",
+          "instruction": "Develop comparative questions that ask students to contrast linear models, which focus on predictable stages and direct instruction, with non-linear models like the constraints-led approach. Tasks should require the application of these theories to a specific learner, identifying how individual, task, and environmental constraints influence the emergence of movement patterns. Students must justify which approach is more suitable for a given scenario based on the complexity of the skill and the learner's experience."
+        },
+        {
+          "name": "Learning Approaches: Direct Instruction vs. Constraint-Based Methods",
+          "instruction": "Create problems that require defining and comparing direct instruction (coach-led, explicit) with constraint-based methods (game sense, implicit). Questions should ask for the advantages and disadvantages of each approach and a recommendation for a specific stage of learning, such as using direct instruction for beginners to establish a safe technical foundation. Students must explain how the manipulation of task constraints in a game-like environment facilitates problem-solving and skill transfer."
+        },
+        {
+          "name": "Practice Scheduling: Type (Whole/Part), Distribution (Massed/Distributed), and Variability (Blocked/Random)",
+          "instruction": "Design tasks requiring students to recommend and justify a practice schedule based on the complexity and organization of a skill. Questions should focus on the trade-offs between blocked practice for skill acquisition in the cognitive stage and random practice for enhancing retention and transfer in the associative stage. Students must consider the impact of massed vs. distributed practice on athlete fatigue and motivation, particularly for skills requiring high levels of concentration."
+        },
+        {
+          "name": "Feedback in Skill Acquisition: Intrinsic, Augmented, and Timing Optimization",
+          "instruction": "Formulate questions that distinguish between intrinsic feedback (sensory info) and augmented feedback (knowledge of results vs. knowledge of performance). Tasks should require students to recommend feedback timing—such as concurrent or terminal—and frequency to optimize learning and prevent feedback dependency. Ensure scenarios ask students to justify their feedback strategy by linking it to the performer's stage of learning and the specific goals of the practice session."
+        },
+        {
+          "name": "Psychological Factors in Learning: Confidence, Motivation, Arousal, and Concentration",
+          "instruction": "Construct questions identifying psychological factors like self-efficacy and optimal arousal (Inverted-U hypothesis) and their impact on sports performance. Students must recommend specific strategies such as goal setting (SMARTER), imagery, or progressive muscle relaxation to manage these factors in a given scenario. The justification must be specific to the sport type—distinguishing, for example, the arousal needs of a weightlifter versus a pistol shooter."
+        },
+        {
+          "name": "Coaching Strategies: Tailoring Instruction to Learner Needs and Performance Requirements",
+          "instruction": "Develop integrative questions that ask students to design a comprehensive coaching approach for a specific performer by combining skill classification, learning stages, and practice scheduling. Responses must analyze the learner's age, experience, and physical capabilities to justify the selection of feedback types and instruction methods. Common errors to avoid include recommending advanced autonomous-stage strategies for cognitive-stage learners without addressing their fundamental needs."
+        },
+        {
+          "name": "Linear Motion: Momentum, Displacement, Linear Velocity, Acceleration",
+          "instruction": "Create problems involving the calculation and application of linear motion concepts like displacement, velocity, and acceleration in straight-line sporting movements. Questions should ask students to explain how a performer can manipulate these variables to improve performance, such as increasing acceleration to gain a speed advantage. Link these concepts to Newton's laws of motion to provide a comprehensive biomechanical explanation for the observed movement."
+        },
+        {
+          "name": "Angular Motion: Angular Momentum, Moment of Inertia, Angular Velocity",
+          "instruction": "Formulate questions on rotation around an axis, requiring students to explain the relationship between moment of inertia and angular velocity (the principle of conservation of angular momentum). Use scenarios like a diver tucking their body to show how a decrease in the radius of rotation increases angular velocity. Students must define these terms and explain how manipulating mass distribution influences the rate of rotation in various gymnastics or aerial sports."
+        },
+        {
+          "name": "Momentum and Impulse: Conservation and Application in Physical Activities",
+          "instruction": "Design problems based on the impulse-momentum relationship, where impulse equals the change in momentum ($F \\times t = m\\Delta v$). Questions should ask students to apply this conceptually to sport, such as explaining how increasing the time of impact (e.g., in a landing or a catch) reduces the force applied to the body. Students must use specific examples to show how maximizing force or time can increase the total impulse to achieve greater velocity in striking or jumping."
+        },
+        {
+          "name": "Newton's Laws of Motion: Inertia, Acceleration, and Action-Reaction in Sport",
+          "instruction": "Construct questions that require stating Newton’s three laws of motion and identifying their application in a specific sport movement. Students must explain how an athlete manipulates these laws for an advantage, such as applying a greater force to a ball to achieve higher acceleration ($F=ma$) or utilizing ground reaction forces for a sprint start. The focus should be on the mechanical interaction between the athlete and their environment, using precise biomechanical terminology."
+        },
+        {
+          "name": "Projectile Motion: Release Angle, Height, Speed, and Optimal Performance Trajectories",
+          "instruction": "Develop tasks requiring the identification of the three factors affecting projectile motion: release height, angle, and speed. Questions should ask students to explain why release speed is the most influential factor and how the optimal release angle changes when the release height is above the landing height (e.g., in shot put). Students must avoid the error of stating 45 degrees is always optimal, instead justifying the angle based on the specific distance or height goals of the sport."
+        },
+        {
+          "name": "Center of Gravity, Base of Support, and Equilibrium: Balance and Stability Principles",
+          "instruction": "Formulate problems requiring students to define the center of gravity (COG) and base of support (BOS) and explain how their relationship affects stability and mobility. Questions should ask for adjustments to a performer's stance—such as lowering the COG or widening the BOS—to increase stability in defensive positions or decrease it for a quick start. Students must analyze the position of the line of gravity relative to the BOS to determine the state of equilibrium in a given scenario."
+        },
+        {
+          "name": "Third Class Lever Systems: Mechanical Advantage and Force Application",
+          "instruction": "Design questions where students must identify the axis, force, and resistance in a third-class lever (where the force is in the middle) and explain its mechanical advantage. Tasks should focus on the trade-off inherent in these levers: a mechanical advantage of less than one allows for greater speed and range of motion at the limb's end. Use sport examples like a bicep curl or a kick to illustrate how the human body is primarily designed for speed and range rather than force production."
+        },
+        {
+          "name": "Qualitative Movement Analysis: Systematic Observation, Evaluation, and Error Correction",
+          "instruction": "Create questions based on the four stages of Qualitative Movement Analysis (QMA): preparation, observation, evaluation, and error correction. Students must design a QMA protocol for a specific skill, identifying key observation points and using biomechanical principles to diagnose errors and recommend corrections. Ensure the justification for the intervention links back to the mechanical cause of the error rather than just offering generic coaching cues."
+        },
+        {
+          "name": "Video Analysis and Biomechanical Assessment: Tools for Movement Improvement",
+          "instruction": "Formulate problems on how technology like video analysis, force plates, and wearable sensors enhances movement assessment beyond naked-eye observation. Questions should ask for the advantages and limitations of these tools, such as the ability to measure precise angles versus the high cost or lack of accessibility. Students must explain how these tools integrate into the observation and evaluation stages of QMA to provide objective data for technique refinement."
+        },
+        {
+          "name": "ATP-CP System: High-Intensity Energy Supply and Recovery Characteristics",
+          "instruction": "Design questions focusing on the ATP-CP system as the primary energy source for high-intensity, short-duration activities (under 12 seconds). Students must explain that phosphocreatine (PC) is the fuel source and that no oxygen or fatiguing by-products are involved in its breakdown. Tasks should include recommending work-to-rest ratios (e.g., 1:10) to allow for the 2-3 minutes required for 100% PC replenishment during recovery."
+        },
+        {
+          "name": "Anaerobic Glycolysis: Glucose Breakdown, Lactate Production, and Duration Capacity",
+          "instruction": "Construct problems requiring students to explain the breakdown of glycogen without oxygen to produce ATP, with hydrogen ions ($H^+$) as the fatiguing by-product. Questions should focus on activities lasting 30 to 120 seconds and the concept of the Lactate Inflection Point (LIP) where production exceeds clearance. Students must use the term '$H^+$ ions' instead of 'lactic acid' and explain how these ions interfere with muscle contraction during high-intensity efforts."
+        },
+        {
+          "name": "Aerobic System: Oxidative Phosphorylation and Sustained Energy Production",
+          "instruction": "Formulate questions on the aerobic system’s role in sustained energy production (beyond 2-3 minutes), utilizing carbohydrates and fats in the presence of oxygen. Students must describe the process occurring in the mitochondria and explain why this system has the highest yield but the slowest rate of ATP regeneration. Include tasks that discuss fuel utilization at different intensities, highlighting 'glycogen sparing' and the role of the aerobic system in recovery for anaerobic activities."
+        },
+        {
+          "name": "Energy System Interplay: ATP-CP to Anaerobic to Aerobic Transition by Intensity and Duration",
+          "instruction": "Develop problems that require students to analyze a sport scenario and describe how all three energy systems contribute simultaneously, with the dominant system shifting based on intensity and duration. Questions should ask for the relative percentage contribution of each system at specific timeframes, such as the first 10 seconds versus the 5-minute mark of a match. Students must justify their analysis by referencing the specific demands of the activity and the metabolic characteristics of each system."
+        },
+        {
+          "name": "Oxygen Uptake: Oxygen Deficit, Steady State, and EPOC Recovery",
+          "instruction": "Create questions centered on the transition from rest to exercise, focusing on the oxygen deficit where anaerobic systems compensate for the lag in oxygen delivery. Students must define the 'steady state' where supply meets demand and explain the role of EPOC (Excess Post-exercise Oxygen Consumption) in replenishing PC stores and removing by-products. The response should distinguish between the fast and slow components of EPOC and their respective physiological functions during recovery."
+        },
+        {
+          "name": "VO2 Max and Lactate Inflection Point: Aerobic Capacity and Anaerobic Threshold",
+          "instruction": "Design problems that distinguish between $VO_2$ max (maximum oxygen uptake rate) and the Lactate Inflection Point (LIP) as predictors of endurance performance. Questions should ask students to explain how training can improve the LIP as a percentage of $VO_2$ max, allowing an athlete to sustain a higher intensity without the rapid accumulation of $H^+$ ions. Students must identify the physiological factors that influence these markers, such as stroke volume, capillarization, and mitochondrial density."
+        },
+        {
+          "name": "Fatigue Mechanisms: Metabolic, Muscular, Thermoregulatory, and Central Fatigue",
+          "instruction": "Formulate questions requiring students to identify specific fatigue mechanisms—such as PC depletion, glycogen depletion, $H^+$ ion accumulation, or dehydration—based on the intensity and duration of an activity. Tasks should ask for an explanation of how these mechanisms interfere with performance, such as reduced calcium release or elevated core temperature causing cardiovascular drift. Students must recommend a prevention or management strategy, like carbohydrate loading or active recovery, tailored to the specific fatigue type."
+        },
+        {
+          "name": "Nutrition and Hydration Strategies: Fueling Performance and Enhancing Recovery",
+          "instruction": "Construct problems on the timing and type of nutritional intake required to optimize performance and recovery, focusing on carbohydrates for fuel and protein for muscle repair. Questions should ask for specific strategies—such as glycogen loading pre-event or electrolyte replacement during endurance activities—and the physiological rationale behind them. Students must justify their recommendations by linking them to the energy system demands and fatigue mechanisms of the sport in question."
+        },
+        {
+          "name": "Activity Analysis: Identifying Skill Frequencies, Movement Patterns, and Physiological Demands",
+          "instruction": "Develop tasks requiring students to conduct or interpret an activity analysis using data like heart rate, work-to-rest ratios, and movement patterns (GPS data). Questions should ask how this data is used to identify the primary energy systems and fitness components required for a specific sport or position. Students must justify their conclusions with specific evidence from the analysis to inform the design of a targeted training program."
+        },
+        {
+          "name": "Fitness Assessment: Testing Aerobic, Anaerobic, Strength, Endurance, Flexibility, Speed, and Agility",
+          "instruction": "Design questions where students must recommend a battery of fitness tests tailored to the physiological demands identified in an activity analysis. Tasks should require an explanation of the protocol for tests like the Beep Test or the Illinois Agility Test and a justification for their selection based on sport-specificity. Students must also address the ethical and safety considerations of testing, including pre-participation screening and informed consent."
+        },
+        {
+          "name": "Test Reliability, Validity, and Accuracy: Standardized Protocols and Error Minimization",
+          "instruction": "Formulate problems requiring students to evaluate the effectiveness of a fitness test based on its reliability (consistency) and validity (measuring the correct component). Questions should ask for ways to improve test accuracy through standardization, such as using calibrated equipment and consistent environmental conditions. Students must identify potential sources of error in a testing scenario and explain how these impact the interpretation of results."
+        },
+        {
+          "name": "Pre-Participation Screening and Informed Consent",
+          "instruction": "Construct questions on the importance of pre-exercise screening tools like the PAR-Q+ to identify health risks and the legal requirement for informed consent. Students must explain the components of an informed consent form, including the right to withdraw and the disclosure of risks, ensuring that participants are fully aware of the testing procedures. The response should link these practices to the duty of care and safety protocols required in sports science and coaching."
+        },
+        {
+          "name": "Training Principles: Frequency, Intensity, Time/Duration, Type, and Progression",
+          "instruction": "Design tasks focused on the FITT framework and the principle of progressive overload to improve fitness while avoiding overtraining. Questions should ask students to modify a training program by adjusting specific variables to ensure continued adaptation for a given athlete. Students must justify their changes by referencing the athlete's current fitness level and the specific physiological goals of the training phase."
+        },
+        {
+          "name": "Training Adaptation: Specificity, Individuality, Variety, and Diminishing Returns",
+          "instruction": "Formulate questions on the training principles of specificity (matching sport demands) and individuality (accounting for personal differences). Tasks should ask students to explain how the principle of diminishing returns affects an elite athlete's progress and why variety is necessary to maintain motivation and prevent overuse injuries. Students must apply these principles to a scenario, predicting the outcome if a principle is violated or neglected in the program design."
+        },
+        {
+          "name": "Periodization and Planning: Macrocycles, Mesocycles, Microcycles, Tapering, and Detraining",
+          "instruction": "Construct problems requiring students to design or analyze a periodized training plan, identifying macrocycles, mesocycles, and microcycles. Questions should focus on the purpose of different phases—preparation, competition, and transition—and the role of tapering in maximizing performance for a peak event. Students must also explain the risk of detraining and how to maintain adaptations during a transition phase or injury period."
+        },
+        {
+          "name": "Continuous and Interval Training: Steady-Intensity vs. High-Intensity Work-Rest Intervals",
+          "instruction": "Design questions that distinguish between continuous training for aerobic development and interval training for targeting specific energy systems through work-to-rest ratios. Tasks should ask for specific recommendations, such as a 1:1 ratio for aerobic intervals or 1:5 for anaerobic glycolysis, and a justification based on the target system’s recovery requirements. Students must specify the intensity (e.g., %HR max) and duration of the work periods to ensure the desired physiological stimulus is achieved."
+        },
+        {
+          "name": "Specialized Training Methods: Fartlek, Circuit, Weight/Resistance, Flexibility, and Plyometric Training",
+          "instruction": "Formulate problems on specialized training methods, requiring an explanation of the physiological rationale for using Fartlek, circuits, or plyometrics (stretch-shortening cycle). Questions should ask students to design a session using one of these methods—specifying reps, sets, and rest for resistance training—and link it to the sport’s demands. Students must also address safety considerations, such as the prerequisite strength required for high-impact plyometric training."
+        },
+        {
+          "name": "Training Components: Warm-Up, Conditioning Phase, and Cool-Down Structure",
+          "instruction": "Construct questions on the structure of a training session, requiring a justification for the warm-up (e.g., using the RAMP protocol), conditioning phase, and cool-down. Students must explain the physiological purpose of each component, such as injury prevention through dynamic stretching or the acceleration of lactate removal through a low-intensity cool-down. Responses should link the content of the warm-up and conditioning phases directly to the specific skill and energy system goals of the session."
+        },
+        {
+          "name": "Overtraining Syndrome: Prevention, Recognition, and Management",
+          "instruction": "Develop tasks requiring students to identify the physiological and psychological symptoms of overtraining, such as persistent fatigue, sleep disturbances, and a decline in performance. Questions should ask for the causes of the syndrome—excessive load without adequate recovery—and recommend management strategies like complete rest or load reduction. Students must distinguish between acute overreaching (which can be beneficial) and the chronic state of overtraining syndrome."
+        },
+        {
+          "name": "Cardiovascular Adaptations: Increased Stroke Volume, Cardiac Output, and VO2 Max",
+          "instruction": "Design questions on long-term aerobic training adaptations, focusing on cardiac hypertrophy leading to increased stroke volume and maximal cardiac output. Students must explain how these changes, along with increased plasma volume and hemoglobin, improve oxygen delivery to the working muscles and increase $VO_2$ max. The response should distinguish between heart rate and stroke volume responses at rest, submaximal, and maximal exercise intensities."
+        },
+        {
+          "name": "Respiratory Adaptations: Enhanced Oxygen Extraction and Capillarization",
+          "instruction": "Formulate problems on adaptations within the respiratory system, such as increased strength of respiratory muscles and increased capillarization of the alveoli for improved gas exchange. Questions should ask for an explanation of how an increased a-$vO_2$ difference reflects improved oxygen extraction at the muscle site. Students must acknowledge that respiratory adaptations are generally less significant for performance than cardiovascular changes in healthy individuals."
+        },
+        {
+          "name": "Muscular Adaptations: Strength Gains, Hypertrophy, Power Development, and Fiber Type Changes",
+          "instruction": "Construct questions identifying neural adaptations (e.g., motor unit recruitment) and structural adaptations (e.g., hypertrophy of Type II fibers) resulting from resistance training. Students must explain the timeline of these changes—noting that neural gains occur early—and their impact on strength and power development. Responses should also address shifts in muscle fiber sub-types (e.g., IIx to IIa) and increased stores of ATP, PC, and glycogen as metabolic adaptations."
+        },
+        {
+          "name": "Aerobic vs. Anaerobic Training Adaptations: Differential System Responses",
+          "instruction": "Develop comparative tasks that ask students to contrast aerobic adaptations (mitochondrial density, oxidative enzymes) with anaerobic ones (increased glycolytic enzymes, $H^+$ buffering capacity). Questions should require students to explain why specific adaptations are beneficial for different sport demands, such as the importance of lactate tolerance for a 400m runner. Students must reference specific physiological markers like the LIP or the size of the anaerobic fuel stores to justify their comparison."
+        },
+        {
+          "name": "Lactate Threshold and Metabolic Efficiency: Improved Lactate Tolerance and Fat Oxidation",
+          "instruction": "Create problems on how training improves metabolic efficiency, such as increasing the ability to oxidize fats at higher intensities (glycogen sparing). Questions should focus on the difference between the Lactate Inflection Point (LIP) and lactate tolerance, asking students to explain how high-intensity interval training enhances the buffering of $H^+$ ions. Students must predict the performance outcome of these adaptations, such as the ability to maintain a faster race pace for a longer duration."
+        },
+        {
+          "name": "Training Monitoring: Physiological, Psychological, and Sociological Data Collection",
+          "instruction": "Design questions on the importance of collecting physiological (HR, HRV), psychological (mood states, sleep), and sociological (social support) data to monitor an athlete's progress. Tasks should ask students to design a monitoring protocol and explain how the gathered data informs adjustments to the training program. Students must justify the frequency of monitoring and the choice of data types based on the risk of overtraining and the athlete's specific goals."
+        },
+        {
+          "name": "Training Diaries, Digital Tools, and Wearable Technology: Tracking Progress and Adjustments",
+          "instruction": "Formulate problems on the use of subjective training diaries and objective digital tools like GPS or heart rate monitors to track training load and recovery. Questions should ask for the advantages and limitations of different technologies, such as the accuracy of chest straps versus the convenience of smartwatches. Students must explain how athletes and coaches use this technology to make data-driven decisions regarding session intensity and recovery needs."
+        },
+        {
+          "name": "Program Evaluation and Modification: Effectiveness Assessment and Data-Driven Adjustments",
+          "instruction": "Construct tasks requiring students to analyze athlete data—such as fitness test results or wellness questionnaires—to evaluate the effectiveness of a training program. Questions should ask for specific modifications to the FITT principles or training methods based on the evidence of plateaus or regressions. Students must justify their recommended changes using evidence-based reasoning, considering the athlete's feedback and upcoming competition schedule."
+        },
+        {
+          "name": "Skill Acquisition and Training Integration: Combining Practice Scheduling With Training Methods",
+          "instruction": "Design questions on the integration of skill practice and physical conditioning, such as performing technical drills under high-intensity fatigue. Tasks should require students to design an integrated session and explain how the physical demands (energy system used) interact with the learner’s ability to execute skills correctly. Students must reference the stage of learning and practice scheduling principles to justify the structure of these combined sessions."
+        },
+        {
+          "name": "Biomechanical Optimization Within Training: Movement Efficiency and Technique Refinement",
+          "instruction": "Formulate problems on how biomechanical principles—such as levers and stability—are used within training to optimize movement efficiency and prevent injury. Questions should ask for an analysis of a performer’s technique and a recommended intervention to improve their biomechanical profile, such as adjusting the angle of release in a throw. Students must explain how maintaining technique under fatigue is a critical component of high-level athletic preparation."
+        },
+        {
+          "name": "Energy System Alignment: Matching Training Methods to Physiological Activity Demands",
+          "instruction": "Develop tasks requiring the alignment of training methods with the energy systems identified through activity analysis. Questions should ask for specific training sessions—including work-to-rest ratios and intensities—that target the primary energy source of a chosen sport. Students must justify their choices by explaining how the training stimulus mimics the physiological demands of the game or event, ensuring a high degree of specificity."
+        },
+        {
+          "name": "Sport-Specific Performance Analysis: Integrated Assessment of Skill, Fitness, and Technique",
+          "instruction": "Create questions that require a holistic analysis of an athlete’s performance by combining data from activity analysis, fitness testing, and biomechanical assessment. Tasks should ask students to identify the athlete's strengths and weaknesses across all domains and prioritize areas for development in a future training block. Students must explain the interactions between different performance factors, such as how improved aerobic fitness can enhance technical consistency late in a game."
+        },
+        {
+          "name": "Holistic Athlete Development: Physical, Psychological, and Social Integration",
+          "instruction": "Construct problems on the interaction between physical, psychological, and social factors in athlete development, such as how team dynamics or family support influences motivation and performance. Questions should ask students to recommend a development plan that addresses all three domains, particularly for youth athletes or those returning from injury. The response must justify how improvements in one area, such as psychological confidence, can lead to better physical performance outcomes."
+        },
+        {
+          "name": "Recovery Strategies: Sleep, Nutrition, Active Recovery, and Regeneration Techniques",
+          "instruction": "Design questions on evidence-based recovery strategies, including the role of sleep in growth hormone release and the timing of nutrient intake for glycogen replenishment. Tasks should ask for a recommendation and physiological justification for strategies like active recovery, cold water immersion, or compression garments in a specific context. Students must distinguish between the effectiveness of these methods for physiological versus psychological recovery and address the costs and accessibility of each."
+        },
+        {
+          "name": "Fatigue Management: Balancing Training Stimulus With Recovery",
+          "instruction": "Formulate problems on managing the trade-off between the training stimulus required for adaptation and the recovery needed to prevent chronic fatigue or overtraining. Questions should ask for the identification of fatigue indicators—such as heart rate variability or mood state—and a management strategy involving load adjustment or periodization. Students must justify their approach by referencing the physiological mechanisms of fatigue and the importance of monitoring in high-performance sports."
+        },
+        {
+          "name": "Interdisciplinary Performance Optimization: Connecting Biomechanics, Physiology, and Psychology",
+          "instruction": "Develop integrative questions that explore the connections between biomechanical efficiency, physiological energy cost, and psychological focus during performance. Tasks should ask for an analysis of a complex performance scenario, identifying how improvements in one domain (e.g., more efficient technique) reduce the demand on another (e.g., aerobic energy system). Students must explain these interactions holistically to design a comprehensive intervention for optimizing an athlete's total performance output."
+        }
+      ]
+    }
+  ]
+}
