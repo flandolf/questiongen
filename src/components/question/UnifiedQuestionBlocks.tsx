@@ -55,7 +55,10 @@ export function UnifiedQuestionPromptCard({
         <div className="ml-auto">{rightSlot}</div>
       </div>
       <div className="bg-card/40 rounded-xl border border-border/20 p-5 sm:p-6">
-        <div className="text-lg leading-relaxed text-foreground">
+        <div
+          className="leading-relaxed text-foreground"
+          style={{ fontSize: 'var(--question-text-size)' }}
+        >
           <MarkdownMath content={promptMarkdown} />
         </div>
       </div>
@@ -150,7 +153,10 @@ export function UnifiedMcqOptionsGrid({
             >
               {opt.label}
             </div>
-            <div className="flex-1 text-base leading-relaxed">
+            <div
+              className="flex-1 leading-relaxed"
+              style={{ fontSize: 'var(--response-text-size)' }}
+            >
               <MarkdownMath content={opt.text} />
             </div>
           </button>

@@ -824,29 +824,27 @@ function ReattemptView({
                   rawModelOutput={''}
                   onToggleRawOutput={() => {}}
                 />
-              <WrittenAnswerCard
-                questionId={entry.id}
-                answer={writtenAnswer}
-                image={image}
-                isMarking={isMarking}
-                canSubmit={writtenAnswer.trim().length > 0 || !!image}
-                onAnswerChange={setWrittenAnswer}
-                onImageDrop={(files) => {
-                  const file = files[0];
-                  fileToDataUrl(file).then((dataUrl) =>
-                    setImage({ name: file.name, dataUrl })
-                  );
-                }}
-                onImageRemove={() => setImage(undefined)}
-                onSubmit={doMark}
-              />
+                <WrittenAnswerCard
+                  questionId={entry.id}
+                  answer={writtenAnswer}
+                  image={image}
+                  isMarking={isMarking}
+                  canSubmit={writtenAnswer.trim().length > 0 || !!image}
+                  onAnswerChange={setWrittenAnswer}
+                  onImageDrop={(files) => {
+                    const file = files[0];
+                    fileToDataUrl(file).then((dataUrl) =>
+                      setImage({ name: file.name, dataUrl })
+                    );
+                  }}
+                  onImageRemove={() => setImage(undefined)}
+                  onSubmit={doMark}
+                />
               </>
             ) : (
               <WrittenFeedbackPanel
                 questionId={entry.id}
                 promptMarkdown={entry.question.promptMarkdown}
-                topic={entry.question.topic}
-                subtopic={entry.question.subtopic}
                 answer={writtenAnswer}
                 image={image}
                 feedback={

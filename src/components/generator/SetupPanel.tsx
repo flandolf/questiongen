@@ -1150,7 +1150,7 @@ function PresetSection({
               <div
                 key={preset.id}
                 className={[
-                  'rounded-md transition-all',
+                  'group rounded-md transition-all',
                   isRenaming
                     ? 'bg-accent/50 ring-1 ring-ring/20'
                     : isEditing

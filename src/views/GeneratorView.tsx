@@ -2698,8 +2698,6 @@ export function GeneratorView() {
                     <WrittenFeedbackPanel
                       questionId={activeQuestion.id}
                       promptMarkdown={activeQuestion.promptMarkdown}
-                      topic={activeQuestion.topic}
-                      subtopic={activeQuestion.subtopic}
                       answer={activeQuestionAnswer}
                       image={activeQuestionImage}
                       feedback={activeFeedback}

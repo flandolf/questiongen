@@ -8,6 +8,7 @@ import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
 import { TimerBarProvider } from './context/TimerBarContext';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
 
 const MATHJAX_CDN_URL =
   'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
@@ -83,6 +84,8 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useTextSizeCssVars();
+
   return (
     <MathJaxContext
       version={4}
