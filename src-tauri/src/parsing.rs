@@ -1,3 +1,4 @@
+use crate::constants::{DISALLOWED_SELF_TALK, MC_MAX_EXPLANATION_WORDS};
 use crate::models::{default_max_marks, AppError, CommandResult, GeneratedQuestion, McQuestion};
 
 // --- JSON pre-processing: protect LaTeX commands from JSON escape sequences --
@@ -66,7 +67,20 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
         while i < len {
             match bytes[i] {
                 b'"' => {
-                    // Closing (unescaped) quote — end of string.
+                    // Check if this quote is escaped by counting consecutive backslashes.
+                    let mut slash_count = 0;
+                    let mut j = i;
+                    while j > 0 && bytes[j - 1] == b'\\' {
+                        slash_count += 1;
+                        j -= 1;
+                    }
+                    if slash_count % 2 == 1 {
+                        // Odd number of backslashes → quote is escaped (\", \\\", etc.)
+                        out.push(b'"');
+                        i += 1;
+                        continue;
+                    }
+                    // Even number of backslashes (including 0) → closing quote.
                     out.push(b'"');
                     i += 1;
                     break;
@@ -139,17 +153,25 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
 
 // --- JSON object extraction ---------------------------------------------------
 
-/// Extract the first valid JSON object from raw model output.
+/// Extract the first valid JSON value (object or array) from raw model output.
 /// With Response Healing enabled this is rarely needed, but kept as a safety net.
 ///
 /// NOTE: `content` here should already have been through `protect_latex_in_raw_json`.
-pub fn extract_json_object(content: &str) -> Option<String> {
+fn extract_json_value(content: &str, want_array: bool) -> Option<String> {
     let s = content.trim();
+    let opener = if want_array { '[' } else { '{' };
+    let is_expected = |v: &serde_json::Value| {
+        if want_array {
+            v.is_array()
+        } else {
+            v.is_object()
+        }
+    };
 
-    // Already a clean object.
-    if s.starts_with('{') {
+    // Already a clean value.
+    if s.starts_with(opener) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
-            if v.is_object() {
+            if is_expected(&v) {
                 return Some(s.to_string());
             }
         }
@@ -163,22 +185,24 @@ pub fn extract_json_object(content: &str) -> Option<String> {
         .and_then(|s| s.strip_suffix("```"))
         .map(str::trim);
     if let Some(inner) = fence {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
-            if v.is_object() {
-                return Some(inner.to_string());
+        if inner.starts_with(opener) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
+                if is_expected(&v) {
+                    return Some(inner.to_string());
+                }
             }
         }
     }
 
-    // Scan for the first parseable object.
+    // Scan for the first parseable value.
     for (i, ch) in content.char_indices() {
-        if ch != '{' {
+        if ch != opener {
             continue;
         }
         let slice = &content[i..];
         let mut iter = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
         if let Some(Ok(v)) = iter.next() {
-            if v.is_object() {
+            if is_expected(&v) {
                 let end = i + iter.byte_offset();
                 return content.get(i..end).map(str::to_string);
             }
@@ -187,10 +211,16 @@ pub fn extract_json_object(content: &str) -> Option<String> {
     None
 }
 
+/// Extract the first valid JSON object from raw model output.
+/// Backward-compatible wrapper around `extract_json_value`.
+pub fn extract_json_object(content: &str) -> Option<String> {
+    extract_json_value(content, false)
+}
+
 // --- Envelope normalisation ---------------------------------------------------
 
 /// Accept `[...]`, `{"questions":[...]}`, or common wrapper variants.
-pub fn normalize_envelope(value: serde_json::Value) -> Result<serde_json::Value, String> {
+pub fn normalise_envelope(value: serde_json::Value) -> Result<serde_json::Value, String> {
     if value.is_array() {
         return Ok(serde_json::json!({ "questions": value }));
     }
@@ -444,202 +474,39 @@ fn normalise_typography(s: &str) -> String {
 // --- Topic / subtopic correction ----------------------------------------------
 
 /// Canonical subject names that are valid values for the `topic` field.
-const CANONICAL_TOPICS: &[&str] = &[
-    "Mathematical Methods",
-    "Specialist Mathematics",
-    "Chemistry",
-    "Physical Education",
-];
+/// Derived from the catalog at compile time.
+fn canonical_topics() -> &'static [&'static str] {
+    use std::sync::OnceLock;
+    static TOPICS: OnceLock<Vec<&'static str>> = OnceLock::new();
+    TOPICS.get_or_init(|| crate::catalog::topic_names())
+}
 
 /// Map each canonical subtopic (lowercased) to its parent subject.
 /// This is used to fix cases where the LLM puts a subtopic into the `topic` field.
-fn subtopic_to_subject() -> &'static std::collections::HashMap<&'static str, &'static str> {
+/// Derived from the catalog — no hardcoded arrays.
+fn subtopic_to_subject() -> &'static std::collections::HashMap<String, String> {
     use std::collections::HashMap;
     use std::sync::OnceLock;
-    static MAP: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    static MAP: OnceLock<HashMap<String, String>> = OnceLock::new();
     MAP.get_or_init(|| {
-        let kk = crate::constants::subtopic_key_knowledge();
-        let mm_subs = [
-            "functions and graphs",
-            "transformation of graphs",
-            "algebra and structure",
-            "trigonometric functions",
-            "exponential and logarithmic functions",
-            "differentiation",
-            "integration",
-            "probability and statistics",
-            "discrete random variables",
-            "continuous random variables",
-        ];
-        let sm_subs = [
-            "additional algebra and number systems",
-            "sequences and series",
-            "reciprocals and rational functions",
-            "combinatorics and matrices",
-            "trigonometric functions and identities",
-            "proof",
-            "modulus",
-            "algorithms and graph theory",
-            "graphing relations",
-            "complex numbers",
-            "transformations and vectors in the plane",
-        ];
-        let chem_subs = [
-            "periodic trends: structure, periodic organisation, and critical or endangered elements",
-            "molecular structure: lewis structures, vsepr geometry, polarity, and intermolecular forces",
-            "metallic bonding: metallic lattices and the reactivity series",
-            "ionic chemistry: ionic bonding, precipitation reactions, and solubility tables",
-            "chemical quantities: moles, molar mass, percentage composition, and empirical/molecular formulas",
-            "separation techniques: chromatography and rf value identification",
-            "organic classification: alkanes, alkenes, alcohols, carboxylic acids, and iupac naming",
-            "polymer chemistry: addition and condensation polymerisation, plastics, and recycling",
-            "sustainability: green chemistry, circular economy, and sustainable development",
-            "water chemistry: hydrogen bonding and unique physical properties of water",
-            "acid-base chemistry: bronsted-lowry theory, ph, neutralisation, and applications",
-            "redox chemistry: electron transfer, half-equations, displacement, and corrosion",
-            "solutions: concentration units and solubility relationships",
-            "volumetric analysis: acid-base titration, standard solutions, and indicators",
-            "gas chemistry: ideal gas equation and greenhouse gases",
-            "analytical techniques: electrical conductivity, stoichiometry, and colorimetry/uv-vis spectroscopy",
-        ];
-        let pe_subs = [
-            "movement skill classification: fundamental, sport-specific, open/closed, gross/fine",
-            "discrete, serial, and continuous motor skills: temporal characteristics",
-            "stages of learning: cognitive, associative, and autonomous stages",
-            "skill acquisition theories: linear vs. non-linear learning models",
-            "learning approaches: direct instruction vs. constraint-based methods",
-            "practice scheduling: type (whole/part), distribution (massed/distributed), and variability (blocked/random)",
-            "feedback in skill acquisition: intrinsic, augmented, and timing optimization",
-            "psychological factors in learning: confidence, motivation, arousal, and concentration",
-            "coaching strategies: tailoring instruction to learner needs and performance requirements",
-            "linear motion: momentum, displacement, linear velocity, acceleration",
-            "angular motion: angular momentum, moment of inertia, angular velocity",
-            "momentum and impulse: conservation and application in physical activities",
-            "newton's laws of motion: inertia, acceleration, and action-reaction in sport",
-            "projectile motion: release angle, height, speed, and optimal performance trajectories",
-            "center of gravity, base of support, and equilibrium: balance and stability principles",
-            "third class lever systems: mechanical advantage and force application",
-            "qualitative movement analysis: systematic observation, evaluation, and error correction",
-            "video analysis and biomechanical assessment: tools for movement improvement",
-            "atp-cp system: high-intensity energy supply and recovery characteristics",
-            "anaerobic glycolysis: glucose breakdown, lactate production, and duration capacity",
-            "aerobic system: oxidative phosphorylation and sustained energy production",
-            "energy system interplay: atp-cp to anaerobic to aerobic transition by intensity and duration",
-            "oxygen uptake: oxygen deficit, steady state, and epoc recovery",
-            "vo2 max and lactate inflection point: aerobic capacity and anaerobic threshold",
-            "fatigue mechanisms: metabolic, muscular, thermoregulatory, and central fatigue",
-            "nutrition and hydration strategies: fueling performance and enhancing recovery",
-            "activity analysis: identifying skill frequencies, movement patterns, and physiological demands",
-            "fitness assessment: testing aerobic, anaerobic, strength, endurance, flexibility, speed, and agility",
-            "test reliability, validity, and accuracy: standardized protocols and error minimization",
-            "pre-participation screening and informed consent",
-            "training principles: frequency, intensity, time/duration, type, and progression",
-            "training adaptation: specificity, individuality, variety, and diminishing returns",
-            "periodization and planning: macrocycles, mesocycles, microcycles, tapering, and detraining",
-            "continuous and interval training: steady-intensity vs. high-intensity work-rest intervals",
-            "specialized training methods: fartlek, circuit, weight/resistance, flexibility, and plyometric training",
-            "training components: warm-up, conditioning phase, and cool-down structure",
-            "overtraining syndrome: prevention, recognition, and management",
-        ];
-
+        let catalog = crate::catalog::all_topics();
         let mut m = HashMap::new();
-        for s in mm_subs { m.insert(s, "Mathematical Methods"); }
-        for s in sm_subs { m.insert(s, "Specialist Mathematics"); }
-        for s in chem_subs { if kk.contains_key(s) { m.insert(s, "Chemistry"); } }
-        for s in pe_subs { if kk.contains_key(s) { m.insert(s, "Physical Education"); } }
+        for topic in catalog {
+            for sub in &topic.subtopics {
+                m.insert(sub.name.to_lowercase(), topic.name.clone());
+            }
+        }
         m
     })
 }
 
 /// All canonical subtopic names (lowercased) across all topics.
 /// Used for fuzzy matching LLM-generated subtopic values.
+/// Derived from the catalog — no hardcoded arrays.
 fn all_canonical_subtopics() -> &'static [&'static str] {
     use std::sync::OnceLock;
     static SUBS: OnceLock<Vec<&'static str>> = OnceLock::new();
-    SUBS.get_or_init(|| {
-        let kk = crate::constants::subtopic_key_knowledge();
-        let mut subs = Vec::new();
-
-        // Mathematical Methods
-        subs.extend([
-            "functions and graphs",
-            "transformation of graphs",
-            "algebra and structure",
-            "trigonometric functions",
-            "exponential and logarithmic functions",
-            "differentiation",
-            "integration",
-            "probability and statistics",
-            "discrete random variables",
-            "continuous random variables",
-        ]);
-
-        // Specialist Mathematics
-        subs.extend([
-            "additional algebra and number systems",
-            "sequences and series",
-            "reciprocals and rational functions",
-            "combinatorics and matrices",
-            "trigonometric functions and identities",
-            "proof",
-            "modulus",
-            "algorithms and graph theory",
-            "graphing relations",
-            "complex numbers",
-            "transformations and vectors in the plane",
-        ]);
-
-        // Chemistry — only keys that exist in the key knowledge map
-        for &k in kk.keys() {
-            subs.push(k);
-        }
-
-        // Physical Education — from the constants.rs subtopic_key_knowledge keys
-        // These are the full frontend names (lowercased) that map to KK blocks.
-        subs.extend([
-            "movement skill classification: fundamental, sport-specific, open/closed, gross/fine",
-            "discrete, serial, and continuous motor skills: temporal characteristics",
-            "stages of learning: cognitive, associative, and autonomous stages",
-            "skill acquisition theories: linear vs. non-linear learning models",
-            "learning approaches: direct instruction vs. constraint-based methods",
-            "practice scheduling: type (whole/part), distribution (massed/distributed), and variability (blocked/random)",
-            "feedback in skill acquisition: intrinsic, augmented, and timing optimization",
-            "psychological factors in learning: confidence, motivation, arousal, and concentration",
-            "coaching strategies: tailoring instruction to learner needs and performance requirements",
-            "linear motion: momentum, displacement, linear velocity, acceleration",
-            "angular motion: angular momentum, moment of inertia, angular velocity",
-            "momentum and impulse: conservation and application in physical activities",
-            "newton's laws of motion: inertia, acceleration, and action-reaction in sport",
-            "projectile motion: release angle, height, speed, and optimal performance trajectories",
-            "center of gravity, base of support, and equilibrium: balance and stability principles",
-            "third class lever systems: mechanical advantage and force application",
-            "qualitative movement analysis: systematic observation, evaluation, and error correction",
-            "video analysis and biomechanical assessment: tools for movement improvement",
-            "atp-cp system: high-intensity energy supply and recovery characteristics",
-            "anaerobic glycolysis: glucose breakdown, lactate production, and duration capacity",
-            "aerobic system: oxidative phosphorylation and sustained energy production",
-            "energy system interplay: atp-cp to anaerobic to aerobic transition by intensity and duration",
-            "oxygen uptake: oxygen deficit, steady state, and epoc recovery",
-            "vo2 max and lactate inflection point: aerobic capacity and anaerobic threshold",
-            "fatigue mechanisms: metabolic, muscular, thermoregulatory, and central fatigue",
-            "nutrition and hydration strategies: fueling performance and enhancing recovery",
-            "activity analysis: identifying skill frequencies, movement patterns, and physiological demands",
-            "fitness assessment: testing aerobic, anaerobic, strength, endurance, flexibility, speed, and agility",
-            "test reliability, validity, and accuracy: standardized protocols and error minimization",
-            "pre-participation screening and informed consent",
-            "training principles: frequency, intensity, time/duration, type, and progression",
-            "training adaptation: specificity, individuality, variety, and diminishing returns",
-            "periodization and planning: macrocycles, mesocycles, microcycles, tapering, and detraining",
-            "continuous and interval training: steady-intensity vs. high-intensity work-rest intervals",
-            "specialized training methods: fartlek, circuit, weight/resistance, flexibility, and plyometric training",
-            "training components: warm-up, conditioning phase, and cool-down structure",
-            "overtraining syndrome: prevention, recognition, and management",
-        ]);
-
-        subs.sort();
-        subs.dedup();
-        subs
-    })
+    SUBS.get_or_init(|| crate::catalog::all_subtopic_names_lower())
 }
 
 /// Compute the Levenshtein edit distance between two strings.
@@ -787,7 +654,7 @@ fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> Canonicali
 /// `selected_topics` are the user-selected subjects (e.g. ["Mathematical Methods"]).
 fn fix_topic_field(topic: &mut String, subtopic: &mut Option<String>, selected_topics: &[String]) {
     let trimmed = topic.trim();
-    if CANONICAL_TOPICS
+    if canonical_topics()
         .iter()
         .any(|t| t.eq_ignore_ascii_case(trimmed))
     {
@@ -798,7 +665,7 @@ fn fix_topic_field(topic: &mut String, subtopic: &mut Option<String>, selected_t
     let lookup = trimmed.to_ascii_lowercase();
     let map = subtopic_to_subject();
 
-    if let Some(&subject) = map.get(lookup.as_str()) {
+    if let Some(subject) = map.get(lookup.as_str()) {
         // The LLM put a subtopic into the topic field.
         // Move the old topic value to subtopic (if subtopic is empty).
         if subtopic.is_none() || subtopic.as_deref().map(str::is_empty).unwrap_or(true) {
@@ -809,8 +676,8 @@ fn fix_topic_field(topic: &mut String, subtopic: &mut Option<String>, selected_t
     }
 
     // Fuzzy match: check if any canonical subtopic is a substring of the topic value.
-    for (&sub, &subject) in map {
-        if lookup.contains(sub) || sub.contains(&lookup) {
+    for (sub, subject) in map {
+        if lookup.contains(sub.as_str()) || sub.contains(&lookup) {
             if subtopic.is_none() || subtopic.as_deref().map(str::is_empty).unwrap_or(true) {
                 *subtopic = Some(trimmed.to_string());
             }
@@ -884,7 +751,10 @@ pub fn validate_written(questions: &[GeneratedQuestion], expected: usize) -> Com
     }
     for q in questions {
         if q.topic.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", "Question missing topic."));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} missing topic.", q.id),
+            ));
         }
         if q.prompt_markdown.is_empty() {
             return Err(AppError::new(
@@ -903,23 +773,6 @@ pub fn validate_written(questions: &[GeneratedQuestion], expected: usize) -> Com
 }
 
 // --- Normalise + validate MC questions ----------------------------------------
-
-const MC_MAX_EXPLANATION_WORDS: usize = 180;
-
-const DISALLOWED_SELF_TALK: &[&str] = &[
-    "let's",
-    "let us",
-    "i will",
-    "i'll",
-    "wait,",
-    "not in options",
-    "error in options",
-    "to make it work",
-    "change the question",
-    "adjust the question",
-    "revised prompt",
-    "i'll update",
-];
 
 pub fn normalise_mc(
     questions: &mut [McQuestion],

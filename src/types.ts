@@ -2,32 +2,104 @@ import SUBTOPIC_CATALOG from './shared/subtopic-catalog.json';
 
 // ─── Shared subtopic catalog (frontend + backend) ───────────────────────────
 
-type SharedSubtopicEntry = {
+type CatalogSubtopicEntry = {
   name: string;
   instruction: string | null;
+  group?: string;
 };
 
-type SharedTopicEntry = {
-  name:
-    | 'Mathematical Methods'
-    | 'Specialist Mathematics'
-    | 'Chemistry'
-    | 'Physical Education';
-  subtopics: SharedSubtopicEntry[];
+type CatalogTopicEntry = {
+  name: string;
+  icon?: string;
+  examPdfs?: string[];
+  reportPdfs?: string[];
+  examGuidance?: string;
+  subtopics: CatalogSubtopicEntry[];
 };
 
-const SHARED_SUBTOPIC_CATALOG = SUBTOPIC_CATALOG as {
-  topics: SharedTopicEntry[];
+const CATALOG = SUBTOPIC_CATALOG as {
+  topics: CatalogTopicEntry[];
 };
 
-function getSharedSubtopics(
-  topicName: SharedTopicEntry['name']
-): readonly string[] {
-  const topic = SHARED_SUBTOPIC_CATALOG.topics.find(
-    (entry) => entry.name === topicName
-  );
+export function getSubtopics(topicName: string): readonly string[] {
+  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
   return topic ? topic.subtopics.map((subtopic) => subtopic.name) : [];
 }
+
+export function getTopicIcon(topicName: string): string {
+  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
+  return topic?.icon ?? 'BookOpen';
+}
+
+export function getTopicExamPdfs(topicName: string): string[] {
+  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
+  return topic?.examPdfs ?? [];
+}
+
+export function getTopicReportPdfs(topicName: string): string[] {
+  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
+  return topic?.reportPdfs ?? [];
+}
+
+export function getTopicExamGuidance(topicName: string): string {
+  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
+  return topic?.examGuidance ?? '';
+}
+
+export function getTopicNames(): string[] {
+  return CATALOG.topics.map((t) => t.name);
+}
+
+// ─── PE subtopic groups (derived from catalog group field, NOT index slicing) ─
+
+const PE_GROUP_LABELS: Record<string, { unit: string; aos: string }> = {
+  'unit3-skill-acquisition': { unit: 'Unit 3', aos: 'Skill Acquisition' },
+  'unit3-biomechanics': { unit: 'Unit 3', aos: 'Biomechanics' },
+  'unit3-energy-systems': { unit: 'Unit 3', aos: 'Energy Systems' },
+  'unit4-foundations': { unit: 'Unit 4', aos: 'Foundations' },
+  'unit4-training': { unit: 'Unit 4', aos: 'Training Principles and Methods' },
+  'unit4-adaptations': { unit: 'Unit 4', aos: 'Adaptations and Monitoring' },
+  'unit4-integration': { unit: 'Unit 4', aos: 'Integration and Application' },
+};
+
+export type PhysicalEducationSubtopicGroup = {
+  unit: string;
+  aos: string;
+  label: string;
+  subtopics: readonly string[];
+};
+
+function derivePEGroups(): PhysicalEducationSubtopicGroup[] {
+  const pe = CATALOG.topics.find((t) => t.name === 'Physical Education');
+  if (!pe) return [];
+
+  const groups = new Map<string, string[]>();
+  for (const sub of pe.subtopics) {
+    if (sub.group) {
+      if (!groups.has(sub.group)) groups.set(sub.group, []);
+      groups.get(sub.group)!.push(sub.name);
+    }
+  }
+
+  const result: PhysicalEducationSubtopicGroup[] = [];
+  for (const [groupId, subs] of groups) {
+    const meta = PE_GROUP_LABELS[groupId] ?? {
+      unit: groupId.split('-')[0].replace(/^unit/, 'Unit '),
+      aos: groupId.split('-').slice(1).join(' '),
+    };
+    result.push({
+      unit: meta.unit,
+      aos: meta.aos,
+      label: `${meta.unit} — ${meta.aos}`,
+      subtopics: subs,
+    });
+  }
+
+  return result;
+}
+
+export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] =
+  derivePEGroups();
 
 // ─── Generator Parameter Preset ─────────────────────────────────────────────
 
@@ -48,76 +120,19 @@ export type Difficulty =
 
 export type TechMode = 'tech-free' | 'tech-active' | 'mix';
 
-export const MATH_METHODS_SUBTOPICS = getSharedSubtopics(
-  'Mathematical Methods'
-);
+export const MATH_METHODS_SUBTOPICS = getSubtopics('Mathematical Methods');
 
 export type MathMethodsSubtopic = string;
 
-export const SPECIALIST_MATH_SUBTOPICS = getSharedSubtopics(
-  'Specialist Mathematics'
-);
+export const SPECIALIST_MATH_SUBTOPICS = getSubtopics('Specialist Mathematics');
 
 export type SpecialistMathSubtopic = string;
 
-export const PHYSICAL_EDUCATION_SUBTOPICS =
-  getSharedSubtopics('Physical Education');
+export const PHYSICAL_EDUCATION_SUBTOPICS = getSubtopics('Physical Education');
 
 export type PhysicalEducationSubtopic = string;
 
-export type PhysicalEducationSubtopicGroup = {
-  unit: string;
-  aos: string;
-  label: string;
-  subtopics: readonly PhysicalEducationSubtopic[];
-};
-
-export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] = [
-  {
-    unit: 'Unit 3',
-    aos: 'Skill Acquisition',
-    label: 'Unit 3 — Skill Acquisition',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(0, 9),
-  },
-  {
-    unit: 'Unit 3',
-    aos: 'Biomechanics',
-    label: 'Unit 3 — Biomechanics',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(9, 18),
-  },
-  {
-    unit: 'Unit 3',
-    aos: 'Energy Systems',
-    label: 'Unit 3 — Energy Systems',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(18, 26),
-  },
-  {
-    unit: 'Unit 4',
-    aos: 'Foundations',
-    label: 'Unit 4 — Foundations',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(26, 33),
-  },
-  {
-    unit: 'Unit 4',
-    aos: 'Training Principles and Methods',
-    label: 'Unit 4 — Training Principles and Methods',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(33, 39),
-  },
-  {
-    unit: 'Unit 4',
-    aos: 'Adaptations and Monitoring',
-    label: 'Unit 4 — Adaptations and Monitoring',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(39, 45),
-  },
-  {
-    unit: 'Unit 4',
-    aos: 'Integration and Application',
-    label: 'Unit 4 — Integration and Application',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(45, 53),
-  },
-] as const;
-
-export const CHEMISTRY_SUBTOPICS = getSharedSubtopics('Chemistry');
+export const CHEMISTRY_SUBTOPICS = getSubtopics('Chemistry');
 
 export type ChemistrySubtopic = string;
 
@@ -263,8 +278,8 @@ export type BackendError = {
   message?: string;
 };
 
-export const TOPICS: Topic[] = SHARED_SUBTOPIC_CATALOG.topics.map(
-  (topic) => topic.name
+export const TOPICS: Topic[] = CATALOG.topics.map(
+  (topic) => topic.name as Topic
 );
 
 export const API_KEY_STORAGE_KEY = 'questiongen.openrouterApiKey';
