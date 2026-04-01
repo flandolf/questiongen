@@ -814,15 +814,16 @@ function ReattemptView({
       )}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {isWritten ? (
-          <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
-            <WrittenQuestionCard
-              promptMarkdown={entry.question.promptMarkdown}
-              canShowRawOutput={false}
-              showRawOutput={false}
-              rawModelOutput={''}
-              onToggleRawOutput={() => {}}
-            />
+          <div className="mx-auto w-full max-w-6xl flex flex-col space-y-4 pb-10">
             {!feedback ? (
+              <>
+                <WrittenQuestionCard
+                  promptMarkdown={entry.question.promptMarkdown}
+                  canShowRawOutput={false}
+                  showRawOutput={false}
+                  rawModelOutput={''}
+                  onToggleRawOutput={() => {}}
+                />
               <WrittenAnswerCard
                 questionId={entry.id}
                 answer={writtenAnswer}
@@ -839,27 +840,29 @@ function ReattemptView({
                 onImageRemove={() => setImage(undefined)}
                 onSubmit={doMark}
               />
-            ) : (
-              <>
-                <WrittenFeedbackPanel
-                  questionId={entry.id}
-                  answer={writtenAnswer}
-                  image={image}
-                  feedback={
-                    feedback && markingScheme
-                      ? { ...feedback, vcaaMarkingScheme: markingScheme }
-                      : feedback
-                  }
-                  appealText={appealText}
-                  overrideInput={overrideInput}
-                  isMarking={isMarking}
-                  onAppealChange={setAppealText}
-                  onOverrideInputChange={setOverrideInput}
-                  onArgueForMark={() => {}}
-                  onApplyOverride={handleApplyOverride}
-                  onCriterionChange={handleCriterionChange}
-                />
               </>
+            ) : (
+              <WrittenFeedbackPanel
+                questionId={entry.id}
+                promptMarkdown={entry.question.promptMarkdown}
+                topic={entry.question.topic}
+                subtopic={entry.question.subtopic}
+                answer={writtenAnswer}
+                image={image}
+                feedback={
+                  feedback && markingScheme
+                    ? { ...feedback, vcaaMarkingScheme: markingScheme }
+                    : feedback
+                }
+                appealText={appealText}
+                overrideInput={overrideInput}
+                isMarking={isMarking}
+                onAppealChange={setAppealText}
+                onOverrideInputChange={setOverrideInput}
+                onArgueForMark={() => {}}
+                onApplyOverride={handleApplyOverride}
+                onCriterionChange={handleCriterionChange}
+              />
             )}
           </div>
         ) : (
