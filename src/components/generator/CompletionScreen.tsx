@@ -301,7 +301,7 @@ export function CompletionScreen({
   const weakTopics = sessionTopics.filter((t) => t.pct < 75);
 
   return (
-    <Card className="border shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 m-2 bg-muted/30">
+    <Card className="border shadow-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 m-2 bg-muted/10">
       {/* ── Header ── */}
       <CardHeader className="border-b px-5 py-3">
         <div className="flex items-center justify-between gap-4">
@@ -325,42 +325,15 @@ export function CompletionScreen({
       <CardContent className="px-5 py-6 space-y-6">
         {/* ── Section 1: Big Result ── */}
         <div className="flex flex-col items-center text-center space-y-3">
-          {/* Accuracy ring */}
-          <div className="relative w-32 h-32">
-            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="8"
-                className="text-muted/30"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke={ringColor}
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={`${accuracyPercent * 2.64} 264`}
-                className="transition-all duration-1000 ease-out"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span
-                className="text-3xl font-black tabular-nums"
-                style={{ color: ringColor }}
-              >
-                {accuracyPercent.toFixed(0)}%
-              </span>
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                {ringLabel}
-              </span>
-            </div>
-          </div>
+          <span
+            className="text-3xl font-black tabular-nums"
+            style={{ color: ringColor }}
+          >
+            {accuracyPercent.toFixed(0)}%
+          </span>
+          <span className="text-[10px] font-semibold text-muted-foreground">
+            {ringLabel}
+          </span>
           <div className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">
               {completedCount}/{totalCount}
@@ -603,7 +576,7 @@ export function CompletionScreen({
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-xs border rounded-lg">
                       <thead>
-                        <tr className="bg-muted/60">
+                        <tr className="bg-muted/10 text-muted-foreground uppercase">
                           <th className="px-2 py-1 text-left">Q#</th>
                           <th className="px-2 py-1 text-left">Used</th>
                           <th className="px-2 py-1 text-left">Limit</th>

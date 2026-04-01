@@ -6,6 +6,8 @@ import {
   BookOpen,
   MessageSquareDiff,
   ShieldAlert,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,16 +46,16 @@ function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
   const dash = circ * pct;
 
   return (
-    <div className="relative flex items-center justify-center w-24 h-24 shrink-0">
+    <div className="relative flex items-center justify-center w-20 h-20 shrink-0">
       <svg
         className="absolute inset-0 -rotate-90"
-        width="96"
-        height="96"
-        viewBox="0 0 96 96"
+        width="80"
+        height="80"
+        viewBox="0 0 80 80"
       >
         <circle
-          cx="48"
-          cy="48"
+          cx="40"
+          cy="40"
           r={r}
           fill="none"
           stroke="currentColor"
@@ -61,8 +63,8 @@ function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
           className="text-muted/20"
         />
         <circle
-          cx="48"
-          cy="48"
+          cx="40"
+          cy="40"
           r={r}
           fill="none"
           stroke={color}
@@ -109,31 +111,30 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   const isCorrect = verdict === 'correct';
 
   const [showExemplar, setShowExemplar] = useState(false);
+  const [aiFeedbackOpen, setAiFeedbackOpen] = useState(true);
 
   return (
     <Card className="shadow-xs border-border/40 overflow-hidden bg-background">
-      {/* HEADER BANNER
-        Moves away from generic gradient fills to a structured, technical report look 
-      */}
+      {/* HEADER BANNER - Sticky for persistent score context */}
       <div
-        className={`flex items-center gap-6 px-6 py-2 border-b border-border/40`}
+        className={`sticky top-0 z-10 bg-card/95 backdrop-blur-sm flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-3 border-b border-border/40`}
       >
         <ScoreRing achieved={feedback.achievedMarks} max={feedback.maxMarks} />
-        <div className="flex-1 min-w-0 space-y-1.5">
+        <div className="flex-1 min-w-0 space-y-1">
           <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
             Evaluation Result
           </div>
           <div className="flex items-baseline gap-2">
             <div
-              className={`text-4xl font-black tabular-nums tracking-tight ${scoreColor}`}
+              className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${scoreColor}`}
             >
               {feedback.scoreOutOf10}
             </div>
-            <div className="text-lg font-medium text-muted-foreground">
+            <div className="text-base sm:text-lg font-medium text-muted-foreground">
               / 10
             </div>
           </div>
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex items-center gap-3 mt-1">
             <div
               className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
                 isCorrect
@@ -150,17 +151,16 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               )}
               {feedback.verdict}
             </div>
-            <span className="text-xs font-medium text-muted-foreground">
-              {feedback.achievedMarks} out of {feedback.maxMarks} raw marks
-              awarded
+            <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
+              {feedback.achievedMarks}/{feedback.maxMarks} raw
             </span>
           </div>
         </div>
       </div>
 
-      <CardContent className="p-0 animate-in fade-in duration-500">
-        <div className="px-6 py-2 space-y-8">
-          {/* SUBMISSION & EXEMPLAR */}
+      <CardContent className="p-0">
+        <div className="px-4 sm:px-6 py-4 space-y-6">
+          {/* SUBMISSION & EXEMPLAR - Side-by-side on wide screens */}
           <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-border/30 pb-2">
               <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
@@ -182,61 +182,74 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              {answer.trim().length > 0 ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-muted/30 p-5 rounded-md text-foreground/90 leading-relaxed font-medium">
-                  <MarkdownMath content={answer} />
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center">
-                  No typed answer was submitted.
-                </div>
-              )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                {answer.trim().length > 0 ? (
+                  <div className="prose prose-base dark:prose-invert max-w-none bg-muted/30 p-4 sm:p-5 rounded-md text-foreground/90 leading-relaxed font-medium">
+                    <MarkdownMath content={answer} />
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center min-h-[80px]">
+                    No typed answer was submitted.
+                  </div>
+                )}
 
-              {image && (
-                <div className="rounded-md border border-border/30 bg-muted/10 p-2 shadow-sm">
-                  <img
-                    src={image.dataUrl}
-                    alt="Submitted working"
-                    className="w-full h-auto max-h-96 object-contain rounded-md mix-blend-multiply dark:mix-blend-normal"
-                  />
+                {image && (
+                  <div className="mt-3 rounded-md border border-border/30 bg-muted/10 p-2 shadow-sm">
+                    <img
+                      src={image.dataUrl}
+                      alt="Submitted working"
+                      className="w-full h-auto max-h-96 object-contain rounded-md mix-blend-multiply dark:mix-blend-normal"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {showExemplar && (
+                <div className="min-w-0 animate-in slide-in-from-top-2 fade-in duration-300">
+                  <div className="prose prose-base dark:prose-invert max-w-none bg-amber-500/5 p-4 sm:p-5 rounded-md text-foreground/90">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-amber-600 dark:text-amber-500 mb-3">
+                      <Sparkles className="w-3.5 h-3.5" /> Ideal Solution
+                    </Label>
+                    <MarkdownMath
+                      content={
+                        feedback.exemplarResponseMarkdown ||
+                        feedback.workedSolutionMarkdown ||
+                        'No exemplar available.'
+                      }
+                    />
+                  </div>
                 </div>
               )}
             </div>
+          </section>
 
-            {showExemplar && (
-              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
-                <div className="prose prose-sm dark:prose-invert max-w-none bg-amber-500/5 p-5 rounded-md text-foreground/90">
-                  <Label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-amber-600 dark:text-amber-500 mb-3">
-                    <Sparkles className="w-3.5 h-3.5" /> Ideal Solution
-                  </Label>
-                  <MarkdownMath
-                    content={
-                      feedback.exemplarResponseMarkdown ||
-                      feedback.workedSolutionMarkdown ||
-                      'No exemplar available.'
-                    }
-                  />
-                </div>
+          {/* AI FEEDBACK - Collapsible section */}
+          <section className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setAiFeedbackOpen(!aiFeedbackOpen)}
+              className="w-full flex items-center justify-between border-b border-border/30 pb-2 hover:bg-muted/20 rounded px-1 -mx-1 transition-colors"
+            >
+              <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground cursor-pointer">
+                <MessageSquareDiff className="w-4 h-4 text-muted-foreground" />{' '}
+                General Feedback
+              </Label>
+              {aiFeedbackOpen ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+            {aiFeedbackOpen && (
+              <div className="prose prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed px-1">
+                <MarkdownMath content={feedback.feedbackMarkdown} />
               </div>
             )}
           </section>
 
-          {/* AI FEEDBACK */}
-          <section className="space-y-4">
-            <div className="border-b border-border/30 pb-2">
-              <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
-                <MessageSquareDiff className="w-4 h-4 text-muted-foreground" />{' '}
-                General Feedback
-              </Label>
-            </div>
-            <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground leading-relaxed px-1">
-              <MarkdownMath content={feedback.feedbackMarkdown} />
-            </div>
-          </section>
-
-          {/* MARKING SCHEME (The Core Redesign) */}
-          <section className="space-y-4 pt-4 pb-4">
+          {/* MARKING SCHEME - Compact rubric rows */}
+          <section className="space-y-3 pt-3 border-t border-border/20">
             <div className="border-b border-border/30 pb-2">
               <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
                 <Check className="w-4 h-4 text-muted-foreground" /> Interactive
@@ -244,7 +257,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               </Label>
             </div>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {feedback.vcaaMarkingScheme.map((item, idx) => {
                 const isFullMarks = item.achievedMarks === item.maxMarks;
                 const criterionPct =
@@ -254,7 +267,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                 return (
                   <div
                     key={idx}
-                    className={`group relative flex flex-col xl:flex-row gap-4 xl:gap-6 p-4 xl:p-5 rounded-xl border transition-all duration-200 ${
+                    className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors ${
                       isFullMarks
                         ? 'bg-emerald-500/5 border-emerald-500/30'
                         : isPartial
@@ -262,14 +275,14 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                           : 'bg-muted/10 border-border/40 hover:border-border/80'
                     }`}
                   >
-                    {/* Mark Stepper - Now more prominent with color feedback */}
-                    <div className="flex flex-row items-center gap-3 xl:w-28 shrink-0">
+                    {/* Mark Stepper */}
+                    <div className="flex items-center gap-2 w-24 shrink-0">
                       <div
-                        className={`flex items-center justify-center w-12 h-12 rounded-md font-mono font-bold text-lg ${isFullMarks ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isPartial ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}
+                        className={`flex items-center justify-center w-10 h-10 rounded-md font-mono font-bold text-base ${isFullMarks ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isPartial ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}
                       >
                         {item.achievedMarks}
                       </div>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-0.5">
                         <button
                           onClick={() =>
                             onCriterionChange?.(
@@ -305,19 +318,19 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                     </div>
 
                     {/* Criterion & Rationale */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-3">
-                      <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0 flex flex-col gap-2">
+                      <div className="flex items-start gap-2">
                         <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
                           {idx + 1}
                         </div>
-                        <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium">
+                        <div className="prose prose-base dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium">
                           <MarkdownMath content={item.criterion} />
                         </div>
                       </div>
 
                       {item.rationale && (
                         <div
-                          className={`ml-8 pl-3 border-l-2 ${isFullMarks ? 'border-emerald-500/40' : isPartial ? 'border-amber-500/40' : 'border-border/40'}`}
+                          className={`ml-7 pl-3 border-l-2 ${isFullMarks ? 'border-emerald-500/40' : isPartial ? 'border-amber-500/40' : 'border-border/40'}`}
                         >
                           <p className="text-xs text-muted-foreground italic">
                             <MarkdownMath content={item.rationale} />
@@ -326,7 +339,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                       )}
                     </div>
 
-                    {/* Visual indicator bar */}
+                    {/* Visual indicator bar - only on wide screens */}
                     <div className="hidden xl:block w-1.5 self-stretch rounded-full bg-muted/30 overflow-hidden">
                       <div
                         className={`w-full rounded-full transition-all duration-500 ${isFullMarks ? 'bg-emerald-500' : isPartial ? 'bg-amber-500' : 'bg-muted-foreground/30'}`}
@@ -340,11 +353,9 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
           </section>
         </div>
 
-        {/* ADJUSTMENTS & OVERRIDES 
-          Separated from the main flow, treated as a distinct utility footer
-        */}
-        <div className="bg-muted/20 border-t border-border/40 p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* ADJUSTMENTS & OVERRIDES */}
+        <div className="bg-muted/20 border-t border-border/40 p-4 sm:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             <div className="space-y-3">
               <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 Request Re-evaluation

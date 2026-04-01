@@ -13,10 +13,7 @@ export const MarkdownMath = memo(function MarkdownMath({
   const sanitized = useMemo(() => normalizeMathDelimiters(content), [content]);
   return (
     <MathJax dynamic>
-      <div
-        className="prose prose-sm dark:prose-invert max-w-none font-normal"
-        style={{ fontSize: 'inherit', fontFamily: 'Arial' }}
-      >
+      <div className="prose prose-base dark:prose-invert max-w-none font-normal">
         <ReactMarkdown>{sanitized}</ReactMarkdown>
       </div>
     </MathJax>

@@ -31,9 +31,9 @@ export function UnifiedQuestionPromptCard({
 }) {
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex items-center gap-x-4 gap-y-2 text-sm text-muted-foreground/70">
+      <div className="flex items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70">
         <div className="flex items-center gap-2">
-          <Info className="w-4 h-4" />
+          <Info className="w-3.5 h-3.5" />
           <span className="text-xs uppercase tracking-wide font-medium">
             Question
           </span>
@@ -54,8 +54,10 @@ export function UnifiedQuestionPromptCard({
         )}
         <div className="ml-auto">{rightSlot}</div>
       </div>
-      <div className="text-base leading-relaxed text-foreground/90">
-        <MarkdownMath content={promptMarkdown} />
+      <div className="bg-card/40 rounded-xl border border-border/20 p-5 sm:p-6">
+        <div className="text-lg leading-relaxed text-foreground">
+          <MarkdownMath content={promptMarkdown} />
+        </div>
       </div>
     </div>
   );
@@ -86,7 +88,7 @@ export function UnifiedMcqOptionsGrid({
   const isExamStyle = isAnswered && !revealCorrectness;
 
   return (
-    <div className={cn('grid grid-cols-2 gap-4', className)}>
+    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', className)}>
       {options.map((opt) => {
         const isChosen = selectedAnswer === opt.label;
         const isCorrect = opt.label === correctAnswer;
@@ -94,20 +96,20 @@ export function UnifiedMcqOptionsGrid({
         const disabled = lockSelection && (isAnswered || !onSelect);
 
         let containerClasses =
-          'p-4 rounded-lg border border-transparent hover:bg-muted/30 cursor-pointer transition-colors';
+          'p-4 sm:p-5 rounded-lg border border-transparent hover:bg-muted/30 hover:scale-[1.01] cursor-pointer transition-all duration-150';
 
         if (isAnswered) {
           if (revealCorrectness && isCorrect) {
             containerClasses =
-              'p-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 cursor-default';
+              'p-4 sm:p-5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 cursor-default';
           } else if (isChosen) {
             containerClasses = revealCorrectness
-              ? 'p-4 rounded-lg border border-rose-500/30 bg-rose-500/5 cursor-default'
-              : 'p-4 rounded-lg border border-violet-500/30 bg-violet-500/5 cursor-default';
+              ? 'p-4 sm:p-5 rounded-lg border border-rose-500/30 bg-rose-500/5 cursor-default'
+              : 'p-4 sm:p-5 rounded-lg border border-violet-500/30 bg-violet-500/5 ring-2 ring-violet-500/30 ring-offset-1 cursor-default';
           } else {
             containerClasses = isExamStyle
-              ? 'p-4 rounded-lg border border-transparent hover:bg-muted/30 cursor-pointer transition-colors'
-              : 'p-4 rounded-lg border border-transparent opacity-40 cursor-default';
+              ? 'p-4 sm:p-5 rounded-lg border border-transparent hover:bg-muted/30 hover:scale-[1.01] cursor-pointer transition-all duration-150'
+              : 'p-4 sm:p-5 rounded-lg border border-transparent opacity-40 cursor-default';
           }
         }
 
@@ -121,10 +123,11 @@ export function UnifiedMcqOptionsGrid({
               'w-full text-left flex items-start gap-3',
               containerClasses
             )}
+            aria-label={`Option ${opt.label}: ${opt.text.substring(0, 60)}${opt.text.length > 60 ? '...' : ''}`}
           >
             <div
               className={cn(
-                'w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs font-semibold',
+                'w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm font-semibold',
                 isAnswered
                   ? isChosen
                     ? revealCorrectness
@@ -147,7 +150,7 @@ export function UnifiedMcqOptionsGrid({
             >
               {opt.label}
             </div>
-            <div className="flex-1 text-base leading-snug">
+            <div className="flex-1 text-base leading-relaxed">
               <MarkdownMath content={opt.text} />
             </div>
           </button>
@@ -205,7 +208,7 @@ export function UnifiedWrittenResponseCard({
           onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-h-[160px] text-base p-4 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+          className="min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
         />
       )}
 
