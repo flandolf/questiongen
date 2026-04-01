@@ -64,7 +64,8 @@ export const PHYSICAL_EDUCATION_SUBTOPICS = [
   'Coaching Strategies: Tailoring Instruction to Learner Needs and Performance Requirements',
 
   // UNIT 3: Movement Skills and Energy - Biomechanics
-  'Linear and Angular Motion: Distance, Velocity, Force, and Torque in Movement',
+  'Linear Motion: Momentum, Displacement, Linear Velocity, Acceleration',
+  'Angular Motion: Angular Momentum, Moment of Inertia, Angular Velocity',
   'Momentum and Impulse: Conservation and Application in Physical Activities',
   "Newton's Laws of Motion: Inertia, Acceleration, and Action-Reaction in Sport",
   'Projectile Motion: Release Angle, Height, Speed, and Optimal Performance Trajectories',
@@ -140,38 +141,39 @@ export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] = [
     unit: 'Unit 3',
     aos: 'Biomechanics',
     label: 'Unit 3 — Biomechanics',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(9, 17),
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(9, 18),
   },
   {
     unit: 'Unit 3',
     aos: 'Energy Systems',
     label: 'Unit 3 — Energy Systems',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(17, 25),
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(18, 26),
   },
   {
     unit: 'Unit 4',
-    aos: 'Foundations of Training',
-    label: 'Unit 4 — Foundations of Training',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(25, 29),
+    aos: 'Foundations',
+    label: 'Unit 4 — Foundations',
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(26, 33),
   },
   {
     unit: 'Unit 4',
     aos: 'Training Principles and Methods',
     label: 'Unit 4 — Training Principles and Methods',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(29, 36),
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(33, 39),
   },
   {
     unit: 'Unit 4',
     aos: 'Adaptations and Monitoring',
     label: 'Unit 4 — Adaptations and Monitoring',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(36, 44),
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(39, 45),
   },
   {
     unit: 'Unit 4',
     aos: 'Integration and Application',
     label: 'Unit 4 — Integration and Application',
-    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(44, 53),
-  },
+    subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(45, 53),
+  }
+
 ] as const;
 
 export const CHEMISTRY_SUBTOPICS = [

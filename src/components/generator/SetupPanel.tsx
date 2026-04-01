@@ -974,7 +974,11 @@ function PresetSection({
   const [presetName, setPresetName] = useState('');
   const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState('');
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [editingPrefs, setEditingPrefs] =
+    useState<PersistedGeneratorPreferences | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const editPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (renamingPresetId && renameInputRef.current) {
@@ -982,6 +986,28 @@ function PresetSection({
       renameInputRef.current.select();
     }
   }, [renamingPresetId]);
+
+  const startEditingPreset = (preset: Preset) => {
+    setEditingPresetId(preset.id);
+    setEditingPrefs({ ...preset.preferences });
+  };
+
+  const cancelEditingPreset = () => {
+    setEditingPresetId(null);
+    setEditingPrefs(null);
+  };
+
+  const saveEditingPreset = (preset: Preset) => {
+    if (!editingPrefs) return;
+    const now = new Date().toISOString();
+    updatePreset({
+      ...preset,
+      preferences: editingPrefs,
+      updatedAt: now,
+    });
+    setEditingPresetId(null);
+    setEditingPrefs(null);
+  };
 
   const handleSaveRename = (preset: Preset) => {
     const trimmedName = renamingValue.trim();
@@ -1037,6 +1063,7 @@ function PresetSection({
   };
 
   const handleLoadPreset = (preset: Preset) => {
+    if (editingPresetId) return;
     const p = preset.preferences;
     setSelectedTopics([...p.selectedTopics]);
     setDifficulty(p.difficulty);
@@ -1079,6 +1106,13 @@ function PresetSection({
     updatePreset({ ...preset, preferences: prefs, updatedAt: now });
   };
 
+  const updateEditingPref = <K extends keyof PersistedGeneratorPreferences>(
+    key: K,
+    value: PersistedGeneratorPreferences[K]
+  ) => {
+    setEditingPrefs((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
+
   return (
     <div className="space-y-1">
       {/* Save new preset */}
@@ -1111,96 +1145,355 @@ function PresetSection({
         <div className="space-y-1">
           {presets.map((preset) => {
             const isRenaming = renamingPresetId === preset.id;
+            const isEditing = editingPresetId === preset.id;
             return (
               <div
                 key={preset.id}
                 className={[
-                  'group flex items-center justify-between rounded-md px-3 py-2 transition-colors',
+                  'rounded-md transition-all',
                   isRenaming
                     ? 'bg-accent/50 ring-1 ring-ring/20'
-                    : 'hover:bg-accent cursor-pointer',
+                    : isEditing
+                      ? 'bg-accent/30 ring-1 ring-primary/30'
+                      : 'hover:bg-accent',
                 ].join(' ')}
-                onClick={() => !isRenaming && handleLoadPreset(preset)}
               >
-                <div className="flex-1 mr-3 min-w-0">
-                  {isRenaming ? (
-                    <div
-                      className="flex items-center gap-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Input
-                        ref={renameInputRef}
-                        value={renamingValue}
-                        onChange={(e) => setRenamingValue(e.target.value)}
-                        onKeyDown={(e) => handleKeyDown(e, preset)}
-                        onBlur={() => handleSaveRename(preset)}
-                        className="h-7 py-0 px-2 text-sm focus-visible:ring-1"
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm font-medium leading-none">
-                        {preset.name}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        {preset.preferences.selectedTopics.join(', ')} ·{' '}
-                        {preset.preferences.questionMode === 'written'
-                          ? 'Written'
-                          : 'MC'}{' '}
-                        ·{' '}
-                        {DIFFICULTY_META[preset.preferences.difficulty]?.label}
-                        {preset.preferences.questionCount
-                          ? ` · ${preset.preferences.questionCount} Qs`
-                          : ''}
-                        {preset.preferences.techMode !== 'tech-free'
-                          ? ` · ${preset.preferences.techMode === 'mix' ? 'Mixed' : 'Tech-Active'} calculator`
-                          : ''}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {!isRenaming && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                <div
+                  className={[
+                    'flex items-center justify-between rounded-md px-3 py-2 transition-colors',
+                    isEditing ? '' : 'cursor-pointer',
+                  ].join(' ')}
+                  onClick={() =>
+                    !isRenaming && !isEditing && handleLoadPreset(preset)
+                  }
+                >
+                  <div className="flex-1 mr-3 min-w-0">
+                    {isRenaming ? (
+                      <div
+                        className="flex items-center gap-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenamingPresetId(preset.id);
-                          setRenamingValue(preset.name);
-                        }}
-                      >
-                        <Edit3 className="mr-2 h-4 w-4" /> Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleUpdatePreset(preset);
-                        }}
-                      >
-                        <Save className="mr-2 h-4 w-4" /> Update with current
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deletePreset(preset.id);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <Input
+                          ref={renameInputRef}
+                          value={renamingValue}
+                          onChange={(e) => setRenamingValue(e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, preset)}
+                          onBlur={() => handleSaveRename(preset)}
+                          className="h-7 py-0 px-2 text-sm focus-visible:ring-1"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm font-medium leading-none">
+                          {preset.name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          {preset.preferences.selectedTopics.join(', ')} ·{' '}
+                          {preset.preferences.questionMode === 'written'
+                            ? 'Written'
+                            : 'MC'}{' '}
+                          ·{' '}
+                          {
+                            DIFFICULTY_META[preset.preferences.difficulty]
+                              ?.label
+                          }
+                          {preset.preferences.questionCount
+                            ? ` · ${preset.preferences.questionCount} Qs`
+                            : ''}
+                          {preset.preferences.techMode !== 'tech-free'
+                            ? ` · ${preset.preferences.techMode === 'mix' ? 'Mixed' : 'Tech-Active'} calculator`
+                            : ''}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {!isRenaming && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditingPreset(preset);
+                          }}
+                        >
+                          <Edit3 className="mr-2 h-4 w-4" /> Edit preferences
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingPresetId(preset.id);
+                            setRenamingValue(preset.name);
+                          }}
+                        >
+                          <Edit3 className="mr-2 h-4 w-4" /> Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUpdatePreset(preset);
+                          }}
+                        >
+                          <Save className="mr-2 h-4 w-4" /> Update with current
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePreset(preset.id);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+
+                {/* Inline editor panel */}
+                {isEditing && editingPrefs && (
+                  <div
+                    ref={editPanelRef}
+                    className="px-3 pb-3 pt-1 border-t border-border/50"
+                  >
+                    <div className="space-y-3">
+                      {/* Question mode */}
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                          Mode
+                        </Label>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateEditingPref('questionMode', 'written')
+                            }
+                            className={cn(
+                              'text-xs px-2 py-1 rounded border transition-colors',
+                              editingPrefs.questionMode === 'written'
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary/40'
+                            )}
+                          >
+                            Written
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateEditingPref(
+                                'questionMode',
+                                'multiple-choice'
+                              )
+                            }
+                            className={cn(
+                              'text-xs px-2 py-1 rounded border transition-colors',
+                              editingPrefs.questionMode === 'multiple-choice'
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary/40'
+                            )}
+                          >
+                            MC
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Difficulty */}
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                          Difficulty
+                        </Label>
+                        <div className="flex flex-wrap gap-1">
+                          {(Object.keys(DIFFICULTY_META) as Difficulty[]).map(
+                            (level) => (
+                              <button
+                                key={level}
+                                type="button"
+                                onClick={() =>
+                                  updateEditingPref('difficulty', level)
+                                }
+                                className={cn(
+                                  'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                                  editingPrefs.difficulty === level
+                                    ? `${DIFFICULTY_META[level].bg} ${DIFFICULTY_META[level].color} border-current`
+                                    : 'border-border text-muted-foreground hover:border-primary/40'
+                                )}
+                              >
+                                {DIFFICULTY_META[level].label}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Question count */}
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                          Questions
+                        </Label>
+                        <div className="flex items-center gap-2 flex-1">
+                          <Slider
+                            min={1}
+                            max={20}
+                            step={1}
+                            value={[editingPrefs.questionCount]}
+                            onValueChange={(val) =>
+                              updateEditingPref('questionCount', val[0])
+                            }
+                            className="flex-1 py-1"
+                          />
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] tabular-nums shrink-0"
+                          >
+                            {editingPrefs.questionCount}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Tech mode (for math topics) */}
+                      {editingPrefs.selectedTopics.some(
+                        (t) =>
+                          t === 'Mathematical Methods' ||
+                          t === 'Specialist Mathematics'
+                      ) && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                            Calculator
+                          </Label>
+                          <div className="flex gap-1">
+                            {(
+                              [
+                                {
+                                  value: 'tech-free' as TechMode,
+                                  label: 'Tech-Free',
+                                },
+                                { value: 'mix' as TechMode, label: 'Mixed' },
+                                {
+                                  value: 'tech-active' as TechMode,
+                                  label: 'Tech-Active',
+                                },
+                              ] as const
+                            ).map(({ value, label }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() =>
+                                  updateEditingPref('techMode', value)
+                                }
+                                className={cn(
+                                  'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                                  editingPrefs.techMode === value
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'border-border text-muted-foreground hover:border-primary/40'
+                                )}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Avg marks (for written mode) */}
+                      {editingPrefs.questionMode === 'written' && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                            Avg marks
+                          </Label>
+                          <div className="flex items-center gap-2 flex-1">
+                            <Slider
+                              min={1}
+                              max={15}
+                              step={1}
+                              value={[
+                                editingPrefs.averageMarksPerQuestion ?? 5,
+                              ]}
+                              onValueChange={(val) =>
+                                updateEditingPref(
+                                  'averageMarksPerQuestion',
+                                  val[0]
+                                )
+                              }
+                              className="flex-1 py-1"
+                            />
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] tabular-nums shrink-0"
+                            >
+                              {editingPrefs.averageMarksPerQuestion ?? 5}
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Generation mode */}
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                          Type
+                        </Label>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateEditingPref('generationMode', 'practice')
+                            }
+                            className={cn(
+                              'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                              (editingPrefs.generationMode ?? 'practice') ===
+                                'practice'
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary/40'
+                            )}
+                          >
+                            Practice
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateEditingPref('generationMode', 'exam')
+                            }
+                            className={cn(
+                              'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                              editingPrefs.generationMode === 'exam'
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary/40'
+                            )}
+                          >
+                            Exam
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={cancelEditingPreset}
+                          className="h-7 px-3 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => saveEditingPreset(preset)}
+                          className="h-7 px-3 text-xs"
+                        >
+                          <Save className="w-3 h-3 mr-1" /> Save
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             );
