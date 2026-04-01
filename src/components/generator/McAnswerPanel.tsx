@@ -106,7 +106,10 @@ export const McAnswerPanel = memo(function McAnswerPanel({
                     ? 'Correct!'
                     : `Incorrect — the answer is ${correctAnswer}.`}
                 </p>
-                <div className="prose prose-base dark:prose-invert max-w-none opacity-90 text-sm">
+                <div
+                  className="prose dark:prose-invert max-w-none opacity-90"
+                  style={{ fontSize: 'var(--response-text-size)' }}
+                >
                   <MarkdownMath content={explanationMarkdown} />
                 </div>
               </div>

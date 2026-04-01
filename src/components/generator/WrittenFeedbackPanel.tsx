@@ -22,8 +22,6 @@ import { UnifiedQuestionPromptCard } from '@/components/question/UnifiedQuestion
 type WrittenFeedbackPanelProps = {
   questionId: string;
   promptMarkdown: string;
-  topic: string;
-  subtopic?: string;
   answer: string;
   image: StudentAnswerImage | undefined;
   feedback: MarkAnswerResponse;
@@ -97,8 +95,6 @@ function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
 
 export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   promptMarkdown,
-  topic,
-  subtopic,
   answer,
   image,
   feedback,
@@ -124,7 +120,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
     <Card className="shadow-sm border-border/40 overflow-hidden bg-background">
       {/* HEADER BANNER - Sticky for persistent score context */}
       <div
-        className={`sticky top-0 z-10 bg-card/95 backdrop-blur-sm flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-4 border-b border-border/40`}
+        className={`sticky top-0 z-10 flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-4 border-b border-border/40`}
       >
         <ScoreRing achieved={feedback.achievedMarks} max={feedback.maxMarks} />
         <div className="flex-1 min-w-0 space-y-1">
@@ -167,28 +163,12 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
       <CardContent className="p-0">
         <div className="px-4 sm:px-6 py-5 space-y-7">
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              <span className="inline-flex items-center rounded-sm border border-border/50 bg-muted/30 px-2 py-1">
-                Original Question
-              </span>
-              <span className="inline-flex items-center rounded-sm border border-border/40 px-2 py-1 text-foreground/80">
-                {topic}
-              </span>
-              {subtopic && (
-                <span className="inline-flex items-center rounded-sm border border-border/30 px-2 py-1">
-                  {subtopic}
-                </span>
-              )}
-            </div>
-            <UnifiedQuestionPromptCard promptMarkdown={promptMarkdown} />
-          </section>
-
+          <UnifiedQuestionPromptCard promptMarkdown={promptMarkdown} />
           {/* SUBMISSION & EXEMPLAR - Side-by-side on wide screens */}
           <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-border/30 pb-2">
               <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground">
-                <BookOpen className="w-4 h-4 text-muted-foreground" /> Student
+                <BookOpen className="w-4 h-4 text-muted-foreground" />
                 Submission
               </Label>
               <Button
@@ -206,10 +186,13 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="min-w-0">
                 {answer.trim().length > 0 ? (
-                  <div className="prose prose-base dark:prose-invert max-w-none bg-muted/25 p-4 sm:p-5 rounded-md text-foreground/90 leading-relaxed font-medium border border-border/40">
+                  <div
+                    className="prose dark:prose-invert max-w-none bg-muted/25 p-4 sm:p-5 rounded-md text-foreground/90 leading-relaxed font-medium border border-border/40"
+                    style={{ fontSize: 'var(--response-text-size)' }}
+                  >
                     <MarkdownMath content={answer} />
                   </div>
                 ) : (
@@ -231,7 +214,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
               {showExemplar && (
                 <div className="min-w-0 animate-in slide-in-from-top-2 fade-in duration-300">
-                  <div className="prose prose-base dark:prose-invert max-w-none bg-amber-500/5 p-4 sm:p-5 rounded-md text-foreground/90 border border-amber-500/30">
+                  <div
+                    className="prose dark:prose-invert max-w-none bg-amber-500/5 p-4 sm:p-5 rounded-md text-foreground/90 border border-amber-500/30"
+                    style={{ fontSize: 'var(--response-text-size)' }}
+                  >
                     <Label className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-amber-600 dark:text-amber-500 mb-3">
                       <Sparkles className="w-3.5 h-3.5" /> Ideal Solution
                     </Label>
@@ -253,7 +239,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
             <button
               type="button"
               onClick={() => setAiFeedbackOpen(!aiFeedbackOpen)}
-              className="w-full flex items-center justify-between border-b border-border/30 pb-2 hover:bg-muted/20 rounded px-1 -mx-1 transition-colors"
+              className="w-full flex items-center justify-between border-b border-border/30 pb-2 rounded px-1 mx-1"
             >
               <Label className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground cursor-pointer">
                 <MessageSquareDiff className="w-4 h-4 text-muted-foreground" />{' '}
@@ -266,7 +252,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               )}
             </button>
             {aiFeedbackOpen && (
-              <div className="prose prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed px-1">
+              <div
+                className="prose dark:prose-invert max-w-none text-muted-foreground leading-relaxed px-1"
+                style={{ fontSize: 'var(--response-text-size)' }}
+              >
                 <MarkdownMath content={feedback.feedbackMarkdown} />
               </div>
             )}
@@ -347,7 +336,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                         <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
                           {idx + 1}
                         </div>
-                        <div className="prose prose-base dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium">
+                        <div
+                          className="prose dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium"
+                          style={{ fontSize: 'var(--response-text-size)' }}
+                        >
                           <MarkdownMath content={item.criterion} />
                         </div>
                       </div>
@@ -378,7 +370,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
         </div>
 
         {/* ADJUSTMENTS & OVERRIDES */}
-        <div className="bg-muted/20 border-t border-border/40 p-4 sm:p-6">
+        <div className="border-t border-border/40 p-4 sm:p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             <div className="space-y-3">
               <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
