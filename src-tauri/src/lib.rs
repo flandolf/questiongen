@@ -194,177 +194,83 @@ fn marking_format() -> serde_json::Value {
 //       exactly what fields to emit even before it sees the response_format.
 //       This is more reliable than relying on response_format alone.
 
+fn generation_compliance_contract() -> &'static str {
+    "HIGH-PRIORITY CONTRACT (obey in this order):\n\
+         1) Study Design authority: only generate assessable content explicitly covered by the\n\
+                provided key knowledge/focus constraints. If unsure, exclude it.\n\
+         2) Focus lock authority: selected subtopics/custom focus override all style references.\n\
+         3) PDF authority: exam/report PDFs are style+marking references only, never a content source.\n\
+         4) Originality: do not copy or paraphrase scenarios, wording, numbers, or structures from PDFs.\n\
+         5) Output hygiene: return valid JSON only, no markdown fences, no commentary, no extra keys."
+}
+
+fn topic_field_contract() -> &'static str {
+    "FIELD CONTRACT:\n\
+         - topic: MUST be exactly one user-selected subject (for example, Mathematical Methods).\n\
+         - subtopic: MUST be exactly one selected focus area within that subject (or null when unavailable).\n\
+         - Never place a subtopic value in the topic field."
+}
+
 fn written_system() -> String {
     format!(
-        "You are an expert VCE exam writer. Produce exam-style written-response questions with \
-         LaTeX where needed.\n\
-         CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
-         provided in the user prompt. Only test concepts that are explicitly listed in that key \
-         knowledge. Do not introduce content that is not in the Study Design.\n\
-         PDF REFERENCE RULE: If a PDF exam paper is attached, it is provided SOLELY as a \
-         formatting and style reference — question wording patterns, command verbs, and layout. \
-         You MUST NOT: use it to select topics, copy its questions, draw content from it, or \
-         interpret it as an expansion of the permitted scope. The selected subtopics and focus \
-         areas in the user prompt are the ONLY authority on what content to test. If the PDF \
-         contains topics outside the selected focus areas, IGNORE that content entirely.\n\
-         EXAMINERS' REPORT RULE: If VCAA examiners' report PDFs are attached, use them to \
-         understand common student errors, frequently tested subtopics, and mark allocation \
-         patterns. Do NOT copy questions from reports. Use report insights to inform question \
-         difficulty, common misconception targeting, and realistic mark distributions.\n\
-         {LATEX_RULES}\n\
-         {QUESTION_STYLE_RULES}\n\n\
-         MARK ALLOCATION RULE (HARD CONSTRAINT):\n\
-          - The user specifies a target average mark value per question.\n\
-          - The arithmetic mean of all \"maxMarks\" values MUST equal the target (round to nearest integer if needed).\n\
-          - If the target average is N and there are Q questions, the total marks across all questions must equal N × Q.\n\
-          - Vary individual question marks around the target (±1–2 marks) to reflect command-term demand, but the overall average must hit the target.\n\
-          - Example: target 6 marks, 5 questions → total 30 marks → e.g. [4, 5, 6, 7, 8] or [6, 6, 6, 6, 6].\n\n\
-         QUESTION COMPLEXITY MUST MATCH maxMarks (CRITICAL CONSTRAINT):\n\
-          - The question content — number of parts, depth of reasoning, and length — MUST be proportional to maxMarks. Do NOT write a 10-mark question when maxMarks is 3.\n\
-          - 1–2 marks: single direct question, one-step answer. No sub-parts labelled (a), (b), etc. unless each sub-part is worth 1 mark and there are exactly 2.\n\
-          - 3–4 marks: at most 2 sub-parts. Brief working or short explanation expected.\n\
-          - 5–6 marks: 2–3 sub-parts. Moderate working, one part may require multi-step reasoning.\n\
-          - 7–8 marks: 3–4 sub-parts. Multi-step reasoning, may combine two concepts.\n\
-          - 9–10 marks: 4–5 sub-parts. Extended response, synthesis of multiple ideas.\n\
-          - 11+ marks: complex multi-part question with substantial working.\n\
-          - BEFORE outputting, verify: count the total number of marks that a student could reasonably earn from your question parts. That count MUST equal maxMarks. If it exceeds maxMarks, remove or combine parts until it matches.\n\n\
-         OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
-         {{\n\
-           \"questions\": [\n\
-             {{\n\
-               \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
-               \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
-               \"promptMarkdown\": string,\n\
-               \"maxMarks\": integer (1–30),\n\
-               \"techAllowed\": boolean\n\
-             }}\n\
-           ]\n\
-         }}\n\
-         CRITICAL DISTINCTION: The \"topic\" field is the SUBJECT (e.g. \"Mathematical Methods\", \"Specialist Mathematics\", \"Chemistry\", \"Physical Education\"). \
-         The \"subtopic\" field is the focus area within that subject (e.g. \"Functions and Graphs\", \"Differentiation\", \"Complex numbers\"). \
-         Do NOT put the subtopic value into the topic field.\n\
-         ADDITIONAL EXAM ALIGNMENT:\n\
-         - For Mathematical Methods: Questions should include graphing on provided axes, solving equations, \
-         differentiation/integration with proper notation, probability distributions with tables/graphs.\n\
-         - For Specialist Mathematics: Include vectors, complex numbers, kinematics with diagrams, \
-         proofs using induction, differential equations.\n\
-         - Structure multi-part questions like VCAA exams: stem followed by (a), (b), etc., with mark allocations.\n\
-         - Require exact answers unless specified, show working for multi-mark questions.\n\
-         - Match difficulty to VCAA levels: Essential Skills (direct), Easy (method choice), Medium (multi-concept), \
-         Hard (non-routine), Extreme (multi-part proofs).\n\
-         - For tech-free: no calculators; for tech-active: allow CAS/software but questions still require method.\n\n\
-         Examples of high-quality VCAA written-response questions:\n\
-         {{\n\
-           \"questions\": [\n\
-             {{\n\
-               \"topic\": \"Mathematical Methods\",\n\
-               \"subtopic\": \"Functions and Graphs\",\n\
-               \"promptMarkdown\": \"Let $f(x) = \\\\cos(2x + 1)$.\n(a) State the range of f. [1 mark]\n\n(b) Sketch the graph of y = f(x) for x ∈ [0, π]. Label the endpoints. [2 marks]\",\n\
-               \"maxMarks\": 3,\n\
-               \"techAllowed\": false\n\
-             }},\n\
-             {{\n\
-               \"topic\": \"Mathematical Methods\",\n\
-               \"subtopic\": \"Probability and Statistics\",\n\
-               \"promptMarkdown\": \"A random variable X has the probability distribution shown in the table below.\n\nx | 1 | 2 | 3\nPr(X = x) | 0.2 | k | 0.5\n\n(a) Show that k = 0.3. [2 marks]\n\n(b) Find E(X). [1 mark]\",\n\
-               \"maxMarks\": 3,\n\
-               \"techAllowed\": false\n\
-             }},\n\
-             {{\n\
-               \"topic\": \"Specialist Mathematics\",\n\
-               \"subtopic\": \"Complex numbers\",\n\
-               \"promptMarkdown\": \"Solve $z^2 + 4z + 5 = 0$ for z ∈ C.\",\n\
-               \"maxMarks\": 2,\n\
-               \"techAllowed\": false\n\
-             }}\n\
-           ]\n\
-         }}\n\
-         No markdown fences, no extra keys, no commentary outside JSON."
+                "You are an expert VCE exam writer for written-response questions.\n\
+                 {contract}\n\
+                 {LATEX_RULES}\n\
+                 {QUESTION_STYLE_RULES}\n\n\
+                 HARD CONSTRAINTS:\n\
+                 - Question complexity must match maxMarks (parts, reasoning depth, and expected response length).\n\
+                 - Before finalizing, verify each question's internal part marks sum exactly to maxMarks.\n\
+                 - Keep questions original and non-redundant across the batch.\n\n\
+                 {field_contract}\n\
+                 OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
+                 {{\n\
+                     \"questions\": [\n\
+                         {{\n\
+                             \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
+                             \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
+                             \"promptMarkdown\": string,\n\
+                             \"maxMarks\": integer (1–30),\n\
+                             \"techAllowed\": boolean\n\
+                         }}\n\
+                     ]\n\
+                 }}\n\
+                 No markdown fences, no extra keys, no commentary outside JSON.",
+                contract = generation_compliance_contract(),
+                field_contract = topic_field_contract(),
     )
 }
 
 fn mc_system() -> String {
     format!(
-        "You are an expert VCE exam writer. Create challenging multiple-choice questions. \
-         Provide only final answers — no chain-of-thought in explanations.\n\
-         CRITICAL: Every question must be grounded strictly in the VCE Study Design key knowledge \
-         provided in the user prompt. Only test concepts that are explicitly listed in that key \
-         knowledge. Do not introduce content that is not in the Study Design.\n\
-         PDF REFERENCE RULE: If a PDF exam paper is attached, it is provided SOLELY as a \
-         formatting and style reference — question wording patterns, command verbs, and layout. \
-         You MUST NOT: use it to select topics, copy its questions, draw content from it, or \
-         interpret it as an expansion of the permitted scope. The selected subtopics and focus \
-         areas in the user prompt are the ONLY authority on what content to test. If the PDF \
-         contains topics outside the selected focus areas, IGNORE that content entirely.\n\
-         EXAMINERS' REPORT RULE: If VCAA examiners' report PDFs are attached, use them to \
-         understand common student errors, frequently tested subtopics, and mark allocation \
-         patterns. Do NOT copy questions from reports. Use report insights to inform question \
-         difficulty, common misconception targeting for distractors, and realistic mark \
-         distributions.\n\
-         {LATEX_RULES}\n\
-         {MC_DISTRACTOR_RULES}\n\n\
-         OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
-         {{\n\
-           \"questions\": [\n\
-             {{\n\
-               \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
-               \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
-               \"promptMarkdown\": string,\n\
-               \"options\": [\n\
-                 {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
-               ],\n\
-               \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-                               \"explanationMarkdown\": string (≤180 words — name the misconception each wrong option targets),\n\
-               \"techAllowed\": boolean\n\
-             }}\n\
-           ]\n\
-         }}\n\
-         CRITICAL DISTINCTION: The \"topic\" field is the SUBJECT (e.g. \"Mathematical Methods\", \"Specialist Mathematics\", \"Chemistry\", \"Physical Education\"). \
-         The \"subtopic\" field is the focus area within that subject (e.g. \"Functions and Graphs\", \"Differentiation\", \"Complex numbers\"). \
-         Do NOT put the subtopic value into the topic field.\n\
-         STRICT RULE FOR PROMPT MARKDOWN:\n\
-         The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
-         including the answer options (A, B, C, D) inside the \"promptMarkdown\" string, as these \
-         are handled by the \"options\" array in the JSON schema.\n\n\
-         ADDITIONAL EXAM ALIGNMENT:\n\
-         - For Mathematical Methods Exam 2: Questions are multiple-choice with 4 options, often involving calculations, graphs, or interpretations. Distractors are common mistakes.\n\
-         - For Specialist Mathematics Exam 2: Similar, but with more complex topics like vectors, complex numbers, kinematics.\n\
-         - Options should be presented clearly with LaTeX for math. Explanation should name misconceptions without chain-of-thought.\n\
-         - Match VCAA difficulty: questions test understanding, not just recall.\n\n\
-         Examples of high-quality VCAA multiple-choice questions:\n\
-         {{\n\
-           \"questions\": [\n\
-             {{\n\
-               \"topic\": \"Mathematical Methods\",\n\
-               \"subtopic\": \"Functions and Graphs\",\n\
-               \"promptMarkdown\": \"The graph of $y = f(x)$ is shown below. Which of the following could be the graph of $y = f'(x)$?\",\n\
-               \"options\": [\n\
-                 {{\"label\": \"A\", \"text\": \"Option A description\"}},\n\
-                 {{\"label\": \"B\", \"text\": \"Option B description\"}},\n\
-                 {{\"label\": \"C\", \"text\": \"Option C description\"}},\n\
-                 {{\"label\": \"D\", \"text\": \"Option D description\"}}\n\
-               ],\n\
-               \"correctAnswer\": \"C\",\n\
-               \"explanationMarkdown\": \"C is correct as it shows the derivative graph. A is wrong due to incorrect slope interpretation, B misses inflection, D has wrong maxima.\",\n\
-               \"techAllowed\": true\n\
-             }},\n\
-             {{\n\
-               \"topic\": \"Specialist Mathematics\",\n\
-               \"subtopic\": \"Complex numbers\",\n\
-               \"promptMarkdown\": \"If $z = 2 + 3i$, then the conjugate $\\\\overline{{z}}$ is equal to:\",\n\
-               \"options\": [\n\
-                 {{\"label\": \"A\", \"text\": \"$2 - 3i$\"}},\n\
-                 {{\"label\": \"B\", \"text\": \"$-2 + 3i$\"}},\n\
-                 {{\"label\": \"C\", \"text\": \"$2 + 3i$\"}},\n\
-                 {{\"label\": \"D\", \"text\": \"$-2 - 3i$\"}}\n\
-               ],\n\
-               \"correctAnswer\": \"A\",\n\
-               \"explanationMarkdown\": \"A is correct. The conjugate negates the imaginary part. B negates the real part, C is unchanged, D negates both.\",\n\
-               \"techAllowed\": true\n\
-             }}\n\
-           ]\n\
-         }}\n\
-         No markdown fences, no extra keys, no commentary outside JSON."
+                "You are an expert VCE exam writer for multiple-choice questions.\n\
+                 Provide only final answers and concise rationale, never chain-of-thought.\n\
+                 {contract}\n\
+                 {LATEX_RULES}\n\
+                 {MC_DISTRACTOR_RULES}\n\n\
+                 {field_contract}\n\
+                 OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
+                 {{\n\
+                     \"questions\": [\n\
+                         {{\n\
+                             \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
+                             \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
+                             \"promptMarkdown\": string,\n\
+                             \"options\": [\n\
+                                 {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
+                             ],\n\
+                             \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
+                             \"explanationMarkdown\": string (≤180 words — name the misconception each wrong option targets),\n\
+                             \"techAllowed\": boolean\n\
+                         }}\n\
+                     ]\n\
+                 }}\n\
+                 STRICT RULE FOR PROMPT MARKDOWN:\n\
+                 The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
+                 including the answer options (A, B, C, D) inside the \"promptMarkdown\" string, as these \
+                 are handled by the \"options\" array in the JSON schema.\n\n\
+                 No markdown fences, no extra keys, no commentary outside JSON.",
+                contract = generation_compliance_contract(),
+                field_contract = topic_field_contract(),
     )
 }
 
@@ -467,7 +373,7 @@ for correct: why it is right)\n\
 
 // ─── Shared prompt-note builders ──────────────────────────────────────────────
 
-fn topic_notes(topics: &[String], selected_subs: Option<&Vec<String>>) -> String {
+fn topic_notes(topics: &[String], _selected_subs: Option<&Vec<String>>) -> String {
     let mut s = String::new();
     if topics
         .iter()
@@ -476,11 +382,9 @@ fn topic_notes(topics: &[String], selected_subs: Option<&Vec<String>>) -> String
         s.push('\n');
         s.push_str(MATHEMATICAL_METHODS_GUIDANCE);
     }
-    let no_focus_areas = selected_subs.map_or(true, |subs| subs.is_empty());
     if topics
         .iter()
         .any(|t| t.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC))
-        && no_focus_areas
     {
         s.push('\n');
         s.push_str(PHYSICAL_EDUCATION_GUIDANCE);
@@ -922,13 +826,10 @@ async fn generate_questions(
     }
 
     let exam_context_preamble = if include_exam_context {
-        "\n\n⚠ EXAM PDF ATTACHED — READ THIS FIRST:\n\
-         The PDF(s) below are style references ONLY. Extract: question layout, command-verb \
-         phrasing, and formatting conventions.\n\
-         You MUST NOT extract: topic choices, specific question content, or any concept not \
-         already listed in the focus constraints above.\n\
-         After reading the PDF, re-read the focus constraints above and confirm every question \
-         you generate maps exclusively to those constraints."
+        "\n\nEXAM PDF CONTEXT:\n\
+         - Use attached PDFs for wording/layout style only.\n\
+         - Do not source topics, facts, numbers, or scenarios from PDFs.\n\
+         - Apply focus constraints and Study Design limits before final output."
     } else {
         ""
     };
@@ -949,12 +850,7 @@ async fn generate_questions(
          Quality: distinct concepts/contexts/methods per question — no two questions should \
  test the same skill in the same way. No worked solutions in prompts.\
          {sim_note}\n\n\
-         STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
- key knowledge above. Do not introduce content outside the Study Design.\n\
-         Topic: you MUST set the \"topic\" field to exactly one of the user-selected topics listed above. Do NOT invent new topics.\n\
-         Subtopic: you MUST set the \"subtopic\" field to exactly one of the user-selected \
- focus areas listed above. Do NOT invent new subtopics. If the question spans multiple \
- subtopics, pick the primary one it tests.\n\
+         Topic/subtopic fields must follow the system field contract above.\n\
          {focus_lock}{exam_context_preamble}\n\
          Output exactly {count} questions.",
         count                 = request.question_count,
@@ -1206,13 +1102,10 @@ async fn generate_mc_questions(
     }
 
     let exam_context_preamble = if include_exam_context {
-        "\n\n⚠ EXAM PDF ATTACHED — READ THIS FIRST:\n\
-         The PDF(s) below are style references ONLY. Extract: question layout, command-verb \
-         phrasing, and formatting conventions.\n\
-         You MUST NOT extract: topic choices, specific question content, or any concept not \
-         already listed in the focus constraints above.\n\
-         After reading the PDF, re-read the focus constraints above and confirm every question \
-         you generate maps exclusively to those constraints."
+        "\n\nEXAM PDF CONTEXT:\n\
+         - Use attached PDFs for wording/layout style only.\n\
+         - Do not source topics, facts, numbers, or scenarios from PDFs.\n\
+         - Apply focus constraints and Study Design limits before final output."
     } else {
         ""
     };
@@ -1227,12 +1120,7 @@ async fn generate_mc_questions(
          Explanation: ≤180 words — state the correct answer's reasoning and name the \
  misconception each wrong option targets. No chain-of-thought, no self-talk.\
          {sim_note}\n\n\
-         STUDY DESIGN COMPLIANCE: Every question must test only concepts explicitly listed in the \
- key knowledge above. Do not introduce content outside the Study Design.\
-         Topic: you MUST set the \"topic\" field to one of the user-selected topics above. Do NOT invent new topics.\
-         Subtopic: you MUST set the \"subtopic\" field to exactly one of the user-selected \
- focus areas listed above. Do NOT invent new subtopics. If the question spans multiple \
- subtopics, pick the primary one it tests.\
+         Topic/subtopic fields must follow the system field contract above.\
          {focus_lock}{exam_context_preamble}\
          Output exactly {count} questions.",
         count                 = request.question_count,
