@@ -491,7 +491,7 @@ fn subtopic_to_subject() -> &'static std::collections::HashMap<&'static str, &'s
             "ionic chemistry: ionic bonding, precipitation reactions, and solubility tables",
             "chemical quantities: moles, molar mass, percentage composition, and empirical/molecular formulas",
             "separation techniques: chromatography and rf value identification",
-            "organic classification: alkanes, alkenes, alcohols, carboxylic acids, haloalkanes, and iupac naming",
+            "organic classification: alkanes, alkenes, alcohols, carboxylic acids, and iupac naming",
             "polymer chemistry: addition and condensation polymerisation, plastics, and recycling",
             "sustainability: green chemistry, circular economy, and sustainable development",
             "water chemistry: hydrogen bonding and unique physical properties of water",
@@ -503,16 +503,43 @@ fn subtopic_to_subject() -> &'static std::collections::HashMap<&'static str, &'s
             "analytical techniques: electrical conductivity, stoichiometry, and colorimetry/uv-vis spectroscopy",
         ];
         let pe_subs = [
-            "skill acquisition: classification, stages of learning, and practice scheduling",
-            "coaching and feedback: theories of acquisition and psychological strategies",
-            "biomechanics: forces, momentum, impulse, newton's laws, projectile motion, and levers",
-            "movement analysis: qualitative analysis and equilibrium in sport",
-            "energy system interplay: atp-cp, anaerobic glycolysis, and aerobic systems",
-            "cardiorespiratory dynamics: oxygen uptake, epoc, and vo2 max/lip",
-            "physiological responses: acute responses and fatigue mechanisms",
-            "recovery and nutrition: hydration and nutritional strategies for homeostasis",
-            "training foundation: activity analysis, fitness components, and testing",
-            "program design: training principles, methods, and chronic adaptations",
+            "movement skill classification: fundamental, sport-specific, open/closed, gross/fine",
+            "discrete, serial, and continuous motor skills: temporal characteristics",
+            "stages of learning: cognitive, associative, and autonomous stages",
+            "skill acquisition theories: linear vs. non-linear learning models",
+            "learning approaches: direct instruction vs. constraint-based methods",
+            "practice scheduling: type (whole/part), distribution (massed/distributed), and variability (blocked/random)",
+            "feedback in skill acquisition: intrinsic, augmented, and timing optimization",
+            "psychological factors in learning: confidence, motivation, arousal, and concentration",
+            "coaching strategies: tailoring instruction to learner needs and performance requirements",
+            "linear motion: momentum, displacement, linear velocity, acceleration",
+            "angular motion: angular momentum, moment of inertia, angular velocity",
+            "momentum and impulse: conservation and application in physical activities",
+            "newton's laws of motion: inertia, acceleration, and action-reaction in sport",
+            "projectile motion: release angle, height, speed, and optimal performance trajectories",
+            "center of gravity, base of support, and equilibrium: balance and stability principles",
+            "third class lever systems: mechanical advantage and force application",
+            "qualitative movement analysis: systematic observation, evaluation, and error correction",
+            "video analysis and biomechanical assessment: tools for movement improvement",
+            "atp-cp system: high-intensity energy supply and recovery characteristics",
+            "anaerobic glycolysis: glucose breakdown, lactate production, and duration capacity",
+            "aerobic system: oxidative phosphorylation and sustained energy production",
+            "energy system interplay: atp-cp to anaerobic to aerobic transition by intensity and duration",
+            "oxygen uptake: oxygen deficit, steady state, and epoc recovery",
+            "vo2 max and lactate inflection point: aerobic capacity and anaerobic threshold",
+            "fatigue mechanisms: metabolic, muscular, thermoregulatory, and central fatigue",
+            "nutrition and hydration strategies: fueling performance and enhancing recovery",
+            "activity analysis: identifying skill frequencies, movement patterns, and physiological demands",
+            "fitness assessment: testing aerobic, anaerobic, strength, endurance, flexibility, speed, and agility",
+            "test reliability, validity, and accuracy: standardized protocols and error minimization",
+            "pre-participation screening and informed consent",
+            "training principles: frequency, intensity, time/duration, type, and progression",
+            "training adaptation: specificity, individuality, variety, and diminishing returns",
+            "periodization and planning: macrocycles, mesocycles, microcycles, tapering, and detraining",
+            "continuous and interval training: steady-intensity vs. high-intensity work-rest intervals",
+            "specialized training methods: fartlek, circuit, weight/resistance, flexibility, and plyometric training",
+            "training components: warm-up, conditioning phase, and cool-down structure",
+            "overtraining syndrome: prevention, recognition, and management",
         ];
 
         let mut m = HashMap::new();
@@ -522,6 +549,235 @@ fn subtopic_to_subject() -> &'static std::collections::HashMap<&'static str, &'s
         for s in pe_subs { if kk.contains_key(s) { m.insert(s, "Physical Education"); } }
         m
     })
+}
+
+/// All canonical subtopic names (lowercased) across all topics.
+/// Used for fuzzy matching LLM-generated subtopic values.
+fn all_canonical_subtopics() -> &'static [&'static str] {
+    use std::sync::OnceLock;
+    static SUBS: OnceLock<Vec<&'static str>> = OnceLock::new();
+    SUBS.get_or_init(|| {
+        let kk = crate::constants::subtopic_key_knowledge();
+        let mut subs = Vec::new();
+
+        // Mathematical Methods
+        subs.extend([
+            "functions and graphs",
+            "transformation of graphs",
+            "algebra and structure",
+            "trigonometric functions",
+            "exponential and logarithmic functions",
+            "differentiation",
+            "integration",
+            "probability and statistics",
+            "discrete random variables",
+            "continuous random variables",
+        ]);
+
+        // Specialist Mathematics
+        subs.extend([
+            "additional algebra and number systems",
+            "sequences and series",
+            "reciprocals and rational functions",
+            "combinatorics and matrices",
+            "trigonometric functions and identities",
+            "proof",
+            "modulus",
+            "algorithms and graph theory",
+            "graphing relations",
+            "complex numbers",
+            "transformations and vectors in the plane",
+        ]);
+
+        // Chemistry — only keys that exist in the key knowledge map
+        for &k in kk.keys() {
+            subs.push(k);
+        }
+
+        // Physical Education — from the constants.rs subtopic_key_knowledge keys
+        // These are the full frontend names (lowercased) that map to KK blocks.
+        subs.extend([
+            "movement skill classification: fundamental, sport-specific, open/closed, gross/fine",
+            "discrete, serial, and continuous motor skills: temporal characteristics",
+            "stages of learning: cognitive, associative, and autonomous stages",
+            "skill acquisition theories: linear vs. non-linear learning models",
+            "learning approaches: direct instruction vs. constraint-based methods",
+            "practice scheduling: type (whole/part), distribution (massed/distributed), and variability (blocked/random)",
+            "feedback in skill acquisition: intrinsic, augmented, and timing optimization",
+            "psychological factors in learning: confidence, motivation, arousal, and concentration",
+            "coaching strategies: tailoring instruction to learner needs and performance requirements",
+            "linear motion: momentum, displacement, linear velocity, acceleration",
+            "angular motion: angular momentum, moment of inertia, angular velocity",
+            "momentum and impulse: conservation and application in physical activities",
+            "newton's laws of motion: inertia, acceleration, and action-reaction in sport",
+            "projectile motion: release angle, height, speed, and optimal performance trajectories",
+            "center of gravity, base of support, and equilibrium: balance and stability principles",
+            "third class lever systems: mechanical advantage and force application",
+            "qualitative movement analysis: systematic observation, evaluation, and error correction",
+            "video analysis and biomechanical assessment: tools for movement improvement",
+            "atp-cp system: high-intensity energy supply and recovery characteristics",
+            "anaerobic glycolysis: glucose breakdown, lactate production, and duration capacity",
+            "aerobic system: oxidative phosphorylation and sustained energy production",
+            "energy system interplay: atp-cp to anaerobic to aerobic transition by intensity and duration",
+            "oxygen uptake: oxygen deficit, steady state, and epoc recovery",
+            "vo2 max and lactate inflection point: aerobic capacity and anaerobic threshold",
+            "fatigue mechanisms: metabolic, muscular, thermoregulatory, and central fatigue",
+            "nutrition and hydration strategies: fueling performance and enhancing recovery",
+            "activity analysis: identifying skill frequencies, movement patterns, and physiological demands",
+            "fitness assessment: testing aerobic, anaerobic, strength, endurance, flexibility, speed, and agility",
+            "test reliability, validity, and accuracy: standardized protocols and error minimization",
+            "pre-participation screening and informed consent",
+            "training principles: frequency, intensity, time/duration, type, and progression",
+            "training adaptation: specificity, individuality, variety, and diminishing returns",
+            "periodization and planning: macrocycles, mesocycles, microcycles, tapering, and detraining",
+            "continuous and interval training: steady-intensity vs. high-intensity work-rest intervals",
+            "specialized training methods: fartlek, circuit, weight/resistance, flexibility, and plyometric training",
+            "training components: warm-up, conditioning phase, and cool-down structure",
+            "overtraining syndrome: prevention, recognition, and management",
+        ]);
+
+        subs.sort();
+        subs.dedup();
+        subs
+    })
+}
+
+/// Compute the Levenshtein edit distance between two strings.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a_bytes = a.as_bytes();
+    let b_bytes = b.as_bytes();
+    let len_a = a_bytes.len();
+    let len_b = b_bytes.len();
+
+    if len_a == 0 {
+        return len_b;
+    }
+    if len_b == 0 {
+        return len_a;
+    }
+
+    // Two-row optimization for memory efficiency
+    let mut prev = (0..=len_b).collect::<Vec<_>>();
+    let mut curr = vec![0usize; len_b + 1];
+
+    for i in 1..=len_a {
+        curr[0] = i;
+        for j in 1..=len_b {
+            let cost = if a_bytes[i - 1] == b_bytes[j - 1] {
+                0
+            } else {
+                1
+            };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    prev[len_b]
+}
+
+/// Similarity score between 0.0 and 1.0 based on normalized Levenshtein distance.
+fn similarity_score(a: &str, b: &str) -> f64 {
+    if a == b {
+        return 1.0;
+    }
+    let max_len = a.len().max(b.len());
+    if max_len == 0 {
+        return 1.0;
+    }
+    let dist = levenshtein(a, b);
+    1.0 - (dist as f64 / max_len as f64)
+}
+
+/// Result of attempting to canonicalize a subtopic value.
+#[derive(Debug)]
+enum CanonicalizeResult {
+    /// The value was already canonical (no change needed).
+    AlreadyCanonical,
+    /// The value was mapped to a canonical form.
+    Mapped(String),
+    /// No match found; keep the original value.
+    NoMatch,
+}
+
+/// Attempt to canonicalize a subtopic value using a multi-tier strategy:
+/// 1. Exact case-insensitive match
+/// 2. Substring containment (either direction)
+/// 3. Levenshtein-based fuzzy matching with a confidence threshold
+/// 4. Fallback to the sole user-selected subtopic if only one was specified
+///
+/// Returns the canonical form if found, or the original value if no match.
+fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> CanonicalizeResult {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return sole_subtopic
+            .map(|s| CanonicalizeResult::Mapped(s.to_string()))
+            .unwrap_or(CanonicalizeResult::NoMatch);
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    let all_subs = all_canonical_subtopics();
+
+    // Tier 1: Exact case-insensitive match
+    for &canonical in all_subs {
+        if canonical == lower {
+            return CanonicalizeResult::AlreadyCanonical;
+        }
+    }
+
+    // Tier 2: Substring containment — check if the value contains or is contained
+    // by any canonical subtopic. Pick the longest matching canonical subtopic to
+    // avoid false positives from short substrings.
+    let mut best_containment: Option<&str> = None;
+    for &canonical in all_subs {
+        if lower.contains(canonical) || canonical.contains(&lower) {
+            if let Some(current) = best_containment {
+                // Prefer the longer (more specific) canonical match
+                if canonical.len() > current.len() {
+                    best_containment = Some(canonical);
+                }
+            } else {
+                best_containment = Some(canonical);
+            }
+        }
+    }
+    if let Some(matched) = best_containment {
+        return CanonicalizeResult::Mapped(matched.to_string());
+    }
+
+    // Tier 3: Levenshtein fuzzy matching with confidence threshold
+    const SIMILARITY_THRESHOLD: f64 = 0.6;
+    let mut best_score = 0.0f64;
+    let mut best_match: Option<&str> = None;
+    let mut tie_count = 0usize;
+
+    for &canonical in all_subs {
+        let score = similarity_score(&lower, canonical);
+        if score > best_score + 0.001 {
+            // New clear best — reset tie count
+            best_score = score;
+            best_match = Some(canonical);
+            tie_count = 1;
+        } else if (score - best_score).abs() <= 0.001 && score >= SIMILARITY_THRESHOLD {
+            // Another option within tolerance of best score
+            tie_count += 1;
+        }
+    }
+
+    if let Some(matched) = best_match {
+        // Only accept if clear winner (tie_count == 1) and above threshold
+        if best_score >= SIMILARITY_THRESHOLD && tie_count == 1 {
+            return CanonicalizeResult::Mapped(matched.to_string());
+        }
+        // If there's a tie or score too low, fall through to sole_subtopic fallback
+    }
+
+    // Tier 4: Fallback to sole user-selected subtopic
+    if let Some(sole) = sole_subtopic {
+        return CanonicalizeResult::Mapped(sole.to_string());
+    }
+
+    CanonicalizeResult::NoMatch
 }
 
 /// If the `topic` field is not a canonical subject, try to detect whether the LLM
@@ -581,7 +837,8 @@ pub fn normalise_written(
 ) {
     let sole_subtopic = selected_subtopics
         .filter(|s| s.len() == 1)
-        .and_then(|s| s.first());
+        .and_then(|s| s.first())
+        .map(|s| s.as_str());
 
     for (idx, q) in questions.iter_mut().enumerate() {
         q.id = format!("q{}", idx + 1);
@@ -592,9 +849,22 @@ pub fn normalise_written(
             .as_ref()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
-            .or_else(|| sole_subtopic.cloned());
+            .or_else(|| sole_subtopic.map(|s| s.to_string()));
 
         fix_topic_field(&mut q.topic, &mut q.subtopic, selected_topics);
+
+        // Canonicalize subtopic: map LLM-generated values to canonical forms
+        if let Some(ref sub) = q.subtopic {
+            match canonicalize_subtopic(sub, sole_subtopic) {
+                CanonicalizeResult::AlreadyCanonical => {}
+                CanonicalizeResult::Mapped(canonical) => {
+                    q.subtopic = Some(canonical);
+                }
+                CanonicalizeResult::NoMatch => {
+                    // Keep the original value; cleanup tools can fix retroactively
+                }
+            }
+        }
 
         let marks = if q.max_marks == 0 {
             default_max_marks()
@@ -658,7 +928,8 @@ pub fn normalise_mc(
 ) {
     let sole_subtopic = selected_subtopics
         .filter(|s| s.len() == 1)
-        .and_then(|s| s.first());
+        .and_then(|s| s.first())
+        .map(|s| s.as_str());
 
     for (idx, q) in questions.iter_mut().enumerate() {
         q.id = format!("mc{}", idx + 1);
@@ -671,9 +942,22 @@ pub fn normalise_mc(
             .as_ref()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
-            .or_else(|| sole_subtopic.cloned());
+            .or_else(|| sole_subtopic.map(|s| s.to_string()));
 
         fix_topic_field(&mut q.topic, &mut q.subtopic, selected_topics);
+
+        // Canonicalize subtopic: map LLM-generated values to canonical forms
+        if let Some(ref sub) = q.subtopic {
+            match canonicalize_subtopic(sub, sole_subtopic) {
+                CanonicalizeResult::AlreadyCanonical => {}
+                CanonicalizeResult::Mapped(canonical) => {
+                    q.subtopic = Some(canonical);
+                }
+                CanonicalizeResult::NoMatch => {
+                    // Keep the original value; cleanup tools can fix retroactively
+                }
+            }
+        }
 
         for opt in &mut q.options {
             opt.label = opt.label.trim().to_uppercase();
@@ -950,5 +1234,115 @@ mod tests {
         let field = v["q"].as_str().unwrap();
         let cleaned = clean_field(field);
         assert_eq!(cleaned, "Value is $x^2$.");
+    }
+
+    // --- canonicalize_subtopic ---
+
+    #[test]
+    fn canonical_exact_match_returns_already_canonical() {
+        // Exact case-insensitive match should be recognized as already canonical.
+        match canonicalize_subtopic("Functions and Graphs", None) {
+            CanonicalizeResult::AlreadyCanonical => {}
+            other => panic!("Expected AlreadyCanonical, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonical_lowercase_match_returns_already_canonical() {
+        match canonicalize_subtopic("functions and graphs", None) {
+            CanonicalizeResult::AlreadyCanonical => {}
+            other => panic!("Expected AlreadyCanonical, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonical_substring_match_maps_correctly() {
+        // A slightly abbreviated form should match via substring containment.
+        match canonicalize_subtopic("differentiation rules", None) {
+            CanonicalizeResult::Mapped(m) => assert!(m.contains("differentiation")),
+            other => panic!("Expected Mapped, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonical_levenshtein_match_maps_close_typo() {
+        // A typo like "funtions and graphs" (missing 'c') should fuzzy-match
+        // to "functions and graphs" since it's very close.
+        // First verify the similarity score is high enough.
+        let score = similarity_score("funtions and graphs", "functions and graphs");
+        assert!(score > 0.9, "Expected high similarity score, got {score}");
+
+        // Verify the canonical list actually contains "functions and graphs"
+        let all = all_canonical_subtopics();
+        assert!(
+            all.iter().any(|s| *s == "functions and graphs"),
+            "Canonical list missing 'functions and graphs'"
+        );
+
+        match canonicalize_subtopic("funtions and graphs", None) {
+            CanonicalizeResult::Mapped(m) => {
+                assert_eq!(m.to_lowercase(), "functions and graphs");
+            }
+            other => panic!("Expected Mapped, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonical_sole_subtopic_fallback() {
+        // When no match is found and a sole subtopic is provided, use it.
+        match canonicalize_subtopic("completely unknown topic", Some("Functions and Graphs")) {
+            CanonicalizeResult::Mapped(m) => assert_eq!(m, "Functions and Graphs"),
+            other => panic!("Expected Mapped with sole fallback, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonical_no_match_without_sole() {
+        // No match and no sole subtopic → NoMatch.
+        match canonicalize_subtopic("completely unknown topic", None) {
+            CanonicalizeResult::NoMatch => {}
+            other => panic!("Expected NoMatch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonical_empty_string_uses_sole() {
+        match canonicalize_subtopic("", Some("Integration")) {
+            CanonicalizeResult::Mapped(m) => assert_eq!(m, "Integration"),
+            other => panic!("Expected Mapped, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn levenshtein_distance_zero_for_identical() {
+        assert_eq!(levenshtein("hello", "hello"), 0);
+    }
+
+    #[test]
+    fn levenshtein_distance_one_substitution() {
+        assert_eq!(levenshtein("hello", "hella"), 1);
+    }
+
+    #[test]
+    fn levenshtein_distance_empty_string() {
+        assert_eq!(levenshtein("", "test"), 4);
+        assert_eq!(levenshtein("test", ""), 4);
+    }
+
+    #[test]
+    fn similarity_score_perfect_for_identical() {
+        assert!((similarity_score("hello", "hello") - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn similarity_score_high_for_close_strings() {
+        let score = similarity_score("differentiation", "diferentiation");
+        assert!(score > 0.8);
+    }
+
+    #[test]
+    fn similarity_score_low_for_unrelated() {
+        let score = similarity_score("xyzabc", "qwerty");
+        assert!(score < 0.5);
     }
 }

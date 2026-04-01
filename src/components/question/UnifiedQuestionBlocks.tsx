@@ -76,6 +76,7 @@ export function UnifiedMcqOptionsGrid({
   revealCorrectness = false,
   lockSelection = true,
   onSelect,
+  columns = 2,
   className,
 }: {
   options: UnifiedOption[];
@@ -85,13 +86,21 @@ export function UnifiedMcqOptionsGrid({
   revealCorrectness?: boolean;
   lockSelection?: boolean;
   onSelect?: (label: string) => void;
+  columns?: 1 | 2;
   className?: string;
 }) {
   const isAnswered = answered ?? Boolean(selectedAnswer);
   const isExamStyle = isAnswered && !revealCorrectness;
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', className)}>
+    <div
+      className={cn(
+        columns === 1
+          ? 'grid grid-cols-1 gap-3'
+          : 'grid grid-cols-2 gap-3 sm:gap-4',
+        className
+      )}
+    >
       {options.map((opt) => {
         const isChosen = selectedAnswer === opt.label;
         const isCorrect = opt.label === correctAnswer;

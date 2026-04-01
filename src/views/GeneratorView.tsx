@@ -2803,8 +2803,8 @@ export function GeneratorView() {
           )}
           {activeMcQuestion && (
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
+              <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] lg:gap-8">
                   <div className="min-w-0 space-y-4 pb-10">
                     {generationMode === 'exam' &&
                       activeTimer.sessionRemainingSeconds > 0 &&

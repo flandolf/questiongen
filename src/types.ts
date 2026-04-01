@@ -54,7 +54,7 @@ export type SpecialistMathSubtopic = (typeof SPECIALIST_MATH_SUBTOPICS)[number];
 export const PHYSICAL_EDUCATION_SUBTOPICS = [
   // UNIT 3: Movement Skills and Energy - Skill Acquisition
   'Movement Skill Classification: Fundamental, Sport-Specific, Open/Closed, Gross/Fine',
-  'Discrete, Serial, and Continuous Motor Skills: Temporal Characteristics',
+  'Discrete, Serial, and Continuous Motor Skills',
   'Stages of Learning: Cognitive, Associative, and Autonomous Stages',
   'Skill Acquisition Theories: Linear vs. Non-Linear Learning Models',
   'Learning Approaches: Direct Instruction vs. Constraint-Based Methods',
