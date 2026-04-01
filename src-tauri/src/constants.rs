@@ -10,21 +10,23 @@ pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 
 /// Injected into every system prompt.
 pub const LATEX_RULES: &str = " LaTeX (STRICT):
-(1) ALL math expressions MUST be wrapped in delimiters: single vars ($x$), numbers ($3$), all operators.
-(2) Inline: $...$; Display: $$...$$. NEVER use \\(...\\) or \\[...\\].
-(3) Subscripts, superscripts, fractions, radicals, Greek letters, vectors, operators MUST be inside delimiters.
-(4) Multi-line/matrix: $$\\begin{pmatrix}...\\end{pmatrix}$$.
-(5) Chemistry: $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.
-(6) NO commas after LaTeX: write $x = 3$ NOT $x = 3,$. Commas only between natural language words.";
+(1) Every mathematical expression MUST be wrapped in LaTeX delimiters. Use inline $...$ for in-sentence math and $$...$$ for display math.
+(2) NEVER use \\(...\\) or \\[...\\].
+(3) Keep plain English outside delimiters. Put symbols, equations, function notation, subscripts/superscripts, fractions, radicals, vectors and operators inside delimiters.
+(4) For matrices or multi-line layouts, use display math blocks only (e.g. $$\\begin{pmatrix}...\\end{pmatrix}$$).
+(5) Chemistry species must use LaTeX text mode, e.g. $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.
+(6) Punctuation rule: punctuation belongs outside math delimiters unless mathematically required.";
 
 pub const QUESTION_STYLE_RULES: &str = "
 QUESTION STYLE RULES (STRICT — violation produces zero marks):
 
 (1) STRUCTURE — BREAK THESE RULES AND THE QUESTION IS INVALID
-- Multi-part format MUST be exactly: <stem>\n\n(a) <text> [X marks]\n\n(b) <text> [X marks]\n\n(c) <text> [X marks]
-- Blank lines (\n\n) are MANDATORY between stem and (a), and between every part.
-- Part labels MUST be lowercase: (a), (b), (c) ONLY — never (A), (i), or numbered.
-- Mark allocations MUST be inline as [X marks] at end of each part.
+- Structure MUST match allocated marks and cognitive demand.
+- Use a single-part stem-only question for low-mark direct items; use multi-part format only when marks justify scaffolding.
+- If multi-part, labels MUST be lowercase alphabetical: (a), (b), (c), ... in order.
+- Use blank lines between stem and parts, and between parts.
+- For multi-part questions, include mark allocations inline as [X marks] at the end of each part.
+- For single-part questions, DO NOT force artificial part labels.
 - NO HTML tags anywhere.
 
 (2) FOCUS AREA ENFORCEMENT (HIGHEST PRIORITY)
@@ -44,7 +46,7 @@ QUESTION STYLE RULES (STRICT — violation produces zero marks):
 - 3 marks: multi-step chain with all reasoning shown.
 - 4+ marks: multi-part synthesis or justification chains ONLY.
 - NEVER assign 3+ marks to any question solvable in a single algebraic step.
-- Total marks = sum of part marks; stem NEVER receives marks.
+- If a question has labelled parts, total marks MUST equal the sum of part marks; stem receives no direct marks.
 
 (5) DIFFICULTY (must match label, not topic)
 - Easy: method directly implied; single concept; no ambiguity.
@@ -59,6 +61,15 @@ QUESTION STYLE RULES (STRICT — violation produces zero marks):
 - FORBIDDEN: multi-mark questions with single algebraic step dressed across parts.
 - FORBIDDEN: parts labelled (a), (b), (c) that could be answered in any order.
 - FORBIDDEN: decorative stimuli — every stimulus element must be used by at least one part.
+
+(7) BATCH DIVERSITY (strict)
+- Across a generated batch, do NOT produce two questions that test the same underlying skill with superficial context changes.
+- Vary command verbs and task types (e.g. interpret, derive, justify, compare, model) while remaining within selected focus areas.
+
+(8) OUTPUT HYGIENE (strict)
+- Output valid JSON only, matching the requested schema exactly.
+- No markdown fences, no prefatory text, no trailing commentary.
+- Do not invent keys not present in the required schema.
 ";
 
 /// Injected into MC question-generation prompts for distractor quality.
@@ -68,7 +79,14 @@ MC RULES (STRICT):
 (2) Options MUST be parallel in structure and style.
 (3) FORBIDDEN: Do NOT include labels (A., B., C., D.) or the option text inside the 'promptMarkdown' field. 
 (4) The 'promptMarkdown' should contain ONLY the question stem. The options belong exclusively in the 'options' array.
-...
+(5) Provide EXACTLY 4 options with labels A, B, C, D (one of each, no duplicates, no omissions).
+(6) Exactly ONE option must be correct. The 'correctAnswer' value MUST match the label of that option.
+(7) Distractors must be plausible and map to distinct misconceptions or common procedural errors.
+(8) Avoid giveaway patterns: no noticeably longer correct option, no grammatical mismatch, no 'all/none of the above'.
+(9) If the stem contains numbers/data, ensure every option is internally consistent with the same givens.
+(10) Keep option length reasonably balanced to reduce testwiseness.
+(11) 'explanationMarkdown' must briefly justify the correct option and name the misconception targeted by each wrong option.
+(12) Output valid JSON only; no markdown fences or extra commentary.
 ";
 
 // ─── Mathematical Methods ─────────────────────────────────────────────────────
@@ -745,12 +763,20 @@ pub fn subtopic_exam_technique_notes() -> HashMap<&'static str, &'static str> {
 
     // UNIT 3: Biomechanics
     m.insert(
-        "linear and angular motion: distance, velocity, force, and torque in movement",
+        "linear motion: momentum, displacement, linear velocity, acceleration",
         "EXAM STYLE:\n\
         - Linear: distance, displacement, speed, velocity, acceleration in straight-line movement\n\
-        - Angular: rotation about an axis; torque = force × perpendicular distance from axis\n\
         - VCAA pattern: define concepts → apply to sport scenario → explain how manipulation improves performance\n\
         - Link to Newton's laws and summation of forces for comprehensive answers",
+    );
+
+    m.insert(
+        "angular motion: angular momentum, moment of inertia, angular velocity",
+        "EXAM STYLE:\n\
+        - Angular: rotation around an axis; angular displacement, velocity, acceleration\n\
+        - Moment of inertia: resistance to angular acceleration; depends on mass distribution\n\
+        - VCAA pattern: define concepts → apply to sport scenario (e.g. diving, gymnastics) → explain how manipulation improves performance\n\
+        - Link to conservation of angular momentum and performance outcomes",
     );
 
     m.insert(
