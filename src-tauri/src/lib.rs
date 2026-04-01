@@ -2177,14 +2177,14 @@ mod tests {
     }
 
     #[test]
-    fn normalize_envelope_wraps_array() {
+    fn normalise_envelope_wraps_array() {
         let v = serde_json::json!([{"id":"q1"}]);
         let out = normalize_envelope(v).unwrap();
         assert!(out.get("questions").unwrap().is_array());
     }
 
     #[test]
-    fn normalize_envelope_handles_nested_data() {
+    fn normalise_envelope_handles_nested_data() {
         let v = serde_json::json!({"data":{"questions":[{"id":"q1"}]}});
         let out = normalize_envelope(v).unwrap();
         assert_eq!(out["questions"].as_array().unwrap().len(), 1);
