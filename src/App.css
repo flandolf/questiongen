@@ -232,6 +232,110 @@
   .spin {
     animation: spin 1.1s linear infinite;
   }
+
+  /* Question content containers */
+  .question-card {
+    @apply bg-card/40 rounded-xl border border-border/20 p-5 sm:p-6;
+  }
+
+  .question-prompt {
+    @apply text-lg leading-relaxed text-foreground;
+  }
+
+  .question-meta {
+    @apply flex items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70;
+  }
+
+  /* MC option cards */
+  .mc-option {
+    @apply p-4 sm:p-5 rounded-lg border border-transparent 
+           hover:bg-muted/30 cursor-pointer transition-all duration-150;
+  }
+
+  .mc-option-selected {
+    @apply border-violet-500/30 bg-violet-500/5;
+  }
+
+  .mc-option-correct {
+    @apply border-emerald-500/30 bg-emerald-500/5;
+  }
+
+  .mc-option-label {
+    @apply w-7 h-7 rounded-md flex items-center justify-center 
+           shrink-0 text-sm font-semibold;
+  }
+
+  /* Written response */
+  .written-textarea {
+    @apply min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 
+           focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30;
+  }
+
+  /* Feedback panel sections */
+  .feedback-section {
+    @apply space-y-3 pt-3 border-t border-border/20;
+  }
+
+  .feedback-section-header {
+    @apply text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground;
+  }
+
+  /* Rubric criterion row */
+  .rubric-row {
+    @apply flex items-start gap-4 p-4 rounded-lg border transition-colors;
+  }
+
+  .rubric-row-full {
+    @apply bg-emerald-500/5 border-emerald-500/30;
+  }
+
+  .rubric-row-partial {
+    @apply bg-amber-500/5 border-amber-500/30;
+  }
+
+  .rubric-row-zero {
+    @apply bg-muted/10 border-border/40 hover:border-border/80;
+  }
+
+  /* Score display */
+  .score-ring {
+    @apply relative flex items-center justify-center w-20 h-20 shrink-0;
+  }
+
+  /* Responsive session grid */
+  .session-grid {
+    @apply grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6;
+  }
+
+  .session-panel {
+    @apply min-w-0;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-in {
+    animation: none !important;
+  }
+
+  .fade-in {
+    animation: none !important;
+  }
+
+  .slide-in-from-bottom-2,
+  .slide-in-from-bottom-4,
+  .slide-in-from-top-2 {
+    animation: none !important;
+  }
 }
 
 @keyframes spin {

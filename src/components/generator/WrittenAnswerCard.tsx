@@ -74,7 +74,7 @@ export function WrittenAnswerCard({
             <img
               src={image.dataUrl}
               alt="Uploaded working"
-              className="w-full h-auto max-h-72 object-contain rounded-lg"
+              className="w-full h-auto max-h-96 object-contain rounded-lg"
             />
             <div className="absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl">
               <Button
@@ -98,7 +98,7 @@ export function WrittenAnswerCard({
       {!isExamMode && (
         <Button
           size="lg"
-          className={`mt-4 w-full h-12 text-sm font-bold gap-2 transition-all duration-200 rounded-full ${
+          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
             hasContent && !isMarking
               ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
               : ''

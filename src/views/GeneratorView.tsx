@@ -2545,52 +2545,60 @@ export function GeneratorView() {
             </div>
           )}
           {activeQuestion && (
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
-                {generationMode === 'exam' &&
-                  activeTimer.sessionRemainingSeconds > 0 &&
-                  activeTimer.sessionRemainingSeconds <= 120 && (
-                    <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
-                      Time warning: {formattedCountdownTime} remaining.
-                    </div>
-                  )}
-                <WrittenQuestionCard
-                  promptMarkdown={activeQuestion.promptMarkdown}
-                  canShowRawOutput={canShowWrittenRawOutput}
-                  showRawOutput={showWrittenRawOutput}
-                  rawModelOutput={writtenRawModelOutput}
-                  onToggleRawOutput={() => setShowWrittenRawOutput((p) => !p)}
-                  isSubmitDisabled={false}
-                />
-                {!activeFeedback ? (
-                  <WrittenAnswerCard
-                    questionId={activeQuestion.id}
-                    answer={activeQuestionAnswer}
-                    image={activeQuestionImage}
-                    isMarking={isMarking}
-                    canSubmit={canSubmitAnswer}
-                    isExamMode={generationMode === 'exam'}
-                    onAnswerChange={handleAnswerChange}
-                    onImageDrop={handleDropDropzone}
-                    onImageRemove={handleImageRemove}
-                    onSubmit={handleSubmitForMarking}
-                  />
-                ) : (
-                  <WrittenFeedbackPanel
-                    questionId={activeQuestion.id}
-                    answer={activeQuestionAnswer}
-                    image={activeQuestionImage}
-                    feedback={activeFeedback}
-                    appealText={activeMarkAppeal}
-                    overrideInput={activeOverrideInput}
-                    isMarking={isMarking}
-                    onAppealChange={handleAppealChange}
-                    onOverrideInputChange={handleOverrideInputChange}
-                    onArgueForMark={handleArgueForMark}
-                    onApplyOverride={handleOverrideMark}
-                    onCriterionChange={handleOverrideCriterion}
-                  />
-                )}
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
+                  <div className="min-w-0 space-y-4 pb-10">
+                    {generationMode === 'exam' &&
+                      activeTimer.sessionRemainingSeconds > 0 &&
+                      activeTimer.sessionRemainingSeconds <= 120 && (
+                        <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                          Time warning: {formattedCountdownTime} remaining.
+                        </div>
+                      )}
+                    <WrittenQuestionCard
+                      promptMarkdown={activeQuestion.promptMarkdown}
+                      canShowRawOutput={canShowWrittenRawOutput}
+                      showRawOutput={showWrittenRawOutput}
+                      rawModelOutput={writtenRawModelOutput}
+                      onToggleRawOutput={() =>
+                        setShowWrittenRawOutput((p) => !p)
+                      }
+                      isSubmitDisabled={false}
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-4 pb-10">
+                    {!activeFeedback ? (
+                      <WrittenAnswerCard
+                        questionId={activeQuestion.id}
+                        answer={activeQuestionAnswer}
+                        image={activeQuestionImage}
+                        isMarking={isMarking}
+                        canSubmit={canSubmitAnswer}
+                        isExamMode={generationMode === 'exam'}
+                        onAnswerChange={handleAnswerChange}
+                        onImageDrop={handleDropDropzone}
+                        onImageRemove={handleImageRemove}
+                        onSubmit={handleSubmitForMarking}
+                      />
+                    ) : (
+                      <WrittenFeedbackPanel
+                        questionId={activeQuestion.id}
+                        answer={activeQuestionAnswer}
+                        image={activeQuestionImage}
+                        feedback={activeFeedback}
+                        appealText={activeMarkAppeal}
+                        overrideInput={activeOverrideInput}
+                        isMarking={isMarking}
+                        onAppealChange={handleAppealChange}
+                        onOverrideInputChange={handleOverrideInputChange}
+                        onArgueForMark={handleArgueForMark}
+                        onApplyOverride={handleOverrideMark}
+                        onCriterionChange={handleOverrideCriterion}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -2645,51 +2653,57 @@ export function GeneratorView() {
             </div>
           )}
           {activeMcQuestion && (
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
-                {generationMode === 'exam' &&
-                  activeTimer.sessionRemainingSeconds > 0 &&
-                  activeTimer.sessionRemainingSeconds <= 120 && (
-                    <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
-                      Time warning: {formattedCountdownTime} remaining.
-                    </div>
-                  )}
-                <McQuestionCard
-                  promptMarkdown={activeMcQuestion.promptMarkdown}
-                  canShowRawOutput={canShowMcRawOutput}
-                  showRawOutput={showMcRawOutput}
-                  rawModelOutput={mcRawModelOutput}
-                  onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
-                  isSubmitDisabled={false}
-                />
-                {countWords(activeMcQuestion.explanationMarkdown) >
-                  MC_MAX_EXPLANATION_WORDS && (
-                  <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-sm px-4 py-2 mb-2 text-sm">
-                    <strong>Warning:</strong> Explanation is{' '}
-                    {countWords(activeMcQuestion.explanationMarkdown)} words
-                    (max {MC_MAX_EXPLANATION_WORDS}). This may be rejected by
-                    the backend.
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
+                  <div className="min-w-0 space-y-4 pb-10">
+                    {generationMode === 'exam' &&
+                      activeTimer.sessionRemainingSeconds > 0 &&
+                      activeTimer.sessionRemainingSeconds <= 120 && (
+                        <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                          Time warning: {formattedCountdownTime} remaining.
+                        </div>
+                      )}
+                    <McQuestionCard
+                      promptMarkdown={activeMcQuestion.promptMarkdown}
+                      canShowRawOutput={canShowMcRawOutput}
+                      showRawOutput={showMcRawOutput}
+                      rawModelOutput={mcRawModelOutput}
+                      onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
+                      isSubmitDisabled={false}
+                    />
+                    {countWords(activeMcQuestion.explanationMarkdown) >
+                      MC_MAX_EXPLANATION_WORDS && (
+                      <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-sm px-4 py-2 mb-2 text-sm">
+                        <strong>Warning:</strong> Explanation is{' '}
+                        {countWords(activeMcQuestion.explanationMarkdown)} words
+                        (max {MC_MAX_EXPLANATION_WORDS}). This may be rejected
+                        by the backend.
+                      </div>
+                    )}
                   </div>
-                )}
-                <McAnswerPanel
-                  questionId={activeMcQuestion.id}
-                  options={activeMcQuestion.options}
-                  correctAnswer={activeMcQuestion.correctAnswer}
-                  explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                  selectedAnswer={activeMcAnswer}
-                  awardedMarks={activeMcAwardedMarks}
-                  appealText={activeMcMarkAppeal}
-                  overrideInput={activeMcOverrideInput}
-                  isMarking={isMarking}
-                  hideCorrectAnswer={
-                    generationMode === 'exam' && !isReviewingCompletedSet
-                  }
-                  onSelectAnswer={handleMcAnswer}
-                  onAppealChange={handleMcAppealChange}
-                  onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={handleArgueForMcMark}
-                  onApplyOverride={handleOverrideMcMark}
-                />
+                  <div className="min-w-0 space-y-4 pb-10">
+                    <McAnswerPanel
+                      questionId={activeMcQuestion.id}
+                      options={activeMcQuestion.options}
+                      correctAnswer={activeMcQuestion.correctAnswer}
+                      explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                      selectedAnswer={activeMcAnswer}
+                      awardedMarks={activeMcAwardedMarks}
+                      appealText={activeMcMarkAppeal}
+                      overrideInput={activeMcOverrideInput}
+                      isMarking={isMarking}
+                      hideCorrectAnswer={
+                        generationMode === 'exam' && !isReviewingCompletedSet
+                      }
+                      onSelectAnswer={handleMcAnswer}
+                      onAppealChange={handleMcAppealChange}
+                      onOverrideInputChange={handleMcOverrideInputChange}
+                      onArgueForMark={handleArgueForMcMark}
+                      onApplyOverride={handleOverrideMcMark}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
