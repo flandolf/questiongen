@@ -415,7 +415,7 @@ fn subtopics_note(selected: Option<&Vec<String>>) -> String {
 
     // Inject Study Design key knowledge and exam technique notes for each selected subtopic.
     let kk_map = crate::constants::subtopic_key_knowledge();
-    let exam_map = crate::constants::subtopic_exam_technique_notes();
+    let exam_map = crate::constants::shared_subtopic_exam_technique_notes();
     for sub in subs {
         let key = sub.trim().to_ascii_lowercase();
         if let Some(kk) = kk_map.get(key.as_str()) {
