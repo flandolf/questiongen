@@ -526,6 +526,48 @@ export function GeneratorView() {
   const completionAccuracyPercent =
     questionMode === 'written' ? writtenAccuracyPercent : mcAccuracyPercent;
 
+  // ── Session-scoped result rows (passed to CompletionScreen) ─────────────────
+  // Built directly from current session state, not from global history.
+  // This ensures accuracy in all modes including exam mode where history isn't populated.
+  const sessionWrittenResults = useMemo(() => {
+    return questions
+      .filter((q) => feedbackByQuestionId[q.id])
+      .map((q) => {
+        const fb = feedbackByQuestionId[q.id]!;
+        const answer = answersByQuestionId[q.id] ?? '';
+        return {
+          id: q.id,
+          topic: q.topic,
+          subtopic: q.subtopic,
+          scorePercent:
+            fb.maxMarks > 0 ? (fb.achievedMarks / fb.maxMarks) * 100 : 0,
+          achieved: fb.achievedMarks,
+          max: fb.maxMarks,
+          wordCount: answer.split(/\s+/).filter(Boolean).length,
+          criterionBreakdown: fb.vcaaMarkingScheme?.map((c) => ({
+            criterion: c.criterion,
+            achieved: c.achievedMarks,
+            available: c.maxMarks,
+          })),
+        };
+      });
+  }, [questions, feedbackByQuestionId, answersByQuestionId]);
+
+  const sessionMcResults = useMemo(() => {
+    return mcQuestions.map((q) => {
+      const selected = mcAnswersByQuestionId[q.id] ?? '';
+      const awarded = getMcAwardedMarks(q.id, selected, q.correctAnswer);
+      return {
+        id: q.id,
+        topic: q.topic,
+        subtopic: q.subtopic,
+        correct: awarded >= 1,
+        selected,
+        correctAnswer: q.correctAnswer,
+      };
+    });
+  }, [mcQuestions, mcAnswersByQuestionId, getMcAwardedMarks]);
+
   // Active timer hook based on current question mode
   const activeTimer = questionMode === 'written' ? writtenTimer : mcTimer;
 
@@ -2256,6 +2298,108 @@ export function GeneratorView() {
     addExamRecord,
   ]);
 
+  // ── Populate history entries for exam mode (deferred marking) ──────────────
+  // In exam mode, answers aren't added to history during the session because
+  // marking is deferred. This effect populates history after submission so that
+  // analytics, lifetime stats, and review features work correctly.
+  useEffect(() => {
+    if (generationMode !== 'exam' || !showCompletionScreen) return;
+    if (questionMode === 'written' && questions.length === 0) return;
+    if (questionMode === 'multiple-choice' && mcQuestions.length === 0) return;
+
+    const now = Date.now();
+
+    if (questionMode === 'written') {
+      // Build a set of question IDs that already have history entries
+      const existingIds = new Set(
+        questionHistory.map((e: QuestionHistoryEntry) => e.question.id)
+      );
+
+      for (const q of questions) {
+        // Skip if this question already has a history entry
+        if (existingIds.has(q.id)) continue;
+
+        const fb = feedbackByQuestionId[q.id];
+        if (!fb) continue; // Skip unmarked questions
+
+        const answer = answersByQuestionId[q.id] ?? '';
+        const timing = writtenTimer.getQuestionTiming(q.id);
+        const entry: QuestionHistoryEntry = {
+          id: generateEntryId(),
+          createdAt: new Date(now).toISOString(),
+          lastModified: now,
+          question: q,
+          uploadedAnswer: answer,
+          uploadedAnswerImage: imagesByQuestionId[q.id],
+          workedSolutionMarkdown: fb.workedSolutionMarkdown ?? '',
+          markResponse: fb,
+          generationTelemetry: writtenGenerationTelemetry ?? undefined,
+          analytics: {
+            attemptKind: 'initial',
+            attemptSequence: getWrittenAttemptSequence(q.id),
+            answerCharacterCount: answer.length,
+            answerWordCount: countWords(answer),
+            usedImageUpload: Boolean(imagesByQuestionId[q.id]),
+            responseLatencyMs: timing
+              ? timing.timeUsedSeconds * 1000
+              : undefined,
+            markingLatencyMs: undefined,
+          },
+        };
+        setQuestionHistory((prev) => [entry, ...prev]);
+        existingIds.add(q.id);
+      }
+      return;
+    }
+
+    // MC mode
+    const existingMcIds = new Set(
+      mcHistory.map((e: McHistoryEntry) => e.question.id)
+    );
+
+    for (const q of mcQuestions) {
+      if (existingMcIds.has(q.id)) continue;
+
+      const selected = mcAnswersByQuestionId[q.id] ?? '';
+      const awarded = getMcAwardedMarks(q.id, selected, q.correctAnswer);
+      const timing = mcTimer.getQuestionTiming(q.id);
+      const entry: McHistoryEntry = {
+        type: 'multiple-choice',
+        id: generateEntryId(),
+        createdAt: new Date(now).toISOString(),
+        lastModified: now,
+        question: q,
+        selectedAnswer: selected,
+        correct: awarded >= 1,
+        awardedMarks: awarded,
+        maxMarks: 1,
+        generationTelemetry: mcGenerationTelemetry ?? undefined,
+        analytics: {
+          attemptKind: 'initial',
+          attemptSequence: getMcAttemptSequence(q.id),
+          answerCharacterCount: 0,
+          answerWordCount: 0,
+          usedImageUpload: false,
+          responseLatencyMs: timing ? timing.timeUsedSeconds * 1000 : undefined,
+          finalAnswerChangedAtMs: now,
+        },
+      };
+      setMcHistory((prev) => [entry, ...prev]);
+      existingMcIds.add(q.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    generationMode,
+    showCompletionScreen,
+    questionMode,
+    questions,
+    mcQuestions,
+    feedbackByQuestionId,
+    answersByQuestionId,
+    imagesByQuestionId,
+    mcAnswersByQuestionId,
+  ]);
+
   // ── Image drop ───────────────────────────────────────────────────────────────
   const handleDropDropzone = useCallback(
     async (acceptedFiles: File[]) => {
@@ -2489,6 +2633,8 @@ export function GeneratorView() {
               ? writtenTimer.bankedSeconds
               : mcTimer.bankedSeconds
           }
+          sessionWrittenResults={sessionWrittenResults}
+          sessionMcResults={sessionMcResults}
         />
       ) : /* ── Written Question View ── */
       questionMode === 'written' ? (
@@ -2547,28 +2693,48 @@ export function GeneratorView() {
           {activeQuestion && (
             <div className="flex-1 overflow-y-auto">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
-                  <div className="min-w-0 space-y-4 pb-10">
-                    {generationMode === 'exam' &&
-                      activeTimer.sessionRemainingSeconds > 0 &&
-                      activeTimer.sessionRemainingSeconds <= 120 && (
-                        <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
-                          Time warning: {formattedCountdownTime} remaining.
-                        </div>
-                      )}
-                    <WrittenQuestionCard
+                {activeFeedback ? (
+                  <div className="min-w-0 pb-10">
+                    <WrittenFeedbackPanel
+                      questionId={activeQuestion.id}
                       promptMarkdown={activeQuestion.promptMarkdown}
-                      canShowRawOutput={canShowWrittenRawOutput}
-                      showRawOutput={showWrittenRawOutput}
-                      rawModelOutput={writtenRawModelOutput}
-                      onToggleRawOutput={() =>
-                        setShowWrittenRawOutput((p) => !p)
-                      }
-                      isSubmitDisabled={false}
+                      topic={activeQuestion.topic}
+                      subtopic={activeQuestion.subtopic}
+                      answer={activeQuestionAnswer}
+                      image={activeQuestionImage}
+                      feedback={activeFeedback}
+                      appealText={activeMarkAppeal}
+                      overrideInput={activeOverrideInput}
+                      isMarking={isMarking}
+                      onAppealChange={handleAppealChange}
+                      onOverrideInputChange={handleOverrideInputChange}
+                      onArgueForMark={handleArgueForMark}
+                      onApplyOverride={handleOverrideMark}
+                      onCriterionChange={handleOverrideCriterion}
                     />
                   </div>
-                  <div className="min-w-0 space-y-4 pb-10">
-                    {!activeFeedback ? (
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
+                    <div className="min-w-0 space-y-4 pb-10">
+                      {generationMode === 'exam' &&
+                        activeTimer.sessionRemainingSeconds > 0 &&
+                        activeTimer.sessionRemainingSeconds <= 120 && (
+                          <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
+                            Time warning: {formattedCountdownTime} remaining.
+                          </div>
+                        )}
+                      <WrittenQuestionCard
+                        promptMarkdown={activeQuestion.promptMarkdown}
+                        canShowRawOutput={canShowWrittenRawOutput}
+                        showRawOutput={showWrittenRawOutput}
+                        rawModelOutput={writtenRawModelOutput}
+                        onToggleRawOutput={() =>
+                          setShowWrittenRawOutput((p) => !p)
+                        }
+                        isSubmitDisabled={false}
+                      />
+                    </div>
+                    <div className="min-w-0 space-y-4 pb-10">
                       <WrittenAnswerCard
                         questionId={activeQuestion.id}
                         answer={activeQuestionAnswer}
@@ -2581,24 +2747,9 @@ export function GeneratorView() {
                         onImageRemove={handleImageRemove}
                         onSubmit={handleSubmitForMarking}
                       />
-                    ) : (
-                      <WrittenFeedbackPanel
-                        questionId={activeQuestion.id}
-                        answer={activeQuestionAnswer}
-                        image={activeQuestionImage}
-                        feedback={activeFeedback}
-                        appealText={activeMarkAppeal}
-                        overrideInput={activeOverrideInput}
-                        isMarking={isMarking}
-                        onAppealChange={handleAppealChange}
-                        onOverrideInputChange={handleOverrideInputChange}
-                        onArgueForMark={handleArgueForMark}
-                        onApplyOverride={handleOverrideMark}
-                        onCriterionChange={handleOverrideCriterion}
-                      />
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

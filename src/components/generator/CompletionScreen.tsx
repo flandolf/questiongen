@@ -18,7 +18,6 @@ import {
 } from '../ui/card';
 import { Difficulty, QuestionMode } from '@/types';
 import { useAnalyticsData, percent } from '@/views/useAnalyticsData';
-import { useWrittenSession, useMultipleChoiceSession } from '@/AppContext';
 import { AccuracyTrendChart } from './AccuracyTrendChart';
 import { MarkdownMath } from '../MarkdownMath';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +27,30 @@ type PerQuestionTiming = {
   timeUsedSeconds: number;
   timeLimitSeconds: number;
   finishedEarly: boolean;
+};
+
+type WrittenResultRow = {
+  id: string;
+  topic: string;
+  subtopic?: string;
+  scorePercent: number;
+  achieved: number;
+  max: number;
+  wordCount: number;
+  criterionBreakdown?: Array<{
+    criterion: string;
+    achieved: number;
+    available: number;
+  }>;
+};
+
+type McResultRow = {
+  id: string;
+  topic: string;
+  subtopic?: string;
+  correct: boolean;
+  selected: string;
+  correctAnswer: string;
 };
 
 type CompletionScreenProps = {
@@ -42,6 +65,9 @@ type CompletionScreenProps = {
   perQuestionTiming?: PerQuestionTiming[];
   parTimeSeconds?: number;
   totalBankedSeconds?: number;
+  // Session-scoped results (passed directly to avoid relying on global history)
+  sessionWrittenResults?: WrittenResultRow[];
+  sessionMcResults?: McResultRow[];
 };
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
@@ -169,59 +195,16 @@ export function CompletionScreen({
   onReview,
   onStartOver,
   perQuestionTiming,
+  sessionWrittenResults = [],
+  sessionMcResults = [],
 }: CompletionScreenProps) {
   const { summary, trendData } = useAnalyticsData();
-
-  const { questionHistory } = useWrittenSession();
-  const { mcHistory } = useMultipleChoiceSession();
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
 
-  // ── Session-scoped slices ──────────────────────────────────────────────────
-  const sessionWrittenEntries = useMemo(() => {
-    if (questionMode !== 'written') return [];
-    return [...questionHistory]
-      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
-      .slice(-completedCount);
-  }, [questionHistory, questionMode, completedCount]);
-
-  const sessionMcEntries = useMemo(() => {
-    if (questionMode !== 'multiple-choice') return [];
-    return [...mcHistory]
-      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
-      .slice(-completedCount);
-  }, [mcHistory, questionMode, completedCount]);
-
-  // ── Per-question result rows for written ──────────────────────────────────
-  const writtenResults = useMemo(() => {
-    return sessionWrittenEntries.map((e) => ({
-      id: e.id,
-      topic: e.question.topic,
-      subtopic: e.question.subtopic,
-      scorePercent: percent(
-        e.markResponse.achievedMarks,
-        e.markResponse.maxMarks
-      ),
-      achieved: e.markResponse.achievedMarks,
-      max: e.markResponse.maxMarks,
-      wordCount: e.analytics?.answerWordCount ?? 0,
-      markingLatencyMs: e.analytics?.markingLatencyMs,
-      attemptKind: e.analytics?.attemptKind ?? 'initial',
-    }));
-  }, [sessionWrittenEntries]);
-
-  // ── Per-question result rows for MC ───────────────────────────────────────
-  const mcResults = useMemo(() => {
-    return sessionMcEntries.map((e) => ({
-      id: e.id,
-      topic: e.question.topic,
-      subtopic: e.question.subtopic,
-      correct: e.correct,
-      selected: e.selectedAnswer,
-      correctAnswer: e.question.correctAnswer,
-      responseLatencyMs: e.analytics?.responseLatencyMs,
-    }));
-  }, [sessionMcEntries]);
+  // Use session-scoped results passed as props (reliable for all modes including exam)
+  const writtenResults = sessionWrittenResults;
+  const mcResults = sessionMcResults;
 
   // ── Session topic breakdown ───────────────────────────────────────────────
   const sessionTopics = useMemo(() => {
@@ -250,16 +233,17 @@ export function CompletionScreen({
       .sort((a, b) => a.pct - b.pct);
   }, [questionMode, writtenResults, mcResults]);
 
-  // ── Session criterion weak points (written only, this session) ────────────
+  // ── Session criterion weak points (written only, from criterionBreakdown) ──
   const sessionCriteria = useMemo(() => {
     if (questionMode !== 'written') return [];
     const map = new Map<string, { achieved: number; available: number }>();
-    for (const e of sessionWrittenEntries) {
-      for (const c of e.markResponse.vcaaMarkingScheme) {
-        if (c.maxMarks <= 0) continue;
+    for (const r of writtenResults) {
+      if (!r.criterionBreakdown) continue;
+      for (const c of r.criterionBreakdown) {
+        if (c.available <= 0) continue;
         const b = map.get(c.criterion) ?? { achieved: 0, available: 0 };
-        b.achieved += c.achievedMarks;
-        b.available += c.maxMarks;
+        b.achieved += c.achieved;
+        b.available += c.available;
         map.set(c.criterion, b);
       }
     }
@@ -274,7 +258,7 @@ export function CompletionScreen({
       .filter((r) => r.lostMarks > 0)
       .sort((a, b) => b.lostMarks - a.lostMarks || a.successPct - b.successPct)
       .slice(0, 4);
-  }, [questionMode, sessionWrittenEntries]);
+  }, [questionMode, writtenResults]);
 
   // ── Derived display values ────────────────────────────────────────────────
   const {
