@@ -83,50 +83,167 @@ type ScanResult = {
 
 // ─── Fuzzy Matching ───────────────────────────────────────────────────────────
 
+/**
+ * Represents the result of a fuzzy match operation with detailed rationale.
+ */
+type MatchResult = {
+  /** The matched canonical value */
+  match: string;
+  /** Similarity score between 0 and 1 */
+  score: number;
+  /** Human-readable explanation of why this match was chosen */
+  rationale: string;
+  /** Whether multiple options tied for best score */
+  isTie: boolean;
+};
+
+/**
+ * Memoization cache for similarity computations between string pairs.
+ * Uses a composite key to avoid recomputing the same pair.
+ */
+const similarityCache = new Map<string, number>();
+
+/**
+ * Computes a normalized similarity score between two strings.
+ * Uses multiple heuristics: exact match, substring containment, and Levenshtein distance.
+ * Results are cached to avoid redundant computation.
+ *
+ * @param a - First string to compare
+ * @param b - Second string to compare
+ * @returns Similarity score between 0 (no similarity) and 1 (identical)
+ */
 function similarity(a: string, b: string): number {
   const la = a.toLowerCase().trim();
   const lb = b.toLowerCase().trim();
-  if (la === lb) return 1;
 
-  // Check substring containment
-  if (lb.includes(la) || la.includes(lb)) return 0.85;
+  // Create cache key with consistent ordering
+  const cacheKey = la < lb ? `${la}|||${lb}` : `${lb}|||${la}`;
+  if (similarityCache.has(cacheKey)) {
+    return similarityCache.get(cacheKey)!;
+  }
 
-  // Levenshtein-based similarity
-  const lenA = la.length;
-  const lenB = lb.length;
-  if (lenA === 0 || lenB === 0) return 0;
+  let result: number;
 
-  const matrix: number[][] = Array.from({ length: lenA + 1 }, (_, i) =>
-    Array.from({ length: lenB + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  );
+  if (la === lb) {
+    result = 1;
+  } else if (lb.includes(la) || la.includes(lb)) {
+    // Substring containment indicates high similarity
+    result = 0.85;
+  } else {
+    // Levenshtein-based similarity for more nuanced comparison
+    const lenA = la.length;
+    const lenB = lb.length;
+    if (lenA === 0 || lenB === 0) {
+      result = 0;
+    } else {
+      // Optimized Levenshtein using two-row approach
+      let prevRow = Array.from({ length: lenB + 1 }, (_, j) => j);
+      let currRow = new Array(lenB + 1);
 
-  for (let i = 1; i <= lenA; i++) {
-    for (let j = 1; j <= lenB; j++) {
-      const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost
-      );
+      for (let i = 1; i <= lenA; i++) {
+        currRow[0] = i;
+        for (let j = 1; j <= lenB; j++) {
+          const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
+          currRow[j] = Math.min(
+            prevRow[j] + 1, // deletion
+            currRow[j - 1] + 1, // insertion
+            prevRow[j - 1] + cost // substitution
+          );
+        }
+        prevRow = [...currRow];
+      }
+
+      const distance = prevRow[lenB];
+      result = 1 - distance / Math.max(lenA, lenB);
     }
   }
 
-  const distance = matrix[lenA][lenB];
-  return 1 - distance / Math.max(lenA, lenB);
+  similarityCache.set(cacheKey, result);
+  return result;
 }
 
-function findBestMatch(
-  item: string,
-  options: string[]
-): { match: string; score: number } | null {
-  let best: { match: string; score: number } | null = null;
+/**
+ * Determines the reason for a match score to provide user-facing rationale.
+ *
+ * @param a - Original unknown item
+ * @param b - Matched canonical option
+ * @param score - Computed similarity score
+ * @returns Human-readable explanation of the match
+ */
+function getMatchRationale(a: string, b: string, score: number): string {
+  const la = a.toLowerCase().trim();
+  const lb = b.toLowerCase().trim();
+
+  if (score === 1) return 'Exact match';
+  if (lb.includes(la)) return `Contains "${la}"`;
+  if (la.includes(lb)) return `Contained in "${la}"`;
+
+  const lenA = la.length;
+  const lenB = lb.length;
+  if (lenA === 0 || lenB === 0) return 'Empty string comparison';
+
+  // Calculate approximate edit distance for rationale
+  let prevRow = Array.from({ length: lenB + 1 }, (_, j) => j);
+  let currRow = new Array(lenB + 1);
+
+  for (let i = 1; i <= lenA; i++) {
+    currRow[0] = i;
+    for (let j = 1; j <= lenB; j++) {
+      const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
+      currRow[j] = Math.min(
+        prevRow[j] + 1,
+        currRow[j - 1] + 1,
+        prevRow[j - 1] + cost
+      );
+    }
+    prevRow = [...currRow];
+  }
+
+  const distance = prevRow[lenB];
+  return `~${distance} edit${distance !== 1 ? 's' : ''} difference`;
+}
+
+/**
+ * Finds the best canonical match for an unknown item using optimized search.
+ * Handles ties deterministically by selecting the alphabetically first option.
+ *
+ * @param item - The unknown topic/subtopic to match
+ * @param options - Array of canonical options to match against
+ * @returns Best match result with score and rationale, or null if below threshold
+ */
+function findBestMatch(item: string, options: string[]): MatchResult | null {
+  let bestScore = -1;
+  let bestMatch: string | null = null;
+  let isTie = false;
+
   for (const opt of options) {
     const score = similarity(item, opt);
-    if (!best || score > best.score) {
-      best = { match: opt, score };
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = opt;
+      isTie = false;
+    } else if (score === bestScore && score > 0) {
+      // Deterministic tie-breaking: prefer alphabetically first option
+      if (opt < (bestMatch ?? '')) {
+        bestMatch = opt;
+        isTie = true;
+      } else {
+        isTie = true;
+      }
     }
   }
-  return best;
+
+  if (bestMatch === null || bestScore < CONFIDENCE_THRESHOLD) {
+    return null;
+  }
+
+  return {
+    match: bestMatch,
+    score: bestScore,
+    rationale: getMatchRationale(item, bestMatch, bestScore),
+    isTie,
+  };
 }
 
 const CONFIDENCE_THRESHOLD = 0.4;
@@ -155,12 +272,12 @@ function ManualFixPanel({
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkValue, setBulkValue] = useState('');
 
-  // Compute best matches for all unknown items
+  // Compute best matches for all unknown items with memoization
   const bestMatches = useMemo(() => {
-    const map: Record<string, { match: string; score: number }> = {};
+    const map: Record<string, MatchResult> = {};
     for (const item of unknownItems) {
       const result = findBestMatch(item, canonicalOptions);
-      if (result && result.score >= CONFIDENCE_THRESHOLD) {
+      if (result) {
         map[item] = result;
       }
     }
@@ -527,6 +644,17 @@ function ManualFixPanel({
                         <span className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-0.5">
                           <ThumbsUp className="h-2.5 w-2.5" />
                           {Math.round(best.score * 100)}% → {best.match}
+                          {best.isTie && (
+                            <span
+                              className="text-blue-600 dark:text-blue-400 ml-0.5"
+                              title="Multiple options tied"
+                            >
+                              ≈
+                            </span>
+                          )}
+                          <span className="text-muted-foreground/70 ml-0.5">
+                            ({best.rationale})
+                          </span>
                         </span>
                       )}
                     </div>
