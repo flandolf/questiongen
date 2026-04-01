@@ -1,3 +1,4 @@
+mod catalog;
 mod constants;
 mod difficulty;
 mod models;
@@ -13,7 +14,6 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tauri::{Emitter, Manager};
 
-use constants::*;
 use difficulty::difficulty_guidance;
 
 fn adjust_difficulty(
@@ -22,11 +22,12 @@ fn adjust_difficulty(
     recent_average_score: Option<f64>,
     recent_difficulty: Option<&str>,
 ) -> String {
-    if !scaling_enabled || recent_average_score.is_none() {
+    if !scaling_enabled {
         return base_difficulty.to_string();
     }
-
-    let score = recent_average_score.unwrap();
+    let Some(score) = recent_average_score else {
+        return base_difficulty.to_string();
+    };
     let levels = ["Essential Skills", "Easy", "Medium", "Hard", "Extreme"];
     let mut current_index = levels
         .iter()
@@ -57,11 +58,42 @@ use openrouter::{
 };
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
-    clean_field, extract_json_object, normalise_mc, normalise_written, normalize_envelope,
+    clean_field, extract_json_object, normalise_envelope, normalise_mc, normalise_written,
     protect_latex_in_raw_json, sanitize_for_api, validate_mc, validate_written,
 };
 use persistence::{load_persisted_state, save_persisted_state};
 use quality::score_batch;
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+/// Validate api_key + model, returning an error if either is empty.
+fn validate_generation_params(api_key: &str, model: &str) -> CommandResult<()> {
+    if api_key.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
+    }
+    if model.trim().is_empty() {
+        return Err(AppError::new("VALIDATION_ERROR", "Model required."));
+    }
+    Ok(())
+}
+
+/// Emit a generation-status event, logging failures silently.
+fn emit_generation_status(app: &tauri::AppHandle, payload: serde_json::Value) {
+    if let Err(e) = app.emit("generation-status", payload) {
+        eprintln!("app.emit failed: {e}");
+    }
+}
+
+/// Map a difficulty label to (temperature, top_p) defaults.
+fn difficulty_to_temperature(difficulty: &str) -> (f32, f32) {
+    match difficulty {
+        "Essential Skills" | "Easy" => (0.4, 0.9),
+        "Medium" => (0.5, 0.9),
+        "Hard" => (0.6, 0.9),
+        "Extreme" => (0.65, 0.9),
+        _ => (0.5, 0.9),
+    }
+}
 
 // ─── Response format schemas ──────────────────────────────────────────────────
 
@@ -215,27 +247,21 @@ fn written_system() -> String {
     format!(
                 "You are an expert VCE exam writer for written-response questions.\n\
                  {contract}\n\
-                 {LATEX_RULES}\n\
-                 {QUESTION_STYLE_RULES}\n\n\
+                 {latex_rules}\n\
+                 {question_style_rules}\n\n\
                  HARD CONSTRAINTS:\n\
                  - Question complexity must match maxMarks (parts, reasoning depth, and expected response length).\n\
                  - Before finalizing, verify each question's internal part marks sum exactly to maxMarks.\n\
-                 - Keep questions original and non-redundant across the batch.\n\n\
-                 {field_contract}\n\
-                 OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
-                 {{\n\
-                     \"questions\": [\n\
-                         {{\n\
-                             \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
-                             \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
-                             \"promptMarkdown\": string,\n\
-                             \"maxMarks\": integer (1–30),\n\
-                             \"techAllowed\": boolean\n\
-                         }}\n\
-                     ]\n\
-                 }}\n\
+                 - 'show that' questions: every step of the proof must be explicitly shown; a bald final line with no working scores zero.\n\
+                 - 'hence' questions: the student MUST use the result from the previous part; a correct independent method scores zero for the 'hence' mark.\n\
+                 - 'explain/justify' questions: a bare numerical answer without explanation scores zero.\n\n\
+                 {field_contract}\n\n\
+                 The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
+                 including worked solutions or answers inside the \"promptMarkdown\" string.\n\n\
                  No markdown fences, no extra keys, no commentary outside JSON.",
                 contract = generation_compliance_contract(),
+                latex_rules = constants::LATEX_RULES,
+                question_style_rules = constants::QUESTION_STYLE_RULES,
                 field_contract = topic_field_contract(),
     )
 }
@@ -245,8 +271,8 @@ fn mc_system() -> String {
                 "You are an expert VCE exam writer for multiple-choice questions.\n\
                  Provide only final answers and concise rationale, never chain-of-thought.\n\
                  {contract}\n\
-                 {LATEX_RULES}\n\
-                 {MC_DISTRACTOR_RULES}\n\n\
+                 {latex_rules}\n\
+                 {mc_distractor_rules}\n\n\
                  {field_contract}\n\
                  OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
                  {{\n\
@@ -269,8 +295,10 @@ fn mc_system() -> String {
                  including the answer options (A, B, C, D) inside the \"promptMarkdown\" string, as these \
                  are handled by the \"options\" array in the JSON schema.\n\n\
                  No markdown fences, no extra keys, no commentary outside JSON.",
-                contract = generation_compliance_contract(),
-                field_contract = topic_field_contract(),
+                 contract = generation_compliance_contract(),
+                 latex_rules = constants::LATEX_RULES,
+                 mc_distractor_rules = constants::MC_DISTRACTOR_RULES,
+                 field_contract = topic_field_contract(),
     )
 }
 
@@ -331,7 +359,7 @@ report specifies partial credit rules, apply them consistently.\n\
          - Also use Markdown in `comparisonToSolutionMarkdown` and `workedSolutionMarkdown` (headings, lists, and clear step structure).\n\
          - `exemplarResponseMarkdown`: a concise ideal student answer (aligned to the marking scheme) that would earn full marks. Keep it focused on the key steps or reasoning required. This is a SEPARATE field — do NOT duplicate it in feedbackMarkdown.\n\
         \n\
-        {LATEX_RULES}{chem_note}\n\n\
+        {latex_rules}{chem_note}\n\n\
         {phys_ed_note}\n\n\
          OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
          {{\n\
@@ -362,12 +390,13 @@ for correct: why it is right)\n\
              ]  // empty array [] for written questions\n\
          }}\n\
          No markdown fences, no extra keys, no commentary outside JSON.",
-        rationale_words = rationale_words,
-        comparison_words = comparison_words,
-        feedback_words = feedback_words,
-        worked_words = worked_words,
-        chem_note = chem_note,
-         phys_ed_note = phys_ed_note
+         rationale_words = rationale_words,
+         comparison_words = comparison_words,
+         feedback_words = feedback_words,
+         worked_words = worked_words,
+         latex_rules = constants::LATEX_RULES,
+         chem_note = chem_note,
+          phys_ed_note = phys_ed_note
     )
 }
 
@@ -375,26 +404,12 @@ for correct: why it is right)\n\
 
 fn topic_notes(topics: &[String], _selected_subs: Option<&Vec<String>>) -> String {
     let mut s = String::new();
-    if topics
-        .iter()
-        .any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC))
-    {
-        s.push('\n');
-        s.push_str(MATHEMATICAL_METHODS_GUIDANCE);
-    }
-    if topics
-        .iter()
-        .any(|t| t.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC))
-    {
-        s.push('\n');
-        s.push_str(PHYSICAL_EDUCATION_GUIDANCE);
-    }
-    if topics
-        .iter()
-        .any(|t| t.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC))
-    {
-        s.push('\n');
-        s.push_str(CHEMISTRY_LATEX_GUIDANCE);
+    for topic_name in topics {
+        let guidance = catalog::topic_exam_guidance(topic_name);
+        if !guidance.is_empty() {
+            s.push('\n');
+            s.push_str(guidance);
+        }
     }
     s
 }
@@ -413,14 +428,19 @@ fn subtopics_note(selected: Option<&Vec<String>>) -> String {
     };
     let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
 
-    // Inject Study Design key knowledge and exam technique notes for each selected subtopic.
-    let kk_map = crate::constants::subtopic_key_knowledge();
-    let exam_map = crate::constants::shared_subtopic_exam_technique_notes();
+    // Inject Study Design key knowledge and exam technique notes from the catalog.
+    let exam_map = constants::shared_subtopic_exam_technique_notes();
     for sub in subs {
         let key = sub.trim().to_ascii_lowercase();
-        if let Some(kk) = kk_map.get(key.as_str()) {
-            s.push_str(&format!("\n\n[{sub}]\n{kk}"));
+
+        // Find this subtopic in the catalog to get its parent topic
+        if let Some(topic_name) = catalog::subtopic_to_topic(&key) {
+            let kk = catalog::subtopic_key_knowledge(topic_name, sub);
+            if !kk.is_empty() {
+                s.push_str(&format!("\n\n[{sub}]\n{kk}"));
+            }
         }
+
         if let Some(exam) = exam_map.get(key.as_str()) {
             s.push_str(&format!("\n{exam}"));
         }
@@ -519,45 +539,41 @@ fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     format!("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any of the following recent questions. Use new names, settings, and details for every question.\nRecent questions to avoid:\n{list}")
 }
 
-fn topic_exam_pdf_files(topic: &str) -> &'static [&'static str] {
-    if topic
-        .trim()
-        .eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)
-    {
-        &["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"]
-    } else if topic.trim().eq_ignore_ascii_case("Specialist Mathematics") {
-        &["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"]
-    } else if topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC) {
-        &["2025-Chemistry.pdf"]
-    } else if topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC) {
-        &["2025-PhysicalEducation.pdf"]
-    } else {
-        &[]
-    }
-}
-
-fn exam_pdf_names_for_topics(topics: &[String]) -> Vec<&'static str> {
+fn exam_pdf_names_for_topics(topics: &[String]) -> Vec<&str> {
     let mut seen = HashSet::new();
     let mut out = Vec::new();
     for topic in topics {
-        for name in topic_exam_pdf_files(topic) {
-            if seen.insert(*name) {
-                out.push(*name);
+        for name in catalog::topic_exam_pdfs(topic) {
+            if seen.insert(name.as_str()) {
+                out.push(name.as_str());
             }
         }
     }
     out
 }
 
-fn resolve_exam_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathBuf> {
+fn report_pdf_names_for_topics(topics: &[String]) -> Vec<&str> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for topic in topics {
+        for name in catalog::topic_report_pdfs(topic) {
+            if seen.insert(name.as_str()) {
+                out.push(name.as_str());
+            }
+        }
+    }
+    out
+}
+
+fn resolve_pdf_path(app: &tauri::AppHandle, subdir: &str, filename: &str) -> Option<PathBuf> {
     let mut dirs = Vec::<PathBuf>::new();
     if let Ok(cwd) = std::env::current_dir() {
-        dirs.push(cwd.join("exams"));
-        dirs.push(cwd.join("../exams"));
+        dirs.push(cwd.join(subdir));
+        dirs.push(cwd.join("../").join(subdir));
     }
     if let Ok(resource_dir) = app.path().resource_dir() {
         dirs.push(resource_dir.clone());
-        dirs.push(resource_dir.join("exams"));
+        dirs.push(resource_dir.join(subdir));
     }
 
     let mut seen = HashSet::<PathBuf>::new();
@@ -573,119 +589,42 @@ fn resolve_exam_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathB
     None
 }
 
-/// Build exam PDF file parts for inclusion in the user message.
-/// Returns data-URL encoded file objects that OpenRouter's file-parser plugin
-/// will process based on the model's native file support.
+fn build_pdf_file_parts(
+    app: &tauri::AppHandle,
+    subdir: &str,
+    filenames: &[&str],
+) -> Vec<serde_json::Value> {
+    let mut parts = Vec::new();
+    for &filename in filenames {
+        let Some(path) = resolve_pdf_path(app, subdir, filename) else {
+            continue;
+        };
+        let Ok(bytes) = std::fs::read(&path) else {
+            continue;
+        };
+        let data_url = format!(
+            "data:application/pdf;base64,{}",
+            general_purpose::STANDARD.encode(&bytes)
+        );
+        parts.push(serde_json::json!({
+            "type": "file",
+            "file": {
+                "filename": filename,
+                "file_data": data_url,
+            }
+        }));
+    }
+    parts
+}
+
 fn build_exam_file_parts(app: &tauri::AppHandle, topics: &[String]) -> Vec<serde_json::Value> {
-    let mut parts = Vec::new();
-    for filename in exam_pdf_names_for_topics(topics) {
-        let Some(path) = resolve_exam_pdf_path(app, filename) else {
-            continue;
-        };
-        let Ok(bytes) = std::fs::read(&path) else {
-            continue;
-        };
-        let data_url = format!(
-            "data:application/pdf;base64,{}",
-            general_purpose::STANDARD.encode(&bytes)
-        );
-        parts.push(serde_json::json!({
-            "type": "file",
-            "file": {
-                "filename": filename,
-                "file_data": data_url,
-            }
-        }));
-    }
-    parts
+    let filenames = exam_pdf_names_for_topics(topics);
+    build_pdf_file_parts(app, "exams", &filenames)
 }
 
-/// Map a subject topic to its VCAA examiners' report PDF filenames.
-fn topic_report_pdf_files(topic: &str) -> &'static [&'static str] {
-    if topic
-        .trim()
-        .eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC)
-    {
-        &[
-            "2025-MathematicalMethods1-report.pdf",
-            "2025-MathematicalMethods2-report_0.pdf",
-        ]
-    } else if topic.trim().eq_ignore_ascii_case("Specialist Mathematics") {
-        &[
-            "2025-SpecialistMaths1-report.pdf",
-            "2025-SpecialistMaths2-report.pdf",
-        ]
-    } else if topic.trim().eq_ignore_ascii_case(CHEMISTRY_TOPIC) {
-        &["2025-Chemistry-report.pdf"]
-    } else if topic.trim().eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC) {
-        &["2025-PhysEd-report.pdf"]
-    } else {
-        &[]
-    }
-}
-
-fn report_pdf_names_for_topics(topics: &[String]) -> Vec<&'static str> {
-    let mut seen = HashSet::new();
-    let mut out = Vec::new();
-    for topic in topics {
-        for name in topic_report_pdf_files(topic) {
-            if seen.insert(*name) {
-                out.push(*name);
-            }
-        }
-    }
-    out
-}
-
-fn resolve_report_pdf_path(app: &tauri::AppHandle, filename: &str) -> Option<PathBuf> {
-    let mut dirs = Vec::<PathBuf>::new();
-    if let Ok(cwd) = std::env::current_dir() {
-        dirs.push(cwd.join("reports"));
-        dirs.push(cwd.join("../reports"));
-    }
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        dirs.push(resource_dir.clone());
-        dirs.push(resource_dir.join("reports"));
-    }
-
-    let mut seen = HashSet::<PathBuf>::new();
-    for dir in dirs {
-        if !seen.insert(dir.clone()) {
-            continue;
-        }
-        let candidate = dir.join(filename);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
-}
-
-/// Build report PDF file parts for inclusion in the user message.
-/// Returns data-URL encoded file objects that OpenRouter's file-parser plugin
-/// will process based on the model's native file support.
 fn build_report_file_parts(app: &tauri::AppHandle, topics: &[String]) -> Vec<serde_json::Value> {
-    let mut parts = Vec::new();
-    for filename in report_pdf_names_for_topics(topics) {
-        let Some(path) = resolve_report_pdf_path(app, filename) else {
-            continue;
-        };
-        let Ok(bytes) = std::fs::read(&path) else {
-            continue;
-        };
-        let data_url = format!(
-            "data:application/pdf;base64,{}",
-            general_purpose::STANDARD.encode(&bytes)
-        );
-        parts.push(serde_json::json!({
-            "type": "file",
-            "file": {
-                "filename": filename,
-                "file_data": data_url,
-            }
-        }));
-    }
-    parts
+    let filenames = report_pdf_names_for_topics(topics);
+    build_pdf_file_parts(app, "reports", &filenames)
 }
 
 /// Determine the plugins configuration based on whether the model supports files natively.
@@ -706,7 +645,7 @@ fn plugins_for_model(supports_files: bool) -> serde_json::Value {
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
     if topics
         .iter()
-        .any(|t| t.trim().eq_ignore_ascii_case(MATHEMATICAL_METHODS_TOPIC))
+        .any(|t| t.trim().eq_ignore_ascii_case("Mathematical Methods"))
     {
         match difficulty.to_ascii_lowercase().as_str() {
             "essential skills" => {
@@ -740,7 +679,7 @@ fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> Command
     let value: serde_json::Value = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
     let normalised =
-        normalize_envelope(value).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
+        normalise_envelope(value).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
     serde_json::from_value(normalised)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))
 }
@@ -778,18 +717,16 @@ async fn generate_questions(
             "Select at least one topic.",
         ));
     }
-    if request.question_count == 0 || request.question_count > 20 {
+    if request.question_count == 0 || request.question_count > constants::MAX_QUESTION_COUNT {
         return Err(AppError::new(
             "VALIDATION_ERROR",
-            "Question count must be 1–20.",
+            format!(
+                "Question count must be 1–{}.",
+                constants::MAX_QUESTION_COUNT
+            ),
         ));
     }
-    if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
-    }
-    if request.model.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Model required."));
-    }
+    validate_generation_params(&request.api_key, &request.model)?;
 
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
@@ -815,15 +752,13 @@ async fn generate_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "written", "stage": "preparing",
             "message": "Building prompt.", "attempt": 1
         }),
-    ) {
-        eprintln!("app.emit failed: {e}");
-    }
+    );
 
     let exam_context_preamble = if include_exam_context {
         "\n\nEXAM PDF CONTEXT:\n\
@@ -872,16 +807,14 @@ async fn generate_questions(
         )),
     );
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "written", "stage": "generating",
             "message": format!("Generating {} questions…", request.question_count),
             "attempt": 1
         }),
-    ) {
-        eprintln!("app.emit failed: {e}");
-    }
+    );
 
     let written_sys = written_system();
     let written_fmt = written_format();
@@ -912,15 +845,9 @@ async fn generate_questions(
     };
 
     // Determine temperature, top_p, seed (difficulty-aware tuning)
-    let (temperature, top_p) = match adjusted_difficulty.as_str() {
-        "Essential Skills" | "Easy" => (0.4, 0.9),
-        "Medium" => (0.5, 0.9),
-        "Hard" => (0.6, 0.9),
-        "Extreme" => (0.65, 0.9),
-        _ => (0.5, 0.9),
-    };
-    let temperature = request.temperature.unwrap_or(temperature);
-    let top_p = request.top_p.unwrap_or(top_p);
+    let (base_temp, base_top_p) = difficulty_to_temperature(&adjusted_difficulty);
+    let temperature = request.temperature.unwrap_or(base_temp);
+    let top_p = request.top_p.unwrap_or(base_top_p);
     let seed = request.seed;
 
     let result = call_openrouter_streaming_with_plugins(
@@ -938,16 +865,14 @@ async fn generate_questions(
     )
     .await?;
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "written", "stage": "parsing",
             "message": "Parsing and validating questions.",
             "attempt": 1
         }),
-    ) {
-        eprintln!("app.emit failed: {e}");
-    }
+    );
 
     let mut payload: WrittenQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_written(&mut payload.questions, &request.topics, selected_subs);
@@ -960,36 +885,32 @@ async fn generate_questions(
         let target_total = total_marks as i64;
         let diff = target_total - current_total;
         if diff != 0 {
-            // Distribute the difference across questions, adding/subtracting 1 mark at a time
-            // starting from the questions with the most marks (they can afford to lose some).
-            let q_count = payload.questions.len() as i64;
-            let mut adjustments: Vec<i64> = vec![diff / q_count; payload.questions.len()];
-            let remainder = diff % q_count;
-            for adj in adjustments
-                .iter_mut()
-                .take(remainder.unsigned_abs() as usize)
-            {
-                if remainder > 0 {
-                    *adj += 1;
-                } else {
-                    *adj -= 1;
-                }
-            }
-            // Sort indices by max_marks descending so we add to smaller questions / subtract from larger ones.
-            let mut indices: Vec<usize> = (0..payload.questions.len()).collect();
+            let q_count = payload.questions.len();
+            let base_adj = diff / q_count as i64;
+            let remainder = diff % q_count as i64;
+
+            let mut indices: Vec<usize> = (0..q_count).collect();
             if diff > 0 {
-                // Adding marks: prefer questions with fewer marks first.
                 indices.sort_by_key(|&i| payload.questions[i].max_marks);
             } else {
-                // Subtracting marks: prefer questions with more marks first.
                 indices.sort_by_key(|&i| std::cmp::Reverse(payload.questions[i].max_marks));
             }
-            let mut adj_iter = adjustments.into_iter();
-            for i in indices {
-                if let Some(adj) = adj_iter.next() {
-                    let new_marks = (payload.questions[i].max_marks as i64 + adj).max(1).min(30);
-                    payload.questions[i].max_marks = new_marks as u8;
-                }
+
+            for (pos, &i) in indices.iter().enumerate() {
+                let adj = base_adj
+                    + if (pos as i64) < remainder.abs() {
+                        if diff > 0 {
+                            1
+                        } else {
+                            -1
+                        }
+                    } else {
+                        0
+                    };
+                let new_marks = (payload.questions[i].max_marks as i64 + adj)
+                    .max(constants::MIN_MARKS_PER_QUESTION as i64)
+                    .min(constants::MAX_MARKS_PER_QUESTION as i64);
+                payload.questions[i].max_marks = new_marks as u8;
             }
         }
     }
@@ -1016,8 +937,8 @@ async fn generate_questions(
 
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "written", "stage": "completed",
             "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0),
@@ -1027,9 +948,8 @@ async fn generate_questions(
             "completionTokens": result.completion_tokens,
             "estimatedCostUsd": estimated_cost_usd,
             "durationMs": duration_ms,
-        }),) {
-        eprintln!("app.emit failed: {e}");
-    }
+        }),
+    );
 
     Ok(GenerateQuestionsResponse {
         questions: payload.questions,
@@ -1056,18 +976,16 @@ async fn generate_mc_questions(
             "Select at least one topic.",
         ));
     }
-    if request.question_count == 0 || request.question_count > 20 {
+    if request.question_count == 0 || request.question_count > constants::MAX_QUESTION_COUNT {
         return Err(AppError::new(
             "VALIDATION_ERROR",
-            "Question count must be 1–20.",
+            format!(
+                "Question count must be 1–{}.",
+                constants::MAX_QUESTION_COUNT
+            ),
         ));
     }
-    if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
-    }
-    if request.model.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Model required."));
-    }
+    validate_generation_params(&request.api_key, &request.model)?;
 
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
@@ -1091,15 +1009,13 @@ async fn generate_mc_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "multiple-choice", "stage": "preparing",
             "message": "Building prompt.", "attempt": 1
         }),
-    ) {
-        eprintln!("app.emit failed: {e}");
-    }
+    );
 
     let exam_context_preamble = if include_exam_context {
         "\n\nEXAM PDF CONTEXT:\n\
@@ -1140,16 +1056,14 @@ async fn generate_mc_questions(
         )),
     );
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "multiple-choice", "stage": "generating",
             "message": format!("Generating {} questions…", request.question_count),
             "attempt": 1
         }),
-    ) {
-        eprintln!("app.emit failed: {e}");
-    }
+    );
 
     let mc_sys = mc_system();
     let mc_fmt = mc_format();
@@ -1184,15 +1098,9 @@ async fn generate_mc_questions(
     };
 
     // MC: τ = 0.6, top-p = 0.9 by default, difficulty-aware tuning
-    let (temperature, top_p) = match adjusted_difficulty.as_str() {
-        "Essential Skills" | "Easy" => (0.4, 0.9),
-        "Medium" => (0.5, 0.9),
-        "Hard" => (0.6, 0.9),
-        "Extreme" => (0.65, 0.9),
-        _ => (0.6, 0.9),
-    };
-    let temperature = request.temperature.unwrap_or(temperature);
-    let top_p = request.top_p.unwrap_or(top_p);
+    let (base_temp, base_top_p) = difficulty_to_temperature(&adjusted_difficulty);
+    let temperature = request.temperature.unwrap_or(base_temp);
+    let top_p = request.top_p.unwrap_or(base_top_p);
     let seed = request.seed;
 
     let result = call_openrouter_streaming_with_plugins(
@@ -1210,16 +1118,14 @@ async fn generate_mc_questions(
     )
     .await?;
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "multiple-choice", "stage": "parsing",
             "message": "Parsing and validating questions.",
             "attempt": 1
         }),
-    ) {
-        eprintln!("app.emit failed: {e}");
-    }
+    );
 
     let mut payload: McQuestionsPayload = parse_questions_payload(&result.content)?;
     normalise_mc(&mut payload.questions, &request.topics, selected_subs);
@@ -1256,8 +1162,8 @@ async fn generate_mc_questions(
 
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    if let Err(e) = app.emit(
-        "generation-status",
+    emit_generation_status(
+        &app,
         serde_json::json!({
             "mode": "multiple-choice", "stage": "completed",
             "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0),
@@ -1267,9 +1173,8 @@ async fn generate_mc_questions(
             "completionTokens": result.completion_tokens,
             "estimatedCostUsd": estimated_cost_usd,
             "durationMs": duration_ms,
-        }),) {
-        eprintln!("app.emit failed: {e}");
-    }
+        }),
+    );
 
     Ok(GenerateMcQuestionsResponse {
         questions: payload.questions,
@@ -1300,12 +1205,7 @@ async fn mark_answer(
             "Provide an answer or image.",
         ));
     }
-    if request.api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
-    }
-    if request.model.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Model required."));
-    }
+    validate_generation_params(&request.api_key, &request.model)?;
     if request.question.max_marks == 0 {
         return Err(AppError::new("VALIDATION_ERROR", "maxMarks must be > 0."));
     }
@@ -1333,14 +1233,14 @@ async fn mark_answer(
         sanitize_for_api(request.question.subtopic.as_deref().unwrap_or("—").trim());
     let question_prompt = sanitize_for_api(&request.question.prompt_markdown);
 
-    let is_chem = question_topic.eq_ignore_ascii_case(CHEMISTRY_TOPIC);
+    let is_chem = question_topic.eq_ignore_ascii_case(constants::CHEMISTRY_TOPIC);
     let chem_note = if is_chem {
-        CHEMISTRY_LATEX_GUIDANCE
+        constants::CHEMISTRY_LATEX_GUIDANCE
     } else {
         ""
     };
 
-    let is_pe = question_topic.eq_ignore_ascii_case(PHYSICAL_EDUCATION_TOPIC);
+    let is_pe = question_topic.eq_ignore_ascii_case(constants::PHYSICAL_EDUCATION_TOPIC);
     let pe_note = if is_pe {
         "\nPHYSICAL EDUCATION MARKING STYLE:\n\
          - DO NOT use mathematical equations, derivations, or formula-based solutions in your \
@@ -2049,7 +1949,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use parsing::{extract_json_object, normalize_envelope, validate_mc, validate_written};
+    use parsing::{extract_json_object, normalise_envelope, validate_mc, validate_written};
 
     #[test]
     fn extract_json_strips_fence() {
@@ -2067,14 +1967,14 @@ mod tests {
     #[test]
     fn normalise_envelope_wraps_array() {
         let v = serde_json::json!([{"id":"q1"}]);
-        let out = normalize_envelope(v).unwrap();
+        let out = normalise_envelope(v).unwrap();
         assert!(out.get("questions").unwrap().is_array());
     }
 
     #[test]
     fn normalise_envelope_handles_nested_data() {
         let v = serde_json::json!({"data":{"questions":[{"id":"q1"}]}});
-        let out = normalize_envelope(v).unwrap();
+        let out = normalise_envelope(v).unwrap();
         assert_eq!(out["questions"].as_array().unwrap().len(), 1);
     }
 

@@ -207,12 +207,26 @@ async fn fetch_catalogue_and_lookup(
         .await
     {
         Ok(r) if r.status().is_success() => r,
-        _ => return (false, false),
+        Ok(r) => {
+            eprintln!(
+                "fetch_catalogue_and_lookup: non-success status {} for {}",
+                r.status(),
+                url
+            );
+            return (false, false);
+        }
+        Err(e) => {
+            eprintln!("fetch_catalogue_and_lookup: request failed: {e}");
+            return (false, false);
+        }
     };
 
     let parsed: ModelsListResponse = match resp.json().await {
         Ok(p) => p,
-        Err(_) => return (false, false),
+        Err(e) => {
+            eprintln!("fetch_catalogue_and_lookup: JSON parse failed: {e}");
+            return (false, false);
+        }
     };
 
     let mut supports_images_map: HashMap<String, bool> = HashMap::with_capacity(parsed.data.len());
