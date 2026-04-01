@@ -193,7 +193,7 @@ AUTHENTICITY & CONTEXT REQUIREMENTS:\n\
 VCAA questions must be grounded in REALISTIC sports and training contexts.\n\n\
 COMMON AUSTRALIAN SPORTS:\n\
 AFL, cricket, rugby league, rugby union, netball, basketball, tennis, swimming, \
-athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\n\
+athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\\n\
 REALISTIC SCENARIOS:\n\
 • Pre-season training and conditioning phases\n\
 • Return-to-play after injury / rehabilitation\n\
@@ -208,159 +208,6 @@ athletes, potential elite pathway athletes)\n\
 • Acknowledge recreational participation, competitive club level, and elite development\n\
 • Consider both individual sports (tennis, gymnastics, swimming) and team sports \
 (netball, AFL, basketball, soccer)\n\n\
-QUESTION DESIGN — BY UNIT AND AREA OF STUDY:\n\
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n\
-UNIT 3 AREA OF STUDY 1 — How are movement skills improved?\n\n\
-Key concepts to assess:\n\
-• Skill classification (discrete, serial, continuous; open, closed; gross, fine; \
-fundamental, sport-specific)\n\
-• Stages of learning (cognitive, associative, autonomous) and progression\n\
-• Practice scheduling (part/whole, massed/distributed, blocked/random variability)\n\
-• Feedback types (intrinsic vs augmented), timing, and frequency effects\n\
-• Psychological factors (confidence, motivation, optimal arousal, concentration)\n\
-• Coaching strategies tailored to learner needs and skill requirements\n\n\
-Example question templates:\n\n\
-Q1: \"A basketball coach observes a player struggling with dribbling technique in \
-a game situation. (a) Classify the dribbling skill according to movement skill \
-classification systems. (b) Analyze which stage of learning the player is likely in, \
-referring to specific characteristics. (c) Justify the most appropriate coaching strategy \
-and practice approach (consider part/whole, blocked/random) to improve the skill. \
-(d) Explain what type of feedback would be most beneficial at this stage and why.\"\n\n\
-Q2: \"Explain how the concept of optimal arousal applies to skill performance in a \
-pressure situation such as a penalty kick in soccer. Discuss how a player might manage \
-their arousal level to maintain concentration and execute the skill successfully.\"\n\n\
-Q3: \"A coach uses knowledge of results (KR) feedback when training a netball player's \
-shooting accuracy. (a) Define what KR feedback is and distinguish it from other types \
-of augmented feedback. (b) Justify why this type of feedback is appropriate for shooting \
-accuracy. (c) Discuss when and why the coach should reduce reliance on KR feedback as \
-the player progresses through the stages of learning.\"\n\n\n\
-UNIT 3 AREA OF STUDY 1 (continued) — Biomechanics & Movement Analysis\n\n\
-Key concepts to assess:\n\
-• Linear and angular motion (force, velocity, momentum, impulse)\n\
-• Newton's three laws of motion (inertia, acceleration, action-reaction)\n\
-• Projectile motion (launch angle, height, speed effects on trajectory)\n\
-• Balance and stability (center of gravity, base of support, line of gravity)\n\
-• Third class lever systems (speed and force production)\n\
-• Qualitative movement analysis (systematic observation, evaluation, error correction)\n\n\
-Example question templates:\n\n\
-Q1: \"A shot-putter releases the shot at a 45° angle. Using biomechanical principles, \
-explain why this release angle is optimal for maximizing distance. In your answer, \
-consider the interplay between height of release, velocity, and air resistance.\"\n\n\
-Q2: \"Analyze the biomechanical principles that allow a gymnast to maintain balance \
-while performing a handstand. Refer to center of gravity, base of support, and line of \
-gravity in your response, and explain how conscious adjustments in body position \
-maintain equilibrium.\"\n\n\
-Q3: \"Design a qualitative movement analysis (QMA) protocol for assessing and improving \
-a swimmer's front crawl stroke. Your protocol must include: (a) systematic observation \
-points focusing on key biomechanical aspects (body position, arm action, kick, \
-coordination), (b) identification of 2–3 common errors and their biomechanical causes, \
-(c) specific coaching cues or drills to correct each identified error.\"\n\n\n\
-UNIT 3 AREA OF STUDY 2 — How does the body produce energy?\n\n\
-Key concepts to assess:\n\
-• ATP-CP system (rate of ATP regeneration, phosphocreatine role, duration, recovery)\n\
-• Anaerobic glycolysis (substrate, lactate production, duration capacity, recovery)\n\
-• Aerobic system (oxidative phosphorylation, oxygen utilization, sustained production)\n\
-• Energy system interplay (transitions based on intensity and duration)\n\
-• Oxygen uptake dynamics (oxygen deficit, steady state, EPOC)\n\
-• Lactate threshold and anaerobic threshold concepts\n\
-• Fatigue mechanisms (metabolic, muscular, thermoregulatory, central)\n\n\
-Example question templates:\n\n\
-Q1: \"A tennis player performs repeated 10-second sprints with 20-second recovery \
-periods during a training session. Explain which energy systems contribute to ATP \
-regeneration during work periods and during recovery periods. Justify why this \
-work-to-rest ratio was selected, referring to energy system recovery rates.\"\n\n\
-Q2: \"Compare the energy system contributions to a 100 m sprint versus a 1500 m run. \
-In your comparison, discuss: (a) the relative contributions of each energy system in \
-each event, (b) the rate of ATP yield in each system, (c) the accumulation of \
-fatigue-inducing by-products, and (d) how training adaptations differ for these two events.\"\n\n\
-Q3: \"A cyclist experiences muscle fatigue during the final lap of a race after \
-competing at high intensity for 15 minutes. Analyze the muscular, metabolic, and \
-thermoregulatory fatigue mechanisms that may contribute to this fatigue. Suggest \
-strategies (training-based or nutritional) that could delay fatigue in future races.\"\n\n\
-Q4: \"Explain the relationship between lactate inflection point (LIP), aerobic \
-capacity, and performance in endurance sports. Discuss how training can improve LIP \
-and what physiological adaptations support this improvement.\"\n\n\n\
-UNIT 4 AREA OF STUDY 1 — What are the foundations of an effective training program?\n\n\
-Key concepts to assess:\n\
-• Activity analysis (skill frequencies, movement patterns, heart rates, work-to-rest ratios)\n\
-• Fitness components (aerobic power, anaerobic capacity, muscular strength, power, \
-endurance, flexibility, speed, agility, balance, coordination)\n\
-• Fitness testing selection (reliability, validity, accuracy; matching to physiological demands)\n\
-• Pre-participation screening and informed consent procedures\n\n\
-Example question templates:\n\n\
-Q1: \"Conduct an activity analysis for a soccer striker's role. (a) Identify the key \
-physiological demands of the position, including dominant energy systems and work-to-rest \
-ratios during match play. (b) List the primary fitness components required for effective \
-performance at this position. (c) Justify your identification of fitness components with \
-specific examples of movement patterns and actions required during match play.\"\n\n\
-Q2: \"A coach wants to assess anaerobic capacity in rugby forwards. (a) Recommend an \
-appropriate standardized fitness test for this component. (b) Justify your recommendation \
-with reference to test validity (does it measure anaerobic capacity?), reliability \
-(consistency of measurement?), and how it reflects the physiological demands of the forward \
-position in rugby.\"\n\n\
-Q3: \"Explain the importance of pre-participation screening and informed consent in \
-fitness testing. What ethical, safety, and health considerations should be disclosed to \
-potential participants before testing?\"\n\n\n\
-UNIT 4 AREA OF STUDY 2 — How is training implemented effectively?\n\n\
-Key concepts to assess:\n\
-• Training principles (FITTV: Frequency, Intensity, Time/Duration, Type, Variation)\n\
-• Specificity, individuality, progression, diminishing returns, variety\n\
-• Periodization (macrocycles, mesocycles, microcycles, tapering, detraining)\n\
-• Training methods (continuous, interval, fartlek, circuit, resistance, flexibility, plyometrics)\n\
-• Session components (warm-up, conditioning, cool-down)\n\
-• Chronic adaptations (cardiovascular, respiratory, muscular to various training stimuli)\n\
-• Monitoring and program evaluation (data collection and adjustment)\n\n\
-Example question templates:\n\n\
-Q1: \"Design a 12-week periodized training program for a competitive swimmer preparing \
-for state championships. Your program must demonstrate: (a) macrocycle structure with \
-clear periodization phases (building, peaking, tapering), (b) application of training \
-principles (progression, specificity, variety, recovery), (c) appropriate training methods \
-for developing both aerobic capacity and lactate tolerance, and (d) a specific tapering \
-strategy for the week before competition. Justify each component of your program with \
-reference to training principles and the physiological demands of competitive swimming.\"\n\n\
-Q2: \"Explain the concept of specificity in training. Use examples from TWO different \
-sports to demonstrate how the principle of specificity guides the selection of training \
-methods, exercise selection, and intensity/duration parameters.\"\n\n\
-Q3: \"Compare continuous training and high-intensity interval training (HIIT) as \
-methods for improving aerobic capacity. In your comparison, discuss: (a) the physiological \
-rationale for each method, (b) the advantages and disadvantages of each, and (c) the \
-situations or athlete profiles in which each method would be most appropriate.\"\n\n\
-Q4: \"Explain the signs and symptoms of overtraining syndrome. Discuss how appropriate \
-application of training principles — particularly recovery strategies and training variety \
-— can prevent overtraining syndrome.\"\n\n\
-Q5: \"A runner completes an 8-week aerobic training program at moderate intensity. Explain \
-the chronic cardiovascular and respiratory adaptations she will experience, including \
-changes to stroke volume, cardiac output, oxygen extraction, and VO₂ max. How do these \
-adaptations improve endurance performance?\"\n\n\
-Q6: \"Describe how a coach should monitor and evaluate a training program to determine \
-whether it is effectively improving performance. What types of data should be collected \
-(physiological, psychological, or sociological)? How should this data be analyzed and used \
-to modify the training program?\"\n\n\n\
-UNIT 4 AREA OF STUDY 3 — Integrated Movement Experiences (Interdisciplinary)\n\n\
-Key concepts to assess:\n\
-• Integration of theory and practice across skill acquisition, biomechanics, energy systems\n\
-• Interdisciplinary analysis connecting multiple PE concepts to performance\n\
-• Practical application of knowledge to real athlete scenarios\n\n\
-Example question templates:\n\n\
-Q1: \"A badminton player is developing her smash technique to improve attacking power. \
-Design a 6-week training program that integrates: (a) skill acquisition principles \
-(stages of learning, feedback, practice scheduling), (b) biomechanical optimization \
-(lever systems, force application, range of motion, power development), (c) energy system \
-development (ATP-CP for explosive power, recovery between rallies), and (d) training \
-monitoring (how you would assess both technique improvement and power gains). Justify how \
-each component contributes to improved overall smash performance.\"\n\n\
-Q2: \"Analyze the 400 m sprint from an interdisciplinary perspective. Discuss: \
-(a) biomechanical principles of efficient running technique (lever systems, force \
-application), (b) energy system contributions to the event (ATP-CP, anaerobic glycolysis, \
-aerobic system), (c) training methods to develop both speed (power) and aerobic capacity, \
-and (d) skill acquisition strategies for maintaining technique under fatigue. How do these \
-four factors interact to determine overall 400 m performance?\"\n\n\
-Q3: \"A volleyball player's vertical jump performance has plateaued after 6 weeks of \
-plyometric training. Analyze potential causes using concepts from: (a) training principles \
-(diminishing returns, insufficient variety, progression issues), (b) biomechanical \
-principles (power development, force application), (c) energy systems (recovery inadequacy, \
-fatigue mechanisms), and (d) skill acquisition (practice variability, feedback). Recommend \
-specific modifications to the training program to overcome the plateau.\"\n\n\n\
 QUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n\
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n\
 ✓ Aligned with Unit 3 or 4 key knowledge/skills from Study Design?\n\
@@ -373,8 +220,13 @@ QUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n\
 ✓ All terms are defined or contextually clear?\n\
 ✓ Question avoids leading or telegraphing the expected answer?\n\
 ✓ Expected response length is reasonable for marks allocated?\n\
-✓ Question reflects the style and rigor of actual VCAA examinations?\n\n\n\
-UNIT 3 AREA OF STUDY 1 — How are movement skills improved?\n\
+✓ Question reflects the style and rigor of actual VCAA examinations?\n";
+
+// ─── Physical Education key knowledge (per-subtopic group) ─────────────────
+// These are injected per selected subtopic via `subtopic_key_knowledge()` so the
+// LLM only sees key knowledge for topics the user has actually selected.
+
+pub const PE_SKILL_ACQUISITION_KK: &str = "Study Design key knowledge:\n\
 - Classification of movement skills: fundamental movement skills (stability, locomotor, manipulative), \
 sport-specific skills, open and closed skills, gross and fine skills, discrete/serial/continuous motor skills\n\
 - Link between motor skill development, participation and performance: how skill level influences \
@@ -391,17 +243,20 @@ optimal arousal (regulation via PMR, breath control, or music), concentration; a
 such as imagery (vivid/controllable) and goal setting (SMARTER)\n\
 - Practice scheduling: type (part/whole), distribution (massed/distributed), variability (blocked/random)\n\
 - Feedback: intrinsic (visual, auditory, proprioception) vs augmented (knowledge of results \
-vs knowledge of performance); timing (concurrent vs terminal) and frequency issues (dependency)\n\
-- Biomechanical principles: linear and angular concepts (force/torque, momentum, impulse, speed/velocity); \
-Newton's 3 laws of linear motion (inertia, acceleration, action-reaction); \
-projectile motion (height, angle, speed of release); anatomical third-class levers \
-(axis, force, resistance, mechanical advantage < 1 for speed/range of motion); \
-equilibrium/stability (centre of gravity, base of support, line of gravity)\n\
+vs knowledge of performance); timing (concurrent vs terminal) and frequency issues (dependency)";
+
+pub const PE_BIOMECHANICS_KK: &str = "Study Design key knowledge:\n\
+- Biomechanical principles: linear and angular concepts (force/torque, momentum, impulse, speed/velocity)\n\
+- Newton's 3 laws of linear motion (inertia, acceleration, action-reaction)\n\
+- Projectile motion (height, angle, speed of release)\n\
+- Anatomical third-class levers (axis, force, resistance, mechanical advantage < 1 for speed/range of motion)\n\
+- Equilibrium/stability (centre of gravity, base of support, line of gravity)\n\
 - Force application: summation of forces (sequential vs simultaneous), conservation of momentum, \
 impulse-momentum relationship\n\
 - Qualitative movement analysis stages: preparation, observation, evaluation (diagnosis of errors), \
-error correction (intervention)\n\n\
-UNIT 3 AREA OF STUDY 2 — How does the body produce energy?\n\
+error correction (intervention)";
+
+pub const PE_ENERGY_SYSTEMS_KK: &str = "Study Design key knowledge:\n\
 - Oxygen uptake at rest and during exercise/recovery: oxygen deficit, steady state, EPOC\n\
 - Acute physiological responses to exercise in the cardiovascular, respiratory and muscular systems\n\
 - Three energy systems (ATP-CP, anaerobic glycolysis, aerobic): fuels (chemical and food); \
@@ -411,8 +266,9 @@ recovery rates with active vs passive recovery\n\
 - Muscular fatigue mechanisms: fuel depletion (PC, glycogen), accumulation of metabolic by-products \
 (e.g. H⁺ ions), thermoregulatory fatigue; linked to sport and exercise intensities/durations\n\
 - Nutritional and hydration strategies: carbohydrate ingestion, protein, water — \
-to enhance performance, delay fatigue, improve recovery\n\n\
-UNIT 4 AREA OF STUDY 1 — What are the foundations of an effective training program?\n\
+to enhance performance, delay fatigue, improve recovery";
+
+pub const PE_FOUNDATIONS_KK: &str = "Study Design key knowledge:\n\
 - Activity analysis data: skill frequencies, movement patterns, heart rates, work-to-rest ratios \
 used to identify physiological requirements\n\
 - Fitness components required in physical activity/sport: aerobic power, anaerobic capacity, \
@@ -420,8 +276,9 @@ muscular strength, power and endurance, flexibility, balance, coordination, spee
 - Fitness assessment: purpose (physiological and psychological perspectives); \
 pre-participation health screening and informed consent; \
 standardised fitness tests matched to physiological requirements; \
-test reliability, validity and accuracy\n\n\
-UNIT 4 AREA OF STUDY 2 — How is training implemented effectively?\n\
+test reliability, validity and accuracy";
+
+pub const PE_TRAINING_PRINCIPLES_KK: &str = "Study Design key knowledge:\n\
 - Strategies to monitor training: training diaries, digital tools, wearable technologies\n\
 - Components of a training session: warm up, conditioning phase, cool down\n\
 - Training program principles: frequency, intensity, time/duration (FITT), type, \
@@ -430,11 +287,8 @@ tapering, overtraining, detraining\n\
 - Training methods: continuous, interval (short/intermediate/long/HIIT), fartlek, \
 circuit, weight/resistance, flexibility, plyometrics\n\
 - Chronic adaptations to aerobic, anaerobic and resistance training in the cardiovascular, \
-respiratory and muscular systems, producing improvements in:\n\
-  • VO₂ max\n\
-  • Lactate inflection point (LIP)\n\
-  • Speed and force of muscular contraction\n\
-  • Lactate tolerance";
+respiratory and muscular systems, producing improvements in VO₂ max, LIP, \
+speed and force of muscular contraction, and lactate tolerance";
 
 // ─── Chemistry ────────────────────────────────────────────────────────────────
 
@@ -561,6 +415,75 @@ constructing PDFs from non-negative functions\n\
         - Effect of variation in $\\mu$ and $\\sigma$ on PDF graph\n\
         - Conditional probability; finding $k$ such that $\\Pr(X>k)=c$",
     );
+
+    // ── Physical Education ──────────────────────────────────────────────────
+
+    // Unit 3 AoS 1 — Skill Acquisition (indices 0–8)
+    for &sub in &[
+        "Movement Skill Classification: Fundamental, Sport-Specific, Open/Closed, Gross/Fine",
+        "Discrete, Serial, and Continuous Motor Skills: Temporal Characteristics",
+        "Stages of Learning: Cognitive, Associative, and Autonomous Stages",
+        "Skill Acquisition Theories: Linear vs. Non-Linear Learning Models",
+        "Learning Approaches: Direct Instruction vs. Constraint-Based Methods",
+        "Practice Scheduling: Type (Whole/Part), Distribution (Massed/Distributed), and Variability (Blocked/Random)",
+        "Feedback in Skill Acquisition: Intrinsic, Augmented, and Timing Optimization",
+        "Psychological Factors in Learning: Confidence, Motivation, Arousal, and Concentration",
+        "Coaching Strategies: Tailoring Instruction to Learner Needs and Performance Requirements",
+    ] {
+        m.insert(sub, PE_SKILL_ACQUISITION_KK);
+    }
+
+    // Unit 3 AoS 1 — Biomechanics (indices 9–17)
+    for &sub in &[
+        "Linear Motion: Momentum, Displacement, Linear Velocity, Acceleration",
+        "Angular Motion: Angular Momentum, Moment of Inertia, Angular Velocity",
+        "Momentum and Impulse: Conservation and Application in Physical Activities",
+        "Newton's Laws of Motion: Inertia, Acceleration, and Action-Reaction in Sport",
+        "Projectile Motion: Release Angle, Height, Speed, and Optimal Performance Trajectories",
+        "Center of Gravity, Base of Support, and Equilibrium: Balance and Stability Principles",
+        "Third Class Lever Systems: Mechanical Advantage and Force Application",
+        "Qualitative Movement Analysis: Systematic Observation, Evaluation, and Error Correction",
+        "Video Analysis and Biomechanical Assessment: Tools for Movement Improvement",
+    ] {
+        m.insert(sub, PE_BIOMECHANICS_KK);
+    }
+
+    // Unit 3 AoS 2 — Energy Systems (indices 18–25)
+    for &sub in &[
+        "ATP-CP System: High-Intensity Energy Supply and Recovery Characteristics",
+        "Anaerobic Glycolysis: Glucose Breakdown, Lactate Production, and Duration Capacity",
+        "Aerobic System: Oxidative Phosphorylation and Sustained Energy Production",
+        "Energy System Interplay: ATP-CP to Anaerobic to Aerobic Transition by Intensity and Duration",
+        "Oxygen Uptake: Oxygen Deficit, Steady State, and EPOC Recovery",
+        "VO2 Max and Lactate Inflection Point: Aerobic Capacity and Anaerobic Threshold",
+        "Fatigue Mechanisms: Metabolic, Muscular, Thermoregulatory, and Central Fatigue",
+        "Nutrition and Hydration Strategies: Fueling Performance and Enhancing Recovery",
+    ] {
+        m.insert(sub, PE_ENERGY_SYSTEMS_KK);
+    }
+
+    // Unit 4 AoS 1 — Foundations (indices 26–32)
+    for &sub in &[
+        "Activity Analysis: Identifying Skill Frequencies, Movement Patterns, and Physiological Demands",
+        "Fitness Assessment: Testing Aerobic, Anaerobic, Strength, Endurance, Flexibility, Speed, and Agility",
+        "Test Reliability, Validity, and Accuracy: Standardized Protocols and Error Minimization",
+        "Pre-Participation Screening and Informed Consent",
+    ] {
+        m.insert(sub, PE_FOUNDATIONS_KK);
+    }
+
+    // Unit 4 AoS 2 — Training Principles and Methods (indices 33–38)
+    for &sub in &[
+        "Training Principles: Frequency, Intensity, Time/Duration, Type, and Progression",
+        "Training Adaptation: Specificity, Individuality, Variety, and Diminishing Returns",
+        "Periodization and Planning: Macrocycles, Mesocycles, Microcycles, Tapering, and Detraining",
+        "Continuous and Interval Training: Steady-Intensity vs. High-Intensity Work-Rest Intervals",
+        "Specialized Training Methods: Fartlek, Circuit, Weight/Resistance, Flexibility, and Plyometric Training",
+        "Training Components: Warm-Up, Conditioning Phase, and Cool-Down Structure",
+        "Overtraining Syndrome: Prevention, Recognition, and Management",
+    ] {
+        m.insert(sub, PE_TRAINING_PRINCIPLES_KK);
+    }
 
     m
 }
