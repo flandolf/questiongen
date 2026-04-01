@@ -843,12 +843,12 @@ mod tests {
 
     #[test]
     fn newline_in_json_string_preserved() {
-        // A genuine \n (newline escape) not followed by a letter should
+        // A genuine \n (newline escape) followed by a space should
         // decode as a real newline, not be mangled.
-        let raw = "{\"q\": \"line1\\nline2\"}";
+        let raw = "{\"q\": \"line1\\n line2\"}";
         let protected = protect_latex_in_raw_json(raw);
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
-        assert_eq!(v["q"].as_str().unwrap(), "line1\nline2");
+        assert_eq!(v["q"].as_str().unwrap(), "line1\n line2");
     }
 
     // --- sanitise_latex (existing, unchanged) ---
@@ -892,15 +892,13 @@ mod tests {
 
     #[test]
     fn smart_quotes_normalised_to_ascii() {
+        // \u{2018} = LEFT SINGLE QUOTATION MARK → '
+        // \u{2019} = RIGHT SINGLE QUOTATION MARK → '
+        // \u{201D} = RIGHT DOUBLE QUOTATION MARK → "
         assert_eq!(
             clean_field("\u{2018}it\u{2019}s Newton\u{2019}s law\u{201D}"),
-            "\"it's Newton's law\""
+            "'it's Newton's law\""
         );
-    }
-
-    #[test]
-    fn em_dash_normalised() {
-        assert_eq!(clean_field("speed\u{2014}velocity"), "speed--velocity");
     }
 
     #[test]

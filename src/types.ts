@@ -172,8 +172,7 @@ export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] = [
     aos: 'Integration and Application',
     label: 'Unit 4 — Integration and Application',
     subtopics: PHYSICAL_EDUCATION_SUBTOPICS.slice(45, 53),
-  }
-
+  },
 ] as const;
 
 export const CHEMISTRY_SUBTOPICS = [
