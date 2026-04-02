@@ -166,7 +166,7 @@ export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
 function extractLogRegressionFeatures(
   questionCount: number,
   averageMarksPerQuestion: number | undefined,
-  topic: Topic,
+  topic: string,
   difficulty: Difficulty,
   questionMode: QuestionMode,
   techMode: TechMode,

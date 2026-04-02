@@ -108,7 +108,7 @@ export function UnifiedMcqOptionsGrid({
         const disabled = lockSelection && (isAnswered || !onSelect);
 
         let containerClasses =
-          'p-4 sm:p-5 rounded-lg border border-transparent hover:bg-muted/30 hover:scale-[1.01] cursor-pointer transition-all duration-150';
+          'p-4 bg-muted/20 sm:p-5 hover:bg-muted/30 hover:scale-[1.01] cursor-pointer transition-all duration-150';
 
         if (isAnswered) {
           if (revealCorrectness && isCorrect) {

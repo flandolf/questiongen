@@ -4,12 +4,13 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/inter';
 @import '@fontsource-variable/jetbrains-mono';
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-weight: var(--font-weight-light);
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -43,7 +44,7 @@
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
   --destructive-foreground: oklch(1 0 0);
-  --font-sans: JetBrains Mono, sans-serif;
+  --font-sans: Manrope Variable, sans-serif;
   --font-serif: Source Serif 4, serif;
   --font-mono: JetBrains Mono, monospace;
   --shadow-color: oklch(0 0 0);
@@ -105,9 +106,9 @@
   --sidebar-ring: oklch(0.552 0.016 285.938);
   --destructive-foreground: oklch(1 0 0);
   --radius: 1.15rem;
-  --font-sans: JetBrains Mono, sans-serif;
+  --font-sans: 'Inter Variable', sans-serif;
   --font-serif: Source Serif 4, serif;
-  --font-mono: JetBrains Mono, monospace;
+  --font-mono: 'JetBrains Mono Variable', monospace;
   --shadow-color: oklch(0 0 0);
   --shadow-opacity: 0.1;
   --shadow-blur: 3px;
@@ -131,7 +132,7 @@
 }
 
 @theme inline {
-  --font-sans: 'JetBrains Mono Variable', sans-serif;
+  --font-sans: 'Inter Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -170,8 +171,9 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-mono: JetBrains Mono, monospace;
+  --font-mono: 'JetBrains Mono Variable', monospace;
   --font-serif: Source Serif 4, serif;
+  --font-heading: 'Manrope Variable', sans-serif;
   --radius: 1.15rem;
   --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
   --tracking-tight: calc(var(--tracking-normal) - 0.025em);
@@ -196,7 +198,7 @@
   --shadow-opacity: var(--shadow-opacity);
   --color-shadow-color: var(--shadow-color);
   --color-destructive-foreground: var(--destructive-foreground);
-  --font-heading: 'JetBrains Mono Variable', sans-serif;
+  --font-heading: 'Manrope Variable', sans-serif;
 }
 
 @layer base {
@@ -250,8 +252,7 @@
 
   /* MC option cards */
   .mc-option {
-    @apply p-4 sm:p-5 rounded-lg border border-transparent 
-           hover:bg-muted/30 cursor-pointer transition-all duration-150;
+    @apply p-4 sm:p-5 rounded-lg border border-transparent hover:bg-muted/30 cursor-pointer transition-all duration-150;
   }
 
   .mc-option-selected {
@@ -263,14 +264,12 @@
   }
 
   .mc-option-label {
-    @apply w-7 h-7 rounded-md flex items-center justify-center 
-           shrink-0 text-sm font-semibold;
+    @apply w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm font-semibold;
   }
 
   /* Written response */
   .written-textarea {
-    @apply min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 
-           focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30;
+    @apply min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30;
   }
 
   /* Feedback panel sections */

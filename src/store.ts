@@ -12,7 +12,6 @@ import { startTransition } from 'react';
 import {
   ChemistrySubtopic,
   Difficulty,
-  GenerationMode,
   GeneratedQuestion,
   GenerationStatusEvent,
   GenerationTelemetry,
@@ -37,7 +36,6 @@ import {
   StreakData,
   TechMode,
   Topic,
-  ExamRecord,
   GenerationRecord,
 } from './types';
 import {
@@ -99,8 +97,6 @@ export interface AppState {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
-  generationMode: GenerationMode;
-  examTimeLimitMinutes: number;
 
   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
   aiDifficultyScalingEnabled: boolean;
@@ -145,7 +141,6 @@ export interface AppState {
   studyGoals: StudyGoals;
   streakData: StreakData;
 
-  examHistory: ExamRecord[];
   generationHistory: GenerationRecord[];
 
   // ─── Generator Parameter Presets (Firebase-synced) ─────────────
@@ -210,8 +205,6 @@ export interface AppActions {
   setQuestionCount: (count: number) => void;
   setAverageMarksPerQuestion: (marks: number) => void;
   setQuestionMode: (mode: QuestionMode) => void;
-  setGenerationMode: (mode: GenerationMode) => void;
-  setExamTimeLimitMinutes: (minutes: number) => void;
 
   // AI Difficulty Scaling
   setAiDifficultyScalingEnabled: (enabled: boolean) => void;
@@ -308,9 +301,6 @@ export interface AppActions {
   // Persistence
   hydrate: () => Promise<void>;
 
-  addExamRecord: (record: ExamRecord) => void;
-  deleteExamRecord: (id: string) => void;
-  clearExamHistory: () => void;
   addGenerationRecord: (record: GenerationRecord) => void;
 
   // Timer state
@@ -364,10 +354,6 @@ const defaultState: AppState = {
   averageMarksPerQuestion:
     EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
   questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
-  generationMode:
-    EMPTY_PERSISTED_APP_STATE.preferences.generationMode ?? 'practice',
-  examTimeLimitMinutes:
-    EMPTY_PERSISTED_APP_STATE.preferences.examTimeLimitMinutes ?? 30,
 
   // AI Difficulty Scaling
   aiDifficultyScalingEnabled: true,
@@ -434,7 +420,6 @@ const defaultState: AppState = {
     dailyCompletions: {},
   },
 
-  examHistory: [],
   generationHistory: [],
   presets: [],
   writtenTimerState: null,
@@ -500,8 +485,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionCount: s.preferences.questionCount,
         averageMarksPerQuestion: s.preferences.averageMarksPerQuestion,
         questionMode: s.preferences.questionMode,
-        generationMode: s.preferences.generationMode ?? 'practice',
-        examTimeLimitMinutes: s.preferences.examTimeLimitMinutes ?? 30,
         aiDifficultyScalingEnabled:
           s.preferences.aiDifficultyScalingEnabled ?? true,
         difficultyThresholds: s.preferences.difficultyThresholds ?? {
@@ -544,7 +527,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         streakData: s.streakData ?? defaultState.streakData,
 
         isHydrated: true,
-        examHistory: s.examHistory ?? [],
         generationHistory: s.generationHistory ?? [],
         presets: s.presets ?? [],
         writtenTimerState: s.writtenTimerState ?? null,
@@ -562,11 +544,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   // ── Settings ───────────────────────────────────────────────────────────────
 
-  addExamRecord: (record) =>
-    set((s) => ({ examHistory: [record, ...s.examHistory].slice(0, 100) })),
-  deleteExamRecord: (id) =>
-    set((s) => ({ examHistory: s.examHistory.filter((r) => r.id !== id) })),
-  clearExamHistory: () => set({ examHistory: [] }),
   addGenerationRecord: (record) =>
     set((s) => ({
       generationHistory: [record, ...s.generationHistory].slice(0, 1000),
@@ -635,9 +612,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setAverageMarksPerQuestion: (averageMarksPerQuestion) =>
     set({ averageMarksPerQuestion }),
   setQuestionMode: (questionMode) => set({ questionMode }),
-  setGenerationMode: (generationMode) => set({ generationMode }),
-  setExamTimeLimitMinutes: (examTimeLimitMinutes) =>
-    set({ examTimeLimitMinutes }),
 
   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
   setAiDifficultyScalingEnabled: (enabled) =>
@@ -731,8 +705,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionCount: s.questionCount,
         averageMarksPerQuestion: s.averageMarksPerQuestion,
         questionMode: s.questionMode,
-        generationMode: s.generationMode,
-        examTimeLimitMinutes: s.examTimeLimitMinutes,
       };
 
       const writtenSession: PersistedWrittenSession = {
@@ -801,8 +773,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
-      generationMode: s.generationMode,
-      examTimeLimitMinutes: s.examTimeLimitMinutes,
     };
 
     const mcSession: PersistedMcSession = {
@@ -891,8 +861,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
           entry.preferences.physicalEducationSubtopics,
         questionCount: entry.preferences.questionCount,
         questionMode: entry.questionMode,
-        generationMode: entry.preferences.generationMode ?? 'practice',
-        examTimeLimitMinutes: entry.preferences.examTimeLimitMinutes ?? 30,
         ...(entry.questionMode === 'written' && entry.writtenSession
           ? {
               questions: entry.writtenSession.questions,
@@ -1186,8 +1154,6 @@ function buildPersistedSnapshot(
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
-      generationMode: s.generationMode,
-      examTimeLimitMinutes: s.examTimeLimitMinutes,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
     },
@@ -1229,7 +1195,6 @@ function buildPersistedSnapshot(
     spacedRepetition: s.spacedRepetitionCards,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
-    examHistory: s.examHistory,
     generationHistory: s.generationHistory,
     presets: s.presets,
     deletionTombstones: s.deletionTombstones as unknown as Record<

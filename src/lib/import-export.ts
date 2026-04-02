@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { PersistedAppState } from '../types';
 import { APP_VERSION } from '../views/settings/types';
 import {
@@ -16,7 +17,6 @@ import type {
   SpacedRepetitionCard,
   StudyGoals,
   StreakData,
-  ExamRecord,
   GenerationRecord,
   Preset,
 } from '../types';
@@ -46,8 +46,6 @@ export interface ImportExportState {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: PersistedAppState['preferences']['questionMode'];
-  generationMode: 'practice' | 'exam';
-  examTimeLimitMinutes: number;
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
   questions: PersistedAppState['writtenSession']['questions'];
@@ -75,7 +73,6 @@ export interface ImportExportState {
   spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
   studyGoals: StudyGoals;
   streakData: StreakData;
-  examHistory: ExamRecord[];
   generationHistory: GenerationRecord[];
   presets: Preset[];
   writtenTimerState: PersistedAppState['writtenTimerState'];
@@ -95,7 +92,6 @@ export interface ImportCounts {
   newMcHistory: number;
   newSavedSets: number;
   newPresets: number;
-  newExamHistory: number;
   newGenerationHistory: number;
   newSpacedCards: number;
   totalImported: number;
@@ -134,14 +130,22 @@ export function createExportEnvelope(state: PersistedAppState): ExportEnvelope {
   };
 }
 
-export function downloadExport(envelope: ExportEnvelope): void {
+export async function downloadExport(
+  envelope: ExportEnvelope
+): Promise<string | null> {
   const json = JSON.stringify(envelope, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-
   const today = new Date().toISOString().slice(0, 10);
   const filename = `questiongen-export-${today}.json`;
 
+  if (isTauriRuntime()) {
+    return invoke<string>('export_data_file', {
+      envelope,
+      suggested_filename: filename,
+    });
+  }
+
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -149,6 +153,7 @@ export function downloadExport(envelope: ExportEnvelope): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  return null;
 }
 
 // ─── Import ────────────────────────────────────────────────────────────────
@@ -260,9 +265,6 @@ export function computeImportCounts(
   const newPresets = (imported.presets ?? []).filter(
     (item) => !current.presets.some((e) => e.id === item.id)
   ).length;
-  const newExamHistory = (imported.examHistory ?? []).filter(
-    (item) => !current.examHistory.some((e) => e.id === item.id)
-  ).length;
   const newGenerationHistory = (imported.generationHistory ?? []).filter(
     (item) => !current.generationHistory.some((e) => e.id === item.id)
   ).length;
@@ -276,7 +278,6 @@ export function computeImportCounts(
     newMcHistory +
     newSavedSets +
     newPresets +
-    newExamHistory +
     newGenerationHistory +
     newSpacedCards;
 
@@ -285,7 +286,6 @@ export function computeImportCounts(
     newMcHistory,
     newSavedSets,
     newPresets,
-    newExamHistory,
     newGenerationHistory,
     newSpacedCards,
     totalImported,
@@ -306,10 +306,6 @@ export function mergeImportedState(
   merged.mcHistory = mergeById(current.mcHistory, imported.mcHistory);
   merged.savedSets = mergeById(current.savedSets, imported.savedSets);
   merged.presets = mergeById(current.presets, imported.presets ?? []);
-  merged.examHistory = mergeById(
-    current.examHistory,
-    imported.examHistory ?? []
-  );
   merged.generationHistory = mergeById(
     current.generationHistory,
     imported.generationHistory ?? []
@@ -348,8 +344,6 @@ export function mergeImportedState(
   merged.questionCount = imported.preferences.questionCount;
   merged.averageMarksPerQuestion = imported.preferences.averageMarksPerQuestion;
   merged.questionMode = imported.preferences.questionMode;
-  merged.generationMode = imported.preferences.generationMode ?? 'practice';
-  merged.examTimeLimitMinutes = imported.preferences.examTimeLimitMinutes ?? 30;
   merged.aiDifficultyScalingEnabled =
     imported.preferences.aiDifficultyScalingEnabled ?? true;
   merged.difficultyThresholds = imported.preferences.difficultyThresholds ?? {
@@ -472,8 +466,6 @@ function buildExportSnapshot(
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
-      generationMode: s.generationMode,
-      examTimeLimitMinutes: s.examTimeLimitMinutes,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
     },
@@ -516,7 +508,6 @@ function buildExportSnapshot(
     spacedRepetition: s.spacedRepetitionCards,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
-    examHistory: s.examHistory,
     generationHistory: s.generationHistory,
     presets: s.presets,
     deletionTombstones: s.deletionTombstones as unknown as Record<
@@ -524,4 +515,20 @@ function buildExportSnapshot(
       Record<string, number>
     >,
   };
+}
+
+function isTauriRuntime(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const runtimeWindow = window as Window & {
+    __TAURI__?: unknown;
+    __TAURI_INTERNALS__?: unknown;
+  };
+
+  return (
+    typeof runtimeWindow.__TAURI__ !== 'undefined' ||
+    typeof runtimeWindow.__TAURI_INTERNALS__ !== 'undefined'
+  );
 }

@@ -165,11 +165,10 @@ function ExpandableCardSection({
   return (
     <div
       ref={ref}
-      className={`overflow-hidden transition-all duration-300 ease-in-out ${
-        isExpanded
+      className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded
           ? 'opacity-100 mt-3'
           : 'opacity-0 max-h-0 mt-0 pointer-events-none'
-      }`}
+        }`}
     >
       {children}
     </div>
@@ -195,11 +194,10 @@ const ToggleButton = memo(function ToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px]  transition-all duration-150 border ${
-        isExpanded
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px]  transition-all duration-150 border ${isExpanded
           ? 'bg-primary/10 text-primary border-primary/20'
           : 'text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40'
-      }`}
+        }`}
     >
       {isExpanded ? (
         <>
@@ -258,11 +256,10 @@ function ScorePill({ awarded, max }: { awarded: number; max: number }) {
   const isCorrect = awarded >= max;
   return (
     <span
-      className={`inline-flex items-center gap-1.5  px-2.5 py-1 rounded-sm text-[11px] leading-none ${
-        isCorrect
+      className={`inline-flex items-center gap-1.5  px-2.5 py-1 rounded-sm text-[11px] leading-none ${isCorrect
           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
           : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
-      }`}
+        }`}
     >
       {isCorrect ? (
         <CheckCircle2 className="w-3 h-3 shrink-0" />
@@ -305,11 +302,10 @@ const McEntryCard = memo(function McEntryCard({
           {/* Left: topic + meta */}
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div
-              className={`mt-0.5 shrink-0 w-7 h-7 rounded-sm flex items-center justify-center ${
-                isCorrect
+              className={`mt-0.5 shrink-0 w-7 h-7 rounded-sm flex items-center justify-center ${isCorrect
                   ? 'bg-emerald-100 dark:bg-emerald-950/50'
                   : 'bg-red-100 dark:bg-red-950/50'
-              }`}
+                }`}
             >
               {isCorrect ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -363,11 +359,10 @@ const McEntryCard = memo(function McEntryCard({
           <span>
             Selected{' '}
             <strong
-              className={` ${
-                item.selectedAnswer === item.question.correctAnswer
+              className={` ${item.selectedAnswer === item.question.correctAnswer
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-red-600 dark:text-red-400'
-              }`}
+                }`}
             >
               {item.selectedAnswer}
             </strong>
@@ -403,13 +398,12 @@ const McEntryCard = memo(function McEntryCard({
                 return (
                   <div key={opt.label} className={cls}>
                     <span
-                      className={` shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${
-                        isCorrOpt
+                      className={` shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${isCorrOpt
                           ? 'bg-emerald-500 text-white'
                           : isChosen
                             ? 'bg-red-500 text-white'
                             : 'bg-muted text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </span>
@@ -452,8 +446,8 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   const pct =
     item.markResponse.maxMarks > 0
       ? Math.round(
-          (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100
-        )
+        (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100
+      )
       : 0;
   const colorClass = scoreColorBgClass(score / 10);
 
@@ -533,13 +527,12 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           <span>{item.markResponse.vcaaMarkingScheme.length} criteria</span>
           <span className="text-border">·</span>
           <span
-            className={`font-semibold ${
-              pct >= 75
+            className={`font-semibold ${pct >= 75
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : pct >= 50
                   ? 'text-amber-600 dark:text-amber-400'
                   : 'text-red-600 dark:text-red-400'
-            }`}
+              }`}
           >
             {item.markResponse.achievedMarks}/{item.markResponse.maxMarks} marks
           </span>
@@ -596,11 +589,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-3 justify-between rounded-sm border px-3 py-2.5 text-sm transition-colors ${
-                        isFullMarks
+                      className={`flex gap-3 justify-between rounded-sm border px-3 py-2.5 text-sm transition-colors ${isFullMarks
                           ? 'border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20'
                           : 'border-border/30 bg-card'
-                      }`}
+                        }`}
                     >
                       <div className="flex-1 space-y-1.5 min-w-0">
                         <MarkdownMath content={criterion.criterion} />
@@ -611,11 +603,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                         )}
                       </div>
                       <span
-                        className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-sm ${
-                          isFullMarks
+                        className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-sm ${isFullMarks
                             ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300'
                             : 'bg-muted text-muted-foreground'
-                        }`}
+                          }`}
                       >
                         {criterion.achievedMarks}/{criterion.maxMarks}
                       </span>
@@ -769,6 +760,7 @@ export function HistoryView() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 140,
     measureElement: (el) => el.getBoundingClientRect().height,
+    useFlushSync: true,
   });
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
@@ -846,7 +838,7 @@ export function HistoryView() {
     return (
       <EmptyState
         title="No History Yet"
-        description="Complete a question to see it here."
+        description="Complete a question set or exam simulation to see it here."
         actions={
           <Button
             variant="default"
@@ -866,17 +858,30 @@ export function HistoryView() {
     <PageContainer>
       <PageHeader
         title="History"
-        description={`${combined.length} attempt${combined.length !== 1 ? 's' : ''} recorded`}
+        description="Review your past question attempts, see detailed feedback, and track your progress over time."
         actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Clear All
-          </Button>
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllFilters}
+                className="gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Clear filters
+              </Button>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClear}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear history
+            </Button>
+          </div>
         }
       />
 
@@ -910,11 +915,10 @@ export function HistoryView() {
           <button
             type="button"
             onClick={() => setShowFilters((p) => !p)}
-            className={`flex items-center gap-1.5 px-3 h-9 rounded-sm border text-sm font-medium transition-all ${
-              showFilters || hasActiveFilters
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-sm border text-sm font-medium transition-all ${showFilters || hasActiveFilters
                 ? 'bg-primary/10 border-primary/30 text-primary'
                 : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            }`}
+              }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters
@@ -958,11 +962,10 @@ export function HistoryView() {
                     key={mode}
                     type="button"
                     onClick={() => setModeFilter(mode)}
-                    className={`px-3 py-1.5 text-xs rounded-sm font-medium transition-all duration-150 ${
-                      modeFilter === mode
+                    className={`px-3 py-1.5 text-xs rounded-sm font-medium transition-all duration-150 ${modeFilter === mode
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }`}
+                      }`}
                   >
                     {mode === 'all'
                       ? 'All'
@@ -983,11 +986,10 @@ export function HistoryView() {
                 <button
                   type="button"
                   onClick={() => handleSubjectBadgeClick(null)}
-                  className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${
-                    activeSubject === null
+                  className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${activeSubject === null
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   All topics
                 </button>
@@ -996,11 +998,10 @@ export function HistoryView() {
                     key={subject}
                     type="button"
                     onClick={() => handleSubjectBadgeClick(subject)}
-                    className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${
-                      activeSubject === subject
+                    className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${activeSubject === subject
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                    }`}
+                      }`}
                   >
                     {subject}{' '}
                     <span className="opacity-60">

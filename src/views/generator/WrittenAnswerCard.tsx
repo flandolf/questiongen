@@ -1,7 +1,7 @@
 import { Loader2, Trash2, CheckCircle2, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
-import { StudentAnswerImage } from '../../types';
+import { StudentAnswerImage } from '@/types';
 import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
 
 type WrittenAnswerCardProps = {

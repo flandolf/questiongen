@@ -1,19 +1,19 @@
 import { useState, useMemo, useCallback, useEffect, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from '@tauri-apps/api/core';
-import { useAppStore } from '../store';
+import { useAppStore } from '@/store';
 import {
   McHistoryEntry,
   QuestionHistoryEntry,
   SpacedRepetitionCard,
   Difficulty,
 } from '../types';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { MarkdownMath } from '../components/MarkdownMath';
-import { UnifiedMcqOptionsGrid } from '../components/question/UnifiedQuestionBlocks';
-import { normalizeMarkResponse } from '../lib/app-utils';
-import { isDue, daysUntilReview } from '../lib/spaced-repetition';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { MarkdownMath } from '@/components/MarkdownMath';
+import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
+import { normalizeMarkResponse } from '@/lib/app-utils';
+import { isDue, daysUntilReview } from '@/lib/spaced-repetition';
 import {
   ChevronDown,
   ChevronUp,
@@ -35,17 +35,17 @@ import {
   FilterGroup,
   FilterButton,
 } from '@/components/layout/primitives';
-import { WrittenSessionHeader } from '@/components/generator/WrittenSessionHeader';
-import { McSessionHeader } from '@/components/generator/McSessionHeader';
-import { WrittenQuestionCard } from '@/components/generator/WrittenQuestionCard';
-import { WrittenAnswerCard } from '@/components/generator/WrittenAnswerCard';
-import { WrittenFeedbackPanel } from '@/components/generator/WrittenFeedbackPanel';
-import { McQuestionCard } from '@/components/generator/McQuestionCard';
-import { McAnswerPanel } from '@/components/generator/McAnswerPanel';
+import { WrittenSessionHeader } from '@/views/generator/WrittenSessionHeader';
+import { McSessionHeader } from '@/views/generator/McSessionHeader';
+import { WrittenQuestionCard } from '@/views/generator/WrittenQuestionCard';
+import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
+import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
+import { McQuestionCard } from '@/views/generator/McQuestionCard';
+import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
 import { useTimerBar, type TimerBarData } from '@/context/TimerBarContext';
 
 // --- Generator parity reattempt view (restored full UI) ---
-import type { MarkAnswerResponse } from '../types';
+import type { MarkAnswerResponse } from '@/types';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type WrittenWrongEntry = QuestionHistoryEntry & { kind: 'written' };
@@ -188,13 +188,12 @@ const ListEntryCard = memo(function ListEntryCard({
           <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
             {srCard && (
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
-                  daysUntilReview(srCard) < 0
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${daysUntilReview(srCard) < 0
                     ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                     : daysUntilReview(srCard) === 0
                       ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
                       : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
-                }`}
+                  }`}
               >
                 {daysUntilReview(srCard) < 0
                   ? `${Math.abs(daysUntilReview(srCard))}d overdue`
@@ -281,6 +280,7 @@ export function VirtualizedWrongList({
     getScrollElement: () => parentRef.current,
     estimateSize: () => 120,
     measureElement: (el) => el.getBoundingClientRect().height,
+    useFlushSync: true,
   });
 
   return (
@@ -568,23 +568,23 @@ function ReattemptView({
     const state: QuestionState =
       currentEntry.kind === 'written'
         ? {
-            writtenAnswer,
-            image,
-            feedback,
-            markingScheme,
-            appealText,
-            overrideInput,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          }
+          writtenAnswer,
+          image,
+          feedback,
+          markingScheme,
+          appealText,
+          overrideInput,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        }
         : {
-            selectedAnswer,
-            awardedMarks,
-            mcAppealText,
-            mcOverrideInput,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          };
+          selectedAnswer,
+          awardedMarks,
+          mcAppealText,
+          mcOverrideInput,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        };
     setSavedStates((prev) => ({ ...prev, [currentEntry.id]: state }));
   }, [
     idx,
@@ -798,7 +798,7 @@ function ReattemptView({
     getDifficultyBadgeClasses: () => '',
     onPrev: handlePrev,
     onNext: () => handleNext(null),
-    onSave: () => {},
+    onSave: () => { },
     lastSavedAt: null,
     onDelete: handleDeleteCurrent,
     onExit: handleExit,
@@ -822,7 +822,7 @@ function ReattemptView({
                   canShowRawOutput={false}
                   showRawOutput={false}
                   rawModelOutput={''}
-                  onToggleRawOutput={() => {}}
+                  onToggleRawOutput={() => { }}
                 />
                 <WrittenAnswerCard
                   questionId={entry.id}
@@ -857,7 +857,7 @@ function ReattemptView({
                 isMarking={isMarking}
                 onAppealChange={setAppealText}
                 onOverrideInputChange={setOverrideInput}
-                onArgueForMark={() => {}}
+                onArgueForMark={() => { }}
                 onApplyOverride={handleApplyOverride}
                 onCriterionChange={handleCriterionChange}
               />
@@ -871,7 +871,7 @@ function ReattemptView({
                 canShowRawOutput={false}
                 showRawOutput={false}
                 rawModelOutput={''}
-                onToggleRawOutput={() => {}}
+                onToggleRawOutput={() => { }}
               />
               <McAnswerPanel
                 questionId={entry.id}
@@ -886,7 +886,7 @@ function ReattemptView({
                 onSelectAnswer={handleSelectAnswer}
                 onAppealChange={setMcAppealText}
                 onOverrideInputChange={setMcOverrideInput}
-                onArgueForMark={() => {}}
+                onArgueForMark={() => { }}
                 onApplyOverride={handleApplyMcOverride}
               />
             </div>
@@ -1242,9 +1242,9 @@ export default function WrongQuestionView() {
             e.id !== entry.id
               ? e
               : {
-                  ...e,
-                  markResponse: { ...e.markResponse, verdict: 'correct' },
-                }
+                ...e,
+                markResponse: { ...e.markResponse, verdict: 'correct' },
+              }
           )
         );
         // Record SR with quality 4 (correct)
@@ -1445,13 +1445,12 @@ export default function WrongQuestionView() {
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${
-                            isOverdue
+                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${isOverdue
                               ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                               : days === 0
                                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                                 : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                          }`}
+                            }`}
                         >
                           {isOverdue
                             ? `${Math.abs(days)}d overdue`

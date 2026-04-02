@@ -24,7 +24,6 @@ export function ImportExportSection() {
   const mcHistory = useAppStore((s) => s.mcHistory);
   const savedSets = useAppStore((s) => s.savedSets);
   const presets = useAppStore((s) => s.presets);
-  const examHistory = useAppStore((s) => s.examHistory);
   const importState = useAppStore((s) => s.importState);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +40,7 @@ export function ImportExportSection() {
   );
   const [importCounts, setImportCounts] = useState<ImportCounts | null>(null);
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     setExporting(true);
     setError(null);
     setSuccess(null);
@@ -49,8 +48,12 @@ export function ImportExportSection() {
       const state = useAppStore.getState();
       const snapshot = exportAppState(state);
       const envelope = createExportEnvelope(snapshot);
-      downloadExport(envelope);
-      setSuccess('Export downloaded successfully.');
+      const savedPath = await downloadExport(envelope);
+      setSuccess(
+        savedPath
+          ? `Export saved successfully to: ${savedPath}`
+          : 'Export downloaded successfully.'
+      );
     } catch (err) {
       setError(
         `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`
@@ -133,9 +136,6 @@ export function ImportExportSection() {
     if (importCounts.newPresets > 0) {
       parts.push(`${importCounts.newPresets} presets`);
     }
-    if (importCounts.newExamHistory > 0) {
-      parts.push(`${importCounts.newExamHistory} exam records`);
-    }
     if (importCounts.newGenerationHistory > 0) {
       parts.push(`${importCounts.newGenerationHistory} generation records`);
     }
@@ -183,7 +183,6 @@ export function ImportExportSection() {
           </p>
           <p>
             {savedSets.length} saved sets, {presets.length} presets,{' '}
-            {examHistory.length} exam records
           </p>
         </div>
         <Button onClick={handleExport} disabled={exporting} className="gap-2">
