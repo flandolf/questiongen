@@ -24,6 +24,8 @@ export {
   upsertSavedSets,
   deleteSavedSets,
   replacePresets,
+  upsertPresets,
+  deletePresets,
   upsertGoals,
   saveUserData,
   loadUserData,

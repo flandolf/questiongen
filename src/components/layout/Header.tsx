@@ -177,7 +177,7 @@ export function Header() {
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={SPRING}
-      className="flex items-center justify-between h-14 px-4 border-b border-border/50 bg-background/80 backdrop-blur-md w-full"
+      className="android-header-safe-top flex items-center justify-between h-14 px-4 border-b border-border/50 bg-background/80 backdrop-blur-md w-full"
     >
       {/* Left: Navigation */}
       <nav className="flex items-center gap-1 no-scrollbar">

@@ -150,6 +150,10 @@ function getUserPresetsRef(userId: string) {
   return doc(db, 'users', userId, 'settings', 'presets');
 }
 
+function getUserPresetsCollectionRef(userId: string) {
+  return collection(db, 'users', userId, 'presets');
+}
+
 function getHistoryCollectionRef(
   userId: string,
   type: 'questionHistory' | 'mcHistory'
@@ -276,7 +280,6 @@ export async function getDeltaSyncData(
     type: 'questionHistory' | 'mcHistory' | 'savedSets'
   ) => {
     const localItems = localData[type] as Record<string, unknown>[];
-    if (!localItems?.length) return;
 
     const collectionRef =
       type === 'savedSets'
@@ -284,7 +287,7 @@ export async function getDeltaSyncData(
         : getHistoryCollectionRef(userId, type);
 
     const localIdToModified = new Map<string, number>();
-    for (const item of localItems) {
+    for (const item of localItems ?? []) {
       if (typeof item.id === 'string') {
         const lastMod =
           typeof item.lastModified === 'number'
@@ -902,21 +905,93 @@ export async function replacePresets(
   userId: string,
   presets: Preset[]
 ): Promise<void> {
-  await withRetry(
-    () =>
-      withTimeout(
-        setDoc(
-          getUserPresetsRef(userId),
-          {
-            presets: removeUndefined(presets),
-            _lastModified: serverTimestamp(),
-          },
-          { merge: false }
-        ),
-        presets.length > 0 ? 'saving presets' : 'clearing presets'
-      ),
-    presets.length > 0 ? 'saving presets' : 'clearing presets'
+  const presetsRef = getUserPresetsCollectionRef(userId);
+  const existingSnap = await withRetry(
+    () => withTimeout(getDocs(query(presetsRef, limit(500))), 'loading presets'),
+    'loading presets'
   );
+  const existingIds = new Set(existingSnap.docs.map((d) => d.id));
+  const nextIds = new Set<string>();
+
+  const writes: Promise<unknown>[] = [];
+  for (const preset of presets) {
+    if (!preset?.id) continue;
+    nextIds.add(preset.id);
+    writes.push(
+      withRetry(
+        () =>
+          withTimeout(
+            setDoc(doc(presetsRef, preset.id), {
+              ...(removeUndefined(preset) as Record<string, unknown>),
+              _lastModified: serverTimestamp(),
+            }),
+            `saving preset ${preset.id}`
+          ),
+        `saving preset ${preset.id}`
+      )
+    );
+  }
+
+  for (const existingId of existingIds) {
+    if (!nextIds.has(existingId)) {
+      writes.push(
+        withRetry(
+          () =>
+            withTimeout(
+              deleteDoc(doc(presetsRef, existingId)),
+              `deleting preset ${existingId}`
+            ),
+          `deleting preset ${existingId}`
+        )
+      );
+    }
+  }
+
+  if (writes.length > 0) {
+    await Promise.all(writes);
+  }
+}
+
+export async function upsertPresets(
+  userId: string,
+  presets: Preset[]
+): Promise<number> {
+  if (presets.length === 0) return 0;
+  const presetsRef = getUserPresetsCollectionRef(userId);
+  await Promise.all(
+    presets.map((preset) =>
+      withRetry(
+        () =>
+          withTimeout(
+            setDoc(doc(presetsRef, preset.id), {
+              ...(removeUndefined(preset) as Record<string, unknown>),
+              _lastModified: serverTimestamp(),
+            }),
+            `saving preset ${preset.id}`
+          ),
+        `saving preset ${preset.id}`
+      )
+    )
+  );
+  return presets.length;
+}
+
+export async function deletePresets(
+  userId: string,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const presetsRef = getUserPresetsCollectionRef(userId);
+  await Promise.all(
+    ids.map((id) =>
+      withRetry(
+        () =>
+          withTimeout(deleteDoc(doc(presetsRef, id)), `deleting preset ${id}`),
+        `deleting preset ${id}`
+      )
+    )
+  );
+  return ids.length;
 }
 
 export async function upsertGoals(
@@ -1104,40 +1179,7 @@ export async function saveUserData(
     }
 
     if (data.presets) {
-      const presetsRef = getUserPresetsRef(userId);
-      if (data.presets.length > 0) {
-        await withRetry(
-          () =>
-            withTimeout(
-              setDoc(
-                presetsRef,
-                {
-                  presets: removeUndefined(data.presets),
-                  _lastModified: serverTimestamp(),
-                },
-                { merge: false }
-              ),
-              'saving presets'
-            ),
-          'saving presets'
-        );
-      } else {
-        await withRetry(
-          () =>
-            withTimeout(
-              setDoc(
-                presetsRef,
-                {
-                  presets: [],
-                  _lastModified: serverTimestamp(),
-                },
-                { merge: false }
-              ),
-              'clearing presets'
-            ),
-          'clearing presets'
-        );
-      }
+      await replacePresets(userId, data.presets);
       totalWrites++;
     }
 
@@ -1347,6 +1389,7 @@ export async function loadUserData(
 
   const goalsRef = doc(db, 'users', userId, 'settings', 'goals');
   const presetsRef = getUserPresetsRef(userId);
+  const presetsCollectionRef = getUserPresetsCollectionRef(userId);
   const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult, presetsSnap] =
     await Promise.all([
       withTimeout(
@@ -1399,10 +1442,23 @@ export async function loadUserData(
           };
         })
         .catch(() => ({ studyGoals: null, streakData: null })),
-      withTimeout(getDoc(presetsRef), 'loading presets')
-        .then((snap) => {
-          if (!snap.exists()) return [];
-          const data = snap.data();
+      withTimeout(
+        getDocs(query(presetsCollectionRef, limit(500))),
+        'loading preset documents'
+      )
+        .then(async (snap) => {
+          if (!snap.empty) {
+            return snap.docs
+              .map((d) => {
+                const data = d.data();
+                delete data._lastModified;
+                return { id: d.id, ...(data as Record<string, unknown>) };
+              })
+              .filter((p) => typeof p.id === 'string');
+          }
+          const legacy = await withTimeout(getDoc(presetsRef), 'loading legacy presets');
+          if (!legacy.exists()) return [];
+          const data = legacy.data();
           return Array.isArray(data.presets) ? data.presets : [];
         })
         .catch(() => []),

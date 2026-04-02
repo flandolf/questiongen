@@ -233,6 +233,11 @@
       var(--color-background);
   }
 
+  .platform-android .android-header-safe-top {
+    padding-top: max(env(safe-area-inset-top, 0px), 12px);
+    height: calc(3.5rem + max(env(safe-area-inset-top, 0px), 12px));
+  }
+
   .spin {
     animation: spin 1.1s linear infinite;
   }
