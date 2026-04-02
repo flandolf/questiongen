@@ -17,6 +17,8 @@ export {
   getDeltaItems,
   buildVersionMap,
   getDeltaSyncData,
+  getRemoteHistoryCounts,
+  isRemotePresetsArrayDifferent,
   upsertQuestionHistoryItems,
   deleteQuestionHistoryItems,
   upsertMcHistoryItems,

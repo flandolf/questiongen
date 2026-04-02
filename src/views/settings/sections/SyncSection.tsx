@@ -182,7 +182,8 @@ export function SyncSection() {
               )}
               {syncEnabled && lastFlushTime && (
                 <p className="text-xs text-muted-foreground">
-                  Last realtime flush: {new Date(lastFlushTime).toLocaleString()}
+                  Last realtime flush:{' '}
+                  {new Date(lastFlushTime).toLocaleString()}
                 </p>
               )}
             </div>
@@ -484,7 +485,9 @@ export function SyncSection() {
             </div>
             <div className="rounded border border-border p-2">
               <div className="text-muted-foreground">Coalesced Saved</div>
-              <div className="font-medium">{syncTelemetry.coalescedOpsSaved}</div>
+              <div className="font-medium">
+                {syncTelemetry.coalescedOpsSaved}
+              </div>
             </div>
             <div className="rounded border border-border p-2">
               <div className="text-muted-foreground">Hash No-op Skips</div>

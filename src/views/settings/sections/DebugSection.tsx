@@ -16,9 +16,7 @@ export function DebugSection() {
         <div>
           <p className="text-sm font-medium">Debug Mode</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {debugMode
-              ? 'Debug mode is enabled.'
-              : 'Debug mode is disabled.'}
+            {debugMode ? 'Debug mode is enabled.' : 'Debug mode is disabled.'}
           </p>
         </div>
         <Button

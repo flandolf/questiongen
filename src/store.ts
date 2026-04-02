@@ -1223,8 +1223,23 @@ useAppStore.subscribe((state) => {
   // overwrite the persisted file with empty defaults.
   if (!state.isHydrated) return;
 
-  // Skip persistence during Firebase sync merges to avoid redundant disk writes
-  if (Date.now() < suppressPersistUntil) return;
+  // During Firebase sync merges we suppress immediate writes, but we still
+  // schedule one deferred persist so merged cloud data survives app restart.
+  if (Date.now() < suppressPersistUntil) {
+    if (persistTimer) clearTimeout(persistTimer);
+    const delay = Math.max(50, suppressPersistUntil - Date.now() + 50);
+    persistTimer = setTimeout(() => {
+      if (!hydratedOnce) return;
+      if (Date.now() < suppressPersistUntil) return;
+      const snapshot = buildPersistedSnapshot(useAppStore.getState());
+      void savePersistedAppState(snapshot).catch(() => {
+        useAppStore.setState((cur) => ({
+          errorMessage: cur.errorMessage ?? 'Could not save app data.',
+        }));
+      });
+    }, delay);
+    return;
+  }
 
   // Mark that we've seen at least one post-hydration update.
   hydratedOnce = true;
