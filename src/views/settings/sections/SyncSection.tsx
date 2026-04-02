@@ -50,6 +50,8 @@ export function SyncSection() {
     debugLogs,
     pendingChanges,
     pendingDeletions,
+    queuedOpsCount,
+    lastFlushTime,
     conflicts,
     enableSync,
     disableSync,
@@ -92,7 +94,7 @@ export function SyncSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Cloud Sync"
-        description="Sync your history and saved question sets to the cloud manually. Click 'Sync Now' to upload changes and pull updates from other devices."
+        description="Changes sync to the cloud automatically while you are online. Use 'Sync Now' to force reconciliation across devices."
       />
 
       {!isOnline && (
@@ -172,6 +174,16 @@ export function SyncSection() {
                   pending sync
                 </p>
               )}
+              {syncEnabled && queuedOpsCount > 0 && (
+                <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                  {queuedOpsCount} queued op{queuedOpsCount === 1 ? '' : 's'}
+                </p>
+              )}
+              {syncEnabled && lastFlushTime && (
+                <p className="text-xs text-muted-foreground">
+                  Last realtime flush: {new Date(lastFlushTime).toLocaleString()}
+                </p>
+              )}
             </div>
           </div>
           {syncEnabled && (
@@ -244,8 +256,8 @@ export function SyncSection() {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {autoSyncIntervalMinutes > 0
-                  ? `Automatically syncs every ${autoSyncIntervalMinutes} minute${autoSyncIntervalMinutes === 1 ? '' : 's'} when online.`
-                  : 'Auto-sync is disabled. Use "Sync Now" to sync manually.'}
+                  ? `Fallback reconciliation runs every ${autoSyncIntervalMinutes} minute${autoSyncIntervalMinutes === 1 ? '' : 's'} while online.`
+                  : 'Realtime sync is active. "Sync Now" performs a full reconciliation pass.'}
               </p>
             </FieldGroup>
           </div>
