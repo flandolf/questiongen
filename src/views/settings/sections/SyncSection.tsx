@@ -52,6 +52,7 @@ export function SyncSection() {
     pendingDeletions,
     queuedOpsCount,
     lastFlushTime,
+    syncTelemetry,
     conflicts,
     enableSync,
     disableSync,
@@ -460,6 +461,69 @@ export function SyncSection() {
                 <span className="text-foreground break-all">{log.message}</span>
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {debugMode && isSignedIn && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium">Sync Efficiency</h3>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-600 dark:text-sky-400">
+              Telemetry
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Queued Ops</div>
+              <div className="font-medium">{syncTelemetry.queuedOpsTotal}</div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Flushes</div>
+              <div className="font-medium">{syncTelemetry.flushCount}</div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Coalesced Saved</div>
+              <div className="font-medium">{syncTelemetry.coalescedOpsSaved}</div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Hash No-op Skips</div>
+              <div className="font-medium">{syncTelemetry.hashNoopSkips}</div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Delta Checks</div>
+              <div className="font-medium">{syncTelemetry.deltaChecks}</div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Delta No-change</div>
+              <div className="font-medium">
+                {syncTelemetry.deltaNoChangePasses}
+              </div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Full Reads</div>
+              <div className="font-medium">{syncTelemetry.fullSyncReads}</div>
+            </div>
+            <div className="rounded border border-border p-2">
+              <div className="text-muted-foreground">Retries</div>
+              <div className="font-medium">{syncTelemetry.retryCount}</div>
+            </div>
+            <div className="rounded border border-border p-2 col-span-2">
+              <div className="text-muted-foreground">
+                Estimated Writes Avoided
+              </div>
+              <div className="font-medium">
+                {syncTelemetry.estimatedWritesAvoided}
+              </div>
+            </div>
+            <div className="rounded border border-border p-2 col-span-2">
+              <div className="text-muted-foreground">
+                Estimated Reads Avoided
+              </div>
+              <div className="font-medium">
+                {syncTelemetry.estimatedReadsAvoided}
+              </div>
+            </div>
           </div>
         </Card>
       )}
