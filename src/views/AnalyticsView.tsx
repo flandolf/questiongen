@@ -969,10 +969,11 @@ export function AnalyticsView() {
               <button
                 type="button"
                 onClick={() => setSubjectFilter(null)}
-                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === null
-                  ? 'border-foreground/30 bg-secondary text-secondary-foreground'
-                  : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                  }`}
+                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
+                  subjectFilter === null
+                    ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                    : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                }`}
               >
                 All subjects
                 <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
@@ -990,10 +991,11 @@ export function AnalyticsView() {
                     onClick={() =>
                       setSubjectFilter(subjectFilter === topic ? null : topic)
                     }
-                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === topic
-                      ? 'border-foreground/30 bg-secondary text-secondary-foreground'
-                      : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                      }`}
+                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
+                      subjectFilter === topic
+                        ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                        : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                    }`}
                   >
                     {topic}
                     <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">

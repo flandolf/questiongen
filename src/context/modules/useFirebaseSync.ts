@@ -9,6 +9,7 @@ import {
   SyncOperation,
   SyncQueueState,
   SyncCollection,
+  SYNC_COLLECTIONS,
 } from '@/types';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
@@ -19,6 +20,8 @@ import {
   onAuthChange,
   saveUserData,
   getDeltaSyncData,
+  getRemoteHistoryCounts,
+  isRemotePresetsArrayDifferent,
   loadChangedItems,
   buildVersionMap,
   signUpWithEmail,
@@ -33,6 +36,7 @@ import {
   deleteMcHistoryItems,
   upsertSavedSets,
   deleteSavedSets,
+  replacePresets,
   upsertPresets,
   deletePresets,
   upsertGoals,
@@ -85,6 +89,16 @@ const SYNC_FLUSH_DEBOUNCE_MS = 500;
 
 // Persist sync-enabled preference so it survives reloads
 const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
+const VALID_SYNC_COLLECTIONS: ReadonlySet<SyncCollection> = new Set(
+  SYNC_COLLECTIONS
+);
+
+function isSyncCollection(value: unknown): value is SyncCollection {
+  return (
+    typeof value === 'string' &&
+    VALID_SYNC_COLLECTIONS.has(value as SyncCollection)
+  );
+}
 
 function readPersistedSyncEnabled(): boolean {
   try {
@@ -116,13 +130,44 @@ function readPersistedSyncQueue(): SyncQueueState {
     if (!Array.isArray(parsed.operations)) {
       return { operations: [], updatedAt: 0 };
     }
-    return {
-      operations: parsed.operations.filter(
-        (op) =>
+    const normalizedOps = parsed.operations
+      .map((op) => {
+        if (!op || typeof op !== 'object') return null;
+        const raw = op as Partial<SyncOperation>;
+        const legacyCollection =
+          typeof (op as { collection?: unknown }).collection === 'string'
+            ? ((op as { collection?: string }).collection as string)
+            : undefined;
+        // Legacy queue compatibility: older builds tracked presets/goals/streakData
+        // as pseudo-collections. They now map to `settings` docs.
+        if (legacyCollection === 'presets') {
+          return {
+            ...raw,
+            collection: 'settings' as SyncCollection,
+            entityId: 'presets',
+          };
+        }
+        if (
+          legacyCollection === 'studyGoals' ||
+          legacyCollection === 'streakData'
+        ) {
+          return {
+            ...raw,
+            collection: 'settings' as SyncCollection,
+            entityId: 'goals',
+          };
+        }
+        return raw;
+      })
+      .filter(
+        (op): op is SyncOperation =>
+          !!op &&
           typeof op.id === 'string' &&
-          typeof op.collection === 'string' &&
+          isSyncCollection(op.collection) &&
           (op.opType === 'upsert' || op.opType === 'delete')
-      ),
+      );
+    return {
+      operations: normalizedOps,
       updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : 0,
     };
   } catch {
@@ -262,10 +307,19 @@ function mergeSyncableData(
       local.savedSets,
       castArray<SavedQuestionSet>(remote.savedSets)
     ),
-    presets: mergeById(
-      local.presets!,
-      castArray<Preset>(remote?.presets ?? [])
-    ),
+    // Presets: remote always wins for existing IDs. Unlike history items, presets
+    // are settings documents without reliable lastModified timestamps, so mergeById
+    // (newer-wins by timestamp) lets stale local presets overwrite richer remote
+    // ones — causing a permanent startup mismatch loop. Local-only presets (not
+    // yet on remote) are preserved.
+    presets: (() => {
+      const remoteArr = castArray<Preset>(remote?.presets ?? []);
+      const remoteById = new Map(remoteArr.map((p) => [p.id, p]));
+      const localOnly = (local.presets ?? []).filter(
+        (p) => p.id && !remoteById.has(p.id)
+      );
+      return [...remoteArr, ...localOnly];
+    })(),
     studyGoals: mergeStudyGoals(
       local.studyGoals as unknown as StudyGoals | undefined,
       remote.studyGoals as unknown as StudyGoals | undefined
@@ -366,6 +420,86 @@ function extractSyncableData(state: AppState): SyncableData {
     studyGoals: state.studyGoals,
     streakData: state.streakData,
   };
+}
+
+type SnapshotItem = { id: string; lm: number };
+type SyncSnapshot = {
+  qh: SnapshotItem[];
+  mch: SnapshotItem[];
+  ss: SnapshotItem[];
+  pr: SnapshotItem[];
+};
+
+function toSortedSnapshotItems<T extends HasId>(items: T[]): SnapshotItem[] {
+  return items
+    .map((item) => ({ id: item.id ?? '', lm: getItemLastModified(item) }))
+    .filter((item) => item.id.length > 0)
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function buildSyncSnapshot(data: SyncableData): SyncSnapshot {
+  return {
+    qh: toSortedSnapshotItems(data.questionHistory),
+    mch: toSortedSnapshotItems(data.mcHistory),
+    ss: toSortedSnapshotItems(data.savedSets),
+    pr: toSortedSnapshotItems(data.presets ?? []),
+  };
+}
+
+function toSnapshotMap(items: SnapshotItem[]): Map<string, number> {
+  return new Map(items.map((item) => [item.id, item.lm]));
+}
+
+function countSnapshotDiff(
+  current: SyncSnapshot,
+  previous: SyncSnapshot
+): number {
+  let count = 0;
+  const compare = (cur: SnapshotItem[], prev: SnapshotItem[]) => {
+    const curMap = toSnapshotMap(cur);
+    const prevMap = toSnapshotMap(prev);
+    for (const [id, lm] of curMap.entries()) {
+      if (!prevMap.has(id) || prevMap.get(id) !== lm) {
+        count += 1;
+      }
+    }
+    for (const id of prevMap.keys()) {
+      if (!curMap.has(id)) {
+        count += 1;
+      }
+    }
+  };
+  compare(current.qh, previous.qh);
+  compare(current.mch, previous.mch);
+  compare(current.ss, previous.ss);
+  compare(current.pr, previous.pr);
+  return count;
+}
+
+function parseSnapshot(raw: string): SyncSnapshot | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<SyncSnapshot>;
+    const normalize = (items: unknown): SnapshotItem[] => {
+      if (!Array.isArray(items)) return [];
+      return items
+        .filter(
+          (item): item is SnapshotItem =>
+            !!item &&
+            typeof item === 'object' &&
+            typeof (item as SnapshotItem).id === 'string' &&
+            typeof (item as SnapshotItem).lm === 'number'
+        )
+        .map((item) => ({ id: item.id, lm: item.lm }));
+    };
+    return {
+      qh: normalize(parsed.qh),
+      mch: normalize(parsed.mch),
+      ss: normalize(parsed.ss),
+      pr: normalize(parsed.pr),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
@@ -484,6 +618,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     );
   }, []);
 
+  const hasPendingLocalDeletes = useCallback((): boolean => {
+    const tombstones = useAppStore.getState().deletionTombstones;
+    return (
+      Object.keys(tombstones.questionHistory).length > 0 ||
+      Object.keys(tombstones.mcHistory).length > 0 ||
+      Object.keys(tombstones.savedSets).length > 0 ||
+      Object.keys(tombstones.presets).length > 0
+    );
+  }, []);
+
   const debugLog = useCallback((message: string, data?: unknown) => {
     if (SYNC_DEBUG) {
       console.log('[FirebaseSync]', message, data);
@@ -585,7 +729,10 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         ...prev,
         queuedOpsTotal: prev.queuedOpsTotal + ops.length,
       }));
-      addSyncEvent('upload', `Queued ${ops.length} sync operation${ops.length === 1 ? '' : 's'}`);
+      addSyncEvent(
+        'upload',
+        `Queued ${ops.length} sync operation${ops.length === 1 ? '' : 's'}`
+      );
     },
     [addSyncEvent, persistQueue, patchTelemetry]
   );
@@ -630,7 +777,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       const upsertPresetIds = new Set<string>();
       const deletePresetIds = new Set<string>();
       let upsertGoalsRequested = false;
-      let upsertStreakRequested = false;
+      let upsertPresetsRequested = false;
 
       for (const op of ops) {
         if (op.collection === 'questionHistory' && op.entityId) {
@@ -660,37 +807,53 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             upsertSsIds.add(op.entityId);
           }
         }
-        if (op.collection === 'presets' && op.entityId) {
-          if (op.opType === 'delete') {
-            upsertPresetIds.delete(op.entityId);
-            deletePresetIds.add(op.entityId);
-          } else {
-            deletePresetIds.delete(op.entityId);
-            upsertPresetIds.add(op.entityId);
+        if (op.collection === 'settings') {
+          if (op.entityId === 'presets') {
+            upsertPresetsRequested = true;
+            if (op.opType === 'delete') {
+              // Deleting presets is represented as replacing settings/presets with local state.
+              deletePresetIds.clear();
+              upsertPresetIds.clear();
+            }
+          } else if (op.entityId === 'goals' || !op.entityId) {
+            upsertGoalsRequested = true;
           }
         }
-        if (op.collection === 'studyGoals') upsertGoalsRequested = true;
-        if (op.collection === 'streakData') upsertStreakRequested = true;
       }
 
-      const qhItems = state.questionHistory.filter((item) => upsertQhIds.has(item.id));
-      const mcItems = state.mcHistory.filter((item) => upsertMcIds.has(item.id));
-      const ssItems = state.savedSets.filter((item) => upsertSsIds.has(item.id));
+      const qhItems = state.questionHistory.filter((item) =>
+        upsertQhIds.has(item.id)
+      );
+      const mcItems = state.mcHistory.filter((item) =>
+        upsertMcIds.has(item.id)
+      );
+      const ssItems = state.savedSets.filter((item) =>
+        upsertSsIds.has(item.id)
+      );
       const presetItems = (state.presets ?? []).filter((item) =>
         upsertPresetIds.has(item.id)
       );
 
-      await Promise.all([
-        upsertQuestionHistoryItems(userId, qhItems as Record<string, unknown>[]),
+      const collectionOps: Promise<unknown>[] = [
+        upsertQuestionHistoryItems(
+          userId,
+          qhItems as Record<string, unknown>[]
+        ),
         deleteQuestionHistoryItems(userId, Array.from(deleteQhIds)),
         upsertMcHistoryItems(userId, mcItems as Record<string, unknown>[]),
         deleteMcHistoryItems(userId, Array.from(deleteMcIds)),
         upsertSavedSets(userId, ssItems as Record<string, unknown>[]),
         deleteSavedSets(userId, Array.from(deleteSsIds)),
-        upsertPresets(userId, presetItems),
-        deletePresets(userId, Array.from(deletePresetIds)),
-      ]);
-      if (upsertGoalsRequested || upsertStreakRequested) {
+      ];
+      if (!upsertPresetsRequested) {
+        collectionOps.push(upsertPresets(userId, presetItems));
+        collectionOps.push(deletePresets(userId, Array.from(deletePresetIds)));
+      } else {
+        collectionOps.push(replacePresets(userId, state.presets ?? []));
+      }
+      await Promise.all(collectionOps);
+
+      if (upsertGoalsRequested) {
         await upsertGoals(
           userId,
           (state.studyGoals ?? {}) as unknown as Record<string, unknown>,
@@ -698,11 +861,15 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         );
       }
 
+      const persistedPresetDeletionIds = upsertPresetsRequested
+        ? Object.keys(state.deletionTombstones.presets)
+        : Array.from(deletePresetIds);
+
       const deletedIds = {
         questionHistory: Array.from(deleteQhIds),
         mcHistory: Array.from(deleteMcIds),
         savedSets: Array.from(deleteSsIds),
-        presets: Array.from(deletePresetIds),
+        presets: persistedPresetDeletionIds,
       };
       if (
         deletedIds.questionHistory.length +
@@ -725,7 +892,10 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         ...prev,
         flushCount: prev.flushCount + 1,
       }));
-      addSyncEvent('upload', `Flushed ${ops.length} queued sync operation${ops.length === 1 ? '' : 's'}`);
+      addSyncEvent(
+        'upload',
+        `Flushed ${ops.length} queued sync operation${ops.length === 1 ? '' : 's'}`
+      );
     } catch (error) {
       debugLog('Flush sync queue failed', error);
       addSyncEvent('retry', 'Queued sync failed; will retry automatically');
@@ -769,7 +939,6 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }, ms);
   }, []);
 
-
   // Persist isSyncEnabled to localStorage whenever it changes
   useEffect(() => {
     writePersistedSyncEnabled(isSyncEnabled);
@@ -807,88 +976,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       const state = useAppStore.getState();
       if (!state.isHydrated) return;
       const syncable = extractSyncableData(state);
-      const snapshot = JSON.stringify({
-        qh: syncable.questionHistory.map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-        mch: syncable.mcHistory.map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-        ss: syncable.savedSets.map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-        pr:
-          syncable.presets?.map((q) => ({
-            id: q.id,
-            lm: getItemLastModified(q as HasId),
-          })) ?? [],
-      });
+      const currentSnapshot = buildSyncSnapshot(syncable);
+      const snapshot = JSON.stringify(currentSnapshot);
 
       if (snapshot !== lastSyncedSnapshotRef.current) {
-        // Count how many items differ
-        let count = 0;
-        try {
-          const lastParsed = JSON.parse(
-            lastSyncedSnapshotRef.current ||
-              '{"qh":[],"mch":[],"ss":[],"pr":[]}'
-          );
-          const lastQhIds = new Set(
-            lastParsed.qh.map((i: { id: string }) => i.id)
-          );
-          const lastMcIds = new Set(
-            lastParsed.mch.map((i: { id: string }) => i.id)
-          );
-          const lastSsIds = new Set(
-            lastParsed.ss.map((i: { id: string }) => i.id)
-          );
-          const lastPrIds = new Set(
-            (lastParsed.pr ?? []).map((i: { id: string }) => i.id)
-          );
-
-          // Build current ID sets
-          const currentQhIds = new Set(
-            syncable.questionHistory.map((q) => q.id)
-          );
-          const currentMcIds = new Set(syncable.mcHistory.map((q) => q.id));
-          const currentSsIds = new Set(syncable.savedSets.map((q) => q.id));
-          const currentPrIds = new Set(
-            (syncable.presets ?? []).map((q) => q.id)
-          );
-
-          // Count additions (items in current but not in last synced)
-          for (const q of syncable.questionHistory) {
-            if (!lastQhIds.has(q.id)) count++;
-          }
-          for (const q of syncable.mcHistory) {
-            if (!lastMcIds.has(q.id)) count++;
-          }
-          for (const q of syncable.savedSets) {
-            if (!lastSsIds.has(q.id)) count++;
-          }
-          for (const q of syncable.presets ?? []) {
-            if (!lastPrIds.has(q.id)) count++;
-          }
-
-          // Count deletions (items in last synced but not in current)
-          for (const id of lastQhIds) {
-            if (!currentQhIds.has(id)) count++;
-          }
-          for (const id of lastMcIds) {
-            if (!currentMcIds.has(id)) count++;
-          }
-          for (const id of lastSsIds) {
-            if (!currentSsIds.has(id)) count++;
-          }
-          for (const id of lastPrIds) {
-            if (!currentPrIds.has(id as string)) count++;
-          }
-        } catch {
-          count = -1; // unknown
+        const previousSnapshot = parseSnapshot(lastSyncedSnapshotRef.current);
+        if (!previousSnapshot) {
+          setPendingChanges(-1);
+          return;
         }
-        setPendingChanges(count);
+        setPendingChanges(countSnapshotDiff(currentSnapshot, previousSnapshot));
       } else {
         setPendingChanges(0);
       }
@@ -910,7 +1007,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   useEffect(() => {
     if (!user || !isSyncEnabled || !isInitializedRef.current) return;
 
-    const getIds = (items: Array<{ id: string }>) => new Set(items.map((i) => i.id));
+    const getIds = (items: Array<{ id: string }>) =>
+      new Set(items.map((i) => i.id));
     const cache = hashedEntitiesRef.current;
     const current = useAppStore.getState();
     cache.questionHistory = new Map(
@@ -1013,10 +1111,10 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           const nextHash = stableHash(item);
           const prevHash = cache.presets.get(item.id);
           if (!prevIds.has(item.id)) {
-            ops.push(newSyncOp('presets', 'upsert', item.id));
+            ops.push(newSyncOp('settings', 'upsert', 'presets'));
             cache.presets.set(item.id, nextHash);
           } else if (prevHash !== nextHash) {
-            ops.push(newSyncOp('presets', 'upsert', item.id));
+            ops.push(newSyncOp('settings', 'upsert', 'presets'));
             cache.presets.set(item.id, nextHash);
           } else {
             hashSkips++;
@@ -1024,7 +1122,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         }
         for (const item of prevState.presets ?? []) {
           if (!currIds.has(item.id)) {
-            ops.push(newSyncOp('presets', 'delete', item.id));
+            ops.push(newSyncOp('settings', 'upsert', 'presets'));
             cache.presets.delete(item.id);
           }
         }
@@ -1033,14 +1131,14 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         const nextHash = stableHash(state.studyGoals);
         if (cache.studyGoals !== nextHash) {
           cache.studyGoals = nextHash;
-          ops.push(newSyncOp('studyGoals', 'upsert'));
+          ops.push(newSyncOp('settings', 'upsert', 'goals'));
         }
       }
       if (state.streakData !== prevState.streakData) {
         const nextHash = stableHash(state.streakData);
         if (cache.streakData !== nextHash) {
           cache.streakData = nextHash;
-          ops.push(newSyncOp('streakData', 'upsert'));
+          ops.push(newSyncOp('settings', 'upsert', 'goals'));
         }
       }
 
@@ -1313,24 +1411,9 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           );
 
           // Set snapshot so pending changes shows 0 after initial merge
-          lastSyncedSnapshotRef.current = JSON.stringify({
-            qh: merged.questionHistory.map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-            mch: merged.mcHistory.map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-            ss: merged.savedSets.map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-            pr: (merged.presets ?? []).map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-          });
+          lastSyncedSnapshotRef.current = JSON.stringify(
+            buildSyncSnapshot(merged)
+          );
 
           debugLog('Sync metadata initialized', {
             questionHistoryVersions: Object.keys(
@@ -1453,24 +1536,9 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             });
           }
 
-          lastSyncedSnapshotRef.current = JSON.stringify({
-            qh: localDataRef.current.questionHistory.map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-            mch: localDataRef.current.mcHistory.map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-            ss: localDataRef.current.savedSets.map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-            pr: (localDataRef.current.presets ?? []).map((q) => ({
-              id: q.id,
-              lm: getItemLastModified(q as HasId),
-            })),
-          });
+          lastSyncedSnapshotRef.current = JSON.stringify(
+            buildSyncSnapshot(localDataRef.current)
+          );
         }
         isInitializedRef.current = true;
         startupSyncDoneRef.current = true;
@@ -1544,52 +1612,77 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           Object.keys(tombstones.savedSets).length,
       });
 
-      // 1. Read remote (delta-first; full read only when needed)
-      const hasPendingTombstones =
-        Object.keys(tombstones.questionHistory).length > 0 ||
-        Object.keys(tombstones.mcHistory).length > 0 ||
-        Object.keys(tombstones.savedSets).length > 0 ||
-        Object.keys(tombstones.presets).length > 0;
-
+      // 1. Read remote (delta-first).
+      // Tombstones are propagated by delete operations during upload, so they
+      // do not require a full remote pre-read.
       let remoteData: SyncableData | null = null;
       let remoteHasData = false;
+      let usedPartialRemoteSnapshot = false;
+      const remoteDeletedIds = {
+        questionHistory: new Set<string>(),
+        mcHistory: new Set<string>(),
+        savedSets: new Set<string>(),
+      };
 
-      if (hasPendingTombstones) {
-        remoteData = await loadUserData(userId);
-        patchTelemetry((prev) => ({
-          ...prev,
-          fullSyncReads: prev.fullSyncReads + 1,
-        }));
-        remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
-      } else {
-        const delta = await getDeltaSyncData(userId, localData);
-        patchTelemetry((prev) => ({
-          ...prev,
-          deltaChecks: prev.deltaChecks + 1,
-        }));
-        const changedByCollection: {
-          questionHistory: string[];
-          mcHistory: string[];
-          savedSets: string[];
-        } = { questionHistory: [], mcHistory: [], savedSets: [] };
-        for (const item of delta.changedItems) {
-          const [collection, id] = item.split('/');
-          if (!id) continue;
-          if (collection === 'questionHistory') {
-            changedByCollection.questionHistory.push(id);
-          } else if (collection === 'mcHistory') {
-            changedByCollection.mcHistory.push(id);
-          } else if (collection === 'savedSets') {
-            changedByCollection.savedSets.push(id);
-          }
+      const delta = await getDeltaSyncData(userId, localData);
+      patchTelemetry((prev) => ({
+        ...prev,
+        deltaChecks: prev.deltaChecks + 1,
+      }));
+      const hasSettingsChanges = delta.hasSettingsChanges;
+      const changedByCollection: {
+        questionHistory: string[];
+        mcHistory: string[];
+        savedSets: string[];
+      } = { questionHistory: [], mcHistory: [], savedSets: [] };
+      for (const item of delta.changedItems) {
+        const [collection, id] = item.split('/');
+        if (!id) continue;
+        if (collection === 'questionHistory') {
+          changedByCollection.questionHistory.push(id);
+        } else if (collection === 'mcHistory') {
+          changedByCollection.mcHistory.push(id);
+        } else if (collection === 'savedSets') {
+          changedByCollection.savedSets.push(id);
         }
+      }
 
-        if (
-          changedByCollection.questionHistory.length > 0 ||
-          changedByCollection.mcHistory.length > 0 ||
-          changedByCollection.savedSets.length > 0
-        ) {
+      if (
+        hasSettingsChanges ||
+        changedByCollection.questionHistory.length > 0 ||
+        changedByCollection.mcHistory.length > 0 ||
+        changedByCollection.savedSets.length > 0
+      ) {
+        if (hasSettingsChanges) {
+          remoteData = await loadUserData(userId);
+          patchTelemetry((prev) => ({
+            ...prev,
+            fullSyncReads: prev.fullSyncReads + 1,
+          }));
+          remoteHasData = hasRemoteData(
+            normalizeRemoteSyncableData(remoteData)
+          );
+        } else {
+          usedPartialRemoteSnapshot = true;
           const changed = await loadChangedItems(userId, changedByCollection);
+          const changedQhIds = new Set(
+            changed.questionHistory.map((i) => String(i.id ?? ''))
+          );
+          const changedMcIds = new Set(
+            changed.mcHistory.map((i) => String(i.id ?? ''))
+          );
+          const changedSsIds = new Set(
+            changed.savedSets.map((i) => String(i.id ?? ''))
+          );
+          for (const id of changedByCollection.questionHistory) {
+            if (!changedQhIds.has(id)) remoteDeletedIds.questionHistory.add(id);
+          }
+          for (const id of changedByCollection.mcHistory) {
+            if (!changedMcIds.has(id)) remoteDeletedIds.mcHistory.add(id);
+          }
+          for (const id of changedByCollection.savedSets) {
+            if (!changedSsIds.has(id)) remoteDeletedIds.savedSets.add(id);
+          }
           remoteData = {
             settings: {},
             questionHistory: changed.questionHistory,
@@ -1597,15 +1690,17 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             savedSets: changed.savedSets,
             presets: [],
           };
-          remoteHasData = hasRemoteData(normalizeRemoteSyncableData(remoteData));
-        } else {
-          debugLog('Manual sync delta check: no remote changes detected');
-          patchTelemetry((prev) => ({
-            ...prev,
-            deltaNoChangePasses: prev.deltaNoChangePasses + 1,
-            estimatedReadsAvoided: prev.estimatedReadsAvoided + 1,
-          }));
+          remoteHasData = hasRemoteData(
+            normalizeRemoteSyncableData(remoteData)
+          );
         }
+      } else {
+        debugLog('Manual sync delta check: no remote changes detected');
+        patchTelemetry((prev) => ({
+          ...prev,
+          deltaNoChangePasses: prev.deltaNoChangePasses + 1,
+          estimatedReadsAvoided: prev.estimatedReadsAvoided + 1,
+        }));
       }
 
       debugLog('Manual sync remote snapshot', {
@@ -1617,7 +1712,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
       // 2. Detect dual-deletion conflicts before merging
       const detectedConflicts: SyncConflict[] = [];
-      if (remoteHasData) {
+      if (remoteHasData && !usedPartialRemoteSnapshot) {
         const remoteQhIds = new Set(
           (remoteData?.questionHistory ?? []).map(
             (i: Record<string, unknown>) => String(i.id ?? '')
@@ -1748,6 +1843,44 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         ) as typeof localData.presets,
       };
 
+      // Apply remote deletions discovered via delta lookup.
+      if (
+        remoteDeletedIds.questionHistory.size > 0 ||
+        remoteDeletedIds.mcHistory.size > 0 ||
+        remoteDeletedIds.savedSets.size > 0
+      ) {
+        const removeIfUnchanged = <T extends HasId>(
+          items: T[],
+          idsToDelete: Set<string>,
+          lastSyncVersions: Record<string, number>
+        ): T[] => {
+          return items.filter((item) => {
+            const id = item.id;
+            if (!id || !idsToDelete.has(id)) return true;
+            const lastSyncedVersion = lastSyncVersions[id] ?? 0;
+            const localVersion = getItemLastModified(item);
+            // Keep local copy if it changed since last sync; it will be re-uploaded.
+            return localVersion > lastSyncedVersion;
+          });
+        };
+
+        filteredLocalData.questionHistory = removeIfUnchanged(
+          filteredLocalData.questionHistory,
+          remoteDeletedIds.questionHistory,
+          syncMetadataRef.current.lastSyncVersions.questionHistory
+        );
+        filteredLocalData.mcHistory = removeIfUnchanged(
+          filteredLocalData.mcHistory,
+          remoteDeletedIds.mcHistory,
+          syncMetadataRef.current.lastSyncVersions.mcHistory
+        );
+        filteredLocalData.savedSets = removeIfUnchanged(
+          filteredLocalData.savedSets,
+          remoteDeletedIds.savedSets,
+          syncMetadataRef.current.lastSyncVersions.savedSets
+        );
+      }
+
       // 4. Merge local + remote (newer wins)
       let merged = remoteHasData
         ? mergeSyncableData(filteredLocalData, remoteData)
@@ -1763,7 +1896,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         };
       }
 
-      if (remoteHasData) {
+      if (remoteHasData || usedPartialRemoteSnapshot) {
         const storeUpdates = applySyncableDataToStore(merged);
         setSuppressPersistUntil(Date.now() + 1500);
         suppressAutoSaveTemporarily();
@@ -1850,24 +1983,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       );
 
       // Update snapshot for pending change tracking
-      lastSyncedSnapshotRef.current = JSON.stringify({
-        qh: merged.questionHistory.map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-        mch: merged.mcHistory.map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-        ss: merged.savedSets.map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-        pr: (merged.presets ?? []).map((q) => ({
-          id: q.id,
-          lm: getItemLastModified(q as HasId),
-        })),
-      });
+      lastSyncedSnapshotRef.current = JSON.stringify(buildSyncSnapshot(merged));
 
       persistQueue({ operations: [], updatedAt: Date.now() });
       setLastFlushTime(Date.now());
@@ -1910,9 +2026,65 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       return;
     }
     startupSyncDoneRef.current = true;
-    debugLog('Startup reconciliation sync triggered');
-    void forceSync();
-  }, [user, isSyncEnabled, isOnline, forceSync, debugLog]);
+    const runStartupCheck = async () => {
+      const hasQueuedOps = syncQueueRef.current.operations.length > 0;
+      const hasDeletes = hasPendingLocalDeletes();
+      if (hasDeletes) {
+        debugLog(
+          'Startup reconciliation sync triggered: pending local deletes'
+        );
+        await forceSync();
+        return;
+      }
+      if (hasQueuedOps) {
+        debugLog('Startup queued-op flush triggered (no full reconciliation)');
+        await flushSyncQueue();
+        return;
+      }
+
+      const current = useAppStore.getState();
+      const localQhCount = current.questionHistory.length;
+      const localMcCount = current.mcHistory.length;
+      const remoteCounts = await getRemoteHistoryCounts(getUserId(user));
+      const hasCountMismatch =
+        remoteCounts.questionHistory !== localQhCount ||
+        remoteCounts.mcHistory !== localMcCount;
+      const hasPresetsMismatch = await isRemotePresetsArrayDifferent(
+        getUserId(user),
+        current.presets ?? []
+      );
+      if (hasCountMismatch || hasPresetsMismatch) {
+        debugLog(
+          'Startup reconciliation sync triggered: startup alignment mismatch',
+          {
+            local: { questionHistory: localQhCount, mcHistory: localMcCount },
+            remote: remoteCounts,
+            hasPresetsMismatch,
+          }
+        );
+        await forceSync();
+      } else {
+        patchTelemetry((prev) => ({
+          ...prev,
+          deltaNoChangePasses: prev.deltaNoChangePasses + 1,
+          estimatedReadsAvoided: prev.estimatedReadsAvoided + 1,
+        }));
+        debugLog(
+          'Startup reconciliation skipped: history counts and presets array aligned'
+        );
+      }
+    };
+    void runStartupCheck();
+  }, [
+    user,
+    isSyncEnabled,
+    isOnline,
+    forceSync,
+    debugLog,
+    hasPendingLocalDeletes,
+    patchTelemetry,
+    flushSyncQueue,
+  ]);
 
   const resolveConflicts = useCallback(
     (resolutions: Map<string, 'keep' | 'delete'>) => {

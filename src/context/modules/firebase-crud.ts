@@ -2,6 +2,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  getCountFromServer,
   collection,
   query,
   orderBy,
@@ -150,10 +151,6 @@ function getUserPresetsRef(userId: string) {
   return doc(db, 'users', userId, 'settings', 'presets');
 }
 
-function getUserPresetsCollectionRef(userId: string) {
-  return collection(db, 'users', userId, 'presets');
-}
-
 function getHistoryCollectionRef(
   userId: string,
   type: 'questionHistory' | 'mcHistory'
@@ -267,6 +264,112 @@ async function withRetry<T>(
 export interface DeltaSyncResult {
   changedItems: string[];
   totalChecked: number;
+  hasSettingsChanges: boolean;
+}
+
+export interface RemoteHistoryCounts {
+  questionHistory: number;
+  mcHistory: number;
+}
+
+function normalizePresetsForCompare(presets: Preset[]): Preset[] {
+  return [...presets]
+    .filter((preset) => typeof preset?.id === 'string' && preset.id.length > 0)
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function stripMetaFields(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripMetaFields);
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const cleaned: Record<string, unknown> = {};
+    // Meta fields to skip: Firestore server timestamps, preset timestamps
+    const metaFieldsToSkip = new Set([
+      '_lastModified',
+      'lastModified',
+      'createdAt',
+      'updatedAt',
+    ]);
+    for (const key of Object.keys(record)) {
+      if (metaFieldsToSkip.has(key)) continue;
+      const next = stripMetaFields(record[key]);
+      if (next !== undefined) cleaned[key] = next;
+    }
+    return cleaned;
+  }
+  return value;
+}
+
+function toCanonicalJson(value: unknown): string {
+  const canonicalize = (input: unknown): unknown => {
+    if (Array.isArray(input)) {
+      return input.map(canonicalize);
+    }
+    if (input && typeof input === 'object') {
+      const obj = input as Record<string, unknown>;
+      const sorted = Object.keys(obj)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = canonicalize(obj[key]);
+          return acc;
+        }, {});
+      return sorted;
+    }
+    return input;
+  };
+  return JSON.stringify(canonicalize(value));
+}
+
+export async function isRemotePresetsArrayDifferent(
+  userId: string,
+  localPresets: Preset[]
+): Promise<boolean> {
+  const snap = await withTimeout(
+    getDoc(getUserPresetsRef(userId)),
+    'loading settings/presets',
+    15000
+  );
+  const remotePresets = snap.exists()
+    ? ((snap.data().presets as Preset[] | undefined) ?? [])
+    : [];
+  const localComparable = stripMetaFields(
+    removeUndefined(normalizePresetsForCompare(localPresets))
+  );
+  const remoteComparable = stripMetaFields(
+    removeUndefined(normalizePresetsForCompare(remotePresets))
+  );
+  const localJson = toCanonicalJson(localComparable);
+  const remoteJson = toCanonicalJson(remoteComparable);
+  if (localJson !== remoteJson) {
+    console.log('[Presets diff] Mismatch detected');
+    console.log('[Presets diff] local:', localJson.slice(0, 1000));
+    console.log('[Presets diff] remote:', remoteJson.slice(0, 1000));
+  }
+  return localJson !== remoteJson;
+}
+
+export async function getRemoteHistoryCounts(
+  userId: string
+): Promise<RemoteHistoryCounts> {
+  const [qhCountSnap, mcCountSnap] = await Promise.all([
+    withTimeout(
+      getCountFromServer(getHistoryCollectionRef(userId, 'questionHistory')),
+      'counting remote questionHistory',
+      15000
+    ),
+    withTimeout(
+      getCountFromServer(getHistoryCollectionRef(userId, 'mcHistory')),
+      'counting remote mcHistory',
+      15000
+    ),
+  ]);
+
+  return {
+    questionHistory: qhCountSnap.data().count,
+    mcHistory: mcCountSnap.data().count,
+  };
 }
 
 export async function getDeltaSyncData(
@@ -275,6 +378,7 @@ export async function getDeltaSyncData(
 ): Promise<DeltaSyncResult> {
   const changedItems: string[] = [];
   let totalChecked = 0;
+  let hasSettingsChanges = false;
 
   const checkCollection = async (
     type: 'questionHistory' | 'mcHistory' | 'savedSets'
@@ -343,7 +447,107 @@ export async function getDeltaSyncData(
     checkCollection('savedSets'),
   ]);
 
-  return { changedItems, totalChecked };
+  // Settings docs are stored in users/{uid}/settings/* (main, goals), and
+  // presets are stored in users/{uid}/presets/*.
+  try {
+    const [mainSnap, goalsDoc, presetsDoc] = await Promise.all([
+      withTimeout(
+        getDoc(getUserSettingsRef(userId)),
+        'checking settings/main',
+        15000
+      ),
+      withTimeout(
+        getDoc(doc(db, 'users', userId, 'settings', 'goals')),
+        'checking settings/goals',
+        15000
+      ),
+      withTimeout(
+        getDoc(getUserPresetsRef(userId)),
+        'checking settings/presets',
+        15000
+      ),
+    ]);
+
+    totalChecked += 2;
+    if (mainSnap.exists()) {
+      const remoteMain = mainSnap.data();
+      const remoteSettings = toCanonicalJson(
+        stripMetaFields(removeUndefined(remoteMain.settings ?? {}))
+      );
+      const localSettings = toCanonicalJson(
+        stripMetaFields(removeUndefined(localData.settings ?? {}))
+      );
+      if (remoteSettings !== localSettings) {
+        changedItems.push('settings/main');
+        hasSettingsChanges = true;
+      }
+    } else if (Object.keys(localData.settings ?? {}).length > 0) {
+      changedItems.push('settings/main');
+      hasSettingsChanges = true;
+    }
+
+    if (goalsDoc.exists()) {
+      const data = goalsDoc.data();
+      const remoteGoals = toCanonicalJson(
+        stripMetaFields(removeUndefined(data.studyGoals ?? {}))
+      );
+      const remoteStreak = toCanonicalJson(
+        stripMetaFields(removeUndefined(data.streakData ?? {}))
+      );
+      const localGoals = toCanonicalJson(
+        stripMetaFields(removeUndefined(localData.studyGoals ?? {}))
+      );
+      const localStreak = toCanonicalJson(
+        stripMetaFields(removeUndefined(localData.streakData ?? {}))
+      );
+      if (remoteGoals !== localGoals || remoteStreak !== localStreak) {
+        changedItems.push('settings/goals');
+        hasSettingsChanges = true;
+      }
+    } else if (localData.studyGoals || localData.streakData) {
+      changedItems.push('settings/goals');
+      hasSettingsChanges = true;
+    }
+
+    totalChecked += 1;
+    const localPresetsComparable = toCanonicalJson(
+      stripMetaFields(
+        removeUndefined(normalizePresetsForCompare(localData.presets ?? []))
+      )
+    );
+    const remotePresetsComparable = toCanonicalJson(
+      stripMetaFields(
+        removeUndefined(
+          normalizePresetsForCompare(
+            presetsDoc.exists()
+              ? ((presetsDoc.data().presets as Preset[] | undefined) ?? [])
+              : []
+          )
+        )
+      )
+    );
+    const hasPresetChanges = localPresetsComparable !== remotePresetsComparable;
+    if (hasPresetChanges) {
+      console.log('[Presets diff] getDeltaSyncData mismatch detected');
+      console.log(
+        '[Presets diff] local:',
+        localPresetsComparable.slice(0, 1000)
+      );
+      console.log(
+        '[Presets diff] remote:',
+        remotePresetsComparable.slice(0, 1000)
+      );
+      hasSettingsChanges = true;
+      changedItems.push('settings/presets');
+    }
+  } catch (error) {
+    console.warn(
+      '[Firebase] Delta sync check for settings/presets failed:',
+      error
+    );
+  }
+
+  return { changedItems, totalChecked, hasSettingsChanges };
 }
 
 function estimateDocSizeBytes(value: unknown): number {
@@ -837,7 +1041,11 @@ export async function deleteMcHistoryItems(
   await Promise.all(
     ids.map((id) =>
       withRetry(
-        () => withTimeout(deleteDoc(doc(historyRef, id)), `deleting mcHistory ${id}`),
+        () =>
+          withTimeout(
+            deleteDoc(doc(historyRef, id)),
+            `deleting mcHistory ${id}`
+          ),
         `deleting mcHistory ${id}`
       )
     )
@@ -893,7 +1101,10 @@ export async function deleteSavedSets(
     ids.map((id) =>
       withRetry(
         () =>
-          withTimeout(deleteDoc(doc(savedSetsRef, id)), `deleting savedSet ${id}`),
+          withTimeout(
+            deleteDoc(doc(savedSetsRef, id)),
+            `deleting savedSet ${id}`
+          ),
         `deleting savedSet ${id}`
       )
     )
@@ -905,51 +1116,22 @@ export async function replacePresets(
   userId: string,
   presets: Preset[]
 ): Promise<void> {
-  const presetsRef = getUserPresetsCollectionRef(userId);
-  const existingSnap = await withRetry(
-    () => withTimeout(getDocs(query(presetsRef, limit(500))), 'loading presets'),
-    'loading presets'
+  const presetsRef = getUserPresetsRef(userId);
+  await withRetry(
+    () =>
+      withTimeout(
+        setDoc(
+          presetsRef,
+          {
+            presets: removeUndefined(presets),
+            _lastModified: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+        'saving presets document'
+      ),
+    'saving presets document'
   );
-  const existingIds = new Set(existingSnap.docs.map((d) => d.id));
-  const nextIds = new Set<string>();
-
-  const writes: Promise<unknown>[] = [];
-  for (const preset of presets) {
-    if (!preset?.id) continue;
-    nextIds.add(preset.id);
-    writes.push(
-      withRetry(
-        () =>
-          withTimeout(
-            setDoc(doc(presetsRef, preset.id), {
-              ...(removeUndefined(preset) as Record<string, unknown>),
-              _lastModified: serverTimestamp(),
-            }),
-            `saving preset ${preset.id}`
-          ),
-        `saving preset ${preset.id}`
-      )
-    );
-  }
-
-  for (const existingId of existingIds) {
-    if (!nextIds.has(existingId)) {
-      writes.push(
-        withRetry(
-          () =>
-            withTimeout(
-              deleteDoc(doc(presetsRef, existingId)),
-              `deleting preset ${existingId}`
-            ),
-          `deleting preset ${existingId}`
-        )
-      );
-    }
-  }
-
-  if (writes.length > 0) {
-    await Promise.all(writes);
-  }
 }
 
 export async function upsertPresets(
@@ -957,21 +1139,34 @@ export async function upsertPresets(
   presets: Preset[]
 ): Promise<number> {
   if (presets.length === 0) return 0;
-  const presetsRef = getUserPresetsCollectionRef(userId);
-  await Promise.all(
-    presets.map((preset) =>
-      withRetry(
-        () =>
-          withTimeout(
-            setDoc(doc(presetsRef, preset.id), {
-              ...(removeUndefined(preset) as Record<string, unknown>),
-              _lastModified: serverTimestamp(),
-            }),
-            `saving preset ${preset.id}`
-          ),
-        `saving preset ${preset.id}`
+  const presetsRef = getUserPresetsRef(userId);
+  const snapshot = await withRetry(
+    () => withTimeout(getDoc(presetsRef), 'loading presets document'),
+    'loading presets document'
+  );
+  const existing = snapshot.exists()
+    ? ((snapshot.data().presets as Preset[] | undefined) ?? []).filter(
+        (p) => p?.id
       )
-    )
+    : [];
+  const byId = new Map(existing.map((preset) => [preset.id, preset]));
+  for (const preset of presets) {
+    byId.set(preset.id, preset);
+  }
+  await withRetry(
+    () =>
+      withTimeout(
+        setDoc(
+          presetsRef,
+          {
+            presets: removeUndefined(Array.from(byId.values())),
+            _lastModified: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+        'saving presets document'
+      ),
+    'saving presets document'
   );
   return presets.length;
 }
@@ -981,15 +1176,29 @@ export async function deletePresets(
   ids: string[]
 ): Promise<number> {
   if (ids.length === 0) return 0;
-  const presetsRef = getUserPresetsCollectionRef(userId);
-  await Promise.all(
-    ids.map((id) =>
-      withRetry(
-        () =>
-          withTimeout(deleteDoc(doc(presetsRef, id)), `deleting preset ${id}`),
-        `deleting preset ${id}`
-      )
-    )
+  const presetsRef = getUserPresetsRef(userId);
+  const snapshot = await withRetry(
+    () => withTimeout(getDoc(presetsRef), 'loading presets document'),
+    'loading presets document'
+  );
+  if (!snapshot.exists()) return 0;
+  const existing = (
+    (snapshot.data().presets as Preset[] | undefined) ?? []
+  ).filter((preset) => preset?.id && !ids.includes(preset.id));
+  await withRetry(
+    () =>
+      withTimeout(
+        setDoc(
+          presetsRef,
+          {
+            presets: removeUndefined(existing),
+            _lastModified: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+        'saving presets document'
+      ),
+    'saving presets document'
   );
   return ids.length;
 }
@@ -1389,7 +1598,6 @@ export async function loadUserData(
 
   const goalsRef = doc(db, 'users', userId, 'settings', 'goals');
   const presetsRef = getUserPresetsRef(userId);
-  const presetsCollectionRef = getUserPresetsCollectionRef(userId);
   const [qhSnapshot, mchSnapshot, ssSnapshot, goalsResult, presetsSnap] =
     await Promise.all([
       withTimeout(
@@ -1442,23 +1650,10 @@ export async function loadUserData(
           };
         })
         .catch(() => ({ studyGoals: null, streakData: null })),
-      withTimeout(
-        getDocs(query(presetsCollectionRef, limit(500))),
-        'loading preset documents'
-      )
-        .then(async (snap) => {
-          if (!snap.empty) {
-            return snap.docs
-              .map((d) => {
-                const data = d.data();
-                delete data._lastModified;
-                return { id: d.id, ...(data as Record<string, unknown>) };
-              })
-              .filter((p) => typeof p.id === 'string');
-          }
-          const legacy = await withTimeout(getDoc(presetsRef), 'loading legacy presets');
-          if (!legacy.exists()) return [];
-          const data = legacy.data();
+      withTimeout(getDoc(presetsRef), 'loading preset settings data')
+        .then((snap) => {
+          if (!snap.exists()) return [];
+          const data = snap.data();
           return Array.isArray(data.presets) ? data.presets : [];
         })
         .catch(() => []),
