@@ -278,13 +278,21 @@ export function VirtualizedWrongList({
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => parentRef.current,
+    getItemKey: (index) => entries[index]?.id ?? index,
     estimateSize: () => 120,
     measureElement: (el) => el.getBoundingClientRect().height,
+    overscan: 6,
     useFlushSync: true,
   });
 
+  useEffect(() => {
+    rowVirtualizer.measure();
+    const raf = requestAnimationFrame(() => rowVirtualizer.measure());
+    return () => cancelAnimationFrame(raf);
+  }, [rowVirtualizer, entries, expandedIds]);
+
   return (
-    <div ref={parentRef} style={{ height: '100vh', overflow: 'auto' }}>
+    <div ref={parentRef} className="flex-1 overflow-auto min-h-0">
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,

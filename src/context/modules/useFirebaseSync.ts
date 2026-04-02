@@ -753,6 +753,28 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           useAppStore.setState(storeUpdates);
           localDataRef.current = merged;
 
+          // Persist merged result (including deletions) back to cloud on connect.
+          // Without this, tombstoned local deletions (like presets) can remain
+          // in Firestore and later reappear on subsequent syncs.
+          const deletedIds = tombstonesToDeletedIds(tombstones);
+          const hasDeletions =
+            deletedIds.questionHistory.length > 0 ||
+            deletedIds.mcHistory.length > 0 ||
+            deletedIds.savedSets.length > 0 ||
+            deletedIds.presets.length > 0;
+          await saveUserData(userId, merged, {
+            fullSync: false,
+            ...(hasDeletions ? { deletedIds } : {}),
+          });
+          if (hasDeletions) {
+            useAppStore.setState({
+              deletionTombstones: purgePersistedTombstones(
+                tombstones,
+                deletedIds
+              ),
+            });
+          }
+
           // Initialize sync metadata from merged data
           const now = Date.now();
           syncMetadataRef.current.lastSyncTime = now;
