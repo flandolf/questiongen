@@ -15,11 +15,11 @@ import {
   CardTitle,
   CardContent,
   CardFooter,
-} from '../ui/card';
+} from '@/components/ui/card';
 import { Difficulty, QuestionMode } from '@/types';
 import { useAnalyticsData, percent } from '@/views/useAnalyticsData';
 import { AccuracyTrendChart } from './AccuracyTrendChart';
-import { MarkdownMath } from '../MarkdownMath';
+import { MarkdownMath } from '@/components/MarkdownMath';
 import { useNavigate } from 'react-router-dom';
 
 type PerQuestionTiming = {

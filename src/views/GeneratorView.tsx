@@ -31,8 +31,6 @@ import {
   SPECIALIST_MATH_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
-  ExamRecord,
-  ExamQuestionResult,
 } from '@/types';
 import {
   fileToDataUrl,
@@ -42,20 +40,17 @@ import {
 
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
-import {
-  SetupPanel,
-  BatchTopicProgress,
-} from '@/components/generator/SetupPanel';
-import { CompletionScreen } from '@/components/generator/CompletionScreen';
-import { WrittenSessionHeader } from '@/components/generator/WrittenSessionHeader';
-import { WrittenQuestionCard } from '@/components/generator/WrittenQuestionCard';
+import { SetupPanel, BatchTopicProgress } from '@/views/generator/SetupPanel';
+import { CompletionScreen } from '@/views/generator/CompletionScreen';
+import { WrittenSessionHeader } from '@/views/generator/WrittenSessionHeader';
+import { WrittenQuestionCard } from '@/views/generator/WrittenQuestionCard';
 import { useQuestionTimer } from '@/hooks/useQuestionTimer';
 import { useTimerBar, type TimerBarData } from '@/context/TimerBarContext';
-import { WrittenAnswerCard } from '@/components/generator/WrittenAnswerCard';
-import { WrittenFeedbackPanel } from '@/components/generator/WrittenFeedbackPanel';
-import { McSessionHeader } from '@/components/generator/McSessionHeader';
-import { McQuestionCard } from '@/components/generator/McQuestionCard';
-import { McAnswerPanel } from '@/components/generator/McAnswerPanel';
+import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
+import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
+import { McSessionHeader } from '@/views/generator/McSessionHeader';
+import { McQuestionCard } from '@/views/generator/McQuestionCard';
+import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -183,7 +178,6 @@ export function GeneratorView() {
   const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
   const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState('');
-  const [examRecordSaved, setExamRecordSaved] = useState(false);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
     Record<string, string>
@@ -248,10 +242,6 @@ export function GeneratorView() {
     setAverageMarksPerQuestion,
     questionMode,
     setQuestionMode,
-    generationMode,
-    setGenerationMode,
-    examTimeLimitMinutes,
-    setExamTimeLimitMinutes,
     aiDifficultyScalingEnabled,
     setAiDifficultyScalingEnabled,
     difficultyThresholds,
@@ -313,7 +303,6 @@ export function GeneratorView() {
   } = useGenerationStatus();
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
-  const addExamRecord = useAppStore((s) => s.addExamRecord);
   const setWrittenTimerState = useAppStore((s) => s.setWrittenTimerState);
   const setMcTimerState = useAppStore((s) => s.setMcTimerState);
 
@@ -323,24 +312,8 @@ export function GeneratorView() {
   const [pendingCancelType, setPendingCancelType] = useState<
     null | 'written' | 'mc'
   >(null);
-  const [isSubmittingExam, setIsSubmittingExam] = useState(false);
-  const [examSubmitted, setExamSubmitted] = useState(false);
 
   const [streamText, setStreamText] = useState('');
-
-  // Calculate recent average score for AI scaling
-  const examHistory = useAppStore((s) => s.examHistory);
-  const recentAverageScore = useMemo(() => {
-    if (examHistory.length === 0) return null;
-
-    // Take last 5 exams
-    const recentExams = examHistory.slice(0, 5);
-    const totalScore = recentExams.reduce(
-      (sum, exam) => sum + (exam.totalScore / exam.totalMax) * 100,
-      0
-    );
-    return totalScore / recentExams.length;
-  }, [examHistory]);
 
   const [lastSessionTelemetry, setLastSessionTelemetry] = useState<
     import('@/types').GenerationTelemetry | null
@@ -348,19 +321,12 @@ export function GeneratorView() {
 
   // --- Timer hooks ---
   const writtenTimer = useQuestionTimer(
-    generationMode,
-    examTimeLimitMinutes * 60,
+    0,
     questions,
     activeQuestionIndex,
     'written'
   );
-  const mcTimer = useQuestionTimer(
-    generationMode,
-    examTimeLimitMinutes * 60,
-    mcQuestions,
-    activeMcQuestionIndex,
-    'mc'
-  );
+  const mcTimer = useQuestionTimer(0, mcQuestions, activeMcQuestionIndex, 'mc');
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -395,6 +361,48 @@ export function GeneratorView() {
     ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ??
       (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ''))
     : '';
+
+  const recentAverageScore = useMemo(() => {
+    if (questionMode === 'written') {
+      const completedQuestions = questions.filter(
+        (q) => feedbackByQuestionId[q.id]
+      );
+      if (completedQuestions.length === 0) return undefined;
+      const totalMarks = completedQuestions.reduce(
+        (sum, q) => sum + q.maxMarks,
+        0
+      );
+      if (totalMarks === 0) return undefined;
+      const achievedMarks = completedQuestions.reduce(
+        (sum, q) => sum + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
+        0
+      );
+      return (achievedMarks / totalMarks) * 100;
+    }
+
+    const answeredQuestions = mcQuestions.filter(
+      (q) => mcAnswersByQuestionId[q.id]
+    );
+    if (answeredQuestions.length === 0) return undefined;
+    const achievedMarks = answeredQuestions.reduce(
+      (sum, q) =>
+        sum +
+        getMcAwardedMarks(
+          q.id,
+          mcAnswersByQuestionId[q.id] ?? '',
+          q.correctAnswer
+        ),
+      0
+    );
+    return (achievedMarks / answeredQuestions.length) * 100;
+  }, [
+    questionMode,
+    questions,
+    feedbackByQuestionId,
+    mcQuestions,
+    mcAnswersByQuestionId,
+    mcAwardedMarksByQuestionId,
+  ]);
 
   const markModel = (() => {
     if (
@@ -437,23 +445,14 @@ export function GeneratorView() {
     apiKey.trim().length > 0 &&
     markModel.trim().length > 0 &&
     !isMarking &&
-    !activeFeedback &&
-    generationMode !== 'exam';
+    !activeFeedback;
 
   const completedCount = useMemo(() => {
-    if (generationMode === 'exam') {
-      // In exam mode, count answered questions (have text or image)
-      return questions.filter((q) => {
-        const answer = answersByQuestionId[q.id]?.trim() ?? '';
-        const image = imagesByQuestionId[q.id];
-        return answer.length > 0 || Boolean(image);
-      }).length;
-    }
-    return questions.filter((q) => feedbackByQuestionId[q.id]).length;
+    return questions.filter((q: { id: string }) => feedbackByQuestionId[q.id])
+      .length;
   }, [
     feedbackByQuestionId,
     questions,
-    generationMode,
     answersByQuestionId,
     imagesByQuestionId,
   ]);
@@ -465,30 +464,20 @@ export function GeneratorView() {
   const isWrittenSetComplete =
     questionMode === 'written' &&
     questions.length > 0 &&
-    (generationMode === 'exam'
-      ? examSubmitted // In exam mode, set is "complete" once submitted (persists across Review)
-      : completedCount === questions.length);
+    completedCount === questions.length;
   const isMcSetComplete =
     questionMode === 'multiple-choice' &&
     mcQuestions.length > 0 &&
-    (generationMode === 'exam'
-      ? examSubmitted
-      : mcCompletedCount === mcQuestions.length);
+    mcCompletedCount === mcQuestions.length;
   const isSetComplete = isWrittenSetComplete || isMcSetComplete;
   const isReviewingCompletedSet =
     isSetComplete && !showCompletionScreen && hasShownCompletionScreen;
   const isAtLastWrittenQuestion = activeQuestionIndex === questions.length - 1;
   const isAtLastMcQuestion = activeMcQuestionIndex === mcQuestions.length - 1;
   const canAdvanceWritten =
-    questions.length > 0 &&
-    (!isAtLastWrittenQuestion ||
-      isWrittenSetComplete ||
-      (generationMode === 'exam' && !showCompletionScreen));
+    questions.length > 0 && (!isAtLastWrittenQuestion || isWrittenSetComplete);
   const canAdvanceMc =
-    mcQuestions.length > 0 &&
-    (!isAtLastMcQuestion ||
-      isMcSetComplete ||
-      (generationMode === 'exam' && !showCompletionScreen));
+    mcQuestions.length > 0 && (!isAtLastMcQuestion || isMcSetComplete);
 
   const completionSetKey = useMemo(() => {
     if (questionMode === 'written') return questions.map((q) => q.id).join('|');
@@ -582,138 +571,6 @@ export function GeneratorView() {
   // If you need to keep completionFormattedElapsedTime and formattedCountdownTime:
   const completionFormattedElapsedTime = formattedSessionTime;
   const formattedElapsedTime = formattedSessionTime;
-  const formattedCountdownTime = formattedSessionTime;
-
-  // ── Exam submission: mark all answers at once ─────────────────────────────────
-  const handleSubmitExam = useCallback(async () => {
-    if (generationMode !== 'exam') return;
-    setIsSubmittingExam(true);
-    setErrorMessage(null);
-    setExamSubmitted(true);
-
-    try {
-      if (questionMode === 'written') {
-        // Mark all unmarked written answers
-        const unmarkedQuestions = questions.filter(
-          (q) => !feedbackByQuestionId[q.id]
-        );
-        if (unmarkedQuestions.length > 0) {
-          const items = unmarkedQuestions
-            .filter((q) => {
-              const answer = answersByQuestionId[q.id]?.trim() ?? '';
-              const image = imagesByQuestionId[q.id];
-              return answer.length > 0 || Boolean(image?.dataUrl);
-            })
-            .map((q) => ({
-              question: q,
-              studentAnswer: answersByQuestionId[q.id] ?? '',
-              studentAnswerImageDataUrl: imagesByQuestionId[q.id]?.dataUrl,
-              model: markModel,
-              apiKey,
-            }));
-
-          if (items.length > 0) {
-            const response = await invoke<{
-              results: Array<{
-                questionId: string;
-                response: unknown;
-                error: string | null;
-              }>;
-            }>('batch_mark_answers', { request: { items } });
-            for (const item of response.results) {
-              if (item.response) {
-                const q = questions.find((q) => q.id === item.questionId);
-                const maxMarks = q?.maxMarks ?? 10;
-                const normalized = normalizeMarkResponse(
-                  item.response,
-                  maxMarks
-                );
-                setFeedbackByQuestionId((prev) => ({
-                  ...prev,
-                  [item.questionId]: normalized,
-                }));
-                setMarkOverrideInputByQuestionId((prev) => ({
-                  ...prev,
-                  [item.questionId]: String(normalized.achievedMarks),
-                }));
-              }
-            }
-          }
-        }
-      } else {
-        // MC mode: compute awarded marks for any unanswered questions (they get 0)
-        for (const q of mcQuestions) {
-          if (mcAwardedMarksByQuestionId[q.id] === undefined) {
-            const sel = mcAnswersByQuestionId[q.id];
-            const awarded = sel === q.correctAnswer ? 1 : 0;
-            setMcAwardedMarksByQuestionId((prev) => ({
-              ...prev,
-              [q.id]: awarded,
-            }));
-            setMcMarkOverrideInputByQuestionId((prev) => ({
-              ...prev,
-              [q.id]: String(awarded),
-            }));
-          }
-        }
-      }
-
-      writtenTimer.finishSession();
-      mcTimer.finishSession();
-      setShowCompletionScreen(true);
-    } catch (error) {
-      setErrorMessage(readBackendError(error));
-    } finally {
-      setIsSubmittingExam(false);
-    }
-  }, [
-    generationMode,
-    questionMode,
-    questions,
-    feedbackByQuestionId,
-    answersByQuestionId,
-    imagesByQuestionId,
-    mcQuestions,
-    mcAnswersByQuestionId,
-    mcAwardedMarksByQuestionId,
-    markModel,
-    apiKey,
-    setErrorMessage,
-    setFeedbackByQuestionId,
-    setMarkOverrideInputByQuestionId,
-    setMcAwardedMarksByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-    writtenTimer,
-    mcTimer,
-    setShowCompletionScreen,
-    setIsSubmittingExam,
-    setExamSubmitted,
-  ]);
-
-  // Exam mode: auto-submit when time runs out
-  // Uses a ref to prevent re-triggering when the user clicks "Review" to go back
-  // to the question view after an auto-submit (showCompletionScreen→false would
-  // re-run this effect with remainingSeconds still 0).
-  const examAutoSubmittedRef = useRef(false);
-  useEffect(() => {
-    if (generationMode !== 'exam') {
-      examAutoSubmittedRef.current = false;
-      return;
-    }
-    if (
-      !activeTimer.sessionElapsedSeconds &&
-      activeTimer.sessionElapsedSeconds !== 0
-    )
-      return;
-    if (activeTimer.sessionRemainingSeconds > 0) {
-      examAutoSubmittedRef.current = false;
-      return;
-    }
-    if (examAutoSubmittedRef.current) return;
-    // Time's up — force-submit the exam (marks all answers)
-    examAutoSubmittedRef.current = true;
-    handleSubmitExam();
-  }, [generationMode, activeTimer.sessionRemainingSeconds, handleSubmitExam]);
 
   // --- Timer bar context (for header display) ---
   const { setTimerBarData } = useTimerBar();
@@ -728,6 +585,7 @@ export function GeneratorView() {
     }
     const timer = activeTimer;
     const data: TimerBarData = {
+      mode: 'practice',
       questionNumber:
         (questionMode === 'written'
           ? activeQuestionIndex
@@ -743,7 +601,6 @@ export function GeneratorView() {
       formattedBank: timer.formattedBank,
       bankStatus: timer.bankStatus,
       formattedSessionTime: timer.formattedSessionTime,
-      mode: generationMode,
     };
     setTimerBarData(data);
   }, [
@@ -762,7 +619,6 @@ export function GeneratorView() {
     activeTimer.formattedBank,
     activeTimer.bankStatus,
     activeTimer.formattedSessionTime,
-    generationMode,
     setTimerBarData,
   ]);
 
@@ -782,10 +638,107 @@ export function GeneratorView() {
   useEffect(() => {
     if (showCompletionScreen) setHasShownCompletionScreen(true);
   }, [showCompletionScreen]);
-  useEffect(() => {
-    setExamRecordSaved(false);
-    setExamSubmitted(false);
-  }, [completionSetKey, generationMode]);
+
+  const handleWrittenAnswerChange = useCallback(
+    (value: string) => {
+      if (!activeQuestion) return;
+      const questionId = activeQuestion.id;
+      setAnswersByQuestionId((prev) => ({
+        ...prev,
+        [questionId]: value,
+      }));
+      if (value.trim().length > 0) {
+        setWrittenResponseEnteredAtById((prev) =>
+          prev[questionId] !== undefined
+            ? prev
+            : { ...prev, [questionId]: Date.now() }
+        );
+      }
+    },
+    [activeQuestion, setAnswersByQuestionId, setWrittenResponseEnteredAtById]
+  );
+
+  const handleWrittenImageDrop = useCallback(
+    (files: File[]) => {
+      if (!activeQuestion) return;
+      const file = files[0];
+      if (!file) return;
+      const questionId = activeQuestion.id;
+      void fileToDataUrl(file)
+        .then((dataUrl) => {
+          setImagesByQuestionId((prev) => ({
+            ...prev,
+            [questionId]: {
+              name: file.name,
+              dataUrl,
+            },
+          }));
+          setWrittenResponseEnteredAtById((prev) =>
+            prev[questionId] !== undefined
+              ? prev
+              : { ...prev, [questionId]: Date.now() }
+          );
+        })
+        .catch(() => {
+          setErrorMessage('Unable to read the selected image file.');
+        });
+    },
+    [
+      activeQuestion,
+      setErrorMessage,
+      setImagesByQuestionId,
+      setWrittenResponseEnteredAtById,
+    ]
+  );
+
+  const handleWrittenImageRemove = useCallback(() => {
+    if (!activeQuestion) return;
+    setImagesByQuestionId((prev) => removeKey(prev, activeQuestion.id));
+  }, [activeQuestion, setImagesByQuestionId]);
+
+  const handleAppealChange = useCallback(
+    (value: string) => {
+      if (!activeQuestion) return;
+      setMarkAppealByQuestionId((prev) => ({
+        ...prev,
+        [activeQuestion.id]: value,
+      }));
+    },
+    [activeQuestion, setMarkAppealByQuestionId]
+  );
+
+  const handleOverrideInputChange = useCallback(
+    (value: string) => {
+      if (!activeQuestion) return;
+      setMarkOverrideInputByQuestionId((prev) => ({
+        ...prev,
+        [activeQuestion.id]: value,
+      }));
+    },
+    [activeQuestion, setMarkOverrideInputByQuestionId]
+  );
+
+  const handleMcAppealChange = useCallback(
+    (value: string) => {
+      if (!activeMcQuestion) return;
+      setMcMarkAppealByQuestionId((prev) => ({
+        ...prev,
+        [activeMcQuestion.id]: value,
+      }));
+    },
+    [activeMcQuestion, setMcMarkAppealByQuestionId]
+  );
+
+  const handleMcOverrideInputChange = useCallback(
+    (value: string) => {
+      if (!activeMcQuestion) return;
+      setMcMarkOverrideInputByQuestionId((prev) => ({
+        ...prev,
+        [activeMcQuestion.id]: value,
+      }));
+    },
+    [activeMcQuestion, setMcMarkOverrideInputByQuestionId]
+  );
 
   // ── Timer actions ─────────────────────────────────────────────────────────────
   function startStopwatch() {
@@ -807,15 +760,14 @@ export function GeneratorView() {
     }
   }, [questionMode, questions.length, mcQuestions.length]);
 
-  // Pause timers while marking in practice mode
+  // Pause timers while marking
   useEffect(() => {
-    if (generationMode !== 'practice') return;
     if (questionMode === 'written') {
       writtenTimer.setPaused(isMarking);
     } else if (questionMode === 'multiple-choice') {
       mcTimer.setPaused(isMarking);
     }
-  }, [isMarking, generationMode, questionMode, writtenTimer, mcTimer]);
+  }, [isMarking, questionMode, writtenTimer, mcTimer]);
 
   function resetStopwatch() {
     setGenerationStartedAt(null);
@@ -892,13 +844,8 @@ export function GeneratorView() {
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
     if (isAtLastWrittenQuestion) {
-      if (generationMode === 'exam') {
-        // In exam mode, show completion screen without marking — student submits exam manually
-        setShowCompletionScreen(true);
-      } else {
-        writtenTimer.finishSession();
-        setShowCompletionScreen(true);
-      }
+      writtenTimer.finishSession();
+      setShowCompletionScreen(true);
       return;
     }
     setActiveQuestionIndex(
@@ -911,18 +858,13 @@ export function GeneratorView() {
     activeQuestionIndex,
     setActiveQuestionIndex,
     writtenTimer,
-    generationMode,
   ]);
 
   const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
     if (isAtLastMcQuestion) {
-      if (generationMode === 'exam') {
-        setShowCompletionScreen(true);
-      } else {
-        mcTimer.finishSession();
-        setShowCompletionScreen(true);
-      }
+      mcTimer.finishSession();
+      setShowCompletionScreen(true);
       return;
     }
     setActiveMcQuestionIndex(
@@ -935,7 +877,6 @@ export function GeneratorView() {
     activeMcQuestionIndex,
     setActiveMcQuestionIndex,
     mcTimer,
-    generationMode,
   ]);
 
   const isInSession = !showSetup && !showCompletionScreen;
@@ -1995,12 +1936,9 @@ export function GeneratorView() {
   // ── MC answer / appeal / override ────────────────────────────────────────────
   function handleMcAnswer(selectedLabel: string) {
     if (!activeMcQuestion) return;
-    const isExamMode = generationMode === 'exam';
-    const isCompletionLocked = showCompletionScreen;
     if (isReviewingCompletedSet) return;
     const existingAnswer = mcAnswersByQuestionId[activeMcQuestion.id];
-    if (!isExamMode && existingAnswer) return;
-    if (isExamMode && isCompletionLocked) return;
+    if (existingAnswer) return;
     if (existingAnswer === selectedLabel) return;
     const responseEnteredAtMs = Date.now();
     const awardedMarks =
@@ -2170,8 +2108,6 @@ export function GeneratorView() {
     setMcMarkAppealByQuestionId({});
     setMcMarkOverrideInputByQuestionId({});
     setMcAwardedMarksByQuestionId({});
-    setExamRecordSaved(false);
-    setExamSubmitted(false);
     setWrittenTimerState(null);
     setMcTimerState(null);
   }, [
@@ -2183,309 +2119,6 @@ export function GeneratorView() {
     saveCurrentSet,
   ]);
   startOverRef.current = handleStartOver;
-
-  useEffect(() => {
-    if (generationMode !== 'exam' || !showCompletionScreen || examRecordSaved)
-      return;
-    // In exam mode, we save the record even if not all questions are "complete" (feedback exists)
-    // because answers are marked at submission time
-    if (questionMode === 'written' && questions.length === 0) return;
-    if (questionMode === 'multiple-choice' && mcQuestions.length === 0) return;
-
-    const now = Date.now();
-    const nowIso = new Date(now).toISOString();
-    const timeUsedSeconds = Math.max(
-      0,
-      Math.min(activeTimer.sessionElapsedSeconds, examTimeLimitMinutes * 60)
-    );
-
-    if (questionMode === 'written') {
-      const totalScore = questions.reduce(
-        (s, q) => s + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
-        0
-      );
-      const totalMax = questions.reduce(
-        (s, q) => s + (feedbackByQuestionId[q.id]?.maxMarks ?? q.maxMarks),
-        0
-      );
-      const questionResults: ExamQuestionResult[] = questions.map((q) => {
-        const fb = feedbackByQuestionId[q.id];
-        return {
-          questionId: q.id,
-          topic: q.topic,
-          subtopic: q.subtopic,
-          promptMarkdown: q.promptMarkdown,
-          achievedMarks: fb?.achievedMarks ?? 0,
-          maxMarks: fb?.maxMarks ?? q.maxMarks,
-          correct: Boolean(fb && fb.achievedMarks >= fb.maxMarks),
-        };
-      });
-      const record: ExamRecord = {
-        id: `exam-record-${now}`,
-        createdAt: nowIso,
-        topic:
-          selectedTopics.length > 1 ? 'Mixed' : (selectedTopics[0] ?? 'Mixed'),
-        difficulty,
-        questionMode: 'written',
-        techMode,
-        questionCount: questions.length,
-        timeUsedSeconds,
-        totalScore,
-        totalMax,
-        questionResults,
-      };
-      addExamRecord(record);
-      setExamRecordSaved(true);
-      return;
-    }
-
-    const totalScore = mcQuestions.reduce(
-      (s, q) =>
-        s +
-        getMcAwardedMarks(
-          q.id,
-          mcAnswersByQuestionId[q.id] ?? '',
-          q.correctAnswer
-        ),
-      0
-    );
-    const questionResults: ExamQuestionResult[] = mcQuestions.map((q) => ({
-      questionId: q.id,
-      topic: q.topic,
-      subtopic: q.subtopic,
-      promptMarkdown: q.promptMarkdown,
-      achievedMarks: getMcAwardedMarks(
-        q.id,
-        mcAnswersByQuestionId[q.id] ?? '',
-        q.correctAnswer
-      ),
-      maxMarks: 1,
-      correct: (mcAnswersByQuestionId[q.id] ?? '') === q.correctAnswer,
-      selectedAnswer: mcAnswersByQuestionId[q.id],
-      correctAnswer: q.correctAnswer,
-    }));
-    const record: ExamRecord = {
-      id: `exam-record-${now}`,
-      createdAt: nowIso,
-      topic:
-        selectedTopics.length > 1 ? 'Mixed' : (selectedTopics[0] ?? 'Mixed'),
-      difficulty,
-      questionMode: 'multiple-choice',
-      techMode,
-      questionCount: mcQuestions.length,
-      timeUsedSeconds,
-      totalScore,
-      totalMax: mcQuestions.length,
-      questionResults,
-    };
-    addExamRecord(record);
-    setExamRecordSaved(true);
-  }, [
-    generationMode,
-    showCompletionScreen,
-    isSetComplete,
-    examRecordSaved,
-    activeTimer.sessionElapsedSeconds,
-    examTimeLimitMinutes,
-    questionMode,
-    questions,
-    feedbackByQuestionId,
-    mcQuestions,
-    mcAnswersByQuestionId,
-    selectedTopics,
-    difficulty,
-    techMode,
-    addExamRecord,
-  ]);
-
-  // ── Populate history entries for exam mode (deferred marking) ──────────────
-  // In exam mode, answers aren't added to history during the session because
-  // marking is deferred. This effect populates history after submission so that
-  // analytics, lifetime stats, and review features work correctly.
-  useEffect(() => {
-    if (generationMode !== 'exam' || !showCompletionScreen) return;
-    if (questionMode === 'written' && questions.length === 0) return;
-    if (questionMode === 'multiple-choice' && mcQuestions.length === 0) return;
-
-    const now = Date.now();
-
-    if (questionMode === 'written') {
-      // Build a set of question IDs that already have history entries
-      const existingIds = new Set(
-        questionHistory.map((e: QuestionHistoryEntry) => e.question.id)
-      );
-
-      for (const q of questions) {
-        // Skip if this question already has a history entry
-        if (existingIds.has(q.id)) continue;
-
-        const fb = feedbackByQuestionId[q.id];
-        if (!fb) continue; // Skip unmarked questions
-
-        const answer = answersByQuestionId[q.id] ?? '';
-        const timing = writtenTimer.getQuestionTiming(q.id);
-        const entry: QuestionHistoryEntry = {
-          id: generateEntryId(),
-          createdAt: new Date(now).toISOString(),
-          lastModified: now,
-          question: q,
-          uploadedAnswer: answer,
-          uploadedAnswerImage: imagesByQuestionId[q.id],
-          workedSolutionMarkdown: fb.workedSolutionMarkdown ?? '',
-          markResponse: fb,
-          generationTelemetry: writtenGenerationTelemetry ?? undefined,
-          analytics: {
-            attemptKind: 'initial',
-            attemptSequence: getWrittenAttemptSequence(q.id),
-            answerCharacterCount: answer.length,
-            answerWordCount: countWords(answer),
-            usedImageUpload: Boolean(imagesByQuestionId[q.id]),
-            responseLatencyMs: timing
-              ? timing.timeUsedSeconds * 1000
-              : undefined,
-            markingLatencyMs: undefined,
-          },
-        };
-        setQuestionHistory((prev) => [entry, ...prev]);
-        existingIds.add(q.id);
-      }
-      return;
-    }
-
-    // MC mode
-    const existingMcIds = new Set(
-      mcHistory.map((e: McHistoryEntry) => e.question.id)
-    );
-
-    for (const q of mcQuestions) {
-      if (existingMcIds.has(q.id)) continue;
-
-      const selected = mcAnswersByQuestionId[q.id] ?? '';
-      const awarded = getMcAwardedMarks(q.id, selected, q.correctAnswer);
-      const timing = mcTimer.getQuestionTiming(q.id);
-      const entry: McHistoryEntry = {
-        type: 'multiple-choice',
-        id: generateEntryId(),
-        createdAt: new Date(now).toISOString(),
-        lastModified: now,
-        question: q,
-        selectedAnswer: selected,
-        correct: awarded >= 1,
-        awardedMarks: awarded,
-        maxMarks: 1,
-        generationTelemetry: mcGenerationTelemetry ?? undefined,
-        analytics: {
-          attemptKind: 'initial',
-          attemptSequence: getMcAttemptSequence(q.id),
-          answerCharacterCount: 0,
-          answerWordCount: 0,
-          usedImageUpload: false,
-          responseLatencyMs: timing ? timing.timeUsedSeconds * 1000 : undefined,
-          finalAnswerChangedAtMs: now,
-        },
-      };
-      setMcHistory((prev) => [entry, ...prev]);
-      existingMcIds.add(q.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    generationMode,
-    showCompletionScreen,
-    questionMode,
-    questions,
-    mcQuestions,
-    feedbackByQuestionId,
-    answersByQuestionId,
-    imagesByQuestionId,
-    mcAnswersByQuestionId,
-  ]);
-
-  // ── Image drop ───────────────────────────────────────────────────────────────
-  const handleDropDropzone = useCallback(
-    async (acceptedFiles: File[]) => {
-      if (!activeQuestion || acceptedFiles.length === 0) return;
-      const file = acceptedFiles[0];
-      try {
-        const dataUrl = await fileToDataUrl(file);
-        setErrorMessage(null);
-        setImagesByQuestionId((prev) => ({
-          ...prev,
-          [activeQuestion.id]: { name: file.name, dataUrl },
-        }));
-        setWrittenResponseEnteredAtById((prev) => {
-          if (prev[activeQuestion.id] !== undefined) return prev;
-          return { ...prev, [activeQuestion.id]: Date.now() };
-        });
-      } catch {
-        setErrorMessage('Could not read image file. Try a different file.');
-      }
-    },
-    [activeQuestion, setImagesByQuestionId, setWrittenResponseEnteredAtById]
-  );
-
-  // ── Memoized per-question callbacks ──────────────────────────────────────
-  const handleAnswerChange = useCallback(
-    (value: string) => {
-      if (!activeQuestion) return;
-      setAnswersByQuestionId((prev: Record<string, string>) => ({
-        ...prev,
-        [activeQuestion.id]: value,
-      }));
-      if (value.trim().length > 0) {
-        setWrittenResponseEnteredAtById((prev) => {
-          if (prev[activeQuestion.id] !== undefined) return prev;
-          return { ...prev, [activeQuestion.id]: Date.now() };
-        });
-      }
-    },
-    [activeQuestion, setAnswersByQuestionId, setWrittenResponseEnteredAtById]
-  );
-
-  const handleImageRemove = useCallback(() => {
-    if (!activeQuestion) return;
-    setImagesByQuestionId((prev) => ({
-      ...prev,
-      [activeQuestion.id]: undefined,
-    }));
-  }, [activeQuestion, setImagesByQuestionId]);
-
-  const handleAppealChange = useCallback(
-    (v: string) => {
-      if (!activeQuestion) return;
-      setMarkAppealByQuestionId((p) => ({ ...p, [activeQuestion.id]: v }));
-    },
-    [activeQuestion]
-  );
-
-  const handleOverrideInputChange = useCallback(
-    (v: string) => {
-      if (!activeQuestion) return;
-      setMarkOverrideInputByQuestionId((p) => ({
-        ...p,
-        [activeQuestion.id]: v,
-      }));
-    },
-    [activeQuestion]
-  );
-
-  const handleMcAppealChange = useCallback(
-    (v: string) => {
-      if (!activeMcQuestion) return;
-      setMcMarkAppealByQuestionId((p) => ({ ...p, [activeMcQuestion.id]: v }));
-    },
-    [activeMcQuestion]
-  );
-
-  const handleMcOverrideInputChange = useCallback(
-    (v: string) => {
-      if (!activeMcQuestion) return;
-      setMcMarkOverrideInputByQuestionId((p) => ({
-        ...p,
-        [activeMcQuestion.id]: v,
-      }));
-    },
-    [activeMcQuestion]
-  );
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -2523,10 +2156,6 @@ export function GeneratorView() {
         <SetupPanel
           questionMode={questionMode}
           onSetQuestionMode={setQuestionMode}
-          generationMode={generationMode}
-          onSetGenerationMode={setGenerationMode}
-          examTimeLimitMinutes={examTimeLimitMinutes}
-          onSetExamTimeLimitMinutes={setExamTimeLimitMinutes}
           selectedTopics={selectedTopics}
           onToggleTopic={toggleTopic}
           mathMethodsSubtopics={mathMethodsSubtopics}
@@ -2568,13 +2197,12 @@ export function GeneratorView() {
               ? handleGenerateQuestions
               : handleGenerateMcQuestions
           }
-          includeExamContext={includeExamContext}
           lastGenerationTelemetry={lastSessionTelemetry}
           streamText={streamText}
           batchProgress={batchProgress}
         />
       ) : /* ── Completion ── */
-      showCompletionScreen && (isSetComplete || generationMode === 'exam') ? (
+      showCompletionScreen && isSetComplete ? (
         <CompletionScreen
           questionMode={questionMode}
           difficulty={difficulty}
@@ -2659,12 +2287,6 @@ export function GeneratorView() {
             onNext={handleNextWrittenQuestion}
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
-            onSubmitExam={handleSubmitExam}
-            isSubmittingExam={isSubmittingExam}
-            generationMode={generationMode}
-            formattedCountdownTime={formattedCountdownTime}
-            remainingSeconds={activeTimer.sessionRemainingSeconds}
-            formattedElapsedTime={formattedElapsedTime}
           />
           {showKeyboardHint && (
             <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
@@ -2714,13 +2336,6 @@ export function GeneratorView() {
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
                     <div className="min-w-0 space-y-4 pb-10">
-                      {generationMode === 'exam' &&
-                        activeTimer.sessionRemainingSeconds > 0 &&
-                        activeTimer.sessionRemainingSeconds <= 120 && (
-                          <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
-                            Time warning: {formattedCountdownTime} remaining.
-                          </div>
-                        )}
                       <WrittenQuestionCard
                         promptMarkdown={activeQuestion.promptMarkdown}
                         canShowRawOutput={canShowWrittenRawOutput}
@@ -2739,10 +2354,9 @@ export function GeneratorView() {
                         image={activeQuestionImage}
                         isMarking={isMarking}
                         canSubmit={canSubmitAnswer}
-                        isExamMode={generationMode === 'exam'}
-                        onAnswerChange={handleAnswerChange}
-                        onImageDrop={handleDropDropzone}
-                        onImageRemove={handleImageRemove}
+                        onAnswerChange={handleWrittenAnswerChange}
+                        onImageDrop={handleWrittenImageDrop}
+                        onImageRemove={handleWrittenImageRemove}
                         onSubmit={handleSubmitForMarking}
                       />
                     </div>
@@ -2774,12 +2388,6 @@ export function GeneratorView() {
             onNext={handleNextMcQuestion}
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
-            onSubmitExam={handleSubmitExam}
-            isSubmittingExam={isSubmittingExam}
-            generationMode={generationMode}
-            formattedCountdownTime={formattedCountdownTime}
-            remainingSeconds={activeTimer.sessionRemainingSeconds}
-            formattedElapsedTime={formattedElapsedTime}
           />
           {showKeyboardHint && (
             <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
@@ -2806,13 +2414,6 @@ export function GeneratorView() {
               <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] lg:gap-8">
                   <div className="min-w-0 space-y-4 pb-10">
-                    {generationMode === 'exam' &&
-                      activeTimer.sessionRemainingSeconds > 0 &&
-                      activeTimer.sessionRemainingSeconds <= 120 && (
-                        <div className="rounded-sm border border-amber-300/70 bg-amber-50/80 text-amber-900 px-4 py-2 text-sm font-semibold">
-                          Time warning: {formattedCountdownTime} remaining.
-                        </div>
-                      )}
                     <McQuestionCard
                       promptMarkdown={activeMcQuestion.promptMarkdown}
                       canShowRawOutput={canShowMcRawOutput}
@@ -2842,9 +2443,7 @@ export function GeneratorView() {
                       appealText={activeMcMarkAppeal}
                       overrideInput={activeMcOverrideInput}
                       isMarking={isMarking}
-                      hideCorrectAnswer={
-                        generationMode === 'exam' && !isReviewingCompletedSet
-                      }
+                      hideCorrectAnswer={false}
                       onSelectAnswer={handleMcAnswer}
                       onAppealChange={handleMcAppealChange}
                       onOverrideInputChange={handleMcOverrideInputChange}

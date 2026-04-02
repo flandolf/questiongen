@@ -9,7 +9,6 @@ import {
   Bookmark,
   CircleX,
   Flame,
-  Trophy,
   ChevronRight,
 } from 'lucide-react';
 import { cn, getTodayKey } from '../../lib/utils';
@@ -204,7 +203,6 @@ export function Sidebar() {
   const topLinks = [
     { to: '/', label: 'Generator', icon: Sparkles, showSessionDot: true },
     { to: '/history', label: 'History', icon: History },
-    { to: '/exam-history', label: 'Exam History', icon: Trophy },
     { to: '/analytics', label: 'Analytics', icon: ChartColumnIncreasing },
     { to: '/mistakes', label: 'Mistakes', icon: CircleX },
     { to: '/saved', label: 'Saved', icon: Bookmark },

@@ -5,7 +5,6 @@ import {
   Sparkles,
   Calculator,
   Pen,
-  Clock3,
   AlertTriangle,
   Shuffle,
   CheckCheck,
@@ -19,17 +18,12 @@ import {
   Crosshair,
   Coins,
   DollarSign,
-  FileText,
   Trash2,
   Edit3,
   MoreHorizontal,
   Plus,
   Save,
   TrendingUp,
-  LayoutGrid,
-  CheckCircle2,
-  Timer,
-  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppSettings } from '@/AppContext';
@@ -42,8 +36,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Card, CardContent } from '@/components/ui/card';
+// import { Separator } from '@/components/ui/separator';
 import {
   Accordion,
   AccordionContent,
@@ -60,17 +53,17 @@ import {
   TOPICS,
   Topic,
   TechMode,
-  MATH_METHODS_SUBTOPICS,
   MathMethodsSubtopic,
-  SPECIALIST_MATH_SUBTOPICS,
   SpecialistMathSubtopic,
-  CHEMISTRY_SUBTOPICS,
   ChemistrySubtopic,
   PhysicalEducationSubtopic,
+  TopicSubtopicGroup,
+  MATH_METHODS_SUBTOPIC_GROUPS,
+  SPECIALIST_MATH_SUBTOPIC_GROUPS,
+  CHEMISTRY_SUBTOPIC_GROUPS,
   PE_SUBTOPIC_GROUPS,
   Difficulty,
   QuestionMode,
-  GenerationMode,
   GenerationStatusEvent,
   GenerationTelemetry,
   Preset,
@@ -94,8 +87,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenu,
-} from '../ui/dropdown-menu';
-import { ButtonGroup } from '../ui/button-group';
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 export type { BatchTopicProgress } from '@/types';
@@ -108,26 +100,6 @@ const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
   Chemistry: <FlaskConical className="w-4 h-4" />,
   'Physical Education': <Dumbbell className="w-4 h-4" />,
 };
-
-// ─── Exam PDF mapping ─────────────────────────────────────────────────────────
-
-const TOPIC_EXAM_PDFS: Record<Topic, string[]> = {
-  'Mathematical Methods': ['2025-MathMethods1.pdf', '2025-MathMethods2.pdf'],
-  'Specialist Mathematics': [
-    '2025-SpecialistMaths1.pdf',
-    '2025-SpecialistMaths2.pdf',
-  ],
-  Chemistry: ['2025-Chemistry.pdf'],
-  'Physical Education': ['2025-PhysicalEducation.pdf'],
-};
-
-function getExamPdfsForTopics(topics: Topic[]): string[] {
-  const pdfs = new Set<string>();
-  for (const topic of topics) {
-    for (const pdf of TOPIC_EXAM_PDFS[topic] ?? []) pdfs.add(pdf);
-  }
-  return Array.from(pdfs);
-}
 
 // ─── Difficulty metadata ──────────────────────────────────────────────────────
 
@@ -171,73 +143,34 @@ const DIFFICULTY_META: Record<
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-      {children}
-    </p>
-  );
-}
-
-export function SectionDivider() {
-  return <Separator className="my-3" />;
-}
-
-// ─── Subtopic chip group ──────────────────────────────────────────────────────
-
-function SubtopicGroup({
-  label,
-  hint,
-  items,
-  selected,
-  onToggle,
-}: {
-  label: string;
-  hint?: string;
-  items: readonly string[];
-  selected: string[];
-  onToggle: (item: string) => void;
-}) {
-  return (
-    <div className="mt-4">
-      <div className="flex items-baseline gap-2">
-        <p className="text-xs font-semibold">{label}</p>
-        {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {items.map((item) => {
-          const active = selected.includes(item);
-          return (
-            <button
-              key={item}
-              type="button"
-              onClick={() => onToggle(item)}
-              className={[
-                'text-xs px-2.5 py-1 rounded-md border transition-all duration-150 cursor-pointer select-none',
-                active
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
-              ].join(' ')}
-            >
-              {item}
-            </button>
-          );
-        })}
-      </div>
+    <div className="flex flex-col">
+      <p className="text-[10px] font-bold text-primary/80 uppercase tracking-[0.15em]">
+        {children}
+      </p>
     </div>
   );
 }
 
-// ─── Grouped PE subtopic selector ─────────────────────────────────────────
+export function SectionDivider() {
+  return <div className="h-4" />;
+}
 
-function PESubtopicGroups({
+// ─── Subtopic chip group ──────────────────────────────────────────────────────
+
+function GroupedSubtopicSelector({
+  label,
+  groups,
   selected,
   onToggle,
 }: {
-  selected: PhysicalEducationSubtopic[];
-  onToggle: (sub: PhysicalEducationSubtopic) => void;
+  label: string;
+  groups: readonly TopicSubtopicGroup[];
+  selected: string[];
+  onToggle: (item: string) => void;
 }) {
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(() => {
     const units = new Set<string>();
-    for (const group of PE_SUBTOPIC_GROUPS) {
+    for (const group of groups) {
       if (group.subtopics.some((s) => selected.includes(s))) {
         units.add(group.unit);
       }
@@ -247,9 +180,9 @@ function PESubtopicGroups({
 
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    for (const group of PE_SUBTOPIC_GROUPS) {
+    for (const group of groups) {
       if (group.subtopics.some((s) => selected.includes(s))) {
-        initial.add(group.label);
+        initial.add(group.groupId);
       }
     }
     return initial;
@@ -267,35 +200,53 @@ function PESubtopicGroups({
     });
   };
 
-  const toggleGroup = (label: string) => {
+  const toggleGroup = (groupId: string) => {
     setOpenGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
       return next;
     });
   };
 
-  const visibleGroups = PE_SUBTOPIC_GROUPS.filter((g) =>
-    selectedUnits.has(g.unit)
+  const units = useMemo(
+    () =>
+      Array.from(new Set(groups.map((group) => group.unit))).sort((a, b) => {
+        const unitNumber = (value: string) => {
+          const match = value.match(/^Unit\s+(\d+)$/i);
+          return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+        };
+        const numberDiff = unitNumber(a) - unitNumber(b);
+        if (numberDiff !== 0) return numberDiff;
+        return a.localeCompare(b);
+      }),
+    [groups]
   );
 
-  const units = ['Unit 3', 'Unit 4'] as const;
+  const visibleGroups = useMemo(
+    () => groups.filter((group) => selectedUnits.has(group.unit)),
+    [groups, selectedUnits]
+  );
 
   return (
-    <div className="mt-4 space-y-2">
-      <div className="flex items-baseline gap-2">
-        <p className="text-xs font-semibold">Physical Education</p>
-        <p className="text-[11px] text-muted-foreground">
-          Select unit, then area of study
+    <div className="mt-5 mb-2 space-y-4">
+      <div className="flex items-baseline justify-between px-1">
+        <p className="text-[13px] font-semibold text-foreground/90">{label}</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
+          Select unit & area
         </p>
       </div>
 
       {/* Unit selector */}
-      <div className="grid grid-cols-2 gap-1.5">
+      <div
+        className={cn(
+          'grid gap-2',
+          units.length > 2 ? 'grid-cols-3' : 'grid-cols-2'
+        )}
+      >
         {units.map((unit) => {
           const isActive = selectedUnits.has(unit);
-          const unitGroups = PE_SUBTOPIC_GROUPS.filter((g) => g.unit === unit);
+          const unitGroups = groups.filter((g) => g.unit === unit);
           const totalSubs = unitGroups.reduce(
             (sum, g) => sum + g.subtopics.length,
             0
@@ -312,15 +263,24 @@ function PESubtopicGroups({
               type="button"
               onClick={() => toggleUnit(unit)}
               className={cn(
-                'flex items-center justify-between px-3 py-2.5 rounded-md border text-sm font-medium transition-all duration-150 cursor-pointer select-none',
+                'relative flex items-center justify-between px-3 py-3 rounded-lg border text-[13px] font-medium transition-all duration-200 cursor-pointer select-none overflow-hidden',
                 isActive
-                  ? 'bg-primary/10 border-primary/50 text-primary shadow-sm'
-                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30'
+                  ? 'bg-primary/5 border-primary shadow-[0_2px_10px_-4px_rgba(var(--primary),0.3)] text-primary'
+                  : 'bg-background border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/10 hover:shadow-sm'
               )}
             >
-              <span>{unit}</span>
+              {isActive && (
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-primary rounded-t-lg opacity-80" />
+              )}
+              <span className="relative z-10">{unit}</span>
               {selectedCount > 0 && (
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge
+                  variant={isActive ? 'default' : 'secondary'}
+                  className={cn(
+                    'text-[10px] relative z-10',
+                    isActive ? 'bg-primary text-primary-foreground' : ''
+                  )}
+                >
                   {selectedCount}/{totalSubs}
                 </Badge>
               )}
@@ -331,9 +291,9 @@ function PESubtopicGroups({
 
       {/* AoS groups for selected units */}
       {visibleGroups.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-2.5">
           {visibleGroups.map((group) => {
-            const isOpen = openGroups.has(group.label);
+            const isOpen = openGroups.has(group.groupId);
             const groupSelected = group.subtopics.filter((s) =>
               selected.includes(s)
             );
@@ -342,28 +302,28 @@ function PESubtopicGroups({
 
             return (
               <div
-                key={group.label}
-                className="rounded-md border border-border overflow-hidden"
+                key={group.groupId}
+                className="bg-card rounded-lg border border-border/60 shadow-sm overflow-hidden transition-all duration-200 hover:border-border/80"
               >
                 <button
                   type="button"
-                  onClick={() => toggleGroup(group.label)}
-                  className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+                  onClick={() => toggleGroup(group.groupId)}
+                  className="flex items-center justify-between w-full px-3.5 py-3 text-left hover:bg-muted/20 transition-colors group/aos"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-medium truncate">
+                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                    <span className="text-[12px] font-semibold text-foreground/90 truncate group-hover/aos:text-foreground transition-colors">
                       {group.aos}
                     </span>
                     {groupSelected.length > 0 && (
                       <Badge
                         variant="secondary"
-                        className="text-[10px] shrink-0"
+                        className="text-[9px] uppercase font-bold tracking-wider shrink-0 bg-primary/10 text-primary border-0"
                       >
                         {groupSelected.length}/{group.subtopics.length}
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -379,20 +339,21 @@ function PESubtopicGroups({
                         }
                       }}
                       className={cn(
-                        'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                        'text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border transition-all',
                         allSelected
-                          ? 'bg-primary text-primary-foreground border-primary'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                           : someSelected
-                            ? 'bg-primary/20 text-primary border-primary/40'
-                            : 'border-border text-muted-foreground hover:border-primary/40'
+                            ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+                            : 'bg-transparent border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
                       )}
                     >
                       {allSelected ? 'All' : someSelected ? 'Some' : 'None'}
                     </button>
+                    <div className="w-px h-4 bg-border/50" />
                     <svg
                       className={cn(
-                        'w-3.5 h-3.5 text-muted-foreground transition-transform duration-200',
-                        isOpen && 'rotate-180'
+                        'w-4 h-4 text-muted-foreground/60 transition-transform duration-200',
+                        isOpen && 'rotate-180 text-foreground/80'
                       )}
                       fill="none"
                       viewBox="0 0 24 24"
@@ -408,8 +369,8 @@ function PESubtopicGroups({
                   </div>
                 </button>
                 {isOpen && (
-                  <div className="px-3 pb-2.5 pt-1 border-t border-border/50">
-                    <div className="flex flex-wrap gap-1">
+                  <div className="px-3.5 pb-3.5 pt-2 bg-muted/5 border-t border-border/40">
+                    <div className="flex flex-wrap gap-1.5">
                       {group.subtopics.map((item) => {
                         const active = selected.includes(item);
                         return (
@@ -418,10 +379,10 @@ function PESubtopicGroups({
                             type="button"
                             onClick={() => onToggle(item)}
                             className={cn(
-                              'text-xs px-2.5 py-1 rounded-md border transition-all duration-150 cursor-pointer select-none',
+                              'text-[11px] px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer select-none font-medium',
                               active
-                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                                ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/20'
+                                : 'bg-background border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30 hover:shadow-sm'
                             )}
                           >
                             {item}
@@ -458,18 +419,34 @@ function ToggleRow({
   onCheckedChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-2 py-2.5 px-3 rounded-md border border-border bg-muted/20">
-      <div className="flex items-start gap-2.5 min-w-0">
+    <div
+      className={cn(
+        'flex items-start justify-between gap-3 py-3.5 px-4 rounded-xl border transition-all duration-200 cursor-pointer shadow-sm group hover:shadow-md',
+        checked
+          ? 'bg-primary/5 border-primary/30'
+          : 'bg-card hover:border-primary/20 border-border/60'
+      )}
+      onClick={() => onCheckedChange(!checked)}
+    >
+      <div className="flex items-start gap-3 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5">
         <span
-          className={`mt-0.5 shrink-0 ${checked ? 'text-primary' : 'text-muted-foreground'}`}
+          className={cn(
+            'mt-0.5 shrink-0 transition-colors duration-200',
+            checked
+              ? 'text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]'
+              : 'text-muted-foreground group-hover:text-foreground'
+          )}
         >
           {icon}
         </span>
         <div className="min-w-0">
-          <Label htmlFor={id} className="text-xs font-semibold cursor-pointer">
+          <Label
+            htmlFor={id}
+            className="text-sm font-semibold cursor-pointer user-select-none"
+          >
             {label}
           </Label>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+          <p className="text-[11px] text-muted-foreground/80 mt-[2px] leading-relaxed">
             {description}
           </p>
         </div>
@@ -477,8 +454,9 @@ function ToggleRow({
       <Switch
         id={id}
         checked={checked}
+        onClick={(e) => e.stopPropagation()}
         onCheckedChange={onCheckedChange}
-        className="shrink-0 mt-0.5"
+        className="shrink-0 mt-1 shadow-inner"
       />
     </div>
   );
@@ -554,55 +532,59 @@ function AdvancedOptionsAccordion({
     <Accordion
       type="single"
       collapsible
-      className="rounded-md border border-border overflow-hidden"
+      className="rounded-md border border-border/60 bg-linear-to-b from-card/30 to-background/5 shadow-sm overflow-y-auto"
     >
       <AccordionItem value="advanced" className="border-0">
-        <AccordionTrigger className="px-4 py-3 hover:bg-muted/30 hover:no-underline data-[state=open]:bg-muted/20">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
-              <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+        <AccordionTrigger className="px-5 py-4 hover:bg-muted/10 hover:no-underline data-[state=open]:bg-primary/5 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 transition-colors group-hover:bg-primary/10 group-hover:text-primary shadow-sm ring-1 ring-border/50">
+              <BarChart3 className="w-4 h-4" />
             </div>
-            <div className="text-left">
-              <p className="text-sm font-semibold">Advanced Options</p>
-              <p className="text-[11px] text-muted-foreground font-normal">
-                Question count, focus areas, calculator mode & more
+            <div className="text-left flex flex-col justify-center">
+              <p className="text-sm font-bold tracking-tight">
+                Advanced Settings
+              </p>
+              <p className="text-[11px] text-muted-foreground/80 font-medium">
+                Fine-tune constraints, counts & parameters
               </p>
             </div>
           </div>
         </AccordionTrigger>
-        <AccordionContent className="px-4 h-min mb-4">
+        <AccordionContent className="px-4 pb-8">
           {/* ── Session Size ── */}
-          <div className="space-y-1 pt-2">
-            <SectionLabel>Session Size</SectionLabel>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <Hash className="w-3.5 h-3.5" /> Questions
-                </Label>
-                <Badge variant="secondary" className="tabular-nums">
-                  {questionCount}
-                </Badge>
-              </div>
-              <Slider
-                min={1}
-                max={20}
-                step={1}
-                value={[questionCount]}
-                onValueChange={(val) => onSetQuestionCount(val[0])}
-                className="py-1"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>1</span>
-                <span>20</span>
+          <div className="space-y-4 pt-3">
+            <div className="space-y-2">
+              <SectionLabel>Session Size</SectionLabel>
+              <div className="bg-card rounded-lg border border-border/40 p-4 shadow-sm space-y-4">
+                <div className="flex items-center justify-between user-select-none">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Hash className="w-4 h-4 text-primary" /> Questions
+                  </Label>
+                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm ring-1 ring-primary/20">
+                    {questionCount}
+                  </div>
+                </div>
+                <Slider
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={[questionCount]}
+                  onValueChange={(val) => onSetQuestionCount(val[0])}
+                  className="py-2 cursor-pointer"
+                />
+                <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                  <span>1 min</span>
+                  <span>20 max</span>
+                </div>
               </div>
             </div>
 
             {selectedTopics.length > 1 && (
-              <div className="flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-muted/20 border border-border/40 w-fit max-w-full">
-                <span className="text-[9px] font-bold text-muted-foreground/70 uppercase tracking-widest border-r border-border/50 pr-2.5 h-3 flex items-center shrink-0 leading-none">
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card/80 border border-border/40 w-fit max-w-full shadow-sm ring-1 ring-black/5 dark:ring-white/5">
+                <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest border-r border-border/50 pr-3 h-4 flex items-center shrink-0">
                   Topics
                 </span>
-                <div className="flex items-center gap-3.5 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-4 overflow-x-auto no-scrollbar scroll-smooth">
                   {selectedTopics.map((topic, i) => {
                     const count =
                       Math.floor(questionCount / selectedTopics.length) +
@@ -610,13 +592,13 @@ function AdvancedOptionsAccordion({
                     return (
                       <div
                         key={topic}
-                        className="flex items-center gap-1.5 shrink-0"
+                        className="flex items-center gap-2 shrink-0 bg-background rounded-md px-2 py-1 ring-1 ring-border/40"
                       >
-                        <span className="text-muted-foreground/80 w-3 h-3 flex items-center justify-center shrink-0">
+                        <span className="text-primary/70 w-3.5 h-3.5 flex items-center justify-center shrink-0">
                           {TOPIC_ICONS[topic]}
                         </span>
-                        <div className="flex items-center gap-1 text-[11px] leading-none">
-                          <span className="font-medium text-foreground/70 truncate">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span className="font-semibold text-foreground/80 truncate max-w-[100px]">
                             {topic}
                           </span>
                           <span className="font-bold text-primary tabular-nums">
@@ -631,14 +613,14 @@ function AdvancedOptionsAccordion({
             )}
 
             {questionMode === 'written' ? (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium flex items-center gap-1.5">
-                    <BarChart3 className="w-3.5 h-3.5" /> Avg marks / question
+              <div className="bg-card rounded-lg border border-border/40 p-4 shadow-sm space-y-4">
+                <div className="flex items-center justify-between user-select-none">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-primary" /> Target marks
                   </Label>
-                  <Badge variant="secondary" className="tabular-nums">
+                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm ring-1 ring-primary/20">
                     {averageMarksPerQuestion}
-                  </Badge>
+                  </div>
                 </div>
                 <Slider
                   min={1}
@@ -646,98 +628,98 @@ function AdvancedOptionsAccordion({
                   step={1}
                   value={[averageMarksPerQuestion]}
                   onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
-                  className="py-1"
+                  className="py-2 cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>1</span>
-                  <span>15</span>
+                <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                  <span>1 min</span>
+                  <span>15 max</span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between px-3 py-2 rounded-md bg-muted/30 border border-border/60">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <BarChart3 className="w-3.5 h-3.5" /> Avg marks / question
+              <div className="flex items-center justify-between px-4 py-3.5 rounded-lg bg-card border border-border/40 shadow-sm">
+                <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" /> Avg marks per question
                 </Label>
-                <Badge variant="outline" className="text-muted-foreground">
-                  1 mark (fixed)
-                </Badge>
+                <div className="text-xs font-bold px-2 py-1 rounded ring-1 ring-border text-muted-foreground/60 bg-muted/20">
+                  1 (Fixed)
+                </div>
               </div>
             )}
           </div>
 
-          <SectionDivider />
-
           {/* ── Focus Areas ── */}
           {hasSubtopicSection && (
-            <div className="space-y-1">
+            <div className="space-y-3 pt-6">
               <SectionLabel>
                 Focus Areas{' '}
-                <span className="ml-1 normal-case font-normal tracking-normal text-muted-foreground/70">
-                  — leave blank to cover all
+                <span className="ml-1 normal-case font-medium tracking-normal text-muted-foreground/50">
+                  (Leave blank for all)
                 </span>
               </SectionLabel>
-              {selectedTopics.includes('Mathematical Methods') && (
-                <SubtopicGroup
-                  label="Mathematical Methods"
-                  hint="Unit 3/4"
-                  items={MATH_METHODS_SUBTOPICS}
-                  selected={mathMethodsSubtopics}
-                  onToggle={onToggleMathMethodsSubtopic as (s: string) => void}
-                />
-              )}
-              {selectedTopics.includes('Specialist Mathematics') && (
-                <SubtopicGroup
-                  label="Specialist Mathematics"
-                  hint="Unit 1/2"
-                  items={SPECIALIST_MATH_SUBTOPICS}
-                  selected={specialistMathSubtopics}
-                  onToggle={
-                    onToggleSpecialistMathSubtopic as (s: string) => void
-                  }
-                />
-              )}
-              {selectedTopics.includes('Chemistry') && (
-                <SubtopicGroup
-                  label="Chemistry"
-                  hint="Unit 1/2"
-                  items={CHEMISTRY_SUBTOPICS}
-                  selected={chemistrySubtopics}
-                  onToggle={onToggleChemistrySubtopic as (s: string) => void}
-                />
-              )}
-              {selectedTopics.includes('Physical Education') && (
-                <PESubtopicGroups
-                  selected={physicalEducationSubtopics}
-                  onToggle={
-                    onTogglePhysicalEducationSubtopic as (s: string) => void
-                  }
-                />
-              )}
-              <SectionDivider />
+              <div className="space-y-4">
+                {selectedTopics.includes('Mathematical Methods') && (
+                  <GroupedSubtopicSelector
+                    label="Mathematical Methods"
+                    groups={MATH_METHODS_SUBTOPIC_GROUPS}
+                    selected={mathMethodsSubtopics}
+                    onToggle={
+                      onToggleMathMethodsSubtopic as (s: string) => void
+                    }
+                  />
+                )}
+                {selectedTopics.includes('Specialist Mathematics') && (
+                  <GroupedSubtopicSelector
+                    label="Specialist Mathematics"
+                    groups={SPECIALIST_MATH_SUBTOPIC_GROUPS}
+                    selected={specialistMathSubtopics}
+                    onToggle={
+                      onToggleSpecialistMathSubtopic as (s: string) => void
+                    }
+                  />
+                )}
+                {selectedTopics.includes('Chemistry') && (
+                  <GroupedSubtopicSelector
+                    label="Chemistry"
+                    groups={CHEMISTRY_SUBTOPIC_GROUPS}
+                    selected={chemistrySubtopics}
+                    onToggle={onToggleChemistrySubtopic as (s: string) => void}
+                  />
+                )}
+                {selectedTopics.includes('Physical Education') && (
+                  <GroupedSubtopicSelector
+                    label="Physical Education"
+                    groups={PE_SUBTOPIC_GROUPS}
+                    selected={physicalEducationSubtopics}
+                    onToggle={
+                      onTogglePhysicalEducationSubtopic as (s: string) => void
+                    }
+                  />
+                )}
+              </div>
             </div>
           )}
 
           {/* ── Calculator Mode ── */}
           {hasAnyMathTopic && (
-            <div className="space-y-1">
-              <SectionLabel>Calculator Mode</SectionLabel>
-              <div className="grid grid-cols-3 gap-1.5">
+            <div className="space-y-3 pt-6">
+              <SectionLabel>Calculator Settings</SectionLabel>
+              <div className="grid grid-cols-3 gap-2 bg-card p-1.5 rounded-xl border border-border/40 shadow-sm">
                 {(
                   [
                     {
                       value: 'tech-free' as TechMode,
-                      label: 'Tech-Free',
-                      icon: <Pen className="w-3.5 h-3.5" />,
+                      label: 'Tech Free',
+                      icon: <Pen className="w-4 h-4" />,
                     },
                     {
                       value: 'mix' as TechMode,
                       label: 'Mixed',
-                      icon: <Blend className="w-3.5 h-3.5" />,
+                      icon: <Blend className="w-4 h-4" />,
                     },
                     {
                       value: 'tech-active' as TechMode,
-                      label: 'Tech-Active',
-                      icon: <Calculator className="w-3.5 h-3.5" />,
+                      label: 'Tech Active',
+                      icon: <Calculator className="w-4 h-4" />,
                     },
                   ] as const
                 ).map(({ value, label, icon }) => {
@@ -747,122 +729,164 @@ function AdvancedOptionsAccordion({
                       key={value}
                       type="button"
                       onClick={() => onSetTechMode(value)}
-                      className={[
-                        'flex items-center justify-center gap-1.5 py-2 px-2 rounded-md border text-xs font-medium transition-all duration-150 cursor-pointer',
+                      className={cn(
+                        'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer overflow-hidden relative',
                         isActive
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                      ].join(' ')}
+                          ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
+                          : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                      )}
                     >
-                      {icon} {label}
+                      {isActive && (
+                        <div className="absolute inset-0 bg-white/10 dark:bg-black/10 rounded-lg pointer-events-none" />
+                      )}
+                      <span
+                        className={cn(
+                          'transition-transform duration-200',
+                          isActive ? 'scale-110 drop-shadow-md' : ''
+                        )}
+                      >
+                        {icon}
+                      </span>
+                      <span className="text-[11px] leading-none tracking-wide">
+                        {label}
+                      </span>
                     </button>
                   );
                 })}
               </div>
-              <SectionDivider />
             </div>
           )}
 
           {/* ── Options ── */}
-          <div className="space-y-1">
-            <SectionLabel>Options</SectionLabel>
-            <ToggleRow
-              id="avoid-similar"
-              icon={<Shuffle className="w-4 h-4" />}
-              label="Avoid Similar Questions"
-              description="Steers the model away from repeating recently seen question types."
-              checked={avoidSimilarQuestions}
-              onCheckedChange={onSetAvoidSimilarQuestions}
-            />
-            {selectedTopics.length > 1 && (
+          <div className="space-y-3 pt-6">
+            <SectionLabel>Generation Flags</SectionLabel>
+            <div className="flex flex-col gap-2.5">
               <ToggleRow
-                id="shuffle-questions"
+                id="avoid-similar"
                 icon={<Shuffle className="w-4 h-4" />}
-                label="Shuffle Questions"
-                description="Randomly interleaves questions from all subjects after generation."
-                checked={shuffleQuestions}
-                onCheckedChange={onSetShuffleQuestions}
+                label="De-duplicate"
+                description="Steers the model away from past question shapes."
+                checked={avoidSimilarQuestions}
+                onCheckedChange={onSetAvoidSimilarQuestions}
               />
-            )}
-            <div className="space-y-1.5 pt-1">
-              <Label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-                <Crosshair className="w-3.5 h-3.5" />
-                Custom Focus Area
-                <span className="font-normal opacity-70">— optional</span>
-              </Label>
-              <Input
-                value={customFocusArea}
-                onChange={(e) => onSetCustomFocusArea(e.target.value)}
-                maxLength={160}
-                placeholder="e.g. projectile motion with optimisation constraints"
-                className="text-xs h-8"
-              />
+              {selectedTopics.length > 1 && (
+                <ToggleRow
+                  id="shuffle-questions"
+                  icon={<Shuffle className="w-4 h-4" />}
+                  label="Shuffle Output"
+                  description="Interleaves questions from all selected subjects."
+                  checked={shuffleQuestions}
+                  onCheckedChange={onSetShuffleQuestions}
+                />
+              )}
+            </div>
+            <div className="pt-2 user-select-none">
+              <div className="bg-card border border-border/40 p-4 rounded-xl shadow-sm space-y-2.5">
+                <Label className="text-sm font-semibold flex items-center gap-2 text-foreground/90">
+                  <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary ring-1 ring-primary/20">
+                    <Crosshair className="w-3 h-3" />
+                  </div>
+                  Direction Override
+                  <span className="font-medium text-[10px] uppercase text-muted-foreground/60 tracking-wider ml-auto">
+                    Optional
+                  </span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    value={customFocusArea}
+                    onChange={(e) => onSetCustomFocusArea(e.target.value)}
+                    maxLength={160}
+                    placeholder="e.g. projectile motion with optimisation..."
+                    className="pl-3.5 pr-12 py-5 text-sm rounded-lg bg-background border-border/60 shadow-inner resize-none transition-colors hover:border-primary/30 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50"
+                  />
+                  {customFocusArea.length > 0 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-medium tracking-tighter">
+                      {customFocusArea.length}/160
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <SectionDivider />
-
           {/* ── AI Difficulty Scaling ── */}
-          <div className="space-y-1">
+          <div className="space-y-4 pt-8">
             <div className="flex items-center justify-between">
-              <SectionLabel>AI Difficulty Scaling</SectionLabel>
+              <SectionLabel>Dynamic Scaling</SectionLabel>
               <Badge
                 variant="outline"
-                className={
+                className={cn(
+                  'uppercase text-[9px] tracking-widest font-bold',
                   aiDifficultyScalingEnabled
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                    : ''
-                }
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-[0_0_10px_-2px_rgba(16,185,129,0.3)]'
+                    : 'border-border text-muted-foreground'
+                )}
               >
-                {aiDifficultyScalingEnabled ? 'Enabled' : 'Disabled'}
+                {aiDifficultyScalingEnabled ? 'Active' : 'Offline'}
               </Badge>
             </div>
-            <ToggleRow
-              id="ai-scaling"
-              icon={<TrendingUp className="w-4 h-4" />}
-              label="Adaptive difficulty"
-              description="AI adjusts question difficulty based on your recent performance."
-              checked={aiDifficultyScalingEnabled}
-              onCheckedChange={onSetAiDifficultyScalingEnabled}
-            />
-            {aiDifficultyScalingEnabled && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">
-                    Increase threshold (%)
-                  </Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={difficultyThresholds.increase}
-                    onChange={(e) =>
-                      onSetDifficultyThresholds({
-                        ...difficultyThresholds,
-                        increase: parseInt(e.target.value) || 85,
-                      })
-                    }
-                  />
+
+            <div className="bg-card border border-border/40 rounded-xl p-1 shadow-sm">
+              <ToggleRow
+                id="ai-scaling"
+                icon={<TrendingUp className="w-4 h-4" />}
+                label="Self-calibrating Engine"
+                description="Adapts question parameters dynamically based on past accuracy."
+                checked={aiDifficultyScalingEnabled}
+                onCheckedChange={onSetAiDifficultyScalingEnabled}
+              />
+
+              {aiDifficultyScalingEnabled && (
+                <div className="grid grid-cols-2 gap-3 p-3.5 border-t border-border/30 mt-1 bg-muted/10 rounded-b-xl">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-foreground/80 flex justify-between">
+                      Promote %
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={difficultyThresholds.increase}
+                        className="font-mono text-sm bg-background border-border/60 pr-8 p-4"
+                        onChange={(e) =>
+                          onSetDifficultyThresholds({
+                            ...difficultyThresholds,
+                            increase: parseInt(e.target.value) || 85,
+                          })
+                        }
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+                        %
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-foreground/80 flex justify-between">
+                      Demote %
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={difficultyThresholds.decrease}
+                        className="font-mono text-sm bg-background border-border/60 pr-8 p-4"
+                        onChange={(e) =>
+                          onSetDifficultyThresholds({
+                            ...difficultyThresholds,
+                            decrease: parseInt(e.target.value) || 70,
+                          })
+                        }
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
+                        %
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">
-                    Decrease threshold (%)
-                  </Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={difficultyThresholds.decrease}
-                    onChange={(e) =>
-                      onSetDifficultyThresholds({
-                        ...difficultyThresholds,
-                        decrease: parseInt(e.target.value) || 70,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </AccordionContent>
       </AccordionItem>
@@ -884,8 +908,6 @@ function buildPreferencesSnapshot(props: {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
-  generationMode: GenerationMode;
-  examTimeLimitMinutes: number;
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
 }): PersistedGeneratorPreferences {
@@ -901,8 +923,6 @@ function buildPreferencesSnapshot(props: {
     questionCount: props.questionCount,
     averageMarksPerQuestion: props.averageMarksPerQuestion,
     questionMode: props.questionMode,
-    generationMode: props.generationMode,
-    examTimeLimitMinutes: props.examTimeLimitMinutes,
     aiDifficultyScalingEnabled: props.aiDifficultyScalingEnabled,
     difficultyThresholds: props.difficultyThresholds,
   };
@@ -920,8 +940,6 @@ function PresetSection({
   questionCount,
   averageMarksPerQuestion,
   questionMode,
-  generationMode,
-  examTimeLimitMinutes,
   aiDifficultyScalingEnabled,
   difficultyThresholds,
 }: {
@@ -936,8 +954,6 @@ function PresetSection({
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
-  generationMode: GenerationMode;
-  examTimeLimitMinutes: number;
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
 }) {
@@ -964,8 +980,6 @@ function PresetSection({
     (s) => s.setAverageMarksPerQuestion
   );
   const setQuestionMode = useAppStore((s) => s.setQuestionMode);
-  const setGenerationMode = useAppStore((s) => s.setGenerationMode);
-  const setExamTimeLimitMinutes = useAppStore((s) => s.setExamTimeLimitMinutes);
   const setAiDifficultyScalingEnabled = useAppStore(
     (s) => s.setAiDifficultyScalingEnabled
   );
@@ -1043,8 +1057,6 @@ function PresetSection({
       questionCount,
       averageMarksPerQuestion,
       questionMode,
-      generationMode,
-      examTimeLimitMinutes,
       aiDifficultyScalingEnabled,
       difficultyThresholds,
     });
@@ -1076,8 +1088,6 @@ function PresetSection({
     setQuestionCount(p.questionCount);
     setAverageMarksPerQuestion(p.averageMarksPerQuestion);
     setQuestionMode(p.questionMode);
-    setGenerationMode(p.generationMode ?? 'practice');
-    setExamTimeLimitMinutes(p.examTimeLimitMinutes ?? 30);
     setAiDifficultyScalingEnabled(p.aiDifficultyScalingEnabled ?? true);
     setDifficultyThresholds(
       p.difficultyThresholds ?? { increase: 85, decrease: 70 }
@@ -1098,8 +1108,6 @@ function PresetSection({
       questionCount,
       averageMarksPerQuestion,
       questionMode,
-      generationMode,
-      examTimeLimitMinutes,
       aiDifficultyScalingEnabled,
       difficultyThresholds,
     });
@@ -1116,13 +1124,13 @@ function PresetSection({
   return (
     <div className="space-y-1">
       {/* Save new preset */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2 mb-2">
         <Input
           id="preset-name"
           value={presetName}
           onChange={(e) => setPresetName(e.target.value)}
           placeholder="New preset name…"
-          className="h-8 flex-1 bg-muted/50 text-xs"
+          className="h-8 flex-1 bg-muted/50 text-xs focus-visible:ring-1 focus-visible:ring-primary/50"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && presetName.trim()) {
               e.preventDefault();
@@ -1366,43 +1374,43 @@ function PresetSection({
                           t === 'Mathematical Methods' ||
                           t === 'Specialist Mathematics'
                       ) && (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
-                            Calculator
-                          </Label>
-                          <div className="flex gap-1">
-                            {(
-                              [
-                                {
-                                  value: 'tech-free' as TechMode,
-                                  label: 'Tech-Free',
-                                },
-                                { value: 'mix' as TechMode, label: 'Mixed' },
-                                {
-                                  value: 'tech-active' as TechMode,
-                                  label: 'Tech-Active',
-                                },
-                              ] as const
-                            ).map(({ value, label }) => (
-                              <button
-                                key={value}
-                                type="button"
-                                onClick={() =>
-                                  updateEditingPref('techMode', value)
-                                }
-                                className={cn(
-                                  'text-[10px] px-2 py-0.5 rounded border transition-colors',
-                                  editingPrefs.techMode === value
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'border-border text-muted-foreground hover:border-primary/40'
-                                )}
-                              >
-                                {label}
-                              </button>
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                              Calculator
+                            </Label>
+                            <div className="flex gap-1">
+                              {(
+                                [
+                                  {
+                                    value: 'tech-free' as TechMode,
+                                    label: 'Tech-Free',
+                                  },
+                                  { value: 'mix' as TechMode, label: 'Mixed' },
+                                  {
+                                    value: 'tech-active' as TechMode,
+                                    label: 'Tech-Active',
+                                  },
+                                ] as const
+                              ).map(({ value, label }) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() =>
+                                    updateEditingPref('techMode', value)
+                                  }
+                                  className={cn(
+                                    'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                                    editingPrefs.techMode === value
+                                      ? 'bg-primary text-primary-foreground border-primary'
+                                      : 'border-border text-muted-foreground hover:border-primary/40'
+                                  )}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       {/* Avg marks (for written mode) */}
                       {editingPrefs.questionMode === 'written' && (
@@ -1435,44 +1443,6 @@ function PresetSection({
                           </div>
                         </div>
                       )}
-
-                      {/* Generation mode */}
-                      <div className="flex items-center gap-2">
-                        <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
-                          Type
-                        </Label>
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateEditingPref('generationMode', 'practice')
-                            }
-                            className={cn(
-                              'text-[10px] px-2 py-0.5 rounded border transition-colors',
-                              (editingPrefs.generationMode ?? 'practice') ===
-                                'practice'
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'border-border text-muted-foreground hover:border-primary/40'
-                            )}
-                          >
-                            Practice
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateEditingPref('generationMode', 'exam')
-                            }
-                            className={cn(
-                              'text-[10px] px-2 py-0.5 rounded border transition-colors',
-                              editingPrefs.generationMode === 'exam'
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'border-border text-muted-foreground hover:border-primary/40'
-                            )}
-                          >
-                            Exam
-                          </button>
-                        </div>
-                      </div>
 
                       {/* Action buttons */}
                       <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
@@ -1509,10 +1479,6 @@ function PresetSection({
 type SetupPanelProps = {
   questionMode: QuestionMode;
   onSetQuestionMode: (mode: QuestionMode) => void;
-  generationMode: GenerationMode;
-  onSetGenerationMode: (mode: GenerationMode) => void;
-  examTimeLimitMinutes: number;
-  onSetExamTimeLimitMinutes: (minutes: number) => void;
   selectedTopics: Topic[];
   onToggleTopic: (topic: Topic) => void;
   mathMethodsSubtopics: MathMethodsSubtopic[];
@@ -1556,7 +1522,6 @@ type SetupPanelProps = {
   lastGenerationTelemetry?: GenerationTelemetry | null;
   streamText?: string;
   batchProgress?: BatchTopicProgress[];
-  includeExamContext?: boolean;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1564,10 +1529,6 @@ type SetupPanelProps = {
 function SetupPanelImpl({
   questionMode,
   onSetQuestionMode,
-  generationMode,
-  onSetGenerationMode,
-  examTimeLimitMinutes,
-  onSetExamTimeLimitMinutes,
   selectedTopics,
   onToggleTopic,
   mathMethodsSubtopics,
@@ -1607,7 +1568,6 @@ function SetupPanelImpl({
   lastGenerationTelemetry,
   streamText = '',
   batchProgress = [],
-  includeExamContext = false,
 }: SetupPanelProps) {
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
@@ -1629,13 +1589,6 @@ function SetupPanelImpl({
     selectedTopics.includes('Physical Education');
 
   const showBatchTimeline = batchProgress.length > 1;
-
-  const examPresets = [
-    { label: 'Quick Sprint', count: 5, time: 15 },
-    { label: 'Standard', count: 10, time: 30 },
-    { label: 'Deep Dive', count: 15, time: 60 },
-    { label: 'Marathon', count: 20, time: 90 },
-  ];
 
   const selectedSubtopics = useMemo(
     () =>
@@ -1716,9 +1669,9 @@ function SetupPanelImpl({
 
   return (
     <TooltipProvider>
-      <div className="pb-12">
+      <div className="px-6 pb-6 space-y-6">
         {/* ── Header ── */}
-        <div className="p-6 pb-4">
+        <div className="space-y-4">
           <PageHeader
             title="Practice Generator"
             description="Configure your VCE revision session"
@@ -1741,10 +1694,10 @@ function SetupPanelImpl({
           />
         </div>
 
-        <div className="px-6 space-y-1">
+        <div className="space-y-6">
           {/* ── Subjects ── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <SectionLabel>Subjects</SectionLabel>
               {selectedTopics.length > 0 && (
                 <Badge variant="secondary" className="text-[10px]">
@@ -1778,178 +1731,11 @@ function SetupPanelImpl({
                 );
               })}
             </div>
-
-            {includeExamContext && selectedTopics.length > 0 && (
-              <div className="mt-3 flex items-start gap-2 rounded-md border border-violet-500/20 bg-violet-500/5 p-3">
-                <FileText className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
-                    Exam PDF context enabled
-                  </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {getExamPdfsForTopics(selectedTopics).map((pdf) => (
-                      <span
-                        key={pdf}
-                        className="inline-flex items-center px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[10px] font-mono"
-                      >
-                        {pdf}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Mode ── */}
-          <div>
-            <SectionLabel>Mode</SectionLabel>
-            <ButtonGroup className="flex flex-row w-full">
-              <Button
-                variant={generationMode === 'practice' ? 'default' : 'outline'}
-                onClick={() => onSetGenerationMode('practice')}
-                size="lg"
-                className="flex-1 p-4"
-              >
-                <BookOpen className="w-3.5 h-3.5 mr-1.5" /> Practice
-              </Button>
-              <Button
-                variant={generationMode === 'exam' ? 'default' : 'outline'}
-                size="lg"
-                onClick={() => onSetGenerationMode('exam')}
-                className="flex-1 p-4"
-              >
-                <FileText className="w-3.5 h-3.5 mr-1.5" /> Exam
-              </Button>
-            </ButtonGroup>
-
-            {generationMode === 'exam' && (
-              <Card className="relative overflow-hidden border-border/40 bg-muted/10 my-3 transition-all duration-300">
-                {/* Subtle background glow effect */}
-                <div className="absolute -right-12 -top-12 h-32 w-32 rounded-md bg-primary/5 blur-3xl" />
-
-                <CardContent className="px-5 py-3 space-y-2">
-                  {/* Header Section */}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
-                        <Timer className="w-4 h-4 text-primary" />
-                        Exam Configuration
-                      </h3>
-                      <p className="text-[11px] text-muted-foreground">
-                        Define your constraints or choose a preset
-                      </p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="bg-primary/5 text-primary border-primary/20 px-2 py-1 font-mono text-xs"
-                    >
-                      {examTimeLimitMinutes}m : {questionCount}Q
-                    </Badge>
-                  </div>
-
-                  {/* Manual Adjustment Section */}
-                  <div className="space-y-4 rounded-xl bg-muted/20 p-4 border border-border/50">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground flex items-center gap-2">
-                          <Clock3 className="w-3.5 h-3.5" />
-                          Duration Limit
-                        </Label>
-                        <span className="text-xs font-medium">
-                          {examTimeLimitMinutes} minutes
-                        </span>
-                      </div>
-
-                      <Slider
-                        min={5}
-                        max={180}
-                        step={5}
-                        value={[examTimeLimitMinutes]}
-                        onValueChange={(val) =>
-                          onSetExamTimeLimitMinutes(val[0])
-                        }
-                        className="py-2"
-                      />
-
-                      <div className="flex justify-between px-1">
-                        <span className="text-[10px] font-medium text-muted-foreground/60">
-                          Short (5m)
-                        </span>
-                        <span className="text-[10px] font-medium text-muted-foreground/60">
-                          Standard (60m)
-                        </span>
-                        <span className="text-[10px] font-medium text-muted-foreground/60">
-                          Long (180m)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick Presets Grid */}
-                  <div className="space-y-3">
-                    <Label className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground flex items-center gap-2 px-1">
-                      <Zap className="w-3.5 h-3.5" />
-                      Rapid Presets
-                    </Label>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      {examPresets.map((preset) => {
-                        const isActive =
-                          questionCount === preset.count &&
-                          examTimeLimitMinutes === preset.time;
-
-                        return (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => {
-                              onSetQuestionCount(preset.count);
-                              onSetExamTimeLimitMinutes(preset.time);
-                            }}
-                            className={cn(
-                              'group relative flex flex-col gap-1 rounded-md border p-3 text-left transition-all duration-200',
-                              isActive
-                                ? 'border-primary shadow-inner'
-                                : 'border-border bg-background hover:border-primary/50 hover:shadow-md'
-                            )}
-                          >
-                            {isActive && (
-                              <div className="absolute right-2 top-2">
-                                <CheckCircle2 className="h-3 w-3 text-primary" />
-                              </div>
-                            )}
-
-                            <span
-                              className={cn(
-                                'text-xs font-bold transition-colors',
-                                isActive ? 'text-primary' : 'text-foreground'
-                              )}
-                            >
-                              {preset.label}
-                            </span>
-
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <LayoutGrid className="w-2.5 h-2.5" />{' '}
-                                {preset.count} Qs
-                              </span>
-                              <span className="h-1 w-1 rounded-md bg-border" />
-                              <span>{preset.time} mins</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* ── Difficulty ── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <SectionLabel>Difficulty</SectionLabel>
               <span
                 className={`text-xs font-semibold ${DIFFICULTY_META[difficulty].color}`}
@@ -1998,8 +1784,44 @@ function SetupPanelImpl({
             </div>
           </div>
 
-          {/* ── Presets ── */}
+          {/* ── Advanced Options ── */}
           <div>
+            <AdvancedOptionsAccordion
+              questionMode={questionMode}
+              questionCount={questionCount}
+              onSetQuestionCount={onSetQuestionCount}
+              averageMarksPerQuestion={averageMarksPerQuestion}
+              onSetAverageMarksPerQuestion={onSetAverageMarksPerQuestion}
+              selectedTopics={selectedTopics}
+              hasSubtopicSection={hasSubtopicSection}
+              mathMethodsSubtopics={mathMethodsSubtopics}
+              onToggleMathMethodsSubtopic={onToggleMathMethodsSubtopic}
+              specialistMathSubtopics={specialistMathSubtopics}
+              onToggleSpecialistMathSubtopic={onToggleSpecialistMathSubtopic}
+              chemistrySubtopics={chemistrySubtopics}
+              onToggleChemistrySubtopic={onToggleChemistrySubtopic}
+              physicalEducationSubtopics={physicalEducationSubtopics}
+              onTogglePhysicalEducationSubtopic={
+                onTogglePhysicalEducationSubtopic
+              }
+              hasAnyMathTopic={hasAnyMathTopic}
+              techMode={techMode}
+              onSetTechMode={onSetTechMode}
+              avoidSimilarQuestions={avoidSimilarQuestions}
+              onSetAvoidSimilarQuestions={onSetAvoidSimilarQuestions}
+              shuffleQuestions={shuffleQuestions}
+              onSetShuffleQuestions={onSetShuffleQuestions}
+              customFocusArea={customFocusArea}
+              onSetCustomFocusArea={onSetCustomFocusArea}
+              aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
+              onSetAiDifficultyScalingEnabled={onSetAiDifficultyScalingEnabled}
+              difficultyThresholds={difficultyThresholds}
+              onSetDifficultyThresholds={onSetDifficultyThresholds}
+            />
+          </div>
+
+          {/* ── Presets ── */}
+          <div className="space-y-2">
             <SectionLabel>Presets</SectionLabel>
             <PresetSection
               selectedTopics={selectedTopics}
@@ -2013,46 +1835,10 @@ function SetupPanelImpl({
               questionCount={questionCount}
               averageMarksPerQuestion={averageMarksPerQuestion}
               questionMode={questionMode}
-              generationMode={generationMode}
-              examTimeLimitMinutes={examTimeLimitMinutes}
               aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
               difficultyThresholds={difficultyThresholds}
             />
           </div>
-
-          {/* ── Advanced Options ── */}
-          <AdvancedOptionsAccordion
-            questionMode={questionMode}
-            questionCount={questionCount}
-            onSetQuestionCount={onSetQuestionCount}
-            averageMarksPerQuestion={averageMarksPerQuestion}
-            onSetAverageMarksPerQuestion={onSetAverageMarksPerQuestion}
-            selectedTopics={selectedTopics}
-            hasSubtopicSection={hasSubtopicSection}
-            mathMethodsSubtopics={mathMethodsSubtopics}
-            onToggleMathMethodsSubtopic={onToggleMathMethodsSubtopic}
-            specialistMathSubtopics={specialistMathSubtopics}
-            onToggleSpecialistMathSubtopic={onToggleSpecialistMathSubtopic}
-            chemistrySubtopics={chemistrySubtopics}
-            onToggleChemistrySubtopic={onToggleChemistrySubtopic}
-            physicalEducationSubtopics={physicalEducationSubtopics}
-            onTogglePhysicalEducationSubtopic={
-              onTogglePhysicalEducationSubtopic
-            }
-            hasAnyMathTopic={hasAnyMathTopic}
-            techMode={techMode}
-            onSetTechMode={onSetTechMode}
-            avoidSimilarQuestions={avoidSimilarQuestions}
-            onSetAvoidSimilarQuestions={onSetAvoidSimilarQuestions}
-            shuffleQuestions={shuffleQuestions}
-            onSetShuffleQuestions={onSetShuffleQuestions}
-            customFocusArea={customFocusArea}
-            onSetCustomFocusArea={onSetCustomFocusArea}
-            aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
-            onSetAiDifficultyScalingEnabled={onSetAiDifficultyScalingEnabled}
-            difficultyThresholds={difficultyThresholds}
-            onSetDifficultyThresholds={onSetDifficultyThresholds}
-          />
 
           {/* ── API key warning ── */}
           {!hasApiKey && (
@@ -2076,10 +1862,10 @@ function SetupPanelImpl({
         </div>
 
         {/* ── Footer / Generate ── */}
-        <div className="pt-6 border-t mt-6 space-y-1">
+        <div className="border-t pt-4 space-y-1">
           {/* Session Summary */}
           {!isGenerating && (
-            <div className="px-6 space-y-1">
+            <div className="space-y-1">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Session Summary
               </p>
@@ -2144,14 +1930,6 @@ function SetupPanelImpl({
                 )}
                 <span className="text-border">·</span>
                 <span
-                  className={`font-semibold ${generationMode === 'exam' ? 'text-violet-600 dark:text-violet-400' : 'text-sky-600 dark:text-sky-400'}`}
-                >
-                  {generationMode === 'exam'
-                    ? `Exam (${examTimeLimitMinutes}m)`
-                    : 'Practice'}
-                </span>
-                <span className="text-border">·</span>
-                <span
                   className={`font-semibold ${questionMode === 'written' ? 'text-sky-600 dark:text-sky-400' : 'text-violet-600 dark:text-violet-400'}`}
                 >
                   {questionMode === 'written' ? 'Written' : 'MC'}
@@ -2166,7 +1944,7 @@ function SetupPanelImpl({
                   {estimated.confidence != null && (
                     <span
                       className={[
-                        'text-[10px] px-1 rounded',
+                        'text-[10px] px-1.5 mx-1 rounded',
                         estimated.confidence > 0.7
                           ? 'bg-green-100 text-green-700'
                           : estimated.confidence > 0.4
@@ -2179,7 +1957,7 @@ function SetupPanelImpl({
                   )}
                 </span>
                 {estimated.promptCost != null ||
-                estimated.completionCost != null ? (
+                  estimated.completionCost != null ? (
                   <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
                     <DollarSign className="w-3 h-3 text-muted-foreground" />
                     {formatCostUsd(estimated.totalCost)}
@@ -2194,10 +1972,10 @@ function SetupPanelImpl({
           )}
 
           {/* Generate button */}
-          <div className="px-6 mt-2">
+          <div className="mt-2">
             <Button
               size="lg"
-              className="w-full h-11 text-sm font-bold gap-2 transition-all duration-200"
+              className="w-full h-10 text-sm font-bold gap-2 transition-all duration-200"
               onClick={onGenerate}
               disabled={!canGenerate}
             >
@@ -2211,9 +1989,7 @@ function SetupPanelImpl({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  {generationMode === 'exam'
-                    ? 'Generate Exam Set'
-                    : 'Generate Question Set'}
+                  Generate
                 </>
               )}
             </Button>

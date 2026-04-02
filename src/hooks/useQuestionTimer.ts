@@ -3,7 +3,6 @@ import {
   PerQuestionTiming,
   QuestionTimerState,
   PersistedTimerState,
-  GenerationMode,
   GeneratedQuestion,
   McQuestion,
 } from '@/types';
@@ -49,7 +48,6 @@ function getEffectivePausedMs(
 // ---------------------------------------------------------------------------
 
 function buildFreshState(
-  mode: GenerationMode,
   totalTimeLimitSeconds: number,
   questions: Array<GeneratedQuestion | McQuestion>
 ): QuestionTimerState {
@@ -77,7 +75,6 @@ function buildFreshState(
     isPaused: false,
     pausedDurationMs: 0,
     activeQuestionIndex: 0,
-    mode,
   };
 }
 
@@ -159,7 +156,6 @@ export interface UseQuestionTimerReturn {
 // ---------------------------------------------------------------------------
 
 export function useQuestionTimer(
-  mode: GenerationMode,
   totalTimeLimitSeconds: number,
   questions: Array<GeneratedQuestion | McQuestion>,
   activeQuestionIndex: number,
@@ -196,7 +192,7 @@ export function useQuestionTimer(
         pauseStartedAtRef.current
       );
     }
-    return buildFreshState(mode, totalTimeLimitSeconds, questions);
+    return buildFreshState(totalTimeLimitSeconds, questions);
   });
 
   timerStateRef.current = timerState;
@@ -237,9 +233,11 @@ export function useQuestionTimer(
       // Uses questionsRef to avoid questions array reference instability
       // causing spurious re-runs of this effect.
       pauseStartedAtRef.current = null;
-      setTimerState(buildFreshState(mode, totalTimeLimitSeconds, questionsRef.current));
+      setTimerState(
+        buildFreshState(totalTimeLimitSeconds, questionsRef.current)
+      );
     }
-  }, [zustandTimerState, mode, totalTimeLimitSeconds]);
+  }, [zustandTimerState, totalTimeLimitSeconds]);
 
   // -------------------------------------------------------------------------
   // Ticker — runs every second while session is active and not paused
@@ -438,13 +436,12 @@ export function useQuestionTimer(
           pausedDurationMs: 0,
           parTimeSeconds: par,
           activeQuestionIndex: 0,
-          mode,
         };
         syncToZustand(next);
         return next;
       });
     },
-    [totalTimeLimitSeconds, mode, syncToZustand]
+    [totalTimeLimitSeconds, syncToZustand]
   );
 
   const finishSession = useCallback(() => {
@@ -457,10 +454,10 @@ export function useQuestionTimer(
 
   const reset = useCallback(() => {
     pauseStartedAtRef.current = null;
-    const next = buildFreshState(mode, totalTimeLimitSeconds, questions);
+    const next = buildFreshState(totalTimeLimitSeconds, questions);
     setTimerState(next);
     syncToZustand(next);
-  }, [totalTimeLimitSeconds, questions, mode, syncToZustand]);
+  }, [totalTimeLimitSeconds, questions, syncToZustand]);
 
   // -------------------------------------------------------------------------
   // Per-question events
@@ -509,9 +506,9 @@ export function useQuestionTimer(
         const timeUsedSeconds =
           q.startedAt !== null
             ? Math.min(
-              computeQuestionTimeUsed(q, totalPausedMs, nowSec),
-              q.timeLimitSeconds
-            )
+                computeQuestionTimeUsed(q, totalPausedMs, nowSec),
+                q.timeLimitSeconds
+              )
             : q.timeUsedSeconds;
 
         const next = {
@@ -613,20 +610,22 @@ export function useQuestionTimer(
 
         // Use live elapsed time if the question is currently running
         const nowSec = Date.now() / 1000;
-        const totalPausedMs = getEffectivePausedMs(s, pauseStartedAtRef.current);
+        const totalPausedMs = getEffectivePausedMs(
+          s,
+          pauseStartedAtRef.current
+        );
         const timeUsed =
           q.startedAt !== null
             ? Math.min(
-              computeQuestionTimeUsed(q, totalPausedMs, nowSec),
-              q.timeLimitSeconds
-            )
+                computeQuestionTimeUsed(q, totalPausedMs, nowSec),
+                q.timeLimitSeconds
+              )
             : q.timeUsedSeconds;
 
         const next = {
           ...s,
           byQuestionId: rest,
-          bankedSeconds:
-            s.bankedSeconds + (q.timeLimitSeconds - timeUsed),
+          bankedSeconds: s.bankedSeconds + (q.timeLimitSeconds - timeUsed),
         };
         syncToZustand(next);
         return next;
@@ -650,20 +649,18 @@ export function useQuestionTimer(
     timerState.sessionStartedAt === null
       ? 0
       : Math.max(
-        0,
-        Math.floor(
-          (timerState.sessionFinishedAt ?? Date.now() / 1000) -
-          timerState.sessionStartedAt -
-          effectivePausedMs / 1000
-        )
-      );
+          0,
+          Math.floor(
+            (timerState.sessionFinishedAt ?? Date.now() / 1000) -
+              timerState.sessionStartedAt -
+              effectivePausedMs / 1000
+          )
+        );
   const sessionRemainingSeconds = Math.max(
     0,
     timerState.totalTimeLimitSeconds - sessionElapsedSeconds
   );
-  const formattedSessionTime = formatTime(
-    mode === 'exam' ? sessionRemainingSeconds : sessionElapsedSeconds
-  );
+  const formattedSessionTime = formatTime(sessionElapsedSeconds);
 
   const qTiming = questions[activeQuestionIndex]
     ? timerState.byQuestionId[questions[activeQuestionIndex].id]

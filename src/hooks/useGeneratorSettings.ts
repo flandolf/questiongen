@@ -12,10 +12,6 @@ export function useGeneratorSettings() {
     useShallow((s) => ({
       questionMode: s.questionMode,
       setQuestionMode: s.setQuestionMode,
-      generationMode: s.generationMode,
-      setGenerationMode: s.setGenerationMode,
-      examTimeLimitMinutes: s.examTimeLimitMinutes,
-      setExamTimeLimitMinutes: s.setExamTimeLimitMinutes,
       selectedTopics: s.selectedTopics,
       setSelectedTopics: s.setSelectedTopics,
       difficulty: s.difficulty,

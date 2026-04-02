@@ -30,7 +30,6 @@ import {
   SPECIALIST_MATH_SUBTOPICS,
   StudyGoals,
   StreakData,
-  ExamRecord,
   GenerationRecord,
   Preset,
 } from '../types';
@@ -62,8 +61,6 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   questionCount: 3,
   averageMarksPerQuestion: 10,
   questionMode: 'written',
-  generationMode: 'practice',
-  examTimeLimitMinutes: 30,
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
 };
@@ -163,24 +160,11 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     savedSets: normalizeSavedSets(data.savedSets),
     studyGoals: normalizeStudyGoals(data.studyGoals),
     streakData: normalizeStreakData(data.streakData),
-    examHistory: normalizeExamHistory(data.examHistory),
     generationHistory: normalizeGenerationHistory(data.generationHistory),
     presets: normalizePresets(data.presets),
     writtenTimerState: normalizeTimerState(data.writtenTimerState),
     mcTimerState: normalizeTimerState(data.mcTimerState),
   };
-}
-
-function normalizeExamHistory(raw: unknown): ExamRecord[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (item): item is ExamRecord =>
-      isRecord(item) &&
-      typeof item.id === 'string' &&
-      typeof item.createdAt === 'string' &&
-      typeof item.topic === 'string' &&
-      Array.isArray(item.questionResults)
-  );
 }
 
 function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
@@ -338,15 +322,6 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     questionMode: isQuestionMode(data.questionMode)
       ? data.questionMode
       : DEFAULT_PREFERENCES.questionMode,
-    generationMode: isGenerationMode(data.generationMode)
-      ? data.generationMode
-      : DEFAULT_PREFERENCES.generationMode,
-    examTimeLimitMinutes: clampWholeNumber(
-      data.examTimeLimitMinutes,
-      DEFAULT_PREFERENCES.examTimeLimitMinutes ?? 30,
-      5,
-      180
-    ),
     aiDifficultyScalingEnabled:
       typeof data.aiDifficultyScalingEnabled === 'boolean'
         ? data.aiDifficultyScalingEnabled
@@ -950,10 +925,6 @@ function isQuestionMode(value: unknown): value is QuestionMode {
   return value === 'written' || value === 'multiple-choice';
 }
 
-function isGenerationMode(value: unknown): value is 'practice' | 'exam' {
-  return value === 'practice' || value === 'exam';
-}
-
 function filterStringLiterals<T extends readonly string[]>(
   value: unknown,
   allowed: T
@@ -1097,6 +1068,5 @@ function normalizeTimerState(raw: unknown): PersistedTimerState | null {
     isPaused: Boolean(data.isPaused),
     pausedDurationMs: asFiniteNumber(data.pausedDurationMs) ?? 0,
     activeQuestionIndex: clampWholeNumber(data.activeQuestionIndex, 0, 0, 999),
-    mode: data.mode === 'exam' ? 'exam' : 'practice',
   };
 }

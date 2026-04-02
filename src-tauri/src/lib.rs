@@ -61,7 +61,7 @@ use parsing::{
     clean_field, extract_json_object, normalise_envelope, normalise_mc, normalise_written,
     protect_latex_in_raw_json, sanitize_for_api, validate_mc, validate_written,
 };
-use persistence::{load_persisted_state, save_persisted_state};
+use persistence::{export_data_file, load_persisted_state, save_persisted_state};
 use quality::score_batch;
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -1930,6 +1930,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_persisted_state,
             save_persisted_state,
+            export_data_file,
             generate_questions,
             mark_answer,
             batch_mark_answers,

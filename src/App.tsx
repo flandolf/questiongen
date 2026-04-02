@@ -28,7 +28,6 @@ const SavedView = lazy(() =>
 const SettingsView = lazy(() =>
   import('./views/SettingsView').then((m) => ({ default: m.SettingsView }))
 );
-const ExamHistoryView = lazy(() => import('./views/ExamHistoryView'));
 const WrongQuestionView = lazy(() => import('./views/WrongQuestionView'));
 const NotFound = lazy(() =>
   import('./views/NotFound').then((m) => ({ default: m.NotFound }))
@@ -70,7 +69,6 @@ function AppRoutes() {
           <Route path="/" element={<Layout />}>
             <Route index element={<GeneratorView />} />
             <Route path="history" element={<HistoryView />} />
-            <Route path="exam-history" element={<ExamHistoryView />} />
             <Route path="analytics" element={<AnalyticsView />} />
             <Route path="mistakes" element={<WrongQuestionView />} />
             <Route path="saved" element={<SavedView />} />
