@@ -758,10 +758,21 @@ export function HistoryView() {
   const rowVirtualizer = useVirtualizer({
     count: filteredHistory.length,
     getScrollElement: () => parentRef.current,
+    getItemKey: (index) => {
+      const item = filteredHistory[index];
+      return item ? `${item.kind}-${item.id}` : index;
+    },
     estimateSize: () => 140,
     measureElement: (el) => el.getBoundingClientRect().height,
+    overscan: 6,
     useFlushSync: true,
   });
+
+  useEffect(() => {
+    rowVirtualizer.measure();
+    const raf = requestAnimationFrame(() => rowVirtualizer.measure());
+    return () => cancelAnimationFrame(raf);
+  }, [rowVirtualizer, filteredHistory, expandedEntryKeys]);
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
     setExpandedEntryKeys((cur) => {

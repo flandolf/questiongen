@@ -1669,7 +1669,7 @@ function SetupPanelImpl({
 
   return (
     <TooltipProvider>
-      <div className="px-6 pb-6 space-y-6">
+      <div className="px-6 py-6 space-y-6">
         {/* ── Header ── */}
         <div className="space-y-4">
           <PageHeader

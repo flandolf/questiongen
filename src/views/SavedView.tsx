@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { formatDate } from '../lib/app-utils';
 import { EmptyState } from '../components/EmptyState';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { useState, useMemo, useRef, memo } from 'react';
+import { useState, useMemo, useRef, memo, useEffect } from 'react';
 import {
   PageContainer,
   PageHeader,
@@ -46,10 +46,18 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   const rowVirtualizer = useVirtualizer({
     count: sets.length,
     getScrollElement: () => parentRef.current,
+    getItemKey: (index) => sets[index]?.id ?? index,
     estimateSize: () => 140,
     measureElement: (el) => el.getBoundingClientRect().height,
+    overscan: 6,
     useFlushSync: true,
   });
+
+  useEffect(() => {
+    rowVirtualizer.measure();
+    const raf = requestAnimationFrame(() => rowVirtualizer.measure());
+    return () => cancelAnimationFrame(raf);
+  }, [rowVirtualizer, sets]);
 
   return (
     <div

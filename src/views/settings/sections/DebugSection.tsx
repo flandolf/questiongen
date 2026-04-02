@@ -14,11 +14,11 @@ export function DebugSection() {
       />
       <Card className="flex items-center justify-between p-4">
         <div>
-          <p className="text-sm font-medium">Raw generation payload</p>
+          <p className="text-sm font-medium">Debug Mode</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {debugMode
-              ? 'Enabled — raw LLM output shown on problem cards.'
-              : 'Reveal the raw LLM generation payload for prompt inspection.'}
+              ? 'Debug mode is enabled.'
+              : 'Debug mode is disabled.'}
           </p>
         </div>
         <Button
