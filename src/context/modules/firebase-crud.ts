@@ -716,6 +716,233 @@ export interface SaveOptions {
   };
 }
 
+export async function upsertQuestionHistoryItems(
+  userId: string,
+  items: Record<string, unknown>[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const historyRef = getHistoryCollectionRef(userId, 'questionHistory');
+  let writes = 0;
+  const batches: Array<Promise<void>> = [];
+  for (let i = 0; i < items.length; i += BATCH_SIZE_QH) {
+    const batchItems = items.slice(i, i + BATCH_SIZE_QH);
+    const batchNum = Math.floor(i / BATCH_SIZE_QH) + 1;
+    batches.push(
+      (async () => {
+        const batch = writeBatch(db);
+        let batchWrites = 0;
+        for (const item of batchItems) {
+          if (!item.id) continue;
+          const compacted = compactQuestionHistoryEntry(item);
+          const prepared = prepareQuestionHistoryEntryForFirestore(compacted);
+          if (!prepared) continue;
+          batch.set(doc(historyRef, String(item.id)), {
+            ...prepared,
+            _lastModified: serverTimestamp(),
+          });
+          batchWrites++;
+        }
+        if (batchWrites > 0) {
+          await withRetry(
+            () =>
+              withTimeout(
+                batch.commit(),
+                `committing questionHistory upsert batch ${batchNum}`
+              ),
+            `questionHistory upsert batch ${batchNum}`
+          );
+          writes += batchWrites;
+        }
+      })()
+    );
+  }
+  await Promise.all(batches);
+  return writes;
+}
+
+export async function deleteQuestionHistoryItems(
+  userId: string,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const historyRef = getHistoryCollectionRef(userId, 'questionHistory');
+  await Promise.all(
+    ids.map((id) =>
+      withRetry(
+        () =>
+          withTimeout(
+            deleteDoc(doc(historyRef, id)),
+            `deleting questionHistory ${id}`
+          ),
+        `deleting questionHistory ${id}`
+      )
+    )
+  );
+  return ids.length;
+}
+
+export async function upsertMcHistoryItems(
+  userId: string,
+  items: Record<string, unknown>[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const historyRef = getHistoryCollectionRef(userId, 'mcHistory');
+  let writes = 0;
+  const batches: Array<Promise<void>> = [];
+  for (let i = 0; i < items.length; i += BATCH_SIZE_MC) {
+    const batchItems = items.slice(i, i + BATCH_SIZE_MC);
+    const batchNum = Math.floor(i / BATCH_SIZE_MC) + 1;
+    batches.push(
+      (async () => {
+        const batch = writeBatch(db);
+        let batchWrites = 0;
+        for (const item of batchItems) {
+          if (!item.id) continue;
+          const compacted = compactMcHistoryEntry(item);
+          const prepared = prepareMcHistoryEntryForFirestore(compacted);
+          if (!prepared) continue;
+          batch.set(doc(historyRef, String(item.id)), {
+            ...prepared,
+            _lastModified: serverTimestamp(),
+          });
+          batchWrites++;
+        }
+        if (batchWrites > 0) {
+          await withRetry(
+            () =>
+              withTimeout(
+                batch.commit(),
+                `committing mcHistory upsert batch ${batchNum}`
+              ),
+            `mcHistory upsert batch ${batchNum}`
+          );
+          writes += batchWrites;
+        }
+      })()
+    );
+  }
+  await Promise.all(batches);
+  return writes;
+}
+
+export async function deleteMcHistoryItems(
+  userId: string,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const historyRef = getHistoryCollectionRef(userId, 'mcHistory');
+  await Promise.all(
+    ids.map((id) =>
+      withRetry(
+        () => withTimeout(deleteDoc(doc(historyRef, id)), `deleting mcHistory ${id}`),
+        `deleting mcHistory ${id}`
+      )
+    )
+  );
+  return ids.length;
+}
+
+export async function upsertSavedSets(
+  userId: string,
+  items: Record<string, unknown>[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const savedSetsRef = getSavedSetsCollectionRef(userId);
+  const pendingWrites: Array<{
+    id: string;
+    payload: Record<string, unknown>;
+  }> = [];
+  for (const item of items) {
+    if (!item.id) continue;
+    const compacted = compactSavedSet(item);
+    const prepared = prepareSavedSetForFirestore(compacted);
+    if (!prepared) continue;
+    pendingWrites.push({ id: String(item.id), payload: prepared });
+  }
+  for (let i = 0; i < pendingWrites.length; i += CONCURRENT_SAVESETS_WRITES) {
+    const chunk = pendingWrites.slice(i, i + CONCURRENT_SAVESETS_WRITES);
+    await Promise.all(
+      chunk.map(async ({ id, payload }) => {
+        await withRetry(
+          () =>
+            withTimeout(
+              setDoc(doc(savedSetsRef, id), {
+                ...payload,
+                _lastModified: serverTimestamp(),
+              }),
+              `saving savedSet ${id}`
+            ),
+          `saving savedSet ${id}`
+        );
+      })
+    );
+  }
+  return pendingWrites.length;
+}
+
+export async function deleteSavedSets(
+  userId: string,
+  ids: string[]
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const savedSetsRef = getSavedSetsCollectionRef(userId);
+  await Promise.all(
+    ids.map((id) =>
+      withRetry(
+        () =>
+          withTimeout(deleteDoc(doc(savedSetsRef, id)), `deleting savedSet ${id}`),
+        `deleting savedSet ${id}`
+      )
+    )
+  );
+  return ids.length;
+}
+
+export async function replacePresets(
+  userId: string,
+  presets: Preset[]
+): Promise<void> {
+  await withRetry(
+    () =>
+      withTimeout(
+        setDoc(
+          getUserPresetsRef(userId),
+          {
+            presets: removeUndefined(presets),
+            _lastModified: serverTimestamp(),
+          },
+          { merge: false }
+        ),
+        presets.length > 0 ? 'saving presets' : 'clearing presets'
+      ),
+    presets.length > 0 ? 'saving presets' : 'clearing presets'
+  );
+}
+
+export async function upsertGoals(
+  userId: string,
+  studyGoals?: Record<string, unknown>,
+  streakData?: Record<string, unknown>
+): Promise<void> {
+  const goalsRef = doc(db, 'users', userId, 'settings', 'goals');
+  await withRetry(
+    () =>
+      withTimeout(
+        setDoc(
+          goalsRef,
+          {
+            studyGoals: removeUndefined(studyGoals ?? {}),
+            streakData: removeUndefined(streakData ?? {}),
+            _lastModified: serverTimestamp(),
+          },
+          { merge: true }
+        ),
+        'saving goals data'
+      ),
+    'saving goals data'
+  );
+}
+
 export async function saveUserData(
   userId: string,
   data: SyncableData,

@@ -107,6 +107,29 @@ export type PersistedAppState = {
   deletionTombstones?: Record<string, Record<string, number>>;
 };
 
+export type SyncCollection =
+  | 'questionHistory'
+  | 'mcHistory'
+  | 'savedSets'
+  | 'presets'
+  | 'studyGoals'
+  | 'streakData';
+
+export type SyncOpType = 'upsert' | 'delete';
+
+export type SyncOperation = {
+  id: string;
+  collection: SyncCollection;
+  opType: SyncOpType;
+  entityId?: string;
+  createdAt: number;
+};
+
+export type SyncQueueState = {
+  operations: SyncOperation[];
+  updatedAt: number;
+};
+
 export const PERSISTED_APP_STATE_VERSION = 2;
 
 export const API_KEY_STORAGE_KEY = 'questiongen.openrouterApiKey';

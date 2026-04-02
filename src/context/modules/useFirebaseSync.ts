@@ -6,6 +6,9 @@ import {
   Preset,
   StudyGoals,
   StreakData,
+  SyncOperation,
+  SyncQueueState,
+  SyncCollection,
 } from '@/types';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
@@ -22,6 +25,14 @@ import {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   saveDailyUsage,
+  upsertQuestionHistoryItems,
+  deleteQuestionHistoryItems,
+  upsertMcHistoryItems,
+  deleteMcHistoryItems,
+  upsertSavedSets,
+  deleteSavedSets,
+  replacePresets,
+  upsertGoals,
 } from './useFirebase';
 import {
   SyncConflict,
@@ -66,6 +77,7 @@ const SYNC_DEBUG = true;
 // Debug log / sync event memory limits
 const DEBUG_LOG_LIMIT = 50;
 const SYNC_EVENT_LIMIT = 30;
+const SYNC_QUEUE_STORAGE_KEY = 'firebase_sync_queue_v1';
 
 // Persist sync-enabled preference so it survives reloads
 const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
@@ -90,6 +102,50 @@ function writePersistedSyncEnabled(enabled: boolean): void {
 
 function getUserId(user: FirebaseUser | null): string {
   return user?.uid ?? 'anonymous';
+}
+
+function readPersistedSyncQueue(): SyncQueueState {
+  try {
+    const raw = localStorage.getItem(SYNC_QUEUE_STORAGE_KEY);
+    if (!raw) return { operations: [], updatedAt: 0 };
+    const parsed = JSON.parse(raw) as SyncQueueState;
+    if (!Array.isArray(parsed.operations)) {
+      return { operations: [], updatedAt: 0 };
+    }
+    return {
+      operations: parsed.operations.filter(
+        (op) =>
+          typeof op.id === 'string' &&
+          typeof op.collection === 'string' &&
+          (op.opType === 'upsert' || op.opType === 'delete')
+      ),
+      updatedAt: Number.isFinite(parsed.updatedAt) ? parsed.updatedAt : 0,
+    };
+  } catch {
+    return { operations: [], updatedAt: 0 };
+  }
+}
+
+function writePersistedSyncQueue(queue: SyncQueueState): void {
+  try {
+    localStorage.setItem(SYNC_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+  } catch {
+    // localStorage unavailable — non-fatal
+  }
+}
+
+function newSyncOp(
+  collection: SyncCollection,
+  opType: 'upsert' | 'delete',
+  entityId?: string
+): SyncOperation {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    collection,
+    opType,
+    entityId,
+    createdAt: Date.now(),
+  };
 }
 
 function mergeStudyGoals(
@@ -350,6 +406,8 @@ export interface UseFirebaseSyncReturn {
   debugLogs: DebugLogEntry[];
   pendingChanges: number;
   pendingDeletions: number;
+  queuedOpsCount: number;
+  lastFlushTime: number | null;
   conflicts: SyncConflict[];
   enableSync: (
     email: string,
@@ -377,6 +435,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingChanges, setPendingChanges] = useState(0);
   const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+  const [queuedOpsCount, setQueuedOpsCount] = useState(0);
+  const [lastFlushTime, setLastFlushTime] = useState<number | null>(null);
 
   const getPendingDeletions = useCallback((): number => {
     const tombstones = useAppStore.getState().deletionTombstones;
@@ -417,6 +477,10 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
   const localDataRef = useRef<SyncableData | null>(null);
   const isInitializedRef = useRef(false);
+  const startupSyncDoneRef = useRef(false);
+  const flushingQueueRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncQueueRef = useRef<SyncQueueState>(readPersistedSyncQueue());
   const suppressAutoSaveRef = useRef(false);
   const suppressAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -438,6 +502,153 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   // Snapshot of last-synced data for detecting pending changes
   const lastSyncedSnapshotRef = useRef<string>('');
 
+  const persistQueue = useCallback((queue: SyncQueueState) => {
+    syncQueueRef.current = queue;
+    setQueuedOpsCount(queue.operations.length);
+    writePersistedSyncQueue(queue);
+  }, []);
+
+  const enqueueSyncOps = useCallback(
+    (ops: SyncOperation[]) => {
+      if (ops.length === 0) return;
+      const next: SyncQueueState = {
+        operations: [...syncQueueRef.current.operations, ...ops],
+        updatedAt: Date.now(),
+      };
+      persistQueue(next);
+      addSyncEvent('upload', `Queued ${ops.length} sync operation${ops.length === 1 ? '' : 's'}`);
+    },
+    [addSyncEvent, persistQueue]
+  );
+
+  const flushSyncQueue = useCallback(async () => {
+    if (flushingQueueRef.current) return;
+    if (!user || !isSyncEnabled || !isOnline || !isInitializedRef.current) {
+      return;
+    }
+    const queue = syncQueueRef.current;
+    if (queue.operations.length === 0) return;
+
+    flushingQueueRef.current = true;
+    const userId = getUserId(user);
+    const state = useAppStore.getState();
+
+    try {
+      const latestByKey = new Map<string, SyncOperation>();
+      for (const op of queue.operations) {
+        const key = `${op.collection}:${op.entityId ?? '__all__'}`;
+        const existing = latestByKey.get(key);
+        if (!existing || op.createdAt >= existing.createdAt) {
+          latestByKey.set(key, op);
+        }
+      }
+      const ops = Array.from(latestByKey.values());
+
+      const upsertQhIds = new Set<string>();
+      const deleteQhIds = new Set<string>();
+      const upsertMcIds = new Set<string>();
+      const deleteMcIds = new Set<string>();
+      const upsertSsIds = new Set<string>();
+      const deleteSsIds = new Set<string>();
+      let replacePresetsRequested = false;
+      let upsertGoalsRequested = false;
+      let upsertStreakRequested = false;
+
+      for (const op of ops) {
+        if (op.collection === 'questionHistory' && op.entityId) {
+          if (op.opType === 'delete') {
+            upsertQhIds.delete(op.entityId);
+            deleteQhIds.add(op.entityId);
+          } else {
+            deleteQhIds.delete(op.entityId);
+            upsertQhIds.add(op.entityId);
+          }
+        }
+        if (op.collection === 'mcHistory' && op.entityId) {
+          if (op.opType === 'delete') {
+            upsertMcIds.delete(op.entityId);
+            deleteMcIds.add(op.entityId);
+          } else {
+            deleteMcIds.delete(op.entityId);
+            upsertMcIds.add(op.entityId);
+          }
+        }
+        if (op.collection === 'savedSets' && op.entityId) {
+          if (op.opType === 'delete') {
+            upsertSsIds.delete(op.entityId);
+            deleteSsIds.add(op.entityId);
+          } else {
+            deleteSsIds.delete(op.entityId);
+            upsertSsIds.add(op.entityId);
+          }
+        }
+        if (op.collection === 'presets') replacePresetsRequested = true;
+        if (op.collection === 'studyGoals') upsertGoalsRequested = true;
+        if (op.collection === 'streakData') upsertStreakRequested = true;
+      }
+
+      const qhItems = state.questionHistory.filter((item) => upsertQhIds.has(item.id));
+      const mcItems = state.mcHistory.filter((item) => upsertMcIds.has(item.id));
+      const ssItems = state.savedSets.filter((item) => upsertSsIds.has(item.id));
+
+      await Promise.all([
+        upsertQuestionHistoryItems(userId, qhItems as Record<string, unknown>[]),
+        deleteQuestionHistoryItems(userId, Array.from(deleteQhIds)),
+        upsertMcHistoryItems(userId, mcItems as Record<string, unknown>[]),
+        deleteMcHistoryItems(userId, Array.from(deleteMcIds)),
+        upsertSavedSets(userId, ssItems as Record<string, unknown>[]),
+        deleteSavedSets(userId, Array.from(deleteSsIds)),
+      ]);
+
+      if (replacePresetsRequested) {
+        await replacePresets(userId, state.presets ?? []);
+      }
+      if (upsertGoalsRequested || upsertStreakRequested) {
+        await upsertGoals(
+          userId,
+          (state.studyGoals ?? {}) as unknown as Record<string, unknown>,
+          (state.streakData ?? {}) as unknown as Record<string, unknown>
+        );
+      }
+
+      const deletedIds = {
+        questionHistory: Array.from(deleteQhIds),
+        mcHistory: Array.from(deleteMcIds),
+        savedSets: Array.from(deleteSsIds),
+        presets: [] as string[],
+      };
+      if (deletedIds.questionHistory.length + deletedIds.mcHistory.length + deletedIds.savedSets.length > 0) {
+        useAppStore.setState({
+          deletionTombstones: purgePersistedTombstones(
+            state.deletionTombstones,
+            deletedIds
+          ),
+        });
+      }
+
+      persistQueue({ operations: [], updatedAt: Date.now() });
+      setLastFlushTime(Date.now());
+      addSyncEvent('upload', `Flushed ${ops.length} queued sync operation${ops.length === 1 ? '' : 's'}`);
+    } catch (error) {
+      debugLog('Flush sync queue failed', error);
+      addSyncEvent('retry', 'Queued sync failed; will retry automatically');
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => {
+        retryTimerRef.current = null;
+        void flushSyncQueue();
+      }, 3000);
+    } finally {
+      flushingQueueRef.current = false;
+    }
+  }, [
+    user,
+    isSyncEnabled,
+    isOnline,
+    addSyncEvent,
+    debugLog,
+    persistQueue,
+  ]);
+
   const suppressAutoSaveTemporarily = useCallback((ms = 1200) => {
     suppressAutoSaveRef.current = true;
     if (suppressAutoSaveTimerRef.current) {
@@ -449,10 +660,32 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }, ms);
   }, []);
 
+
   // Persist isSyncEnabled to localStorage whenever it changes
   useEffect(() => {
     writePersistedSyncEnabled(isSyncEnabled);
   }, [isSyncEnabled]);
+
+  useEffect(() => {
+    setQueuedOpsCount(syncQueueRef.current.operations.length);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+      if (suppressAutoSaveTimerRef.current) {
+        clearTimeout(suppressAutoSaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user || !isSyncEnabled || !isOnline) return;
+    if (syncQueueRef.current.operations.length === 0) return;
+    void flushSyncQueue();
+  }, [user, isSyncEnabled, isOnline, flushSyncQueue]);
 
   // Track pending changes by comparing current state to last synced snapshot
   useEffect(() => {
@@ -562,6 +795,93 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     };
   }, [user, isSyncEnabled]);
 
+  useEffect(() => {
+    if (!user || !isSyncEnabled || !isInitializedRef.current) return;
+
+    const getIds = (items: Array<{ id: string }>) => new Set(items.map((i) => i.id));
+
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      if (!state.isHydrated || suppressAutoSaveRef.current) return;
+
+      const ops: SyncOperation[] = [];
+
+      if (state.questionHistory !== prevState.questionHistory) {
+        const prevIds = getIds(prevState.questionHistory);
+        const currIds = getIds(state.questionHistory);
+        const prevById = new Map(prevState.questionHistory.map((i) => [i.id, i]));
+        for (const item of state.questionHistory) {
+          if (!prevIds.has(item.id)) {
+            ops.push(newSyncOp('questionHistory', 'upsert', item.id));
+          } else if (prevById.get(item.id) !== item) {
+            ops.push(newSyncOp('questionHistory', 'upsert', item.id));
+          }
+        }
+        for (const item of prevState.questionHistory) {
+          if (!currIds.has(item.id)) {
+            ops.push(newSyncOp('questionHistory', 'delete', item.id));
+          }
+        }
+      }
+
+      if (state.mcHistory !== prevState.mcHistory) {
+        const prevIds = getIds(prevState.mcHistory);
+        const currIds = getIds(state.mcHistory);
+        const prevById = new Map(prevState.mcHistory.map((i) => [i.id, i]));
+        for (const item of state.mcHistory) {
+          if (!prevIds.has(item.id)) {
+            ops.push(newSyncOp('mcHistory', 'upsert', item.id));
+          } else if (prevById.get(item.id) !== item) {
+            ops.push(newSyncOp('mcHistory', 'upsert', item.id));
+          }
+        }
+        for (const item of prevState.mcHistory) {
+          if (!currIds.has(item.id)) {
+            ops.push(newSyncOp('mcHistory', 'delete', item.id));
+          }
+        }
+      }
+
+      if (state.savedSets !== prevState.savedSets) {
+        const prevIds = getIds(prevState.savedSets);
+        const currIds = getIds(state.savedSets);
+        const prevById = new Map(prevState.savedSets.map((i) => [i.id, i]));
+        for (const item of state.savedSets) {
+          if (!prevIds.has(item.id)) {
+            ops.push(newSyncOp('savedSets', 'upsert', item.id));
+          } else if (prevById.get(item.id) !== item) {
+            ops.push(newSyncOp('savedSets', 'upsert', item.id));
+          }
+        }
+        for (const item of prevState.savedSets) {
+          if (!currIds.has(item.id)) {
+            ops.push(newSyncOp('savedSets', 'delete', item.id));
+          }
+        }
+      }
+
+      if (state.presets !== prevState.presets) {
+        ops.push(newSyncOp('presets', 'upsert'));
+      }
+      if (state.studyGoals !== prevState.studyGoals) {
+        ops.push(newSyncOp('studyGoals', 'upsert'));
+      }
+      if (state.streakData !== prevState.streakData) {
+        ops.push(newSyncOp('streakData', 'upsert'));
+      }
+
+      if (ops.length > 0) {
+        enqueueSyncOps(ops);
+        if (navigator.onLine) {
+          void flushSyncQueue();
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user, isSyncEnabled, enqueueSyncOps, flushSyncQueue]);
+
   // Sync daily usage (tokens/day, est. cost) to Firestore when generationHistory changes
   useEffect(() => {
     if (!user || !isSyncEnabled || !isInitializedRef.current) return;
@@ -605,6 +925,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       if (!firebaseUser) {
         setIsSyncEnabled(false);
         isInitializedRef.current = false;
+        startupSyncDoneRef.current = false;
         setSyncStatus('idle');
       } else {
         const persisted = readPersistedSyncEnabled();
@@ -956,6 +1277,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           });
         }
         isInitializedRef.current = true;
+        startupSyncDoneRef.current = true;
         setPendingChanges(0);
         setIsSyncEnabled(true);
         setSyncError(null);
@@ -1292,6 +1614,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         })),
       });
 
+      persistQueue({ operations: [], updatedAt: Date.now() });
+      setLastFlushTime(Date.now());
       setPendingChanges(0);
       setLastSyncTime(Date.now());
       setSyncError(null);
@@ -1310,7 +1634,23 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, debugLog, addSyncEvent, suppressAutoSaveTemporarily]);
+  }, [user, debugLog, addSyncEvent, suppressAutoSaveTemporarily, persistQueue]);
+
+  useEffect(() => {
+    const state = useAppStore.getState();
+    if (
+      !user ||
+      !isSyncEnabled ||
+      !isOnline ||
+      !state.isHydrated ||
+      startupSyncDoneRef.current
+    ) {
+      return;
+    }
+    startupSyncDoneRef.current = true;
+    debugLog('Startup reconciliation sync triggered');
+    void forceSync();
+  }, [user, isSyncEnabled, isOnline, forceSync, debugLog]);
 
   const resolveConflicts = useCallback(
     (resolutions: Map<string, 'keep' | 'delete'>) => {
@@ -1416,6 +1756,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     debugLogs,
     pendingChanges,
     pendingDeletions: getPendingDeletions(),
+    queuedOpsCount,
+    lastFlushTime,
     conflicts,
     enableSync,
     disableSync,
