@@ -3,12 +3,11 @@ import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
 import { useAppStore } from '../store';
 import { McHistoryEntry, QuestionHistoryEntry } from '../types';
 
-export const UNSPECIFIED_SUBTOPIC = 'Unspecified';
+const UNSPECIFIED_SUBTOPIC = 'Unspecified';
 export const ALL_TOPICS = 'All topics';
-export const LOW_SAMPLE_THRESHOLD = 3;
-export const RECENT_WRITTEN_CRITERIA_WINDOW = 20;
+const RECENT_WRITTEN_CRITERIA_WINDOW = 20;
 
-export type AnalyticsBucket = { total: number; correct: number };
+type AnalyticsBucket = { total: number; correct: number };
 
 export type AttemptRow = {
   id: string;
@@ -28,7 +27,7 @@ export type AttemptRow = {
   difficulty?: string;
 };
 
-export type TopicPerformanceRow = {
+type TopicPerformanceRow = {
   topic: string;
   attempts: number;
   correct: number;
@@ -48,7 +47,7 @@ export type SubtopicPerformanceRow = {
   mcAttempts: number;
 };
 
-export type QualityRow = {
+type QualityRow = {
   topic: string;
   sampleCount: number;
   accuracy: number;
@@ -70,7 +69,7 @@ export type CriterionWeakPointRow = {
   lastSeenAt: string;
 };
 
-export function normalizeSubtopic(subtopic?: string) {
+function normalizeSubtopic(subtopic?: string) {
   const cleaned = subtopic?.trim();
   return cleaned && cleaned.length > 0 ? cleaned : UNSPECIFIED_SUBTOPIC;
 }
@@ -82,14 +81,14 @@ export function percent(value: number, total: number) {
   return (value / total) * 100;
 }
 
-export function average(total: number, count: number) {
+function average(total: number, count: number) {
   if (count <= 0) {
     return 0;
   }
   return total / count;
 }
 
-export function scoreBucketLabel(scorePercent: number) {
+function scoreBucketLabel(scorePercent: number) {
   if (scorePercent >= 100) return '100';
   if (scorePercent >= 75) return '75-99';
   if (scorePercent >= 50) return '50-74';
@@ -97,14 +96,14 @@ export function scoreBucketLabel(scorePercent: number) {
   return '0-24';
 }
 
-export function wordBucketLabel(wordCount: number) {
+function wordBucketLabel(wordCount: number) {
   if (wordCount >= 150) return '150+';
   if (wordCount >= 75) return '75-149';
   if (wordCount >= 25) return '25-74';
   return '0-24';
 }
 
-export function normalizeCriterionLabel(value: string) {
+function normalizeCriterionLabel(value: string) {
   const cleaned = value.trim().replace(/\s+/g, ' ');
   return cleaned.length > 0 ? cleaned : 'Unnamed criterion';
 }
@@ -818,9 +817,9 @@ export function useAnalyticsData() {
       const w = arr.filter((a) => a.mode === 'written' && a.isFirstAttempt);
       return w.length > 0
         ? average(
-          w.reduce((s, a) => s + a.scorePercent, 0),
-          w.length
-        )
+            w.reduce((s, a) => s + a.scorePercent, 0),
+            w.length
+          )
         : null;
     };
     const calcMc = (arr: AttemptRow[]) => {

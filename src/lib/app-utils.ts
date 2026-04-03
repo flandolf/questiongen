@@ -131,38 +131,6 @@ export function readBackendError(error: unknown): string {
   return 'Unknown error. Please try again.';
 }
 
-export function confirmAction(message: string): boolean {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-
-  if (isTauriRuntime()) {
-    return true;
-  }
-
-  try {
-    if (typeof window.confirm === 'function') {
-      return window.confirm(message);
-    }
-  } catch {
-    // Some embedded runtimes do not support native confirm dialogs.
-  }
-
-  return true;
-}
-
-function isTauriRuntime(): boolean {
-  const runtimeWindow = window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
-  };
-
-  return (
-    typeof runtimeWindow.__TAURI__ !== 'undefined' ||
-    typeof runtimeWindow.__TAURI_INTERNALS__ !== 'undefined'
-  );
-}
-
 export function formatCostUsd(costUsd: number | null | undefined): string {
   if (costUsd == null) return 'n/a';
   if (costUsd === 0) return '$0.00';

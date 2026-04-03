@@ -1063,8 +1063,6 @@ function normalizeTimerState(raw: unknown): PersistedTimerState | null {
     totalTimeLimitSeconds: asFiniteNumber(data.totalTimeLimitSeconds) ?? 0,
     sessionStartedAt: asFiniteNumber(data.sessionStartedAt) ?? null,
     sessionFinishedAt: asFiniteNumber(data.sessionFinishedAt) ?? null,
-    bankedSeconds: asFiniteNumber(data.bankedSeconds) ?? 0,
-    parTimeSeconds: asFiniteNumber(data.parTimeSeconds) ?? 0,
     isPaused: Boolean(data.isPaused),
     pausedDurationMs: asFiniteNumber(data.pausedDurationMs) ?? 0,
     activeQuestionIndex: clampWholeNumber(data.activeQuestionIndex, 0, 0, 999),

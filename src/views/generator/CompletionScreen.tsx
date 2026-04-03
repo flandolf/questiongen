@@ -63,8 +63,6 @@ type CompletionScreenProps = {
   onReview: () => void;
   onStartOver: () => void;
   perQuestionTiming?: PerQuestionTiming[];
-  parTimeSeconds?: number;
-  totalBankedSeconds?: number;
   // Session-scoped results (passed directly to avoid relying on global history)
   sessionWrittenResults?: WrittenResultRow[];
   sessionMcResults?: McResultRow[];

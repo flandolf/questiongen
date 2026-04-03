@@ -34,6 +34,7 @@ type SessionHeaderProps = {
   generationStartedAt: number | null;
   telemetry: GenerationTelemetry | null;
   questionTimeSeconds?: number;
+  isPaused?: boolean;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
   onPrev: () => void;
   onNext: () => void;
@@ -41,7 +42,6 @@ type SessionHeaderProps = {
   onExit: () => void;
   onRegenerate?: () => void;
 };
-
 export function SessionHeader({
   type,
   questionIndex,
@@ -57,6 +57,7 @@ export function SessionHeader({
   generationStartedAt,
   telemetry,
   questionTimeSeconds,
+  isPaused,
   getDifficultyBadgeClasses,
   onPrev,
   onNext,
@@ -68,7 +69,8 @@ export function SessionHeader({
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
 
-  // Live ticking timer display
+  // Live ticking timer display — increments locally between parent re-renders
+  // and freezes when the session is paused
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (questionTimeSeconds === undefined) {
@@ -76,9 +78,10 @@ export function SessionHeader({
       return;
     }
     setTick(questionTimeSeconds);
+    if (isPaused) return;
     const id = setInterval(() => setTick((t) => t + 1), 1_000);
     return () => clearInterval(id);
-  }, [questionTimeSeconds]);
+  }, [questionTimeSeconds, isPaused]);
   const displaySeconds = questionTimeSeconds !== undefined ? tick : 0;
   const timerDisplay = `${Math.floor(displaySeconds / 60)}:${String(displaySeconds % 60).padStart(2, '0')}`;
 

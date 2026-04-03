@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
-import { normalizeMarkResponse } from '@/lib/app-utils';
+import { normalizeMarkResponse, fileToDataUrl } from '@/lib/app-utils';
 import { isDue, daysUntilReview } from '@/lib/spaced-repetition';
 import {
   ChevronDown,
@@ -76,17 +76,6 @@ function criterionScoreClass(pct: number) {
   if (pct >= 0.5)
     return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300';
   return 'bg-rose-100/70 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400';
-}
-
-// ─── Convert file to base64 data URL ─────────────────────────────────────────
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 // ─── EmptyState ───────────────────────────────────────────────────────────────
@@ -185,12 +174,13 @@ const ListEntryCard = memo(function ListEntryCard({
           <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
             {srCard && (
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${daysUntilReview(srCard) < 0
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
+                  daysUntilReview(srCard) < 0
                     ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                     : daysUntilReview(srCard) === 0
                       ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
                       : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
-                  }`}
+                }`}
               >
                 {daysUntilReview(srCard) < 0
                   ? `${Math.abs(daysUntilReview(srCard))}d overdue`
@@ -482,14 +472,44 @@ function ReattemptView({
     Date.now()
   );
 
-  // Live question timer
+  // Live question timer with pause support
   const [questionElapsed, setQuestionElapsed] = useState<number>(0);
+  const questionPausedDurationMsRef = useRef<number>(0);
+  const questionPauseStartedAtRef = useRef<number | null>(null);
+
   useEffect(() => {
     const id = setInterval(() => {
-      setQuestionElapsed(Math.floor((Date.now() - questionStartedAt) / 1000));
+      const now = Date.now();
+      const inProgressPause =
+        questionPauseStartedAtRef.current
+          ? now - questionPauseStartedAtRef.current
+          : 0;
+      const effectiveElapsed =
+        now -
+        questionStartedAt -
+        (questionPausedDurationMsRef.current + inProgressPause);
+      setQuestionElapsed(Math.max(0, Math.floor(effectiveElapsed / 1000)));
     }, 1_000);
     return () => clearInterval(id);
   }, [questionStartedAt]);
+
+  // Pause timer when tab is hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        questionPauseStartedAtRef.current = Date.now();
+      } else {
+        if (questionPauseStartedAtRef.current) {
+          questionPausedDurationMsRef.current +=
+            Date.now() - questionPauseStartedAtRef.current;
+        }
+        questionPauseStartedAtRef.current = null;
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   const entry = questions[idx];
   const isWritten = entry.kind === 'written';
@@ -525,29 +545,38 @@ function ReattemptView({
   const saveCurrentState = useCallback(() => {
     const currentEntry = questions[idx];
     if (!currentEntry) return;
-    const qElapsed = Math.floor((Date.now() - questionStartedAt) / 1000);
+    const now = Date.now();
+    const inProgressPause =
+      questionPauseStartedAtRef.current
+        ? now - questionPauseStartedAtRef.current
+        : 0;
+    const effectiveElapsed =
+      now -
+      questionStartedAt -
+      (questionPausedDurationMsRef.current + inProgressPause);
+    const qElapsed = Math.max(0, Math.floor(effectiveElapsed / 1000));
     const existing = savedStates[currentEntry.id];
     const totalTime = (existing?.timeSeconds ?? 0) + qElapsed;
     const state: QuestionState =
       currentEntry.kind === 'written'
         ? {
-          writtenAnswer,
-          image,
-          feedback,
-          markingScheme,
-          appealText,
-          overrideInput,
-          result: results.find((r) => r.id === currentEntry.id) ?? null,
-          timeSeconds: totalTime,
-        }
+            writtenAnswer,
+            image,
+            feedback,
+            markingScheme,
+            appealText,
+            overrideInput,
+            result: results.find((r) => r.id === currentEntry.id) ?? null,
+            timeSeconds: totalTime,
+          }
         : {
-          selectedAnswer,
-          awardedMarks,
-          mcAppealText,
-          mcOverrideInput,
-          result: results.find((r) => r.id === currentEntry.id) ?? null,
-          timeSeconds: totalTime,
-        };
+            selectedAnswer,
+            awardedMarks,
+            mcAppealText,
+            mcOverrideInput,
+            result: results.find((r) => r.id === currentEntry.id) ?? null,
+            timeSeconds: totalTime,
+          };
     setSavedStates((prev) => ({ ...prev, [currentEntry.id]: state }));
   }, [
     idx,
@@ -604,7 +633,16 @@ function ReattemptView({
   // --- Determine correctness for current question ---
   const getCurrentResult = (): ReattemptResult => {
     const existing = savedStates[entry.id];
-    const qElapsed = Math.floor((Date.now() - questionStartedAt) / 1000);
+    const now = Date.now();
+    const inProgressPause =
+      questionPauseStartedAtRef.current
+        ? now - questionPauseStartedAtRef.current
+        : 0;
+    const effectiveElapsed =
+      now -
+      questionStartedAt -
+      (questionPausedDurationMsRef.current + inProgressPause);
+    const qElapsed = Math.max(0, Math.floor(effectiveElapsed / 1000));
     const timeSeconds = (existing?.timeSeconds ?? 0) + qElapsed;
     if (isWritten) {
       if (!feedback) return { id: entry.id, correct: false, timeSeconds };
@@ -697,6 +735,8 @@ function ReattemptView({
     setIdx(prevIdx);
     restoreState(questions[prevIdx].id);
     setQuestionStartedAt(Date.now());
+    questionPausedDurationMsRef.current = 0;
+    questionPauseStartedAtRef.current = null;
   };
   const handleExit = () => {
     saveCurrentState();
@@ -740,6 +780,8 @@ function ReattemptView({
     // Restore or reset next question state
     restoreState(questions[nextIdx].id);
     setQuestionStartedAt(Date.now());
+    questionPausedDurationMsRef.current = 0;
+    questionPauseStartedAtRef.current = null;
   };
 
   function getDifficultyBadgeClasses(level: Difficulty) {
@@ -848,7 +890,7 @@ function ReattemptView({
                 isMarking={isMarking}
                 onAppealChange={setAppealText}
                 onOverrideInputChange={setOverrideInput}
-                onArgueForMark={() => { }}
+                onArgueForMark={() => {}}
                 onApplyOverride={handleApplyOverride}
                 onCriterionChange={handleCriterionChange}
               />
@@ -871,7 +913,7 @@ function ReattemptView({
                 onSelectAnswer={handleSelectAnswer}
                 onAppealChange={setMcAppealText}
                 onOverrideInputChange={setMcOverrideInput}
-                onArgueForMark={() => { }}
+                onArgueForMark={() => {}}
                 onApplyOverride={handleApplyMcOverride}
               />
             </div>
@@ -1228,9 +1270,9 @@ export default function WrongQuestionView() {
             e.id !== entry.id
               ? e
               : {
-                ...e,
-                markResponse: { ...e.markResponse, verdict: 'correct' },
-              }
+                  ...e,
+                  markResponse: { ...e.markResponse, verdict: 'correct' },
+                }
           )
         );
         // Record SR with quality 4 (correct)
@@ -1432,12 +1474,13 @@ export default function WrongQuestionView() {
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${isOverdue
+                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${
+                            isOverdue
                               ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                               : days === 0
                                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                                 : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                            }`}
+                          }`}
                         >
                           {isOverdue
                             ? `${Math.abs(days)}d overdue`

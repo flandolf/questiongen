@@ -37,26 +37,6 @@ export function getSubtopics(topicName: string): readonly string[] {
   return topic ? topic.subtopics.map((subtopic) => subtopic.name) : [];
 }
 
-export function getTopicIcon(topicName: string): string {
-  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
-  return topic?.icon ?? 'BookOpen';
-}
-
-export function getTopicExamPdfs(topicName: string): string[] {
-  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
-  return topic?.examPdfs ?? [];
-}
-
-export function getTopicReportPdfs(topicName: string): string[] {
-  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
-  return topic?.reportPdfs ?? [];
-}
-
-export function getTopicExamGuidance(topicName: string): string {
-  const topic = CATALOG.topics.find((entry) => entry.name === topicName);
-  return topic?.examGuidance ?? '';
-}
-
 export function getTopicNames(): string[] {
   return CATALOG.topics.map((t) => t.name);
 }
@@ -159,9 +139,7 @@ export function getTopicSubtopicGroups(
   });
 }
 
-export type PhysicalEducationSubtopicGroup = TopicSubtopicGroup;
-
-export const PE_SUBTOPIC_GROUPS: readonly PhysicalEducationSubtopicGroup[] =
+export const PE_SUBTOPIC_GROUPS: readonly TopicSubtopicGroup[] =
   getTopicSubtopicGroups('Physical Education');
 
 export const MATH_METHODS_SUBTOPIC_GROUPS: readonly TopicSubtopicGroup[] =

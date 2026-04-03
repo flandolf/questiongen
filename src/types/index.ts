@@ -10,4 +10,3 @@ export * from './spaced-repetition';
 export * from './study';
 export * from './persistence';
 export * from './api';
-export * from './api';
