@@ -46,9 +46,9 @@ export function WrittenAnswerCard({
   onSubmit,
   onSketchpadActiveChange,
 }: WrittenAnswerCardProps) {
-  const [activeTab, setActiveTab] = useState<'response' | 'upload' | 'sketchpad'>(
-    'response'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'response' | 'upload' | 'sketchpad'
+  >('response');
   const words = wordCount(answer);
   const hasContent = answer.trim().length > 0 || Boolean(image);
 
@@ -116,14 +116,17 @@ export function WrittenAnswerCard({
         </div>
       }
       inputSlot={
-        activeTab === 'response' ?
+        activeTab === 'response' ? (
           <Textarea
             value={answer}
             onChange={(e) => onAnswerChange(e.target.value)}
             disabled={isMarking}
             placeholder="Draft your solution here..."
             className="min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
-          /> : <></>
+          />
+        ) : (
+          <></>
+        )
       }
       headerRight={
         words > 0 ? (
@@ -142,7 +145,9 @@ export function WrittenAnswerCard({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-muted-foreground/70">
             <ImageIcon className="w-4 h-4" />
-            <span className="text-xs uppercase tracking-wide">Upload Image</span>
+            <span className="text-xs uppercase tracking-wide">
+              Upload Image
+            </span>
           </div>
           {image ? (
             <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
@@ -204,10 +209,11 @@ export function WrittenAnswerCard({
       {!isExamMode && (
         <Button
           size="lg"
-          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${hasContent && !isMarking
-            ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
-            : ''
-            }`}
+          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
+            hasContent && !isMarking
+              ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
+              : ''
+          }`}
           onClick={onSubmit}
           disabled={!canSubmit || isMarking}
         >

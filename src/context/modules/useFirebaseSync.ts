@@ -87,8 +87,10 @@ const SYNC_DEBUG = true;
 // Debug log / sync event memory limits
 const DEBUG_LOG_LIMIT = 50;
 const SYNC_EVENT_LIMIT = 30;
-const SYNC_QUEUE_STORAGE_KEY = 'firebase_sync_queue_v1';
+const LEGACY_SYNC_QUEUE_STORAGE_KEY = 'firebase_sync_queue_v1';
+const SYNC_QUEUE_STORAGE_KEY_PREFIX = 'firebase_sync_queue_v2';
 const SYNC_FLUSH_DEBOUNCE_MS = 500;
+const FOREGROUND_SYNC_COOLDOWN_MS = 60_000;
 
 // Persist sync-enabled preference so it survives reloads
 const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
@@ -125,9 +127,17 @@ function getUserId(user: FirebaseUser | null): string {
   return user?.uid ?? 'anonymous';
 }
 
-function readPersistedSyncQueue(): SyncQueueState {
+function getSyncQueueStorageKey(userId: string): string {
+  return `${SYNC_QUEUE_STORAGE_KEY_PREFIX}:${userId}`;
+}
+
+function readPersistedSyncQueue(userId: string): SyncQueueState {
   try {
-    const raw = localStorage.getItem(SYNC_QUEUE_STORAGE_KEY);
+    const nextKey = getSyncQueueStorageKey(userId);
+    const raw =
+      localStorage.getItem(nextKey) ??
+      // One-time compatibility fallback for queues persisted before user scoping.
+      localStorage.getItem(LEGACY_SYNC_QUEUE_STORAGE_KEY);
     if (!raw) return { operations: [], updatedAt: 0 };
     const parsed = JSON.parse(raw) as SyncQueueState;
     if (!Array.isArray(parsed.operations)) {
@@ -178,9 +188,11 @@ function readPersistedSyncQueue(): SyncQueueState {
   }
 }
 
-function writePersistedSyncQueue(queue: SyncQueueState): void {
+function writePersistedSyncQueue(userId: string, queue: SyncQueueState): void {
   try {
-    localStorage.setItem(SYNC_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+    localStorage.setItem(getSyncQueueStorageKey(userId), JSON.stringify(queue));
+    // Clear legacy queue key once we successfully persist to the new key.
+    localStorage.removeItem(LEGACY_SYNC_QUEUE_STORAGE_KEY);
   } catch {
     // localStorage unavailable — non-fatal
   }
@@ -521,21 +533,21 @@ function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
   return result;
 }
 
-type SyncStatus =
+export type SyncStatus =
   | 'idle'
   | 'connecting'
   | 'syncing'
   | 'error'
   | 'offline';
 
-interface SyncEvent {
+export interface SyncEvent {
   id: string;
   timestamp: number;
   type: 'upload' | 'download' | 'error' | 'conflict' | 'archive' | 'retry';
   description: string;
 }
 
-interface DebugLogEntry {
+export interface DebugLogEntry {
   id: string;
   timestamp: number;
   message: string;
@@ -577,6 +589,8 @@ export interface UseFirebaseSyncReturn {
   ) => Promise<void>;
   disableSync: () => Promise<void>;
   toggleSync: () => void;
+  pullSync: () => Promise<void>;
+  pushSync: () => Promise<void>;
   forceSync: () => Promise<void>;
   resolveConflicts: (resolutions: Map<string, 'keep' | 'delete'>) => void;
 }
@@ -661,12 +675,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const localDataRef = useRef<SyncableData | null>(null);
   const isInitializedRef = useRef(false);
   const startupSyncDoneRef = useRef(false);
+  const foregroundSyncAtRef = useRef(0);
+  const activeQueueUserIdRef = useRef<string>('anonymous');
   const flushingQueueRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const syncQueueRef = useRef<SyncQueueState>(readPersistedSyncQueue());
+  const syncQueueRef = useRef<SyncQueueState>(
+    readPersistedSyncQueue(activeQueueUserIdRef.current)
+  );
   const hashedEntitiesRef = useRef<{
     questionHistory: Map<string, string>;
     mcHistory: Map<string, string>;
@@ -706,7 +724,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   const persistQueue = useCallback((queue: SyncQueueState) => {
     syncQueueRef.current = queue;
     setQueuedOpsCount(queue.operations.length);
-    writePersistedSyncQueue(queue);
+    writePersistedSyncQueue(activeQueueUserIdRef.current, queue);
   }, []);
 
   const patchTelemetry = useCallback(
@@ -1276,6 +1294,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthChange((firebaseUser) => {
+      const nextUserId = getUserId(firebaseUser);
+      activeQueueUserIdRef.current = nextUserId;
+      const queueForUser = readPersistedSyncQueue(nextUserId);
+      syncQueueRef.current = queueForUser;
+      setQueuedOpsCount(queueForUser.operations.length);
+
       debugLog('Auth changed:', firebaseUser?.uid ?? 'null');
       setUser(firebaseUser);
       if (!firebaseUser) {
@@ -1494,16 +1518,13 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           syncMetadataRef.current.savedSetsSyncTime = now;
           syncMetadataRef.current.lastSyncVersions.questionHistory =
             buildVersionMap(
-              merged.questionHistory as Array<Record<string, unknown>>,
-              {}
+              merged.questionHistory as Array<Record<string, unknown>>
             );
           syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-            merged.mcHistory as Array<Record<string, unknown>>,
-            {}
+            merged.mcHistory as Array<Record<string, unknown>>
           );
           syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-            merged.savedSets as Array<Record<string, unknown>>,
-            {}
+            merged.savedSets as Array<Record<string, unknown>>
           );
 
           // Set snapshot so pending changes shows 0 after initial merge
@@ -1588,16 +1609,13 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             buildVersionMap(
               localDataRef.current.questionHistory as Array<
                 Record<string, unknown>
-              >,
-              {}
+              >
             );
           syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-            localDataRef.current.mcHistory as Array<Record<string, unknown>>,
-            {}
+            localDataRef.current.mcHistory as Array<Record<string, unknown>>
           );
           syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-            localDataRef.current.savedSets as Array<Record<string, unknown>>,
-            {}
+            localDataRef.current.savedSets as Array<Record<string, unknown>>
           );
 
           // Full sync for first upload, including any pending deletions
@@ -1999,14 +2017,40 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         remoteDeletedIds.mcHistory.size > 0 ||
         remoteDeletedIds.savedSets.size > 0
       ) {
+        const pendingUpserts = {
+          questionHistory: new Set<string>(),
+          mcHistory: new Set<string>(),
+          savedSets: new Set<string>(),
+        };
+        for (const op of syncQueueRef.current.operations) {
+          if (op.opType !== 'upsert' || !op.entityId) continue;
+          if (op.collection === 'questionHistory') {
+            pendingUpserts.questionHistory.add(op.entityId);
+          } else if (op.collection === 'mcHistory') {
+            pendingUpserts.mcHistory.add(op.entityId);
+          } else if (op.collection === 'savedSets') {
+            pendingUpserts.savedSets.add(op.entityId);
+          }
+        }
+
         const removeIfUnchanged = <T extends HasId>(
           items: T[],
           idsToDelete: Set<string>,
-          lastSyncVersions: Record<string, number>
+          lastSyncVersions: Record<string, number>,
+          pendingLocalUpserts: Set<string>
         ): T[] => {
           return items.filter((item) => {
             const id = item.id;
             if (!id || !idsToDelete.has(id)) return true;
+
+            // Keep if we already have a pending local upsert for this ID.
+            // This protects genuinely new/edited local data from being dropped.
+            if (pendingLocalUpserts.has(id)) return true;
+
+            // If we have never synced this ID in this session and there is no
+            // queued local upsert, treat remote deletion as authoritative.
+            if (!(id in lastSyncVersions)) return false;
+
             const lastSyncedVersion = lastSyncVersions[id] ?? 0;
             const localVersion = getItemLastModified(item);
             // Keep local copy if it changed since last sync; it will be re-uploaded.
@@ -2017,17 +2061,20 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         filteredLocalData.questionHistory = removeIfUnchanged(
           filteredLocalData.questionHistory,
           remoteDeletedIds.questionHistory,
-          syncMetadataRef.current.lastSyncVersions.questionHistory
+          syncMetadataRef.current.lastSyncVersions.questionHistory,
+          pendingUpserts.questionHistory
         );
         filteredLocalData.mcHistory = removeIfUnchanged(
           filteredLocalData.mcHistory,
           remoteDeletedIds.mcHistory,
-          syncMetadataRef.current.lastSyncVersions.mcHistory
+          syncMetadataRef.current.lastSyncVersions.mcHistory,
+          pendingUpserts.mcHistory
         );
         filteredLocalData.savedSets = removeIfUnchanged(
           filteredLocalData.savedSets,
           remoteDeletedIds.savedSets,
-          syncMetadataRef.current.lastSyncVersions.savedSets
+          syncMetadataRef.current.lastSyncVersions.savedSets,
+          pendingUpserts.savedSets
         );
       }
 
@@ -2126,16 +2173,13 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       syncMetadataRef.current.savedSetsSyncTime = now;
       syncMetadataRef.current.lastSyncVersions.questionHistory =
         buildVersionMap(
-          merged.questionHistory as Array<Record<string, unknown>>,
-          syncMetadataRef.current.lastSyncVersions.questionHistory
+          merged.questionHistory as Array<Record<string, unknown>>
         );
       syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        merged.mcHistory as Array<Record<string, unknown>>,
-        syncMetadataRef.current.lastSyncVersions.mcHistory
+        merged.mcHistory as Array<Record<string, unknown>>
       );
       syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        merged.savedSets as Array<Record<string, unknown>>,
-        syncMetadataRef.current.lastSyncVersions.savedSets
+        merged.savedSets as Array<Record<string, unknown>>
       );
 
       // Update snapshot for pending change tracking
@@ -2170,6 +2214,257 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     patchTelemetry,
   ]);
 
+  const pullSync = useCallback(async () => {
+    if (!user) {
+      setSyncError('Not signed in');
+      return;
+    }
+
+    debugLog('Manual pull started');
+    setIsSyncing(true);
+    setSyncStatus('syncing');
+    setIsSyncEnabled(true);
+    isInitializedRef.current = true;
+    toast.message('Pulling cloud updates...');
+
+    const userId = getUserId(user);
+
+    try {
+      const state = useAppStore.getState();
+      const localData = extractSyncableData(state);
+      const tombstones = state.deletionTombstones;
+
+      const remoteData = await loadUserData(userId);
+      patchTelemetry((prev) => ({
+        ...prev,
+        fullSyncReads: prev.fullSyncReads + 1,
+      }));
+      const remoteHasData = hasRemoteData(
+        normalizeRemoteSyncableData(remoteData)
+      );
+
+      const filteredLocalData: SyncableData = {
+        ...localData,
+        questionHistory: filterDeleted(
+          localData.questionHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.questionHistory
+        ),
+        mcHistory: filterDeleted(
+          localData.mcHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.mcHistory
+        ),
+        savedSets: filterDeleted(
+          localData.savedSets as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.savedSets
+        ),
+        presets: filterDeleted(
+          (localData.presets ?? []) as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.presets
+        ) as typeof localData.presets,
+      };
+
+      let merged = remoteHasData
+        ? mergeSyncableData(filteredLocalData, remoteData)
+        : filteredLocalData;
+
+      // Keep local pending deletions hidden during pull-only sync.
+      merged = {
+        ...merged,
+        questionHistory: filterDeleted(
+          merged.questionHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.questionHistory
+        ),
+        mcHistory: filterDeleted(
+          merged.mcHistory as Array<Record<string, unknown> & { id?: string }>,
+          tombstones.mcHistory
+        ),
+        savedSets: filterDeleted(
+          merged.savedSets as Array<Record<string, unknown> & { id?: string }>,
+          tombstones.savedSets
+        ),
+        presets: filterDeleted(
+          (merged.presets ?? []) as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.presets
+        ) as typeof merged.presets,
+      };
+
+      const storeUpdates = applySyncableDataToStore(merged);
+      setSuppressPersistUntil(Date.now() + 1500);
+      suppressAutoSaveTemporarily();
+      useAppStore.setState(storeUpdates);
+
+      localDataRef.current = merged;
+
+      const now = Date.now();
+      syncMetadataRef.current.lastSyncTime = now;
+      syncMetadataRef.current.questionHistorySyncTime = now;
+      syncMetadataRef.current.mcHistorySyncTime = now;
+      syncMetadataRef.current.savedSetsSyncTime = now;
+      syncMetadataRef.current.lastSyncVersions.questionHistory =
+        buildVersionMap(
+          merged.questionHistory as Array<Record<string, unknown>>
+        );
+      syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+        merged.mcHistory as Array<Record<string, unknown>>
+      );
+      syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+        merged.savedSets as Array<Record<string, unknown>>
+      );
+
+      // Use pulled snapshot as the newest known cloud-aligned baseline.
+      lastSyncedSnapshotRef.current = JSON.stringify(buildSyncSnapshot(merged));
+
+      setLastSyncTime(Date.now());
+      setSyncError(null);
+      setSyncStatus('idle');
+      addSyncEvent('download', 'Pulled latest changes from cloud');
+      debugLog('Manual pull completed successfully');
+      toast.success('Pull complete');
+    } catch (error) {
+      console.error('Pull sync failed:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Pull sync failed';
+      setSyncError(errorMessage);
+      setSyncStatus('error');
+      addSyncEvent('error', `Pull failed: ${errorMessage}`);
+      debugLog('Manual pull failed', error);
+      toast.error(`Pull failed: ${errorMessage}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [
+    user,
+    debugLog,
+    addSyncEvent,
+    suppressAutoSaveTemporarily,
+    patchTelemetry,
+  ]);
+
+  const pushSync = useCallback(async () => {
+    if (!user) {
+      setSyncError('Not signed in');
+      return;
+    }
+
+    debugLog('Manual push started');
+    setIsSyncing(true);
+    setSyncStatus('syncing');
+    setIsSyncEnabled(true);
+    isInitializedRef.current = true;
+    toast.message('Pushing local changes...');
+
+    const userId = getUserId(user);
+
+    try {
+      const state = useAppStore.getState();
+      const localData = extractSyncableData(state);
+      const tombstones = state.deletionTombstones;
+
+      const filteredLocalData: SyncableData = {
+        ...localData,
+        questionHistory: filterDeleted(
+          localData.questionHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.questionHistory
+        ),
+        mcHistory: filterDeleted(
+          localData.mcHistory as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.mcHistory
+        ),
+        savedSets: filterDeleted(
+          localData.savedSets as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.savedSets
+        ),
+        presets: filterDeleted(
+          (localData.presets ?? []) as Array<
+            Record<string, unknown> & { id?: string }
+          >,
+          tombstones.presets
+        ) as typeof localData.presets,
+      };
+
+      const deletedIds = tombstonesToDeletedIds(tombstones);
+      const hasDeletions =
+        deletedIds.questionHistory.length > 0 ||
+        deletedIds.mcHistory.length > 0 ||
+        deletedIds.savedSets.length > 0 ||
+        deletedIds.presets.length > 0;
+
+      await saveUserData(userId, filteredLocalData, {
+        deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
+        fullSync: false,
+        ...(hasDeletions ? { deletedIds } : {}),
+      });
+
+      if (hasDeletions) {
+        useAppStore.setState({
+          deletionTombstones: purgePersistedTombstones(tombstones, deletedIds),
+        });
+      }
+
+      localDataRef.current = filteredLocalData;
+
+      const now = Date.now();
+      syncMetadataRef.current.lastSyncTime = now;
+      syncMetadataRef.current.questionHistorySyncTime = now;
+      syncMetadataRef.current.mcHistorySyncTime = now;
+      syncMetadataRef.current.savedSetsSyncTime = now;
+      syncMetadataRef.current.lastSyncVersions.questionHistory =
+        buildVersionMap(
+          filteredLocalData.questionHistory as Array<Record<string, unknown>>
+        );
+      syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+        filteredLocalData.mcHistory as Array<Record<string, unknown>>
+      );
+      syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+        filteredLocalData.savedSets as Array<Record<string, unknown>>
+      );
+
+      lastSyncedSnapshotRef.current = JSON.stringify(
+        buildSyncSnapshot(filteredLocalData)
+      );
+
+      persistQueue({ operations: [], updatedAt: Date.now() });
+      setLastFlushTime(Date.now());
+      setPendingChanges(0);
+      setLastSyncTime(Date.now());
+      setSyncError(null);
+      setSyncStatus('idle');
+
+      addSyncEvent('upload', 'Pushed local changes to cloud');
+      debugLog('Manual push completed successfully');
+      toast.success('Push complete');
+    } catch (error) {
+      console.error('Push sync failed:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Push sync failed';
+      setSyncError(errorMessage);
+      setSyncStatus('error');
+      addSyncEvent('error', `Push failed: ${errorMessage}`);
+      debugLog('Manual push failed', error);
+      toast.error(`Push failed: ${errorMessage}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [user, debugLog, addSyncEvent, persistQueue]);
+
   useEffect(() => {
     const state = useAppStore.getState();
     if (
@@ -2183,51 +2478,61 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }
     startupSyncDoneRef.current = true;
     const runStartupCheck = async () => {
-      const hasQueuedOps = syncQueueRef.current.operations.length > 0;
-      const hasDeletes = hasPendingLocalDeletes();
-      if (hasDeletes) {
-        debugLog(
-          'Startup reconciliation sync triggered: pending local deletes'
-        );
-        await forceSync();
-        return;
-      }
-      if (hasQueuedOps) {
-        debugLog('Startup queued-op flush triggered (no full reconciliation)');
-        await flushSyncQueue();
-        return;
-      }
+      try {
+        const hasQueuedOps = syncQueueRef.current.operations.length > 0;
+        const hasDeletes = hasPendingLocalDeletes();
+        if (hasDeletes) {
+          debugLog(
+            'Startup reconciliation sync triggered: pending local deletes'
+          );
+          await forceSync();
+          return;
+        }
+        if (hasQueuedOps) {
+          debugLog(
+            'Startup queued-op flush triggered (no full reconciliation)'
+          );
+          await flushSyncQueue();
+          return;
+        }
 
-      const current = useAppStore.getState();
-      const localQhCount = current.questionHistory.length;
-      const localMcCount = current.mcHistory.length;
-      const remoteCounts = await getRemoteHistoryCounts(getUserId(user));
-      const hasCountMismatch =
-        remoteCounts.questionHistory !== localQhCount ||
-        remoteCounts.mcHistory !== localMcCount;
-      const hasPresetsMismatch = await isRemotePresetsArrayDifferent(
-        getUserId(user),
-        current.presets ?? []
-      );
-      if (hasCountMismatch || hasPresetsMismatch) {
-        debugLog(
-          'Startup reconciliation sync triggered: startup alignment mismatch',
-          {
-            local: { questionHistory: localQhCount, mcHistory: localMcCount },
-            remote: remoteCounts,
-            hasPresetsMismatch,
-          }
+        const current = useAppStore.getState();
+        const localQhCount = current.questionHistory.length;
+        const localMcCount = current.mcHistory.length;
+        const remoteCounts = await getRemoteHistoryCounts(getUserId(user));
+        const hasCountMismatch =
+          remoteCounts.questionHistory !== localQhCount ||
+          remoteCounts.mcHistory !== localMcCount;
+        const hasPresetsMismatch = await isRemotePresetsArrayDifferent(
+          getUserId(user),
+          current.presets ?? []
         );
-        await forceSync();
-      } else {
-        patchTelemetry((prev) => ({
-          ...prev,
-          deltaNoChangePasses: prev.deltaNoChangePasses + 1,
-          estimatedReadsAvoided: prev.estimatedReadsAvoided + 1,
-        }));
-        debugLog(
-          'Startup reconciliation skipped: history counts and presets array aligned'
-        );
+        if (hasCountMismatch || hasPresetsMismatch) {
+          debugLog(
+            'Startup reconciliation sync triggered: startup alignment mismatch',
+            {
+              local: { questionHistory: localQhCount, mcHistory: localMcCount },
+              remote: remoteCounts,
+              hasPresetsMismatch,
+            }
+          );
+          await forceSync();
+        } else {
+          patchTelemetry((prev) => ({
+            ...prev,
+            deltaNoChangePasses: prev.deltaNoChangePasses + 1,
+            estimatedReadsAvoided: prev.estimatedReadsAvoided + 1,
+          }));
+          debugLog(
+            'Startup reconciliation skipped: history counts and presets array aligned'
+          );
+        }
+      } catch (error) {
+        startupSyncDoneRef.current = false;
+        debugLog('Startup reconciliation failed; will retry automatically', {
+          error,
+        });
+        addSyncEvent('retry', 'Startup reconciliation failed; retrying later');
       }
     };
     void runStartupCheck();
@@ -2237,10 +2542,39 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     isOnline,
     forceSync,
     debugLog,
+    addSyncEvent,
     hasPendingLocalDeletes,
     patchTelemetry,
     flushSyncQueue,
   ]);
+
+  useEffect(() => {
+    const maybeCatchUpFromForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!user || !isSyncEnabled || !navigator.onLine || isSyncing) return;
+      if (conflicts.length > 0) return;
+
+      const now = Date.now();
+      if (now - foregroundSyncAtRef.current < FOREGROUND_SYNC_COOLDOWN_MS) {
+        return;
+      }
+
+      foregroundSyncAtRef.current = now;
+      debugLog('Foreground catch-up sync triggered');
+      void forceSync();
+    };
+
+    window.addEventListener('focus', maybeCatchUpFromForeground);
+    document.addEventListener('visibilitychange', maybeCatchUpFromForeground);
+
+    return () => {
+      window.removeEventListener('focus', maybeCatchUpFromForeground);
+      document.removeEventListener(
+        'visibilitychange',
+        maybeCatchUpFromForeground
+      );
+    };
+  }, [user, isSyncEnabled, isSyncing, conflicts.length, forceSync, debugLog]);
 
   const resolveConflicts = useCallback(
     (resolutions: Map<string, 'keep' | 'delete'>) => {
@@ -2353,6 +2687,8 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     enableSync,
     disableSync,
     toggleSync,
+    pullSync,
+    pushSync,
     forceSync,
     resolveConflicts,
   };

@@ -121,11 +121,11 @@ export function buildVersionMap<
     updatedAt?: string;
     createdAt?: string;
   },
->(
-  items: T[],
-  existingVersions: Record<string, number>
-): Record<string, number> {
-  const versions = { ...existingVersions };
+>(items: T[]): Record<string, number> {
+  // Build a fresh version map with only items that currently exist.
+  // Don't preserve entries for deleted items—this ensures that
+  // lastSyncVersions accurately reflects what's synced vs. deleted.
+  const versions: Record<string, number> = {};
   for (const item of items) {
     if (item.id) {
       versions[item.id] = getItemLastModified(item as Record<string, unknown>);

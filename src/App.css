@@ -234,7 +234,8 @@
   }
 
   .platform-android .android-header-safe-top {
-    padding-top: max(env(safe-area-inset-top, 0px), 12px);
+    padding-top: max(env(safe-area-inset-top, 0px), 28px);
+    margin-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
     height: calc(3.5rem + max(env(safe-area-inset-top, 0px), 12px));
   }
 

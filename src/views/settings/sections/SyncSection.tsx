@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import {
   AlertCircle,
+  ArrowDownToLine,
+  ArrowUpToLine,
   CheckCircle2,
   Cloud,
   CloudOff,
   Loader2,
-  RefreshCw,
   Timer,
   Trash2,
 } from 'lucide-react';
@@ -56,6 +57,8 @@ export function SyncSection() {
     conflicts,
     enableSync,
     disableSync,
+    pullSync,
+    pushSync,
     forceSync,
     resolveConflicts,
   } = firebaseSync;
@@ -77,9 +80,14 @@ export function SyncSection() {
     }
   };
 
-  const handleForceSync = async () => {
-    console.log('[FirebaseSync] Manual sync initiated by user');
-    await forceSync();
+  const handlePullSync = async () => {
+    console.log('[FirebaseSync] Manual pull initiated by user');
+    await pullSync();
+  };
+
+  const handlePushSync = async () => {
+    console.log('[FirebaseSync] Manual push initiated by user');
+    await pushSync();
   };
 
   const handleSignOut = async () => {
@@ -95,7 +103,7 @@ export function SyncSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Cloud Sync"
-        description="Changes sync to the cloud automatically while you are online. Use 'Sync Now' to force reconciliation across devices."
+        description="Changes sync to the cloud automatically while you are online. Use Pull/Push controls for git-style sync actions."
       />
 
       {!isOnline && (
@@ -191,16 +199,32 @@ export function SyncSection() {
           {syncEnabled && (
             <div className="flex gap-2">
               <Button
-                variant={pendingChanges > 0 ? 'default' : 'outline'}
+                variant="outline"
                 size="sm"
                 className="gap-1.5"
-                onClick={handleForceSync}
+                onClick={handlePullSync}
                 disabled={isSyncing || !isOnline}
               >
-                <RefreshCw
+                <ArrowDownToLine
                   className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')}
                 />
-                {isSyncing ? 'Syncing...' : 'Sync Now'}
+                {isSyncing ? 'Working...' : 'Pull'}
+              </Button>
+              <Button
+                variant={
+                  pendingChanges > 0 || queuedOpsCount > 0
+                    ? 'default'
+                    : 'outline'
+                }
+                size="sm"
+                className="gap-1.5"
+                onClick={handlePushSync}
+                disabled={isSyncing || !isOnline}
+              >
+                <ArrowUpToLine
+                  className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')}
+                />
+                {isSyncing ? 'Working...' : 'Push'}
               </Button>
               <Button
                 variant="outline"
@@ -225,7 +249,7 @@ export function SyncSection() {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={handleForceSync}
+              onClick={forceSync}
               disabled={isSyncing || !isOnline}
             >
               <Cloud className="h-3.5 w-3.5" />
@@ -259,7 +283,7 @@ export function SyncSection() {
               <p className="text-xs text-muted-foreground mt-1">
                 {autoSyncIntervalMinutes > 0
                   ? `Fallback reconciliation runs every ${autoSyncIntervalMinutes} minute${autoSyncIntervalMinutes === 1 ? '' : 's'} while online.`
-                  : 'Realtime sync is active. "Sync Now" performs a full reconciliation pass.'}
+                  : 'Realtime sync is active. Use Pull and Push for explicit manual reconciliation.'}
               </p>
             </FieldGroup>
           </div>
@@ -444,9 +468,8 @@ export function SyncSection() {
             </li>
           </ul>
           <p className="mt-4 text-xs text-muted-foreground">
-            Sync is manual only — click "Sync Now" to upload your changes and
-            pull updates from other devices. This uses significantly fewer cloud
-            operations than automatic sync.
+            Sync is manual-friendly: use Pull to fetch cloud changes and Push to
+            upload your local changes, similar to git-style workflows.
           </p>
         </Card>
       )}

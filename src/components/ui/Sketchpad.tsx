@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -197,13 +198,25 @@ export function Sketchpad({
 
   const undoStack = useRef<string[]>([]);
   const redoStack = useRef<string[]>([]);
-  const activePointers = useRef<
-    Map<number, ActivePointerMeta>
-  >(new Map());
+  const activePointers = useRef<Map<number, ActivePointerMeta>>(new Map());
   const activeDrawingPointerId = useRef<number | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const shapeStart = useRef<{ x: number; y: number } | null>(null);
   const shapeSnapshot = useRef<string | null>(null);
+  const previousNonEraserRef = useRef<ToolType>('pen');
+  const isAndroid =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
+  // rAF batching refs to improve responsiveness on mobile/Android
+  const moveRaf = useRef<number | null>(null);
+  const lastMove = useRef<{
+    x: number;
+    y: number;
+    pressure: number;
+    pointerId: number;
+  } | null>(null);
+  const cursorRaf = useRef<number | null>(null);
+  const lastCursor = useRef<{ x: number; y: number } | null>(null);
   const spaceDown = useRef(false);
   const panStart = useRef<{
     mx: number;
@@ -212,6 +225,31 @@ export function Sketchpad({
     py: number;
   } | null>(null);
 
+  // Keep track of last non-eraser tool so we can restore it after toggling
+  useEffect(() => {
+    if (activeTool !== 'eraser') previousNonEraserRef.current = activeTool;
+  }, [activeTool]);
+
+  // Listen for native stylus double-tap events (emitted by the Android side via Tauri)
+  useEffect(() => {
+    if (!isAndroid) return;
+    let unlisten: UnlistenFn | null = null;
+    listen('stylus-double-tap', () => {
+      setActiveTool((cur) =>
+        cur !== 'eraser' ? 'eraser' : (previousNonEraserRef.current ?? 'pen')
+      );
+    })
+      .then((u) => {
+        unlisten = u;
+      })
+      .catch(() => {
+        /* ignore if not running inside Tauri */
+      });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [isAndroid]);
+
   // ── Canvas init ──────────────────────────────────────────────────────────
 
   const initCanvas = useCallback(() => {
@@ -219,8 +257,9 @@ export function Sketchpad({
     const overlay = overlayRef.current;
     const container = containerRef.current;
     if (!canvas || !overlay || !container) return;
-
-    const ratio = window.devicePixelRatio || 1;
+    const deviceRatio = window.devicePixelRatio || 1;
+    // Limit DPR on Android to avoid huge canvas sizes and keep responsiveness
+    const ratio = isAndroid ? Math.min(deviceRatio, 2) : deviceRatio;
     // Measure the container, not the canvas (canvas is absolute so has no intrinsic size)
     const clientW = Math.max(1, Math.floor(container.clientWidth));
     const clientH = Math.max(1, Math.floor(container.clientHeight));
@@ -251,6 +290,7 @@ export function Sketchpad({
       const ctx = canvas.getContext('2d')!;
       const img = new Image();
       img.onload = () => {
+        // Draw at device pixels but respect ratio clamp
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.drawImage(img, 0, 0, newW, newH);
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -336,11 +376,83 @@ export function Sketchpad({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
+  // Process pending pointer moves once per animation frame to avoid
+  // heavy work on high-frequency pointermove events (improves Android)
+  function processPendingMove() {
+    moveRaf.current = null;
+    const canvas = canvasRef.current;
+    const ctx = getCtx();
+    if (!canvas || !ctx) return;
+    const m = lastMove.current;
+    if (!m) return;
+
+    const pt = { x: m.x, y: m.y };
+    const pressure = m.pressure;
+
+    if (
+      ['line', 'rect', 'ellipse'].includes(activeTool) &&
+      shapeStart.current &&
+      shapeSnapshot.current
+    ) {
+      const octx = getOverlayCtx();
+      if (!octx) return;
+      clearOverlay();
+      applyToolStyle(octx, pressure);
+      drawShape(octx, activeTool, shapeStart.current, pt);
+      return;
+    }
+
+    if (!lastPoint.current) return;
+
+    applyToolStyle(ctx, pressure);
+
+    const s = smoothing;
+    const sx = lastPoint.current.x + (pt.x - lastPoint.current.x) * (1 - s);
+    const sy = lastPoint.current.y + (pt.y - lastPoint.current.y) * (1 - s);
+
+    ctx.quadraticCurveTo(
+      lastPoint.current.x,
+      lastPoint.current.y,
+      (lastPoint.current.x + sx) / 2,
+      (lastPoint.current.y + sy) / 2
+    );
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo((lastPoint.current.x + sx) / 2, (lastPoint.current.y + sy) / 2);
+
+    lastPoint.current = { x: sx, y: sy };
+  }
+
   function pushUndo() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
-      undoStack.current.push(canvas.toDataURL('image/png'));
+      // Synchronous toDataURL can be expensive on mobile; prefer toBlob
+      // when available. Fall back to toDataURL if toBlob isn't supported.
+      if (canvas.toBlob) {
+        canvas.toBlob(
+          (blob) => {
+            try {
+              if (!blob) return;
+              const url = URL.createObjectURL(blob);
+              undoStack.current.push(url);
+              if (undoStack.current.length > 40) {
+                const removed = undoStack.current.shift();
+                if (removed && removed.startsWith('blob:'))
+                  URL.revokeObjectURL(removed);
+              }
+              redoStack.current = [];
+              forceUpdate((n) => n + 1);
+            } catch {
+              /* ignore */
+            }
+          },
+          'image/png',
+          0.9
+        );
+      } else {
+        undoStack.current.push(canvas.toDataURL('image/png'));
+      }
       if (undoStack.current.length > 40) undoStack.current.shift();
       redoStack.current = [];
       forceUpdate((n) => n + 1);
@@ -360,6 +472,7 @@ export function Sketchpad({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
+      // Accept either data: URLs or blob object URLs
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     };
@@ -529,11 +642,19 @@ export function Sketchpad({
     const canvas = canvasRef.current;
     const ctx = getCtx();
     if (!canvas || !ctx) return;
-
     const pt = getCanvasPoint(e);
-    setCursorPos({ x: e.clientX, y: e.clientY });
 
-    // Pan
+    // Throttle cursor updates to rAF to avoid re-render storms
+    lastCursor.current = { x: e.clientX, y: e.clientY };
+    if (!cursorRaf.current) {
+      cursorRaf.current = requestAnimationFrame(() => {
+        cursorRaf.current = null;
+        const c = lastCursor.current;
+        if (c) setCursorPos({ x: c.x, y: c.y });
+      });
+    }
+
+    // Pan handling remains immediate
     if (isPanning && panStart.current) {
       setPan({
         x: panStart.current.px + (e.clientX - panStart.current.mx),
@@ -545,6 +666,7 @@ export function Sketchpad({
     const pointerMeta = activePointers.current.get(e.pointerId);
     if (!pointerMeta || pointerMeta.rejected) return;
 
+    // For touch inputs, keep existing temporal filter
     if (pointerMeta.type === 'touch' && !pointerMeta.strokeStarted) {
       const touchDownTime = pointerMeta.touchDownTime ?? performance.now();
       const elapsed = performance.now() - touchDownTime;
@@ -565,41 +687,10 @@ export function Sketchpad({
 
     const pressure = e.pressure > 0 ? e.pressure : 1;
 
-    // Shape tools: redraw from snapshot
-    if (
-      ['line', 'rect', 'ellipse'].includes(activeTool) &&
-      shapeStart.current &&
-      shapeSnapshot.current
-    ) {
-      const overlay = overlayRef.current;
-      const octx = getOverlayCtx();
-      if (!overlay || !octx) return;
-      clearOverlay();
-      applyToolStyle(octx, pressure);
-      drawShape(octx, activeTool, shapeStart.current, pt);
-      return;
-    }
-
-    if (!lastPoint.current) return;
-
-    applyToolStyle(ctx, pressure);
-
-    // Smoothed stroke using lerp
-    const s = smoothing;
-    const sx = lastPoint.current.x + (pt.x - lastPoint.current.x) * (1 - s);
-    const sy = lastPoint.current.y + (pt.y - lastPoint.current.y) * (1 - s);
-
-    ctx.quadraticCurveTo(
-      lastPoint.current.x,
-      lastPoint.current.y,
-      (lastPoint.current.x + sx) / 2,
-      (lastPoint.current.y + sy) / 2
-    );
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo((lastPoint.current.x + sx) / 2, (lastPoint.current.y + sy) / 2);
-
-    lastPoint.current = { x: sx, y: sy };
+    // Batch shape overlay / drawing per-frame
+    lastMove.current = { x: pt.x, y: pt.y, pressure, pointerId: e.pointerId };
+    if (!moveRaf.current)
+      moveRaf.current = requestAnimationFrame(processPendingMove);
   }
 
   function handlePointerUp(e: PointerEvent) {
@@ -635,8 +726,18 @@ export function Sketchpad({
     }
     activePointers.current.delete(e.pointerId);
 
-    if (activeDrawingPointerId.current !== null && e.pointerId !== activeDrawingPointerId.current) {
+    if (
+      activeDrawingPointerId.current !== null &&
+      e.pointerId !== activeDrawingPointerId.current
+    ) {
       return;
+    }
+
+    // Ensure any pending move is flushed before finishing stroke
+    if (moveRaf.current) {
+      cancelAnimationFrame(moveRaf.current);
+      moveRaf.current = null;
+      processPendingMove();
     }
 
     const pt = getCanvasPoint(e);
@@ -665,10 +766,12 @@ export function Sketchpad({
     if (!canvas) return;
     canvas.addEventListener('pointerdown', handlePointerDown);
     canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointercancel', handlePointerUp);
     window.addEventListener('pointerup', handlePointerUp);
     return () => {
       canvas.removeEventListener('pointerdown', handlePointerDown);
       canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointercancel', handlePointerUp);
       window.removeEventListener('pointerup', handlePointerUp);
     };
   }, [
@@ -682,6 +785,14 @@ export function Sketchpad({
     zoom,
     pan,
   ]);
+
+  // Cleanup any pending animation frames on unmount
+  useEffect(() => {
+    return () => {
+      if (moveRaf.current) cancelAnimationFrame(moveRaf.current);
+      if (cursorRaf.current) cancelAnimationFrame(cursorRaf.current);
+    };
+  }, []);
 
   // ── Export ───────────────────────────────────────────────────────────────
 
@@ -745,6 +856,20 @@ export function Sketchpad({
         'repeating-conic-gradient(#ccc 0% 25%, transparent 0% 50%) 0 0 / 16px 16px',
     };
   }
+
+  // Ensure performant rendering hints on mobile/Android
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const overlay = overlayRef.current;
+    if (!canvas || !overlay) return;
+    canvas.style.touchAction = 'none';
+    overlay.style.touchAction = 'none';
+    canvas.style.willChange = 'transform';
+    overlay.style.willChange = 'transform';
+    // Reduce smoothing on Android devices with high DPR to reduce work
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.imageSmoothingEnabled = !isAndroid;
+  }, [isAndroid]);
 
   // ── Cursor ───────────────────────────────────────────────────────────────
 
