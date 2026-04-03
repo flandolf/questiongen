@@ -480,15 +480,14 @@ function ReattemptView({
   useEffect(() => {
     const id = setInterval(() => {
       const now = Date.now();
-      const inProgressPause =
-        questionPauseStartedAtRef.current
-          ? now - questionPauseStartedAtRef.current
-          : 0;
+      const inProgressPause = questionPauseStartedAtRef.current
+        ? now - questionPauseStartedAtRef.current
+        : 0;
       const effectiveElapsed =
         now -
         questionStartedAt -
         (questionPausedDurationMsRef.current + inProgressPause);
-      setQuestionElapsed(Math.max(0, Math.floor(effectiveElapsed / 1000)));
+      setQuestionElapsed(Math.max(0, Math.round(effectiveElapsed / 1000)));
     }, 1_000);
     return () => clearInterval(id);
   }, [questionStartedAt]);
@@ -546,10 +545,9 @@ function ReattemptView({
     const currentEntry = questions[idx];
     if (!currentEntry) return;
     const now = Date.now();
-    const inProgressPause =
-      questionPauseStartedAtRef.current
-        ? now - questionPauseStartedAtRef.current
-        : 0;
+    const inProgressPause = questionPauseStartedAtRef.current
+      ? now - questionPauseStartedAtRef.current
+      : 0;
     const effectiveElapsed =
       now -
       questionStartedAt -
@@ -634,10 +632,9 @@ function ReattemptView({
   const getCurrentResult = (): ReattemptResult => {
     const existing = savedStates[entry.id];
     const now = Date.now();
-    const inProgressPause =
-      questionPauseStartedAtRef.current
-        ? now - questionPauseStartedAtRef.current
-        : 0;
+    const inProgressPause = questionPauseStartedAtRef.current
+      ? now - questionPauseStartedAtRef.current
+      : 0;
     const effectiveElapsed =
       now -
       questionStartedAt -

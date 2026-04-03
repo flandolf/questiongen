@@ -108,7 +108,9 @@ function reconcileRestoredState(
       // so their elapsed time resumes correctly if the user navigates back
       startedAt: isActive && !isExpired ? nowSec : q.startedAt,
       pausedDurationMsAtPresentation:
-        isActive && !isExpired ? totalPausedMs : q.pausedDurationMsAtPresentation,
+        isActive && !isExpired
+          ? totalPausedMs
+          : q.pausedDurationMsAtPresentation,
     };
   }
 
@@ -254,7 +256,10 @@ export function useQuestionTimer(
           s,
           pauseStartedAtRef.current
         );
-        const timeUsed = computeQuestionTimeUsed(q, totalPausedMs, nowSec);
+        const timeUsed = Math.max(
+          q.timeUsedSeconds,
+          Math.round(computeQuestionTimeUsed(q, totalPausedMs, nowSec))
+        );
 
         return {
           ...s,
@@ -438,7 +443,12 @@ export function useQuestionTimer(
       const currentQ = questionsRef.current[s.activeQuestionIndex];
       if (currentQ) {
         const q = updatedById[currentQ.id];
-        if (q && q.startedAt !== null && q.answeredAt === null && !q.isExpired) {
+        if (
+          q &&
+          q.startedAt !== null &&
+          q.answeredAt === null &&
+          !q.isExpired
+        ) {
           updatedById[currentQ.id] = {
             ...q,
             timeUsedSeconds: computeQuestionTimeUsed(q, totalPausedMs, nowSec),
@@ -553,7 +563,11 @@ export function useQuestionTimer(
           const oldTiming = updatedById[oldQ.id];
           updatedById[oldQ.id] = {
             ...oldTiming,
-            timeUsedSeconds: computeQuestionTimeUsed(oldTiming, currentPausedMs, nowSec),
+            timeUsedSeconds: computeQuestionTimeUsed(
+              oldTiming,
+              currentPausedMs,
+              nowSec
+            ),
             startedAt: null,
             pausedDurationMsAtPresentation: 0,
           };
@@ -630,7 +644,7 @@ export function useQuestionTimer(
       ? 0
       : Math.max(
           0,
-          Math.floor(
+          Math.round(
             (timerState.sessionFinishedAt ?? Date.now() / 1000) -
               timerState.sessionStartedAt -
               effectivePausedMs / 1000
