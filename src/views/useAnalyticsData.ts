@@ -597,6 +597,56 @@ export function useAnalyticsData() {
       .sort((a, b) => b.avgResponseSeconds - a.avgResponseSeconds);
   }, [mcAttempts]);
 
+  const writtenResponseLatency = useMemo(() => {
+    const bucketByTopic = new Map<
+      string,
+      { attempts: number; totalMs: number }
+    >();
+
+    for (const attempt of writtenAttempts) {
+      if (attempt.responseLatencyMs === undefined) {
+        continue;
+      }
+
+      const bucket = bucketByTopic.get(attempt.topic) ?? {
+        attempts: 0,
+        totalMs: 0,
+      };
+      bucket.attempts += 1;
+      bucket.totalMs += attempt.responseLatencyMs;
+      bucketByTopic.set(attempt.topic, bucket);
+    }
+
+    return Array.from(bucketByTopic.entries())
+      .map(([topic, bucket]) => ({
+        topic,
+        avgResponseSeconds: average(bucket.totalMs, bucket.attempts) / 1000,
+      }))
+      .sort((a, b) => b.avgResponseSeconds - a.avgResponseSeconds);
+  }, [writtenAttempts]);
+
+  const writtenTopicAccuracy = useMemo(() => {
+    const bucketByTopic = new Map<string, AnalyticsBucket>();
+
+    for (const attempt of writtenAttempts) {
+      const bucket = bucketByTopic.get(attempt.topic) ?? {
+        total: 0,
+        correct: 0,
+      };
+      bucket.total += 1;
+      bucket.correct += attempt.isCorrect ? 1 : 0;
+      bucketByTopic.set(attempt.topic, bucket);
+    }
+
+    return Array.from(bucketByTopic.entries())
+      .map(([topic, bucket]) => ({
+        topic,
+        attempts: bucket.total,
+        accuracy: percent(bucket.correct, bucket.total),
+      }))
+      .sort((a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts);
+  }, [writtenAttempts]);
+
   const qualityRows = useMemo<QualityRow[]>(() => {
     const bucketByTopic = new Map<
       string,
@@ -723,7 +773,7 @@ export function useAnalyticsData() {
           a.scorePercent - b.scorePercent ||
           Date.parse(b.createdAt) - Date.parse(a.createdAt)
       )
-      .slice(0, 5);
+      .slice(0, 10);
   }, [writtenAttempts]);
 
   // Early/recent accuracy splits for delta KPI badges
@@ -768,9 +818,9 @@ export function useAnalyticsData() {
       const w = arr.filter((a) => a.mode === 'written' && a.isFirstAttempt);
       return w.length > 0
         ? average(
-            w.reduce((s, a) => s + a.scorePercent, 0),
-            w.length
-          )
+          w.reduce((s, a) => s + a.scorePercent, 0),
+          w.length
+        )
         : null;
     };
     const calcMc = (arr: AttemptRow[]) => {
@@ -809,6 +859,8 @@ export function useAnalyticsData() {
     recentCriterionWeakPoints,
     mcTopicAccuracy,
     mcResponseLatency,
+    writtenResponseLatency,
+    writtenTopicAccuracy,
     qualityRows,
     lowestScoringWritten,
     questionHistoryLength: questionHistory.length,

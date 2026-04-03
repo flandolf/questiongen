@@ -5,7 +5,6 @@ import { Toaster } from '@/components/ui/sonner';
 import { AppProvider } from './AppContext';
 import { useAppStore } from './store';
 import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
-import { TimerBarProvider } from './context/TimerBarContext';
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
@@ -103,19 +102,17 @@ export default function App() {
     >
       <AppProvider>
         <FirebaseSyncProvider>
-          <TimerBarProvider>
-            <ErrorBoundary>
-              <AppRoutes />
-              <Toaster
-                position="bottom-right"
-                richColors
-                closeButton
-                toastOptions={{
-                  duration: 4000,
-                }}
-              />
-            </ErrorBoundary>
-          </TimerBarProvider>
+          <ErrorBoundary>
+            <AppRoutes />
+            <Toaster
+              position="bottom-right"
+              richColors
+              closeButton
+              toastOptions={{
+                duration: 4000,
+              }}
+            />
+          </ErrorBoundary>
         </FirebaseSyncProvider>
       </AppProvider>
     </MathJaxContext>

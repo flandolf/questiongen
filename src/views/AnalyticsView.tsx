@@ -305,6 +305,8 @@ export function AnalyticsView() {
     recentCriterionWeakPoints,
     mcTopicAccuracy,
     mcResponseLatency,
+    writtenResponseLatency,
+    writtenTopicAccuracy,
     lowestScoringWritten,
     earlyOverallAccuracy,
     recentOverallAccuracy,
@@ -735,7 +737,6 @@ export function AnalyticsView() {
               ) : (
                 <div className="flex flex-col gap-4">
                   {lowestScoringWritten
-                    .slice(0, 3)
                     .map((attempt: AttemptRow) => {
                       const scorePct = attempt.scorePercent ?? 0;
                       return (
@@ -823,7 +824,7 @@ export function AnalyticsView() {
           <Card className="p-6">
             <SectionHeading
               title="Topic Performance"
-              description="Accuracy and response metrics across subjects."
+              description="Accuracy breakdown across subjects."
             />
 
             <div className="mt-6 space-y-8">
@@ -909,15 +910,112 @@ export function AnalyticsView() {
 
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                  MC Response Time
+                  Written Accuracy by Topic
                 </h3>
                 <div className="h-[200px]">
+                  <ChartContainer
+                    config={topicChartConfig}
+                    className="w-full h-full"
+                  >
+                    <BarChart
+                      data={writtenTopicAccuracy}
+                      layout="vertical"
+                      margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        horizontal={false}
+                        strokeDasharray="3 3"
+                        opacity={0.1}
+                      />
+                      <XAxis type="number" hide />
+                      <YAxis
+                        dataKey="topic"
+                        type="category"
+                        tickLine={false}
+                        axisLine={false}
+                        width={120}
+                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="accuracy"
+                        fill="var(--color-accuracy)"
+                        radius={[0, 4, 4, 0]}
+                        barSize={12}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <SectionHeading
+              title="Response Time"
+              description="Average time taken to answer questions by topic and question type."
+            />
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Multiple Choice Response Time
+            </h3>
+            <div className="h-[250px]">
+              {mcResponseLatency.length === 0 ? (
+                <ChartEmpty message="No response time data yet." />
+              ) : (
+                <ChartContainer
+                  config={responseLatencyChartConfig}
+                  className="w-full h-full"
+                >
+                  <BarChart
+                    data={mcResponseLatency}
+                    layout="vertical"
+                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      horizontal={false}
+                      strokeDasharray="3 3"
+                      opacity={0.1}
+                    />
+                    <XAxis
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(v) => `${v}s`}
+                    />
+                    <YAxis
+                      dataKey="topic"
+                      type="category"
+                      tickLine={false}
+                      axisLine={false}
+                      width={120}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="avgResponseSeconds"
+                      fill="var(--color-avgResponseSeconds)"
+                      radius={[0, 4, 4, 0]}
+                      barSize={12}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">
+                Written Response Time
+              </h3>
+              <div className="h-[250px]">
+                {writtenResponseLatency.length === 0 ? (
+                  <ChartEmpty message="No response time data yet." />
+                ) : (
                   <ChartContainer
                     config={responseLatencyChartConfig}
                     className="w-full h-full"
                   >
                     <BarChart
-                      data={mcResponseLatency}
+                      data={writtenResponseLatency}
                       layout="vertical"
                       margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
                     >
@@ -939,7 +1037,10 @@ export function AnalyticsView() {
                         tickLine={false}
                         axisLine={false}
                         width={120}
-                        tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                        tick={{
+                          fontSize: 12,
+                          fill: 'var(--muted-foreground)',
+                        }}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar
@@ -950,7 +1051,7 @@ export function AnalyticsView() {
                       />
                     </BarChart>
                   </ChartContainer>
-                </div>
+                )}
               </div>
             </div>
           </Card>
@@ -969,11 +1070,10 @@ export function AnalyticsView() {
               <button
                 type="button"
                 onClick={() => setSubjectFilter(null)}
-                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
-                  subjectFilter === null
-                    ? 'border-foreground/30 bg-secondary text-secondary-foreground'
-                    : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                }`}
+                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === null
+                  ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                  : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                  }`}
               >
                 All subjects
                 <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
@@ -991,11 +1091,10 @@ export function AnalyticsView() {
                     onClick={() =>
                       setSubjectFilter(subjectFilter === topic ? null : topic)
                     }
-                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
-                      subjectFilter === topic
-                        ? 'border-foreground/30 bg-secondary text-secondary-foreground'
-                        : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                    }`}
+                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === topic
+                      ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                      : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                      }`}
                   >
                     {topic}
                     <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">

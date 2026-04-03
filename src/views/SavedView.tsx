@@ -48,16 +48,18 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
     getScrollElement: () => parentRef.current,
     getItemKey: (index) => sets[index]?.id ?? index,
     estimateSize: () => 140,
-    measureElement: (el) => el.getBoundingClientRect().height,
-    overscan: 6,
-    useFlushSync: true,
+    overscan: 4,
   });
 
+  // Reset scroll to top when sets change (e.g. after delete)
+  useEffect(() => {
+    rowVirtualizer.scrollToIndex(0);
+  }, [sets.length, rowVirtualizer]);
+
+  // Auto-measure elements after they render
   useEffect(() => {
     rowVirtualizer.measure();
-    const raf = requestAnimationFrame(() => rowVirtualizer.measure());
-    return () => cancelAnimationFrame(raf);
-  }, [rowVirtualizer, sets]);
+  }, [sets.length, rowVirtualizer]);
 
   return (
     <div

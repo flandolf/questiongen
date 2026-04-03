@@ -43,15 +43,12 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 import { SetupPanel, BatchTopicProgress } from '@/views/generator/SetupPanel';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
-import { WrittenSessionHeader } from '@/views/generator/WrittenSessionHeader';
-import { WrittenQuestionCard } from '@/views/generator/WrittenQuestionCard';
 import { useQuestionTimer } from '@/hooks/useQuestionTimer';
-import { useTimerBar, type TimerBarData } from '@/context/TimerBarContext';
-import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
-import { McSessionHeader } from '@/views/generator/McSessionHeader';
-import { McQuestionCard } from '@/views/generator/McQuestionCard';
 import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
+import { SessionHeader } from './generator/SessionHeader';
+import { WrittenAnswerCard } from './generator/WrittenAnswerCard';
+import { MarkdownMath } from '@/components/MarkdownMath';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,8 +173,6 @@ export function GeneratorView() {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
-  const [showWrittenRawOutput, setShowWrittenRawOutput] = useState(false);
-  const [showMcRawOutput, setShowMcRawOutput] = useState(false);
   const [customFocusArea, setCustomFocusArea] = useState('');
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
@@ -217,7 +212,6 @@ export function GeneratorView() {
     useSeparateMarkingModel,
     imageMarkingModel,
     useSeparateImageMarkingModel,
-    debugMode,
     includeExamContext,
   } = useAppSettings();
   const {
@@ -263,7 +257,6 @@ export function GeneratorView() {
     setFeedbackByQuestionId,
     questionHistory,
     setQuestionHistory,
-    writtenRawModelOutput,
     setWrittenRawModelOutput,
     writtenGenerationTelemetry,
     setWrittenGenerationTelemetry,
@@ -281,7 +274,6 @@ export function GeneratorView() {
     setMcAnswersByQuestionId,
     mcHistory,
     setMcHistory,
-    mcRawModelOutput,
     setMcRawModelOutput,
     mcGenerationTelemetry,
     setMcGenerationTelemetry,
@@ -428,9 +420,6 @@ export function GeneratorView() {
     questionMode === 'written'
       ? questions.length === 0
       : mcQuestions.length === 0;
-  const canShowWrittenRawOutput =
-    debugMode && writtenRawModelOutput.trim().length > 0;
-  const canShowMcRawOutput = debugMode && mcRawModelOutput.trim().length > 0;
 
   const canGenerate =
     selectedTopics.length > 0 &&
@@ -599,64 +588,6 @@ export function GeneratorView() {
       ? generationFormattedElapsedTime
       : formattedSessionTime;
   const completionFormattedElapsedTime = formattedSessionTime;
-
-  // --- Timer bar context (for header display) ---
-  const { setTimerBarData } = useTimerBar();
-  const hasActiveSession =
-    (questionMode === 'written' && questions.length > 0) ||
-    (questionMode === 'multiple-choice' && mcQuestions.length > 0);
-
-  useEffect(() => {
-    if (!hasActiveSession) {
-      setTimerBarData(null);
-      return;
-    }
-    const timer = activeTimer;
-    const data: TimerBarData = {
-      mode: 'practice',
-      questionNumber:
-        (questionMode === 'written'
-          ? activeQuestionIndex
-          : activeMcQuestionIndex) + 1,
-      totalQuestions:
-        questionMode === 'written' ? questions.length : mcQuestions.length,
-      currentQuestionTimeUsed: timer.currentQuestionTimeUsed,
-      currentQuestionTimeLimit: timer.currentQuestionTimeLimit,
-      currentQuestionRemaining: timer.currentQuestionRemaining,
-      formattedQuestionTime: timer.formattedQuestionTime,
-      parTimeSeconds: timer.parTimeSeconds,
-      bankedSeconds: timer.bankedSeconds,
-      formattedBank: timer.formattedBank,
-      bankStatus: timer.bankStatus,
-      formattedSessionTime: timer.formattedSessionTime,
-    };
-    setTimerBarData(data);
-  }, [
-    hasActiveSession,
-    questionMode,
-    activeQuestionIndex,
-    activeMcQuestionIndex,
-    questions.length,
-    mcQuestions.length,
-    activeTimer.currentQuestionTimeUsed,
-    activeTimer.currentQuestionTimeLimit,
-    activeTimer.currentQuestionRemaining,
-    activeTimer.formattedQuestionTime,
-    activeTimer.parTimeSeconds,
-    activeTimer.bankedSeconds,
-    activeTimer.formattedBank,
-    activeTimer.bankStatus,
-    activeTimer.formattedSessionTime,
-    setTimerBarData,
-  ]);
-
-  // Clear timer bar on unmount
-  useEffect(() => {
-    return () => {
-      setTimerBarData(null);
-    };
-  }, [setTimerBarData]);
-
   // ── Effects ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     setShowCompletionScreen(false);
@@ -780,10 +711,6 @@ export function GeneratorView() {
   function startStopwatch() {
     if (questionMode === 'written') writtenTimer.reset();
     else if (questionMode === 'multiple-choice') mcTimer.reset();
-  }
-
-  function startTiming() {
-    setGenerationStartedAt(Date.now());
   }
 
   // Start timer only after questions or mcQuestions are populated
@@ -1215,6 +1142,7 @@ export function GeneratorView() {
       awardedMarks,
       maxMarks: 1,
       generationTelemetry: mcGenerationTelemetry ?? undefined,
+      difficulty,
       analytics: {
         attemptKind,
         attemptSequence: getMcAttemptSequence(question.id),
@@ -1343,6 +1271,7 @@ export function GeneratorView() {
       workedSolutionMarkdown: response.workedSolutionMarkdown,
       markResponse: response,
       generationTelemetry: writtenGenerationTelemetry ?? undefined,
+      difficulty,
       analytics: {
         attemptKind: options?.attemptKind ?? 'initial',
         attemptSequence: getWrittenAttemptSequence(question.id),
@@ -1418,6 +1347,7 @@ export function GeneratorView() {
       attempt: 1,
     });
     setIsGenerating(true);
+    setGenerationStartedAt(Date.now());
 
     const counts = distributeQuestions(selectedTopics, questionCount);
     // Only show batch UI when more than one topic is selected
@@ -1570,11 +1500,9 @@ export function GeneratorView() {
 
       setQuestions(finalQuestions);
       setWrittenTimerState(null); // Clear persisted timer for new session
-      startTiming();
       setWrittenRawModelOutput('');
       setWrittenGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
-      setShowWrittenRawOutput(false);
       setActiveQuestionIndex(0);
       setActiveWrittenSavedSetId(null);
       setWrittenQuestionPresentedAtById({});
@@ -1610,6 +1538,7 @@ export function GeneratorView() {
       attempt: 1,
     });
     setIsGenerating(true);
+    setGenerationStartedAt(Date.now());
 
     const counts = distributeQuestions(selectedTopics, questionCount);
     const isMultiTopic = selectedTopics.length > 1;
@@ -1757,11 +1686,9 @@ export function GeneratorView() {
 
       setMcQuestions(finalQuestions);
       setMcTimerState(null); // Clear persisted timer for new session
-      startTiming();
       setMcRawModelOutput('');
       setMcGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
-      setShowMcRawOutput(false);
       setActiveMcQuestionIndex(0);
       setActiveMcSavedSetId(null);
       setMcQuestionPresentedAtById({});
@@ -2123,7 +2050,6 @@ export function GeneratorView() {
     setQuestions([]);
     setWrittenRawModelOutput('');
     setWrittenGenerationTelemetry(null);
-    setShowWrittenRawOutput(false);
     setActiveQuestionIndex(0);
     setActiveWrittenSavedSetId(null);
     setWrittenQuestionPresentedAtById({});
@@ -2136,7 +2062,6 @@ export function GeneratorView() {
     setMcQuestions([]);
     setMcRawModelOutput('');
     setMcGenerationTelemetry(null);
-    setShowMcRawOutput(false);
     setActiveMcQuestionIndex(0);
     setActiveMcSavedSetId(null);
     setMcQuestionPresentedAtById({});
@@ -2303,7 +2228,8 @@ export function GeneratorView() {
       ) : /* ── Written Question View ── */
       questionMode === 'written' ? (
         <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
-          <WrittenSessionHeader
+          <SessionHeader
+            type="written"
             questionIndex={activeQuestionIndex}
             totalQuestions={questions.length}
             completedCount={completedCount}
@@ -2316,6 +2242,7 @@ export function GeneratorView() {
             canAdvance={canAdvanceWritten}
             generationStartedAt={generationStartedAt}
             telemetry={writtenGenerationTelemetry}
+            questionTimeSeconds={writtenTimer.currentQuestionTimeUsed}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() =>
               setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
@@ -2372,16 +2299,7 @@ export function GeneratorView() {
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
                     <div className="min-w-0 space-y-4 pb-10">
-                      <WrittenQuestionCard
-                        promptMarkdown={activeQuestion.promptMarkdown}
-                        canShowRawOutput={canShowWrittenRawOutput}
-                        showRawOutput={showWrittenRawOutput}
-                        rawModelOutput={writtenRawModelOutput}
-                        onToggleRawOutput={() =>
-                          setShowWrittenRawOutput((p) => !p)
-                        }
-                        isSubmitDisabled={false}
-                      />
+                      <MarkdownMath content={activeQuestion.promptMarkdown} />
                     </div>
                     <div className="min-w-0 space-y-4 pb-10">
                       <WrittenAnswerCard
@@ -2405,7 +2323,8 @@ export function GeneratorView() {
       ) : (
         /* ── MC Question View ── */
         <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-500">
-          <McSessionHeader
+          <SessionHeader
+            type="mc"
             questionIndex={activeMcQuestionIndex}
             totalQuestions={mcQuestions.length}
             completedCount={mcCompletedCount}
@@ -2417,6 +2336,7 @@ export function GeneratorView() {
             canAdvance={canAdvanceMc}
             generationStartedAt={generationStartedAt}
             telemetry={mcGenerationTelemetry}
+            questionTimeSeconds={mcTimer.currentQuestionTimeUsed}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() =>
               setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))
@@ -2447,46 +2367,41 @@ export function GeneratorView() {
           )}
           {activeMcQuestion && (
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] lg:gap-8">
-                  <div className="min-w-0 space-y-4 pb-10">
-                    <McQuestionCard
-                      promptMarkdown={activeMcQuestion.promptMarkdown}
-                      canShowRawOutput={canShowMcRawOutput}
-                      showRawOutput={showMcRawOutput}
-                      rawModelOutput={mcRawModelOutput}
-                      onToggleRawOutput={() => setShowMcRawOutput((p) => !p)}
-                      isSubmitDisabled={false}
-                    />
-                    {countWords(activeMcQuestion.explanationMarkdown) >
-                      MC_MAX_EXPLANATION_WORDS && (
-                      <div className="bg-yellow-100 text-yellow-900 border border-yellow-300 rounded-sm px-4 py-2 mb-2 text-sm">
-                        <strong>Warning:</strong> Explanation is{' '}
-                        {countWords(activeMcQuestion.explanationMarkdown)} words
-                        (max {MC_MAX_EXPLANATION_WORDS}). This may be rejected
-                        by the backend.
-                      </div>
-                    )}
+              <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                <div className="mx-auto max-w-5xl space-y-5 pb-10">
+                  <div className="p-6 bg-muted/20 rounded-md space-y-2">
+                    <h1 className="text-xl font-bold">
+                      Question {activeMcQuestionIndex + 1}
+                    </h1>
+                    <MarkdownMath content={activeMcQuestion.promptMarkdown} />
                   </div>
-                  <div className="min-w-0 space-y-4 pb-10">
-                    <McAnswerPanel
-                      questionId={activeMcQuestion.id}
-                      options={activeMcQuestion.options}
-                      correctAnswer={activeMcQuestion.correctAnswer}
-                      explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                      selectedAnswer={activeMcAnswer}
-                      awardedMarks={activeMcAwardedMarks}
-                      appealText={activeMcMarkAppeal}
-                      overrideInput={activeMcOverrideInput}
-                      isMarking={isMarking}
-                      hideCorrectAnswer={false}
-                      onSelectAnswer={handleMcAnswer}
-                      onAppealChange={handleMcAppealChange}
-                      onOverrideInputChange={handleMcOverrideInputChange}
-                      onArgueForMark={handleArgueForMcMark}
-                      onApplyOverride={handleOverrideMcMark}
-                    />
-                  </div>
+                  {countWords(activeMcQuestion.explanationMarkdown) >
+                    MC_MAX_EXPLANATION_WORDS && (
+                    <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
+                      <strong className="font-semibold">Warning:</strong>{' '}
+                      Explanation is{' '}
+                      {countWords(activeMcQuestion.explanationMarkdown)}
+                      words (max {MC_MAX_EXPLANATION_WORDS}). This may be
+                      rejected by the backend.
+                    </div>
+                  )}
+                  <McAnswerPanel
+                    questionId={activeMcQuestion.id}
+                    options={activeMcQuestion.options}
+                    correctAnswer={activeMcQuestion.correctAnswer}
+                    explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                    selectedAnswer={activeMcAnswer}
+                    awardedMarks={activeMcAwardedMarks}
+                    appealText={activeMcMarkAppeal}
+                    overrideInput={activeMcOverrideInput}
+                    isMarking={isMarking}
+                    hideCorrectAnswer={false}
+                    onSelectAnswer={handleMcAnswer}
+                    onAppealChange={handleMcAppealChange}
+                    onOverrideInputChange={handleMcOverrideInputChange}
+                    onArgueForMark={handleArgueForMcMark}
+                    onApplyOverride={handleOverrideMcMark}
+                  />
                 </div>
               </div>
             </div>

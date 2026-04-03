@@ -31,12 +31,10 @@ export function UnifiedQuestionPromptCard({
 }) {
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground/70">
+        <div className="flex items-center gap-2 uppercase tracking-[0.22em] font-medium">
           <Info className="w-3.5 h-3.5" />
-          <span className="text-xs uppercase tracking-wide font-medium">
-            Question
-          </span>
+          <span>Question</span>
         </div>
         {topic && <span className="text-foreground/80">{topic}</span>}
         {subtopic && <span>/ {subtopic}</span>}
@@ -54,9 +52,10 @@ export function UnifiedQuestionPromptCard({
         )}
         <div className="ml-auto">{rightSlot}</div>
       </div>
-      <div className="bg-card/40 rounded-xl border border-border/20 p-5 sm:p-6">
+      <div className="relative overflow-hidden rounded-[28px] border-l-2 border-l-primary/35 bg-card/35 px-5 py-5 sm:px-6 sm:py-6">
+        <div className="absolute inset-y-0 right-0 w-28 bg-linear-to-l from-primary/5 to-transparent pointer-events-none" />
         <div
-          className="leading-relaxed text-foreground"
+          className="relative leading-[1.75] text-foreground"
           style={{ fontSize: 'var(--question-text-size)' }}
         >
           <MarkdownMath content={promptMarkdown} />
@@ -95,9 +94,8 @@ export function UnifiedMcqOptionsGrid({
   return (
     <div
       className={cn(
-        columns === 1
-          ? 'grid grid-cols-1 gap-3'
-          : 'grid grid-cols-2 gap-3 sm:gap-4',
+        'grid gap-3',
+        columns === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2',
         className
       )}
     >
@@ -107,23 +105,52 @@ export function UnifiedMcqOptionsGrid({
         const color = UNIFIED_OPTION_COLORS[opt.label] ?? '#6b7280';
         const disabled = lockSelection && (isAnswered || !onSelect);
 
-        let containerClasses =
-          'p-4 bg-muted/20 sm:p-5 hover:bg-muted/30 hover:scale-[1.01] cursor-pointer transition-all duration-150';
+        // Determine variant for clean conditional logic
+        const variant:
+          | 'correct'
+          | 'wrong'
+          | 'chosen'
+          | 'faded'
+          | 'idle'
+          | 'selectable' = !isAnswered
+          ? 'idle'
+          : revealCorrectness && isCorrect
+            ? 'correct'
+            : isChosen
+              ? revealCorrectness
+                ? 'wrong'
+                : 'chosen'
+              : isExamStyle
+                ? 'selectable'
+                : 'faded';
 
-        if (isAnswered) {
-          if (revealCorrectness && isCorrect) {
-            containerClasses =
-              'p-4 sm:p-5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 cursor-default';
-          } else if (isChosen) {
-            containerClasses = revealCorrectness
-              ? 'p-4 sm:p-5 rounded-lg border border-rose-500/30 bg-rose-500/5 cursor-default'
-              : 'p-4 sm:p-5 rounded-lg border border-violet-500/30 bg-violet-500/5 ring-2 ring-violet-500/30 ring-offset-1 cursor-default';
-          } else {
-            containerClasses = isExamStyle
-              ? 'p-4 sm:p-5 rounded-lg border border-transparent hover:bg-muted/30 hover:scale-[1.01] cursor-pointer transition-all duration-150'
-              : 'p-4 sm:p-5 rounded-lg border border-transparent opacity-40 cursor-default';
-          }
-        }
+        const containerClasses = {
+          idle: 'border border-border/10 bg-card/35 hover:bg-card/55 hover:border-border/20 cursor-pointer transition-all duration-150',
+          selectable:
+            'border border-border/10 bg-card/35 hover:bg-card/55 hover:border-border/20 cursor-pointer transition-all duration-150',
+          correct:
+            'border border-emerald-500/30 bg-emerald-500/8 cursor-default',
+          wrong: 'border border-rose-500/30 bg-rose-500/8 cursor-default',
+          chosen:
+            'border border-primary/30 bg-primary/8 ring-1 ring-primary/15 cursor-default',
+          faded:
+            'border border-transparent bg-card/15 opacity-40 cursor-default',
+        }[variant];
+
+        const badgeClasses = {
+          idle: 'bg-card/55 text-muted-foreground border border-border/10',
+          selectable:
+            'bg-card/55 text-muted-foreground border border-border/10',
+          correct: 'bg-emerald-500 text-white border-transparent',
+          wrong: 'bg-rose-500 text-white border-transparent',
+          chosen: 'bg-primary text-primary-foreground border-transparent',
+          faded: 'bg-muted text-muted-foreground border-transparent',
+        }[variant];
+
+        const badgeStyle =
+          variant === 'idle' || variant === 'selectable'
+            ? { borderColor: `${color}35`, color }
+            : undefined;
 
         return (
           <button
@@ -132,41 +159,34 @@ export function UnifiedMcqOptionsGrid({
             disabled={disabled}
             onClick={() => onSelect?.(opt.label)}
             className={cn(
-              'w-full text-left flex items-start gap-3',
+              'w-full text-left rounded-xl flex items-start gap-3.5',
               containerClasses
             )}
+            style={{ padding: 0 }}
             aria-label={`Option ${opt.label}: ${opt.text.substring(0, 60)}${opt.text.length > 60 ? '...' : ''}`}
           >
-            <div
-              className={cn(
-                'w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm font-semibold',
-                isAnswered
-                  ? isChosen
-                    ? revealCorrectness
-                      ? isCorrect
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-rose-500 text-white'
-                      : 'bg-violet-500 text-white'
-                    : isCorrect && revealCorrectness
-                      ? 'bg-emerald-500 text-white'
-                      : isExamStyle
-                        ? 'bg-muted text-foreground/70'
-                        : 'bg-muted text-muted-foreground'
-                  : 'bg-muted text-foreground/70'
-              )}
-              style={
-                !isAnswered || (isExamStyle && !isChosen)
-                  ? { backgroundColor: `${color}20`, color }
-                  : undefined
-              }
-            >
-              {opt.label}
-            </div>
-            <div
-              className="flex-1 leading-relaxed"
-              style={{ fontSize: 'var(--response-text-size)' }}
-            >
-              <MarkdownMath content={opt.text} />
+            {/* Inner layout uses gap + padding-equivalent via inner wrapper */}
+            <div className="flex items-start gap-3.5 w-full p-4 sm:p-5">
+              {/* Badge */}
+              <div
+                className={cn(
+                  'w-9 h-9 shrink-0 flex items-center justify-center rounded-lg',
+                  'text-[12px] font-semibold tracking-[0.15em] uppercase leading-none pl-[0.15em]',
+                  'transition-colors duration-150',
+                  badgeClasses
+                )}
+                style={badgeStyle}
+              >
+                {opt.label}
+              </div>
+
+              {/* Content */}
+              <div
+                className="flex-1 leading-[1.7] min-w-0 pt-[3px]"
+                style={{ fontSize: 'var(--response-text-size)' }}
+              >
+                <MarkdownMath content={opt.text} />
+              </div>
             </div>
           </button>
         );
