@@ -32,13 +32,20 @@ import { EmptyState } from '../components/EmptyState';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer, PageHeader } from '@/components/layout/primitives';
+import { toast } from 'sonner';
 
 type AnyEntry =
   | ({ kind: 'written' } & QuestionHistoryEntry)
   | ({ kind: 'mc' } & McHistoryEntry);
 
 type ModeFilter = 'all' | 'written' | 'mc';
-type SortOrder = 'newest' | 'oldest' | 'score-high' | 'score-low' | 'response-time-fast' | 'response-time-slow';
+type SortOrder =
+  | 'newest'
+  | 'oldest'
+  | 'score-high'
+  | 'score-low'
+  | 'response-time-fast'
+  | 'response-time-slow';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -823,6 +830,7 @@ export function HistoryView() {
     });
     setPendingDeleteEntry(null);
     setDeleteConfirmOpen(false);
+    toast.success('Entry removed from history');
   }
 
   function handleClear() {
@@ -842,6 +850,7 @@ export function HistoryView() {
     setExpandedEntryKeys(new Set());
     setConfirmOpen(false);
     setConfirmMessage(null);
+    toast.success('History cleared');
   }
 
   function clearAllFilters() {
@@ -849,6 +858,7 @@ export function HistoryView() {
     setSubjectFilter(null);
     setSearchQuery('');
     setSortOrder('newest');
+    toast.message('Filters cleared');
   }
 
   if (combined.length === 0) {

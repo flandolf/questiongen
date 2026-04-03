@@ -183,34 +183,61 @@ export function SessionHeader({
           </TooltipProvider>
 
           {onRegenerate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRegenerate}
-              className="h-9 w-9 p-0 rounded-full"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRegenerate}
+                    className="h-9 w-9 p-0 rounded-full"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Regenerate this question</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDelete}
-            disabled={totalQuestions === 0}
-            className="h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDelete}
+                  disabled={totalQuestions === 0}
+                  className="h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Remove question from set</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPrev}
-              disabled={questionIndex === 0}
-              className="h-9 w-9 p-0 rounded-full"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onPrev}
+                    disabled={questionIndex === 0}
+                    className="h-9 w-9 p-0 rounded-full"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Previous question (Left arrow)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button
               variant={isAtLast && canAdvance ? 'default' : 'secondary'}
               size="sm"

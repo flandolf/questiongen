@@ -29,6 +29,7 @@ import {
 } from '@/components/layout/primitives';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SavedQuestionSet } from '../types';
+import { toast } from 'sonner';
 
 type SortKey = 'updatedAt' | 'title' | 'progress';
 type ModeFilter = 'all' | 'written' | 'mc';
@@ -287,6 +288,7 @@ export function SavedView() {
     setPendingLoadId(null);
     setLoadConfirmOpen(false);
     navigate('/');
+    toast.success('Session loaded');
   }
 
   function handleDelete(savedSetId: string, title: string) {
@@ -299,6 +301,7 @@ export function SavedView() {
     deleteSavedSet(pendingDelete.id);
     setPendingDelete(null);
     setConfirmOpen(false);
+    toast.success('Saved set deleted');
   }
 
   // --- #1: Filtered + sorted sets ---
@@ -360,6 +363,7 @@ export function SavedView() {
       setConfirmDeleteAll(false);
       if (confirmDeleteTimeout.current)
         clearTimeout(confirmDeleteTimeout.current);
+      toast.success('All saved sets cleared');
     } else {
       setConfirmDeleteAll(true);
       if (confirmDeleteTimeout.current)

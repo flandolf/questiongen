@@ -11,6 +11,12 @@ import {
   Flame,
   ChevronRight,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn, getTodayKey } from '../../lib/utils';
 import { useAppStore } from '../../store';
 
@@ -217,20 +223,29 @@ export function Sidebar() {
     >
       {/* Header */}
       <div className="h-14 flex items-center justify-center px-3 mb-2 w-full">
-        <motion.button
-          onClick={() => setCollapsed(!collapsed)}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          transition={SPRING}
-          className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground transition-colors"
-        >
-          <motion.div
-            animate={{ rotate: collapsed ? 0 : 180 }}
-            transition={SPRING}
-          >
-            <ChevronRight size={16} />
-          </motion.div>
-        </motion.button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.button
+                onClick={() => setCollapsed(!collapsed)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={SPRING}
+                className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground transition-colors"
+              >
+                <motion.div
+                  animate={{ rotate: collapsed ? 0 : 180 }}
+                  transition={SPRING}
+                >
+                  <ChevronRight size={16} />
+                </motion.div>
+              </motion.button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Navigation */}
