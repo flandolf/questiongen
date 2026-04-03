@@ -35,17 +35,13 @@ import {
   FilterGroup,
   FilterButton,
 } from '@/components/layout/primitives';
-import { WrittenSessionHeader } from '@/views/generator/WrittenSessionHeader';
-import { McSessionHeader } from '@/views/generator/McSessionHeader';
-import { WrittenQuestionCard } from '@/views/generator/WrittenQuestionCard';
 import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
-import { McQuestionCard } from '@/views/generator/McQuestionCard';
 import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
-import { useTimerBar, type TimerBarData } from '@/context/TimerBarContext';
 
 // --- Generator parity reattempt view (restored full UI) ---
 import type { MarkAnswerResponse } from '@/types';
+import { SessionHeader } from './generator/SessionHeader';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type WrittenWrongEntry = QuestionHistoryEntry & { kind: 'written' };
@@ -281,16 +277,18 @@ export function VirtualizedWrongList({
     getScrollElement: () => parentRef.current,
     getItemKey: (index) => entries[index]?.id ?? index,
     estimateSize: () => 120,
-    measureElement: (el) => el.getBoundingClientRect().height,
-    overscan: 6,
-    useFlushSync: true,
+    overscan: 4,
   });
 
+  // Reset scroll to top when entries change
+  useEffect(() => {
+    rowVirtualizer.scrollToIndex(0);
+  }, [entries.length, rowVirtualizer]);
+
+  // Auto-measure elements after they render
   useEffect(() => {
     rowVirtualizer.measure();
-    const raf = requestAnimationFrame(() => rowVirtualizer.measure());
-    return () => cancelAnimationFrame(raf);
-  }, [rowVirtualizer, entries, expandedIds]);
+  }, [entries.length, expandedIds.size, rowVirtualizer]);
 
   return (
     <div ref={parentRef} className="flex-1 overflow-auto min-h-0">
@@ -484,6 +482,15 @@ function ReattemptView({
     Date.now()
   );
 
+  // Live question timer
+  const [questionElapsed, setQuestionElapsed] = useState<number>(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setQuestionElapsed(Math.floor((Date.now() - questionStartedAt) / 1000));
+    }, 1_000);
+    return () => clearInterval(id);
+  }, [questionStartedAt]);
+
   const entry = questions[idx];
   const isWritten = entry.kind === 'written';
   const writtenEntry = isWritten ? entry : null;
@@ -492,59 +499,6 @@ function ReattemptView({
 
   // Session timer
   const [startedAt] = useState(() => Date.now());
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const elapsedSeconds = Math.floor((now - startedAt) / 1000);
-  const formattedElapsedTime = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`;
-
-  // Current question elapsed time
-  const [questionNow, setQuestionNow] = useState(Date.now());
-  useEffect(() => {
-    setQuestionNow(Date.now());
-    const t = setInterval(() => setQuestionNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [questionStartedAt]);
-  const currentQuestionSeconds = Math.floor(
-    (questionNow - questionStartedAt) / 1000
-  );
-  const formattedQuestionTime = `${String(Math.floor(currentQuestionSeconds / 60)).padStart(2, '0')}:${String(currentQuestionSeconds % 60).padStart(2, '0')}`;
-
-  // --- Timer bar integration ---
-  const { setTimerBarData } = useTimerBar();
-  useEffect(() => {
-    const data: TimerBarData = {
-      questionNumber: idx + 1,
-      totalQuestions: questions.length,
-      currentQuestionTimeUsed: currentQuestionSeconds,
-      currentQuestionTimeLimit: 0,
-      currentQuestionRemaining: 0,
-      formattedQuestionTime: formattedQuestionTime,
-      parTimeSeconds: 0,
-      bankedSeconds: 0,
-      formattedBank: '0:00',
-      bankStatus: 'on-pace',
-      formattedSessionTime: formattedElapsedTime,
-      mode: 'practice',
-    };
-    setTimerBarData(data);
-  }, [
-    currentQuestionSeconds,
-    idx,
-    questions.length,
-    formattedQuestionTime,
-    formattedElapsedTime,
-    setTimerBarData,
-  ]);
-
-  // Clear timer bar on unmount
-  useEffect(() => {
-    return () => {
-      setTimerBarData(null);
-    };
-  }, [setTimerBarData]);
 
   // --- Written state ---
   const [writtenAnswer, setWrittenAnswer] = useState<string>('');
@@ -788,51 +742,79 @@ function ReattemptView({
     setQuestionStartedAt(Date.now());
   };
 
-  // --- Session header parity ---
-  const headerProps = {
-    questionIndex: idx,
-    totalQuestions: questions.length,
-    completedCount,
-    topic: entry.question.topic,
-    difficulty: 'Unknown' as Difficulty,
-    maxMarks: isWritten ? entry.question.maxMarks : undefined,
-    techAllowed: entry.question.techAllowed,
-    isMathTopic: false,
-    isAtLast: isLast,
-    canAdvance: true,
-    hasSavedSet: false,
-    generationStartedAt: startedAt,
-    formattedElapsedTime,
-    telemetry: null,
-    getDifficultyBadgeClasses: () => '',
-    onPrev: handlePrev,
-    onNext: () => handleNext(null),
-    onSave: () => {},
-    lastSavedAt: null,
-    onDelete: handleDeleteCurrent,
-    onExit: handleExit,
-  };
+  function getDifficultyBadgeClasses(level: Difficulty) {
+    switch (level) {
+      case 'Essential Skills':
+        return 'border-green-300 bg-green-50 text-green-800 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-200';
+      case 'Easy':
+        return 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200';
+      case 'Medium':
+        return 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200';
+      case 'Hard':
+        return 'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-200';
+      case 'Extreme':
+        return 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200';
+      default:
+        return '';
+    }
+  }
 
   // --- Per-question UI ---
   return (
     <div className="flex flex-col h-full">
-      {isWritten ? (
-        <WrittenSessionHeader {...headerProps} />
-      ) : (
-        <McSessionHeader {...headerProps} />
+      {isWritten && (
+        <SessionHeader
+          type="written"
+          questionIndex={idx}
+          totalQuestions={questions.length}
+          completedCount={completedCount}
+          topic={entry.question.topic}
+          difficulty={entry.difficulty ?? 'Medium'}
+          maxMarks={isWritten ? entry.question.maxMarks : undefined}
+          techAllowed={entry.question.techAllowed}
+          isMathTopic={false}
+          isAtLast={isLast}
+          canAdvance={true}
+          generationStartedAt={startedAt}
+          telemetry={null}
+          questionTimeSeconds={questionElapsed}
+          onPrev={handlePrev}
+          onNext={() => handleNext(null)}
+          onExit={handleExit}
+          getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+          onDelete={handleDeleteCurrent}
+        />
       )}
+      {!isWritten && (
+        <SessionHeader
+          type="mc"
+          questionIndex={idx}
+          totalQuestions={questions.length}
+          completedCount={completedCount}
+          topic={entry.question.topic}
+          difficulty={entry.difficulty ?? 'Medium'}
+          maxMarks={1}
+          techAllowed={entry.question.techAllowed}
+          isMathTopic={false}
+          isAtLast={isLast}
+          canAdvance={selectedAnswer !== ''}
+          generationStartedAt={startedAt}
+          telemetry={null}
+          questionTimeSeconds={questionElapsed}
+          onPrev={handlePrev}
+          onNext={() => handleNext(null)}
+          onExit={handleExit}
+          getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+          onDelete={handleDeleteCurrent}
+        />
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {isWritten ? (
           <div className="mx-auto w-full max-w-6xl flex flex-col space-y-4 pb-10">
             {!feedback ? (
               <>
-                <WrittenQuestionCard
-                  promptMarkdown={entry.question.promptMarkdown}
-                  canShowRawOutput={false}
-                  showRawOutput={false}
-                  rawModelOutput={''}
-                  onToggleRawOutput={() => {}}
-                />
+                <MarkdownMath content={entry.question.promptMarkdown} />
                 <WrittenAnswerCard
                   questionId={entry.id}
                   answer={writtenAnswer}
@@ -875,13 +857,7 @@ function ReattemptView({
         ) : (
           <>
             <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
-              <McQuestionCard
-                promptMarkdown={entry.question.promptMarkdown}
-                canShowRawOutput={false}
-                showRawOutput={false}
-                rawModelOutput={''}
-                onToggleRawOutput={() => {}}
-              />
+              <MarkdownMath content={entry.question.promptMarkdown} />
               <McAnswerPanel
                 questionId={entry.id}
                 options={entry.question.options}

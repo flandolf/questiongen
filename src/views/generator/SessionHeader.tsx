@@ -5,7 +5,7 @@ import {
   Info,
   RefreshCw,
   Flag,
-  Timer,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,22 +16,24 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Difficulty, GenerationTelemetry } from '@/types';
-import { TelemetryTooltip } from '@/views/generator/WrittenSessionHeader';
-import { cn } from '@/lib/utils';
-import { useTimerBar } from '@/context/TimerBarContext';
+import { formatDurationMs } from '../../lib/app-utils';
+import { useEffect, useState } from 'react';
 
-type McSessionHeaderProps = {
+type SessionHeaderProps = {
+  type: 'written' | 'mc';
   questionIndex: number;
   totalQuestions: number;
   completedCount: number;
   topic: string | undefined;
   difficulty: Difficulty;
+  maxMarks?: number;
   techAllowed: boolean | undefined;
   isMathTopic: boolean;
   isAtLast: boolean;
   canAdvance: boolean;
   generationStartedAt: number | null;
   telemetry: GenerationTelemetry | null;
+  questionTimeSeconds?: number;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
   onPrev: () => void;
   onNext: () => void;
@@ -40,79 +42,54 @@ type McSessionHeaderProps = {
   onRegenerate?: () => void;
 };
 
-export function McSessionHeader({
+export function SessionHeader({
+  type,
   questionIndex,
   totalQuestions,
   completedCount,
   topic,
   difficulty,
+  maxMarks,
   techAllowed,
   isMathTopic,
   isAtLast,
   canAdvance,
   generationStartedAt,
   telemetry,
+  questionTimeSeconds,
   getDifficultyBadgeClasses,
   onPrev,
   onNext,
   onDelete,
   onExit,
   onRegenerate,
-}: McSessionHeaderProps) {
+}: SessionHeaderProps) {
   const progressPct =
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
+  const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
 
-  const timerBar = useTimerBar();
-  const formatTimerValue = (seconds: number) => {
-    const floored = Math.floor(Math.max(0, seconds));
-    const mins = Math.floor(floored / 60);
-    const secs = floored % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const TimeDisplay = ({
-    icon: Icon,
-    value,
-    className,
-  }: {
-    icon: React.ElementType;
-    value: string;
-    className?: string;
-  }) => (
-    <div className="flex items-center gap-1.5">
-      <Icon className={cn('w-3.5 h-3.5', className)} />
-      <span
-        className={cn('text-sm font-bold tabular-nums font-mono', className)}
-      >
-        {value}
-      </span>
-    </div>
-  );
+  // Live ticking timer display
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (questionTimeSeconds === undefined) {
+      setTick(0);
+      return;
+    }
+    setTick(questionTimeSeconds);
+    const id = setInterval(() => setTick((t) => t + 1), 1_000);
+    return () => clearInterval(id);
+  }, [questionTimeSeconds]);
+  const displaySeconds = questionTimeSeconds !== undefined ? tick : 0;
+  const timerDisplay = `${Math.floor(displaySeconds / 60)}:${String(displaySeconds % 60).padStart(2, '0')}`;
 
   return (
     <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md">
       {/* Session progress bar at very top */}
       <div className="h-1 w-full bg-muted/30">
         <div
-          className="h-full bg-violet-500 transition-all duration-500 ease-out"
+          className={`h-full ${progressBarColor} transition-all duration-500 ease-out`}
           style={{ width: `${progressPct}%` }}
         />
-      </div>
-
-      <div className="border-b border-border/40">
-        {/* Mode + timer row */}
-        <div className="px-4 pt-2 pb-0 flex items-center justify-between">
-          {/* Current question timer */}
-          {timerBar && (
-            <TimeDisplay
-              icon={Timer}
-              value={formatTimerValue(
-                timerBar.timerBarData?.currentQuestionTimeUsed ?? 0
-              )}
-              className="text-muted-foreground"
-            />
-          )}
-        </div>
       </div>
 
       {/* Navigation row */}
@@ -131,6 +108,12 @@ export function McSessionHeader({
             <span className="text-foreground">Q {questionIndex + 1}</span>
             <span className="text-muted-foreground">of {totalQuestions}</span>
           </div>
+          {questionTimeSeconds !== undefined && (
+            <span className="flex items-center gap-1 text-xs font-mono tabular-nums text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              {timerDisplay}
+            </span>
+          )}
           {completedCount > 0 && completedCount < totalQuestions && (
             <span className="text-[10px] text-muted-foreground tabular-nums hidden sm:inline">
               ({completedCount} answered)
@@ -154,6 +137,14 @@ export function McSessionHeader({
             >
               {difficulty}
             </Badge>
+            {type === 'written' && maxMarks !== undefined && (
+              <Badge
+                variant="secondary"
+                className="h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20"
+              >
+                {maxMarks} marks
+              </Badge>
+            )}
             {isMathTopic && techAllowed !== undefined && (
               <Badge
                 variant={techAllowed ? 'default' : 'destructive'}
@@ -175,7 +166,14 @@ export function McSessionHeader({
                   <Info className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" align="end" sideOffset={8}>
+              <TooltipContent
+                side="bottom"
+                align="end"
+                sideOffset={8}
+                className={
+                  type === 'written' ? 'w-72 max-w-[calc(100vw-2rem)] p-3' : ''
+                }
+              >
                 <TelemetryTooltip
                   generationStartedAt={generationStartedAt}
                   telemetry={telemetry}
@@ -214,7 +212,7 @@ export function McSessionHeader({
               <ArrowLeft className="w-3.5 h-3.5" />
             </Button>
             <Button
-              variant={isAtLast ? 'default' : 'secondary'}
+              variant={isAtLast && canAdvance ? 'default' : 'secondary'}
               size="sm"
               onClick={onNext}
               disabled={!canAdvance}
@@ -226,6 +224,71 @@ export function McSessionHeader({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Shared telemetry tooltip ─────────────────────────────────────────────────
+
+type TelemetryTooltipProps = {
+  generationStartedAt: number | null;
+  telemetry: GenerationTelemetry | null;
+};
+
+export function TelemetryTooltip({
+  generationStartedAt,
+  telemetry,
+}: TelemetryTooltipProps) {
+  const hasAny = generationStartedAt !== null || telemetry;
+  if (!hasAny) {
+    return (
+      <div className="text-xs text-background/80">
+        No generation diagnostics yet.
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 text-xs">
+      <div className="font-semibold text-background">Question details</div>
+      {telemetry && (
+        <Row
+          label="Generation time"
+          value={formatDurationMs(telemetry.durationMs)}
+        />
+      )}
+      {telemetry?.totalTokens !== undefined && telemetry.totalTokens > 0 && (
+        <Row
+          label="Tokens"
+          value={
+            <span
+              title={`Prompt: ${telemetry.promptTokens ?? 0} · Completion: ${telemetry.completionTokens ?? 0}`}
+            >
+              {telemetry.totalTokens.toLocaleString()}
+            </span>
+          }
+        />
+      )}
+      {telemetry?.distinctnessAvg !== undefined && (
+        <Row
+          label="Distinctness"
+          value={`${(telemetry.distinctnessAvg * 100).toFixed(0)}%`}
+        />
+      )}
+      {telemetry?.multiStepDepthAvg !== undefined && (
+        <Row
+          label="Multi-step depth"
+          value={telemetry.multiStepDepthAvg.toFixed(2)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-background/80">
+      <span>{label}</span>
+      <span className="text-background">{value}</span>
     </div>
   );
 }

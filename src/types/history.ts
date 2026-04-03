@@ -39,6 +39,7 @@ export type QuestionHistoryEntry = {
   markResponse: MarkAnswerResponse;
   generationTelemetry?: GenerationTelemetry;
   analytics?: WrittenAnswerAnalytics;
+  difficulty?: Difficulty;
 };
 
 export type McHistoryEntry = {
@@ -53,6 +54,7 @@ export type McHistoryEntry = {
   maxMarks?: number;
   generationTelemetry?: GenerationTelemetry;
   analytics?: McAnswerAnalytics;
+  difficulty?: Difficulty;
 };
 
 export type GenerationRecord = {

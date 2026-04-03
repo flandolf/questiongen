@@ -23,7 +23,8 @@ import {
   MoreHorizontal,
   Plus,
   Save,
-  TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppSettings } from '@/AppContext';
@@ -36,13 +37,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-// import { Separator } from '@/components/ui/separator';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import {
   Tooltip,
   TooltipContent,
@@ -89,6 +83,12 @@ import {
   DropdownMenu,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
 
 export type { BatchTopicProgress } from '@/types';
 
@@ -153,6 +153,62 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function SectionDivider() {
   return <div className="h-4" />;
+}
+
+function ResizableAccordionContent({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const measuredRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const measured = measuredRef.current;
+    const content = contentRef.current;
+
+    if (!wrapper || !measured || !content) return;
+
+    const updateHeight = () => {
+      // Use the natural content height, not the constrained wrapper height.
+      const currentHeight = measured.scrollHeight;
+      content.style.setProperty(
+        '--radix-accordion-content-height',
+        `${currentHeight}px`
+      );
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateHeight();
+    });
+
+    resizeObserver.observe(measured);
+    updateHeight();
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  return (
+    <AccordionPrimitive.Content
+      ref={contentRef}
+      data-slot="accordion-content"
+      className="overflow-hidden px-2 text-xs/relaxed data-open:animate-accordion-down data-closed:animate-accordion-up"
+    >
+      <div
+        ref={wrapperRef}
+        className={cn(
+          'h-(--radix-accordion-content-height) pt-0 pb-4 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4',
+          className
+        )}
+      >
+        <div ref={measuredRef}>{children}</div>
+      </div>
+    </AccordionPrimitive.Content>
+  );
 }
 
 // ─── Subtopic chip group ──────────────────────────────────────────────────────
@@ -269,9 +325,6 @@ function GroupedSubtopicSelector({
                   : 'bg-background border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/10 hover:shadow-sm'
               )}
             >
-              {isActive && (
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-primary rounded-t-lg opacity-80" />
-              )}
               <span className="relative z-10">{unit}</span>
               {selectedCount > 0 && (
                 <Badge
@@ -350,22 +403,11 @@ function GroupedSubtopicSelector({
                       {allSelected ? 'All' : someSelected ? 'Some' : 'None'}
                     </button>
                     <div className="w-px h-4 bg-border/50" />
-                    <svg
-                      className={cn(
-                        'w-4 h-4 text-muted-foreground/60 transition-transform duration-200',
-                        isOpen && 'rotate-180 text-foreground/80'
-                      )}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
+                    {isOpen ? (
+                      <ChevronUp className="w-3 h-3 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    )}
                   </div>
                 </button>
                 {isOpen && (
@@ -462,9 +504,9 @@ function ToggleRow({
   );
 }
 
-// ─── Advanced Options Accordion ───────────────────────────────────────────────
+// ─── Advanced Options Group ───────────────────────────────────────────────────
 
-type AdvancedOptionsAccordionProps = {
+type AdvancedOptionsGroupProps = {
   questionMode: QuestionMode;
   questionCount: number;
   onSetQuestionCount: (count: number) => void;
@@ -498,7 +540,7 @@ type AdvancedOptionsAccordionProps = {
   }) => void;
 };
 
-function AdvancedOptionsAccordion({
+function AdvancedOptionsGroup({
   questionMode,
   questionCount,
   onSetQuestionCount,
@@ -527,40 +569,25 @@ function AdvancedOptionsAccordion({
   onSetAiDifficultyScalingEnabled,
   difficultyThresholds,
   onSetDifficultyThresholds,
-}: AdvancedOptionsAccordionProps) {
+}: AdvancedOptionsGroupProps) {
   return (
-    <Accordion
-      type="single"
-      collapsible
-      className="rounded-md border border-border/60 bg-linear-to-b from-card/30 to-background/5 shadow-sm overflow-y-auto"
-    >
-      <AccordionItem value="advanced" className="border-0">
-        <AccordionTrigger className="px-5 py-4 hover:bg-muted/10 hover:no-underline data-[state=open]:bg-primary/5 transition-all group">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 transition-colors group-hover:bg-primary/10 group-hover:text-primary shadow-sm ring-1 ring-border/50">
-              <BarChart3 className="w-4 h-4" />
-            </div>
-            <div className="text-left flex flex-col justify-center">
-              <p className="text-sm font-bold tracking-tight">
-                Advanced Settings
-              </p>
-              <p className="text-[11px] text-muted-foreground/80 font-medium">
-                Fine-tune constraints, counts & parameters
-              </p>
-            </div>
-          </div>
+    <Accordion type="single" collapsible>
+      <AccordionItem value="advanced-options" className="border rounded-lg">
+        <AccordionTrigger className="bg-transparent w-full px-4 py-3.5 border-0 flex items-center justify-between text-sm font-semibold">
+          <span>Advanced options</span>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </AccordionTrigger>
-        <AccordionContent className="px-4 pb-8">
+        <ResizableAccordionContent className="px-4 pt-0 pb-3.5 mb-6">
           {/* ── Session Size ── */}
           <div className="space-y-4 pt-3">
             <div className="space-y-2">
               <SectionLabel>Session Size</SectionLabel>
-              <div className="bg-card rounded-lg border border-border/40 p-4 shadow-sm space-y-4">
-                <div className="flex items-center justify-between user-select-none">
+              <div className="bg-card rounded-lg border p-4 space-y-4">
+                <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     <Hash className="w-4 h-4 text-primary" /> Questions
                   </Label>
-                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm ring-1 ring-primary/20">
+                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm">
                     {questionCount}
                   </div>
                 </div>
@@ -570,9 +597,9 @@ function AdvancedOptionsAccordion({
                   step={1}
                   value={[questionCount]}
                   onValueChange={(val) => onSetQuestionCount(val[0])}
-                  className="py-2 cursor-pointer"
+                  className="py-2"
                 />
-                <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>1 min</span>
                   <span>20 max</span>
                 </div>
@@ -580,11 +607,11 @@ function AdvancedOptionsAccordion({
             </div>
 
             {selectedTopics.length > 1 && (
-              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card/80 border border-border/40 w-fit max-w-full shadow-sm ring-1 ring-black/5 dark:ring-white/5">
-                <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest border-r border-border/50 pr-3 h-4 flex items-center shrink-0">
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card border w-fit max-w-full">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-r pr-3 h-4 flex items-center shrink-0">
                   Topics
                 </span>
-                <div className="flex items-center gap-4 overflow-x-auto no-scrollbar scroll-smooth">
+                <div className="flex items-center gap-4 overflow-x-auto">
                   {selectedTopics.map((topic, i) => {
                     const count =
                       Math.floor(questionCount / selectedTopics.length) +
@@ -592,13 +619,13 @@ function AdvancedOptionsAccordion({
                     return (
                       <div
                         key={topic}
-                        className="flex items-center gap-2 shrink-0 bg-background rounded-md px-2 py-1 ring-1 ring-border/40"
+                        className="flex items-center gap-2 shrink-0 bg-background rounded-md px-2 py-1"
                       >
                         <span className="text-primary/70 w-3.5 h-3.5 flex items-center justify-center shrink-0">
                           {TOPIC_ICONS[topic]}
                         </span>
                         <div className="flex items-center gap-1.5 text-xs">
-                          <span className="font-semibold text-foreground/80 truncate max-w-[100px]">
+                          <span className="font-semibold truncate max-w-[100px]">
                             {topic}
                           </span>
                           <span className="font-bold text-primary tabular-nums">
@@ -613,12 +640,12 @@ function AdvancedOptionsAccordion({
             )}
 
             {questionMode === 'written' ? (
-              <div className="bg-card rounded-lg border border-border/40 p-4 shadow-sm space-y-4">
-                <div className="flex items-center justify-between user-select-none">
+              <div className="bg-card rounded-lg border p-4 space-y-4">
+                <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-primary" /> Target marks
                   </Label>
-                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm ring-1 ring-primary/20">
+                  <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm">
                     {averageMarksPerQuestion}
                   </div>
                 </div>
@@ -628,19 +655,19 @@ function AdvancedOptionsAccordion({
                   step={1}
                   value={[averageMarksPerQuestion]}
                   onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
-                  className="py-2 cursor-pointer"
+                  className="py-2"
                 />
-                <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>1 min</span>
                   <span>15 max</span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between px-4 py-3.5 rounded-lg bg-card border border-border/40 shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3.5 rounded-lg bg-card border">
                 <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" /> Avg marks per question
                 </Label>
-                <div className="text-xs font-bold px-2 py-1 rounded ring-1 ring-border text-muted-foreground/60 bg-muted/20">
+                <div className="text-xs font-bold px-2 py-1 rounded bg-muted/20 text-muted-foreground/60">
                   1 (Fixed)
                 </div>
               </div>
@@ -703,7 +730,7 @@ function AdvancedOptionsAccordion({
           {hasAnyMathTopic && (
             <div className="space-y-3 pt-6">
               <SectionLabel>Calculator Settings</SectionLabel>
-              <div className="grid grid-cols-3 gap-2 bg-card p-1.5 rounded-xl border border-border/40 shadow-sm">
+              <div className="grid grid-cols-3 gap-2 bg-card p-1.5 rounded-xl border">
                 {(
                   [
                     {
@@ -730,9 +757,9 @@ function AdvancedOptionsAccordion({
                       type="button"
                       onClick={() => onSetTechMode(value)}
                       className={cn(
-                        'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer overflow-hidden relative',
+                        'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all cursor-pointer overflow-hidden relative',
                         isActive
-                          ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]'
+                          ? 'bg-primary text-primary-foreground shadow-md'
                           : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                       )}
                     >
@@ -741,15 +768,13 @@ function AdvancedOptionsAccordion({
                       )}
                       <span
                         className={cn(
-                          'transition-transform duration-200',
-                          isActive ? 'scale-110 drop-shadow-md' : ''
+                          'transition-transform',
+                          isActive ? 'scale-110' : ''
                         )}
                       >
                         {icon}
                       </span>
-                      <span className="text-[11px] leading-none tracking-wide">
-                        {label}
-                      </span>
+                      <span className="text-[11px] leading-none">{label}</span>
                     </button>
                   );
                 })}
@@ -780,14 +805,14 @@ function AdvancedOptionsAccordion({
                 />
               )}
             </div>
-            <div className="pt-2 user-select-none">
-              <div className="bg-card border border-border/40 p-4 rounded-xl shadow-sm space-y-2.5">
-                <Label className="text-sm font-semibold flex items-center gap-2 text-foreground/90">
-                  <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary ring-1 ring-primary/20">
+            <div className="pt-2">
+              <div className="bg-card border p-4 rounded-xl space-y-2.5">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary">
                     <Crosshair className="w-3 h-3" />
                   </div>
                   Direction Override
-                  <span className="font-medium text-[10px] uppercase text-muted-foreground/60 tracking-wider ml-auto">
+                  <span className="font-medium text-[10px] uppercase text-muted-foreground tracking-wider ml-auto">
                     Optional
                   </span>
                 </Label>
@@ -818,77 +843,77 @@ function AdvancedOptionsAccordion({
                 className={cn(
                   'uppercase text-[9px] tracking-widest font-bold',
                   aiDifficultyScalingEnabled
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-[0_0_10px_-2px_rgba(16,185,129,0.3)]'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'border-border text-muted-foreground'
                 )}
               >
                 {aiDifficultyScalingEnabled ? 'Active' : 'Offline'}
               </Badge>
             </div>
-
-            <div className="bg-card border border-border/40 rounded-xl p-1 shadow-sm">
+            <div className="space-y-3">
               <ToggleRow
                 id="ai-scaling"
-                icon={<TrendingUp className="w-4 h-4" />}
-                label="Self-calibrating Engine"
-                description="Adapts question parameters dynamically based on past accuracy."
+                icon={<Sparkles className="w-4 h-4" />}
+                label="Enable Scaling"
+                description="Model adjusts question difficulty based on your performance in real-time."
                 checked={aiDifficultyScalingEnabled}
                 onCheckedChange={onSetAiDifficultyScalingEnabled}
               />
-
               {aiDifficultyScalingEnabled && (
-                <div className="grid grid-cols-2 gap-3 p-3.5 border-t border-border/30 mt-1 bg-muted/10 rounded-b-xl">
+                <div className="bg-card border p-4 rounded-xl space-y-3">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    Difficulty Thresholds
+                  </Label>
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-foreground/80 flex justify-between">
-                      Promote %
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={difficultyThresholds.increase}
-                        className="font-mono text-sm bg-background border-border/60 pr-8 p-4"
-                        onChange={(e) =>
-                          onSetDifficultyThresholds({
-                            ...difficultyThresholds,
-                            increase: parseInt(e.target.value) || 85,
-                          })
-                        }
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
-                        %
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground">
+                        Increase difficulty if accuracy &gt;=
                       </span>
+                      <div className="bg  primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm">
+                        {difficultyThresholds.increase}%
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-foreground/80 flex justify-between">
-                      Demote %
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={difficultyThresholds.decrease}
-                        className="font-mono text-sm bg-background border-border/60 pr-8 p-4"
-                        onChange={(e) =>
-                          onSetDifficultyThresholds({
-                            ...difficultyThresholds,
-                            decrease: parseInt(e.target.value) || 70,
-                          })
-                        }
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs">
-                        %
+                    <Slider
+                      min={50}
+                      max={100}
+                      step={5}
+                      value={[difficultyThresholds.increase]}
+                      onValueChange={(val) =>
+                        onSetDifficultyThresholds({
+                          ...difficultyThresholds,
+                          increase: val[0],
+                        })
+                      }
+                      className="py-2"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground">
+                        Decrease difficulty if accuracy &lt;
                       </span>
+                      <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm">
+                        {difficultyThresholds.decrease}%
+                      </div>
                     </div>
+                    <Slider
+                      min={0}
+                      max={45}
+                      step={5}
+                      value={[difficultyThresholds.decrease]}
+                      onValueChange={(val) =>
+                        onSetDifficultyThresholds({
+                          ...difficultyThresholds,
+                          decrease: val[0],
+                        })
+                      }
+                      className="py-2"
+                    />
                   </div>
                 </div>
               )}
             </div>
           </div>
-        </AccordionContent>
+        </ResizableAccordionContent>
       </AccordionItem>
     </Accordion>
   );
@@ -1786,7 +1811,7 @@ function SetupPanelImpl({
 
           {/* ── Advanced Options ── */}
           <div>
-            <AdvancedOptionsAccordion
+            <AdvancedOptionsGroup
               questionMode={questionMode}
               questionCount={questionCount}
               onSetQuestionCount={onSetQuestionCount}

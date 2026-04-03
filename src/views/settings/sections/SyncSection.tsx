@@ -131,8 +131,8 @@ export function SyncSection() {
               )}
             >
               {syncLoading ||
-              syncIsSubmitting ||
-              syncStatus === 'connecting' ? (
+                syncIsSubmitting ||
+                syncStatus === 'connecting' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               ) : syncStatus === 'syncing' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
@@ -374,7 +374,7 @@ export function SyncSection() {
                   try {
                     const q = JSON.parse(
                       localStorage.getItem('firebase_live_retry_queue_v1') ||
-                        '[]'
+                      '[]'
                     );
                     return Array.isArray(q) ? q.length : '—';
                   } catch (e) {
@@ -388,7 +388,7 @@ export function SyncSection() {
                   try {
                     const logs = JSON.parse(
                       localStorage.getItem('firebase_live_immediate_logs_v1') ||
-                        '[]'
+                      '[]'
                     );
                     return logs && logs.length > 0 ? logs[0].message : '—';
                   } catch (e) {
@@ -446,11 +446,6 @@ export function SyncSection() {
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium">Sync Activity</h3>
-            {debugMode && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                Debug
-              </span>
-            )}
           </div>
           <div
             className={cn(
@@ -498,7 +493,7 @@ export function SyncSection() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium">Debug Logs</h3>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
-              Live
+              Debug
             </span>
           </div>
           <div className="space-y-2 max-h-80 overflow-y-auto font-mono text-[11px]">

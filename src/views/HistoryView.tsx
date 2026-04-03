@@ -38,7 +38,7 @@ type AnyEntry =
   | ({ kind: 'mc' } & McHistoryEntry);
 
 type ModeFilter = 'all' | 'written' | 'mc';
-type SortOrder = 'newest' | 'oldest' | 'score-high' | 'score-low';
+type SortOrder = 'newest' | 'oldest' | 'score-high' | 'score-low' | 'response-time-fast' | 'response-time-slow';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -51,6 +51,10 @@ function getEntryScore(item: AnyEntry): number {
     );
   }
   return item.awardedMarks ?? (item.correct ? 1 : 0);
+}
+
+function getEntryResponseTimeMs(item: AnyEntry): number | undefined {
+  return item.analytics?.responseLatencyMs;
 }
 
 function getRelativeTime(isoString: string): string {
@@ -747,6 +751,16 @@ export function HistoryView() {
       if (sortOrder === 'score-high')
         return getEntryScore(b) - getEntryScore(a);
       if (sortOrder === 'score-low') return getEntryScore(a) - getEntryScore(b);
+      if (sortOrder === 'response-time-fast') {
+        const aTime = getEntryResponseTimeMs(a) ?? Infinity;
+        const bTime = getEntryResponseTimeMs(b) ?? Infinity;
+        return aTime - bTime;
+      }
+      if (sortOrder === 'response-time-slow') {
+        const aTime = getEntryResponseTimeMs(a) ?? -1;
+        const bTime = getEntryResponseTimeMs(b) ?? -1;
+        return bTime - aTime;
+      }
       return 0;
     });
 
@@ -772,16 +786,20 @@ export function HistoryView() {
       return item ? `${item.kind}-${item.id}` : index;
     },
     estimateSize: () => 140,
-    measureElement: (el) => el.getBoundingClientRect().height,
-    overscan: 6,
-    useFlushSync: true,
+    overscan: 4,
   });
 
+  // Reset scroll to top when filters/sort change
+  const activeFilterKey = `${activeSubject}-${modeFilter}-${sortOrder}-${searchQuery}`;
+  useEffect(() => {
+    rowVirtualizer.scrollToIndex(0);
+  }, [activeFilterKey, rowVirtualizer]);
+
+  // Reset virtualizer size cache when the filtered data changes
+  // This prevents overlapping items caused by stale height measurements
   useEffect(() => {
     rowVirtualizer.measure();
-    const raf = requestAnimationFrame(() => rowVirtualizer.measure());
-    return () => cancelAnimationFrame(raf);
-  }, [rowVirtualizer, filteredHistory, expandedEntryKeys]);
+  }, [activeFilterKey, rowVirtualizer]);
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
     setExpandedEntryKeys((cur) => {
@@ -790,27 +808,6 @@ export function HistoryView() {
       return next;
     });
   }, []);
-
-  const toggleCallbacks = useMemo(() => {
-    const map = new Map<string, () => void>();
-    for (const item of filteredHistory) {
-      const key = `${item.kind}-${item.id}`;
-      map.set(key, () => toggleEntryExpanded(key));
-    }
-    return map;
-  }, [filteredHistory, toggleEntryExpanded]);
-
-  const deleteCallbacks = useMemo(() => {
-    const map = new Map<string, () => void>();
-    for (const item of filteredHistory) {
-      const key = `${item.kind}-${item.id}`;
-      map.set(key, () => {
-        setPendingDeleteEntry(item);
-        setDeleteConfirmOpen(true);
-      });
-    }
-    return map;
-  }, [filteredHistory]);
 
   function performSingleDeleteConfirmed() {
     if (!pendingDeleteEntry) return;
@@ -966,6 +963,8 @@ export function HistoryView() {
             <option value="oldest">Oldest first</option>
             <option value="score-high">Highest score</option>
             <option value="score-low">Lowest score</option>
+            <option value="response-time-fast">Fastest response</option>
+            <option value="response-time-slow">Slowest response</option>
           </select>
         </div>
 
@@ -1089,6 +1088,7 @@ export function HistoryView() {
         style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}
       >
         <div
+          key={activeFilterKey}
           ref={parentRef}
           style={{
             height: '100%',
@@ -1123,8 +1123,11 @@ export function HistoryView() {
                   <HistoryEntryCard
                     item={item}
                     isExpanded={expandedEntryKeys.has(entryKey)}
-                    onToggle={toggleCallbacks.get(entryKey)!}
-                    onDelete={deleteCallbacks.get(entryKey)!}
+                    onToggle={() => toggleEntryExpanded(entryKey)}
+                    onDelete={() => {
+                      setPendingDeleteEntry(item);
+                      setDeleteConfirmOpen(true);
+                    }}
                   />
                 </div>
               );
