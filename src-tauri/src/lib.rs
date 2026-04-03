@@ -9,10 +9,13 @@ mod persistence;
 mod quality;
 
 use base64::{engine::general_purpose, Engine as _};
+use once_cell::sync::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tauri::{Emitter, Manager};
+
+static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
 use difficulty::difficulty_guidance;
 
@@ -214,7 +217,10 @@ fn marking_format() -> serde_json::Value {
                             "explanation": { "type": "string" }
                         }
                     }
-                }
+                },
+                "promptTokens": { "type": "integer", "minimum": 0 },
+                "completionTokens": { "type": "integer", "minimum": 0 },
+                "totalTokens": { "type": "integer", "minimum": 0 }
             }
         }),
     )
@@ -2119,7 +2125,11 @@ async fn cleanup_subtopics(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .setup(|_app| {
+        .setup(|app| {
+            // Store a global AppHandle so Android native code can emit events
+            // into the webview via the Rust side. An external native function
+            // will call `stylus_double_tap` which uses this handle.
+            let _ = APP_HANDLE.set(app.handle().clone());
             #[cfg(target_os = "android")]
             {
                 let ctx = ndk_context::android_context();
@@ -2151,6 +2161,14 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn stylus_double_tap() {
+    if let Some(handle) = APP_HANDLE.get() {
+        let _ = handle.emit("stylus-double-tap", ());
+    }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

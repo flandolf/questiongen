@@ -34,6 +34,8 @@ export function FirebaseSyncProvider({
       enableSync: firebaseSync.enableSync,
       disableSync: firebaseSync.disableSync,
       toggleSync: firebaseSync.toggleSync,
+      pullSync: firebaseSync.pullSync,
+      pushSync: firebaseSync.pushSync,
       forceSync: firebaseSync.forceSync,
       resolveConflicts: firebaseSync.resolveConflicts,
     }),
@@ -57,6 +59,8 @@ export function FirebaseSyncProvider({
       firebaseSync.enableSync,
       firebaseSync.disableSync,
       firebaseSync.toggleSync,
+      firebaseSync.pullSync,
+      firebaseSync.pushSync,
       firebaseSync.forceSync,
       firebaseSync.resolveConflicts,
     ]

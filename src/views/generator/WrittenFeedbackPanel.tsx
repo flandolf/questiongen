@@ -139,12 +139,13 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
           </div>
           <div className="flex items-center gap-3 mt-1">
             <div
-              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isCorrect
+              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                isCorrect
                   ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
                   : pct >= 0.5
                     ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                     : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-                }`}
+              }`}
             >
               {isCorrect ? (
                 <Check className="w-3.5 h-3.5" />
@@ -175,10 +176,11 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowExemplar(!showExemplar)}
-                className={`text-xs h-7 px-3 rounded-full transition-all ${showExemplar
+                className={`text-xs h-7 px-3 rounded-full transition-all ${
+                  showExemplar
                     ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                }`}
               >
                 {showExemplar ? 'Hide Exemplar' : 'Compare Exemplar'}
               </Button>
@@ -278,12 +280,13 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                 return (
                   <div
                     key={idx}
-                    className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors ${isFullMarks
+                    className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors ${
+                      isFullMarks
                         ? 'bg-emerald-500/5 border-emerald-500/30'
                         : isPartial
                           ? 'bg-amber-500/5 border-amber-500/30'
                           : 'bg-muted/10 border-border/40 hover:border-border/80'
-                      }`}
+                    }`}
                   >
                     {/* Mark Stepper */}
                     <div className="flex items-center gap-2 w-24 shrink-0">

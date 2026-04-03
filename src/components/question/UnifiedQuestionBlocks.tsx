@@ -113,16 +113,16 @@ export function UnifiedMcqOptionsGrid({
           | 'faded'
           | 'idle'
           | 'selectable' = !isAnswered
-            ? 'idle'
-            : revealCorrectness && isCorrect
-              ? 'correct'
-              : isChosen
-                ? revealCorrectness
-                  ? 'wrong'
-                  : 'chosen'
-                : isExamStyle
-                  ? 'selectable'
-                  : 'faded';
+          ? 'idle'
+          : revealCorrectness && isCorrect
+            ? 'correct'
+            : isChosen
+              ? revealCorrectness
+                ? 'wrong'
+                : 'chosen'
+              : isExamStyle
+                ? 'selectable'
+                : 'faded';
 
         const containerClasses = {
           idle: 'border border-border/10 bg-card/35 hover:bg-card/55 hover:border-border/20 cursor-pointer transition-all duration-150',
