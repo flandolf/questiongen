@@ -52,13 +52,6 @@ export function removeTombstone(
   return { ...tombstones, [collection]: next };
 }
 
-export function clearTombstones(
-  tombstones: DeletionTombstones,
-  collection: CollectionType
-): DeletionTombstones {
-  return { ...tombstones, [collection]: {} };
-}
-
 /** Build a deletedIds object for saveUserData from tombstones. */
 export function tombstonesToDeletedIds(tombstones: DeletionTombstones): {
   questionHistory: string[];
@@ -106,15 +99,6 @@ export function purgePersistedTombstones(
       )
     ),
   };
-}
-
-export function hasTombstones(tombstones: DeletionTombstones): boolean {
-  return (
-    Object.keys(tombstones.questionHistory).length > 0 ||
-    Object.keys(tombstones.mcHistory).length > 0 ||
-    Object.keys(tombstones.savedSets).length > 0 ||
-    Object.keys(tombstones.presets).length > 0
-  );
 }
 
 /**

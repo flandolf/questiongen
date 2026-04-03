@@ -35,4 +35,5 @@ export {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   saveDailyUsage,
+  saveAnalyticsSummary,
 } from './firebase-crud';

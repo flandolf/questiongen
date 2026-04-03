@@ -30,6 +30,7 @@ import {
   migrateUserDataForCompaction,
   deleteArchivedItems,
   saveDailyUsage,
+  saveAnalyticsSummary,
   upsertQuestionHistoryItems,
   deleteQuestionHistoryItems,
   upsertMcHistoryItems,
@@ -41,6 +42,8 @@ import {
   deletePresets,
   upsertGoals,
 } from './useFirebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase-init';
 import {
   SyncConflict,
   tombstonesToDeletedIds,
@@ -518,21 +521,21 @@ function applySyncableDataToStore(data: SyncableData): Partial<AppState> {
   return result;
 }
 
-export type SyncStatus =
+type SyncStatus =
   | 'idle'
   | 'connecting'
   | 'syncing'
   | 'error'
   | 'offline';
 
-export interface SyncEvent {
+interface SyncEvent {
   id: string;
   timestamp: number;
   type: 'upload' | 'download' | 'error' | 'conflict' | 'archive' | 'retry';
   description: string;
 }
 
-export interface DebugLogEntry {
+interface DebugLogEntry {
   id: string;
   timestamp: number;
   message: string;
@@ -1251,12 +1254,15 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             current.questionHistory,
             current.mcHistory
           );
-          debugLog('Daily usage synced after generation');
-        } catch (err) {
-          console.warn(
-            '[Firebase] Daily usage sync after generation failed:',
-            err
+          await saveAnalyticsSummary(
+            getUserId(user),
+            current.generationHistory,
+            current.questionHistory,
+            current.mcHistory
           );
+          debugLog('Daily usage and analytics summary synced');
+        } catch (err) {
+          console.warn('[Firebase] Usage and analytics sync failed:', err);
         }
       }, 2000);
     });
@@ -1522,7 +1528,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             `Synced ${remoteData?.questionHistory?.length || 0} question history items`
           );
 
-          // Sync daily usage (tokens/day, est. cost) to Firestore
+          // Sync daily usage and analytics summary to Firestore
           try {
             await saveDailyUsage(
               userId,
@@ -1530,10 +1536,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
               localState.questionHistory,
               localState.mcHistory
             );
-            debugLog('Daily usage synced on connect');
+            await saveAnalyticsSummary(
+              userId,
+              localState.generationHistory,
+              localState.questionHistory,
+              localState.mcHistory
+            );
+            debugLog('Daily usage and analytics summary synced on connect');
           } catch (usageError) {
             console.warn(
-              '[Firebase] Daily usage sync failed on connect:',
+              '[Firebase] Usage and analytics sync failed on connect:',
               usageError
             );
           }
@@ -1600,7 +1612,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             ...(hasDeletions ? { deletedIds } : {}),
           });
 
-          // Sync daily usage (tokens/day, est. cost) to Firestore
+          // Sync daily usage and analytics summary to Firestore
           try {
             await saveDailyUsage(
               userId,
@@ -1608,10 +1620,16 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
               localState.questionHistory,
               localState.mcHistory
             );
-            debugLog('Daily usage synced on initial upload');
+            await saveAnalyticsSummary(
+              userId,
+              localState.generationHistory,
+              localState.questionHistory,
+              localState.mcHistory
+            );
+            debugLog('Daily usage and analytics summary synced on connect');
           } catch (usageError) {
             console.warn(
-              '[Firebase] Daily usage sync failed on initial upload:',
+              '[Firebase] Usage and analytics sync failed on connect:',
               usageError
             );
           }
@@ -1773,12 +1791,30 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           for (const id of changedByCollection.savedSets) {
             if (!changedSsIds.has(id)) remoteDeletedIds.savedSets.add(id);
           }
+          // For partial remote snapshots, we need to load presets separately
+          // to avoid losing remote preset data. Presets are stored in a single
+          // document, so they can't be delta-loaded like collection items.
+          let remotePresets: Preset[] = [];
+          try {
+            const presetsRef = doc(db, 'users', userId, 'settings', 'presets');
+            const presetsSnap = await getDoc(presetsRef);
+            if (presetsSnap.exists()) {
+              const data = presetsSnap.data();
+              remotePresets = Array.isArray(data.presets) ? data.presets : [];
+            }
+          } catch (err) {
+            console.warn(
+              '[Firebase] Failed to load presets during delta sync:',
+              err
+            );
+          }
+
           remoteData = {
             settings: {},
             questionHistory: changed.questionHistory,
             mcHistory: changed.mcHistory,
             savedSets: changed.savedSets,
-            presets: [],
+            presets: remotePresets,
           };
           remoteHasData = hasRemoteData(
             normalizeRemoteSyncableData(remoteData)
@@ -1881,9 +1917,33 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           });
         }
 
-        // Preset conflict detection — presets are stored as a single Firestore document,
-        // so individual items don't have per-item sync tracking. Skip dual-deletion detection
-        // for presets; deletions are always propagated silently by rewriting the full array.
+        // Preset conflict detection — presets are stored as a single Firestore document
+        // containing an array. We detect dual-deletions by comparing local tombstones
+        // against remote preset IDs. Since presets are rewritten as a full array on each
+        // sync, we need to check if any tombstoned preset ID is also absent from remote.
+        const remotePresetIds = new Set(
+          (remoteData?.presets ?? []).map((p: Preset) => p.id)
+        );
+        const prevSyncedPresets = new Set(
+          (localData.presets ?? []).map((p: Preset) => p.id)
+        );
+        const presetConflicts = detectDualDeletions(
+          new Set(Object.keys(tombstones.presets)),
+          remotePresetIds,
+          prevSyncedPresets
+        );
+        for (const id of presetConflicts) {
+          detectedConflicts.push({
+            id,
+            collection: 'presets',
+            label: buildConflictLabel(
+              'presets',
+              id,
+              localData.presets as Record<string, unknown>[]
+            ),
+            localDeletedAt: tombstones.presets[id],
+          });
+        }
       }
 
       // If there are conflicts, pause sync and prompt user
@@ -2037,7 +2097,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         });
       }
 
-      // 7. Sync daily usage (bundled into manual sync)
+      // 7. Sync daily usage and analytics summary (bundled into manual sync)
       try {
         await saveDailyUsage(
           userId,
@@ -2045,9 +2105,15 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           state.questionHistory,
           state.mcHistory
         );
-        debugLog('Daily usage synced');
+        await saveAnalyticsSummary(
+          userId,
+          state.generationHistory,
+          state.questionHistory,
+          state.mcHistory
+        );
+        debugLog('Daily usage and analytics summary synced');
       } catch (usageError) {
-        console.warn('[Firebase] Daily usage sync failed:', usageError);
+        console.warn('[Firebase] Usage and analytics sync failed:', usageError);
       }
 
       localDataRef.current = merged;

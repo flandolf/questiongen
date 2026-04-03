@@ -14,8 +14,6 @@ export type QuestionTimerState = {
   totalTimeLimitSeconds: number;
   sessionStartedAt: number | null;
   sessionFinishedAt: number | null;
-  bankedSeconds: number;
-  parTimeSeconds: number;
   isPaused: boolean;
   pausedDurationMs: number;
   activeQuestionIndex: number;
@@ -26,8 +24,6 @@ export type PersistedTimerState = {
   totalTimeLimitSeconds: number;
   sessionStartedAt: number | null;
   sessionFinishedAt: number | null;
-  bankedSeconds: number;
-  parTimeSeconds: number;
   isPaused: boolean;
   pausedDurationMs: number;
   activeQuestionIndex: number;

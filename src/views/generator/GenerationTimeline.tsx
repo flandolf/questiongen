@@ -192,14 +192,15 @@ export function GenerationTimeline({
             <div key={stage} className="flex items-start gap-2 pl-0.5">
               <TimelineDot phase={phase} />
               <span
-                className={`text-[11px] font-mono leading-tight pt-0.5 ${phase === 'active'
+                className={`text-[11px] font-mono leading-tight pt-0.5 ${
+                  phase === 'active'
                     ? 'text-foreground font-semibold'
                     : phase === 'done'
                       ? 'text-muted-foreground'
                       : phase === 'error'
                         ? 'text-destructive'
                         : 'text-muted-foreground/40'
-                  }`}
+                }`}
               >
                 {STAGE_LABELS[stage]}
               </span>
@@ -361,14 +362,15 @@ export function BatchTimeline({
 
               <div className="flex-1 min-w-0">
                 <span
-                  className={`text-[11px] font-mono leading-tight ${isActive
+                  className={`text-[11px] font-mono leading-tight ${
+                    isActive
                       ? 'text-foreground font-semibold'
                       : isDone
                         ? 'text-muted-foreground'
                         : isError
                           ? 'text-destructive'
                           : 'text-muted-foreground/40'
-                    }`}
+                  }`}
                 >
                   {entry.topic}
                   <span className="font-normal opacity-70">

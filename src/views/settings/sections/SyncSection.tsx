@@ -131,8 +131,8 @@ export function SyncSection() {
               )}
             >
               {syncLoading ||
-                syncIsSubmitting ||
-                syncStatus === 'connecting' ? (
+              syncIsSubmitting ||
+              syncStatus === 'connecting' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               ) : syncStatus === 'syncing' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
@@ -374,9 +374,18 @@ export function SyncSection() {
                   try {
                     const q = JSON.parse(
                       localStorage.getItem('firebase_live_retry_queue_v1') ||
-                      '[]'
+                        '[]'
                     );
-                    return Array.isArray(q) ? q.length : '—';
+                    if (!Array.isArray(q)) return '—';
+                    const now = Date.now();
+                    const actionable = q.filter(
+                      (item) => item.nextAttemptAt <= now
+                    ).length;
+                    return actionable > 0
+                      ? actionable
+                      : q.length > 0
+                        ? `${q.length} (delayed)`
+                        : '—';
                   } catch (e) {
                     return '—';
                   }
@@ -388,7 +397,7 @@ export function SyncSection() {
                   try {
                     const logs = JSON.parse(
                       localStorage.getItem('firebase_live_immediate_logs_v1') ||
-                      '[]'
+                        '[]'
                     );
                     return logs && logs.length > 0 ? logs[0].message : '—';
                   } catch (e) {

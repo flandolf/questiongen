@@ -1559,9 +1559,17 @@ useAppStore.subscribe((state) => {
       try {
         void tryPerformOpOnce(op)
           .then(() => {
+            // Create tombstone to persist deletion across restarts
+            useAppStore.setState((s) => ({
+              deletionTombstones: addTombstone(
+                s.deletionTombstones,
+                'questionHistory',
+                op.id
+              ),
+            }));
             appendLiveLog(
               'info',
-              `[LIVE] upsert questionHistory/${op.id} immediate success`
+              `[LIVE] delete questionHistory/${op.id} immediate success`
             );
           })
           .catch((err) => {
@@ -1595,6 +1603,14 @@ useAppStore.subscribe((state) => {
       try {
         void tryPerformOpOnce(op)
           .then(() => {
+            // Create tombstone to persist deletion across restarts
+            useAppStore.setState((s) => ({
+              deletionTombstones: addTombstone(
+                s.deletionTombstones,
+                'questionHistory',
+                op.id
+              ),
+            }));
             appendLiveLog(
               'info',
               `[LIVE] delete questionHistory/${op.id} immediate success`
@@ -1634,12 +1650,20 @@ useAppStore.subscribe((state) => {
       };
       try {
         void tryPerformOpOnce(op)
-          .then(() =>
+          .then(() => {
+            // Create tombstone to persist deletion across restarts
+            useAppStore.setState((s) => ({
+              deletionTombstones: addTombstone(
+                s.deletionTombstones,
+                'mcHistory',
+                op.id
+              ),
+            }));
             appendLiveLog(
               'info',
-              `[LIVE] upsert mcHistory/${op.id} immediate success`
-            )
-          )
+              `[LIVE] delete mcHistory/${op.id} immediate success`
+            );
+          })
           .catch((err) => {
             appendLiveLog(
               'warn',
@@ -1670,12 +1694,20 @@ useAppStore.subscribe((state) => {
       };
       try {
         void tryPerformOpOnce(op)
-          .then(() =>
+          .then(() => {
+            // Create tombstone to persist deletion across restarts
+            useAppStore.setState((s) => ({
+              deletionTombstones: addTombstone(
+                s.deletionTombstones,
+                'mcHistory',
+                op.id
+              ),
+            }));
             appendLiveLog(
               'info',
               `[LIVE] delete mcHistory/${op.id} immediate success`
-            )
-          )
+            );
+          })
           .catch((err) => {
             appendLiveLog(
               'warn',
@@ -1746,12 +1778,20 @@ useAppStore.subscribe((state) => {
       };
       try {
         void tryPerformOpOnce(op)
-          .then(() =>
+          .then(() => {
+            // Create tombstone to persist deletion across restarts
+            useAppStore.setState((s) => ({
+              deletionTombstones: addTombstone(
+                s.deletionTombstones,
+                'savedSets',
+                op.id
+              ),
+            }));
             appendLiveLog(
               'info',
               `[LIVE] delete savedSets/${op.id} immediate success`
-            )
-          )
+            );
+          })
           .catch((err) => {
             appendLiveLog(
               'warn',

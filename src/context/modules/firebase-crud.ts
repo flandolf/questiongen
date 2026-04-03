@@ -1989,3 +1989,66 @@ export async function saveDailyUsage(
     await batch.commit();
   }
 }
+
+export async function saveAnalyticsSummary(
+  userId: string,
+  generationHistory: Array<{
+    timestamp: string;
+    outputs?: {
+      totalTokens?: number;
+      estimatedCostUsd?: number;
+    };
+  }>,
+  questionHistory: Array<{ createdAt: string }>,
+  mcHistory: Array<{ createdAt: string }>
+): Promise<void> {
+  const byDay = new Map<
+    string,
+    { tokens: number; cost: number; questions: number }
+  >();
+
+  const addQuestion = (createdAt: string) => {
+    const day = getDayKey(createdAt);
+    const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
+    bucket.questions += 1;
+    byDay.set(day, bucket);
+  };
+
+  for (const e of questionHistory) addQuestion(e.createdAt);
+  for (const e of mcHistory) addQuestion(e.createdAt);
+
+  for (const record of generationHistory) {
+    const day = getDayKey(record.timestamp);
+    const bucket = byDay.get(day) ?? { tokens: 0, cost: 0, questions: 0 };
+    if (record.outputs?.totalTokens)
+      bucket.tokens += record.outputs.totalTokens;
+    if (record.outputs?.estimatedCostUsd)
+      bucket.cost += record.outputs.estimatedCostUsd;
+    byDay.set(day, bucket);
+  }
+
+  const sorted = Array.from(byDay.entries()).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+  const totalDays = sorted.length;
+  if (totalDays === 0) return;
+
+  const totalTokens = sorted.reduce((s, [, d]) => s + d.tokens, 0);
+  const totalCost = sorted.reduce((s, [, d]) => s + d.cost, 0);
+  const totalQuestions = sorted.reduce((s, [, d]) => s + d.questions, 0);
+
+  const settingsRef = doc(db, 'users', userId, 'settings', 'main');
+  await setDoc(
+    settingsRef,
+    {
+      analytics: {
+        avgTokensPerDay: totalTokens / totalDays,
+        avgCostPerDay: totalCost / totalDays,
+        avgQuestionsPerDay: totalQuestions / totalDays,
+        totalActiveDays: totalDays,
+        lastUpdated: serverTimestamp(),
+      },
+    },
+    { merge: true }
+  );
+}

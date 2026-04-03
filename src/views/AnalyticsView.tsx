@@ -736,42 +736,41 @@ export function AnalyticsView() {
                 <ChartEmpty message="No written attempts to display." />
               ) : (
                 <div className="flex flex-col gap-4">
-                  {lowestScoringWritten
-                    .map((attempt: AttemptRow) => {
-                      const scorePct = attempt.scorePercent ?? 0;
-                      return (
-                        <div
-                          key={attempt.id}
-                          className="flex flex-col gap-2 pb-4 border-b border-border/20 last:border-0 last:pb-0"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-medium">
-                                {attempt.topic}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                {attempt.subtopic}
-                              </p>
-                            </div>
-                            <span
-                              className={`text-lg font-medium ${accuracyColor(scorePct)}`}
-                            >
-                              {formatPercent(scorePct)}
-                            </span>
+                  {lowestScoringWritten.map((attempt: AttemptRow) => {
+                    const scorePct = attempt.scorePercent ?? 0;
+                    return (
+                      <div
+                        key={attempt.id}
+                        className="flex flex-col gap-2 pb-4 border-b border-border/20 last:border-0 last:pb-0"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-medium">
+                              {attempt.topic}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              {attempt.subtopic}
+                            </p>
                           </div>
-                          <div className="flex gap-4 text-xs text-muted-foreground/70">
-                            <span className="flex items-center gap-1.5">
-                              <Type className="h-3.5 w-3.5" />{' '}
-                              {attempt.answerWordCount ?? 0} words
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Clock3 className="h-3.5 w-3.5" />{' '}
-                              {formatDurationMs(attempt.markingLatencyMs)}
-                            </span>
-                          </div>
+                          <span
+                            className={`text-lg font-medium ${accuracyColor(scorePct)}`}
+                          >
+                            {formatPercent(scorePct)}
+                          </span>
                         </div>
-                      );
-                    })}
+                        <div className="flex gap-4 text-xs text-muted-foreground/70">
+                          <span className="flex items-center gap-1.5">
+                            <Type className="h-3.5 w-3.5" />{' '}
+                            {attempt.answerWordCount ?? 0} words
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Clock3 className="h-3.5 w-3.5" />{' '}
+                            {formatDurationMs(attempt.markingLatencyMs)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1070,10 +1069,11 @@ export function AnalyticsView() {
               <button
                 type="button"
                 onClick={() => setSubjectFilter(null)}
-                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === null
-                  ? 'border-foreground/30 bg-secondary text-secondary-foreground'
-                  : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                  }`}
+                className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
+                  subjectFilter === null
+                    ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                    : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                }`}
               >
                 All subjects
                 <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
@@ -1091,10 +1091,11 @@ export function AnalyticsView() {
                     onClick={() =>
                       setSubjectFilter(subjectFilter === topic ? null : topic)
                     }
-                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${subjectFilter === topic
-                      ? 'border-foreground/30 bg-secondary text-secondary-foreground'
-                      : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                      }`}
+                    className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
+                      subjectFilter === topic
+                        ? 'border-foreground/30 bg-secondary text-secondary-foreground'
+                        : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                    }`}
                   >
                     {topic}
                     <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
