@@ -737,45 +737,59 @@ function AdvancedOptionsGroup({
                       value: 'tech-free' as TechMode,
                       label: 'Tech Free',
                       icon: <Pen className="w-4 h-4" />,
+                      desc: 'Questions that do not require a calculator',
                     },
                     {
                       value: 'mix' as TechMode,
                       label: 'Mixed',
                       icon: <Blend className="w-4 h-4" />,
+                      desc: 'Mix of calculator and non-calculator questions',
                     },
                     {
                       value: 'tech-active' as TechMode,
                       label: 'Tech Active',
                       icon: <Calculator className="w-4 h-4" />,
+                      desc: 'Questions that may require a calculator',
                     },
                   ] as const
-                ).map(({ value, label, icon }) => {
+                ).map(({ value, label, icon, desc }) => {
                   const isActive = techMode === value;
                   return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => onSetTechMode(value)}
-                      className={cn(
-                        'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all cursor-pointer overflow-hidden relative',
-                        isActive
-                          ? 'bg-primary text-primary-foreground shadow-md'
-                          : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                      )}
-                    >
-                      {isActive && (
-                        <div className="absolute inset-0 bg-white/10 dark:bg-black/10 rounded-lg pointer-events-none" />
-                      )}
-                      <span
-                        className={cn(
-                          'transition-transform',
-                          isActive ? 'scale-110' : ''
-                        )}
-                      >
-                        {icon}
-                      </span>
-                      <span className="text-[11px] leading-none">{label}</span>
-                    </button>
+                    <TooltipProvider key={value}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => onSetTechMode(value)}
+                            className={cn(
+                              'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all cursor-pointer overflow-hidden relative',
+                              isActive
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                            )}
+                          >
+                            {isActive && (
+                              <div className="absolute inset-0 bg-white/10 dark:bg-black/10 rounded-lg pointer-events-none" />
+                            )}
+                            <span
+                              className={cn(
+                                'transition-transform',
+                                isActive ? 'scale-110' : ''
+                              )}
+                            >
+                              {icon}
+                            </span>
+                            <span className="text-[11px] leading-none">
+                              {label}
+                            </span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p>{desc}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   );
                 })}
               </div>

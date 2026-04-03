@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useAppPreferences,
   useAppSettings,
@@ -758,7 +759,7 @@ export function GeneratorView() {
           unlisten = fn;
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -795,7 +796,7 @@ export function GeneratorView() {
           unlisten = fn;
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -851,8 +852,8 @@ export function GeneratorView() {
       /* noop */
     }
   }
-  const startOverRef = useRef<() => void>(() => {});
-  const submitRef = useRef<() => void>(() => {});
+  const startOverRef = useRef<() => void>(() => { });
+  const submitRef = useRef<() => void>(() => { });
   useEffect(() => {
     if (!isInSession) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -982,6 +983,7 @@ export function GeneratorView() {
     setPendingCancelType(null);
     setConfirmOpen(false);
     setConfirmMessage(null);
+    toast.success('Question removed from set');
   }, [
     pendingCancelType,
     activeQuestion,
@@ -1499,7 +1501,7 @@ export function GeneratorView() {
       }
 
       setQuestions(finalQuestions);
-      setWrittenTimerState(null); // Clear persisted timer for new session
+      setWrittenTimerState(null);
       setWrittenRawModelOutput('');
       setWrittenGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -1510,6 +1512,7 @@ export function GeneratorView() {
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
+      toast.success(`${finalQuestions.length} questions generated`);
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({
@@ -1685,7 +1688,7 @@ export function GeneratorView() {
       }
 
       setMcQuestions(finalQuestions);
-      setMcTimerState(null); // Clear persisted timer for new session
+      setMcTimerState(null);
       setMcRawModelOutput('');
       setMcGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -1696,6 +1699,7 @@ export function GeneratorView() {
       setMcMarkAppealByQuestionId({});
       setMcMarkOverrideInputByQuestionId({});
       setMcAwardedMarksByQuestionId({});
+      toast.success(`${finalQuestions.length} MC questions generated`);
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({
@@ -1751,6 +1755,9 @@ export function GeneratorView() {
       });
       writtenTimer.onQuestionAnswered(activeQuestion.id);
       useAppStore.getState().recordCompletion('written');
+      toast.success(
+        `Answer marked: ${response.achievedMarks}/${response.maxMarks} marks`
+      );
     } catch (error) {
       setErrorMessage(readBackendError(error));
       setLastFailedAction('mark-written');
@@ -1812,6 +1819,9 @@ export function GeneratorView() {
         markingLatencyMs: Date.now() - markStartedAt,
         responseEnteredAtMs,
       });
+      toast.success(
+        `Re-mark complete: ${response.achievedMarks}/${response.maxMarks} marks`
+      );
     } catch (error) {
       setErrorMessage(readBackendError(error));
       setLastFailedAction('mark-written');
@@ -1852,6 +1862,7 @@ export function GeneratorView() {
       [activeQuestion.id]: String(clamped),
     }));
     updateLatestWrittenHistoryEntry(activeQuestion.id, updated);
+    toast.message(`Mark overridden to ${clamped}/${activeFeedback.maxMarks}`);
   }
 
   function handleOverrideCriterion(
@@ -2163,251 +2174,251 @@ export function GeneratorView() {
           batchProgress={batchProgress}
         />
       ) : /* ── Completion ── */
-      showCompletionScreen && isSetComplete ? (
-        <CompletionScreen
-          questionMode={questionMode}
-          difficulty={difficulty}
-          accuracyPercent={completionAccuracyPercent ?? 0}
-          formattedElapsedTime={completionFormattedElapsedTime}
-          completedCount={
-            questionMode === 'written' ? completedCount : mcCompletedCount
-          }
-          totalCount={
-            questionMode === 'written' ? questions.length : mcQuestions.length
-          }
-          onReview={() => setShowCompletionScreen(false)}
-          onStartOver={handleStartOver}
-          perQuestionTiming={
-            questionMode === 'written'
-              ? questions.map((q) => {
+        showCompletionScreen && isSetComplete ? (
+          <CompletionScreen
+            questionMode={questionMode}
+            difficulty={difficulty}
+            accuracyPercent={completionAccuracyPercent ?? 0}
+            formattedElapsedTime={completionFormattedElapsedTime}
+            completedCount={
+              questionMode === 'written' ? completedCount : mcCompletedCount
+            }
+            totalCount={
+              questionMode === 'written' ? questions.length : mcQuestions.length
+            }
+            onReview={() => setShowCompletionScreen(false)}
+            onStartOver={handleStartOver}
+            perQuestionTiming={
+              questionMode === 'written'
+                ? questions.map((q) => {
                   const t = writtenTimer.getQuestionTiming(q.id);
                   return t
                     ? {
-                        questionId: q.id,
-                        timeUsedSeconds: t.timeUsedSeconds,
-                        timeLimitSeconds: t.timeLimitSeconds,
-                        finishedEarly: t.finishedEarly,
-                      }
+                      questionId: q.id,
+                      timeUsedSeconds: t.timeUsedSeconds,
+                      timeLimitSeconds: t.timeLimitSeconds,
+                      finishedEarly: t.finishedEarly,
+                    }
                     : {
-                        questionId: q.id,
-                        timeUsedSeconds: 0,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      };
+                      questionId: q.id,
+                      timeUsedSeconds: 0,
+                      timeLimitSeconds: 0,
+                      finishedEarly: false,
+                    };
                 })
-              : mcQuestions.map((q) => {
+                : mcQuestions.map((q) => {
                   const t = mcTimer.getQuestionTiming(q.id);
                   return t
                     ? {
-                        questionId: q.id,
-                        timeUsedSeconds: t.timeUsedSeconds,
-                        timeLimitSeconds: t.timeLimitSeconds,
-                        finishedEarly: t.finishedEarly,
-                      }
+                      questionId: q.id,
+                      timeUsedSeconds: t.timeUsedSeconds,
+                      timeLimitSeconds: t.timeLimitSeconds,
+                      finishedEarly: t.finishedEarly,
+                    }
                     : {
-                        questionId: q.id,
-                        timeUsedSeconds: 0,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      };
+                      questionId: q.id,
+                      timeUsedSeconds: 0,
+                      timeLimitSeconds: 0,
+                      finishedEarly: false,
+                    };
                 })
-          }
-          parTimeSeconds={
-            questionMode === 'written'
-              ? writtenTimer.parTimeSeconds
-              : mcTimer.parTimeSeconds
-          }
-          totalBankedSeconds={
-            questionMode === 'written'
-              ? writtenTimer.bankedSeconds
-              : mcTimer.bankedSeconds
-          }
-          sessionWrittenResults={sessionWrittenResults}
-          sessionMcResults={sessionMcResults}
-        />
-      ) : /* ── Written Question View ── */
-      questionMode === 'written' ? (
-        <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
-          <SessionHeader
-            type="written"
-            questionIndex={activeQuestionIndex}
-            totalQuestions={questions.length}
-            completedCount={completedCount}
-            topic={activeQuestion?.topic}
-            difficulty={difficulty}
-            maxMarks={activeQuestion?.maxMarks}
-            techAllowed={activeQuestion?.techAllowed}
-            isMathTopic={isMathTopic(activeQuestion?.topic)}
-            isAtLast={isAtLastWrittenQuestion}
-            canAdvance={canAdvanceWritten}
-            generationStartedAt={generationStartedAt}
-            telemetry={writtenGenerationTelemetry}
-            questionTimeSeconds={writtenTimer.currentQuestionTimeUsed}
-            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-            onPrev={() =>
-              setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
             }
-            onNext={handleNextWrittenQuestion}
-            onDelete={handleCancelWrittenQuestion}
-            onExit={handleStartOver}
+            parTimeSeconds={
+              questionMode === 'written'
+                ? writtenTimer.parTimeSeconds
+                : mcTimer.parTimeSeconds
+            }
+            totalBankedSeconds={
+              questionMode === 'written'
+                ? writtenTimer.bankedSeconds
+                : mcTimer.bankedSeconds
+            }
+            sessionWrittenResults={sessionWrittenResults}
+            sessionMcResults={sessionMcResults}
           />
-          {showKeyboardHint && (
-            <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
-              <span>
-                Tip: Use{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  ←
-                </kbd>{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  →
-                </kbd>{' '}
-                to navigate,{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  Ctrl+Enter
-                </kbd>{' '}
-                to submit
-              </span>
-              <button
-                onClick={dismissKeyboardHint}
-                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {activeQuestion && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                {activeFeedback ? (
-                  <div className="min-w-0 pb-10">
-                    <WrittenFeedbackPanel
-                      questionId={activeQuestion.id}
-                      promptMarkdown={activeQuestion.promptMarkdown}
-                      answer={activeQuestionAnswer}
-                      image={activeQuestionImage}
-                      feedback={activeFeedback}
-                      appealText={activeMarkAppeal}
-                      overrideInput={activeOverrideInput}
-                      isMarking={isMarking}
-                      onAppealChange={handleAppealChange}
-                      onOverrideInputChange={handleOverrideInputChange}
-                      onArgueForMark={handleArgueForMark}
-                      onApplyOverride={handleOverrideMark}
-                      onCriterionChange={handleOverrideCriterion}
-                    />
+        ) : /* ── Written Question View ── */
+          questionMode === 'written' ? (
+            <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
+              <SessionHeader
+                type="written"
+                questionIndex={activeQuestionIndex}
+                totalQuestions={questions.length}
+                completedCount={completedCount}
+                topic={activeQuestion?.topic}
+                difficulty={difficulty}
+                maxMarks={activeQuestion?.maxMarks}
+                techAllowed={activeQuestion?.techAllowed}
+                isMathTopic={isMathTopic(activeQuestion?.topic)}
+                isAtLast={isAtLastWrittenQuestion}
+                canAdvance={canAdvanceWritten}
+                generationStartedAt={generationStartedAt}
+                telemetry={writtenGenerationTelemetry}
+                questionTimeSeconds={writtenTimer.currentQuestionTimeUsed}
+                getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+                onPrev={() =>
+                  setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
+                }
+                onNext={handleNextWrittenQuestion}
+                onDelete={handleCancelWrittenQuestion}
+                onExit={handleStartOver}
+              />
+              {showKeyboardHint && (
+                <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+                  <span>
+                    Tip: Use{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      ←
+                    </kbd>{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      →
+                    </kbd>{' '}
+                    to navigate,{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      Ctrl+Enter
+                    </kbd>{' '}
+                    to submit
+                  </span>
+                  <button
+                    onClick={dismissKeyboardHint}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+              {activeQuestion && (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                    {activeFeedback ? (
+                      <div className="min-w-0 pb-10">
+                        <WrittenFeedbackPanel
+                          questionId={activeQuestion.id}
+                          promptMarkdown={activeQuestion.promptMarkdown}
+                          answer={activeQuestionAnswer}
+                          image={activeQuestionImage}
+                          feedback={activeFeedback}
+                          appealText={activeMarkAppeal}
+                          overrideInput={activeOverrideInput}
+                          isMarking={isMarking}
+                          onAppealChange={handleAppealChange}
+                          onOverrideInputChange={handleOverrideInputChange}
+                          onArgueForMark={handleArgueForMark}
+                          onApplyOverride={handleOverrideMark}
+                          onCriterionChange={handleOverrideCriterion}
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
+                        <div className="min-w-0 space-y-4 pb-10">
+                          <MarkdownMath content={activeQuestion.promptMarkdown} />
+                        </div>
+                        <div className="min-w-0 space-y-4 pb-10">
+                          <WrittenAnswerCard
+                            questionId={activeQuestion.id}
+                            answer={activeQuestionAnswer}
+                            image={activeQuestionImage}
+                            isMarking={isMarking}
+                            canSubmit={canSubmitAnswer}
+                            onAnswerChange={handleWrittenAnswerChange}
+                            onImageDrop={handleWrittenImageDrop}
+                            onImageRemove={handleWrittenImageRemove}
+                            onSubmit={handleSubmitForMarking}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
-                    <div className="min-w-0 space-y-4 pb-10">
-                      <MarkdownMath content={activeQuestion.promptMarkdown} />
-                    </div>
-                    <div className="min-w-0 space-y-4 pb-10">
-                      <WrittenAnswerCard
-                        questionId={activeQuestion.id}
-                        answer={activeQuestionAnswer}
-                        image={activeQuestionImage}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── MC Question View ── */
+            <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-500">
+              <SessionHeader
+                type="mc"
+                questionIndex={activeMcQuestionIndex}
+                totalQuestions={mcQuestions.length}
+                completedCount={mcCompletedCount}
+                topic={activeMcQuestion?.topic}
+                difficulty={difficulty}
+                techAllowed={activeMcQuestion?.techAllowed}
+                isMathTopic={isMathTopic(activeMcQuestion?.topic)}
+                isAtLast={isAtLastMcQuestion}
+                canAdvance={canAdvanceMc}
+                generationStartedAt={generationStartedAt}
+                telemetry={mcGenerationTelemetry}
+                questionTimeSeconds={mcTimer.currentQuestionTimeUsed}
+                getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+                onPrev={() =>
+                  setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))
+                }
+                onNext={handleNextMcQuestion}
+                onDelete={handleCancelMcQuestion}
+                onExit={handleStartOver}
+              />
+              {showKeyboardHint && (
+                <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+                  <span>
+                    Tip: Use{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      ←
+                    </kbd>{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      →
+                    </kbd>{' '}
+                    to navigate
+                  </span>
+                  <button
+                    onClick={dismissKeyboardHint}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+              {activeMcQuestion && (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                    <div className="mx-auto max-w-5xl space-y-5 pb-10">
+                      <div className="p-6 bg-muted/20 rounded-md space-y-2">
+                        <h1 className="text-xl font-bold">
+                          Question {activeMcQuestionIndex + 1}
+                        </h1>
+                        <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                      </div>
+                      {countWords(activeMcQuestion.explanationMarkdown) >
+                        MC_MAX_EXPLANATION_WORDS && (
+                          <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
+                            <strong className="font-semibold">Warning:</strong>{' '}
+                            Explanation is{' '}
+                            {countWords(activeMcQuestion.explanationMarkdown)}
+                            words (max {MC_MAX_EXPLANATION_WORDS}). This may be
+                            rejected by the backend.
+                          </div>
+                        )}
+                      <McAnswerPanel
+                        questionId={activeMcQuestion.id}
+                        options={activeMcQuestion.options}
+                        correctAnswer={activeMcQuestion.correctAnswer}
+                        explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                        selectedAnswer={activeMcAnswer}
+                        awardedMarks={activeMcAwardedMarks}
+                        appealText={activeMcMarkAppeal}
+                        overrideInput={activeMcOverrideInput}
                         isMarking={isMarking}
-                        canSubmit={canSubmitAnswer}
-                        onAnswerChange={handleWrittenAnswerChange}
-                        onImageDrop={handleWrittenImageDrop}
-                        onImageRemove={handleWrittenImageRemove}
-                        onSubmit={handleSubmitForMarking}
+                        hideCorrectAnswer={false}
+                        onSelectAnswer={handleMcAnswer}
+                        onAppealChange={handleMcAppealChange}
+                        onOverrideInputChange={handleMcOverrideInputChange}
+                        onArgueForMark={handleArgueForMcMark}
+                        onApplyOverride={handleOverrideMcMark}
                       />
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ── MC Question View ── */
-        <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-500">
-          <SessionHeader
-            type="mc"
-            questionIndex={activeMcQuestionIndex}
-            totalQuestions={mcQuestions.length}
-            completedCount={mcCompletedCount}
-            topic={activeMcQuestion?.topic}
-            difficulty={difficulty}
-            techAllowed={activeMcQuestion?.techAllowed}
-            isMathTopic={isMathTopic(activeMcQuestion?.topic)}
-            isAtLast={isAtLastMcQuestion}
-            canAdvance={canAdvanceMc}
-            generationStartedAt={generationStartedAt}
-            telemetry={mcGenerationTelemetry}
-            questionTimeSeconds={mcTimer.currentQuestionTimeUsed}
-            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-            onPrev={() =>
-              setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))
-            }
-            onNext={handleNextMcQuestion}
-            onDelete={handleCancelMcQuestion}
-            onExit={handleStartOver}
-          />
-          {showKeyboardHint && (
-            <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
-              <span>
-                Tip: Use{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  ←
-                </kbd>{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  →
-                </kbd>{' '}
-                to navigate
-              </span>
-              <button
-                onClick={dismissKeyboardHint}
-                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {activeMcQuestion && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <div className="mx-auto max-w-5xl space-y-5 pb-10">
-                  <div className="p-6 bg-muted/20 rounded-md space-y-2">
-                    <h1 className="text-xl font-bold">
-                      Question {activeMcQuestionIndex + 1}
-                    </h1>
-                    <MarkdownMath content={activeMcQuestion.promptMarkdown} />
-                  </div>
-                  {countWords(activeMcQuestion.explanationMarkdown) >
-                    MC_MAX_EXPLANATION_WORDS && (
-                    <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
-                      <strong className="font-semibold">Warning:</strong>{' '}
-                      Explanation is{' '}
-                      {countWords(activeMcQuestion.explanationMarkdown)}
-                      words (max {MC_MAX_EXPLANATION_WORDS}). This may be
-                      rejected by the backend.
-                    </div>
-                  )}
-                  <McAnswerPanel
-                    questionId={activeMcQuestion.id}
-                    options={activeMcQuestion.options}
-                    correctAnswer={activeMcQuestion.correctAnswer}
-                    explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                    selectedAnswer={activeMcAnswer}
-                    awardedMarks={activeMcAwardedMarks}
-                    appealText={activeMcMarkAppeal}
-                    overrideInput={activeMcOverrideInput}
-                    isMarking={isMarking}
-                    hideCorrectAnswer={false}
-                    onSelectAnswer={handleMcAnswer}
-                    onAppealChange={handleMcAppealChange}
-                    onOverrideInputChange={handleMcOverrideInputChange}
-                    onArgueForMark={handleArgueForMcMark}
-                    onApplyOverride={handleOverrideMcMark}
-                  />
                 </div>
-              </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
       {/* ── Keyboard shortcut hint ── */}
       {isInSession && showKeyboardHint && (
@@ -2430,7 +2441,7 @@ export function GeneratorView() {
               setShowKeyboardHint(false);
               try {
                 localStorage.setItem('keyboard-hint-dismissed', '1');
-              } catch {}
+              } catch { }
             }}
             className="ml-2 text-background/60 hover:text-background cursor-pointer"
           >

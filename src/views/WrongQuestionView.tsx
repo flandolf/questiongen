@@ -28,6 +28,7 @@ import {
   XCircle,
   Clock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   PageContainer,
   PageHeader,
@@ -184,13 +185,12 @@ const ListEntryCard = memo(function ListEntryCard({
           <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
             {srCard && (
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
-                  daysUntilReview(srCard) < 0
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${daysUntilReview(srCard) < 0
                     ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                     : daysUntilReview(srCard) === 0
                       ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
                       : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
-                }`}
+                  }`}
               >
                 {daysUntilReview(srCard) < 0
                   ? `${Math.abs(daysUntilReview(srCard))}d overdue`
@@ -531,23 +531,23 @@ function ReattemptView({
     const state: QuestionState =
       currentEntry.kind === 'written'
         ? {
-            writtenAnswer,
-            image,
-            feedback,
-            markingScheme,
-            appealText,
-            overrideInput,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          }
+          writtenAnswer,
+          image,
+          feedback,
+          markingScheme,
+          appealText,
+          overrideInput,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        }
         : {
-            selectedAnswer,
-            awardedMarks,
-            mcAppealText,
-            mcOverrideInput,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          };
+          selectedAnswer,
+          awardedMarks,
+          mcAppealText,
+          mcOverrideInput,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        };
     setSavedStates((prev) => ({ ...prev, [currentEntry.id]: state }));
   }, [
     idx,
@@ -848,7 +848,7 @@ function ReattemptView({
                 isMarking={isMarking}
                 onAppealChange={setAppealText}
                 onOverrideInputChange={setOverrideInput}
-                onArgueForMark={() => {}}
+                onArgueForMark={() => { }}
                 onApplyOverride={handleApplyOverride}
                 onCriterionChange={handleCriterionChange}
               />
@@ -871,7 +871,7 @@ function ReattemptView({
                 onSelectAnswer={handleSelectAnswer}
                 onAppealChange={setMcAppealText}
                 onOverrideInputChange={setMcOverrideInput}
-                onArgueForMark={() => {}}
+                onArgueForMark={() => { }}
                 onApplyOverride={handleApplyMcOverride}
               />
             </div>
@@ -1215,6 +1215,7 @@ export default function WrongQuestionView() {
         n.delete(entry.id);
         return n;
       });
+      toast.success('Entry removed from wrong answers');
     },
     [setQuestionHistory, setMcHistory]
   );
@@ -1227,9 +1228,9 @@ export default function WrongQuestionView() {
             e.id !== entry.id
               ? e
               : {
-                  ...e,
-                  markResponse: { ...e.markResponse, verdict: 'correct' },
-                }
+                ...e,
+                markResponse: { ...e.markResponse, verdict: 'correct' },
+              }
           )
         );
         // Record SR with quality 4 (correct)
@@ -1241,6 +1242,7 @@ export default function WrongQuestionView() {
         // Record SR with quality 4 (correct)
         reviewSpacedCard(entry.id, 4);
       }
+      toast.success('Marked as correct - spaced repetition updated');
     },
     [setQuestionHistory, setMcHistory, reviewSpacedCard]
   );
@@ -1430,13 +1432,12 @@ export default function WrongQuestionView() {
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${
-                            isOverdue
+                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${isOverdue
                               ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                               : days === 0
                                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                                 : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                          }`}
+                            }`}
                         >
                           {isOverdue
                             ? `${Math.abs(days)}d overdue`
