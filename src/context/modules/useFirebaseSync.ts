@@ -949,7 +949,71 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   }, []);
 
   useEffect(() => {
+    const IMMEDIATE_LOGS_KEY = 'firebase_live_immediate_logs_v1';
+
+    const loadImmediateLogs = () => {
+      try {
+        const raw = localStorage.getItem(IMMEDIATE_LOGS_KEY);
+        if (!raw) return;
+        const arr = JSON.parse(raw) as any[];
+
+        const mapped = arr
+          .slice()
+          .reverse() // newest first
+          .map((l, idx) => {
+            // Support both legacy immediate log shapes and the new compact shape
+            if (l && typeof l === 'object' && 'ts' in l && 'message' in l) {
+              const ts = typeof l.ts === 'number' ? l.ts : Date.now();
+              return {
+                id: `live-${idx}-${ts}`,
+                timestamp: ts,
+                message: `[LIVE ${String(l.level ?? 'info').toUpperCase()}] ${String(l.message)}`,
+                data: l,
+              } as DebugLogEntry;
+            }
+            if (
+              l &&
+              typeof l === 'object' &&
+              typeof l.id === 'string' &&
+              typeof l.timestamp === 'number'
+            ) {
+              return {
+                id: `immediate-${l.id}`,
+                timestamp: l.timestamp,
+                message: `${l.collection ?? ''} ${l.opType ?? ''} ${l.status ?? ''}$
+                  ${l.message ? ' - ' + l.message : ''}`,
+                data: l,
+              } as DebugLogEntry;
+            }
+            return null;
+          })
+          .filter(Boolean) as DebugLogEntry[];
+
+        setDebugLogs((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const toAdd = mapped.filter((m) => !existingIds.has(m.id));
+          const combined = [...toAdd, ...prev];
+          return combined.slice(0, DEBUG_LOG_LIMIT);
+        });
+      } catch (e) {
+        // don't fail the hook if parsing fails
+        // eslint-disable-next-line no-console
+        console.warn('useFirebaseSync: failed to load immediate logs', e);
+      }
+    };
+
+    loadImmediateLogs();
+
+    const storageHandler = (ev: StorageEvent) => {
+      if (ev.key === IMMEDIATE_LOGS_KEY) {
+        loadImmediateLogs();
+      }
+    };
+
+    window.addEventListener('storage', storageHandler);
+
     return () => {
+      window.removeEventListener('storage', storageHandler);
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
       }
@@ -1218,6 +1282,32 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         debugLog('Persisted sync preference:', persisted);
         if (persisted) {
           setIsSyncEnabled(true);
+          // Mark initialized so the queue-sync subscriber activates on
+          // session-restore reloads (where enableSync is not called).
+          isInitializedRef.current = true;
+          // Populate the hash cache from the current store state so the
+          // subscriber can detect subsequent changes correctly.
+          const current = useAppStore.getState();
+          if (current.isHydrated) {
+            hashedEntitiesRef.current.questionHistory = new Map(
+              current.questionHistory.map((item) => [item.id, stableHash(item)])
+            );
+            hashedEntitiesRef.current.mcHistory = new Map(
+              current.mcHistory.map((item) => [item.id, stableHash(item)])
+            );
+            hashedEntitiesRef.current.savedSets = new Map(
+              current.savedSets.map((item) => [item.id, stableHash(item)])
+            );
+            hashedEntitiesRef.current.presets = new Map(
+              (current.presets ?? []).map((item) => [item.id, stableHash(item)])
+            );
+            hashedEntitiesRef.current.studyGoals = stableHash(
+              current.studyGoals
+            );
+            hashedEntitiesRef.current.streakData = stableHash(
+              current.streakData
+            );
+          }
         }
       }
       setIsLoading(false);

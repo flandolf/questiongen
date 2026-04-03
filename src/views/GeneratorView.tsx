@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatDurationMs } from '@/lib/app-utils';
 import { useLocation } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -484,6 +485,8 @@ export function GeneratorView() {
     return mcQuestions.map((q) => q.id).join('|');
   }, [questionMode, questions, mcQuestions]);
 
+  const autoSavedCompletionKeyRef = useRef<string | null>(null);
+
   const writtenAccuracyPercent = useMemo(() => {
     if (!isWrittenSetComplete) return null;
     const total = questions.reduce((s, q) => s + q.maxMarks, 0);
@@ -568,9 +571,34 @@ export function GeneratorView() {
   // const elapsedSeconds = activeTimer.sessionElapsedSeconds;
   // const remainingSeconds = activeTimer.sessionRemainingSeconds;
 
-  // If you need to keep completionFormattedElapsedTime and formattedCountdownTime:
+  // Compute formatted elapsed time: use generationStartedAt during generation,
+  // fall back to the question timer once the session is active.
+  const [generationElapsedMs, setGenerationElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (!generationStartedAt || !isGenerating) {
+      setGenerationElapsedMs(0);
+      return;
+    }
+
+    const tick = () => setGenerationElapsedMs(Date.now() - generationStartedAt);
+    tick();
+
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [generationStartedAt, isGenerating]);
+
+  const generationFormattedElapsedTime =
+    generationStartedAt && isGenerating
+      ? formatDurationMs(generationElapsedMs)
+      : '';
+
+  // If we're generating, show generation elapsed time; otherwise use session timer
+  const formattedElapsedTime =
+    isGenerating && generationStartedAt
+      ? generationFormattedElapsedTime
+      : formattedSessionTime;
   const completionFormattedElapsedTime = formattedSessionTime;
-  const formattedElapsedTime = formattedSessionTime;
 
   // --- Timer bar context (for header display) ---
   const { setTimerBarData } = useTimerBar();
@@ -638,6 +666,14 @@ export function GeneratorView() {
   useEffect(() => {
     if (showCompletionScreen) setHasShownCompletionScreen(true);
   }, [showCompletionScreen]);
+
+  useEffect(() => {
+    if (!isSetComplete) return;
+    const key = `${questionMode}:${completionSetKey}`;
+    if (!completionSetKey || autoSavedCompletionKeyRef.current === key) return;
+    autoSavedCompletionKeyRef.current = key;
+    saveCurrentSet();
+  }, [isSetComplete, questionMode, completionSetKey, saveCurrentSet]);
 
   const handleWrittenAnswerChange = useCallback(
     (value: string) => {

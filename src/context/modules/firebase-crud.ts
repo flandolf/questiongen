@@ -1306,7 +1306,8 @@ export async function saveUserData(
   let mcHistoryToSave = data.mcHistory || [];
   let savedSetsToSave = data.savedSets || [];
 
-  if (!fullSync && deltaSyncVersions) {
+  // Filter unchanged items even during full sync to avoid wasting writes
+  if (deltaSyncVersions) {
     const qhChanged = getChangedItems(
       questionHistoryToSave,
       deltaSyncVersions.questionHistory

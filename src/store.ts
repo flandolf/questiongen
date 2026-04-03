@@ -1330,7 +1330,10 @@ function appendLiveLog(level: LiveLogEntry['level'], message: string) {
     const arr: LiveLogEntry[] = raw ? JSON.parse(raw) : [];
     arr.unshift({ ts: Date.now(), level, message });
     // keep recent
-    localStorage.setItem(LIVE_IMMEDIATE_LOGS_KEY, JSON.stringify(arr.slice(0, 200)));
+    localStorage.setItem(
+      LIVE_IMMEDIATE_LOGS_KEY,
+      JSON.stringify(arr.slice(0, 200))
+    );
   } catch (err) {
     console.warn('[LiveSync] Could not append log', err);
   }
@@ -1350,21 +1353,27 @@ async function tryPerformOpOnce(op: LiveRetryOp): Promise<boolean> {
     switch (op.collection) {
       case 'questionHistory':
         if (op.op === 'upsert') {
-          await upsertQuestionHistoryItems(user.uid, [op.payload as Record<string, unknown>]);
+          await upsertQuestionHistoryItems(user.uid, [
+            op.payload as Record<string, unknown>,
+          ]);
         } else {
           await deleteQuestionHistoryItems(user.uid, [op.id]);
         }
         break;
       case 'mcHistory':
         if (op.op === 'upsert') {
-          await upsertMcHistoryItems(user.uid, [op.payload as Record<string, unknown>]);
+          await upsertMcHistoryItems(user.uid, [
+            op.payload as Record<string, unknown>,
+          ]);
         } else {
           await deleteMcHistoryItems(user.uid, [op.id]);
         }
         break;
       case 'savedSets':
         if (op.op === 'upsert') {
-          await upsertSavedSets(user.uid, [op.payload as Record<string, unknown>]);
+          await upsertSavedSets(user.uid, [
+            op.payload as Record<string, unknown>,
+          ]);
         } else {
           await deleteSavedSets(user.uid, [op.id]);
         }
@@ -1380,10 +1389,14 @@ async function tryPerformOpOnce(op: LiveRetryOp): Promise<boolean> {
         // generationHistory doesn't have per-item helpers; save user data merge
         if (op.op === 'upsert') {
           // attempt to append the single record via saveUserData (merge)
-          await saveUserData(user.uid, { generationHistory: [op.payload] } as any);
+          await saveUserData(user.uid, {
+            generationHistory: [op.payload],
+          } as any);
         } else {
           // for deletes we'll fall back to tombstones / full sync — enqueue and let coalesced sync handle deletes
-          throw new Error('Delete for generationHistory not supported via immediate live-sync');
+          throw new Error(
+            'Delete for generationHistory not supported via immediate live-sync'
+          );
         }
         break;
       default:
@@ -1411,22 +1424,34 @@ export async function processLiveRetryQueue(): Promise<void> {
       if (item.nextAttemptAt > Date.now()) break;
       try {
         await tryPerformOpOnce(item);
-        appendLiveLog('info', `[LIVE] Retried ${item.op} ${item.collection}/${item.id} succeeded`);
+        appendLiveLog(
+          'info',
+          `[LIVE] Retried ${item.op} ${item.collection}/${item.id} succeeded`
+        );
         // remove from queue
         const idx = queue.findIndex((q) => q === item);
         if (idx >= 0) queue.splice(idx, 1);
       } catch (err) {
         item.attempts = (item.attempts || 0) + 1;
         if (item.attempts >= LIVE_RETRY_MAX_ATTEMPTS) {
-          appendLiveLog('error', `[LIVE] ${item.op} ${item.collection}/${item.id} failed permanently after ${item.attempts} attempts: ${String(err)}`);
+          appendLiveLog(
+            'error',
+            `[LIVE] ${item.op} ${item.collection}/${item.id} failed permanently after ${item.attempts} attempts: ${String(err)}`
+          );
           // drop
           const idx = queue.findIndex((q) => q === item);
           if (idx >= 0) queue.splice(idx, 1);
         } else {
           const jitter = Math.random() * 500;
-          const delay = Math.min(LIVE_RETRY_BASE_DELAY_MS * Math.pow(2, item.attempts - 1) + jitter, LIVE_RETRY_MAX_DELAY_MS);
+          const delay = Math.min(
+            LIVE_RETRY_BASE_DELAY_MS * Math.pow(2, item.attempts - 1) + jitter,
+            LIVE_RETRY_MAX_DELAY_MS
+          );
           item.nextAttemptAt = Date.now() + Math.round(delay);
-          appendLiveLog('warn', `[LIVE] ${item.op} ${item.collection}/${item.id} retry #${item.attempts}, next attempt in ${Math.round(delay)}ms`);
+          appendLiveLog(
+            'warn',
+            `[LIVE] ${item.op} ${item.collection}/${item.id} retry #${item.attempts}, next attempt in ${Math.round(delay)}ms`
+          );
         }
       }
     }
@@ -1468,17 +1493,60 @@ useAppStore.subscribe((state) => {
       return;
     }
 
-    const diffCollection = <T extends { id?: string }>(prevArr: T[], curArr: T[]) => {
-      const prevIds = new Set(prevArr.map((i) => i.id).filter(Boolean));
-      const curIds = new Set(curArr.map((i) => i.id).filter(Boolean));
-      const added = curArr.filter((i) => i.id && !prevIds.has(i.id));
-      const removed = prevArr.filter((i) => i.id && !curIds.has(i.id));
-      return { added, removed };
+    const hashEntity = (value: unknown): string => {
+      try {
+        return JSON.stringify(value) ?? '';
+      } catch {
+        return String(value);
+      }
+    };
+
+    const diffCollection = <T extends { id?: string }>(
+      prevArr: T[],
+      curArr: T[]
+    ) => {
+      const prevById = new Map<string, T>();
+      for (const item of prevArr) {
+        if (item.id) prevById.set(item.id, item);
+      }
+
+      const curById = new Map<string, T>();
+      for (const item of curArr) {
+        if (item.id) curById.set(item.id, item);
+      }
+
+      const added: T[] = [];
+      const updated: T[] = [];
+      const removed: T[] = [];
+
+      for (const item of curArr) {
+        if (!item.id) continue;
+        const previous = prevById.get(item.id);
+        if (!previous) {
+          added.push(item);
+          continue;
+        }
+        if (hashEntity(previous) !== hashEntity(item)) {
+          updated.push(item);
+        }
+      }
+
+      for (const item of prevArr) {
+        if (!item.id) continue;
+        if (!curById.has(item.id)) {
+          removed.push(item);
+        }
+      }
+
+      return { added, updated, removed };
     };
 
     // questionHistory
-    const qh = diffCollection(_lastLiveState.questionHistory, state.questionHistory);
-    for (const added of qh.added) {
+    const qh = diffCollection(
+      _lastLiveState.questionHistory,
+      state.questionHistory
+    );
+    for (const added of [...qh.added, ...qh.updated]) {
       const op: LiveRetryOp = {
         id: added.id!,
         collection: 'questionHistory',
@@ -1489,15 +1557,31 @@ useAppStore.subscribe((state) => {
       };
       // try immediate
       try {
-        void tryPerformOpOnce(op).then(() => {
-          appendLiveLog('info', `[LIVE] upsert questionHistory/${op.id} immediate success`);
-        }).catch((err) => {
-          appendLiveLog('warn', `[LIVE] upsert questionHistory/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() => {
+            appendLiveLog(
+              'info',
+              `[LIVE] upsert questionHistory/${op.id} immediate success`
+            );
+          })
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] upsert questionHistory/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
     for (const removed of qh.removed) {
@@ -1509,21 +1593,37 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => {
-          appendLiveLog('info', `[LIVE] delete questionHistory/${op.id} immediate success`);
-        }).catch((err) => {
-          appendLiveLog('warn', `[LIVE] delete questionHistory/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() => {
+            appendLiveLog(
+              'info',
+              `[LIVE] delete questionHistory/${op.id} immediate success`
+            );
+          })
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] delete questionHistory/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
 
     // mcHistory
     const mh = diffCollection(_lastLiveState.mcHistory, state.mcHistory);
-    for (const added of mh.added) {
+    for (const added of [...mh.added, ...mh.updated]) {
       const op: LiveRetryOp = {
         id: added.id!,
         collection: 'mcHistory',
@@ -1533,13 +1633,31 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => appendLiveLog('info', `[LIVE] upsert mcHistory/${op.id} immediate success`)).catch((err) => {
-          appendLiveLog('warn', `[LIVE] upsert mcHistory/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog(
+              'info',
+              `[LIVE] upsert mcHistory/${op.id} immediate success`
+            )
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] upsert mcHistory/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
     for (const removed of mh.removed) {
@@ -1551,19 +1669,37 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => appendLiveLog('info', `[LIVE] delete mcHistory/${op.id} immediate success`)).catch((err) => {
-          appendLiveLog('warn', `[LIVE] delete mcHistory/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog(
+              'info',
+              `[LIVE] delete mcHistory/${op.id} immediate success`
+            )
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] delete mcHistory/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
 
     // savedSets
     const ss = diffCollection(_lastLiveState.savedSets, state.savedSets);
-    for (const added of ss.added) {
+    for (const added of [...ss.added, ...ss.updated]) {
       const op: LiveRetryOp = {
         id: added.id!,
         collection: 'savedSets',
@@ -1573,13 +1709,31 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => appendLiveLog('info', `[LIVE] upsert savedSets/${op.id} immediate success`)).catch((err) => {
-          appendLiveLog('warn', `[LIVE] upsert savedSets/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog(
+              'info',
+              `[LIVE] upsert savedSets/${op.id} immediate success`
+            )
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] upsert savedSets/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
     for (const removed of ss.removed) {
@@ -1591,19 +1745,37 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => appendLiveLog('info', `[LIVE] delete savedSets/${op.id} immediate success`)).catch((err) => {
-          appendLiveLog('warn', `[LIVE] delete savedSets/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog(
+              'info',
+              `[LIVE] delete savedSets/${op.id} immediate success`
+            )
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] delete savedSets/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
 
     // presets
     const ps = diffCollection(_lastLiveState.presets, state.presets);
-    if (ps.added.length > 0 || ps.removed.length > 0) {
+    if (ps.added.length > 0 || ps.updated.length > 0 || ps.removed.length > 0) {
       // For presets we prefer to call upsertPresets with the full array to keep consistency
       const op: LiveRetryOp = {
         id: 'presets',
@@ -1614,18 +1786,36 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => appendLiveLog('info', `[LIVE] upsert presets immediate success`)).catch((err) => {
-          appendLiveLog('warn', `[LIVE] upsert presets immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog('info', `[LIVE] upsert presets immediate success`)
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] upsert presets immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
 
     // generationHistory — attempt to upsert new entries by sending them to saveUserData
-    const gh = diffCollection(_lastLiveState.generationHistory, state.generationHistory);
+    const gh = diffCollection(
+      _lastLiveState.generationHistory,
+      state.generationHistory
+    );
     for (const added of gh.added) {
       const op: LiveRetryOp = {
         id: (added as any).id ?? String(Math.random()),
@@ -1636,16 +1826,33 @@ useAppStore.subscribe((state) => {
         nextAttemptAt: Date.now(),
       };
       try {
-        void tryPerformOpOnce(op).then(() => appendLiveLog('info', `[LIVE] upsert generationHistory/${op.id} immediate success`)).catch((err) => {
-          appendLiveLog('warn', `[LIVE] upsert generationHistory/${op.id} immediate failed, queued: ${String(err)}`);
-          enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
-          void processLiveRetryQueue();
-        });
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog(
+              'info',
+              `[LIVE] upsert generationHistory/${op.id} immediate success`
+            )
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] upsert generationHistory/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
       } catch (err) {
-        enqueueLiveRetryOp({ ...op, attempts: 1, nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS });
+        enqueueLiveRetryOp({
+          ...op,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
       }
     }
-
   } finally {
     _lastLiveState = state;
   }

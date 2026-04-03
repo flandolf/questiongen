@@ -366,12 +366,15 @@ export function SyncSection() {
           <h3 className="text-sm font-medium mb-2">Immediate Sync (Live)</h3>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-xs text-muted-foreground">Queued immediate ops</div>
+              <div className="text-xs text-muted-foreground">
+                Queued immediate ops
+              </div>
               <div className="font-medium">
                 {(() => {
                   try {
                     const q = JSON.parse(
-                      localStorage.getItem('firebase_live_retry_queue_v1') || '[]'
+                      localStorage.getItem('firebase_live_retry_queue_v1') ||
+                        '[]'
                     );
                     return Array.isArray(q) ? q.length : '—';
                   } catch (e) {
@@ -384,7 +387,8 @@ export function SyncSection() {
                 {(() => {
                   try {
                     const logs = JSON.parse(
-                      localStorage.getItem('firebase_live_immediate_logs_v1') || '[]'
+                      localStorage.getItem('firebase_live_immediate_logs_v1') ||
+                        '[]'
                     );
                     return logs && logs.length > 0 ? logs[0].message : '—';
                   } catch (e) {
@@ -394,7 +398,10 @@ export function SyncSection() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => (window as any).__processLiveRetryQueue?.()}>
+              <Button
+                size="sm"
+                onClick={() => (window as any).__processLiveRetryQueue?.()}
+              >
                 Flush queued ops
               </Button>
             </div>
