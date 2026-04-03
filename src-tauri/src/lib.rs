@@ -110,13 +110,14 @@ fn written_format() -> serde_json::Value {
                     "items": {
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
+                        "required": ["id","topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
                         "properties": {
-                            "topic":          { "type": "string" },
-                            "subtopic":       { "type": ["string","null"] },
+                            "id": { "type": "string" },
+                            "topic": { "type": "string" },
+                            "subtopic": { "type": ["string","null"] },
                             "promptMarkdown": { "type": "string" },
-                            "maxMarks":       { "type": "integer", "minimum": 1, "maximum": 30 },
-                            "techAllowed":    { "type": "boolean" }
+                            "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
+                            "techAllowed": { "type": "boolean" }
                         }
                     }
                 }
@@ -138,8 +139,9 @@ fn mc_format() -> serde_json::Value {
                     "items": {
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
+                        "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
                         "properties": {
+                            "id":                  { "type": "string" },
                             "topic":               { "type": "string" },
                             "subtopic":            { "type": ["string","null"] },
                             "promptMarkdown":      { "type": "string" },
@@ -175,7 +177,7 @@ fn marking_format() -> serde_json::Value {
             "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
                          "vcaaMarkingScheme","comparisonToSolutionMarkdown",
                          "feedbackMarkdown","workedSolutionMarkdown",
-                         "exemplarResponseMarkdown","mcOptionExplanations"],
+                         "exemplarResponseMarkdown","mcOptionExplanations","promptTokens","completionTokens","totalTokens"],
             "properties": {
                 "verdict":       { "type": "string" },
                 "achievedMarks": { "type": "integer", "minimum": 0 },
@@ -509,34 +511,17 @@ fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&
     lines.join("\n")
 }
 
-fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
+fn similarity_note(enabled: bool, _prior: Option<&[String]>) -> String {
+    // Avoid inserting full recent prompts verbatim into the system instruction.
+    // Listing previous prompts can prime the model and unintentionally encourage
+    // reuse. Instead emit a stronger, explicit diversity constraint when
+    // de-duplication is enabled.
     if !enabled {
         return String::from("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any previous question's scenario, numbers, or context. Use new names, settings, and details for every question.");
     }
-    let examples: Vec<String> = prior
-        .unwrap_or(&[])
-        .iter()
-        .map(|p| {
-            let p = p.trim().replace(['\n', '\r'], " ");
-            if p.len() > 1000 {
-                format!("{}...", &p[..1000])
-            } else {
-                p
-            }
-        })
-        .filter(|p| !p.is_empty())
-        .take(6)
-        .collect();
-    if examples.is_empty() {
-        return String::from("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any previous question's scenario, numbers, or context. Use new names, settings, and details for every question.");
-    }
-    let list = examples
-        .iter()
-        .enumerate()
-        .map(|(i, p)| format!("{}. {p}", i + 1))
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any of the following recent questions. Use new names, settings, and details for every question.\nRecent questions to avoid:\n{list}")
+    String::from(
+        "\nSTRICT DIVERSITY GUARDRAIL: Generate each question using a wholly distinct scenario, context, and method. DO NOT repeat or closely paraphrase any previously-seen question. Avoid reusing characters, names, settings, numbers, or the same step-by-step structure. If a proposed question would be similar to any recent question, discard it and invent a new, clearly different question. If you cannot invent a unique question for this concept, choose a different concept — do NOT paraphrase an existing question. Be creative and change details (names, places, contexts, numerical values, and methods).",
+    )
 }
 
 fn exam_pdf_names_for_topics(topics: &[String]) -> Vec<&str> {
@@ -861,7 +846,7 @@ async fn generate_questions(
         temperature,
         top_p,
         seed,
-        plugins,
+        plugins.clone(),
     )
     .await?;
 
@@ -920,10 +905,124 @@ async fn generate_questions(
         .iter()
         .map(|q| q.prompt_markdown.clone())
         .collect();
-    let (scores, summary) = score_batch(&texts);
-    for (q, (d, m)) in payload.questions.iter_mut().zip(scores) {
+    let (mut scores, mut summary) = score_batch(&texts);
+    for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone()) {
         q.distinctness_score = Some(d);
         q.multi_step_depth = Some(m);
+    }
+
+    // If de-duplication requested and batch shows low distinctness, attempt a
+    // small number of retries with stronger diversity instruction and slightly
+    // higher temperature. This gives the model another chance to produce more
+    // unique questions when the first output is too similar.
+    if request.avoid_similar_questions.unwrap_or(false) {
+        let mut need_retry = summary.distinctness_avg.map_or(false, |v| v < 0.6)
+            || scores.iter().any(|(d, _)| *d < 0.35);
+
+        let mut attempts = 0;
+        while need_retry && attempts < 2 {
+            attempts += 1;
+            emit_generation_status(
+                &app,
+                serde_json::json!({
+                    "mode": "written",
+                    "stage": "regenerating-duplicates",
+                    "message": format!("Regenerating to improve diversity (attempt {})...", attempts),
+                    "attempt": attempts + 1
+                }),
+            );
+
+            let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
+
+            // Build a compact regeneration prompt that does not reuse the original
+            // `prompt` variable (which may have been moved). This focuses the
+            // model on topics + strict diversity instructions to avoid priming.
+            let regen_intro = format!(
+                "Regenerate {count} written-response questions. Topics: {topics}. Difficulty: {difficulty}.",
+                count = request.question_count,
+                topics = sanitize_for_api(&request.topics.join(", ")),
+                difficulty = adjusted_difficulty
+            );
+            let new_user_content = if include_exam_context {
+                let mut parts =
+                    vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
+                let exam_parts = build_exam_file_parts(&app, &request.topics);
+                parts.extend(exam_parts);
+                let report_parts = build_report_file_parts(&app, &request.topics);
+                parts.extend(report_parts);
+                let reanchor = sanitize_for_api(&pdf_reanchor_note(
+                    selected_subs,
+                    request.custom_focus_area.as_deref(),
+                ));
+                parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+                parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
+                serde_json::Value::Array(parts)
+            } else {
+                serde_json::Value::String(format!(
+                    "{}\n\n{}\n\n{}",
+                    regen_intro,
+                    sanitize_for_api(&subtopics_note(selected_subs)),
+                    diversity_note
+                ))
+            };
+
+            let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
+
+            let retry_result = call_openrouter_streaming_with_plugins(
+                &app,
+                &request.api_key,
+                &request.model,
+                &written_sys,
+                new_user_content,
+                &written_fmt,
+                max_tokens,
+                retry_temp,
+                top_p,
+                None,
+                plugins.clone(),
+            )
+            .await;
+
+            if let Ok(r) = retry_result {
+                match parse_questions_payload::<WrittenQuestionsPayload>(&r.content) {
+                    Ok(mut new_payload) => {
+                        normalise_written(
+                            &mut new_payload.questions,
+                            &request.topics,
+                            selected_subs,
+                        );
+                        if validate_written(&new_payload.questions, request.question_count).is_ok()
+                        {
+                            let new_texts: Vec<String> = new_payload
+                                .questions
+                                .iter()
+                                .map(|q| q.prompt_markdown.clone())
+                                .collect();
+                            let (new_scores, new_summary) = score_batch(&new_texts);
+                            // Accept retry if distinctness improved.
+                            if new_summary.distinctness_avg.unwrap_or(0.0)
+                                > summary.distinctness_avg.unwrap_or(0.0)
+                            {
+                                payload = new_payload;
+                                scores = new_scores;
+                                summary = new_summary;
+                                for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone())
+                                {
+                                    q.distinctness_score = Some(d);
+                                    q.multi_step_depth = Some(m);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                }
+            }
+
+            need_retry = attempts < 2
+                && (summary.distinctness_avg.map_or(false, |v| v < 0.6)
+                    || scores.iter().any(|(d, _)| *d < 0.35));
+        }
     }
 
     let estimated_cost_usd = stats_result.ok().and_then(|stats| {
@@ -1114,7 +1213,7 @@ async fn generate_mc_questions(
         temperature,
         top_p,
         seed,
-        plugins,
+        plugins.clone(),
     )
     .await?;
 
@@ -1145,10 +1244,119 @@ async fn generate_mc_questions(
             format!("{} {opts}", q.prompt_markdown)
         })
         .collect();
-    let (scores, summary) = score_batch(&texts);
-    for (q, (d, m)) in payload.questions.iter_mut().zip(scores) {
+    let (mut scores, mut summary) = score_batch(&texts);
+    for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone()) {
         q.distinctness_score = Some(d);
         q.multi_step_depth = Some(m);
+    }
+
+    if request.avoid_similar_questions.unwrap_or(false) {
+        let mut need_retry = summary.distinctness_avg.map_or(false, |v| v < 0.6)
+            || scores.iter().any(|(d, _)| *d < 0.35);
+
+        let mut attempts = 0;
+        while need_retry && attempts < 2 {
+            attempts += 1;
+            emit_generation_status(
+                &app,
+                serde_json::json!({
+                    "mode": "multiple-choice",
+                    "stage": "regenerating-duplicates",
+                    "message": format!("Regenerating to improve diversity (attempt {})...", attempts),
+                    "attempt": attempts + 1
+                }),
+            );
+
+            let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
+
+            let regen_intro = format!(
+                "Regenerate {count} multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.",
+                count = request.question_count,
+                topics = sanitize_for_api(&request.topics.join(", ")),
+                difficulty = adjusted_difficulty
+            );
+            let new_user_content = if include_exam_context {
+                let mut parts =
+                    vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
+                let exam_parts = build_exam_file_parts(&app, &request.topics);
+                parts.extend(exam_parts);
+                let report_parts = build_report_file_parts(&app, &request.topics);
+                parts.extend(report_parts);
+                let reanchor = sanitize_for_api(&pdf_reanchor_note(
+                    selected_subs,
+                    request.custom_focus_area.as_deref(),
+                ));
+                parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+                parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
+                serde_json::Value::Array(parts)
+            } else {
+                serde_json::Value::String(format!(
+                    "{}\n\n{}\n\n{}",
+                    regen_intro,
+                    sanitize_for_api(&subtopics_note(selected_subs)),
+                    diversity_note
+                ))
+            };
+
+            let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
+
+            let retry_result = call_openrouter_streaming_with_plugins(
+                &app,
+                &request.api_key,
+                &request.model,
+                &mc_sys,
+                new_user_content,
+                &mc_fmt,
+                max_tokens,
+                retry_temp,
+                top_p,
+                None,
+                plugins.clone(),
+            )
+            .await;
+
+            if let Ok(r) = retry_result {
+                match parse_questions_payload::<McQuestionsPayload>(&r.content) {
+                    Ok(mut new_payload) => {
+                        normalise_mc(&mut new_payload.questions, &request.topics, selected_subs);
+                        if validate_mc(&new_payload.questions, request.question_count).is_ok() {
+                            let new_texts: Vec<String> = new_payload
+                                .questions
+                                .iter()
+                                .map(|q| {
+                                    let opts = q
+                                        .options
+                                        .iter()
+                                        .map(|o| format!("{}: {}", o.label, o.text))
+                                        .collect::<Vec<_>>()
+                                        .join(" ");
+                                    format!("{} {opts}", q.prompt_markdown)
+                                })
+                                .collect();
+                            let (new_scores, new_summary) = score_batch(&new_texts);
+                            if new_summary.distinctness_avg.unwrap_or(0.0)
+                                > summary.distinctness_avg.unwrap_or(0.0)
+                            {
+                                payload = new_payload;
+                                scores = new_scores;
+                                summary = new_summary;
+                                for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone())
+                                {
+                                    q.distinctness_score = Some(d);
+                                    q.multi_step_depth = Some(m);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                }
+            }
+
+            need_retry = attempts < 2
+                && (summary.distinctness_avg.map_or(false, |v| v < 0.6)
+                    || scores.iter().any(|(d, _)| *d < 0.35));
+        }
     }
 
     let estimated_cost_usd = stats_result.ok().and_then(|stats| {

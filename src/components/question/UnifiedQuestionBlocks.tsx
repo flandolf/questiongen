@@ -52,8 +52,8 @@ export function UnifiedQuestionPromptCard({
         )}
         <div className="ml-auto">{rightSlot}</div>
       </div>
-      <div className="relative overflow-hidden rounded-[28px] border-l-2 border-l-primary/35 bg-card/35 px-5 py-5 sm:px-6 sm:py-6">
-        <div className="absolute inset-y-0 right-0 w-28 bg-linear-to-l from-primary/5 to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden px-5 py-5 sm:px-6 sm:py-6">
+        <div className="absolute inset-y-0 right-0 w-28 pointer-events-none" />
         <div
           className="relative leading-[1.75] text-foreground"
           style={{ fontSize: 'var(--question-text-size)' }}
@@ -113,16 +113,16 @@ export function UnifiedMcqOptionsGrid({
           | 'faded'
           | 'idle'
           | 'selectable' = !isAnswered
-          ? 'idle'
-          : revealCorrectness && isCorrect
-            ? 'correct'
-            : isChosen
-              ? revealCorrectness
-                ? 'wrong'
-                : 'chosen'
-              : isExamStyle
-                ? 'selectable'
-                : 'faded';
+            ? 'idle'
+            : revealCorrectness && isCorrect
+              ? 'correct'
+              : isChosen
+                ? revealCorrectness
+                  ? 'wrong'
+                  : 'chosen'
+                : isExamStyle
+                  ? 'selectable'
+                  : 'faded';
 
         const containerClasses = {
           idle: 'border border-border/10 bg-card/35 hover:bg-card/55 hover:border-border/20 cursor-pointer transition-all duration-150',
@@ -206,6 +206,8 @@ export function UnifiedWrittenResponseCard({
   revealLabel = 'Skip / Reveal',
   showReveal = false,
   inputSlot,
+  topSlot,
+  hideResponseLabel = false,
   children,
   className,
 }: {
@@ -220,16 +222,20 @@ export function UnifiedWrittenResponseCard({
   showReveal?: boolean;
   footerNote?: string;
   inputSlot?: ReactNode;
+  topSlot?: ReactNode;
+  hideResponseLabel?: boolean;
   children?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center gap-3 text-sm">
-        <div className="flex items-center gap-2 text-muted-foreground/70">
-          <PenLine className="w-4 h-4" />
-          <span className="text-xs uppercase tracking-wide">Response</span>
-        </div>
+        {!hideResponseLabel && (
+          <div className="flex items-center gap-2 text-muted-foreground/70">
+            <PenLine className="w-4 h-4" />
+            <span className="text-xs uppercase tracking-wide">Response</span>
+          </div>
+        )}
         {typeof maxMarks === 'number' && maxMarks > 0 && (
           <span className="text-muted-foreground/50 text-xs">
             ({maxMarks} marks)
@@ -237,6 +243,7 @@ export function UnifiedWrittenResponseCard({
         )}
         <div className="ml-auto flex items-center gap-4">{headerRight}</div>
       </div>
+      {topSlot}
       {inputSlot ?? (
         <Textarea
           value={value}
