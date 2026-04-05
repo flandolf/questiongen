@@ -1,7 +1,7 @@
 {
   "name": "questiongen",
   "private": true,
-  "version": "3.0.2",
+  "version": "3.0.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "prettier": "prettier . --write",
+    "typecheck": "tsc --noEmit",
     "tauri": "tauri"
   },
   "dependencies": {

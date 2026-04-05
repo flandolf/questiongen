@@ -22,12 +22,25 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
-import { FileText, RefreshCw, Save, Trash2, Wifi, WifiOff } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  FileJson,
+  FileText,
+  Folder,
+  RefreshCw,
+  Save,
+  Trash2,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -125,86 +138,54 @@ function LoginForm({ onLogin }: { onLogin: (user: FirebaseUser) => void }) {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 400,
-        margin: '40px auto',
-        padding: 24,
-        border: '1px solid #e2e8f0',
-        borderRadius: 8,
-      }}
-    >
-      <h2 style={{ marginBottom: 16 }}>Remote Explorer Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: '100%',
-              padding: 8,
-              border: '1px solid #cbd5e1',
-              borderRadius: 4,
-            }}
-            required
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: '100%',
-              padding: 8,
-              border: '1px solid #cbd5e1',
-              borderRadius: 4,
-            }}
-            required
-          />
-        </div>
-        {error && (
-          <p style={{ color: '#ef4444', fontSize: 14, marginBottom: 12 }}>
-            {error}
-          </p>
-        )}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: '8px 16px',
-              background: '#3b82f6',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 4,
-              cursor: loading ? 'wait' : 'pointer',
-            }}
-          >
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
-            style={{
-              padding: '8px 16px',
-              background: 'transparent',
-              border: '1px solid #cbd5e1',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}
-          >
-            {isSignUp ? 'Switch to Sign In' : 'Switch to Sign Up'}
-          </button>
-        </div>
-      </form>
+    <div className="flex items-center justify-center min-h-[600px] p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">
+            Remote Explorer
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex flex-col gap-2 pt-2">
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="w-full"
+              >
+                {isSignUp
+                  ? 'Already have an account? Sign In'
+                  : 'Need an account? Sign Up'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -220,6 +201,7 @@ export function RemoteExplorer() {
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
+  const [syncDisplay, setSyncDisplay] = useState('Never');
 
   const unsubRef = useRef<(() => void) | null>(null);
 
@@ -242,7 +224,6 @@ export function RemoteExplorer() {
             loaded: false,
           };
 
-          // For history collections, group by shard (YYYY-MM from createdAt)
           if (collName === 'questionHistory' || collName === 'mcHistory') {
             const shards = new Map<string, TreeNode[]>();
             snap.forEach((docSnap) => {
@@ -253,10 +234,6 @@ export function RemoteExplorer() {
                 id: `doc-${docSnap.id}`,
                 label: docSnap.id,
                 type: 'document',
-                // Documents actually live directly under the collection
-                // (users/{userId}/{collName}/{docId}). We only group them
-                // in the UI by shardKey, so the path must point to the real
-                // document location so selection/fetching works.
                 path: `users/${userId}/${collName}/${docSnap.id}`,
                 metadata: {
                   lastModified: extractLastModified(data),
@@ -318,7 +295,6 @@ export function RemoteExplorer() {
     }
   }, []);
 
-  // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -328,7 +304,6 @@ export function RemoteExplorer() {
     return () => unsub();
   }, [loadTree]);
 
-  // Online/offline
   useEffect(() => {
     const on = () => setIsOnline(true);
     const off = () => setIsOnline(false);
@@ -339,6 +314,20 @@ export function RemoteExplorer() {
       window.removeEventListener('offline', off);
     };
   }, []);
+
+  useEffect(() => {
+    if (!lastSyncTime) {
+      setSyncDisplay('Never');
+      return;
+    }
+    const update = () => {
+      const elapsed = Math.round((Date.now() - lastSyncTime) / 1000);
+      setSyncDisplay(`${elapsed}s ago`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [lastSyncTime]);
 
   const handleLogin = useCallback(
     (firebaseUser: FirebaseUser) => {
@@ -390,7 +379,6 @@ export function RemoteExplorer() {
     if (!documentView || !user) return;
 
     try {
-      // Explicitly cast JSON.parse result to avoid 'any' assignment
       const parsed = JSON.parse(documentView.editValue) as Record<
         string,
         unknown
@@ -415,7 +403,6 @@ export function RemoteExplorer() {
       toast.success('Document saved');
 
       if (user) {
-        // Use void to explicitly acknowledge the floating promise
         void loadTree(user.uid);
       }
     } catch (error) {
@@ -441,7 +428,7 @@ export function RemoteExplorer() {
   }, [selectedNode, user, loadTree]);
 
   const handleForceSync = useCallback(() => {
-    toast.info('Force sync triggered — check sync status in settings');
+    toast.info('Force sync triggered');
     setLastSyncTime(Date.now());
   }, []);
 
@@ -460,51 +447,63 @@ export function RemoteExplorer() {
   }) => {
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedPath === node.path;
+    const isDocument = node.type === 'document';
 
     return (
-      <div>
+      <div className="flex flex-col">
         <div
           role="treeitem"
           aria-selected={isSelected}
           tabIndex={0}
-          className={`flex items-center justify-between rounded px-2 py-1 cursor-pointer ${isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-muted/10'}`}
-          onClick={() => onSelect(node)}
+          className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors border-l-2 ${
+            isSelected
+              ? 'border-primary text-primary font-medium'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+          onClick={() => {
+            if (node.type !== 'document') onToggle(node.id);
+            else onSelect(node);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               onSelect(node);
-            } else if (
-              e.key === 'ArrowRight' &&
-              node.type !== 'document' &&
-              !isExpanded
-            ) {
+            } else if (e.key === 'ArrowRight' && !isDocument && !isExpanded) {
               onToggle(node.id);
             } else if (e.key === 'ArrowLeft' && isExpanded) {
               onToggle(node.id);
             }
           }}
         >
-          <div className="flex items-center gap-2">
-            {node.type !== 'document' && (
-              <button
-                aria-expanded={isExpanded}
-                aria-controls={`node-${node.id}-children`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggle(node.id);
-                }}
-                className={`w-3 h-3 inline-flex items-center justify-center text-xs ${isExpanded ? 'rotate-90' : ''} transition-transform`}
-                title={isExpanded ? 'Collapse' : 'Expand'}
-                type="button"
-              >
-                ▶
-              </button>
-            )}
-            <span>{node.label}</span>
-          </div>
+          {!isDocument ? (
+            <button
+              aria-expanded={isExpanded}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle(node.id);
+              }}
+              className="flex items-center justify-center w-4 h-4 text-muted-foreground hover:text-foreground"
+              type="button"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+            </button>
+          ) : (
+            <span className="w-4 h-4 flex items-center justify-center">
+              <FileJson className="w-3.5 h-3.5 opacity-70" />
+            </span>
+          )}
+
+          {!isDocument && <Folder className="w-3.5 h-3.5 opacity-70" />}
+
+          <span className="text-sm truncate select-none">{node.label}</span>
         </div>
+
         {isExpanded && node.children && (
-          <div id={`node-${node.id}-children`} className="ml-4">
+          <div className="pl-4 border-l ml-2 flex flex-col gap-0.5 mt-0.5">
             {node.children.map((child) => (
               <TreeItem
                 key={child.id}
@@ -526,50 +525,46 @@ export function RemoteExplorer() {
   }
 
   return (
-    <Card className="flex flex-col min-h-[600px] bg-muted/0">
-      {/* Top Navigation / Status Bar */}
-      <header className="flex items-center justify-between px-6">
-        <div className="flex items-center gap-6 text-sm">
-          <div className="flex items-center gap-2">
+    <Card className="flex flex-col h-[800px] border bg-muted/0">
+      <header className="flex items-center justify-between px-4 pb-4 border-b">
+        <div className="flex items-center gap-4">
+          <h1 className="font-semibold tracking-tight">Database Explorer</h1>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {isOnline ? (
-              <Wifi className="w-6 h-6 mr-1" />
+              <Wifi className="w-3.5 h-3.5" />
             ) : (
-              <WifiOff className="w-6 h-6 mr-1" />
+              <WifiOff className="w-3.5 h-3.5" />
             )}
+            <span>
+              {isOnline ? 'Connected' : 'Offline'} • Synced: {syncDisplay}
+            </span>
           </div>
-          <span className="text-muted-foreground">
-            Synced:{' '}
-            {lastSyncTime
-              ? `${Math.round((Date.now() - lastSyncTime) / 1000)}s ago`
-              : 'Never'}
-          </span>
         </div>
 
         <Button variant="outline" size="sm" onClick={handleForceSync}>
-          <RefreshCw className="w-8 h-8 mr-2" /> Sync
+          <RefreshCw className="w-4 h-4 mr-2" /> Sync
         </Button>
       </header>
 
       <main className="flex flex-1 overflow-hidden">
-        {/* Sidebar: Tree View */}
-        <aside className="space-x-8 border-r flex flex-col">
-          <div className="px-4 flex items-center justify-between">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-              Explorer
-            </h3>
+        <aside className="w-64 border-r flex flex-col">
+          <div className="px-3 pb-2 border-b flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Collections
+            </span>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-6 w-6"
               onClick={() => void loadTree(user.uid)}
             >
               <RefreshCw
-                className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+                className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`}
               />
             </Button>
           </div>
-          <ScrollArea className="flex-1 px-2">
-            <div className="space-y-1">
+          <ScrollArea className="flex-1 p-2">
+            <div className="flex flex-col gap-1">
               {tree.map((node) => (
                 <TreeItem
                   key={node.id}
@@ -585,19 +580,19 @@ export function RemoteExplorer() {
           </ScrollArea>
         </aside>
 
-        {/* Content Area: Document Editor */}
         <section className="flex-1 flex flex-col overflow-hidden">
           {documentView ? (
             <div className="flex flex-col h-full">
               <div className="p-4 border-b flex items-center justify-between">
-                <div className="space-y-1">
-                  <h2 className="text-sm font-mono font-medium truncate max-w-xl">
-                    {documentView.path}
+                <div className="flex flex-col gap-1 overflow-hidden">
+                  <span className="text-xs font-medium text-muted-foreground truncate">
+                    {documentView.path.split('/').slice(0, -1).join(' / ')}
+                  </span>
+                  <h2 className="text-sm font-semibold truncate">
+                    {documentView.path.split('/').pop()}
                   </h2>
-                  <div className="flex gap-3 text-xs text-muted-foreground">
-                    <span>
-                      Size: {formatSize(estimateSize(documentView.data))}
-                    </span>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{formatSize(estimateSize(documentView.data))}</span>
                     <span>•</span>
                     <span>
                       Modified:{' '}
@@ -609,35 +604,36 @@ export function RemoteExplorer() {
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {!documentView.isEditing ? (
                     <>
                       <Button
                         size="sm"
+                        variant="secondary"
                         onClick={() =>
                           setDocumentView((prev) =>
                             prev ? { ...prev, isEditing: true } : null
                           )
                         }
                       >
-                        Edit
+                        Edit Document
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => void handleDelete()}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
                       </Button>
                     </>
                   ) : (
                     <>
                       <Button
                         size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700"
+                        variant="default"
                         onClick={() => void handleSave()}
                       >
-                        <Save className="w-4 h-4 mr-2" /> Save
+                        <Save className="w-4 h-4 mr-2" /> Save Changes
                       </Button>
                       <Button
                         size="sm"
@@ -655,35 +651,36 @@ export function RemoteExplorer() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1 p-6">
-                {documentView.isEditing ? (
-                  <Textarea
-                    className="font-mono text-sm min-h-[500px] focus-visible:ring-1"
-                    value={documentView.editValue}
-                    onChange={(e) =>
-                      setDocumentView((prev) =>
-                        prev ? { ...prev, editValue: e.target.value } : null
-                      )
-                    }
-                  />
-                ) : (
-                  <div className="rounded-lg border p-4">
-                    <pre className="text-sm font-mono leading-relaxed">
+              <ScrollArea className="flex-1">
+                <div className="p-4 h-full">
+                  {documentView.isEditing ? (
+                    <Textarea
+                      className="font-mono text-sm min-h-[500px] w-full resize-none border-transparent focus-visible:ring-1 focus-visible:ring-primary shadow-none"
+                      value={documentView.editValue}
+                      onChange={(e) =>
+                        setDocumentView((prev) =>
+                          prev ? { ...prev, editValue: e.target.value } : null
+                        )
+                      }
+                      spellCheck={false}
+                    />
+                  ) : (
+                    <pre className="text-sm font-mono leading-relaxed p-4 border rounded-md overflow-x-auto">
                       {JSON.stringify(documentView.data, null, 2)}
                     </pre>
-                  </div>
-                )}
+                  )}
+                </div>
               </ScrollArea>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="w-12 h-12 rounded-full  flex items-center justify-center mb-4">
-                <FileText className="w-6 h-6 " />
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <div className="w-16 h-16 border rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+                <FileText className="w-8 h-8 opacity-50" />
               </div>
-              <h3 className="text-lg font-medium">No document selected</h3>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-1">
-                Select a document from the explorer tree to view its contents
-                and metadata.
+              <h3 className="text-lg font-medium">Select a Document</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2">
+                Navigate through the collections in the sidebar to inspect or
+                modify stored records within the database.
               </p>
             </div>
           )}
@@ -694,7 +691,6 @@ export function RemoteExplorer() {
 }
 
 function extractShardKey(data: DocumentData): string {
-  // Use type casting to unknown then to specific structure to satisfy strict rules
   const typedData = data as Record<string, unknown>;
   const ts = (typedData.createdAt ?? typedData.lastModified) as
     | string

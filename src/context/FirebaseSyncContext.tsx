@@ -35,7 +35,10 @@ export function FirebaseSyncProvider({
       toggleSync: firebaseSync.toggleSync,
       pullSync: firebaseSync.pullSync,
       pushSync: firebaseSync.pushSync,
+      pullCollectionSync: firebaseSync.pullCollectionSync,
+      pushCollectionSync: firebaseSync.pushCollectionSync,
       forceSync: firebaseSync.forceSync,
+      retryQueuedOpsNow: firebaseSync.retryQueuedOpsNow,
       resolveConflicts: firebaseSync.resolveConflicts,
     }),
     [
@@ -60,7 +63,10 @@ export function FirebaseSyncProvider({
       firebaseSync.toggleSync,
       firebaseSync.pullSync,
       firebaseSync.pushSync,
+      firebaseSync.pullCollectionSync,
+      firebaseSync.pushCollectionSync,
       firebaseSync.forceSync,
+      firebaseSync.retryQueuedOpsNow,
       firebaseSync.resolveConflicts,
     ]
   );
