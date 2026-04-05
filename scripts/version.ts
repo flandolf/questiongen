@@ -24,7 +24,7 @@ function formatVersion(v: Version): string {
 
 function bumpVersion(
   current: Version,
-  type: 'major' | 'minor' | 'patch'
+  type: 'major' | 'minor' | 'patch' | 'custom'
 ): Version {
   switch (type) {
     case 'major':
@@ -37,6 +37,15 @@ function bumpVersion(
         minor: current.minor,
         patch: current.patch + 1,
       };
+    case 'custom':
+      const custom = process.argv[3];
+      if (!custom) {
+        console.error('Custom version not provided');
+        process.exit(1);
+      }
+      return parseVersion(custom);
+    default:
+      throw new Error(`Unknown bump type: ${type}`);
   }
 }
 
@@ -101,7 +110,7 @@ function updateSettingsView(version: string): void {
 }
 
 const args = process.argv.slice(2);
-const bumpType = (args[0] as 'major' | 'minor' | 'patch') || 'patch';
+const bumpType = (args[0] as 'major' | 'minor' | 'patch' | 'custom') || 'patch';
 
 const currentPkg = readJson(join(rootDir, 'package.json'));
 const current = parseVersion(currentPkg.version);
