@@ -96,6 +96,7 @@ export interface AppState {
   responseTextSize: number;
   includeExamContext: boolean;
   autoSyncIntervalMinutes: number;
+  syncApiKey: boolean;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -188,6 +189,7 @@ export interface AppActions {
   setResponseTextSize: (size: number) => void;
   setIncludeExamContext: (enabled: boolean) => void;
   setAutoSyncIntervalMinutes: (minutes: number) => void;
+  setSyncApiKey: (enabled: boolean) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
@@ -348,6 +350,7 @@ const defaultState: AppState = {
     EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
   autoSyncIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
+  syncApiKey: Boolean(EMPTY_PERSISTED_APP_STATE.settings.syncApiKey),
 
   // Preferences
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -485,6 +488,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
           typeof s.settings.autoSyncIntervalMinutes === 'number'
             ? s.settings.autoSyncIntervalMinutes
             : 0,
+        syncApiKey: Boolean(s.settings.syncApiKey),
 
         // Preferences
         selectedTopics: s.preferences.selectedTopics,
@@ -584,6 +588,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
   setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
     set({ autoSyncIntervalMinutes }),
+  setSyncApiKey: (syncApiKey) => set({ syncApiKey }),
   clearApiKey: () => set({ apiKey: '' }),
 
   // ── Preset management (Firebase-synced) ──────────────────────────────────
@@ -1154,6 +1159,7 @@ function buildPersistedSnapshot(
       responseTextSize: s.responseTextSize,
       includeExamContext: s.includeExamContext,
       autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
+      syncApiKey: s.syncApiKey,
     },
     preferences: {
       selectedTopics: s.selectedTopics,
@@ -1486,6 +1492,20 @@ window.__processLiveRetryQueue = processLiveRetryQueue;
 // last-known snapshot for diffing
 let _lastLiveState = useAppStore.getState();
 
+function isLiveSyncEnabled(userId: string): boolean {
+  try {
+    const userScoped = localStorage.getItem(
+      `firebase_sync_enabled_v2:${userId}`
+    );
+    if (userScoped !== null) return userScoped === 'true';
+    const legacy = localStorage.getItem('firebase_sync_enabled');
+    if (legacy === null) return true;
+    return legacy === 'true';
+  } catch {
+    return true;
+  }
+}
+
 // eslint-disable-next-line complexity
 useAppStore.subscribe((state) => {
   try {
@@ -1494,17 +1514,16 @@ useAppStore.subscribe((state) => {
       _lastLiveState = state;
       return;
     }
-    const syncEnabled = localStorage.getItem('firebase_sync_enabled');
-    if (syncEnabled === 'false') {
+    const user = auth.currentUser;
+    if (!user) {
+      _lastLiveState = state;
+      return;
+    }
+    if (!isLiveSyncEnabled(user.uid)) {
       _lastLiveState = state;
       return;
     }
     if (!navigator.onLine) {
-      _lastLiveState = state;
-      return;
-    }
-    const user = auth.currentUser;
-    if (!user) {
       _lastLiveState = state;
       return;
     }
@@ -1574,20 +1593,12 @@ useAppStore.subscribe((state) => {
       // try immediate
       try {
         void tryPerformOpOnce(op)
-          .then(() => {
-            // Create tombstone to persist deletion across restarts
-            useAppStore.setState((s) => ({
-              deletionTombstones: addTombstone(
-                s.deletionTombstones,
-                'questionHistory',
-                op.id
-              ),
-            }));
+          .then(() =>
             appendLiveLog(
               'info',
-              `[LIVE] delete questionHistory/${op.id} immediate success`
-            );
-          })
+              `[LIVE] upsert questionHistory/${op.id} immediate success`
+            )
+          )
           .catch((err) => {
             appendLiveLog(
               'warn',
@@ -1666,20 +1677,12 @@ useAppStore.subscribe((state) => {
       };
       try {
         void tryPerformOpOnce(op)
-          .then(() => {
-            // Create tombstone to persist deletion across restarts
-            useAppStore.setState((s) => ({
-              deletionTombstones: addTombstone(
-                s.deletionTombstones,
-                'mcHistory',
-                op.id
-              ),
-            }));
+          .then(() =>
             appendLiveLog(
               'info',
-              `[LIVE] delete mcHistory/${op.id} immediate success`
-            );
-          })
+              `[LIVE] upsert mcHistory/${op.id} immediate success`
+            )
+          )
           .catch((err) => {
             appendLiveLog(
               'warn',

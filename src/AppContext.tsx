@@ -244,6 +244,8 @@ export function useAppSettings() {
       setIncludeExamContext: s.setIncludeExamContext,
       autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
       setAutoSyncIntervalMinutes: s.setAutoSyncIntervalMinutes,
+      syncApiKey: s.syncApiKey,
+      setSyncApiKey: s.setSyncApiKey,
     }))
   );
 }

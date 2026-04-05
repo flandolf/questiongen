@@ -27,7 +27,7 @@ import {
 } from '../../../components/ui/select';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
 import { signOutFirebase } from '../../../context/modules/firebase-auth';
-import { Card, FieldGroup, SectionHeader } from '../SettingsUI';
+import { Card, FieldGroup, SectionHeader, ToggleRow } from '../SettingsUI';
 
 type LiveRetryItem = { nextAttemptAt?: number };
 type LiveImmediateLog = { message?: string };
@@ -233,7 +233,7 @@ function SyncActivityCard({
 // Disable the eslint complexity rule for this function to keep the JSX readable.
 // eslint-disable-next-line complexity
 export function SyncSection() {
-  const { debugMode } = useAppSettings();
+  const { debugMode, syncApiKey, setSyncApiKey } = useAppSettings();
   const firebaseSync = useFirebaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<'signin' | 'signup'>(
@@ -564,65 +564,77 @@ export function SyncSection() {
         </div>
 
         {isSignedIn && syncEnabled && (
-          <div className="pt-3 border-t border-border">
-            <FieldGroup
-              label="Selective Pull/Push"
-              htmlFor="manual-sync-collection"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={manualCollection}
-                  onValueChange={(v) =>
-                    setManualCollection(v as ManualSyncCollection)
-                  }
-                >
-                  <SelectTrigger id="manual-sync-collection" className="w-56">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MANUAL_COLLECTION_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => {
-                    void (
-                      pullCollectionSync as (
-                        collection: ManualSyncCollection
-                      ) => Promise<void>
-                    )(manualCollection);
-                  }}
-                  disabled={isSyncing || !isOnline}
-                >
-                  Pull selected
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => {
-                    void (
-                      pushCollectionSync as (
-                        collection: ManualSyncCollection
-                      ) => Promise<void>
-                    )(manualCollection);
-                  }}
-                  disabled={isSyncing || !isOnline}
-                >
-                  Push selected
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Run targeted reconciliation for one data section without a full
-                sync pass.
-              </p>
-            </FieldGroup>
-          </div>
+          <>
+            <div className="pt-3 border-t border-border">
+              <ToggleRow
+                id="sync-api-key"
+                checked={syncApiKey}
+                onChange={setSyncApiKey}
+                label="Sync API Key"
+                description="Include your OpenRouter API key in cloud sync so it's available on all your devices."
+              />
+            </div>
+
+            <div className="pt-3 border-t border-border">
+              <FieldGroup
+                label="Selective Pull/Push"
+                htmlFor="manual-sync-collection"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={manualCollection}
+                    onValueChange={(v) =>
+                      setManualCollection(v as ManualSyncCollection)
+                    }
+                  >
+                    <SelectTrigger id="manual-sync-collection" className="w-56">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MANUAL_COLLECTION_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => {
+                      void (
+                        pullCollectionSync as (
+                          collection: ManualSyncCollection
+                        ) => Promise<void>
+                      )(manualCollection);
+                    }}
+                    disabled={isSyncing || !isOnline}
+                  >
+                    Pull selected
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => {
+                      void (
+                        pushCollectionSync as (
+                          collection: ManualSyncCollection
+                        ) => Promise<void>
+                      )(manualCollection);
+                    }}
+                    disabled={isSyncing || !isOnline}
+                  >
+                    Push selected
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Run targeted reconciliation for one data section without a
+                  full sync pass.
+                </p>
+              </FieldGroup>
+            </div>
+          </>
         )}
 
         {!isSignedIn && (

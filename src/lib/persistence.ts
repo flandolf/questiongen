@@ -50,6 +50,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   responseTextSize: 16,
   includeExamContext: true,
   autoSyncIntervalMinutes: 0,
+  syncApiKey: false,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -279,6 +280,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       data.autoSyncIntervalMinutes >= 0
         ? data.autoSyncIntervalMinutes
         : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
+    syncApiKey: Boolean(data.syncApiKey),
   };
 }
 
