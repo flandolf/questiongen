@@ -6,7 +6,7 @@
  * 3 = correct with difficulty, 4 = correct, 5 = perfect recall.
  */
 
-import type { SpacedRepetitionCard, ReviewQuality } from '../types';
+import type { ReviewQuality, SpacedRepetitionCard } from '../types';
 
 const DEFAULT_EASINESS_FACTOR = 2.5;
 const MIN_EASINESS_FACTOR = 1.3;

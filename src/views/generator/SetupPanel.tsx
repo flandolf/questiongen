@@ -1,40 +1,58 @@
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import { invoke } from '@tauri-apps/api/core';
 import {
-  Loader2,
-  BookOpen,
-  Target,
-  Sparkles,
-  Calculator,
-  Pen,
   AlertTriangle,
-  Shuffle,
-  CheckCheck,
-  Hash,
   BarChart3,
   Blend,
-  FlaskConical,
-  Dumbbell,
-  FunctionSquare,
-  SigmaSquare,
-  Crosshair,
-  Coins,
-  DollarSign,
-  Trash2,
-  Edit3,
-  MoreHorizontal,
-  Plus,
-  Save,
+  BookOpen,
+  Calculator,
+  CheckCheck,
   ChevronDown,
   ChevronUp,
+  Coins,
+  Crosshair,
+  DollarSign,
+  Dumbbell,
+  Edit3,
+  FlaskConical,
+  FunctionSquare,
+  Hash,
+  Loader2,
+  MoreHorizontal,
+  Pen,
+  Plus,
+  Save,
+  Shuffle,
+  SigmaSquare,
+  Sparkles,
+  Target,
+  Trash2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAppSettings } from '@/AppContext';
-import { invoke } from '@tauri-apps/api/core';
-import { useNavigate } from 'react-router-dom';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { formatCostUsd, estimateTokensAndCost } from '@/lib/app-utils';
+import { useNavigate } from 'react-router-dom';
+
+import { useAppSettings } from '@/AppContext';
+import {
+  FilterButton,
+  FilterGroup,
+  PageHeader,
+} from '@/components/layout/primitives';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -43,52 +61,38 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  TOPICS,
-  Topic,
-  TechMode,
-  MathMethodsSubtopic,
-  SpecialistMathSubtopic,
+import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
+import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
+import type {
+  BatchTopicProgress,
   ChemistrySubtopic,
-  PhysicalEducationSubtopic,
-  TopicSubtopicGroup,
-  MATH_METHODS_SUBTOPIC_GROUPS,
-  SPECIALIST_MATH_SUBTOPIC_GROUPS,
-  CHEMISTRY_SUBTOPIC_GROUPS,
-  PE_SUBTOPIC_GROUPS,
   Difficulty,
-  QuestionMode,
   GenerationStatusEvent,
   GenerationTelemetry,
-  Preset,
+  MathMethodsSubtopic,
   PersistedGeneratorPreferences,
-  BatchTopicProgress,
+  PhysicalEducationSubtopic,
+  Preset,
+  QuestionMode,
+  SpecialistMathSubtopic,
+  TechMode,
+  Topic,
+  TopicSubtopicGroup,
 } from '@/types';
 import {
-  PageHeader,
-  FilterGroup,
-  FilterButton,
-} from '@/components/layout/primitives';
-import { useAppStore } from '@/store';
+  CHEMISTRY_SUBTOPIC_GROUPS,
+  MATH_METHODS_SUBTOPIC_GROUPS,
+  PE_SUBTOPIC_GROUPS,
+  SPECIALIST_MATH_SUBTOPIC_GROUPS,
+  TOPICS,
+} from '@/types';
+
 import {
-  GenerationTimeline,
   BatchTimeline,
+  GenerationTimeline,
   LastGenerationStats,
 } from './GenerationTimeline';
-import {
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenu,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import * as AccordionPrimitive from '@radix-ui/react-accordion';
 
 export type { BatchTopicProgress } from '@/types';
 
@@ -1190,7 +1194,8 @@ function PresetSection({
       {/* Preset list */}
       {presets.length > 0 && (
         <div className="space-y-1">
-          {presets.map((preset) => {
+          {/* eslint-disable-next-line complexity */}
+          {presets.map(function (preset) {
             const isRenaming = renamingPresetId === preset.id;
             const isEditing = editingPresetId === preset.id;
             return (
@@ -1565,6 +1570,7 @@ type SetupPanelProps = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/* eslint-disable complexity */
 function SetupPanelImpl({
   questionMode,
   onSetQuestionMode,
@@ -1891,7 +1897,7 @@ function SetupPanelImpl({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/settings')}
+                  onClick={() => void navigate('/settings')}
                 >
                   Open Settings
                 </Button>
@@ -1925,10 +1931,8 @@ function SetupPanelImpl({
                         key={t}
                         className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[11px]"
                       >
-                        {TOPIC_ICONS[t as Topic] && (
-                          <span className="opacity-70">
-                            {TOPIC_ICONS[t as Topic]}
-                          </span>
+                        {TOPIC_ICONS[t] && (
+                          <span className="opacity-70">{TOPIC_ICONS[t]}</span>
                         )}
                         {t}
                       </span>

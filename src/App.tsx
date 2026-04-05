@@ -1,13 +1,15 @@
-import { lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
 import { MathJaxContext } from 'better-react-mathjax';
-import { Toaster } from '@/components/ui/sonner';
-import { AppProvider } from './AppContext';
-import { useAppStore } from './store';
-import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
+import { lazy, Suspense } from 'react';
+import { HashRouter, Route, Routes } from 'react-router-dom';
+
 import { Layout } from '@/components/layout/Layout';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { Toaster } from '@/components/ui/sonner';
+
+import { AppProvider } from './AppContext';
+import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
 import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
+import { useAppStore } from './store';
 
 const MATHJAX_CDN_URL =
   'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';

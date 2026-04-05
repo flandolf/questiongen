@@ -1,38 +1,40 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
-import { Button } from '../components/ui/button';
-import { Card, CardHeader, CardContent } from '../components/ui/card';
-import { MarkdownMath } from '../components/MarkdownMath';
-import { formatDate } from '../lib/app-utils';
-import { scoreColorBgClass } from '../lib/score-utils';
-
-import { Badge } from '../components/ui/badge';
 import {
+  BarChart3,
+  BookOpen,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  XCircle,
-  BookOpen,
-  Target,
-  ImageIcon,
+  Clock,
   FileText,
-  Trash2,
+  Filter,
+  ImageIcon,
   PlusCircle,
   Search,
-  Filter,
-  X,
-  Clock,
-  TrendingUp,
-  BarChart3,
   SlidersHorizontal,
+  Target,
+  Trash2,
+  TrendingUp,
+  X,
+  XCircle,
 } from 'lucide-react';
-import { McHistoryEntry, QuestionHistoryEntry, Topic, TOPICS } from '../types';
-import { EmptyState } from '../components/EmptyState';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageContainer, PageHeader } from '@/components/layout/primitives';
 import { toast } from 'sonner';
+
+import { PageContainer, PageHeader } from '@/components/layout/primitives';
+
+import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
+import { EmptyState } from '../components/EmptyState';
+import { MarkdownMath } from '../components/MarkdownMath';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader } from '../components/ui/card';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { formatDate } from '../lib/app-utils';
+import { scoreColorBgClass } from '../lib/score-utils';
+import type { McHistoryEntry, QuestionHistoryEntry, Topic } from '../types';
+import { TOPICS } from '../types';
 
 type AnyEntry =
   | ({ kind: 'written' } & QuestionHistoryEntry)
@@ -681,6 +683,25 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
 // HistoryView
 // ---------------------------------------------------------------------------
 
+function compareEntries(a: AnyEntry, b: AnyEntry, sortOrder: SortOrder) {
+  if (sortOrder === 'newest') return b.createdAt.localeCompare(a.createdAt);
+  if (sortOrder === 'oldest') return a.createdAt.localeCompare(b.createdAt);
+  if (sortOrder === 'score-high') return getEntryScore(b) - getEntryScore(a);
+  if (sortOrder === 'score-low') return getEntryScore(a) - getEntryScore(b);
+  if (sortOrder === 'response-time-fast') {
+    const aTime = getEntryResponseTimeMs(a) ?? Infinity;
+    const bTime = getEntryResponseTimeMs(b) ?? Infinity;
+    return aTime - bTime;
+  }
+  if (sortOrder === 'response-time-slow') {
+    const aTime = getEntryResponseTimeMs(a) ?? -1;
+    const bTime = getEntryResponseTimeMs(b) ?? -1;
+    return bTime - aTime;
+  }
+  return 0;
+}
+
+// eslint-disable-next-line complexity
 export function HistoryView() {
   const navigate = useNavigate();
   const { questionHistory, deleteQuestionHistoryEntry, clearQuestionHistory } =
@@ -752,24 +773,7 @@ export function HistoryView() {
       return true;
     });
 
-    result = [...result].sort((a, b) => {
-      if (sortOrder === 'newest') return b.createdAt.localeCompare(a.createdAt);
-      if (sortOrder === 'oldest') return a.createdAt.localeCompare(b.createdAt);
-      if (sortOrder === 'score-high')
-        return getEntryScore(b) - getEntryScore(a);
-      if (sortOrder === 'score-low') return getEntryScore(a) - getEntryScore(b);
-      if (sortOrder === 'response-time-fast') {
-        const aTime = getEntryResponseTimeMs(a) ?? Infinity;
-        const bTime = getEntryResponseTimeMs(b) ?? Infinity;
-        return aTime - bTime;
-      }
-      if (sortOrder === 'response-time-slow') {
-        const aTime = getEntryResponseTimeMs(a) ?? -1;
-        const bTime = getEntryResponseTimeMs(b) ?? -1;
-        return bTime - aTime;
-      }
-      return 0;
-    });
+    result = [...result].sort((a, b) => compareEntries(a, b, sortOrder));
 
     return result;
   }, [combined, activeSubject, modeFilter, searchQuery, sortOrder]);
@@ -811,7 +815,11 @@ export function HistoryView() {
   const toggleEntryExpanded = useCallback((entryKey: string) => {
     setExpandedEntryKeys((cur) => {
       const next = new Set(cur);
-      next.has(entryKey) ? next.delete(entryKey) : next.add(entryKey);
+      if (next.has(entryKey)) {
+        next.delete(entryKey);
+      } else {
+        next.add(entryKey);
+      }
       return next;
     });
   }, []);
@@ -871,7 +879,7 @@ export function HistoryView() {
             variant="default"
             size="sm"
             className="gap-2 mt-2"
-            onClick={() => navigate('/')}
+            onClick={() => void navigate('/')}
           >
             <PlusCircle className="h-4 w-4" />
             Generate your first set

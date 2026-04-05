@@ -1,15 +1,17 @@
-import { useMemo, useCallback, useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Sparkles,
-  History,
-  ChartColumnIncreasing,
-  Settings,
   Bookmark,
+  ChartColumnIncreasing,
   CircleX,
   Flame,
+  History,
+  type LucideIcon,
+  Settings,
+  Sparkles,
 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+
 import { cn, getTodayKey } from '../../lib/utils';
 import { useAppStore } from '../../store';
 
@@ -135,7 +137,7 @@ export function Header() {
     (link: {
       to: string;
       label: string;
-      icon: any;
+      icon: LucideIcon;
       showSessionDot?: boolean;
     }) => (
       <NavLink

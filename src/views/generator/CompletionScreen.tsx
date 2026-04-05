@@ -1,26 +1,28 @@
 import {
-  CheckCircle2,
-  BookOpen,
-  RefreshCw,
   AlertTriangle,
-  XCircle,
+  BookOpen,
+  CheckCircle2,
   ChevronDown,
+  RefreshCw,
+  XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+
+import { MarkdownMath } from '@/components/MarkdownMath';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
   CardFooter,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
-import { Difficulty, QuestionMode } from '@/types';
-import { useAnalyticsData, percent } from '@/views/useAnalyticsData';
+import type { Difficulty, QuestionMode } from '@/types';
+import { percent, useAnalyticsData } from '@/views/useAnalyticsData';
+
 import { AccuracyTrendChart } from './AccuracyTrendChart';
-import { MarkdownMath } from '@/components/MarkdownMath';
-import { useNavigate } from 'react-router-dom';
 
 type PerQuestionTiming = {
   questionId: string;
@@ -60,8 +62,9 @@ type CompletionScreenProps = {
   formattedElapsedTime: string;
   completedCount: number;
   totalCount: number;
-  onReview: () => void;
-  onStartOver: () => void;
+  onReview: () => void | Promise<void>;
+  onStartOver: () => void | Promise<void>;
+
   perQuestionTiming?: PerQuestionTiming[];
   // Session-scoped results (passed directly to avoid relying on global history)
   sessionWrittenResults?: WrittenResultRow[];
@@ -258,6 +261,286 @@ export function CompletionScreen({
       .slice(0, 4);
   }, [questionMode, writtenResults]);
 
+  function WhatToReview({
+    weakTopics,
+    sessionCriteria,
+    questionMode,
+    sessionTopics,
+    navigate,
+  }: {
+    weakTopics: { topic: string; pct: number }[];
+    sessionCriteria: Array<{
+      criterion: string;
+      achieved: number;
+      available: number;
+      successPct: number;
+    }>;
+    questionMode: QuestionMode;
+    sessionTopics: { topic: string; pct: number }[];
+    navigate: (to: string) => void;
+  }) {
+    if (weakTopics.length === 0 && sessionCriteria.length === 0) return null;
+    return (
+      <div className="space-y-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+          What to review
+        </p>
+
+        {weakTopics.length > 0 && (
+          <div className="space-y-1.5">
+            {sessionTopics
+              .filter((t) => t.pct < 75)
+              .map(({ topic, pct }) => (
+                <div key={topic} className="flex items-center gap-3 text-xs">
+                  <span className="w-[130px] shrink-0 truncate font-medium text-foreground">
+                    {topic}
+                  </span>
+                  <MiniBar pct={pct} />
+                  <span
+                    className={`shrink-0 tabular-nums font-semibold w-10 text-right ${pct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}
+                  >
+                    {pct.toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {questionMode === 'written' && sessionCriteria.length > 0 && (
+          <div className="space-y-1.5">
+            {sessionCriteria.map((c, i) => {
+              const { text, bg } = criterionColor(c.successPct);
+              return (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${bg} border-transparent`}
+                >
+                  <AlertTriangle
+                    className={`w-3 h-3 shrink-0 mt-0.5 ${text}`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-medium text-foreground leading-snug line-clamp-2">
+                      <MarkdownMath content={c.criterion} />
+                    </p>
+                    <span
+                      className={`text-[10px] font-bold tabular-nums ${text}`}
+                    >
+                      {c.achieved}/{c.available} mk
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-1.5 text-xs"
+          onClick={() => void navigate('/mistakes')}
+        >
+          <XCircle className="w-3.5 h-3.5" />
+          Review Mistakes
+        </Button>
+      </div>
+    );
+  }
+
+  function DetailsPanel({
+    questionMode,
+    writtenResults,
+    mcResults,
+    summary,
+    trendData,
+    perQuestionTiming,
+  }: {
+    questionMode: QuestionMode;
+    writtenResults: WrittenResultRow[];
+    mcResults: McResultRow[];
+    summary: ReturnType<typeof useAnalyticsData>['summary'];
+    trendData: ReturnType<typeof useAnalyticsData>['trendData'];
+    perQuestionTiming?: PerQuestionTiming[];
+  }) {
+    return (
+      <div className="space-y-5 pt-2">
+        {questionMode === 'written' && writtenResults.length > 0 && (
+          <div>
+            <SectionHeading>Question results</SectionHeading>
+            <div className="rounded-xl border divide-y divide-border/40 overflow-hidden">
+              {writtenResults.map((r, i) => {
+                const pct = r.scorePercent;
+                const col =
+                  pct >= 100
+                    ? 'text-emerald-500'
+                    : pct >= 50
+                      ? 'text-amber-500'
+                      : 'text-rose-500';
+                const bg =
+                  pct >= 100
+                    ? 'bg-emerald-500/5'
+                    : pct >= 50
+                      ? 'bg-amber-500/5'
+                      : 'bg-rose-500/5';
+                return (
+                  <div
+                    key={r.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 text-xs ${bg}`}
+                  >
+                    <span className="shrink-0 w-5 text-muted-foreground font-mono">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-foreground truncate block">
+                        {r.topic}
+                      </span>
+                      {r.subtopic && (
+                        <span className="text-muted-foreground truncate block">
+                          {r.subtopic}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`font-bold tabular-nums ${col} w-14 text-right`}
+                    >
+                      {r.achieved}/{r.max} mk
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {questionMode === 'multiple-choice' && mcResults.length > 0 && (
+          <div>
+            <SectionHeading>Question results</SectionHeading>
+            <div className="rounded-xl border divide-y divide-border/40 overflow-hidden">
+              {mcResults.map((r, i) => (
+                <div
+                  key={r.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 text-xs ${r.correct ? 'bg-emerald-500/5' : 'bg-rose-500/5'}`}
+                >
+                  <span className="shrink-0 w-5 text-muted-foreground font-mono">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-foreground truncate block">
+                      {r.subtopic}
+                    </span>
+                  </div>
+                  <span className="font-mono text-muted-foreground">
+                    {r.correct ? '' : `${r.selected}→`}
+                    {r.correctAnswer}
+                  </span>
+                  {r.correct ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border bg-muted/10 p-4">
+          <SectionHeading>Lifetime stats</SectionHeading>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+            <StatCell
+              label="Total attempts"
+              value={summary.totalAttempts.toString()}
+            />
+            <StatCell
+              label="Overall accuracy"
+              value={`${summary.overallAccuracy.toFixed(1)}%`}
+              highlight={
+                summary.overallAccuracy >= 75
+                  ? 'text-emerald-500'
+                  : summary.overallAccuracy >= 50
+                    ? 'text-amber-500'
+                    : 'text-rose-500'
+              }
+            />
+            <StatCell
+              label="Written avg"
+              value={
+                summary.writtenAttempts > 0
+                  ? `${summary.writtenAverageScore.toFixed(1)}%`
+                  : '—'
+              }
+              sub={
+                summary.writtenAttempts > 0
+                  ? `${summary.writtenAttempts} attempts`
+                  : undefined
+              }
+            />
+            <StatCell
+              label="MC accuracy"
+              value={
+                summary.mcAttempts > 0
+                  ? `${((summary.mcCorrect / summary.mcAttempts) * 100).toFixed(1)}%`
+                  : '—'
+              }
+              sub={
+                summary.mcAttempts > 0
+                  ? `${summary.mcCorrect}/${summary.mcAttempts}`
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+
+        {trendData.length > 2 && (
+          <div>
+            <SectionHeading>Accuracy trend</SectionHeading>
+            <AccuracyTrendChart data={trendData.slice(-30)} />
+          </div>
+        )}
+
+        {perQuestionTiming && perQuestionTiming.length > 0 && (
+          <div>
+            <SectionHeading>Per-Question Timing</SectionHeading>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs border rounded-lg">
+                <thead>
+                  <tr className="bg-muted/10 text-muted-foreground uppercase">
+                    <th className="px-2 py-1 text-left">Q#</th>
+                    <th className="px-2 py-1 text-left">Used</th>
+                    <th className="px-2 py-1 text-left">Limit</th>
+                    <th className="px-2 py-1 text-left">Early?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {perQuestionTiming.map((q, i) => (
+                    <tr key={q.questionId} className="border-t">
+                      <td className="px-2 py-1 font-mono">{i + 1}</td>
+                      <td className="px-2 py-1 font-mono">
+                        {formatTime(q.timeUsedSeconds)}
+                      </td>
+                      <td className="px-2 py-1 font-mono">
+                        {formatTime(q.timeLimitSeconds)}
+                      </td>
+                      <td className="px-2 py-1">
+                        {q.finishedEarly ? (
+                          <span className="text-emerald-600 font-semibold">
+                            Yes
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">No</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Derived display values ────────────────────────────────────────────────
   const {
     label: accuracyLabel,
@@ -329,75 +612,14 @@ export function CompletionScreen({
           </div>
         </div>
 
-        {/* ── Section 2: What to Review ── */}
-        {(weakTopics.length > 0 || sessionCriteria.length > 0) && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
-              What to review
-            </p>
-
-            {weakTopics.length > 0 && (
-              <div className="space-y-1.5">
-                {sessionTopics
-                  .filter((t) => t.pct < 75)
-                  .map(({ topic, pct }) => (
-                    <div
-                      key={topic}
-                      className="flex items-center gap-3 text-xs"
-                    >
-                      <span className="w-[130px] shrink-0 truncate font-medium text-foreground">
-                        {topic}
-                      </span>
-                      <MiniBar pct={pct} />
-                      <span
-                        className={`shrink-0 tabular-nums font-semibold w-10 text-right ${pct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}
-                      >
-                        {pct.toFixed(0)}%
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            )}
-
-            {questionMode === 'written' && sessionCriteria.length > 0 && (
-              <div className="space-y-1.5">
-                {sessionCriteria.map((c, i) => {
-                  const { text, bg } = criterionColor(c.successPct);
-                  return (
-                    <div
-                      key={i}
-                      className={`flex items-start gap-2 rounded-lg border px-3 py-2 ${bg} border-transparent`}
-                    >
-                      <AlertTriangle
-                        className={`w-3 h-3 shrink-0 mt-0.5 ${text}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-foreground leading-snug line-clamp-2">
-                          <MarkdownMath content={c.criterion} />
-                        </p>
-                        <span
-                          className={`text-[10px] font-bold tabular-nums ${text}`}
-                        >
-                          {c.achieved}/{c.available} mk
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-1.5 text-xs"
-              onClick={() => navigate('/mistakes')}
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              Review Mistakes
-            </Button>
-          </div>
-        )}
+        <WhatToReview
+          weakTopics={weakTopics}
+          sessionCriteria={sessionCriteria}
+          questionMode={questionMode}
+          sessionTopics={sessionTopics}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          navigate={navigate}
+        />
 
         {/* ── Section 3: Details (Collapsed) ── */}
         <div className="border-t pt-3">
@@ -413,187 +635,14 @@ export function CompletionScreen({
           </button>
 
           {showDetails && (
-            <div className="space-y-5 pt-2">
-              {/* Question-by-question breakdown */}
-              {questionMode === 'written' && writtenResults.length > 0 && (
-                <div>
-                  <SectionHeading>Question results</SectionHeading>
-                  <div className="rounded-xl border divide-y divide-border/40 overflow-hidden">
-                    {writtenResults.map((r, i) => {
-                      const pct = r.scorePercent;
-                      const col =
-                        pct >= 100
-                          ? 'text-emerald-500'
-                          : pct >= 50
-                            ? 'text-amber-500'
-                            : 'text-rose-500';
-                      const bg =
-                        pct >= 100
-                          ? 'bg-emerald-500/5'
-                          : pct >= 50
-                            ? 'bg-amber-500/5'
-                            : 'bg-rose-500/5';
-                      return (
-                        <div
-                          key={r.id}
-                          className={`flex items-center gap-3 px-3 py-2.5 text-xs ${bg}`}
-                        >
-                          <span className="shrink-0 w-5 text-muted-foreground font-mono">
-                            {i + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium text-foreground truncate block">
-                              {r.topic}
-                            </span>
-                            {r.subtopic && (
-                              <span className="text-muted-foreground truncate block">
-                                {r.subtopic}
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            className={`font-bold tabular-nums ${col} w-14 text-right`}
-                          >
-                            {r.achieved}/{r.max} mk
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {questionMode === 'multiple-choice' && mcResults.length > 0 && (
-                <div>
-                  <SectionHeading>Question results</SectionHeading>
-                  <div className="rounded-xl border divide-y divide-border/40 overflow-hidden">
-                    {mcResults.map((r, i) => (
-                      <div
-                        key={r.id}
-                        className={`flex items-center gap-3 px-3 py-2.5 text-xs ${r.correct ? 'bg-emerald-500/5' : 'bg-rose-500/5'}`}
-                      >
-                        <span className="shrink-0 w-5 text-muted-foreground font-mono">
-                          {i + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-foreground truncate block">
-                            {r.subtopic}
-                          </span>
-                        </div>
-                        <span className="font-mono text-muted-foreground">
-                          {r.correct ? '' : `${r.selected}→`}
-                          {r.correctAnswer}
-                        </span>
-                        {r.correct ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        ) : (
-                          <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Lifetime stats */}
-              <div className="rounded-xl border bg-muted/10 p-4">
-                <SectionHeading>Lifetime stats</SectionHeading>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
-                  <StatCell
-                    label="Total attempts"
-                    value={summary.totalAttempts.toString()}
-                  />
-                  <StatCell
-                    label="Overall accuracy"
-                    value={`${summary.overallAccuracy.toFixed(1)}%`}
-                    highlight={
-                      summary.overallAccuracy >= 75
-                        ? 'text-emerald-500'
-                        : summary.overallAccuracy >= 50
-                          ? 'text-amber-500'
-                          : 'text-rose-500'
-                    }
-                  />
-                  <StatCell
-                    label="Written avg"
-                    value={
-                      summary.writtenAttempts > 0
-                        ? `${summary.writtenAverageScore.toFixed(1)}%`
-                        : '—'
-                    }
-                    sub={
-                      summary.writtenAttempts > 0
-                        ? `${summary.writtenAttempts} attempts`
-                        : undefined
-                    }
-                  />
-                  <StatCell
-                    label="MC accuracy"
-                    value={
-                      summary.mcAttempts > 0
-                        ? `${((summary.mcCorrect / summary.mcAttempts) * 100).toFixed(1)}%`
-                        : '—'
-                    }
-                    sub={
-                      summary.mcAttempts > 0
-                        ? `${summary.mcCorrect}/${summary.mcAttempts}`
-                        : undefined
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Accuracy trend */}
-              {trendData.length > 2 && (
-                <div>
-                  <SectionHeading>Accuracy trend</SectionHeading>
-                  <AccuracyTrendChart data={trendData.slice(-30)} />
-                </div>
-              )}
-
-              {/* Per-question timing breakdown */}
-              {perQuestionTiming && perQuestionTiming.length > 0 && (
-                <div>
-                  <SectionHeading>Per-Question Timing</SectionHeading>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-xs border rounded-lg">
-                      <thead>
-                        <tr className="bg-muted/10 text-muted-foreground uppercase">
-                          <th className="px-2 py-1 text-left">Q#</th>
-                          <th className="px-2 py-1 text-left">Used</th>
-                          <th className="px-2 py-1 text-left">Limit</th>
-                          <th className="px-2 py-1 text-left">Early?</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {perQuestionTiming.map((q, i) => (
-                          <tr key={q.questionId} className="border-t">
-                            <td className="px-2 py-1 font-mono">{i + 1}</td>
-                            <td className="px-2 py-1 font-mono">
-                              {formatTime(q.timeUsedSeconds)}
-                            </td>
-                            <td className="px-2 py-1 font-mono">
-                              {formatTime(q.timeLimitSeconds)}
-                            </td>
-                            <td className="px-2 py-1">
-                              {q.finishedEarly ? (
-                                <span className="text-emerald-600 font-semibold">
-                                  Yes
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  No
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
+            <DetailsPanel
+              questionMode={questionMode}
+              writtenResults={writtenResults}
+              mcResults={mcResults}
+              summary={summary}
+              trendData={trendData}
+              perQuestionTiming={perQuestionTiming}
+            />
           )}
         </div>
       </CardContent>
@@ -603,13 +652,21 @@ export function CompletionScreen({
         <Button
           variant="ghost"
           size="sm"
-          onClick={onReview}
+          onClick={() => {
+            void onReview();
+          }}
           className="gap-1.5 h-8"
         >
           <BookOpen className="w-3.5 h-3.5" />
           Review
         </Button>
-        <Button size="sm" onClick={onStartOver} className="gap-1.5 h-8">
+        <Button
+          size="sm"
+          onClick={() => {
+            void onStartOver();
+          }}
+          className="gap-1.5 h-8"
+        >
           <RefreshCw className="w-3.5 h-3.5" />
           New Set
         </Button>

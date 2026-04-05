@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   AlertCircle,
   ArrowDownToLine,
@@ -10,8 +9,14 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react';
-import { Input } from '../../../components/ui/input';
+import { useState } from 'react';
+
+import { cn } from '@/lib/utils';
+
+import { useAppSettings } from '../../../AppContext';
+import { ConflictResolutionDialog } from '../../../components/ConflictResolutionDialog';
 import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -19,13 +24,151 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
-import { cn } from '@/lib/utils';
-import { useAppSettings } from '../../../AppContext';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
 import { signOutFirebase } from '../../../context/modules/firebase-auth';
-import { SectionHeader, FieldGroup, Card } from '../SettingsUI';
-import { ConflictResolutionDialog } from '../../../components/ConflictResolutionDialog';
+import { Card, FieldGroup, SectionHeader } from '../SettingsUI';
 
+type LiveRetryItem = { nextAttemptAt?: number };
+type LiveImmediateLog = { message?: string };
+
+function getLiveRetryQueueSummary() {
+  try {
+    const raw = localStorage.getItem('firebase_live_retry_queue_v1') || '[]';
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed))
+      return { actionable: 0, total: 0, display: '—' };
+    const q = parsed as Array<LiveRetryItem>;
+    const now = Date.now();
+    const actionable = q.filter(
+      (item) => (item.nextAttemptAt ?? 0) <= now
+    ).length;
+    if (actionable > 0)
+      return { actionable, total: q.length, display: actionable };
+    if (q.length > 0)
+      return {
+        actionable: 0,
+        total: q.length,
+        display: `${q.length} (delayed)`,
+      };
+    return { actionable: 0, total: 0, display: '—' };
+  } catch {
+    return { actionable: 0, total: 0, display: '—' };
+  }
+}
+
+function getLiveImmediateLastLogMessage() {
+  try {
+    const raw = localStorage.getItem('firebase_live_immediate_logs_v1') || '[]';
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return '—';
+    const logs = parsed as Array<LiveImmediateLog>;
+    return logs.length > 0 && logs[0]?.message ? logs[0].message : '—';
+  } catch {
+    return '—';
+  }
+}
+
+function ImmediateSyncCard({
+  isSignedIn,
+  syncEnabled,
+}: {
+  isSignedIn: boolean;
+  syncEnabled: boolean;
+}) {
+  if (!isSignedIn || !syncEnabled) return null;
+  return (
+    <Card className="p-5">
+      <h3 className="text-sm font-medium mb-2">Immediate Sync (Live)</h3>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-muted-foreground">
+            Queued immediate ops
+          </div>
+          <div className="font-medium">
+            {getLiveRetryQueueSummary().display}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Last live op: {getLiveImmediateLastLogMessage()}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => {
+              const proc = (
+                window as unknown as { __processLiveRetryQueue?: () => void }
+              ).__processLiveRetryQueue;
+              if (proc) proc();
+            }}
+          >
+            Flush queued ops
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+type SyncEvent = {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: number | string;
+};
+
+function SyncActivityCard({
+  syncEvents,
+  debugMode,
+}: {
+  syncEvents: Array<SyncEvent>;
+  debugMode: boolean;
+}) {
+  if (!syncEvents || syncEvents.length === 0) return null;
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium">Sync Activity</h3>
+      </div>
+      <div
+        className={cn('space-y-3', !debugMode && 'max-h-64 overflow-y-auto')}
+      >
+        {syncEvents.slice(0, debugMode ? 50 : 20).map((event: SyncEvent) => (
+          <div key={event.id} className="flex items-start gap-3 text-sm">
+            <div
+              className={cn(
+                'mt-0.5 h-2 w-2 rounded-full shrink-0',
+                event.type === 'upload' && 'bg-emerald-500',
+                event.type === 'download' && 'bg-sky-500',
+                event.type === 'error' && 'bg-destructive',
+                event.type === 'conflict' && 'bg-amber-500',
+                event.type === 'archive' && 'bg-violet-500',
+                event.type === 'retry' && 'bg-orange-500'
+              )}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-foreground">{event.description}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(event.timestamp).toLocaleString()}
+                {debugMode && (
+                  <span className="ml-2 font-mono text-[10px]">{event.id}</span>
+                )}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {!debugMode && syncEvents.length > 20 && (
+        <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+          Enable Debug Mode to see more sync activity
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// Complexity of this UI component is high due to many conditional render branches.
+// Disable the eslint complexity rule for this function to keep the JSX readable.
+// eslint-disable-next-line complexity
 export function SyncSection() {
   const { debugMode, autoSyncIntervalMinutes, setAutoSyncIntervalMinutes } =
     useAppSettings();
@@ -202,7 +345,9 @@ export function SyncSection() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
-                onClick={handlePullSync}
+                onClick={() => {
+                  void handlePullSync();
+                }}
                 disabled={isSyncing || !isOnline}
               >
                 <ArrowDownToLine
@@ -218,7 +363,9 @@ export function SyncSection() {
                 }
                 size="sm"
                 className="gap-1.5"
-                onClick={handlePushSync}
+                onClick={() => {
+                  void handlePushSync();
+                }}
                 disabled={isSyncing || !isOnline}
               >
                 <ArrowUpToLine
@@ -230,7 +377,9 @@ export function SyncSection() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5 text-destructive hover:text-destructive"
-                onClick={disableSync}
+                onClick={() => {
+                  void disableSync();
+                }}
               >
                 Disconnect
               </Button>
@@ -238,7 +387,9 @@ export function SyncSection() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
-                onClick={handleSignOut}
+                onClick={() => {
+                  void handleSignOut();
+                }}
               >
                 Sign out
               </Button>
@@ -249,7 +400,9 @@ export function SyncSection() {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={forceSync}
+              onClick={() => {
+                void forceSync();
+              }}
               disabled={isSyncing || !isOnline}
             >
               <Cloud className="h-3.5 w-3.5" />
@@ -345,17 +498,22 @@ export function SyncSection() {
                   onChange={(e) => setSyncAuthPassword(e.target.value)}
                   placeholder="Password"
                   disabled={!isOnline}
-                  onKeyDown={(e) =>
-                    e.key === 'Enter' &&
-                    syncAuthEmail &&
-                    syncAuthPassword &&
-                    handleAuth()
-                  }
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === 'Enter' &&
+                      syncAuthEmail &&
+                      syncAuthPassword
+                    ) {
+                      void handleAuth();
+                    }
+                  }}
                 />
               </FieldGroup>
               <Button
                 className="w-full gap-2"
-                onClick={handleAuth}
+                onClick={() => {
+                  void handleAuth();
+                }}
                 disabled={
                   !syncAuthEmail.trim() ||
                   !syncAuthPassword ||
@@ -385,62 +543,7 @@ export function SyncSection() {
         )}
       </Card>
 
-      {isSignedIn && syncEnabled && (
-        <Card className="p-5">
-          <h3 className="text-sm font-medium mb-2">Immediate Sync (Live)</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-muted-foreground">
-                Queued immediate ops
-              </div>
-              <div className="font-medium">
-                {(() => {
-                  try {
-                    const q = JSON.parse(
-                      localStorage.getItem('firebase_live_retry_queue_v1') ||
-                        '[]'
-                    );
-                    if (!Array.isArray(q)) return '—';
-                    const now = Date.now();
-                    const actionable = q.filter(
-                      (item) => item.nextAttemptAt <= now
-                    ).length;
-                    return actionable > 0
-                      ? actionable
-                      : q.length > 0
-                        ? `${q.length} (delayed)`
-                        : '—';
-                  } catch (e) {
-                    return '—';
-                  }
-                })()}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Last live op:{' '}
-                {(() => {
-                  try {
-                    const logs = JSON.parse(
-                      localStorage.getItem('firebase_live_immediate_logs_v1') ||
-                        '[]'
-                    );
-                    return logs && logs.length > 0 ? logs[0].message : '—';
-                  } catch (e) {
-                    return '—';
-                  }
-                })()}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => (window as any).__processLiveRetryQueue?.()}
-              >
-                Flush queued ops
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+      <ImmediateSyncCard isSignedIn={isSignedIn} syncEnabled={syncEnabled} />
 
       {isSignedIn && (
         <Card className="p-5">
@@ -474,51 +577,7 @@ export function SyncSection() {
         </Card>
       )}
 
-      {isSignedIn && syncEvents.length > 0 && (
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">Sync Activity</h3>
-          </div>
-          <div
-            className={cn(
-              'space-y-3',
-              !debugMode && 'max-h-64 overflow-y-auto'
-            )}
-          >
-            {syncEvents.slice(0, debugMode ? 50 : 20).map((event) => (
-              <div key={event.id} className="flex items-start gap-3 text-sm">
-                <div
-                  className={cn(
-                    'mt-0.5 h-2 w-2 rounded-full shrink-0',
-                    event.type === 'upload' && 'bg-emerald-500',
-                    event.type === 'download' && 'bg-sky-500',
-                    event.type === 'error' && 'bg-destructive',
-                    event.type === 'conflict' && 'bg-amber-500',
-                    event.type === 'archive' && 'bg-violet-500',
-                    event.type === 'retry' && 'bg-orange-500'
-                  )}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-foreground">{event.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(event.timestamp).toLocaleString()}
-                    {debugMode && (
-                      <span className="ml-2 font-mono text-[10px]">
-                        {event.id}
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          {!debugMode && syncEvents.length > 20 && (
-            <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-              Enable Debug Mode to see more sync activity
-            </p>
-          )}
-        </Card>
-      )}
+      <SyncActivityCard syncEvents={syncEvents} debugMode={debugMode} />
 
       {debugMode && isSignedIn && debugLogs.length > 0 && (
         <Card className="p-5">

@@ -1,7 +1,8 @@
 import { ModeToggle } from '@/components/mode-toggle';
 import { Slider } from '@/components/ui/slider';
+
 import { useAppSettings } from '../../../AppContext';
-import { SectionHeader, FieldGroup, Card } from '../SettingsUI';
+import { Card, FieldGroup, SectionHeader } from '../SettingsUI';
 
 export function AppearanceSection() {
   const {

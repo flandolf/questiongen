@@ -1,12 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import {
-  PerQuestionTiming,
-  QuestionTimerState,
-  PersistedTimerState,
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { useAppStore } from '@/store';
+import type {
   GeneratedQuestion,
   McQuestion,
+  PerQuestionTiming,
+  PersistedTimerState,
+  QuestionTimerState,
 } from '@/types';
-import { useAppStore } from '@/store';
 
 // ---------------------------------------------------------------------------
 // Utilities

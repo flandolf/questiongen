@@ -1,22 +1,25 @@
-import { useMemo, useCallback, useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Sparkles,
-  History,
-  ChartColumnIncreasing,
-  Settings,
   Bookmark,
+  ChartColumnIncreasing,
+  ChevronRight,
   CircleX,
   Flame,
-  ChevronRight,
+  History,
+  type LucideIcon,
+  Settings,
+  Sparkles,
 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+
 import { cn, getTodayKey } from '../../lib/utils';
 import { useAppStore } from '../../store';
 
@@ -157,7 +160,7 @@ export function Sidebar() {
     (link: {
       to: string;
       label: string;
-      icon: any;
+      icon: LucideIcon;
       showSessionDot?: boolean;
     }) => (
       <NavLink

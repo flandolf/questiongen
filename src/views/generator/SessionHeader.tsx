@@ -1,23 +1,25 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Trash2,
+  Clock,
+  Flag,
   Info,
   RefreshCw,
-  Flag,
-  Clock,
+  Trash2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Difficulty, GenerationTelemetry } from '@/types';
+import type { Difficulty, GenerationTelemetry } from '@/types';
+
 import { formatDurationMs } from '../../lib/app-utils';
-import { useEffect, useState } from 'react';
 
 type SessionHeaderProps = {
   type: 'written' | 'mc';
@@ -126,38 +128,15 @@ export function SessionHeader({
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          <div className="hidden lg:flex items-center gap-1.5 text-xs bg-muted/50 px-3 py-1.5 rounded-full">
-            {topic && (
-              <Badge
-                variant="outline"
-                className="h-5 px-1.5 text-[10px] font-medium border-border/50"
-              >
-                {topic}
-              </Badge>
-            )}
-            <Badge
-              variant="outline"
-              className={`h-5 px-1.5 text-[10px] font-semibold ${getDifficultyBadgeClasses(difficulty)}`}
-            >
-              {difficulty}
-            </Badge>
-            {type === 'written' && maxMarks !== undefined && (
-              <Badge
-                variant="secondary"
-                className="h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20"
-              >
-                {maxMarks} marks
-              </Badge>
-            )}
-            {isMathTopic && techAllowed !== undefined && (
-              <Badge
-                variant={techAllowed ? 'default' : 'destructive'}
-                className="h-5 px-1.5 text-[10px]"
-              >
-                {techAllowed ? 'CAS' : 'No CAS'}
-              </Badge>
-            )}
-          </div>
+          <InfoBadges
+            topic={topic}
+            difficulty={difficulty}
+            maxMarks={maxMarks}
+            type={type}
+            isMathTopic={isMathTopic}
+            techAllowed={techAllowed}
+            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+          />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -320,6 +299,59 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex items-center justify-between gap-3 text-background/80">
       <span>{label}</span>
       <span className="text-background">{value}</span>
+    </div>
+  );
+}
+
+function InfoBadges({
+  topic,
+  difficulty,
+  maxMarks,
+  type,
+  isMathTopic,
+  techAllowed,
+  getDifficultyBadgeClasses,
+}: {
+  topic: string | undefined;
+  difficulty: Difficulty;
+  maxMarks?: number;
+  type: 'written' | 'mc';
+  isMathTopic: boolean;
+  techAllowed: boolean | undefined;
+  getDifficultyBadgeClasses: (level: Difficulty) => string;
+}) {
+  return (
+    <div className="hidden lg:flex items-center gap-1.5 text-xs bg-muted/50 px-3 py-1.5 rounded-full">
+      {topic && (
+        <Badge
+          variant="outline"
+          className="h-5 px-1.5 text-[10px] font-medium border-border/50"
+        >
+          {topic}
+        </Badge>
+      )}
+      <Badge
+        variant="outline"
+        className={`h-5 px-1.5 text-[10px] font-semibold ${getDifficultyBadgeClasses(difficulty)}`}
+      >
+        {difficulty}
+      </Badge>
+      {type === 'written' && maxMarks !== undefined && (
+        <Badge
+          variant="secondary"
+          className="h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20"
+        >
+          {maxMarks} marks
+        </Badge>
+      )}
+      {isMathTopic && techAllowed !== undefined && (
+        <Badge
+          variant={techAllowed ? 'default' : 'destructive'}
+          className="h-5 px-1.5 text-[10px]"
+        >
+          {techAllowed ? 'CAS' : 'No CAS'}
+        </Badge>
+      )}
     </div>
   );
 }

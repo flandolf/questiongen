@@ -1,3 +1,4 @@
+import type { Topic } from './catalog';
 import type { QuestionMode } from './generator';
 
 export type GenerationStatusStage =
@@ -24,7 +25,7 @@ export type GenerationTokenEvent = {
 };
 
 export interface BatchTopicProgress {
-  topic: import('./catalog').Topic;
+  topic: Topic;
   questionCount: number;
   status: 'waiting' | 'active' | 'done' | 'error';
   stage?: string;

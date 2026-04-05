@@ -1,47 +1,48 @@
-import { useState, useMemo, useCallback, useEffect, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from '@tauri-apps/api/core';
-import { useAppStore } from '@/store';
 import {
-  McHistoryEntry,
-  QuestionHistoryEntry,
-  SpacedRepetitionCard,
-  Difficulty,
-} from '../types';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { MarkdownMath } from '@/components/MarkdownMath';
-import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
-import { normalizeMarkResponse, fileToDataUrl } from '@/lib/app-utils';
-import { isDue, daysUntilReview } from '@/lib/spaced-repetition';
-import {
-  ChevronDown,
-  ChevronUp,
-  Shuffle,
   BookOpen,
-  Target,
-  RotateCcw,
-  Trophy,
-  Trash2,
   Brain,
   CheckCircle2,
-  XCircle,
+  ChevronDown,
+  ChevronUp,
   Clock,
+  RotateCcw,
+  Shuffle,
+  Target,
+  Trash2,
+  Trophy,
+  XCircle,
 } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
 import {
+  FilterButton,
+  FilterGroup,
   PageContainer,
   PageHeader,
   Toolbar,
-  FilterGroup,
-  FilterButton,
 } from '@/components/layout/primitives';
+import { MarkdownMath } from '@/components/MarkdownMath';
+import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { fileToDataUrl, normalizeMarkResponse } from '@/lib/app-utils';
+import { daysUntilReview, isDue } from '@/lib/spaced-repetition';
+import { useAppStore } from '@/store';
+// --- Generator parity reattempt view (restored full UI) ---
+import type {
+  Difficulty,
+  MarkAnswerResponse,
+  McHistoryEntry,
+  QuestionHistoryEntry,
+  SpacedRepetitionCard,
+} from '@/types';
+import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
 import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
-import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
 
-// --- Generator parity reattempt view (restored full UI) ---
-import type { MarkAnswerResponse } from '@/types';
 import { SessionHeader } from './generator/SessionHeader';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,8 +120,8 @@ const ListEntryCard = memo(function ListEntryCard({
   const isWritten = entry.kind === 'written';
   let scoreLabel = '';
   let pct = 0;
-  if (isWritten) {
-    const w = entry as WrittenWrongEntry;
+  if (entry.kind === 'written') {
+    const w = entry;
     pct =
       w.markResponse.maxMarks > 0
         ? w.markResponse.achievedMarks / w.markResponse.maxMarks
@@ -225,10 +226,10 @@ const ListEntryCard = memo(function ListEntryCard({
       </div>
       {isExpanded && (
         <div className="border-t border-border/40 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
-          {isWritten ? (
-            <WrittenExpandedBody entry={entry as WrittenWrongEntry} />
+          {entry.kind === 'written' ? (
+            <WrittenExpandedBody entry={entry} />
           ) : (
-            <McExpandedBody entry={entry as McWrongEntry} />
+            <McExpandedBody entry={entry} />
           )}
           <div className="flex justify-end mt-3">
             <Button
@@ -254,12 +255,12 @@ export function VirtualizedWrongList({
   onReattempt,
   spacedRepetitionCards,
 }: {
-  entries: any[];
+  entries: WrongEntry[];
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
-  onDelete: (entry: any) => void;
-  onReattempt: (entry: any) => void;
-  spacedRepetitionCards: Record<string, any>;
+  onDelete: (entry: WrongEntry) => void;
+  onReattempt: (entry: WrongEntry) => void;
+  spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -591,6 +592,7 @@ function ReattemptView({
     mcOverrideInput,
     results,
     questionStartedAt,
+    savedStates,
   ]);
 
   // --- Restore state for a question ---
@@ -650,7 +652,7 @@ function ReattemptView({
         timeSeconds,
       };
     } else {
-      const correctAnswer = (entry as McWrongEntry).question.correctAnswer;
+      const correctAnswer = entry.question.correctAnswer;
       return {
         id: entry.id,
         correct: selectedAnswer === correctAnswer,
@@ -679,7 +681,7 @@ function ReattemptView({
       setMarkingScheme(
         resp.vcaaMarkingScheme ? [...resp.vcaaMarkingScheme] : null
       );
-    } catch (err) {
+    } catch {
       // Optionally show error
     } finally {
       setIsMarking(false);
@@ -716,8 +718,9 @@ function ReattemptView({
 
   // --- MC logic ---
   const handleSelectAnswer = (label: string) => {
+    if (entry.kind !== 'multiple-choice') return;
     setSelectedAnswer(label);
-    const correct = label === (entry as McWrongEntry).question.correctAnswer;
+    const correct = label === entry.question.correctAnswer;
     setAwardedMarks(correct ? 1 : 0);
   };
   const handleApplyMcOverride = () => {
@@ -862,13 +865,12 @@ function ReattemptView({
                   canSubmit={writtenAnswer.trim().length > 0 || !!image}
                   onAnswerChange={setWrittenAnswer}
                   onImageDrop={(files) => {
-                    const file = files[0];
-                    fileToDataUrl(file).then((dataUrl) =>
-                      setImage({ name: file.name, dataUrl })
+                    void fileToDataUrl(files[0]).then((dataUrl) =>
+                      setImage({ name: files[0].name, dataUrl })
                     );
                   }}
                   onImageRemove={() => setImage(undefined)}
-                  onSubmit={doMark}
+                  onSubmit={() => void doMark()}
                 />
               </>
             ) : (
@@ -1152,7 +1154,29 @@ function ReattemptSummary({
 }
 
 // ─── Main view ────────────────────────────────────────────────────────────────
+function computeAllWrongEntries(
+  questionHistory: QuestionHistoryEntry[],
+  mcHistory: McHistoryEntry[]
+) {
+  const written: WrittenWrongEntry[] = questionHistory
+    .filter((e) => {
+      const isCorrectVerdict =
+        e.markResponse.verdict?.toLowerCase() === 'correct';
+      const isFullMarks =
+        e.markResponse.maxMarks > 0 &&
+        e.markResponse.achievedMarks >= e.markResponse.maxMarks;
+      return !isCorrectVerdict && !isFullMarks;
+    })
+    .map((e) => ({ ...e, kind: 'written' as const }));
+  const mc: McWrongEntry[] = mcHistory
+    .filter((e) => !e.correct)
+    .map((e) => ({ ...e, kind: 'multiple-choice' as const }));
+  return [...written, ...mc].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
+  );
+}
 
+// eslint-disable-next-line complexity
 export default function WrongQuestionView() {
   const questionHistory = useAppStore((s) => s.questionHistory);
   const mcHistory = useAppStore((s) => s.mcHistory);
@@ -1167,24 +1191,10 @@ export default function WrongQuestionView() {
   const spacedRepetitionCards = useAppStore((s) => s.spacedRepetitionCards);
   const reviewSpacedCard = useAppStore((s) => s.reviewSpacedCard);
 
-  const allWrong = useMemo<WrongEntry[]>(() => {
-    const written: WrittenWrongEntry[] = questionHistory
-      .filter((e) => {
-        const isCorrectVerdict =
-          e.markResponse.verdict?.toLowerCase() === 'correct';
-        const isFullMarks =
-          e.markResponse.maxMarks > 0 &&
-          e.markResponse.achievedMarks >= e.markResponse.maxMarks;
-        return !isCorrectVerdict && !isFullMarks;
-      })
-      .map((e) => ({ ...e, kind: 'written' as const }));
-    const mc: McWrongEntry[] = mcHistory
-      .filter((e) => !e.correct)
-      .map((e) => ({ ...e, kind: 'multiple-choice' as const }));
-    return [...written, ...mc].sort(
-      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
-    );
-  }, [questionHistory, mcHistory]);
+  const allWrong = useMemo<WrongEntry[]>(
+    () => computeAllWrongEntries(questionHistory, mcHistory),
+    [questionHistory, mcHistory]
+  );
 
   // Due for review cards
   const dueCards = useMemo(() => {
@@ -1233,7 +1243,11 @@ export default function WrongQuestionView() {
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) {
+        n.delete(id);
+      } else {
+        n.add(id);
+      }
       return n;
     });
   }, []);

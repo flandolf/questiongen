@@ -1,3 +1,5 @@
+import type { PersistedGeneratorPreferences } from './persistence';
+
 export type StudyGoals = {
   dailyQuestionGoal: number;
   dailyWrittenGoal: number;
@@ -18,7 +20,7 @@ export type StreakData = {
 export type Preset = {
   id: string;
   name: string;
-  preferences: import('./persistence').PersistedGeneratorPreferences;
+  preferences: PersistedGeneratorPreferences;
   createdAt: string;
   updatedAt: string;
   lastModified?: number;

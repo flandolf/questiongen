@@ -1,9 +1,9 @@
 import type {
-  GenerationRecord,
-  Topic,
   Difficulty,
+  GenerationRecord,
   QuestionMode,
   TechMode,
+  Topic,
 } from '../types';
 
 export interface EstimatedTokensAndCost {
@@ -148,12 +148,20 @@ export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(LOG_REGRESSION_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed: unknown = JSON.parse(stored);
         if (
-          typeof parsed.bias === 'number' &&
-          typeof parsed.logQuestionCount === 'number'
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          'bias' in parsed &&
+          'logQuestionCount' in parsed &&
+          typeof (parsed as Record<string, unknown>).bias === 'number' &&
+          typeof (parsed as Record<string, unknown>).logQuestionCount ===
+            'number'
         ) {
-          return { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS, ...parsed };
+          return {
+            ...DEFAULT_LOG_REGRESSION_COEFFICIENTS,
+            ...(parsed as Record<string, number>),
+          };
         }
       }
     }
@@ -213,6 +221,7 @@ function predictTokensLogRegression(
   return Math.round(Math.exp(linearPrediction));
 }
 
+// eslint-disable-next-line complexity
 export function trainLogRegressionModel(
   records: GenerationRecord[],
   existingCoeffs?: LogRegressionCoefficients
@@ -302,7 +311,7 @@ export function trainLogRegressionModel(
       gradSub += error * features.subtopicsLog;
       gradFocus += error * features.hasCustomFocus;
 
-      const t = record.inputs.topic as string;
+      const t = record.inputs.topic;
       const d = record.inputs.difficulty as string;
       const qm = record.inputs.questionMode as string;
       const tm = record.inputs.techMode as string;
@@ -453,7 +462,7 @@ function calculateSimilarity(
     ).length;
     const maxLength = Math.max(
       subtopics.length,
-      record.inputs.subtopics!.length
+      record.inputs.subtopics.length
     );
     if (maxLength > 0) {
       score += 0.05 * (overlap / maxLength);

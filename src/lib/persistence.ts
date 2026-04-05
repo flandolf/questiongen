@@ -1,18 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
-import {
+
+import type {
   AnswerAnalytics,
-  API_KEY_STORAGE_KEY,
-  APP_STATE_STORAGE_KEY,
-  CHEMISTRY_SUBTOPICS,
-  DEBUG_MODE_STORAGE_KEY,
+  GenerationRecord,
   McAnswerAnalytics,
-  MC_HISTORY_STORAGE_KEY,
-  MATH_METHODS_SUBTOPICS,
   McHistoryEntry,
   McOption,
   McQuestion,
-  PHYSICAL_EDUCATION_SUBTOPICS,
-  PERSISTED_APP_STATE_VERSION,
   PerQuestionTiming,
   PersistedAppState,
   PersistedGeneratorPreferences,
@@ -20,18 +14,27 @@ import {
   PersistedSettings,
   PersistedTimerState,
   PersistedWrittenSession,
-  QUESTION_HISTORY_STORAGE_KEY,
+  Preset,
   QuestionHistoryEntry,
   QuestionMode,
   SavedQuestionSet,
-  StudentAnswerImage,
-  TOPICS,
-  WrittenAnswerAnalytics,
-  SPECIALIST_MATH_SUBTOPICS,
-  StudyGoals,
   StreakData,
-  GenerationRecord,
-  Preset,
+  StudentAnswerImage,
+  StudyGoals,
+  WrittenAnswerAnalytics,
+} from '../types';
+import {
+  API_KEY_STORAGE_KEY,
+  APP_STATE_STORAGE_KEY,
+  CHEMISTRY_SUBTOPICS,
+  DEBUG_MODE_STORAGE_KEY,
+  MATH_METHODS_SUBTOPICS,
+  MC_HISTORY_STORAGE_KEY,
+  PERSISTED_APP_STATE_VERSION,
+  PHYSICAL_EDUCATION_SUBTOPICS,
+  QUESTION_HISTORY_STORAGE_KEY,
+  SPECIALIST_MATH_SUBTOPICS,
+  TOPICS,
 } from '../types';
 import { clampWholeNumber, normalizeMarkResponse } from './app-utils';
 
@@ -121,7 +124,7 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
   const hasDurableState =
     isRecord(raw) &&
     Object.keys(raw).some((key) => {
-      const val = (raw as Record<string, unknown>)[key];
+      const val = raw[key];
       if (Array.isArray(val)) return val.length > 0;
       if (isRecord(val)) return Object.keys(val).length > 0;
       return val !== '' && val !== null && val !== undefined;
@@ -840,7 +843,7 @@ function parseJsonArray(raw: string | null): unknown[] {
   }
 
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -862,7 +865,7 @@ function isTauriRuntime() {
   return isTauri;
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 

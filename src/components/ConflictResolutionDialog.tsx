@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
 import type { SyncConflict } from '@/context/modules/deletion-tombstones';
+import { cn } from '@/lib/utils';
 
 type ConflictResolution = 'keep' | 'delete';
 

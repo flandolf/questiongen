@@ -1,3 +1,5 @@
+import type { GeneratedQuestion, McQuestion } from './questions';
+
 export type GenerationTelemetry = {
   durationMs: number;
   promptTokens?: number;
@@ -9,7 +11,7 @@ export type GenerationTelemetry = {
 };
 
 export type GenerateQuestionsResponse = {
-  questions: import('./questions').GeneratedQuestion[];
+  questions: GeneratedQuestion[];
   durationMs: number;
   promptTokens?: number;
   completionTokens?: number;
@@ -20,7 +22,7 @@ export type GenerateQuestionsResponse = {
 };
 
 export type GenerateMcQuestionsResponse = {
-  questions: import('./questions').McQuestion[];
+  questions: McQuestion[];
   durationMs: number;
   promptTokens?: number;
   completionTokens?: number;

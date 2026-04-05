@@ -1,19 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { RefreshCw, Calendar } from 'lucide-react';
-import { Button } from '../../../components/ui/button';
+import { Calendar, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+
 import { cn } from '@/lib/utils';
-import { readBackendError } from '../../../lib/app-utils';
+
 import {
   useAppSettings,
-  useWrittenSession,
   useMultipleChoiceSession,
+  useWrittenSession,
 } from '../../../AppContext';
+import { Button } from '../../../components/ui/button';
+import { readBackendError } from '../../../lib/app-utils';
 import { useAppStore } from '../../../store';
-import { Card, Divider, ErrorBanner, EmptyState } from '../SettingsUI';
 import { CreditBar } from '../CreditBar';
 import { DailyUsageSection } from '../DailyUsageSection';
 import { fmt } from '../formatters';
+import { Card, Divider, EmptyState, ErrorBanner } from '../SettingsUI';
 import type { CreditsInfo } from '../types';
 
 export function CreditsSection() {
@@ -44,7 +46,7 @@ export function CreditsSection() {
   }, []);
 
   useEffect(() => {
-    if (apiKey) fetchCredits(apiKey);
+    if (apiKey) void fetchCredits(apiKey);
   }, [apiKey, fetchCredits]);
 
   return (
@@ -69,7 +71,7 @@ export function CreditsSection() {
           size="sm"
           className="gap-2 shrink-0"
           disabled={creditsLoading || !apiKey}
-          onClick={() => fetchCredits(apiKey)}
+          onClick={() => void fetchCredits(apiKey)}
         >
           <RefreshCw
             className={cn('h-3.5 w-3.5', creditsLoading && 'animate-spin')}
@@ -89,7 +91,7 @@ export function CreditsSection() {
       )}
       {creditsLoading && (
         <div className="space-y-2">
-          {[...Array(3)].map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
           ))}
         </div>

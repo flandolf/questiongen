@@ -165,5 +165,5 @@ export function buildConflictLabel(
   if (collection === 'presets') {
     return (item.name as string) || `Preset ${itemId.slice(0, 8)}`;
   }
-  return `${collection}/${itemId.slice(0, 8)}`;
+  return `${collection as string}/${itemId.slice(0, 8)}`;
 }

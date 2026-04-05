@@ -1,25 +1,24 @@
 import { invoke } from '@tauri-apps/api/core';
-import { PersistedAppState } from '../types';
+
+import type { DeletionTombstones } from '../context/modules/deletion-tombstones';
+import { EMPTY_TOMBSTONES } from '../context/modules/deletion-tombstones';
+import type {
+  GenerationRecord,
+  McHistoryEntry,
+  PersistedAppState,
+  Preset,
+  QuestionHistoryEntry,
+  SavedQuestionSet,
+  SpacedRepetitionCard,
+  StreakData,
+  StudyGoals,
+} from '../types';
 import { APP_VERSION } from '../views/settings/types';
 import {
   EMPTY_PERSISTED_APP_STATE,
   normalizePersistedAppState,
   savePersistedAppState,
 } from './persistence';
-import {
-  DeletionTombstones,
-  EMPTY_TOMBSTONES,
-} from '../context/modules/deletion-tombstones';
-import type {
-  QuestionHistoryEntry,
-  McHistoryEntry,
-  SavedQuestionSet,
-  SpacedRepetitionCard,
-  StudyGoals,
-  StreakData,
-  GenerationRecord,
-  Preset,
-} from '../types';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 

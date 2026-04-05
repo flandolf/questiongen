@@ -1,8 +1,10 @@
+import '../../App.css';
+
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
+
 import { Header } from './Header';
 import Titlebar from './Titlebar';
-import { useEffect, useState } from 'react';
-import '../../App.css';
 
 export function Layout() {
   const [isAndroid, setIsAndroid] = useState(false);

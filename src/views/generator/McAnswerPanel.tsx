@@ -1,19 +1,20 @@
-import { memo, useState } from 'react';
 import {
-  Loader2,
   CheckCircle2,
-  XCircle,
   ChevronDown,
   ChevronUp,
+  Loader2,
+  XCircle,
 } from 'lucide-react';
+import { memo, useState } from 'react';
+
+import { MarkdownMath } from '@/components/MarkdownMath';
+import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { MarkdownMath } from '@/components/MarkdownMath';
-import { McOption } from '@/types';
-import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
+import type { McOption } from '@/types';
 
 type McAnswerPanelProps = {
   questionId: string;

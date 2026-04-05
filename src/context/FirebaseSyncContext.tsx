@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import {
-  useFirebaseSync,
-  UseFirebaseSyncReturn,
-} from './modules/useFirebaseSync';
+
+import type { UseFirebaseSyncReturn } from './modules/useFirebaseSync';
+import { useFirebaseSync } from './modules/useFirebaseSync';
 
 const FirebaseSyncContext = createContext<UseFirebaseSyncReturn | null>(null);
 

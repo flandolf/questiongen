@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { AlertCircle, Search, ShieldAlert } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { Button } from '../../components/ui/button';
 import {
   Select,
   SelectContent,
@@ -7,15 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { Button } from '../../components/ui/button';
-import { AlertCircle, Search, ShieldAlert } from 'lucide-react';
 import { readBackendError } from '../../lib/app-utils';
-import type { ImageValidationState, ModelStats } from './types';
 import { PRESET_IMAGE_MODELS } from './constants';
 import {
   getCachedImageValidation,
   setCachedImageValidation,
 } from './imageValidationCache';
+import type { ImageValidationState, ModelStats } from './types';
 
 export function ImageModelSelectRow({
   id,

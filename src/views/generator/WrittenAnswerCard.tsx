@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
 import {
-  Loader2,
-  Trash2,
   CheckCircle2,
   ImageIcon,
-  Type,
+  Loader2,
   PencilRuler,
+  Trash2,
+  Type,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
-import { Textarea } from '@/components/ui/textarea';
 import Sketchpad from '@/components/ui/Sketchpad';
-import { StudentAnswerImage } from '@/types';
-import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
+import { Textarea } from '@/components/ui/textarea';
+import type { StudentAnswerImage } from '@/types';
 
 type WrittenAnswerCardProps = {
   questionId: string;
@@ -68,7 +69,7 @@ export function WrittenAnswerCard({
         type: blob.type || 'image/webp',
       });
       onImageDrop([file]);
-    } catch (err) {
+    } catch {
       // noop
     }
   }
@@ -181,7 +182,10 @@ export function WrittenAnswerCard({
             <PencilRuler className="w-4 h-4" />
             <span className="text-xs uppercase tracking-wide">Sketchpad</span>
           </div>
-          <Sketchpad embedded onSave={handleSketchSave} />
+          <Sketchpad
+            embedded
+            onSave={(dataUrl) => void handleSketchSave(dataUrl)}
+          />
 
           {image && (
             <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">

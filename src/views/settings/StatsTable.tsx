@@ -1,16 +1,18 @@
-import React from 'react';
-import { Card, StatusBadge } from './SettingsUI';
-import { cn } from '@/lib/utils';
 import {
-  Zap,
   Clock,
-  DollarSign,
   Database,
-  Settings,
-  Image as ImageIcon,
+  DollarSign,
   File,
+  Image as ImageIcon,
+  Settings,
+  Zap,
 } from 'lucide-react';
+import React from 'react';
+
+import { cn } from '@/lib/utils';
+
 import { fmt } from './formatters';
+import { Card, StatusBadge } from './SettingsUI';
 import type { ModelStats, StatsColumn } from './types';
 
 const STAT_ROWS: {

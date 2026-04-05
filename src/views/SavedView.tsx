@@ -1,38 +1,69 @@
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
+  BarChart2,
   Bookmark,
   Clock3,
   FolderOpen,
-  Trash2,
-  BarChart2,
   Hash,
-  SortAsc,
-  Search,
   PlusCircle,
   RotateCcw,
+  Search,
+  SortAsc,
+  Trash2,
 } from 'lucide-react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSavedSets } from '../AppContext';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
-// import { ScrollArea } from "../components/ui/scroll-area";
-import { formatDate } from '../lib/app-utils';
-import { EmptyState } from '../components/EmptyState';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { useState, useMemo, useRef, memo, useEffect } from 'react';
+import { toast } from 'sonner';
+
 import {
+  FilterButton,
+  FilterGroup,
   PageContainer,
   PageHeader,
   Toolbar,
-  FilterGroup,
-  FilterButton,
 } from '@/components/layout/primitives';
-import { useVirtualizer } from '@tanstack/react-virtual';
+
+import { useSavedSets } from '../AppContext';
+import { EmptyState } from '../components/EmptyState';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader } from '../components/ui/card';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+// import { ScrollArea } from "../components/ui/scroll-area";
+import { formatDate } from '../lib/app-utils';
 import type { SavedQuestionSet } from '../types';
-import { toast } from 'sonner';
 
 type SortKey = 'updatedAt' | 'title' | 'progress';
 type ModeFilter = 'all' | 'written' | 'mc';
+
+function computeSavedSetSummary(savedSet: SavedQuestionSet) {
+  const questionCount =
+    savedSet.questionMode === 'written'
+      ? (savedSet.writtenSession?.questions.length ?? 0)
+      : (savedSet.mcSession?.questions.length ?? 0);
+  const completedCount =
+    savedSet.questionMode === 'written'
+      ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {}).length
+      : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {}).length;
+  const progressPct =
+    questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
+  const topics = savedSet.preferences.selectedTopics;
+  const isWritten = savedSet.questionMode === 'written';
+  const progressLabel =
+    completedCount === 0
+      ? 'Not started'
+      : completedCount === questionCount
+        ? 'Complete'
+        : `${progressPct.toFixed(0)}% complete`;
+  return {
+    questionCount,
+    completedCount,
+    progressPct,
+    topics,
+    isWritten,
+    progressLabel,
+  };
+}
 
 const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   sets,
@@ -77,26 +108,14 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const savedSet = sets[virtualRow.index];
-          const questionCount =
-            savedSet.questionMode === 'written'
-              ? (savedSet.writtenSession?.questions.length ?? 0)
-              : (savedSet.mcSession?.questions.length ?? 0);
-          const completedCount =
-            savedSet.questionMode === 'written'
-              ? Object.keys(savedSet.writtenSession?.feedbackByQuestionId ?? {})
-                  .length
-              : Object.keys(savedSet.mcSession?.answersByQuestionId ?? {})
-                  .length;
-          const progressPct =
-            questionCount > 0 ? (completedCount / questionCount) * 100 : 0;
-          const topics = savedSet.preferences.selectedTopics;
-          const isWritten = savedSet.questionMode === 'written';
-          const progressLabel =
-            completedCount === 0
-              ? 'Not started'
-              : completedCount === questionCount
-                ? 'Complete'
-                : `${progressPct.toFixed(0)}% complete`;
+          const {
+            questionCount,
+            completedCount,
+            progressPct,
+            topics,
+            isWritten,
+            progressLabel,
+          } = computeSavedSetSummary(savedSet);
           return (
             <div
               key={savedSet.id}
@@ -274,7 +293,7 @@ export function SavedView() {
       return;
     }
     loadSavedSet(savedSetId);
-    navigate('/');
+    void navigate('/');
   }
 
   function performLoadConfirmed() {
@@ -287,7 +306,7 @@ export function SavedView() {
     loadSavedSet(pendingLoadId);
     setPendingLoadId(null);
     setLoadConfirmOpen(false);
-    navigate('/');
+    void navigate('/');
     toast.success('Session loaded');
   }
 
@@ -390,7 +409,7 @@ export function SavedView() {
             variant="default"
             size="sm"
             className="gap-2 mt-2"
-            onClick={() => navigate('/')}
+            onClick={() => void navigate('/')}
           >
             <PlusCircle className="h-4 w-4" />
             Generate your first set
