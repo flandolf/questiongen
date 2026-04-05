@@ -15,8 +15,16 @@ export default defineConfig(async () => ({
   },
 
   build: {
+    target: 'esnext',
+    minify: 'esbuild',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
+        compact: true,
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('recharts')) return 'recharts';
@@ -26,6 +34,10 @@ export default defineConfig(async () => ({
             if (id.includes('@tauri-apps')) return 'tauri';
             if (id.includes('react') || id.includes('react-router'))
               return 'react-vendor';
+            if (id.includes('framer-motion')) return 'framer-motion';
+            if (id.includes('lucide-react')) return 'lucide';
+            if (id.includes('radix-ui')) return 'radix';
+            if (id.includes('react-markdown')) return 'markdown';
           }
         },
       },
