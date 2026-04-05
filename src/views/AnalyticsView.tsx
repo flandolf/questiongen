@@ -1,4 +1,4 @@
-import { Clock3, PlusCircle, Type } from 'lucide-react';
+import { BarChartIcon, Clock3, PlusCircle, Type } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { PieSectorShapeProps } from 'recharts';
@@ -21,7 +21,7 @@ import {
   YAxis,
 } from 'recharts';
 
-import { PageHeader } from '@/components/layout/primitives';
+import { PageContainer, PageHeader } from '@/components/layout/primitives';
 import { getDayKey } from '@/lib/utils';
 
 import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
@@ -404,21 +404,19 @@ export function AnalyticsView() {
 
   if (!hasAnyAttempts) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-8 bg-background">
+      <PageContainer>
         <EmptyState
-          title="Blank canvas."
+          title="No Analytics Yet."
           description="Complete sessions to populate analytics."
+          icon={BarChartIcon}
           actions={
-            <Button
-              variant="outline"
-              className="mt-4 "
-              onClick={() => void navigate('/')}
-            >
-              Begin
+            <Button onClick={() => void navigate('/')}>
+              <PlusCircle className="h-4 w-4" />
+              Generate your first set
             </Button>
           }
         />
-      </div>
+      </PageContainer>
     );
   }
 

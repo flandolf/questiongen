@@ -2289,7 +2289,7 @@ export function GeneratorView() {
           )}
           {activeQuestion && (
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+              <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
                 {activeFeedback ? (
                   <div className="min-w-0 pb-10">
                     <WrittenFeedbackPanel
@@ -2382,8 +2382,8 @@ export function GeneratorView() {
           )}
           {activeMcQuestion && (
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-[70rem] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <div className="mx-auto max-w-5xl space-y-5 pb-10">
+              <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                <div className="mx-auto space-y-5 pb-10">
                   <div className="p-6 bg-muted/20 rounded-md space-y-2">
                     <h1 className="text-xl font-bold">
                       Question {activeMcQuestionIndex + 1}

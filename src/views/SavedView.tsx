@@ -399,23 +399,19 @@ export function SavedView() {
 
   if (savedSets.length === 0) {
     return (
-      <EmptyState
-        title="No Saved Sets Yet"
-        description="Save a generated question set from the generator to reopen it later."
-        icon={Bookmark}
-        // --- #13: CTA to generator ---
-        actions={
-          <Button
-            variant="default"
-            size="sm"
-            className="gap-2 mt-2"
-            onClick={() => void navigate('/')}
-          >
-            <PlusCircle className="h-4 w-4" />
-            Generate your first set
-          </Button>
-        }
-      />
+      <PageContainer>
+        <EmptyState
+          title="No Saved Sets Yet."
+          description="Save a generated question set from the generator to reopen it later."
+          icon={Bookmark}
+          actions={
+            <Button onClick={() => void navigate('/')}>
+              <PlusCircle className="h-4 w-4" />
+              Generate your first set
+            </Button>
+          }
+        />
+      </PageContainer>
     );
   }
 

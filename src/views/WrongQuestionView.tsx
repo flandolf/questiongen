@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  PlusCircle,
   RotateCcw,
   Shuffle,
   Target,
@@ -15,8 +16,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { EmptyState } from '@/components/EmptyState';
 import {
   FilterButton,
   FilterGroup,
@@ -81,22 +84,7 @@ function criterionScoreClass(pct: number) {
 
 // ─── EmptyState ───────────────────────────────────────────────────────────────
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-        <Trophy className="w-8 h-8 text-emerald-500" />
-      </div>
-      <div>
-        <h3 className="text-lg font-bold mb-1">No wrong answers yet</h3>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          Complete some questions and any incorrect answers will appear here for
-          review.
-        </p>
-      </div>
-    </div>
-  );
-}
+// Use shared EmptyState component for consistent appearance across views
 
 // ─── List entry card ──────────────────────────────────────────────────────────
 
@@ -853,7 +841,7 @@ function ReattemptView({
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {isWritten ? (
-          <div className="mx-auto w-full max-w-6xl flex flex-col space-y-4 pb-10">
+          <div className="mx-auto w-full max-w-8xl flex flex-col space-y-4 pb-10">
             {!feedback ? (
               <>
                 <MarkdownMath content={entry.question.promptMarkdown} />
@@ -897,7 +885,7 @@ function ReattemptView({
           </div>
         ) : (
           <>
-            <div className="max-w-4xl mx-auto flex flex-col space-y-4 pb-10">
+            <div className="max-w-8xl mx-auto flex flex-col space-y-4 pb-10">
               <MarkdownMath content={entry.question.promptMarkdown} />
               <McAnswerPanel
                 questionId={entry.id}
@@ -1190,6 +1178,7 @@ export default function WrongQuestionView() {
     useSeparateMarkingModel && markingModel?.trim() ? markingModel : model;
   const spacedRepetitionCards = useAppStore((s) => s.spacedRepetitionCards);
   const reviewSpacedCard = useAppStore((s) => s.reviewSpacedCard);
+  const navigate = useNavigate();
 
   const allWrong = useMemo<WrongEntry[]>(
     () => computeAllWrongEntries(questionHistory, mcHistory),
@@ -1357,74 +1346,85 @@ export default function WrongQuestionView() {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Wrong Answers"
-        description="Review and reattempt questions you got wrong."
-        actions={
-          <div className="flex items-center gap-2">
-            {allWrong.length > 0 && (
-              <Badge
-                variant="secondary"
-                className="text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-              >
-                {allWrong.length}
-              </Badge>
-            )}
-            {dueCards.length > 0 && (
-              <Badge className="text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1">
-                <Brain className="w-3 h-3" />
-                {dueCards.length} due
-              </Badge>
-            )}
-          </div>
-        }
-      />
-
       {allWrong.length > 0 && (
-        <Toolbar>
-          <FilterGroup>
-            {(['all', 'written', 'mc'] as const).map((m) => (
-              <FilterButton
-                key={m}
-                active={filterMode === m}
-                onClick={() => setFilterMode(m)}
-              >
-                {m === 'all'
-                  ? `All (${allWrong.length})`
-                  : m === 'written'
-                    ? `Written (${writtenCount})`
-                    : `MC (${mcCount})`}
-              </FilterButton>
-            ))}
-          </FilterGroup>
-          <button
-            type="button"
-            onClick={() => setIsShuffled((s) => !s)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-xs font-medium transition-all ${isShuffled ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'}`}
-          >
-            <Shuffle className="w-3.5 h-3.5" />
-            {isShuffled ? 'Shuffled' : 'Shuffle'}
-          </button>
-          {filteredQuestions.length > 0 && (
-            <Button
-              size="sm"
-              className="ml-auto gap-2 h-8 px-4 shadow-sm"
-              onClick={() => startReattempt(isShuffled)}
+        <div>
+          <PageHeader
+            title="Wrong Answers"
+            description="Review and reattempt questions you got wrong."
+            actions={
+              <div className="flex items-center gap-2">
+                {allWrong.length > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                  >
+                    {allWrong.length}
+                  </Badge>
+                )}
+                {dueCards.length > 0 && (
+                  <Badge className="text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1">
+                    <Brain className="w-3 h-3" />
+                    {dueCards.length} due
+                  </Badge>
+                )}
+              </div>
+            }
+          />
+          <Toolbar>
+            <FilterGroup>
+              {(['all', 'written', 'mc'] as const).map((m) => (
+                <FilterButton
+                  key={m}
+                  active={filterMode === m}
+                  onClick={() => setFilterMode(m)}
+                >
+                  {m === 'all'
+                    ? `All (${allWrong.length})`
+                    : m === 'written'
+                      ? `Written (${writtenCount})`
+                      : `MC (${mcCount})`}
+                </FilterButton>
+              ))}
+            </FilterGroup>
+            <button
+              type="button"
+              onClick={() => setIsShuffled((s) => !s)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-xs font-medium transition-all ${isShuffled ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'}`}
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reattempt{' '}
-              {filteredQuestions.length > 1
-                ? `all ${filteredQuestions.length}`
-                : ''}
-            </Button>
-          )}
-        </Toolbar>
+              <Shuffle className="w-3.5 h-3.5" />
+              {isShuffled ? 'Shuffled' : 'Shuffle'}
+            </button>
+            {filteredQuestions.length > 0 && (
+              <Button
+                size="sm"
+                className="ml-auto gap-2 h-8 px-4 shadow-sm"
+                onClick={() => startReattempt(isShuffled)}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reattempt{' '}
+                {filteredQuestions.length > 1
+                  ? `all ${filteredQuestions.length}`
+                  : ''}
+              </Button>
+            )}
+          </Toolbar>
+        </div>
       )}
 
       {/* Content */}
       <div className="flex-1 py-3">
         {allWrong.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            title="No Mistakes Yet."
+            description="Complete some questions and any incorrect answers will appear here for review."
+            icon={Trophy}
+            actions={
+              <Button onClick={() => void navigate('/')}>
+                <PlusCircle className="h-4 w-4" />
+                Generate your first set
+              </Button>
+            }
+          />
         ) : (
           <div className="space-y-6">
             {/* Due for Review section */}

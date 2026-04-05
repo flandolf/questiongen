@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 
-import type { UseFirebaseSyncReturn } from './modules/useFirebaseSync';
-import { useFirebaseSync } from './modules/useFirebaseSync';
+import type { UseFirebaseSyncReturn } from './modules/sync-v2/useSyncV2';
+import { useSyncV2 } from './modules/sync-v2/useSyncV2';
 
 const FirebaseSyncContext = createContext<UseFirebaseSyncReturn | null>(null);
 
@@ -10,7 +10,7 @@ export function FirebaseSyncProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const firebaseSync = useFirebaseSync();
+  const firebaseSync = useSyncV2();
 
   const value = useMemo<UseFirebaseSyncReturn>(
     () => ({

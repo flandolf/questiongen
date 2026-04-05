@@ -36,3 +36,8 @@ src-tauri/gen/android/app/google-services.json
 
 .kilo/
 tsconfig.tsbuildinfo
+
+.firebaserc
+firebase.json
+firestore.indexes.json
+firestore.rules

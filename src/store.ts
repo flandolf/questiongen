@@ -10,12 +10,12 @@
 import { startTransition } from 'react';
 import { create } from 'zustand';
 
-import type { DeletionTombstones } from './context/modules/deletion-tombstones';
+import type { DeletionTombstones } from '@/context/modules/deletion-tombstones';
 import {
   addTombstone,
   EMPTY_TOMBSTONES,
-} from './context/modules/deletion-tombstones';
-import type { SyncableData } from './context/modules/useFirebase';
+} from '@/context/modules/deletion-tombstones';
+import type { SyncableData } from '@/context/modules/useFirebase';
 import {
   auth,
   deleteMcHistoryItems,
@@ -27,15 +27,16 @@ import {
   upsertPresets,
   upsertQuestionHistoryItems,
   upsertSavedSets,
-} from './context/modules/useFirebase';
-import { mergeImportedState, persistAndRehydrate } from './lib/import-export';
+} from '@/context/modules/useFirebase';
+import { mergeImportedState, persistAndRehydrate } from '@/lib/import-export';
 import {
   EMPTY_PERSISTED_APP_STATE,
   loadPersistedAppState,
   savePersistedAppState,
-} from './lib/persistence';
-import { createCard, isDue, reviewCard } from './lib/spaced-repetition';
-import { getTodayKey } from './lib/utils';
+} from '@/lib/persistence';
+import { createCard, isDue, reviewCard } from '@/lib/spaced-repetition';
+import { getTodayKey } from '@/lib/utils';
+
 import type {
   ChemistrySubtopic,
   Difficulty,
@@ -1475,8 +1476,12 @@ export async function processLiveRetryQueue(): Promise<void> {
 window.addEventListener('online', () => void processLiveRetryQueue());
 
 // expose quick flush for UI
-(window as Record<string, unknown>).__processLiveRetryQueue =
-  processLiveRetryQueue;
+declare global {
+  interface Window {
+    __processLiveRetryQueue?: () => Promise<void>;
+  }
+}
+window.__processLiveRetryQueue = processLiveRetryQueue;
 
 // last-known snapshot for diffing
 let _lastLiveState = useAppStore.getState();
