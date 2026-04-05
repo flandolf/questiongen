@@ -8,6 +8,7 @@ import {
   Clock,
   FileText,
   Filter,
+  History,
   ImageIcon,
   PlusCircle,
   Search,
@@ -871,21 +872,19 @@ export function HistoryView() {
 
   if (combined.length === 0) {
     return (
-      <EmptyState
-        title="No History Yet"
-        description="Complete a question set or exam simulation to see it here."
-        actions={
-          <Button
-            variant="default"
-            size="sm"
-            className="gap-2 mt-2"
-            onClick={() => void navigate('/')}
-          >
-            <PlusCircle className="h-4 w-4" />
-            Generate your first set
-          </Button>
-        }
-      />
+      <PageContainer>
+        <EmptyState
+          title="No History Yet."
+          description="Complete a question set or exam simulation to see it here."
+          icon={History}
+          actions={
+            <Button onClick={() => void navigate('/')}>
+              <PlusCircle className="h-4 w-4" />
+              Generate your first set
+            </Button>
+          }
+        />
+      </PageContainer>
     );
   }
 

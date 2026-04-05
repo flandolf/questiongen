@@ -412,10 +412,12 @@ export async function getDeltaSyncData(
 
     const remoteIds = new Set<string>();
     try {
+      // NOTE: Load ALL remote documents, not just first 500
+      // This ensures we detect all changes including items beyond the first 500
       const snapshot = await withTimeout(
-        getDocs(query(collectionRef, limit(500))),
+        getDocs(query(collectionRef)),
         `checking delta for ${type}`,
-        30000
+        60000
       );
       snapshot.forEach((doc) => {
         const data = doc.data() as Record<string, unknown>;

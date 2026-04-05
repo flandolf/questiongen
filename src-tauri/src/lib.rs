@@ -90,11 +90,11 @@ fn emit_generation_status(app: &tauri::AppHandle, payload: serde_json::Value) {
 /// Map a difficulty label to (temperature, top_p) defaults.
 fn difficulty_to_temperature(difficulty: &str) -> (f32, f32) {
     match difficulty {
-        "Essential Skills" | "Easy" => (0.4, 0.9),
-        "Medium" => (0.5, 0.9),
-        "Hard" => (0.6, 0.9),
-        "Extreme" => (0.65, 0.9),
-        _ => (0.5, 0.9),
+        "Essential Skills" | "Easy" => (1.1, 0.9),
+        "Medium" => (1.3, 0.9),
+        "Hard" => (1.35, 0.9),
+        "Extreme" => (1.5, 0.9),
+        _ => (1.0, 0.9),
     }
 }
 

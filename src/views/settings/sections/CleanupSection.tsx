@@ -138,10 +138,7 @@ function similarity(a: string, b: string): number {
       result = 0;
     } else {
       // Optimized Levenshtein using two-row approach
-      let prevRow: number[] = Array.from<number>(
-        { length: lenB + 1 },
-        (_, j) => j
-      );
+      let prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
       const currRow: number[] = new Array<number>(lenB + 1);
 
       for (let i = 1; i <= lenA; i++) {
@@ -187,7 +184,7 @@ function getMatchRationale(a: string, b: string, score: number): string {
   if (lenA === 0 || lenB === 0) return 'Empty string comparison';
 
   // Calculate approximate edit distance for rationale
-  let prevRow: number[] = Array.from<number>({ length: lenB + 1 }, (_, j) => j);
+  let prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
   const currRow: number[] = new Array<number>(lenB + 1);
 
   for (let i = 1; i <= lenA; i++) {

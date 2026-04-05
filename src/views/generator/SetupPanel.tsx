@@ -1164,10 +1164,12 @@ function PresetSection({
     setEditingPrefs((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
+  const canSavePreset = presetName.trim().length > 0;
+
   return (
     <div className="space-y-1">
       {/* Save new preset */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center space-x-2">
         <Input
           id="preset-name"
           value={presetName}
@@ -1182,12 +1184,23 @@ function PresetSection({
           }}
         />
         <Button
-          size="sm"
-          className="h-8 px-3 shrink-0"
-          onClick={handleSavePreset}
-          disabled={!presetName.trim()}
+          aria-disabled={!canSavePreset}
+          className={cn(
+            'h-8 w-8 shrink-0 p-0 leading-none appearance-none overflow-visible',
+            canSavePreset
+              ? ''
+              : 'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted'
+          )}
+          onClick={(e) => {
+            if (!canSavePreset) {
+              e.preventDefault();
+              return;
+            }
+            handleSavePreset();
+          }}
+          size="icon-lg"
         >
-          <Plus className="w-3.5 h-3.5 mr-1" /> Save
+          <Plus className="w-3 h-3" />
         </Button>
       </div>
 
@@ -2017,23 +2030,17 @@ function SetupPanelImpl({
           {/* Generate button */}
           <div className="mt-2">
             <Button
-              size="lg"
-              className="w-full h-10 text-sm font-bold gap-2 transition-all duration-200"
+              className="w-full py-5 text-sm font-bold gap-2 transition-all duration-200" // Removed h-full, increased py for better click target
               onClick={onGenerate}
               disabled={!canGenerate}
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {showBatchTimeline
-                    ? `Generating… (${batchProgress.filter((e) => e.status === 'done').length + batchProgress.filter((e) => e.status === 'error').length}/${batchProgress.length})`
-                    : 'Crafting questions…'}
+                  Generating...
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Generate
-                </>
+                'Generate Practice Set'
               )}
             </Button>
           </div>
