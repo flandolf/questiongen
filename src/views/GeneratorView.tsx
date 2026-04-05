@@ -21,6 +21,13 @@ import {
   normalizeMarkResponse,
   readBackendError,
 } from '@/lib/app-utils';
+import { applyBatchQualityChecks } from '@/lib/question-cache';
+import {
+  generateSeedFromTopics,
+  selectSubtopicsLocal,
+  shuffleWithSeed,
+  validateMcqQuality,
+} from '@/lib/randomization';
 import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
@@ -128,53 +135,76 @@ function rekeyMc(qs: McQuestion[]): McQuestion[] {
   return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
 }
 
-// Shuffle array in-place (Fisher-Yates) and return it
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function sampleWithoutReplacement<T>(arr: T[], k: number): T[] {
-  const copy = [...arr];
-  shuffleInPlace(copy);
-  return copy.slice(0, Math.max(0, Math.min(k, copy.length)));
-}
-
 // Build per-subtopic generation calls when subtopics are present.
+// Uses locally-seeded randomization for reproducible subtopic selection.
 // If `total` <= subtopics.length, pick `total` distinct subtopics and
 // request 1 question each. Otherwise distribute counts across subtopics.
-function buildSubtopicCalls(subtopics: string[], total: number) {
+function buildSubtopicCalls(
+  subtopics: string[],
+  total: number,
+  topics: Topic[] = []
+) {
   if (!subtopics || subtopics.length === 0)
     return [{ subtopics: [], count: total }];
+
+  // Generate a seed from topics for reproducible randomization
+  const seed = generateSeedFromTopics(topics, subtopics);
+
   if (total <= subtopics.length) {
-    const picked = sampleWithoutReplacement(subtopics, total);
+    // Select k subtopics locally with seeded randomization
+    const picked = selectSubtopicsLocal(subtopics, total, seed);
     return picked.map((s) => ({ subtopics: [s], count: 1 }));
   }
+
   const counts = distributeQuestions(subtopics as Topic[], total);
-  return subtopics.map((s, i) => ({ subtopics: [s], count: counts[i] }));
+  // Shuffle subtopics with seed for variety
+  const shuffledSubs = shuffleWithSeed(subtopics, seed);
+  return shuffledSubs.map((s, i) => ({ subtopics: [s], count: counts[i] }));
 }
 
 function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
   const originalOptions = q.options ?? [];
+  if (originalOptions.length < 2) return q; // Skip if insufficient options
+
   const correctText = originalOptions.find(
     (o) => o.label === q.correctAnswer
   )?.text;
-  const shuffled = shuffleInPlace([...originalOptions]);
+
+  // Use seeded shuffle for reproducibility based on question content
+  const seed = q.id?.charCodeAt(0) || Date.now();
+  const shuffled = shuffleWithSeed([...originalOptions], seed);
+
   const labels = shuffled.map((_, i) => String.fromCharCode(65 + i)); // 'A','B',...
   const relabeled = shuffled.map((o, i) => ({
     label: labels[i],
     text: o.text,
   }));
+
   const newCorrect =
     relabeled.find((o) =>
       correctText ? o.text.trim() === correctText.trim() : false
     )?.label ??
     relabeled[0]?.label ??
     q.correctAnswer;
+
   return { ...q, options: relabeled, correctAnswer: newCorrect };
+}
+
+/**
+ * Apply quality validation and shuffling to MCQ questions.
+ * Logs issues but doesn't filter out questions.
+ */
+function preprocessMcQuestions(questions: McQuestion[]): McQuestion[] {
+  return questions.map((q) => {
+    // Validate question quality
+    const validation = validateMcqQuality(q);
+    if (!validation.isValid) {
+      console.warn(`MCQ question ${q.id} has issues:`, validation.issues);
+    }
+
+    // Shuffle options locally using seeded random
+    return shuffleMcQuestionOptions(q);
+  });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1419,8 +1449,9 @@ export function GeneratorView() {
         try {
           // If subtopics are present, build per-subtopic calls so the client
           // decides which subtopics to use (reducing LLM-side randomness).
+          // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
-          const subCalls = buildSubtopicCalls(topicSubtopics, count);
+          const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic]);
           for (const call of subCalls) {
             if (call.count === 0) continue;
             const response = await invoke<GenerateQuestionsResponse>(
@@ -1540,7 +1571,14 @@ export function GeneratorView() {
         }
       }
 
-      setQuestions(finalQuestions);
+      // Apply client-side batch quality checks: deduplication and variance validation
+      const { cleanedQuestions, issuesFound } =
+        applyBatchQualityChecks(finalQuestions);
+      if (issuesFound.length > 0) {
+        console.info('Quality checks completed:', issuesFound);
+      }
+
+      setQuestions(cleanedQuestions);
       setWrittenTimerState(null);
       setWrittenRawModelOutput('');
       setWrittenGenerationTelemetry(totalTelemetry);
@@ -1552,7 +1590,7 @@ export function GeneratorView() {
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
-      toast.success(`${finalQuestions.length} questions generated`);
+      toast.success(`${cleanedQuestions.length} questions generated`);
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({
@@ -1621,8 +1659,9 @@ export function GeneratorView() {
           // Build per-subtopic calls so the client picks which subtopics to
           // generate from. Also shuffle MC options client-side after LLM
           // returns to avoid predictable answer positions.
+          // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
-          const subCalls = buildSubtopicCalls(topicSubtopics, count);
+          const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic]);
           for (const call of subCalls) {
             if (call.count === 0) continue;
             const response = await invoke<GenerateMcQuestionsResponse>(
@@ -1744,7 +1783,10 @@ export function GeneratorView() {
         }
       }
 
-      setMcQuestions(finalQuestions);
+      // Apply client-side preprocessing: validation and option shuffling
+      const preprocessedQuestions = preprocessMcQuestions(finalQuestions);
+
+      setMcQuestions(preprocessedQuestions);
       setMcTimerState(null);
       setMcRawModelOutput('');
       setMcGenerationTelemetry(totalTelemetry);
@@ -1756,7 +1798,7 @@ export function GeneratorView() {
       setMcMarkAppealByQuestionId({});
       setMcMarkOverrideInputByQuestionId({});
       setMcAwardedMarksByQuestionId({});
-      toast.success(`${finalQuestions.length} MC questions generated`);
+      toast.success(`${preprocessedQuestions.length} MC questions generated`);
     } catch (error) {
       resetStopwatch();
       setGenerationStatus({
@@ -2375,6 +2417,8 @@ export function GeneratorView() {
                       appealText={activeMarkAppeal}
                       overrideInput={activeOverrideInput}
                       isMarking={isMarking}
+                      distinctness={activeQuestion.distinctnessScore}
+                      multiStepDepth={activeQuestion.multiStepDepth}
                       onAppealChange={handleAppealChange}
                       onOverrideInputChange={handleOverrideInputChange}
                       onArgueForMark={() => void handleArgueForMark()}

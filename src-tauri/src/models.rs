@@ -65,6 +65,10 @@ pub struct GeneratedQuestion {
     pub distinctness_score: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multi_step_depth: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verb_diversity_count: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scaffold_pattern: Option<String>,
 }
 
 pub fn default_max_marks() -> u8 {
@@ -119,6 +123,10 @@ pub struct GenerateQuestionsResponse {
     pub distinctness_avg: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multi_step_depth_avg: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_verb_diversity: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mark_allocation_variance: Option<f32>,
 }
 
 // ─── Answer marking ───────────────────────────────────────────────────────────
@@ -321,6 +329,10 @@ pub struct McQuestion {
     pub distinctness_score: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multi_step_depth: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verb_diversity_count: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scaffold_pattern: Option<String>,
 }
 
 /// Deserialised directly from the model's JSON output.
@@ -345,4 +357,8 @@ pub struct GenerateMcQuestionsResponse {
     pub distinctness_avg: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multi_step_depth_avg: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_verb_diversity: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mark_allocation_variance: Option<f32>,
 }

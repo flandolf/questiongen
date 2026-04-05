@@ -2,6 +2,7 @@ import { Eye, Info, PenLine } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
+import { QuestionQualityBadges } from '@/components/QuestionQualityBadges';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,10 @@ export function UnifiedQuestionPromptCard({
   subtopic,
   difficulty,
   maxMarks,
+  distinctness,
+  multiStepDepth,
+  verbDiversityCount,
+  scaffoldPattern,
   rightSlot,
   className,
 }: {
@@ -27,6 +32,10 @@ export function UnifiedQuestionPromptCard({
   subtopic?: string;
   difficulty?: string;
   maxMarks?: number;
+  distinctness?: number;
+  multiStepDepth?: number;
+  verbDiversityCount?: number;
+  scaffoldPattern?: string;
   rightSlot?: ReactNode;
   className?: string;
 }) {
@@ -53,6 +62,23 @@ export function UnifiedQuestionPromptCard({
         )}
         <div className="ml-auto">{rightSlot}</div>
       </div>
+
+      {/* Quality Badges */}
+      {(distinctness !== undefined ||
+        multiStepDepth !== undefined ||
+        verbDiversityCount !== undefined ||
+        scaffoldPattern) && (
+        <div className="px-5 sm:px-6">
+          <QuestionQualityBadges
+            distinctness={distinctness}
+            multiStepDepth={multiStepDepth}
+            verbDiversityCount={verbDiversityCount}
+            scaffoldPattern={scaffoldPattern}
+            compact={false}
+          />
+        </div>
+      )}
+
       <div className="relative overflow-hidden px-5 py-5 sm:px-6 sm:py-6">
         <div className="absolute inset-y-0 right-0 w-28 pointer-events-none" />
         <div

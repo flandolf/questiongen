@@ -281,6 +281,7 @@ export function Sketchpad({
     initialZoom: number;
     initialPan: { x: number; y: number };
   } | null>(null);
+  const multiTouchActive = useRef(false);
 
   // Keep ref so bg-repaint effect always sees latest value
   const bgRef2 = useRef<BgType>(bg);
@@ -310,14 +311,6 @@ export function Sketchpad({
     });
     return () => cancelAnimationFrame(raf);
   }, [textInput?.id]);
-
-  useEffect(() => {
-    if (activeTool === 'eraser') {
-      setSize(70);
-    } else if (size === 70) {
-      setSize(4);
-    }
-  }, [activeTool, size]);
 
   useEffect(() => {
     if (!isAndroid) return;
@@ -472,7 +465,7 @@ export function Sketchpad({
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => Math.min(5, Math.max(0.2, z - e.deltaY * 0.001)));
+      setZoom((z) => Math.min(10, Math.max(0.1, z - e.deltaY * 0.002)));
     };
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
@@ -494,11 +487,14 @@ export function Sketchpad({
         shapeStart.current = null;
         shapeSnapshot.current = null;
         clearOverlay();
+        multiTouchActive.current = true;
       } else if (e.touches.length < 2) {
         touchGesture.current = null;
+        multiTouchActive.current = false;
       }
     };
     const onTouchMove = (e: TouchEvent) => {
+      multiTouchActive.current = e.touches.length >= 2;
       if (e.touches.length === 2 && touchGesture.current) {
         e.preventDefault();
         const t1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -510,22 +506,44 @@ export function Sketchpad({
             ? currentDist / touchGesture.current.initialDistance
             : 1;
 
-        setZoom(
-          Math.min(5, Math.max(0.2, touchGesture.current.initialZoom * scale))
+        // Compute new zoom clamped to allowed range
+        const newZoom = Math.min(
+          10,
+          Math.max(0.1, touchGesture.current.initialZoom * scale)
         );
 
-        setPan({
-          x:
-            touchGesture.current.initialPan.x +
-            (center.x - touchGesture.current.initialCenter.x),
-          y:
-            touchGesture.current.initialPan.y +
-            (center.y - touchGesture.current.initialCenter.y),
-        });
+        // To zoom towards the gesture *start* point (rather than the top-left),
+        // compute the content coordinate that was under the initial gesture
+        // center and keep that content point fixed while scaling. Also allow
+        // the user to translate the two-finger center, so include the center
+        // displacement as an additional pan offset.
+        const z0 = touchGesture.current.initialZoom;
+        const p0 = touchGesture.current.initialPan;
+        const c0 = touchGesture.current.initialCenter;
+
+        const contentAtStart = {
+          x: (c0.x - p0.x) / z0,
+          y: (c0.y - p0.y) / z0,
+        };
+
+        const panAfterScale = {
+          x: c0.x - contentAtStart.x * newZoom,
+          y: c0.y - contentAtStart.y * newZoom,
+        };
+
+        // Apply additional translation from movement of the current center
+        const panWithTranslation = {
+          x: panAfterScale.x + (center.x - c0.x),
+          y: panAfterScale.y + (center.y - c0.y),
+        };
+
+        setZoom(newZoom);
+        setPan(panWithTranslation);
       }
     };
     const endGesture = () => {
       touchGesture.current = null;
+      multiTouchActive.current = false;
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -694,7 +712,10 @@ export function Sketchpad({
   }
 
   function applyToolStyle(ctx: CanvasRenderingContext2D, pressure: number) {
-    ctx.lineWidth = Math.max(1, size * pressure);
+    ctx.lineWidth = Math.max(
+      1,
+      activeTool === 'pen' || activeTool === 'eraser' ? size : size * pressure
+    );
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (activeTool === 'eraser') {
@@ -776,6 +797,8 @@ export function Sketchpad({
       return;
     }
 
+    if (multiTouchActive.current && e.pointerType === 'touch') return;
+
     if (spaceDown.current || e.button === 1) {
       if (e.button === 1) middleDown.current = true;
       setIsPanning(true);
@@ -850,6 +873,8 @@ export function Sketchpad({
     const canvas = canvasRef.current;
     const ctx = getCtx();
     if (!canvas || !ctx) return;
+
+    if (multiTouchActive.current && e.pointerType === 'touch') return;
     const pt = getCanvasPoint(e);
 
     lastCursor.current = { x: e.clientX, y: e.clientY };
@@ -1005,6 +1030,7 @@ export function Sketchpad({
     activeTool,
     zoom,
     pan,
+    penOnlyMode,
   ]);
 
   useEffect(() => {

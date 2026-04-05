@@ -3,23 +3,37 @@ use std::collections::HashSet;
 pub struct QualitySummary {
     pub distinctness_avg: Option<f32>,
     pub multi_step_depth_avg: Option<f32>,
+    pub command_verb_diversity: Option<f32>,
+    pub mark_allocation_variance: Option<f32>,
 }
 
-/// Score a batch of prompt texts and return per-item (distinctness, depth) pairs plus averages.
-pub fn score_batch(prompt_texts: &[String]) -> (Vec<(f32, f32)>, QualitySummary) {
+#[derive(Clone)]
+pub struct QuestionQualityMetrics {
+    pub distinctness: f32,
+    pub depth: f32,
+    pub verb_diversity: f32,
+    pub scaffold_pattern: String,
+}
+
+/// Score a batch of prompt texts with multi-dimensional quality metrics.
+/// Returns per-item metrics with comprehensive QualitySummary.
+pub fn score_batch(prompt_texts: &[String]) -> (Vec<QuestionQualityMetrics>, QualitySummary) {
     if prompt_texts.is_empty() {
         return (
             vec![],
             QualitySummary {
                 distinctness_avg: None,
                 multi_step_depth_avg: None,
+                command_verb_diversity: None,
+                mark_allocation_variance: None,
             },
         );
     }
 
+    // Compute standard token-based distinctness
     let token_sets: Vec<HashSet<String>> = prompt_texts.iter().map(|t| tokenize(t)).collect();
 
-    let scores: Vec<(f32, f32)> = prompt_texts
+    let metrics: Vec<QuestionQualityMetrics> = prompt_texts
         .iter()
         .enumerate()
         .map(|(i, text)| {
@@ -29,23 +43,80 @@ pub fn score_batch(prompt_texts: &[String]) -> (Vec<(f32, f32)>, QualitySummary)
                 .filter(|(j, _)| *j != i)
                 .map(|(_, other)| jaccard(&token_sets[i], other))
                 .fold(0.0f32, f32::max);
-            let distinctness = round((1.0 - max_sim).clamp(0.0, 1.0));
+            // Weight distinctness by command verb presence
+            let base_distinctness = (1.0 - max_sim).clamp(0.0, 1.0);
+            let verb_boost = extract_command_verbs(text).len() as f32 * 0.05;
+            let weighted_distinctness = (base_distinctness + verb_boost).clamp(0.0, 1.0);
             let depth = round(multi_step_depth(text));
-            (distinctness, depth)
+            let scaffold_pattern = detect_scaffold_pattern(text);
+
+            QuestionQualityMetrics {
+                distinctness: round(weighted_distinctness),
+                depth,
+                verb_diversity: extract_command_verbs(text).len() as f32,
+                scaffold_pattern,
+            }
         })
         .collect();
 
-    let avg = |f: fn(&(f32, f32)) -> f32| -> Option<f32> {
-        let vals: Vec<f32> = scores.iter().map(f).collect();
-        Some(round(vals.iter().sum::<f32>() / vals.len() as f32))
-    };
+    // Compute command verb diversity
+    let verb_diversity = compute_command_verb_diversity(prompt_texts);
+
+    let avg_distinctness =
+        round(metrics.iter().map(|m| m.distinctness).sum::<f32>() / metrics.len() as f32);
+    let avg_depth = round(metrics.iter().map(|m| m.depth).sum::<f32>() / metrics.len() as f32);
 
     let summary = QualitySummary {
-        distinctness_avg: avg(|s| s.0),
-        multi_step_depth_avg: avg(|s| s.1),
+        distinctness_avg: Some(avg_distinctness),
+        multi_step_depth_avg: Some(avg_depth),
+        command_verb_diversity: Some(verb_diversity),
+        mark_allocation_variance: None, // Set by caller after parsing max_marks
     };
 
-    (scores, summary)
+    (metrics, summary)
+}
+
+/// Compute how diverse command verbs are across a batch (0.0 = all same, 1.0 = all unique).
+pub fn compute_command_verb_diversity(texts: &[String]) -> f32 {
+    if texts.is_empty() {
+        return 1.0;
+    }
+
+    let verbs: Vec<String> = texts
+        .iter()
+        .map(|t| extract_primary_command_verb(t))
+        .filter(|v| !v.is_empty())
+        .collect();
+
+    if verbs.is_empty() {
+        return 0.5;
+    }
+
+    let unique_count = verbs.iter().collect::<HashSet<_>>().len();
+    let diversity = unique_count as f32 / verbs.len() as f32;
+    round(diversity)
+}
+
+/// Calculate mark allocation variance (higher = more distributed, lower = concentrated).
+pub fn compute_mark_allocation_variance(mark_values: &[u8]) -> f32 {
+    if mark_values.is_empty() {
+        return 0.0;
+    }
+
+    let mean = mark_values.iter().map(|&m| m as f32).sum::<f32>() / mark_values.len() as f32;
+    let variance = mark_values
+        .iter()
+        .map(|&m| {
+            let diff = m as f32 - mean;
+            diff * diff
+        })
+        .sum::<f32>()
+        / mark_values.len() as f32;
+
+    // Normalize variance to 0.0-1.0 (higher = more variance/spread)
+    let std_dev = variance.sqrt();
+    // For VCE (1-30 marks), normalize std_dev where max meaningful std_dev ≈ 10
+    round((std_dev / 10.0).clamp(0.0, 1.0))
 }
 
 fn tokenize(text: &str) -> HashSet<String> {
@@ -76,37 +147,189 @@ fn multi_step_depth(text: &str) -> f32 {
         " after ",
         " hence ",
         " therefore ",
-        "finally",
-        "first",
-        "second",
+        " finally",
+        " first",
+        " second",
+        " next",
     ]
     .iter()
     .filter(|m| low.contains(*m))
     .count();
-    let verbs = [
+
+    // Comprehensive verb list with higher weight for synthesis verbs
+    let synthesis_verbs = [
         "derive",
+        "prove",
+        "synthesize",
+        "justify",
+        "analyze",
+        "evaluate",
+    ];
+    let procedural_verbs = [
         "differentiate",
         "integrate",
-        "justify",
-        "prove",
-        "compare",
-        "evaluate",
-        "solve",
-        "estimate",
-        "show",
-        "determine",
         "calculate",
-    ]
-    .iter()
-    .filter(|v| low.contains(*v))
-    .count();
+        "solve",
+        "determine",
+        "show",
+    ];
+    let applied_verbs = ["compare", "contrast", "interpret", "predict", "explain"];
+
+    let syn_count = synthesis_verbs.iter().filter(|v| low.contains(*v)).count();
+    let proc_count = procedural_verbs.iter().filter(|v| low.contains(*v)).count();
+    let app_count = applied_verbs.iter().filter(|v| low.contains(*v)).count();
+
     let ops = low
         .chars()
-        .filter(|c| matches!(c, '=' | '+' | '-' | '*' | '/' | '^'))
+        .filter(|c| matches!(c, '=' | '+' | '-' | '*' | '/' | '^' | '√'))
         .count();
-    (1.0 + steps as f32 * 0.35 + verbs as f32 * 0.25 + ops.min(12) as f32 * 0.05).clamp(1.0, 5.0)
+
+    // Higher weights for synthesis and step indicators
+    (1.0 + steps as f32 * 0.4
+        + syn_count as f32 * 0.35
+        + proc_count as f32 * 0.2
+        + app_count as f32 * 0.25
+        + ops.min(15) as f32 * 0.06)
+        .clamp(1.0, 5.0)
 }
 
 fn round(v: f32) -> f32 {
     (v * 100.0).round() / 100.0
+}
+
+/// Extract command verbs from text to assess cognitive demand variety.
+fn extract_command_verbs(text: &str) -> Vec<String> {
+    let low = text.to_ascii_lowercase();
+    let command_verbs = vec![
+        "define",
+        "state",
+        "list",
+        "identify",
+        "calculate",
+        "determine",
+        "find",
+        "solve",
+        "derive",
+        "prove",
+        "show",
+        "deduce",
+        "evaluate",
+        "estimate",
+        "justify",
+        "explain",
+        "compare",
+        "contrast",
+        "discuss",
+        "analyze",
+        "synthesize",
+        "apply",
+        "sketch",
+        "draw",
+        "construct",
+        "differentiate",
+        "integrate",
+        "verify",
+        "comment",
+        "interpret",
+        "predict",
+        "outline",
+        "describe",
+        "assess",
+    ];
+
+    command_verbs
+        .iter()
+        .filter(|verb| low.contains(*verb))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Get the primary (first occurring) command verb from text.
+fn extract_primary_command_verb(text: &str) -> String {
+    let low = text.to_ascii_lowercase();
+    let command_verbs = vec![
+        "define",
+        "state",
+        "list",
+        "identify",
+        "calculate",
+        "determine",
+        "find",
+        "solve",
+        "derive",
+        "prove",
+        "show",
+        "deduce",
+        "evaluate",
+        "estimate",
+        "justify",
+        "explain",
+        "compare",
+        "contrast",
+        "discuss",
+        "analyze",
+        "synthesize",
+        "apply",
+        "sketch",
+        "draw",
+        "construct",
+        "differentiate",
+        "integrate",
+        "verify",
+        "comment",
+        "interpret",
+        "predict",
+        "outline",
+        "describe",
+        "assess",
+    ];
+
+    for verb in command_verbs {
+        if low.contains(verb) {
+            return verb.to_string();
+        }
+    }
+    "other".to_string()
+}
+
+/// Detect scaffold pattern in question text (single-part vs multi-part with labels).
+pub fn detect_scaffold_pattern(text: &str) -> String {
+    if text.contains("(") && text.contains(")") && text.matches("(").count() >= 2 {
+        format!("multi-part-{}", text.matches("(").count())
+    } else {
+        "single-part".to_string()
+    }
+}
+
+/// Analyze if scaffold patterns or verb diversity needs improvement.
+pub fn analyze_batch_quality_issues(metrics: &[QuestionQualityMetrics]) -> (bool, String) {
+    if metrics.is_empty() {
+        return (false, String::new());
+    }
+
+    // Check if too many questions are single-part (need more multi-part variety)
+    let single_part_count = metrics
+        .iter()
+        .filter(|m| m.scaffold_pattern == "single-part")
+        .count();
+    let single_part_ratio = single_part_count as f32 / metrics.len() as f32;
+
+    // Check if verb diversity is low (need more varied command verbs)
+    let avg_verb_diversity =
+        metrics.iter().map(|m| m.verb_diversity).sum::<f32>() / metrics.len() as f32;
+
+    let mut issues = Vec::new();
+
+    if single_part_ratio > 0.6 {
+        issues.push("Most questions are single-part (lacking multi-part structure for depth).");
+    }
+    if avg_verb_diversity < 2.0 {
+        issues.push("Questions lack varied command verbs (low cognitive diversity).");
+    }
+
+    if issues.is_empty() {
+        (false, String::new())
+    } else {
+        (true, issues.join(" "))
+    }
 }

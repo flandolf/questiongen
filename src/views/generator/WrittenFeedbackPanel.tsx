@@ -29,6 +29,10 @@ type WrittenFeedbackPanelProps = {
   appealText: string;
   overrideInput: string;
   isMarking: boolean;
+  distinctness?: number;
+  multiStepDepth?: number;
+  verbDiversityCount?: number;
+  scaffoldPattern?: string;
   onAppealChange: (value: string) => void;
   onOverrideInputChange: (value: string) => void;
   onArgueForMark: () => void;
@@ -102,6 +106,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   appealText,
   overrideInput,
   isMarking,
+  distinctness,
+  multiStepDepth,
+  verbDiversityCount,
+  scaffoldPattern,
   onAppealChange,
   onOverrideInputChange,
   onArgueForMark,
@@ -164,7 +172,13 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
       <CardContent className="p-0">
         <div className="px-4 sm:px-6 py-5 space-y-7">
-          <UnifiedQuestionPromptCard promptMarkdown={promptMarkdown} />
+          <UnifiedQuestionPromptCard
+            promptMarkdown={promptMarkdown}
+            distinctness={distinctness}
+            multiStepDepth={multiStepDepth}
+            verbDiversityCount={verbDiversityCount}
+            scaffoldPattern={scaffoldPattern}
+          />
           {/* SUBMISSION & EXEMPLAR - Side-by-side on wide screens */}
           <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-border/30 pb-2">

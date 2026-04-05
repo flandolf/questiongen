@@ -755,6 +755,46 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
 
+      // Attempt immediate upload of the saved set to Firestore; failures will be queued
+      try {
+        const op: LiveRetryOp = {
+          id: savedSetId,
+          collection: 'savedSets',
+          op: 'upsert',
+          payload: nextEntry,
+          attempts: 0,
+          nextAttemptAt: Date.now(),
+        };
+        void tryPerformOpOnce(op)
+          .then(() =>
+            appendLiveLog(
+              'info',
+              `[LIVE] upsert savedSets/${op.id} immediate success`
+            )
+          )
+          .catch((err) => {
+            appendLiveLog(
+              'warn',
+              `[LIVE] upsert savedSets/${op.id} immediate failed, queued: ${String(err)}`
+            );
+            enqueueLiveRetryOp({
+              ...op,
+              attempts: 1,
+              nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+            });
+            void processLiveRetryQueue();
+          });
+      } catch {
+        enqueueLiveRetryOp({
+          id: savedSetId,
+          collection: 'savedSets',
+          op: 'upsert',
+          payload: nextEntry,
+          attempts: 1,
+          nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+        });
+      }
+
       // Immediate persist for explicit save
       const persistedSnapshot = buildPersistedSnapshot(
         {
@@ -963,6 +1003,44 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         savedSetId
       ),
     }));
+
+    // Attempt an immediate live-delete; if it fails enqueue for retry
+    try {
+      const op: LiveRetryOp = {
+        id: savedSetId,
+        collection: 'savedSets',
+        op: 'delete',
+        attempts: 0,
+        nextAttemptAt: Date.now(),
+      };
+      void tryPerformOpOnce(op)
+        .then(() => {
+          appendLiveLog(
+            'info',
+            `[LIVE] delete savedSets/${op.id} immediate success`
+          );
+        })
+        .catch((err) => {
+          appendLiveLog(
+            'warn',
+            `[LIVE] delete savedSets/${op.id} immediate failed, queued: ${String(err)}`
+          );
+          enqueueLiveRetryOp({
+            ...op,
+            attempts: 1,
+            nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+          });
+          void processLiveRetryQueue();
+        });
+    } catch {
+      enqueueLiveRetryOp({
+        id: savedSetId,
+        collection: 'savedSets',
+        op: 'delete',
+        attempts: 1,
+        nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+      });
+    }
   },
 
   deleteAllSavedSets: () => {
@@ -971,6 +1049,47 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       for (const ss of s.savedSets) {
         tombstones = addTombstone(tombstones, 'savedSets', ss.id);
       }
+      const ids = s.savedSets.map((x) => x.id);
+      // Fire off immediate delete attempts for all sets; failures will be queued
+      for (const id of ids) {
+        try {
+          const op: LiveRetryOp = {
+            id,
+            collection: 'savedSets',
+            op: 'delete',
+            attempts: 0,
+            nextAttemptAt: Date.now(),
+          };
+          void tryPerformOpOnce(op)
+            .then(() =>
+              appendLiveLog(
+                'info',
+                `[LIVE] delete savedSets/${op.id} immediate success`
+              )
+            )
+            .catch((err) => {
+              appendLiveLog(
+                'warn',
+                `[LIVE] delete savedSets/${op.id} immediate failed, queued: ${String(err)}`
+              );
+              enqueueLiveRetryOp({
+                ...op,
+                attempts: 1,
+                nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+              });
+              void processLiveRetryQueue();
+            });
+        } catch {
+          enqueueLiveRetryOp({
+            id,
+            collection: 'savedSets',
+            op: 'delete',
+            attempts: 1,
+            nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+          });
+        }
+      }
+
       return {
         savedSets: [],
         activeWrittenSavedSetId: null,
@@ -989,6 +1108,43 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         id
       ),
     }));
+
+    try {
+      const op: LiveRetryOp = {
+        id,
+        collection: 'questionHistory',
+        op: 'delete',
+        attempts: 0,
+        nextAttemptAt: Date.now(),
+      };
+      void tryPerformOpOnce(op)
+        .then(() =>
+          appendLiveLog(
+            'info',
+            `[LIVE] delete questionHistory/${op.id} immediate success`
+          )
+        )
+        .catch((err) => {
+          appendLiveLog(
+            'warn',
+            `[LIVE] delete questionHistory/${op.id} immediate failed, queued: ${String(err)}`
+          );
+          enqueueLiveRetryOp({
+            ...op,
+            attempts: 1,
+            nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+          });
+          void processLiveRetryQueue();
+        });
+    } catch {
+      enqueueLiveRetryOp({
+        id,
+        collection: 'questionHistory',
+        op: 'delete',
+        attempts: 1,
+        nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+      });
+    }
   },
 
   deleteMcHistoryEntry: (id) => {
@@ -996,6 +1152,43 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       mcHistory: s.mcHistory.filter((e) => e.id !== id),
       deletionTombstones: addTombstone(s.deletionTombstones, 'mcHistory', id),
     }));
+
+    try {
+      const op: LiveRetryOp = {
+        id,
+        collection: 'mcHistory',
+        op: 'delete',
+        attempts: 0,
+        nextAttemptAt: Date.now(),
+      };
+      void tryPerformOpOnce(op)
+        .then(() =>
+          appendLiveLog(
+            'info',
+            `[LIVE] delete mcHistory/${op.id} immediate success`
+          )
+        )
+        .catch((err) => {
+          appendLiveLog(
+            'warn',
+            `[LIVE] delete mcHistory/${op.id} immediate failed, queued: ${String(err)}`
+          );
+          enqueueLiveRetryOp({
+            ...op,
+            attempts: 1,
+            nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+          });
+          void processLiveRetryQueue();
+        });
+    } catch {
+      enqueueLiveRetryOp({
+        id,
+        collection: 'mcHistory',
+        op: 'delete',
+        attempts: 1,
+        nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+      });
+    }
   },
 
   clearQuestionHistory: () => {
@@ -1004,6 +1197,46 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       for (const entry of s.questionHistory) {
         tombstones = addTombstone(tombstones, 'questionHistory', entry.id);
       }
+      const ids = s.questionHistory.map((e) => e.id);
+      for (const id of ids) {
+        try {
+          const op: LiveRetryOp = {
+            id,
+            collection: 'questionHistory',
+            op: 'delete',
+            attempts: 0,
+            nextAttemptAt: Date.now(),
+          };
+          void tryPerformOpOnce(op)
+            .then(() =>
+              appendLiveLog(
+                'info',
+                `[LIVE] delete questionHistory/${op.id} immediate success`
+              )
+            )
+            .catch((err) => {
+              appendLiveLog(
+                'warn',
+                `[LIVE] delete questionHistory/${op.id} immediate failed, queued: ${String(err)}`
+              );
+              enqueueLiveRetryOp({
+                ...op,
+                attempts: 1,
+                nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+              });
+              void processLiveRetryQueue();
+            });
+        } catch {
+          enqueueLiveRetryOp({
+            id,
+            collection: 'questionHistory',
+            op: 'delete',
+            attempts: 1,
+            nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+          });
+        }
+      }
+
       return { questionHistory: [], deletionTombstones: tombstones };
     });
   },
@@ -1014,6 +1247,46 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       for (const entry of s.mcHistory) {
         tombstones = addTombstone(tombstones, 'mcHistory', entry.id);
       }
+      const ids = s.mcHistory.map((e) => e.id);
+      for (const id of ids) {
+        try {
+          const op: LiveRetryOp = {
+            id,
+            collection: 'mcHistory',
+            op: 'delete',
+            attempts: 0,
+            nextAttemptAt: Date.now(),
+          };
+          void tryPerformOpOnce(op)
+            .then(() =>
+              appendLiveLog(
+                'info',
+                `[LIVE] delete mcHistory/${op.id} immediate success`
+              )
+            )
+            .catch((err) => {
+              appendLiveLog(
+                'warn',
+                `[LIVE] delete mcHistory/${op.id} immediate failed, queued: ${String(err)}`
+              );
+              enqueueLiveRetryOp({
+                ...op,
+                attempts: 1,
+                nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+              });
+              void processLiveRetryQueue();
+            });
+        } catch {
+          enqueueLiveRetryOp({
+            id,
+            collection: 'mcHistory',
+            op: 'delete',
+            attempts: 1,
+            nextAttemptAt: Date.now() + LIVE_RETRY_BASE_DELAY_MS,
+          });
+        }
+      }
+
       return { mcHistory: [], deletionTombstones: tombstones };
     });
   },

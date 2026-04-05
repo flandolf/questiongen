@@ -67,6 +67,46 @@ use parsing::{
 use persistence::{export_data_file, load_persisted_state, save_persisted_state};
 use quality::score_batch;
 
+// ─── Token calculation helpers ────────────────────────────────────────────────
+
+/// Calculate optimal token budget based on question count, average marks, and complexity.
+/// More efficient than fixed multiplier: reduces tokens for simple batches, increases for complex ones.
+fn calculate_optimal_max_tokens(
+    question_count: usize,
+    average_marks: u8,
+    difficulty: &str,
+    include_exam_context: bool,
+) -> u32 {
+    // Base tokens: 2000 per question for short/simple, scale with marks
+    let base_per_question = match average_marks {
+        1..=3 => 1800,   // Short answer questions
+        4..=7 => 2500,   // Medium questions
+        8..=15 => 3500,  // Complex multi-part
+        16..=30 => 4500, // Extended response
+        _ => 3000,
+    };
+
+    // Difficulty multiplier (affects expected depth/length of output)
+    let difficulty_multiplier = match difficulty.to_ascii_lowercase().as_str() {
+        "essential skills" => 0.85,
+        "easy" => 0.95,
+        "medium" => 1.0,
+        "hard" => 1.15,
+        "extreme" => 1.3,
+        _ => 1.0,
+    };
+
+    // PDF context adds complexity (more instructions, anchoring text)
+    let pdf_overhead = if include_exam_context { 1000 } else { 0 };
+
+    // Calculate total with floor and ceiling
+    let total = (question_count as u32 * (base_per_question as f32 * difficulty_multiplier) as u32)
+        + pdf_overhead
+        + 2000; // System instruction buffer
+
+    total.clamp(3000, 64_000)
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 /// Validate api_key + model, returning an error if either is empty.
@@ -518,15 +558,40 @@ fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&
 }
 
 fn similarity_note(enabled: bool, _prior: Option<&[String]>) -> String {
-    // Avoid inserting full recent prompts verbatim into the system instruction.
-    // Listing previous prompts can prime the model and unintentionally encourage
-    // reuse. Instead emit a stronger, explicit diversity constraint when
-    // de-duplication is enabled.
+    // Compressed diversity constraint: reduced token overhead while maintaining clarity
     if !enabled {
-        return String::from("\nSIMILARITY GUARDRAIL: Each question must use a distinct scenario, context, and method. Do NOT repeat or closely paraphrase any previous question's scenario, numbers, or context. Use new names, settings, and details for every question.");
+        return String::from(
+            "\nDIVERSITY: Each question must use distinct scenarios, contexts, and methods. \
+             No repetition of previous questions' structure, numbers, or wording.",
+        );
     }
     String::from(
-        "\nSTRICT DIVERSITY GUARDRAIL: Generate each question using a wholly distinct scenario, context, and method. DO NOT repeat or closely paraphrase any previously-seen question. Avoid reusing characters, names, settings, numbers, or the same step-by-step structure. If a proposed question would be similar to any recent question, discard it and invent a new, clearly different question. If you cannot invent a unique question for this concept, choose a different concept — do NOT paraphrase an existing question. Be creative and change details (names, places, contexts, numerical values, and methods).",
+        "\nSTRICT DIVERSITY: Generate wholly distinct questions. Avoid reusing scenarios, \
+         characters, names, settings, numbers, or reasoning patterns. If unable to invent \
+         a unique question for a concept, choose a different concept instead. Prioritize \
+         creative variation in context and approach over paraphrased similarity.",
+    )
+}
+
+/// Generate adaptive guidance based on detected quality issues in the batch.
+fn adaptive_quality_note(metrics: &[crate::quality::QuestionQualityMetrics]) -> String {
+    let (has_issues, issues_desc) = crate::quality::analyze_batch_quality_issues(metrics);
+    if !has_issues {
+        return String::new();
+    }
+
+    format!(
+        "\n\nADAPTIVE QUALITY GUIDANCE:\n\
+         Previous generation showed these patterns: {}\n\
+         For this retry: ensure {}\n\
+         Use varied command verbs (define, derive, analyze, evaluate, justify, compare, etc.).\n\
+         Vary scaffolding: mix single-part questions with multi-part (a), (b), (c) structures.",
+        issues_desc,
+        if issues_desc.contains("single-part") {
+            "at least 50% of questions include multi-part structure"
+        } else {
+            "strong variety in question structure"
+        }
     )
 }
 
@@ -809,7 +874,12 @@ async fn generate_questions(
 
     let written_sys = written_system();
     let written_fmt = written_format();
-    let max_tokens = ((request.question_count as u32) * 4000 + 4000).min(64_000);
+    let max_tokens = calculate_optimal_max_tokens(
+        request.question_count,
+        average_marks,
+        &adjusted_difficulty,
+        include_exam_context,
+    );
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
@@ -911,10 +981,18 @@ async fn generate_questions(
         .iter()
         .map(|q| q.prompt_markdown.clone())
         .collect();
-    let (mut scores, mut summary) = score_batch(&texts);
-    for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone()) {
-        q.distinctness_score = Some(d);
-        q.multi_step_depth = Some(m);
+    let (mut metrics, mut summary) = score_batch(&texts);
+
+    // Compute mark allocation variance for quality assessment
+    let mark_values: Vec<u8> = payload.questions.iter().map(|q| q.max_marks).collect();
+    summary.mark_allocation_variance =
+        Some(quality::compute_mark_allocation_variance(&mark_values));
+
+    for (q, metric) in payload.questions.iter_mut().zip(metrics.clone()) {
+        q.distinctness_score = Some(metric.distinctness);
+        q.multi_step_depth = Some(metric.depth);
+        q.verb_diversity_count = Some(metric.verb_diversity);
+        q.scaffold_pattern = Some(metric.scaffold_pattern);
     }
 
     // If de-duplication requested and batch shows low distinctness, attempt a
@@ -923,7 +1001,7 @@ async fn generate_questions(
     // unique questions when the first output is too similar.
     if request.avoid_similar_questions.unwrap_or(false) {
         let mut need_retry = summary.distinctness_avg.map_or(false, |v| v < 0.6)
-            || scores.iter().any(|(d, _)| *d < 0.35);
+            || metrics.iter().any(|m| m.distinctness < 0.35);
 
         let mut attempts = 0;
         while need_retry && attempts < 2 {
@@ -939,6 +1017,7 @@ async fn generate_questions(
             );
 
             let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
+            let adaptive_note = adaptive_quality_note(&metrics);
 
             // Build a compact regeneration prompt that does not reuse the original
             // `prompt` variable (which may have been moved). This focuses the
@@ -962,14 +1041,21 @@ async fn generate_questions(
                 ));
                 parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
                 parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
+                if !adaptive_note.is_empty() {
+                    parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
+                }
                 serde_json::Value::Array(parts)
             } else {
-                serde_json::Value::String(format!(
+                let mut prompt = format!(
                     "{}\n\n{}\n\n{}",
                     regen_intro,
                     sanitize_for_api(&subtopics_note(selected_subs)),
                     diversity_note
-                ))
+                );
+                if !adaptive_note.is_empty() {
+                    prompt.push_str(&adaptive_note);
+                }
+                serde_json::Value::String(prompt)
             };
 
             let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
@@ -1004,18 +1090,18 @@ async fn generate_questions(
                                 .iter()
                                 .map(|q| q.prompt_markdown.clone())
                                 .collect();
-                            let (new_scores, new_summary) = score_batch(&new_texts);
+                            let (new_metrics, new_summary) = score_batch(&new_texts);
                             // Accept retry if distinctness improved.
                             if new_summary.distinctness_avg.unwrap_or(0.0)
                                 > summary.distinctness_avg.unwrap_or(0.0)
                             {
                                 payload = new_payload;
-                                scores = new_scores;
+                                metrics = new_metrics;
                                 summary = new_summary;
-                                for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone())
+                                for (q, metric) in payload.questions.iter_mut().zip(metrics.clone())
                                 {
-                                    q.distinctness_score = Some(d);
-                                    q.multi_step_depth = Some(m);
+                                    q.distinctness_score = Some(metric.distinctness);
+                                    q.multi_step_depth = Some(metric.depth);
                                 }
                                 break;
                             }
@@ -1027,7 +1113,7 @@ async fn generate_questions(
 
             need_retry = attempts < 2
                 && (summary.distinctness_avg.map_or(false, |v| v < 0.6)
-                    || scores.iter().any(|(d, _)| *d < 0.35));
+                    || metrics.iter().any(|m| m.distinctness < 0.35));
         }
     }
 
@@ -1065,6 +1151,8 @@ async fn generate_questions(
         estimated_cost_usd,
         distinctness_avg: summary.distinctness_avg,
         multi_step_depth_avg: summary.multi_step_depth_avg,
+        command_verb_diversity: summary.command_verb_diversity,
+        mark_allocation_variance: summary.mark_allocation_variance,
     })
 }
 
@@ -1172,11 +1260,16 @@ async fn generate_mc_questions(
 
     let mc_sys = mc_system();
     let mc_fmt = mc_format();
-    let max_tokens = if request.question_count > 0 {
-        6000 + ((request.question_count as u32 - 1) * 2000) + 4000
-    } else {
-        4000
-    };
+    // MC questions need less tokens per question (single answer + brief explanation)
+    // but still benefit from the complexity-aware calculation
+    let base_mc_tokens = calculate_optimal_max_tokens(
+        request.question_count,
+        3, // MC is typically 1-3 marks
+        &adjusted_difficulty,
+        include_exam_context,
+    )
+    .saturating_mul(3)
+        / 4; // MC uses ~75% of written token budget
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
@@ -1215,7 +1308,7 @@ async fn generate_mc_questions(
         &mc_sys,
         user_content,
         &mc_fmt,
-        max_tokens,
+        base_mc_tokens,
         temperature,
         top_p,
         seed,
@@ -1250,15 +1343,21 @@ async fn generate_mc_questions(
             format!("{} {opts}", q.prompt_markdown)
         })
         .collect();
-    let (mut scores, mut summary) = score_batch(&texts);
-    for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone()) {
-        q.distinctness_score = Some(d);
-        q.multi_step_depth = Some(m);
+    let (mut metrics, mut summary) = score_batch(&texts);
+
+    // MC questions are all 1 mark each, so mark variance is always 0.0 (no distribution)
+    summary.mark_allocation_variance = Some(0.0);
+
+    for (q, metric) in payload.questions.iter_mut().zip(metrics.clone()) {
+        q.distinctness_score = Some(metric.distinctness);
+        q.multi_step_depth = Some(metric.depth);
+        q.verb_diversity_count = Some(metric.verb_diversity);
+        q.scaffold_pattern = Some(metric.scaffold_pattern);
     }
 
     if request.avoid_similar_questions.unwrap_or(false) {
         let mut need_retry = summary.distinctness_avg.map_or(false, |v| v < 0.6)
-            || scores.iter().any(|(d, _)| *d < 0.35);
+            || metrics.iter().any(|m| m.distinctness < 0.35);
 
         let mut attempts = 0;
         while need_retry && attempts < 2 {
@@ -1274,6 +1373,7 @@ async fn generate_mc_questions(
             );
 
             let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
+            let adaptive_note = adaptive_quality_note(&metrics);
 
             let regen_intro = format!(
                 "Regenerate {count} multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.",
@@ -1294,14 +1394,21 @@ async fn generate_mc_questions(
                 ));
                 parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
                 parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
+                if !adaptive_note.is_empty() {
+                    parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
+                }
                 serde_json::Value::Array(parts)
             } else {
-                serde_json::Value::String(format!(
+                let mut prompt = format!(
                     "{}\n\n{}\n\n{}",
                     regen_intro,
                     sanitize_for_api(&subtopics_note(selected_subs)),
                     diversity_note
-                ))
+                );
+                if !adaptive_note.is_empty() {
+                    prompt.push_str(&adaptive_note);
+                }
+                serde_json::Value::String(prompt)
             };
 
             let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
@@ -1313,7 +1420,7 @@ async fn generate_mc_questions(
                 &mc_sys,
                 new_user_content,
                 &mc_fmt,
-                max_tokens,
+                base_mc_tokens,
                 retry_temp,
                 top_p,
                 None,
@@ -1339,17 +1446,17 @@ async fn generate_mc_questions(
                                     format!("{} {opts}", q.prompt_markdown)
                                 })
                                 .collect();
-                            let (new_scores, new_summary) = score_batch(&new_texts);
+                            let (new_metrics, new_summary) = score_batch(&new_texts);
                             if new_summary.distinctness_avg.unwrap_or(0.0)
                                 > summary.distinctness_avg.unwrap_or(0.0)
                             {
                                 payload = new_payload;
-                                scores = new_scores;
+                                metrics = new_metrics;
                                 summary = new_summary;
-                                for (q, (d, m)) in payload.questions.iter_mut().zip(scores.clone())
+                                for (q, metric) in payload.questions.iter_mut().zip(metrics.clone())
                                 {
-                                    q.distinctness_score = Some(d);
-                                    q.multi_step_depth = Some(m);
+                                    q.distinctness_score = Some(metric.distinctness);
+                                    q.multi_step_depth = Some(metric.depth);
                                 }
                                 break;
                             }
@@ -1361,7 +1468,7 @@ async fn generate_mc_questions(
 
             need_retry = attempts < 2
                 && (summary.distinctness_avg.map_or(false, |v| v < 0.6)
-                    || scores.iter().any(|(d, _)| *d < 0.35));
+                    || metrics.iter().any(|m| m.distinctness < 0.35));
         }
     }
 
@@ -1399,6 +1506,8 @@ async fn generate_mc_questions(
         estimated_cost_usd,
         distinctness_avg: summary.distinctness_avg,
         multi_step_depth_avg: summary.multi_step_depth_avg,
+        command_verb_diversity: summary.command_verb_diversity,
+        mark_allocation_variance: summary.mark_allocation_variance,
     })
 }
 // ─── Tauri command: mark answer ───────────────────────────────────────────────
@@ -2216,6 +2325,8 @@ mod tests {
             tech_allowed: false,
             distinctness_score: None,
             multi_step_depth: None,
+            verb_diversity_count: None,
+            scaffold_pattern: None,
         }];
         assert!(validate_written(&questions, 2).is_err());
     }
@@ -2250,6 +2361,8 @@ mod tests {
             tech_allowed: false,
             distinctness_score: None,
             multi_step_depth: None,
+            verb_diversity_count: None,
+            scaffold_pattern: None,
         }];
         assert!(validate_mc(&questions, 1).is_err());
     }

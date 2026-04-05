@@ -582,8 +582,56 @@ export class SyncEngine {
 
     this.addEvent(
       'download',
-      `Received ${events.length} remote change${events.length === 1 ? '' : 's'}; pulling latest`
+      `Received ${events.length} remote change${events.length === 1 ? '' : 's'}; applying locally and scheduling pull`
     );
+
+    // Ensure we have a local data object to mutate
+    if (!this.localData) {
+      this.localData = this.getLocalState();
+    }
+
+    let mutated = false;
+
+    for (const ev of events) {
+      const coll = ev.collection;
+      const id = ev.docId;
+      const lm = ev.lastModified ?? Date.now();
+
+      if (coll === 'settings') {
+        // settings docs are: main (settings), goals, presets
+        if (!this.localData)
+          this.localData = {
+            settings: {} as Record<string, unknown>,
+            questionHistory: [],
+            mcHistory: [],
+            savedSets: [],
+            presets: [],
+          };
+
+        const applied = this.applySettingsEvent(ev, id);
+        if (applied) mutated = true;
+        continue;
+      }
+
+      // For collections (questionHistory, mcHistory, savedSets)
+      if (!this.localData) continue;
+      const arr: Array<Record<string, unknown>> =
+        coll === 'questionHistory'
+          ? this.localData.questionHistory
+          : coll === 'mcHistory'
+            ? this.localData.mcHistory
+            : this.localData.savedSets;
+
+      if (this.applyCollectionEvent(ev, coll, arr, id, lm)) mutated = true;
+    }
+
+    if (mutated && this.localData) {
+      // Refresh snapshot/cache and notify listeners
+      this.snapshot = buildSnapshot(this.buildSnapshotEntries(this.localData));
+      this.notifyDataChange(this.localData);
+    }
+
+    // Schedule a pull to reconcile complex cases (runs after small throttle)
     this.scheduleRemotePull();
   }
 
@@ -624,9 +672,14 @@ export class SyncEngine {
       const remoteData = await this.loadStartupRemoteData();
       const localState = this.getLocalState();
       const merged = mergeSyncableData(localState, remoteData, this.tombstones);
-      this.conflicts = detectConflicts(
-        this.buildQuestionHistoryConflictInputs(merged, remoteData)
-      );
+      this.conflicts = detectConflicts([
+        ...this.buildCollectionConflictInputs(
+          'questionHistory',
+          merged,
+          remoteData
+        ),
+        ...this.buildCollectionConflictInputs('mcHistory', merged, remoteData),
+      ]);
 
       // Update local data
       this.localData = merged;
@@ -704,11 +757,12 @@ export class SyncEngine {
     };
   }
 
-  private buildQuestionHistoryConflictInputs(
+  private buildCollectionConflictInputs(
+    collection: 'questionHistory' | 'mcHistory',
     merged: SyncableData,
     remoteData: SyncableData
   ): Array<{
-    collection: 'questionHistory';
+    collection: 'questionHistory' | 'mcHistory';
     entityId: string;
     localData: Record<string, unknown>;
     remoteData: Record<string, unknown>;
@@ -717,7 +771,7 @@ export class SyncEngine {
     tombstones: DeletionTombstones;
   }> {
     const conflictInputs: Array<{
-      collection: 'questionHistory';
+      collection: 'questionHistory' | 'mcHistory';
       entityId: string;
       localData: Record<string, unknown>;
       remoteData: Record<string, unknown>;
@@ -726,17 +780,26 @@ export class SyncEngine {
       tombstones: DeletionTombstones;
     }> = [];
 
-    for (const item of merged.questionHistory) {
+    const localItems =
+      collection === 'questionHistory'
+        ? merged.questionHistory
+        : merged.mcHistory;
+    const remoteItems =
+      collection === 'questionHistory'
+        ? remoteData.questionHistory
+        : remoteData.mcHistory;
+
+    for (const item of localItems) {
       const itemId = (item as { id?: unknown }).id;
       if (typeof itemId !== 'string' || itemId.length === 0) continue;
 
-      const remoteItem = remoteData.questionHistory.find(
+      const remoteItem = remoteItems.find(
         (r) => (r as { id?: unknown }).id === itemId
       );
       if (!remoteItem) continue;
 
       conflictInputs.push({
-        collection: 'questionHistory',
+        collection,
         entityId: itemId,
         localData: item,
         remoteData: remoteItem,
@@ -781,6 +844,120 @@ export class SyncEngine {
         isDeleted: false,
       })),
     ];
+  }
+
+  private applySettingsEvent(ev: ChangeEvent, id: string): boolean {
+    // Ensure localData exists for mutation
+    if (!this.localData) return false;
+
+    if (ev.type === 'removed' || ev.data === null) {
+      this.clearSettingsDoc(id);
+      return true;
+    }
+
+    const data = ev.data as Record<string, unknown> | null;
+    this.mergeSettingsDoc(id, data);
+
+    return true;
+  }
+
+  private clearSettingsDoc(id: string): void {
+    if (!this.localData) return;
+
+    if (id === 'main') {
+      this.localData.settings = {} as Record<string, unknown>;
+      return;
+    }
+    if (id === 'goals') {
+      this.localData.studyGoals = undefined;
+      this.localData.streakData = undefined;
+      return;
+    }
+    if (id === 'presets') {
+      this.localData.presets = [];
+    }
+  }
+
+  private mergeSettingsDoc(
+    id: string,
+    data: Record<string, unknown> | null
+  ): void {
+    if (!this.localData) return;
+
+    if (id === 'main') {
+      const incoming = (data?.settings as Record<string, unknown>) ?? {};
+      this.localData.settings = {
+        ...(this.localData.settings ?? {}),
+        ...incoming,
+      };
+      return;
+    }
+
+    if (id === 'goals') {
+      const incomingGoals = data?.studyGoals as
+        | Record<string, unknown>
+        | undefined;
+      const incomingStreak = data?.streakData as
+        | Record<string, unknown>
+        | undefined;
+      this.localData.studyGoals = incomingGoals ?? this.localData.studyGoals;
+      this.localData.streakData = incomingStreak ?? this.localData.streakData;
+      return;
+    }
+
+    if (id === 'presets') {
+      this.localData.presets =
+        (data?.presets as Record<string, unknown>[]) ??
+        this.localData.presets ??
+        [];
+    }
+  }
+
+  private applyCollectionEvent(
+    ev: ChangeEvent,
+    coll: 'questionHistory' | 'mcHistory' | 'savedSets',
+    arr: Array<Record<string, unknown>>,
+    id: string,
+    lm: number
+  ): boolean {
+    if (ev.type === 'removed') {
+      const idx = arr.findIndex(
+        (x) => ((x as { id?: string }).id ?? '') === id
+      );
+      if (idx >= 0) {
+        const tomb = this.tombstones[coll];
+        if (!(id in tomb)) {
+          arr.splice(idx, 1);
+          if (
+            this.metadata.lastSyncVersions &&
+            this.metadata.lastSyncVersions[coll]
+          ) {
+            delete this.metadata.lastSyncVersions[coll][id];
+          }
+          return true;
+        }
+      }
+      return false;
+    }
+
+    const tomb = this.tombstones[coll];
+    if (id in tomb) return false;
+    const existingIdx = arr.findIndex(
+      (x) => ((x as { id?: string }).id ?? '') === id
+    );
+    if (existingIdx >= 0) {
+      arr[existingIdx] = ev.data as Record<string, unknown>;
+    } else {
+      arr.push(ev.data as Record<string, unknown>);
+    }
+    if (!this.metadata.lastSyncVersions)
+      this.metadata.lastSyncVersions = {
+        questionHistory: {},
+        mcHistory: {},
+        savedSets: {},
+      };
+    this.metadata.lastSyncVersions[coll][id] = lm;
+    return true;
   }
 
   private async performPull(): Promise<void> {
