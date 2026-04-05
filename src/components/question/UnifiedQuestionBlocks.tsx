@@ -1,8 +1,9 @@
-import { ReactNode } from 'react';
+import { Eye, Info, PenLine } from 'lucide-react';
+import type { ReactNode } from 'react';
+
+import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { MarkdownMath } from '@/components/MarkdownMath';
-import { Eye, Info, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const UNIFIED_OPTION_COLORS: Record<string, string> = {

@@ -1,27 +1,29 @@
-import { useState } from 'react';
 import {
-  Key,
-  Cpu,
-  CreditCard,
-  Palette,
-  TrendingUp,
   Bug,
   ChevronRight,
   Cloud,
-  Wand2,
+  Cpu,
+  CreditCard,
   HardDriveDownload,
+  Key,
+  Palette,
+  TrendingUp,
+  Wand2,
 } from 'lucide-react';
+import { useState } from 'react';
+
 import { cn } from '@/lib/utils';
-import { APP_VERSION, type Section } from './settings/types';
+
 import { ApiSection } from './settings/sections/ApiSection';
-import { ModelsSection } from './settings/sections/ModelsSection';
-import { CreditsSection } from './settings/sections/CreditsSection';
 import { AppearanceSection } from './settings/sections/AppearanceSection';
-import { GoalsSection } from './settings/sections/GoalsSection';
-import { DebugSection } from './settings/sections/DebugSection';
-import { SyncSection } from './settings/sections/SyncSection';
 import { CleanupSection } from './settings/sections/CleanupSection';
+import { CreditsSection } from './settings/sections/CreditsSection';
+import { DebugSection } from './settings/sections/DebugSection';
+import { GoalsSection } from './settings/sections/GoalsSection';
 import { ImportExportSection } from './settings/sections/ImportExportSection';
+import { ModelsSection } from './settings/sections/ModelsSection';
+import { SyncSection } from './settings/sections/SyncSection';
+import { APP_VERSION, type Section } from './settings/types';
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'api', label: 'API Key', icon: <Key className="h-4 w-4" /> },

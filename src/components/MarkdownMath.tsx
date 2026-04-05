@@ -1,6 +1,7 @@
 import { MathJax } from 'better-react-mathjax';
 import { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+
 import { normalizeMathDelimiters } from '../lib/app-utils';
 
 type MarkdownMathProps = {

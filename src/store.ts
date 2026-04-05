@@ -7,12 +7,40 @@
  * so every consumer file is unchanged.
  */
 
-import { create } from 'zustand';
 import { startTransition } from 'react';
+import { create } from 'zustand';
+
+import type { DeletionTombstones } from './context/modules/deletion-tombstones';
 import {
+  addTombstone,
+  EMPTY_TOMBSTONES,
+} from './context/modules/deletion-tombstones';
+import type { SyncableData } from './context/modules/useFirebase';
+import {
+  auth,
+  deleteMcHistoryItems,
+  deletePresets,
+  deleteQuestionHistoryItems,
+  deleteSavedSets,
+  saveUserData,
+  upsertMcHistoryItems,
+  upsertPresets,
+  upsertQuestionHistoryItems,
+  upsertSavedSets,
+} from './context/modules/useFirebase';
+import { mergeImportedState, persistAndRehydrate } from './lib/import-export';
+import {
+  EMPTY_PERSISTED_APP_STATE,
+  loadPersistedAppState,
+  savePersistedAppState,
+} from './lib/persistence';
+import { createCard, isDue, reviewCard } from './lib/spaced-repetition';
+import { getTodayKey } from './lib/utils';
+import type {
   ChemistrySubtopic,
   Difficulty,
   GeneratedQuestion,
+  GenerationRecord,
   GenerationStatusEvent,
   GenerationTelemetry,
   MarkAnswerResponse,
@@ -25,44 +53,19 @@ import {
   PersistedTimerState,
   PersistedWrittenSession,
   PhysicalEducationSubtopic,
+  Preset,
   QuestionHistoryEntry,
   QuestionMode,
   ReviewQuality,
   SavedQuestionSet,
   SpacedRepetitionCard,
   SpecialistMathSubtopic,
+  StreakData,
   StudentAnswerImage,
   StudyGoals,
-  StreakData,
   TechMode,
   Topic,
-  GenerationRecord,
 } from './types';
-import {
-  EMPTY_PERSISTED_APP_STATE,
-  loadPersistedAppState,
-  savePersistedAppState,
-} from './lib/persistence';
-import {
-  auth,
-  upsertQuestionHistoryItems,
-  deleteQuestionHistoryItems,
-  upsertMcHistoryItems,
-  deleteMcHistoryItems,
-  upsertSavedSets,
-  deleteSavedSets,
-  upsertPresets,
-  deletePresets,
-  saveUserData,
-} from './context/modules/useFirebase';
-import {
-  DeletionTombstones,
-  EMPTY_TOMBSTONES,
-  addTombstone,
-} from './context/modules/deletion-tombstones';
-import { createCard, reviewCard, isDue } from './lib/spaced-repetition';
-import { getTodayKey } from './lib/utils';
-import { mergeImportedState, persistAndRehydrate } from './lib/import-export';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,10 +77,6 @@ function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
     ? `${leadTopic} ${modeLabel}`
     : `${leadTopic} +${extraCount} ${modeLabel}`;
 }
-
-// ─── State shape ──────────────────────────────────────────────────────────────
-
-import { Preset } from './types';
 
 export interface AppState {
   // ── Hydration ──────────────────────────────────────────────────────────────
@@ -456,6 +455,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   // ── Hydration ──────────────────────────────────────────────────────────────
 
+  // eslint-disable-next-line complexity
   hydrate: async () => {
     try {
       const persisted = await loadPersistedAppState();
@@ -548,8 +548,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
               .deletionTombstones as DeletionTombstones)
           : { ...EMPTY_TOMBSTONES },
       });
-    } catch (err) {
-      console.error('Hydration failed:', err);
+    } catch {
+      console.error('Hydration failed');
       set({ errorMessage: 'Could not load saved app data.', isHydrated: true });
     }
   },
@@ -1036,8 +1036,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       .map(([questionId, card]) => ({ questionId, card }))
       .sort(
         (a, b) =>
-          new Date((a.card as SpacedRepetitionCard).nextReviewDate).getTime() -
-          new Date((b.card as SpacedRepetitionCard).nextReviewDate).getTime()
+          new Date(a.card.nextReviewDate).getTime() -
+          new Date(b.card.nextReviewDate).getTime()
       );
   },
 
@@ -1310,8 +1310,8 @@ function loadLiveRetryQueue(): LiveRetryOp[] {
     const raw = localStorage.getItem(LIVE_RETRY_QUEUE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as LiveRetryOp[];
-  } catch (err) {
-    console.warn('[LiveSync] Could not parse retry queue', err);
+  } catch {
+    console.warn('[LiveSync] Could not parse retry queue');
     return [];
   }
 }
@@ -1319,23 +1319,26 @@ function loadLiveRetryQueue(): LiveRetryOp[] {
 function saveLiveRetryQueue(queue: LiveRetryOp[]) {
   try {
     localStorage.setItem(LIVE_RETRY_QUEUE_KEY, JSON.stringify(queue));
-  } catch (err) {
-    console.warn('[LiveSync] Could not save retry queue', err);
+  } catch {
+    console.warn('[LiveSync] Could not save retry queue');
   }
 }
 
 function appendLiveLog(level: LiveLogEntry['level'], message: string) {
   try {
     const raw = localStorage.getItem(LIVE_IMMEDIATE_LOGS_KEY);
-    const arr: LiveLogEntry[] = raw ? JSON.parse(raw) : [];
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    const arr: LiveLogEntry[] = Array.isArray(parsed)
+      ? (parsed as LiveLogEntry[])
+      : [];
     arr.unshift({ ts: Date.now(), level, message });
     // keep recent
     localStorage.setItem(
       LIVE_IMMEDIATE_LOGS_KEY,
       JSON.stringify(arr.slice(0, 200))
     );
-  } catch (err) {
-    console.warn('[LiveSync] Could not append log', err);
+  } catch {
+    console.warn('[LiveSync] Could not append log');
   }
 }
 
@@ -1380,7 +1383,8 @@ async function tryPerformOpOnce(op: LiveRetryOp): Promise<boolean> {
         break;
       case 'presets':
         if (op.op === 'upsert') {
-          await upsertPresets(user.uid, op.payload as unknown as any[]);
+          const presetsPayload = Array.isArray(op.payload) ? op.payload : [];
+          await upsertPresets(user.uid, presetsPayload as Preset[]);
         } else {
           await deletePresets(user.uid, [op.id]);
         }
@@ -1389,9 +1393,12 @@ async function tryPerformOpOnce(op: LiveRetryOp): Promise<boolean> {
         // generationHistory doesn't have per-item helpers; save user data merge
         if (op.op === 'upsert') {
           // attempt to append the single record via saveUserData (merge)
-          await saveUserData(user.uid, {
-            generationHistory: [op.payload],
-          } as any);
+          const payload = op.payload as GenerationRecord | undefined;
+          if (payload) {
+            await saveUserData(user.uid, {
+              generationHistory: [payload],
+            } as unknown as SyncableData);
+          }
         } else {
           // for deletes we'll fall back to tombstones / full sync — enqueue and let coalesced sync handle deletes
           throw new Error(
@@ -1404,9 +1411,9 @@ async function tryPerformOpOnce(op: LiveRetryOp): Promise<boolean> {
     }
 
     return true;
-  } catch (err) {
+  } catch {
     // rethrow so caller handles enqueue/increment
-    throw err;
+    throw new Error('Operation failed');
   }
 }
 
@@ -1422,6 +1429,7 @@ export async function processLiveRetryQueue(): Promise<void> {
     queue = queue.sort((a, b) => a.nextAttemptAt - b.nextAttemptAt);
     for (const item of [...queue]) {
       if (item.nextAttemptAt > Date.now()) break;
+      let lastError: Error | null = null;
       try {
         await tryPerformOpOnce(item);
         appendLiveLog(
@@ -1431,12 +1439,13 @@ export async function processLiveRetryQueue(): Promise<void> {
         // remove from queue
         const idx = queue.findIndex((q) => q === item);
         if (idx >= 0) queue.splice(idx, 1);
-      } catch (err) {
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e));
         item.attempts = (item.attempts || 0) + 1;
         if (item.attempts >= LIVE_RETRY_MAX_ATTEMPTS) {
           appendLiveLog(
             'error',
-            `[LIVE] ${item.op} ${item.collection}/${item.id} failed permanently after ${item.attempts} attempts: ${String(err)}`
+            `[LIVE] ${item.op} ${item.collection}/${item.id} failed permanently after ${item.attempts} attempts: ${lastError.message}`
           );
           // drop
           const idx = queue.findIndex((q) => q === item);
@@ -1466,11 +1475,13 @@ export async function processLiveRetryQueue(): Promise<void> {
 window.addEventListener('online', () => void processLiveRetryQueue());
 
 // expose quick flush for UI
-(window as any).__processLiveRetryQueue = processLiveRetryQueue;
+(window as Record<string, unknown>).__processLiveRetryQueue =
+  processLiveRetryQueue;
 
 // last-known snapshot for diffing
 let _lastLiveState = useAppStore.getState();
 
+// eslint-disable-next-line complexity
 useAppStore.subscribe((state) => {
   try {
     // Only attempt immediate live writes when hydrated, sync enabled, online and signed in
@@ -1548,7 +1559,7 @@ useAppStore.subscribe((state) => {
     );
     for (const added of [...qh.added, ...qh.updated]) {
       const op: LiveRetryOp = {
-        id: added.id!,
+        id: added.id,
         collection: 'questionHistory',
         op: 'upsert',
         payload: added,
@@ -1584,7 +1595,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1594,7 +1605,7 @@ useAppStore.subscribe((state) => {
     }
     for (const removed of qh.removed) {
       const op: LiveRetryOp = {
-        id: removed.id!,
+        id: removed.id,
         collection: 'questionHistory',
         op: 'delete',
         attempts: 0,
@@ -1628,7 +1639,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1641,7 +1652,7 @@ useAppStore.subscribe((state) => {
     const mh = diffCollection(_lastLiveState.mcHistory, state.mcHistory);
     for (const added of [...mh.added, ...mh.updated]) {
       const op: LiveRetryOp = {
-        id: added.id!,
+        id: added.id,
         collection: 'mcHistory',
         op: 'upsert',
         payload: added,
@@ -1676,7 +1687,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1686,7 +1697,7 @@ useAppStore.subscribe((state) => {
     }
     for (const removed of mh.removed) {
       const op: LiveRetryOp = {
-        id: removed.id!,
+        id: removed.id,
         collection: 'mcHistory',
         op: 'delete',
         attempts: 0,
@@ -1720,7 +1731,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1733,7 +1744,7 @@ useAppStore.subscribe((state) => {
     const ss = diffCollection(_lastLiveState.savedSets, state.savedSets);
     for (const added of [...ss.added, ...ss.updated]) {
       const op: LiveRetryOp = {
-        id: added.id!,
+        id: added.id,
         collection: 'savedSets',
         op: 'upsert',
         payload: added,
@@ -1760,7 +1771,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1770,7 +1781,7 @@ useAppStore.subscribe((state) => {
     }
     for (const removed of ss.removed) {
       const op: LiveRetryOp = {
-        id: removed.id!,
+        id: removed.id,
         collection: 'savedSets',
         op: 'delete',
         attempts: 0,
@@ -1804,7 +1815,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1842,7 +1853,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,
@@ -1858,7 +1869,7 @@ useAppStore.subscribe((state) => {
     );
     for (const added of gh.added) {
       const op: LiveRetryOp = {
-        id: (added as any).id ?? String(Math.random()),
+        id: added.id ?? String(Math.random()),
         collection: 'generationHistory',
         op: 'upsert',
         payload: added,
@@ -1885,7 +1896,7 @@ useAppStore.subscribe((state) => {
             });
             void processLiveRetryQueue();
           });
-      } catch (err) {
+      } catch {
         enqueueLiveRetryOp({
           ...op,
           attempts: 1,

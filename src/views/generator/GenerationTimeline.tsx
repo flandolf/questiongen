@@ -1,20 +1,21 @@
 import {
-  Loader2,
   CheckCircle2,
-  XCircle,
   Clock3,
   Coins,
   DollarSign,
+  Loader2,
   Pause,
   Play,
+  XCircle,
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+
+import { formatCostUsd } from '@/lib/app-utils';
 import type {
   BatchTopicProgress,
   GenerationStatusEvent,
   GenerationTelemetry,
 } from '@/types';
-import { formatCostUsd } from '@/lib/app-utils';
 
 type TimelinePhase = 'waiting' | 'active' | 'done' | 'error';
 
@@ -121,6 +122,89 @@ export function LastGenerationStats({
   );
 }
 
+function TimelineStages({
+  currentStage,
+  isFailed,
+  isGenerating,
+  isDone,
+}: {
+  currentStage: string;
+  isFailed: boolean;
+  isGenerating: boolean;
+  isDone: boolean;
+}) {
+  return (
+    <div className="relative flex flex-col gap-1.5 pl-0.5">
+      {STAGE_ORDER.map((stage) => {
+        const phase = phaseForStage(
+          stage,
+          currentStage as KnownStage,
+          isFailed
+        );
+        if (phase === 'waiting' && !isGenerating && !isDone && !isFailed)
+          return null;
+        return (
+          <div key={stage} className="flex items-start gap-2 pl-0.5">
+            <TimelineDot phase={phase} />
+            <span
+              className={`text-[11px] font-mono leading-tight pt-0.5 ${
+                phase === 'active'
+                  ? 'text-foreground font-semibold'
+                  : phase === 'done'
+                    ? 'text-muted-foreground'
+                    : phase === 'error'
+                      ? 'text-destructive'
+                      : 'text-muted-foreground/40'
+              }`}
+            >
+              {STAGE_LABELS[stage]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompletedStats({
+  completedEvent,
+}: {
+  completedEvent: GenerationStatusEvent | null;
+}) {
+  if (!completedEvent) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40">
+      {completedEvent.totalTokens != null && completedEvent.totalTokens > 0 && (
+        <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
+          <Coins className="w-3 h-3" />
+          <span className="tabular-nums font-semibold text-foreground">
+            {completedEvent.totalTokens.toLocaleString()}
+          </span>
+          {' tok'}
+          {completedEvent.promptTokens != null &&
+            completedEvent.completionTokens != null && (
+              <span className="text-muted-foreground/60">
+                {' '}
+                ({completedEvent.promptTokens.toLocaleString()} in /{' '}
+                {completedEvent.completionTokens.toLocaleString()} out)
+              </span>
+            )}
+        </span>
+      )}
+      {completedEvent.estimatedCostUsd != null && (
+        <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
+          <DollarSign className="w-3 h-3" />
+          <span className="tabular-nums font-semibold text-foreground">
+            {completedEvent.estimatedCostUsd < 0.0001
+              ? '<$0.0001'
+              : `$${completedEvent.estimatedCostUsd.toFixed(4)}`}
+          </span>
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function GenerationTimeline({
   generationStatus,
   formattedElapsedTime,
@@ -183,31 +267,12 @@ export function GenerationTimeline({
         </span>
       </div>
 
-      <div className="relative flex flex-col gap-1.5 pl-0.5">
-        {STAGE_ORDER.map((stage) => {
-          const phase = phaseForStage(stage, currentStage, isFailed);
-          if (phase === 'waiting' && !isGenerating && !isDone && !isFailed)
-            return null;
-          return (
-            <div key={stage} className="flex items-start gap-2 pl-0.5">
-              <TimelineDot phase={phase} />
-              <span
-                className={`text-[11px] font-mono leading-tight pt-0.5 ${
-                  phase === 'active'
-                    ? 'text-foreground font-semibold'
-                    : phase === 'done'
-                      ? 'text-muted-foreground'
-                      : phase === 'error'
-                        ? 'text-destructive'
-                        : 'text-muted-foreground/40'
-                }`}
-              >
-                {STAGE_LABELS[stage]}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <TimelineStages
+        currentStage={currentStage}
+        isFailed={isFailed}
+        isGenerating={isGenerating}
+        isDone={isDone}
+      />
 
       {(currentStage === 'generating' || (isDone && streamText)) && (
         <div
@@ -225,38 +290,7 @@ export function GenerationTimeline({
         </div>
       )}
 
-      {isDone && completedEvent && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40">
-          {completedEvent.totalTokens != null &&
-            completedEvent.totalTokens > 0 && (
-              <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-                <Coins className="w-3 h-3" />
-                <span className="tabular-nums font-semibold text-foreground">
-                  {completedEvent.totalTokens.toLocaleString()}
-                </span>
-                {' tok'}
-                {completedEvent.promptTokens != null &&
-                  completedEvent.completionTokens != null && (
-                    <span className="text-muted-foreground/60">
-                      {' '}
-                      ({completedEvent.promptTokens.toLocaleString()} in /{' '}
-                      {completedEvent.completionTokens.toLocaleString()} out)
-                    </span>
-                  )}
-              </span>
-            )}
-          {completedEvent.estimatedCostUsd != null && (
-            <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-              <DollarSign className="w-3 h-3" />
-              <span className="tabular-nums font-semibold text-foreground">
-                {completedEvent.estimatedCostUsd < 0.0001
-                  ? '<$0.0001'
-                  : `$${completedEvent.estimatedCostUsd.toFixed(4)}`}
-              </span>
-            </span>
-          )}
-        </div>
-      )}
+      {isDone && <CompletedStats completedEvent={completedEvent} />}
     </div>
   );
 }

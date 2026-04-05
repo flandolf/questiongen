@@ -1,11 +1,11 @@
+import type { Difficulty, QuestionMode, TechMode } from './generator';
+import type { MarkAnswerResponse } from './marking';
 import type {
   GeneratedQuestion,
   McQuestion,
   StudentAnswerImage,
 } from './questions';
-import type { MarkAnswerResponse } from './marking';
 import type { GenerationTelemetry } from './telemetry';
-import type { Difficulty, TechMode, QuestionMode } from './generator';
 
 export type WrittenAttemptKind = 'initial' | 'appeal' | 'override';
 export type McAttemptKind = 'initial' | 'appeal' | 'override';

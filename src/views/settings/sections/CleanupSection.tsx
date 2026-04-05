@@ -1,36 +1,27 @@
-import { useState, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
-  Wand2,
-  Loader2,
-  CheckCircle2,
   AlertTriangle,
-  Pencil,
+  ArrowUpDown,
+  Check,
+  CheckCircle2,
+  CheckSquare,
   ChevronDown,
   ChevronUp,
-  X,
-  Check,
-  Sparkles,
-  ArrowUpDown,
   Eye,
   EyeOff,
-  CheckSquare,
+  Loader2,
+  Pencil,
+  Sparkles,
   Square,
   ThumbsUp,
+  Wand2,
+  X,
 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+
+import { useAppContext } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { readBackendError } from '../../../lib/app-utils';
-import { useAppContext } from '../../../AppContext';
-import {
-  SectionHeader,
-  FieldGroup,
-  Divider,
-  ErrorBanner,
-  Card,
-  ModelSelectRow,
-} from '../SettingsUI';
-import { PRESET_MODELS } from '../constants';
 import {
   Select,
   SelectContent,
@@ -38,14 +29,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
+import { readBackendError } from '../../../lib/app-utils';
 import {
-  TOPICS,
-  MATH_METHODS_SUBTOPICS,
-  SPECIALIST_MATH_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
+  MATH_METHODS_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
+  SPECIALIST_MATH_SUBTOPICS,
   type Topic,
+  TOPICS,
 } from '../../../types';
+import { PRESET_MODELS } from '../constants';
+import {
+  Card,
+  Divider,
+  ErrorBanner,
+  FieldGroup,
+  ModelSelectRow,
+  SectionHeader,
+} from '../SettingsUI';
 
 const CANONICAL_TOPICS: string[] = [...TOPICS];
 
@@ -137,8 +138,11 @@ function similarity(a: string, b: string): number {
       result = 0;
     } else {
       // Optimized Levenshtein using two-row approach
-      let prevRow = Array.from({ length: lenB + 1 }, (_, j) => j);
-      let currRow = new Array(lenB + 1);
+      let prevRow: number[] = Array.from<number>(
+        { length: lenB + 1 },
+        (_, j) => j
+      );
+      const currRow: number[] = new Array<number>(lenB + 1);
 
       for (let i = 1; i <= lenA; i++) {
         currRow[0] = i;
@@ -183,8 +187,8 @@ function getMatchRationale(a: string, b: string, score: number): string {
   if (lenA === 0 || lenB === 0) return 'Empty string comparison';
 
   // Calculate approximate edit distance for rationale
-  let prevRow = Array.from({ length: lenB + 1 }, (_, j) => j);
-  let currRow = new Array(lenB + 1);
+  let prevRow: number[] = Array.from<number>({ length: lenB + 1 }, (_, j) => j);
+  const currRow: number[] = new Array<number>(lenB + 1);
 
   for (let i = 1; i <= lenA; i++) {
     currRow[0] = i;
@@ -250,6 +254,7 @@ const CONFIDENCE_THRESHOLD = 0.4;
 
 // ─── Manual Fix Panel ─────────────────────────────────────────────────────────
 
+/* eslint-disable-next-line complexity */
 function ManualFixPanel({
   unknownItems,
   canonicalOptions,
@@ -743,6 +748,7 @@ function ManualFixPanel({
 
 // ─── Main Section ─────────────────────────────────────────────────────────────
 
+/* eslint-disable-next-line complexity */
 export function CleanupSection() {
   const {
     apiKey,
@@ -1021,7 +1027,7 @@ export function CleanupSection() {
             <div className="space-y-3">
               {topicError && <ErrorBanner message={topicError} />}
               <Button
-                onClick={handleCleanupTopics}
+                onClick={() => void handleCleanupTopics()}
                 disabled={topicLoading || !apiKey || selectedModel === 'custom'}
                 className="gap-2"
               >
@@ -1048,7 +1054,7 @@ export function CleanupSection() {
             <div className="space-y-3">
               {subtopicError && <ErrorBanner message={subtopicError} />}
               <Button
-                onClick={handleCleanupSubtopics}
+                onClick={() => void handleCleanupSubtopics()}
                 disabled={
                   subtopicLoading || !apiKey || selectedModel === 'custom'
                 }

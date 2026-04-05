@@ -1,25 +1,25 @@
 import type {
-  Topic,
-  MathMethodsSubtopic,
-  SpecialistMathSubtopic,
   ChemistrySubtopic,
+  MathMethodsSubtopic,
   PhysicalEducationSubtopic,
+  SpecialistMathSubtopic,
+  Topic,
 } from './catalog';
-import type { Difficulty, TechMode, QuestionMode } from './generator';
+import type { Difficulty, QuestionMode, TechMode } from './generator';
+import type {
+  GenerationRecord,
+  McHistoryEntry,
+  QuestionHistoryEntry,
+} from './history';
+import type { MarkAnswerResponse } from './marking';
 import type {
   GeneratedQuestion,
   McQuestion,
   StudentAnswerImage,
 } from './questions';
-import type { MarkAnswerResponse } from './marking';
-import type { GenerationTelemetry } from './telemetry';
-import type {
-  QuestionHistoryEntry,
-  McHistoryEntry,
-  GenerationRecord,
-} from './history';
 import type { SpacedRepetitionCard } from './spaced-repetition';
-import type { StudyGoals, StreakData, Preset } from './study';
+import type { Preset, StreakData, StudyGoals } from './study';
+import type { GenerationTelemetry } from './telemetry';
 import type { PersistedTimerState } from './timer';
 
 export type PersistedSettings = {

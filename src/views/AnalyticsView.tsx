@@ -1,3 +1,7 @@
+import { Clock3, PlusCircle, Type } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { PieSectorShapeProps } from 'recharts';
 import {
   Bar,
   BarChart,
@@ -16,37 +20,35 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { PieSectorShapeProps } from 'recharts';
-import { Clock3, Type, PlusCircle } from 'lucide-react';
+
+import { PageHeader } from '@/components/layout/primitives';
+import { getDayKey } from '@/lib/utils';
+
+import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
+import { EmptyState } from '../components/EmptyState';
+import { MarkdownMath } from '../components/MarkdownMath';
 import { Button } from '../components/ui/button';
+import type { ChartConfig } from '../components/ui/chart';
 import {
-  ChartConfig,
   ChartContainer,
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from '../components/ui/chart';
-import { EmptyState } from '../components/EmptyState';
-import { MarkdownMath } from '../components/MarkdownMath';
 import { formatDurationMs, formatPercent } from '../lib/app-utils';
-import { useAnalyticsData, ALL_TOPICS } from './useAnalyticsData';
-import { useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
-import { useWrittenSession, useMultipleChoiceSession } from '../AppContext';
 import { useAppStore } from '../store';
 import type {
-  QuestionHistoryEntry,
-  McHistoryEntry,
   GenerationRecord,
+  McHistoryEntry,
+  QuestionHistoryEntry,
 } from '../types';
 import type {
+  AttemptRow,
   CriterionWeakPointRow,
   SubtopicPerformanceRow,
-  AttemptRow,
 } from './useAnalyticsData';
-import { PageHeader } from '@/components/layout/primitives';
-import { getDayKey } from '@/lib/utils';
+import { ALL_TOPICS, useAnalyticsData } from './useAnalyticsData';
 
 // ─── Chart configs (Restored Vibrant Palette) ─────────────────────────────────
 
@@ -287,6 +289,7 @@ function useDailyStats(
 
 // ─── Main view ────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line complexity
 export function AnalyticsView() {
   const navigate = useNavigate();
   const { questionHistory } = useWrittenSession();
@@ -409,7 +412,7 @@ export function AnalyticsView() {
             <Button
               variant="outline"
               className="mt-4 "
-              onClick={() => navigate('/')}
+              onClick={() => void navigate('/')}
             >
               Begin
             </Button>
@@ -1172,7 +1175,7 @@ export function AnalyticsView() {
                             size="icon"
                             className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() =>
-                              navigate(
+                              void navigate(
                                 `/?topic=${encodeURIComponent(row.topic)}&subtopic=${encodeURIComponent(row.subtopic)}`
                               )
                             }

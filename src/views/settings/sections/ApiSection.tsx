@@ -1,9 +1,10 @@
+import { CheckCircle2, Eye, EyeOff, Key } from 'lucide-react';
 import { useState } from 'react';
-import { Key, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
-import { SectionHeader, FieldGroup } from '../SettingsUI';
+
 import { useAppSettings } from '../../../AppContext';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { FieldGroup, SectionHeader } from '../SettingsUI';
 
 export function ApiSection() {
   const { apiKey, setApiKey, clearApiKey, showApiKey, setShowApiKey } =

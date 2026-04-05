@@ -1,23 +1,24 @@
-import { useState, useRef, useCallback } from 'react';
 import {
+  CheckCircle2,
   HardDriveDownload,
   HardDriveUpload,
   Loader2,
-  CheckCircle2,
 } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+
 import { Button } from '../../../components/ui/button';
-import { useAppStore } from '../../../store';
-import { SectionHeader, Divider, ErrorBanner, Card } from '../SettingsUI';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 import {
-  exportAppState,
+  computeImportCounts,
   createExportEnvelope,
   downloadExport,
-  parseImportFile,
-  computeImportCounts,
+  exportAppState,
   type ImportCounts,
+  parseImportFile,
 } from '../../../lib/import-export';
+import { useAppStore } from '../../../store';
 import type { PersistedAppState } from '../../../types';
+import { Card, Divider, ErrorBanner, SectionHeader } from '../SettingsUI';
 
 export function ImportExportSection() {
   const questionHistory = useAppStore((s) => s.questionHistory);
@@ -185,7 +186,11 @@ export function ImportExportSection() {
             {savedSets.length} saved sets, {presets.length} presets,{' '}
           </p>
         </div>
-        <Button onClick={handleExport} disabled={exporting} className="gap-2">
+        <Button
+          onClick={() => void handleExport()}
+          disabled={exporting}
+          className="gap-2"
+        >
           {exporting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -212,7 +217,7 @@ export function ImportExportSection() {
           ref={fileInputRef}
           type="file"
           accept=".json"
-          onChange={handleFileSelect}
+          onChange={(e) => void handleFileSelect(e)}
           className="hidden"
         />
         <Button

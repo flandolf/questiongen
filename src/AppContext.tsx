@@ -10,11 +10,12 @@
  * the Zustand store (store.ts).
  */
 
+import { listen } from '@tauri-apps/api/event';
 import React, { useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { listen } from '@tauri-apps/api/event';
-import { GenerationStatusEvent } from './types';
+
 import { useAppStore } from './store';
+import type { GenerationStatusEvent } from './types';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 

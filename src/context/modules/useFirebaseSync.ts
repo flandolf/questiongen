@@ -1,58 +1,59 @@
-import { AppState, useAppStore, setSuppressPersistUntil } from '@/store';
-import {
-  QuestionHistoryEntry,
+import { doc, getDoc } from 'firebase/firestore';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+
+import type { AppState } from '@/store';
+import { setSuppressPersistUntil, useAppStore } from '@/store';
+import type {
   McHistoryEntry,
-  SavedQuestionSet,
   Preset,
-  StudyGoals,
+  QuestionHistoryEntry,
+  SavedQuestionSet,
   StreakData,
+  StudyGoals,
+  SyncCollection,
   SyncOperation,
   SyncQueueState,
-  SyncCollection,
-  SYNC_COLLECTIONS,
 } from '@/types';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { toast } from 'sonner';
+import { SYNC_COLLECTIONS } from '@/types';
+
+import type { SyncConflict } from './deletion-tombstones';
 import {
-  SyncableData,
-  FirebaseUser,
-  SyncMetadata,
-  onAuthChange,
-  saveUserData,
+  buildConflictLabel,
+  detectDualDeletions,
+  filterDeleted,
+  purgePersistedTombstones,
+  removeTombstone,
+  tombstonesToDeletedIds,
+} from './deletion-tombstones';
+import { db } from './firebase-init';
+import type { FirebaseUser, SyncableData, SyncMetadata } from './useFirebase';
+import {
+  buildVersionMap,
+  deleteArchivedItems,
+  deleteMcHistoryItems,
+  deletePresets,
+  deleteQuestionHistoryItems,
+  deleteSavedSets,
   getDeltaSyncData,
   getRemoteHistoryCounts,
   isRemotePresetsArrayDifferent,
   loadChangedItems,
-  buildVersionMap,
-  signUpWithEmail,
-  signInWithEmail,
   loadUserData,
   migrateUserDataForCompaction,
-  deleteArchivedItems,
-  saveDailyUsage,
-  saveAnalyticsSummary,
-  upsertQuestionHistoryItems,
-  deleteQuestionHistoryItems,
-  upsertMcHistoryItems,
-  deleteMcHistoryItems,
-  upsertSavedSets,
-  deleteSavedSets,
+  onAuthChange,
   replacePresets,
-  upsertPresets,
-  deletePresets,
+  saveAnalyticsSummary,
+  saveDailyUsage,
+  saveUserData,
+  signInWithEmail,
+  signUpWithEmail,
   upsertGoals,
+  upsertMcHistoryItems,
+  upsertPresets,
+  upsertQuestionHistoryItems,
+  upsertSavedSets,
 } from './useFirebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase-init';
-import {
-  SyncConflict,
-  tombstonesToDeletedIds,
-  purgePersistedTombstones,
-  detectDualDeletions,
-  buildConflictLabel,
-  filterDeleted,
-  removeTombstone,
-} from './deletion-tombstones';
 
 // Helper to normalize remote SyncableData to local SyncableData
 function normalizeRemoteSyncableData(
@@ -70,7 +71,7 @@ function normalizeRemoteSyncableData(
     savedSets: Array.isArray(remote.savedSets)
       ? (remote.savedSets as SavedQuestionSet[])
       : [],
-    presets: Array.isArray(remote.presets) ? (remote.presets as Preset[]) : [],
+    presets: Array.isArray(remote.presets) ? remote.presets : [],
     studyGoals:
       remote.studyGoals && typeof remote.studyGoals === 'object'
         ? remote.studyGoals
@@ -274,7 +275,7 @@ function mergeStreakData(
 
 function mergeSyncableData(
   local: SyncableData | null,
-  remote: import('./useFirebase').SyncableData | null
+  remote: SyncableData | null
 ): SyncableData {
   const defaultData: SyncableData = {
     settings: {},
@@ -346,6 +347,7 @@ function mergeSyncableData(
   };
 }
 
+// eslint-disable-next-line complexity
 function hasRemoteData(data: SyncableData | null): boolean {
   if (!data) {
     return false;
@@ -758,6 +760,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     [addSyncEvent, persistQueue, patchTelemetry]
   );
 
+  // eslint-disable-next-line complexity
   const flushSyncQueue = useCallback(async () => {
     if (flushingQueueRef.current) return;
     if (!user || !isSyncEnabled || !isOnline || !isInitializedRef.current) {
@@ -976,39 +979,50 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       try {
         const raw = localStorage.getItem(IMMEDIATE_LOGS_KEY);
         if (!raw) return;
-        const arr = JSON.parse(raw) as any[];
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+        const arr = parsed as unknown[];
 
         const mapped = arr
           .slice()
           .reverse() // newest first
           .map((l, idx) => {
+            if (!l || typeof l !== 'object') return null;
+            const record = l as Record<string, unknown>;
             // Support both legacy immediate log shapes and the new compact shape
-            if (l && typeof l === 'object' && 'ts' in l && 'message' in l) {
-              const ts = typeof l.ts === 'number' ? l.ts : Date.now();
+            if ('ts' in record && 'message' in record) {
+              const ts = typeof record.ts === 'number' ? record.ts : Date.now();
+              const level =
+                typeof record.level === 'string' ? record.level : 'info';
               return {
                 id: `live-${idx}-${ts}`,
                 timestamp: ts,
-                message: `[LIVE ${String(l.level ?? 'info').toUpperCase()}] ${String(l.message)}`,
-                data: l,
+                message: `[LIVE ${level.toUpperCase()}] ${String(record.message)}`,
+                data: record,
               } as DebugLogEntry;
             }
             if (
-              l &&
-              typeof l === 'object' &&
-              typeof l.id === 'string' &&
-              typeof l.timestamp === 'number'
+              typeof record.id === 'string' &&
+              typeof record.timestamp === 'number'
             ) {
+              const collection =
+                typeof record.collection === 'string' ? record.collection : '';
+              const opType =
+                typeof record.opType === 'string' ? record.opType : '';
+              const status =
+                typeof record.status === 'string' ? record.status : '';
+              const message =
+                typeof record.message === 'string' ? record.message : '';
               return {
-                id: `immediate-${l.id}`,
-                timestamp: l.timestamp,
-                message: `${l.collection ?? ''} ${l.opType ?? ''} ${l.status ?? ''}$
-                  ${l.message ? ' - ' + l.message : ''}`,
-                data: l,
+                id: `immediate-${record.id}`,
+                timestamp: record.timestamp,
+                message: `${collection} ${opType} ${status}${message ? ' - ' + message : ''}`,
+                data: record,
               } as DebugLogEntry;
             }
             return null;
           })
-          .filter(Boolean) as DebugLogEntry[];
+          .filter((x): x is DebugLogEntry => x !== null);
 
         setDebugLogs((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
@@ -1018,7 +1032,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
         });
       } catch (e) {
         // don't fail the hook if parsing fails
-        // eslint-disable-next-line no-console
+
         console.warn('useFirebaseSync: failed to load immediate logs', e);
       }
     };
@@ -1111,6 +1125,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     cache.studyGoals = stableHash(current.studyGoals);
     cache.streakData = stableHash(current.streakData);
 
+    // eslint-disable-next-line complexity
     const unsubscribe = useAppStore.subscribe((state, prevState) => {
       if (!state.isHydrated || suppressAutoSaveRef.current) return;
 
@@ -1366,6 +1381,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
   }, []);
 
   const enableSync = useCallback(
+    // eslint-disable-next-line complexity
     async (email: string, password: string, isSignUp = false) => {
       debugLog('enableSync called', { email, isSignUp });
       setSyncError(null);
@@ -1517,14 +1533,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           syncMetadataRef.current.mcHistorySyncTime = now;
           syncMetadataRef.current.savedSetsSyncTime = now;
           syncMetadataRef.current.lastSyncVersions.questionHistory =
-            buildVersionMap(
-              merged.questionHistory as Array<Record<string, unknown>>
-            );
+            buildVersionMap(merged.questionHistory);
           syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-            merged.mcHistory as Array<Record<string, unknown>>
+            merged.mcHistory
           );
           syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-            merged.savedSets as Array<Record<string, unknown>>
+            merged.savedSets
           );
 
           // Set snapshot so pending changes shows 0 after initial merge
@@ -1573,10 +1587,14 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
 
           // Archive old items from Firestore after merge
           const qhKeepIds = new Set(
-            merged.questionHistory.map((item) => String(item.id ?? ''))
+            merged.questionHistory.map((item) =>
+              String(typeof item.id === 'string' ? item.id : '')
+            )
           );
           const mcKeepIds = new Set(
-            merged.mcHistory.map((item) => String(item.id ?? ''))
+            merged.mcHistory.map((item) =>
+              String(typeof item.id === 'string' ? item.id : '')
+            )
           );
           void deleteArchivedItems(userId, 'questionHistory', qhKeepIds).then(
             (deleted) => {
@@ -1606,16 +1624,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           syncMetadataRef.current.mcHistorySyncTime = now;
           syncMetadataRef.current.savedSetsSyncTime = now;
           syncMetadataRef.current.lastSyncVersions.questionHistory =
-            buildVersionMap(
-              localDataRef.current.questionHistory as Array<
-                Record<string, unknown>
-              >
-            );
+            buildVersionMap(localDataRef.current.questionHistory);
           syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-            localDataRef.current.mcHistory as Array<Record<string, unknown>>
+            localDataRef.current.mcHistory
           );
           syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-            localDataRef.current.savedSets as Array<Record<string, unknown>>
+            localDataRef.current.savedSets
           );
 
           // Full sync for first upload, including any pending deletions
@@ -1688,11 +1702,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     [debugLog, addSyncEvent, suppressAutoSaveTemporarily, patchTelemetry]
   );
 
-  const disableSync = useCallback(async () => {
+  const disableSync = useCallback(() => {
     setIsSyncEnabled(false);
     isInitializedRef.current = false;
     setSyncStatus('idle');
     addSyncEvent('upload', 'Disconnected from cloud sync');
+    return Promise.resolve();
   }, [addSyncEvent]);
 
   const toggleSync = useCallback(() => {
@@ -1708,6 +1723,7 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
     }
   }, [isSyncEnabled, user, addSyncEvent]);
 
+  // eslint-disable-next-line complexity
   const forceSync = useCallback(async () => {
     if (!user) {
       setSyncError('Not signed in');
@@ -1792,13 +1808,19 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           usedPartialRemoteSnapshot = true;
           const changed = await loadChangedItems(userId, changedByCollection);
           const changedQhIds = new Set(
-            changed.questionHistory.map((i) => String(i.id ?? ''))
+            changed.questionHistory.map((i) =>
+              String(typeof i.id === 'string' ? i.id : '')
+            )
           );
           const changedMcIds = new Set(
-            changed.mcHistory.map((i) => String(i.id ?? ''))
+            changed.mcHistory.map((i) =>
+              String(typeof i.id === 'string' ? i.id : '')
+            )
           );
           const changedSsIds = new Set(
-            changed.savedSets.map((i) => String(i.id ?? ''))
+            changed.savedSets.map((i) =>
+              String(typeof i.id === 'string' ? i.id : '')
+            )
           );
           for (const id of changedByCollection.questionHistory) {
             if (!changedQhIds.has(id)) remoteDeletedIds.questionHistory.add(id);
@@ -1817,8 +1839,11 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
             const presetsRef = doc(db, 'users', userId, 'settings', 'presets');
             const presetsSnap = await getDoc(presetsRef);
             if (presetsSnap.exists()) {
-              const data = presetsSnap.data();
-              remotePresets = Array.isArray(data.presets) ? data.presets : [];
+              const data = presetsSnap.data() as Record<string, unknown>;
+              const presets = data.presets;
+              remotePresets = Array.isArray(presets)
+                ? (presets as Preset[])
+                : [];
             }
           } catch (err) {
             console.warn(
@@ -1858,18 +1883,18 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       const detectedConflicts: SyncConflict[] = [];
       if (remoteHasData && !usedPartialRemoteSnapshot) {
         const remoteQhIds = new Set(
-          (remoteData?.questionHistory ?? []).map(
-            (i: Record<string, unknown>) => String(i.id ?? '')
+          (remoteData?.questionHistory ?? []).map((i) =>
+            String(typeof i.id === 'string' ? i.id : '')
           )
         );
         const remoteMcIds = new Set(
-          (remoteData?.mcHistory ?? []).map((i: Record<string, unknown>) =>
-            String(i.id ?? '')
+          (remoteData?.mcHistory ?? []).map((i) =>
+            String(typeof i.id === 'string' ? i.id : '')
           )
         );
         const remoteSsIds = new Set(
-          (remoteData?.savedSets ?? []).map((i: Record<string, unknown>) =>
-            String(i.id ?? '')
+          (remoteData?.savedSets ?? []).map((i) =>
+            String(typeof i.id === 'string' ? i.id : '')
           )
         );
 
@@ -1884,12 +1909,9 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
           Object.keys(syncMetadataRef.current.lastSyncVersions.savedSets)
         );
 
-        const localQhItems = localData.questionHistory as Record<
-          string,
-          unknown
-        >[];
-        const localMcItems = localData.mcHistory as Record<string, unknown>[];
-        const localSsItems = localData.savedSets as Record<string, unknown>[];
+        const localQhItems = localData.questionHistory;
+        const localMcItems = localData.mcHistory;
+        const localSsItems = localData.savedSets;
 
         // For each tombstone, check if the item is also absent from remote
         // Only flag conflict if the item was previously synced (not a create-then-delete-before-sync)
@@ -2172,14 +2194,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       syncMetadataRef.current.mcHistorySyncTime = now;
       syncMetadataRef.current.savedSetsSyncTime = now;
       syncMetadataRef.current.lastSyncVersions.questionHistory =
-        buildVersionMap(
-          merged.questionHistory as Array<Record<string, unknown>>
-        );
+        buildVersionMap(merged.questionHistory);
       syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        merged.mcHistory as Array<Record<string, unknown>>
+        merged.mcHistory
       );
       syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        merged.savedSets as Array<Record<string, unknown>>
+        merged.savedSets
       );
 
       // Update snapshot for pending change tracking
@@ -2313,14 +2333,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       syncMetadataRef.current.mcHistorySyncTime = now;
       syncMetadataRef.current.savedSetsSyncTime = now;
       syncMetadataRef.current.lastSyncVersions.questionHistory =
-        buildVersionMap(
-          merged.questionHistory as Array<Record<string, unknown>>
-        );
+        buildVersionMap(merged.questionHistory);
       syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        merged.mcHistory as Array<Record<string, unknown>>
+        merged.mcHistory
       );
       syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        merged.savedSets as Array<Record<string, unknown>>
+        merged.savedSets
       );
 
       // Use pulled snapshot as the newest known cloud-aligned baseline.
@@ -2427,14 +2445,12 @@ export function useFirebaseSync(): UseFirebaseSyncReturn {
       syncMetadataRef.current.mcHistorySyncTime = now;
       syncMetadataRef.current.savedSetsSyncTime = now;
       syncMetadataRef.current.lastSyncVersions.questionHistory =
-        buildVersionMap(
-          filteredLocalData.questionHistory as Array<Record<string, unknown>>
-        );
+        buildVersionMap(filteredLocalData.questionHistory);
       syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        filteredLocalData.mcHistory as Array<Record<string, unknown>>
+        filteredLocalData.mcHistory
       );
       syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        filteredLocalData.savedSets as Array<Record<string, unknown>>
+        filteredLocalData.savedSets
       );
 
       lastSyncedSnapshotRef.current = JSON.stringify(

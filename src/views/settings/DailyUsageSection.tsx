@@ -1,14 +1,20 @@
+import { BarChart2, Calendar, DollarSign, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
-import { Card, EmptyState } from './SettingsUI';
+
 import { cn, getDayKey } from '@/lib/utils';
-import { TrendingUp, DollarSign, BarChart2, Calendar } from 'lucide-react';
+import type { GenerationRecord } from '@/types';
+
+import type {
+  useMultipleChoiceSession,
+  useWrittenSession,
+} from '../../AppContext';
 import { fmt } from './formatters';
-import { useWrittenSession, useMultipleChoiceSession } from '../../AppContext';
+import { Card, EmptyState } from './SettingsUI';
 
 function computeDailyUsage(
   questionHistory: ReturnType<typeof useWrittenSession>['questionHistory'],
   mcHistory: ReturnType<typeof useMultipleChoiceSession>['mcHistory'],
-  generationHistory: any
+  generationHistory: GenerationRecord[]
 ) {
   const byDay = new Map<
     string,
@@ -45,7 +51,7 @@ export function DailyUsageSection({
 }: {
   questionHistory: ReturnType<typeof useWrittenSession>['questionHistory'];
   mcHistory: ReturnType<typeof useMultipleChoiceSession>['mcHistory'];
-  generationHistory: any;
+  generationHistory: GenerationRecord[];
 }) {
   const dailyData = useMemo(() => {
     const byDay = computeDailyUsage(

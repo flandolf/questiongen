@@ -1,21 +1,24 @@
 import {
+  collection,
+  deleteDoc,
   doc,
+  getCountFromServer,
   getDoc,
   getDocs,
-  getCountFromServer,
-  collection,
-  query,
-  orderBy,
-  limit,
-  serverTimestamp,
-  writeBatch,
-  setDoc,
-  deleteDoc,
   increment,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  type Timestamp,
+  writeBatch,
 } from 'firebase/firestore';
-import { db } from './firebase-init';
-import { type Preset } from '@/types';
+
 import { getDayKey } from '@/lib/utils';
+import { type Preset } from '@/types';
+
+import { db } from './firebase-init';
 
 export interface SyncableData {
   settings: Record<string, unknown>;
@@ -85,7 +88,7 @@ export function getChangedItems<
   },
 >(items: T[], lastSyncVersions: Record<string, number>): T[] {
   return items.filter((item) => {
-    if (!item.id) return false;
+    if (!item.id || typeof item.id !== 'string') return false;
     const itemModified = getItemLastModified(item as Record<string, unknown>);
     const lastKnownVersion = lastSyncVersions[item.id] ?? 0;
     return itemModified > lastKnownVersion;
@@ -202,7 +205,8 @@ async function withTimeout<T>(
       })
       .catch((error) => {
         window.clearTimeout(timeout);
-        reject(error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        reject(err);
       });
   });
 }
@@ -372,6 +376,7 @@ export async function getRemoteHistoryCounts(
   };
 }
 
+// eslint-disable-next-line complexity
 export async function getDeltaSyncData(
   userId: string,
   localData: SyncableData
@@ -383,7 +388,7 @@ export async function getDeltaSyncData(
   const checkCollection = async (
     type: 'questionHistory' | 'mcHistory' | 'savedSets'
   ) => {
-    const localItems = localData[type] as Record<string, unknown>[];
+    const localItems = localData[type];
 
     const collectionRef =
       type === 'savedSets'
@@ -413,14 +418,17 @@ export async function getDeltaSyncData(
         30000
       );
       snapshot.forEach((doc) => {
-        const data = doc.data();
+        const data = doc.data() as Record<string, unknown>;
         const remoteId = doc.id;
         remoteIds.add(remoteId);
         totalChecked++;
 
         const remoteLastMod =
-          typeof data._lastModified === 'object' && data._lastModified?.toMillis
-            ? data._lastModified.toMillis()
+          typeof data._lastModified === 'object' &&
+          data._lastModified !== null &&
+          'toMillis' in data._lastModified &&
+          typeof data._lastModified.toMillis === 'function'
+            ? (data._lastModified as Timestamp).toMillis()
             : typeof data.lastModified === 'number'
               ? data.lastModified
               : 0;
@@ -939,7 +947,7 @@ export async function upsertQuestionHistoryItems(
         const batch = writeBatch(db);
         let batchWrites = 0;
         for (const item of batchItems) {
-          if (!item.id) continue;
+          if (!item.id || typeof item.id !== 'string') continue;
           const compacted = compactQuestionHistoryEntry(item);
           const prepared = prepareQuestionHistoryEntryForFirestore(compacted);
           if (!prepared) continue;
@@ -1004,7 +1012,7 @@ export async function upsertMcHistoryItems(
         const batch = writeBatch(db);
         let batchWrites = 0;
         for (const item of batchItems) {
-          if (!item.id) continue;
+          if (!item.id || typeof item.id !== 'string') continue;
           const compacted = compactMcHistoryEntry(item);
           const prepared = prepareMcHistoryEntryForFirestore(compacted);
           if (!prepared) continue;
@@ -1064,7 +1072,7 @@ export async function upsertSavedSets(
     payload: Record<string, unknown>;
   }> = [];
   for (const item of items) {
-    if (!item.id) continue;
+    if (!item.id || typeof item.id !== 'string') continue;
     const compacted = compactSavedSet(item);
     const prepared = prepareSavedSetForFirestore(compacted);
     if (!prepared) continue;
@@ -1227,6 +1235,7 @@ export async function upsertGoals(
   );
 }
 
+// eslint-disable-next-line complexity
 export async function saveUserData(
   userId: string,
   data: SyncableData,
@@ -1409,8 +1418,8 @@ export async function saveUserData(
               let batchWrites = 0;
 
               for (const item of batchItems) {
-                if (!item.id) continue;
-                const docRef = doc(historyRef, item.id as string);
+                if (!item.id || typeof item.id !== 'string') continue;
+                const docRef = doc(historyRef, item.id);
                 const compacted = compactQuestionHistoryEntry(item);
                 const prepared =
                   prepareQuestionHistoryEntryForFirestore(compacted);
@@ -1461,8 +1470,8 @@ export async function saveUserData(
               let batchWrites = 0;
 
               for (const item of batchItems) {
-                if (!item.id) continue;
-                const docRef = doc(historyRef, item.id as string);
+                if (!item.id || typeof item.id !== 'string') continue;
+                const docRef = doc(historyRef, item.id);
                 const compacted = compactMcHistoryEntry(item);
                 const prepared = prepareMcHistoryEntryForFirestore(compacted);
                 if (!prepared) {
@@ -1507,7 +1516,7 @@ export async function saveUserData(
           payload: Record<string, unknown>;
         }> = [];
         for (const item of savedSetsToSave) {
-          if (!item.id) continue;
+          if (!item.id || typeof item.id !== 'string') continue;
           const compacted = compactSavedSet(item);
           const prepared = prepareSavedSetForFirestore(compacted);
           if (!prepared) {
@@ -1593,8 +1602,8 @@ export async function loadUserData(
   };
 
   if (settingsSnapshot.exists()) {
-    const data = settingsSnapshot.data();
-    result.settings = data.settings || {};
+    const data = settingsSnapshot.data() as Record<string, unknown>;
+    result.settings = (data.settings as Record<string, unknown>) || {};
   }
 
   const goalsRef = doc(db, 'users', userId, 'settings', 'goals');
@@ -1634,7 +1643,7 @@ export async function loadUserData(
       withTimeout(getDoc(goalsRef), 'loading goals data')
         .then((snap) => {
           if (!snap.exists()) return { studyGoals: null, streakData: null };
-          const data = snap.data();
+          const data = snap.data() as Record<string, unknown>;
           return {
             studyGoals:
               typeof data.studyGoals === 'object' &&
@@ -1652,12 +1661,13 @@ export async function loadUserData(
         })
         .catch(() => ({ studyGoals: null, streakData: null })),
       withTimeout(getDoc(presetsRef), 'loading preset settings data')
-        .then((snap) => {
+        .then((snap): Preset[] => {
           if (!snap.exists()) return [];
-          const data = snap.data();
-          return Array.isArray(data.presets) ? data.presets : [];
+          const data = snap.data() as Record<string, unknown>;
+          const presets = Array.isArray(data.presets) ? data.presets : [];
+          return presets as Preset[];
         })
-        .catch(() => []),
+        .catch((): Preset[] => []),
     ]);
 
   qhSnapshot.forEach((doc) => {
@@ -1678,8 +1688,10 @@ export async function loadUserData(
     result.savedSets.push(inflateSavedSet(data));
   });
 
-  if (goalsResult.studyGoals) result.studyGoals = goalsResult.studyGoals;
-  if (goalsResult.streakData) result.streakData = goalsResult.streakData;
+  if (goalsResult.studyGoals)
+    result.studyGoals = goalsResult.studyGoals as Record<string, unknown>;
+  if (goalsResult.streakData)
+    result.streakData = goalsResult.streakData as Record<string, unknown>;
   if (presetsSnap.length > 0) result.presets = presetsSnap;
 
   const elapsed = Date.now() - startTime;
@@ -1793,7 +1805,8 @@ export async function migrateUserDataForCompaction(
   );
 
   const rawVersion = settingsSnapshot.exists()
-    ? settingsSnapshot.data()?._syncCompactionVersion
+    ? (settingsSnapshot.data() as Record<string, unknown>)
+        ?._syncCompactionVersion
     : undefined;
   const fromVersion =
     typeof rawVersion === 'number' && Number.isFinite(rawVersion)

@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react';
+
 import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
 import { useAppStore } from '../store';
-import { McHistoryEntry, QuestionHistoryEntry } from '../types';
+import type {
+  GenerationRecord,
+  McHistoryEntry,
+  QuestionHistoryEntry,
+} from '../types';
 
 const UNSPECIFIED_SUBTOPIC = 'Unspecified';
 export const ALL_TOPICS = 'All topics';
@@ -69,6 +74,29 @@ export type CriterionWeakPointRow = {
   lastSeenAt: string;
 };
 
+interface TopicAccumulator {
+  sampleCount: number;
+  correct: number;
+  durationTotal: number;
+  durationCount: number;
+  distinctnessTotal: number;
+  distinctnessCount: number;
+  depthTotal: number;
+  depthCount: number;
+  costTotal: number;
+  costCount: number;
+  questionCount: number;
+}
+
+interface BucketUpdateData {
+  isCorrect?: boolean;
+  durationMs?: number;
+  distinctness?: number;
+  depth?: number;
+  questionCount?: number;
+  cost?: number;
+}
+
 function normalizeSubtopic(subtopic?: string) {
   const cleaned = subtopic?.trim();
   return cleaned && cleaned.length > 0 ? cleaned : UNSPECIFIED_SUBTOPIC;
@@ -106,6 +134,117 @@ function wordBucketLabel(wordCount: number) {
 function normalizeCriterionLabel(value: string) {
   const cleaned = value.trim().replace(/\s+/g, ' ');
   return cleaned.length > 0 ? cleaned : 'Unnamed criterion';
+}
+
+/**
+ * Managed bucket updates with strict typing to resolve @typescript-eslint warnings.
+ */
+function updateBucket(
+  bucketByTopic: Map<string, TopicAccumulator>,
+  topic: string,
+  data: BucketUpdateData
+): void {
+  const bucket = bucketByTopic.get(topic) ?? {
+    sampleCount: 0,
+    correct: 0,
+    durationTotal: 0,
+    durationCount: 0,
+    distinctnessTotal: 0,
+    distinctnessCount: 0,
+    depthTotal: 0,
+    depthCount: 0,
+    costTotal: 0,
+    costCount: 0,
+    questionCount: 0,
+  };
+
+  if (data.isCorrect !== undefined) {
+    bucket.sampleCount += 1;
+    if (data.isCorrect) bucket.correct += 1;
+  }
+
+  if (data.durationMs !== undefined) {
+    bucket.durationTotal += data.durationMs;
+    bucket.durationCount += 1;
+  }
+
+  if (data.distinctness !== undefined) {
+    bucket.distinctnessTotal += data.distinctness;
+    bucket.distinctnessCount += 1;
+  }
+
+  if (data.depth !== undefined) {
+    bucket.depthTotal += data.depth;
+    bucket.depthCount += 1;
+  }
+
+  if (data.questionCount !== undefined) {
+    bucket.questionCount += data.questionCount;
+    if (data.cost !== undefined) {
+      bucket.costTotal += data.cost;
+      bucket.costCount += data.questionCount;
+    }
+  }
+
+  bucketByTopic.set(topic, bucket);
+}
+
+/**
+ * Computes QualityRow metrics by aggregating multiple history sources.
+ */
+function computeQualityRows(
+  questionHistory: QuestionHistoryEntry[],
+  mcHistory: McHistoryEntry[],
+  generationHistory: GenerationRecord[]
+): QualityRow[] {
+  const bucketByTopic = new Map<string, TopicAccumulator>();
+
+  questionHistory.forEach((entry) => {
+    updateBucket(bucketByTopic, entry.question.topic, {
+      isCorrect: entry.markResponse.verdict.toLowerCase() === 'correct',
+      durationMs: entry.generationTelemetry?.durationMs,
+      distinctness: entry.question.distinctnessScore,
+      depth: entry.question.multiStepDepth,
+    });
+  });
+
+  mcHistory.forEach((entry) => {
+    updateBucket(bucketByTopic, entry.question.topic, {
+      isCorrect: entry.correct ?? false,
+      durationMs: entry.generationTelemetry?.durationMs,
+      distinctness: entry.question.distinctnessScore,
+      depth: entry.question.multiStepDepth,
+    });
+  });
+
+  generationHistory.forEach((record) => {
+    updateBucket(bucketByTopic, record.inputs.topic, {
+      questionCount: record.inputs.questionCount,
+      distinctness: record.outputs?.distinctnessAvg,
+      depth: record.outputs?.multiStepDepthAvg,
+      cost: record.outputs?.estimatedCostUsd,
+    });
+  });
+
+  return Array.from(bucketByTopic.entries())
+    .map(([topic, bucket]) => ({
+      topic,
+      sampleCount: bucket.sampleCount,
+      accuracy: percent(bucket.correct, bucket.sampleCount),
+      avgDurationSeconds:
+        average(bucket.durationTotal, bucket.durationCount) / 1000,
+      distinctnessAvg:
+        bucket.distinctnessCount > 0
+          ? average(bucket.distinctnessTotal, bucket.distinctnessCount)
+          : undefined,
+      multiStepDepthAvg:
+        bucket.depthCount > 0
+          ? average(bucket.depthTotal, bucket.depthCount)
+          : undefined,
+      avgCostPerQuestion:
+        bucket.costCount > 0 ? bucket.costTotal / bucket.costCount : undefined,
+    }))
+    .sort((a, b) => a.topic.localeCompare(b.topic));
 }
 
 export function useAnalyticsData() {
@@ -646,124 +785,12 @@ export function useAnalyticsData() {
       .sort((a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts);
   }, [writtenAttempts]);
 
-  const qualityRows = useMemo<QualityRow[]>(() => {
-    const bucketByTopic = new Map<
-      string,
-      {
-        sampleCount: number;
-        correct: number;
-        durationTotal: number;
-        durationCount: number;
-        distinctnessTotal: number;
-        distinctnessCount: number;
-        depthTotal: number;
-        depthCount: number;
-        costTotal: number;
-        costCount: number;
-        questionCount: number;
-      }
-    >();
-
-    const getBucket = (topic: string) => {
-      const existing = bucketByTopic.get(topic);
-      if (existing) return existing;
-      const fresh = {
-        sampleCount: 0,
-        correct: 0,
-        durationTotal: 0,
-        durationCount: 0,
-        distinctnessTotal: 0,
-        distinctnessCount: 0,
-        depthTotal: 0,
-        depthCount: 0,
-        costTotal: 0,
-        costCount: 0,
-        questionCount: 0,
-      };
-      bucketByTopic.set(topic, fresh);
-      return fresh;
-    };
-
-    for (const entry of questionHistory) {
-      const bucket = getBucket(entry.question.topic);
-      bucket.sampleCount += 1;
-      bucket.correct +=
-        entry.markResponse.verdict.toLowerCase() === 'correct' ? 1 : 0;
-      if (entry.generationTelemetry?.durationMs !== undefined) {
-        bucket.durationTotal += entry.generationTelemetry.durationMs;
-        bucket.durationCount += 1;
-      }
-      if (entry.question.distinctnessScore !== undefined) {
-        bucket.distinctnessTotal += entry.question.distinctnessScore;
-        bucket.distinctnessCount += 1;
-      }
-      if (entry.question.multiStepDepth !== undefined) {
-        bucket.depthTotal += entry.question.multiStepDepth;
-        bucket.depthCount += 1;
-      }
-    }
-
-    for (const entry of mcHistory) {
-      const bucket = getBucket(entry.question.topic);
-      bucket.sampleCount += 1;
-      bucket.correct += (entry.correct ?? false) ? 1 : 0;
-      if (entry.generationTelemetry?.durationMs !== undefined) {
-        bucket.durationTotal += entry.generationTelemetry.durationMs;
-        bucket.durationCount += 1;
-      }
-      if (entry.question.distinctnessScore !== undefined) {
-        bucket.distinctnessTotal += entry.question.distinctnessScore;
-        bucket.distinctnessCount += 1;
-      }
-      if (entry.question.multiStepDepth !== undefined) {
-        bucket.depthTotal += entry.question.multiStepDepth;
-        bucket.depthCount += 1;
-      }
-    }
-
-    for (const record of generationHistory) {
-      const topic = record.inputs.topic;
-      const bucket = getBucket(topic);
-      bucket.questionCount += record.inputs.questionCount;
-      if (record.outputs?.distinctnessAvg !== undefined) {
-        bucket.distinctnessTotal += record.outputs.distinctnessAvg;
-        bucket.distinctnessCount += 1;
-      }
-      if (record.outputs?.multiStepDepthAvg !== undefined) {
-        bucket.depthTotal += record.outputs.multiStepDepthAvg;
-        bucket.depthCount += 1;
-      }
-      if (
-        record.outputs?.estimatedCostUsd !== undefined &&
-        record.inputs.questionCount > 0
-      ) {
-        bucket.costTotal += record.outputs.estimatedCostUsd;
-        bucket.costCount += record.inputs.questionCount;
-      }
-    }
-
-    return Array.from(bucketByTopic.entries())
-      .map(([topic, bucket]) => ({
-        topic,
-        sampleCount: bucket.sampleCount,
-        accuracy: percent(bucket.correct, bucket.sampleCount),
-        avgDurationSeconds:
-          average(bucket.durationTotal, bucket.durationCount) / 1000,
-        distinctnessAvg:
-          bucket.distinctnessCount > 0
-            ? average(bucket.distinctnessTotal, bucket.distinctnessCount)
-            : undefined,
-        multiStepDepthAvg:
-          bucket.depthCount > 0
-            ? average(bucket.depthTotal, bucket.depthCount)
-            : undefined,
-        avgCostPerQuestion:
-          bucket.costCount > 0
-            ? bucket.costTotal / bucket.costCount
-            : undefined,
-      }))
-      .sort((a, b) => a.topic.localeCompare(b.topic));
-  }, [mcHistory, questionHistory, generationHistory]);
+  const qualityRows = useMemo<QualityRow[]>(
+    () =>
+      // Now computeQualityRows is a stable reference from the module scope
+      computeQualityRows(questionHistory, mcHistory, generationHistory),
+    [mcHistory, questionHistory, generationHistory]
+  );
 
   const lowestScoringWritten = useMemo(() => {
     return [...writtenAttempts]
@@ -777,6 +804,38 @@ export function useAnalyticsData() {
 
   // Early/recent accuracy splits for delta KPI badges
   // Split all attempts in half; compute accuracy for each half
+  // helper functions extracted to reduce complexity of the useMemo below
+  const calcOverall = (arr: AttemptRow[]) =>
+    arr.length > 0
+      ? percent(arr.filter((a) => a.isCorrect).length, arr.length)
+      : null;
+
+  const calcFirstAttempt = (arr: AttemptRow[]) => {
+    const fa = arr.filter((a) => a.isFirstAttempt);
+    return fa.length > 0
+      ? percent(fa.filter((a) => a.isCorrect).length, fa.length)
+      : null;
+  };
+
+  const calcWrittenAvg = (arr: AttemptRow[]) => {
+    const w = arr.filter((a) => a.mode === 'written' && a.isFirstAttempt);
+    return w.length > 0
+      ? average(
+          w.reduce((s, a) => s + a.scorePercent, 0),
+          w.length
+        )
+      : null;
+  };
+
+  const calcMc = (arr: AttemptRow[]) => {
+    const mc = arr.filter(
+      (a) => a.mode === 'multiple-choice' && a.isFirstAttempt
+    );
+    return mc.length > 0
+      ? percent(mc.filter((a) => a.isCorrect).length, mc.length)
+      : null;
+  };
+
   const {
     earlyOverallAccuracy,
     recentOverallAccuracy,
@@ -802,34 +861,6 @@ export function useAnalyticsData() {
     const half = Math.floor(allAttempts.length / 2);
     const early = allAttempts.slice(0, half);
     const recent = allAttempts.slice(half);
-
-    const calcOverall = (arr: AttemptRow[]) =>
-      arr.length > 0
-        ? percent(arr.filter((a) => a.isCorrect).length, arr.length)
-        : null;
-    const calcFirstAttempt = (arr: AttemptRow[]) => {
-      const fa = arr.filter((a) => a.isFirstAttempt);
-      return fa.length > 0
-        ? percent(fa.filter((a) => a.isCorrect).length, fa.length)
-        : null;
-    };
-    const calcWrittenAvg = (arr: AttemptRow[]) => {
-      const w = arr.filter((a) => a.mode === 'written' && a.isFirstAttempt);
-      return w.length > 0
-        ? average(
-            w.reduce((s, a) => s + a.scorePercent, 0),
-            w.length
-          )
-        : null;
-    };
-    const calcMc = (arr: AttemptRow[]) => {
-      const mc = arr.filter(
-        (a) => a.mode === 'multiple-choice' && a.isFirstAttempt
-      );
-      return mc.length > 0
-        ? percent(mc.filter((a) => a.isCorrect).length, mc.length)
-        : null;
-    };
 
     return {
       earlyOverallAccuracy: calcOverall(early),
