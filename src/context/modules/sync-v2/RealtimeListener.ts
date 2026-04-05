@@ -30,9 +30,25 @@ export interface ChangeEvent {
   data: Record<string, unknown> | null;
   type: ChangeType;
   shardKey?: ShardKey;
+  lastModified?: number;
 }
 
 type ChangeCallback = (events: ChangeEvent[]) => void;
+
+function toMillisValue(value: unknown): number {
+  if (!value || typeof value !== 'object') return 0;
+  const maybeTimestamp = value as { toMillis?: () => number };
+  if (typeof maybeTimestamp.toMillis === 'function') {
+    return maybeTimestamp.toMillis();
+  }
+  return 0;
+}
+
+function extractLastModified(raw: Record<string, unknown>): number {
+  const fromTimestamp = toMillisValue(raw._lastModified);
+  if (fromTimestamp > 0) return fromTimestamp;
+  return typeof raw.lastModified === 'number' ? raw.lastModified : 0;
+}
 
 // ─── Listener Manager ─────────────────────────────────────────────────────────
 
@@ -143,13 +159,25 @@ export class RealtimeListener {
         const events: ChangeEvent[] = [];
         snapshot.docChanges().forEach((change) => {
           if (change.doc.id === docId) {
-            const data = change.doc.data();
+            const raw = change.doc.data();
+            const lm = (() => {
+              try {
+                return extractLastModified(raw as Record<string, unknown>);
+              } catch {
+                return 0;
+              }
+            })();
+            const data = { ...(raw as Record<string, unknown>) } as Record<
+              string,
+              unknown
+            >;
             delete data._lastModified;
             events.push({
               collection: 'settings',
               docId: change.doc.id,
               data: change.type === 'removed' ? null : data,
               type: change.type as ChangeType,
+              lastModified: lm,
             });
           }
         });
@@ -168,13 +196,26 @@ export class RealtimeListener {
   ): void {
     const events: ChangeEvent[] = [];
     snapshot.docChanges().forEach((change) => {
-      const data = change.doc.data();
+      const raw = change.doc.data();
+      // extract numeric lastModified where possible
+      const lm = (() => {
+        try {
+          return extractLastModified(raw as Record<string, unknown>);
+        } catch {
+          return 0;
+        }
+      })();
+      const data = { ...(raw as Record<string, unknown>) } as Record<
+        string,
+        unknown
+      >;
       delete data._lastModified;
       events.push({
         collection: collectionName,
         docId: change.doc.id,
         data: change.type === 'removed' ? null : data,
         type: change.type as ChangeType,
+        lastModified: lm,
       });
     });
     if (events.length > 0) this.enqueueEvents(events);
