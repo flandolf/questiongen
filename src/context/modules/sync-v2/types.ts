@@ -91,9 +91,19 @@ export interface SyncTelemetry {
   deltaNoChangePasses: number;
   fullSyncReads: number;
   retryCount: number;
+  retryAttemptsCurrent: number;
+  retryMaxAttempts: number;
+  retryBlocked: boolean;
+  nextRetryAt: number | null;
   estimatedWritesAvoided: number;
   estimatedReadsAvoided: number;
 }
+
+export type ManualSyncCollection =
+  | 'questionHistory'
+  | 'mcHistory'
+  | 'savedSets'
+  | 'presets';
 
 // ─── Conflicts ────────────────────────────────────────────────────────────────
 

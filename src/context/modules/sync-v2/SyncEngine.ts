@@ -295,6 +295,10 @@ export class SyncEngine {
     deltaNoChangePasses: 0,
     fullSyncReads: 0,
     retryCount: 0,
+    retryAttemptsCurrent: 0,
+    retryMaxAttempts: 5,
+    retryBlocked: false,
+    nextRetryAt: null,
     estimatedWritesAvoided: 0,
     estimatedReadsAvoided: 0,
   };
@@ -306,6 +310,8 @@ export class SyncEngine {
   private initialized = false;
   private getState: (() => SyncableData) | null = null;
   private getTombstones: (() => DeletionTombstones) | null = null;
+  private readonly onlineHandler: () => void;
+  private readonly offlineHandler: () => void;
 
   constructor(
     getState: () => SyncableData,
@@ -316,8 +322,10 @@ export class SyncEngine {
     this.getTombstones = getTombstones;
     this.tombstones = getTombstones();
 
-    window.addEventListener('online', () => this.handleOnline());
-    window.addEventListener('offline', () => this.handleOffline());
+    this.onlineHandler = () => this.handleOnline();
+    this.offlineHandler = () => this.handleOffline();
+    window.addEventListener('online', this.onlineHandler);
+    window.addEventListener('offline', this.offlineHandler);
   }
 
   onTelemetryChange(cb: (t: SyncTelemetry) => void): () => void {
@@ -421,6 +429,10 @@ export class SyncEngine {
   async forceSync(): Promise<void> {
     await this.push();
     await this.pull();
+  }
+
+  retryNow(): void {
+    this.queueManager?.retryNow();
   }
 
   // ─── Conflict Resolution ────────────────────────────────────────────────────
@@ -882,8 +894,8 @@ export class SyncEngine {
 
   destroy(): void {
     this.stop();
-    window.removeEventListener('online', () => this.handleOnline());
-    window.removeEventListener('offline', () => this.handleOffline());
+    window.removeEventListener('online', this.onlineHandler);
+    window.removeEventListener('offline', this.offlineHandler);
     this.dataCallbacks.clear();
     this.eventCallbacks.clear();
     this.statusCallbacks.clear();

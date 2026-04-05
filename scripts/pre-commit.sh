@@ -1,8 +1,29 @@
 #!/bin/zsh
 
-# Bump version code
+# Exit on error, unset variables, and pipe failures
+set -euo pipefail
+
+# Ensure we're in the project root directory
+cd "$(git rev-parse --show-toplevel)"
+
+# Check if bun is available
+if ! command -v bun &> /dev/null; then
+    echo "Error: bun is not installed or not in PATH"
+    exit 1
+fi
+
+echo "🔄 Running pre-commit checks..."
+
+echo "📦 Bumping version code..."
 bun run scripts/version.ts
 
-bunx prettier . --write
+echo "💅 Formatting code with Prettier..."
+bun run prettier
 
+echo "🔧 Fixing linting issues..."
 bun run lint:fix
+
+echo "✅ Running typecheck..."
+bun run typecheck
+
+echo "🎉 All pre-commit checks passed!"

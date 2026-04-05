@@ -98,6 +98,10 @@ export class QueueManager {
     deltaNoChangePasses: 0,
     fullSyncReads: 0,
     retryCount: 0,
+    retryAttemptsCurrent: 0,
+    retryMaxAttempts: this.config.retryMaxAttempts,
+    retryBlocked: false,
+    nextRetryAt: null,
     estimatedWritesAvoided: 0,
     estimatedReadsAvoided: 0,
   };
@@ -118,7 +122,7 @@ export class QueueManager {
     this.onTelemetryChange = onTelemetryChange;
     this.onQueueChange = onQueueChange;
     this.onQueueChange(this.queue.operations.length);
-    this.onTelemetryChange({ ...this.telemetry });
+    this.emitTelemetry();
   }
 
   get pendingCount(): number {
@@ -131,6 +135,10 @@ export class QueueManager {
 
   getTelemetry(): SyncTelemetry {
     return { ...this.telemetry };
+  }
+
+  get canRetry(): boolean {
+    return this.telemetry.retryBlocked;
   }
 
   enqueue(
@@ -152,7 +160,7 @@ export class QueueManager {
     this.queue = next;
     this.persist();
     this.telemetry.queuedOpsTotal += 1;
-    this.onTelemetryChange({ ...this.telemetry });
+    this.emitTelemetry();
     this.onQueueChange(this.queue.operations.length);
   }
 
@@ -165,7 +173,7 @@ export class QueueManager {
     this.queue = next;
     this.persist();
     this.telemetry.queuedOpsTotal += ops.length;
-    this.onTelemetryChange({ ...this.telemetry });
+    this.emitTelemetry();
     this.onQueueChange(this.queue.operations.length);
   }
 
@@ -187,12 +195,21 @@ export class QueueManager {
       this.queue = { operations: [], updatedAt: Date.now() };
       this.persist();
       this.telemetry.flushCount += 1;
-      this.onTelemetryChange({ ...this.telemetry });
+      this.telemetry.retryAttemptsCurrent = 0;
+      this.telemetry.retryBlocked = false;
+      this.telemetry.nextRetryAt = null;
+      this.emitTelemetry();
       this.onQueueChange(0);
     } catch {
       this.telemetry.retryCount += 1;
-      this.onTelemetryChange({ ...this.telemetry });
-      this.scheduleRetry();
+      this.telemetry.retryAttemptsCurrent += 1;
+      if (this.telemetry.retryAttemptsCurrent >= this.config.retryMaxAttempts) {
+        this.telemetry.retryBlocked = true;
+        this.telemetry.nextRetryAt = null;
+        this.emitTelemetry();
+      } else {
+        this.scheduleRetry();
+      }
     } finally {
       this.flushing = false;
     }
@@ -225,14 +242,31 @@ export class QueueManager {
       this.retryTimer = null;
     }
     this.queue = EMPTY_QUEUE;
+    this.telemetry.retryAttemptsCurrent = 0;
+    this.telemetry.retryBlocked = false;
+    this.telemetry.nextRetryAt = null;
     this.persist();
+    this.emitTelemetry();
     this.onQueueChange(0);
   }
 
   updateUserId(newUserId: string): void {
     this.userId = newUserId;
     this.queue = readPersistedQueue(newUserId);
+    this.telemetry.retryAttemptsCurrent = 0;
+    this.telemetry.retryBlocked = false;
+    this.telemetry.nextRetryAt = null;
+    this.emitTelemetry();
     this.onQueueChange(this.queue.operations.length);
+  }
+
+  retryNow(): void {
+    if (this.queue.operations.length === 0) return;
+    this.telemetry.retryAttemptsCurrent = 0;
+    this.telemetry.retryBlocked = false;
+    this.telemetry.nextRetryAt = null;
+    this.emitTelemetry();
+    void this.flush();
   }
 
   private persist(): void {
@@ -248,10 +282,19 @@ export class QueueManager {
         jitter,
       this.config.retryMaxDelayMs
     );
+    this.telemetry.nextRetryAt = Date.now() + delay;
+    this.emitTelemetry();
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null;
+      this.telemetry.nextRetryAt = null;
+      this.emitTelemetry();
       void this.flush();
     }, delay);
+  }
+
+  private emitTelemetry(): void {
+    this.telemetry.retryMaxAttempts = this.config.retryMaxAttempts;
+    this.onTelemetryChange({ ...this.telemetry });
   }
 
   destroy(): void {

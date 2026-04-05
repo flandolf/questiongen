@@ -41,6 +41,7 @@ import type {
 import type {
   DebugLogEntry,
   DeletionTombstones,
+  ManualSyncCollection,
   SyncableData as SyncableDataV2,
   SyncEvent,
   SyncStatus,
@@ -51,6 +52,7 @@ const SYNC_DEBUG = true;
 const DEBUG_LOG_LIMIT = 50;
 const SYNC_EVENT_LIMIT = 30;
 const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
+const SYNC_ENABLED_USER_STORAGE_KEY_PREFIX = 'firebase_sync_enabled_v2';
 const FOREGROUND_SYNC_COOLDOWN_MS = 60_000;
 const LEGACY_SYNC_QUEUE_STORAGE_KEY = 'firebase_sync_queue_v1';
 
@@ -66,8 +68,14 @@ function cleanupLegacyStorage(): void {
   }
 }
 
-function readPersistedSyncEnabled(): boolean {
+function readPersistedSyncEnabled(userId?: string): boolean {
   try {
+    if (userId) {
+      const userStored = localStorage.getItem(
+        `${SYNC_ENABLED_USER_STORAGE_KEY_PREFIX}:${userId}`
+      );
+      if (userStored !== null) return userStored === 'true';
+    }
     const stored = localStorage.getItem(SYNC_ENABLED_STORAGE_KEY);
     if (stored === null) return true;
     return stored === 'true';
@@ -76,8 +84,15 @@ function readPersistedSyncEnabled(): boolean {
   }
 }
 
-function writePersistedSyncEnabled(enabled: boolean): void {
+function writePersistedSyncEnabled(enabled: boolean, userId?: string): void {
   try {
+    if (userId) {
+      localStorage.setItem(
+        `${SYNC_ENABLED_USER_STORAGE_KEY_PREFIX}:${userId}`,
+        String(enabled)
+      );
+      return;
+    }
     localStorage.setItem(SYNC_ENABLED_STORAGE_KEY, String(enabled));
   } catch {
     /* non-fatal */
@@ -106,6 +121,40 @@ function hasRemoteDataCheck(data: SyncableDataV2 | null): boolean {
   return objectSections.some((section) =>
     Boolean(section && Object.keys(section).length > 0)
   );
+}
+
+function createEmptySyncableData(): SyncableDataV2 {
+  return {
+    settings: {},
+    questionHistory: [],
+    mcHistory: [],
+    savedSets: [],
+    presets: [],
+  };
+}
+
+function buildDeletedIdsForCollection(
+  tombstones: DeletionTombstones,
+  collection: ManualSyncCollection
+) {
+  return {
+    questionHistory:
+      collection === 'questionHistory'
+        ? Object.keys(tombstones.questionHistory)
+        : [],
+    mcHistory:
+      collection === 'mcHistory' ? Object.keys(tombstones.mcHistory) : [],
+    savedSets:
+      collection === 'savedSets' ? Object.keys(tombstones.savedSets) : [],
+    presets: collection === 'presets' ? Object.keys(tombstones.presets) : [],
+  };
+}
+
+function collectionLabel(collection: ManualSyncCollection): string {
+  if (collection === 'questionHistory') return 'Question History';
+  if (collection === 'mcHistory') return 'Multiple Choice History';
+  if (collection === 'savedSets') return 'Saved Sets';
+  return 'Presets';
 }
 
 function normalizeRemoteSyncableData(
@@ -289,7 +338,10 @@ export interface UseFirebaseSyncReturn {
   toggleSync: () => void;
   pullSync: () => Promise<void>;
   pushSync: () => Promise<void>;
+  pullCollectionSync: (collection: ManualSyncCollection) => Promise<void>;
+  pushCollectionSync: (collection: ManualSyncCollection) => Promise<void>;
   forceSync: () => Promise<void>;
+  retryQueuedOpsNow: () => void;
   resolveConflicts: (resolutions: Map<string, 'keep' | 'delete'>) => void;
 }
 
@@ -318,6 +370,10 @@ export function useSyncV2(): UseFirebaseSyncReturn {
     deltaNoChangePasses: 0,
     fullSyncReads: 0,
     retryCount: 0,
+    retryAttemptsCurrent: 0,
+    retryMaxAttempts: 5,
+    retryBlocked: false,
+    nextRetryAt: null,
     estimatedWritesAvoided: 0,
     estimatedReadsAvoided: 0,
   });
@@ -385,8 +441,8 @@ export function useSyncV2(): UseFirebaseSyncReturn {
   }, []);
 
   useEffect(() => {
-    writePersistedSyncEnabled(isSyncEnabled);
-  }, [isSyncEnabled]);
+    writePersistedSyncEnabled(isSyncEnabled, user?.uid);
+  }, [isSyncEnabled, user?.uid]);
 
   // One-time cleanup of legacy v1 storage on mount
   useEffect(() => {
@@ -422,9 +478,9 @@ export function useSyncV2(): UseFirebaseSyncReturn {
         engineRef.current?.destroy();
         engineRef.current = null;
       } else {
-        const persisted = readPersistedSyncEnabled();
+        const persisted = readPersistedSyncEnabled(firebaseUser.uid);
         debugLog('Persisted sync preference:', persisted);
-        if (persisted) setIsSyncEnabled(true);
+        setIsSyncEnabled(persisted);
       }
       setIsLoading(false);
     });
@@ -1238,6 +1294,214 @@ export function useSyncV2(): UseFirebaseSyncReturn {
     }
   }, [user, debugLog, addSyncEvent]);
 
+  const pullCollectionSync = useCallback(
+    async (collection: ManualSyncCollection) => {
+      if (!user) {
+        setSyncError('Not signed in');
+        return;
+      }
+
+      debugLog('Manual collection pull started', { collection });
+      setIsSyncing(true);
+      setSyncStatus('syncing');
+      toast.message(`Pulling ${collectionLabel(collection)}...`);
+
+      try {
+        const state = useAppStore.getState();
+        const localData = extractSyncableData(state);
+        const tombstones = state.deletionTombstones;
+        const remoteData = normalizeRemoteSyncableData(
+          await loadUserData(getUserId(user))
+        );
+        setSyncTelemetry((prev) => ({
+          ...prev,
+          fullSyncReads: prev.fullSyncReads + 1,
+        }));
+
+        const base = {
+          ...localData,
+          questionHistory: filterDeleted(
+            localData.questionHistory,
+            tombstones.questionHistory
+          ),
+          mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
+          savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
+          presets: filterDeleted(localData.presets ?? [], tombstones.presets),
+        };
+
+        const source = remoteData ?? createEmptySyncableData();
+        let merged: SyncableDataV2 = base;
+
+        if (collection === 'questionHistory') {
+          merged = {
+            ...base,
+            questionHistory: filterDeleted(
+              source.questionHistory,
+              tombstones.questionHistory
+            ),
+          };
+        } else if (collection === 'mcHistory') {
+          merged = {
+            ...base,
+            mcHistory: filterDeleted(source.mcHistory, tombstones.mcHistory),
+          };
+        } else if (collection === 'savedSets') {
+          merged = {
+            ...base,
+            savedSets: filterDeleted(source.savedSets, tombstones.savedSets),
+          };
+        } else {
+          merged = {
+            ...base,
+            presets: filterDeleted(source.presets ?? [], tombstones.presets),
+          };
+        }
+
+        const storeUpdates = applySyncableDataToStore(merged);
+        setSuppressPersistUntil(Date.now() + 1500);
+        useAppStore.setState(storeUpdates);
+
+        const now = Date.now();
+        syncMetadataRef.current.lastSyncTime = now;
+        syncMetadataRef.current.lastSyncVersions.questionHistory =
+          buildVersionMap(merged.questionHistory);
+        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
+          merged.mcHistory
+        );
+        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
+          merged.savedSets
+        );
+        lastSyncedSnapshotRef.current = JSON.stringify(
+          buildSyncSnapshot(merged)
+        );
+
+        setLastSyncTime(now);
+        setSyncStatus('idle');
+        setSyncError(null);
+        addSyncEvent('download', `Pulled ${collectionLabel(collection)}`);
+        toast.success(`${collectionLabel(collection)} pull complete`);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Collection pull failed';
+        setSyncError(errorMessage);
+        setSyncStatus('error');
+        addSyncEvent(
+          'error',
+          `${collectionLabel(collection)} pull failed: ${errorMessage}`
+        );
+        toast.error(
+          `${collectionLabel(collection)} pull failed: ${errorMessage}`
+        );
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [user, debugLog, addSyncEvent]
+  );
+
+  const pushCollectionSync = useCallback(
+    async (collection: ManualSyncCollection) => {
+      if (!user) {
+        setSyncError('Not signed in');
+        return;
+      }
+
+      debugLog('Manual collection push started', { collection });
+      setIsSyncing(true);
+      setSyncStatus('syncing');
+      toast.message(`Pushing ${collectionLabel(collection)}...`);
+
+      try {
+        const state = useAppStore.getState();
+        const localData = extractSyncableData(state);
+        const tombstones = state.deletionTombstones;
+        const remoteData = normalizeRemoteSyncableData(
+          await loadUserData(getUserId(user))
+        );
+        setSyncTelemetry((prev) => ({
+          ...prev,
+          fullSyncReads: prev.fullSyncReads + 1,
+        }));
+
+        const filteredLocalData: SyncableDataV2 = {
+          ...localData,
+          questionHistory: filterDeleted(
+            localData.questionHistory,
+            tombstones.questionHistory
+          ),
+          mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
+          savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
+          presets: filterDeleted(localData.presets ?? [], tombstones.presets),
+        };
+
+        const payload = remoteData ?? createEmptySyncableData();
+
+        if (collection === 'questionHistory') {
+          payload.questionHistory = filteredLocalData.questionHistory;
+        } else if (collection === 'mcHistory') {
+          payload.mcHistory = filteredLocalData.mcHistory;
+        } else if (collection === 'savedSets') {
+          payload.savedSets = filteredLocalData.savedSets;
+        } else {
+          payload.presets = filteredLocalData.presets;
+        }
+
+        const deletedIds = buildDeletedIdsForCollection(tombstones, collection);
+        const hasDeletions =
+          deletedIds.questionHistory.length > 0 ||
+          deletedIds.mcHistory.length > 0 ||
+          deletedIds.savedSets.length > 0 ||
+          deletedIds.presets.length > 0;
+
+        await saveUserData(getUserId(user), toFirebaseSyncableData(payload), {
+          fullSync: true,
+          ...(hasDeletions ? { deletedIds } : {}),
+        });
+
+        if (hasDeletions) {
+          useAppStore.setState({
+            deletionTombstones: purgePersistedTombstones(
+              tombstones,
+              deletedIds
+            ),
+          });
+        }
+
+        setLastFlushTime(Date.now());
+        setLastSyncTime(Date.now());
+        setSyncStatus('idle');
+        setSyncError(null);
+        addSyncEvent('upload', `Pushed ${collectionLabel(collection)}`);
+        toast.success(`${collectionLabel(collection)} push complete`);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Collection push failed';
+        setSyncError(errorMessage);
+        setSyncStatus('error');
+        addSyncEvent(
+          'error',
+          `${collectionLabel(collection)} push failed: ${errorMessage}`
+        );
+        toast.error(
+          `${collectionLabel(collection)} push failed: ${errorMessage}`
+        );
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [user, debugLog, addSyncEvent]
+  );
+
+  const retryQueuedOpsNow = useCallback(() => {
+    if (!engineRef.current) {
+      toast.info('Sync engine is not initialized yet');
+      return;
+    }
+    engineRef.current.retryNow();
+    addSyncEvent('retry', 'Manual retry requested for queued operations');
+    toast.message('Retrying queued operations...');
+  }, [addSyncEvent]);
+
   const resolveConflicts = useCallback(
     (resolutions: Map<string, 'keep' | 'delete'>) => {
       debugLog('Resolving conflicts', { total: resolutions.size });
@@ -1309,7 +1573,11 @@ export function useSyncV2(): UseFirebaseSyncReturn {
           debugLog('Startup reconciliation skipped');
         }
       } catch {
-        /* non-fatal */
+        startupSyncDoneRef.current = false;
+        addSyncEvent(
+          'retry',
+          'Startup reconciliation failed; will retry on next app focus'
+        );
       }
     };
     void runStartupCheck();
@@ -1385,7 +1653,10 @@ export function useSyncV2(): UseFirebaseSyncReturn {
     toggleSync,
     pullSync,
     pushSync,
+    pullCollectionSync,
+    pushCollectionSync,
     forceSync,
+    retryQueuedOpsNow,
     resolveConflicts,
   };
 }

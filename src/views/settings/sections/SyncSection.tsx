@@ -6,10 +6,9 @@ import {
   Cloud,
   CloudOff,
   Loader2,
-  Timer,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { RemoteExplorer } from '@/context/modules/sync-v2';
@@ -164,6 +163,22 @@ type SyncEvent = {
   timestamp: number | string;
 };
 
+type ManualSyncCollection =
+  | 'questionHistory'
+  | 'mcHistory'
+  | 'savedSets'
+  | 'presets';
+
+const MANUAL_COLLECTION_OPTIONS: Array<{
+  value: ManualSyncCollection;
+  label: string;
+}> = [
+  { value: 'questionHistory', label: 'Question History' },
+  { value: 'mcHistory', label: 'Multiple Choice History' },
+  { value: 'savedSets', label: 'Saved Sets' },
+  { value: 'presets', label: 'Presets' },
+];
+
 function SyncActivityCard({
   syncEvents,
   debugMode,
@@ -218,8 +233,7 @@ function SyncActivityCard({
 // Disable the eslint complexity rule for this function to keep the JSX readable.
 // eslint-disable-next-line complexity
 export function SyncSection() {
-  const { debugMode, autoSyncIntervalMinutes, setAutoSyncIntervalMinutes } =
-    useAppSettings();
+  const { debugMode } = useAppSettings();
   const firebaseSync = useFirebaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<'signin' | 'signup'>(
@@ -228,6 +242,14 @@ export function SyncSection() {
   const [syncAuthEmail, setSyncAuthEmail] = useState('');
   const [syncAuthPassword, setSyncAuthPassword] = useState('');
   const [syncIsSubmitting, setSyncIsSubmitting] = useState(false);
+  const [manualCollection, setManualCollection] =
+    useState<ManualSyncCollection>('questionHistory');
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => setNowTs(Date.now()), 60_000);
+    return () => window.clearInterval(timerId);
+  }, []);
 
   const {
     user,
@@ -250,12 +272,54 @@ export function SyncSection() {
     disableSync,
     pullSync,
     pushSync,
+    pullCollectionSync,
+    pushCollectionSync,
+    retryQueuedOpsNow,
     forceSync,
     resolveConflicts,
   } = firebaseSync;
 
   const syncEnabled = isSyncEnabled;
   const isSignedIn = !!user;
+  const staleSync =
+    !!lastSyncTime &&
+    nowTs - lastSyncTime > 10 * 60 * 1000 &&
+    queuedOpsCount > 0;
+
+  const syncHealth = !syncEnabled
+    ? { label: 'Disconnected', tone: 'muted', hint: 'Sign in to sync devices.' }
+    : !isOnline
+      ? {
+          label: 'Offline',
+          tone: 'offline',
+          hint: 'Changes are queued until connection returns.',
+        }
+      : syncTelemetry.retryBlocked
+        ? {
+            label: 'Blocked',
+            tone: 'blocked',
+            hint: `Retries paused after ${syncTelemetry.retryMaxAttempts} attempts.`,
+          }
+        : syncTelemetry.retryAttemptsCurrent > 0
+          ? {
+              label: 'Degraded',
+              tone: 'degraded',
+              hint:
+                syncTelemetry.nextRetryAt && syncTelemetry.nextRetryAt > nowTs
+                  ? `Retry in ${Math.max(1, Math.ceil((syncTelemetry.nextRetryAt - nowTs) / 1000))}s.`
+                  : 'Transient sync errors detected.',
+            }
+          : staleSync
+            ? {
+                label: 'Stale',
+                tone: 'stale',
+                hint: 'Sync is behind. Run Pull/Push to reconcile now.',
+              }
+            : {
+                label: 'Healthy',
+                tone: 'healthy',
+                hint: 'Realtime sync is operating normally.',
+              };
 
   const handleAuth = async () => {
     if (!syncAuthEmail.trim() || !syncAuthPassword) return;
@@ -385,6 +449,32 @@ export function SyncSection() {
                   {new Date(lastFlushTime).toLocaleString()}
                 </p>
               )}
+              {syncEnabled && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                      syncHealth.tone === 'healthy' &&
+                        'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                      syncHealth.tone === 'degraded' &&
+                        'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+                      syncHealth.tone === 'blocked' &&
+                        'bg-destructive/15 text-destructive',
+                      syncHealth.tone === 'stale' &&
+                        'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+                      syncHealth.tone === 'offline' &&
+                        'bg-slate-500/15 text-slate-700 dark:text-slate-300',
+                      syncHealth.tone === 'muted' &&
+                        'bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {syncHealth.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {syncHealth.hint}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           {syncEnabled && (
@@ -441,6 +531,20 @@ export function SyncSection() {
               >
                 Sign out
               </Button>
+              {(syncTelemetry.retryBlocked ||
+                syncTelemetry.retryAttemptsCurrent > 0) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    (retryQueuedOpsNow as () => void)();
+                  }}
+                  disabled={!isOnline}
+                >
+                  Retry queued ops now
+                </Button>
+              )}
             </div>
           )}
           {isSignedIn && !syncEnabled && (
@@ -461,30 +565,61 @@ export function SyncSection() {
 
         {isSignedIn && syncEnabled && (
           <div className="pt-3 border-t border-border">
-            <FieldGroup label="Auto-Sync Interval" htmlFor="autosync-interval">
-              <div className="flex items-center gap-2">
-                <Timer className="h-4 w-4 text-muted-foreground shrink-0" />
+            <FieldGroup
+              label="Selective Pull/Push"
+              htmlFor="manual-sync-collection"
+            >
+              <div className="flex flex-wrap items-center gap-2">
                 <Select
-                  value={String(autoSyncIntervalMinutes)}
-                  onValueChange={(v) => setAutoSyncIntervalMinutes(Number(v))}
+                  value={manualCollection}
+                  onValueChange={(v) =>
+                    setManualCollection(v as ManualSyncCollection)
+                  }
                 >
-                  <SelectTrigger id="autosync-interval" className="w-40">
+                  <SelectTrigger id="manual-sync-collection" className="w-56">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Off</SelectItem>
-                    <SelectItem value="5">Every 5 minutes</SelectItem>
-                    <SelectItem value="10">Every 10 minutes</SelectItem>
-                    <SelectItem value="15">Every 15 minutes</SelectItem>
-                    <SelectItem value="30">Every 30 minutes</SelectItem>
-                    <SelectItem value="60">Every 1 hour</SelectItem>
+                    {MANUAL_COLLECTION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    void (
+                      pullCollectionSync as (
+                        collection: ManualSyncCollection
+                      ) => Promise<void>
+                    )(manualCollection);
+                  }}
+                  disabled={isSyncing || !isOnline}
+                >
+                  Pull selected
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    void (
+                      pushCollectionSync as (
+                        collection: ManualSyncCollection
+                      ) => Promise<void>
+                    )(manualCollection);
+                  }}
+                  disabled={isSyncing || !isOnline}
+                >
+                  Push selected
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {autoSyncIntervalMinutes > 0
-                  ? `Fallback reconciliation runs every ${autoSyncIntervalMinutes} minute${autoSyncIntervalMinutes === 1 ? '' : 's'} while online.`
-                  : 'Realtime sync is active. Use Pull and Push for explicit manual reconciliation.'}
+                Run targeted reconciliation for one data section without a full
+                sync pass.
               </p>
             </FieldGroup>
           </div>
@@ -713,7 +848,7 @@ export function SyncSection() {
         </Card>
       )}
 
-      <RemoteExplorer />
+      {debugMode && <RemoteExplorer />}
 
       <ConflictResolutionDialog
         open={conflicts.length > 0}
