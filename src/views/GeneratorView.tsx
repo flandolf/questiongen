@@ -128,6 +128,55 @@ function rekeyMc(qs: McQuestion[]): McQuestion[] {
   return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
 }
 
+// Shuffle array in-place (Fisher-Yates) and return it
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function sampleWithoutReplacement<T>(arr: T[], k: number): T[] {
+  const copy = [...arr];
+  shuffleInPlace(copy);
+  return copy.slice(0, Math.max(0, Math.min(k, copy.length)));
+}
+
+// Build per-subtopic generation calls when subtopics are present.
+// If `total` <= subtopics.length, pick `total` distinct subtopics and
+// request 1 question each. Otherwise distribute counts across subtopics.
+function buildSubtopicCalls(subtopics: string[], total: number) {
+  if (!subtopics || subtopics.length === 0)
+    return [{ subtopics: [], count: total }];
+  if (total <= subtopics.length) {
+    const picked = sampleWithoutReplacement(subtopics, total);
+    return picked.map((s) => ({ subtopics: [s], count: 1 }));
+  }
+  const counts = distributeQuestions(subtopics as Topic[], total);
+  return subtopics.map((s, i) => ({ subtopics: [s], count: counts[i] }));
+}
+
+function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
+  const originalOptions = q.options ?? [];
+  const correctText = originalOptions.find(
+    (o) => o.label === q.correctAnswer
+  )?.text;
+  const shuffled = shuffleInPlace([...originalOptions]);
+  const labels = shuffled.map((_, i) => String.fromCharCode(65 + i)); // 'A','B',...
+  const relabeled = shuffled.map((o, i) => ({
+    label: labels[i],
+    text: o.text,
+  }));
+  const newCorrect =
+    relabeled.find((o) =>
+      correctText ? o.text.trim() === correctText.trim() : false
+    )?.label ??
+    relabeled[0]?.label ??
+    q.correctAnswer;
+  return { ...q, options: relabeled, correctAnswer: newCorrect };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
@@ -1368,68 +1417,77 @@ export function GeneratorView() {
         if (isMultiTopic) setBatchEntryActive(i);
 
         try {
-          const response = await invoke<GenerateQuestionsResponse>(
-            'generate_questions',
-            {
-              request: {
-                topics: [topic],
+          // If subtopics are present, build per-subtopic calls so the client
+          // decides which subtopics to use (reducing LLM-side randomness).
+          const topicSubtopics = getSubtopicsForTopic(topic);
+          const subCalls = buildSubtopicCalls(topicSubtopics, count);
+          for (const call of subCalls) {
+            if (call.count === 0) continue;
+            const response = await invoke<GenerateQuestionsResponse>(
+              'generate_questions',
+              {
+                request: {
+                  topics: [topic],
+                  difficulty,
+                  questionCount: call.count,
+                  averageMarksPerQuestion,
+                  model,
+                  apiKey,
+                  techMode,
+                  includeExamContext,
+                  subtopics: call.subtopics,
+                  customFocusArea: getCustomFocusArea(),
+                  avoidSimilarQuestions,
+                  priorQuestionPrompts: avoidSimilarQuestions
+                    ? getRecentSameTopicQuestionPrompts('written')
+                    : [],
+                  aiDifficultyScalingEnabled,
+                  recentAverageScore,
+                  recentDifficulty: difficulty,
+                },
+              }
+            );
+
+            allQuestions = allQuestions.concat(response.questions);
+            totalTelemetry.durationMs += response.durationMs || 0;
+            totalTelemetry.promptTokens += response.promptTokens || 0;
+            totalTelemetry.completionTokens += response.completionTokens || 0;
+            totalTelemetry.totalTokens += response.totalTokens || 0;
+            totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
+            totalTelemetry.distinctnessAvg +=
+              (response.distinctnessAvg || 0) * response.questions.length;
+            totalTelemetry.multiStepDepthAvg +=
+              (response.multiStepDepthAvg || 0) * response.questions.length;
+            distinctnessWeight += response.questions.length;
+            multiStepDepthWeight += response.questions.length;
+
+            // Record this generation for cost estimation
+            addGenerationRecord({
+              id: `gen-${topic}-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              timestamp: new Date().toISOString(),
+              inputs: {
+                topic,
                 difficulty,
-                questionCount: count,
-                averageMarksPerQuestion,
-                model,
-                apiKey,
+                questionCount: call.count,
+                questionMode: 'written',
                 techMode,
-                includeExamContext,
-                subtopics: getSubtopicsForTopic(topic),
+                averageMarksPerQuestion,
+                subtopics: call.subtopics,
                 customFocusArea: getCustomFocusArea(),
-                avoidSimilarQuestions,
-                priorQuestionPrompts: avoidSimilarQuestions
-                  ? getRecentSameTopicQuestionPrompts('written')
-                  : [],
-                aiDifficultyScalingEnabled,
-                recentAverageScore,
-                recentDifficulty: difficulty, // Use current as recent
               },
-            }
-          );
-
-          allQuestions = allQuestions.concat(response.questions);
-          totalTelemetry.durationMs += response.durationMs || 0;
-          totalTelemetry.promptTokens += response.promptTokens || 0;
-          totalTelemetry.completionTokens += response.completionTokens || 0;
-          totalTelemetry.totalTokens += response.totalTokens || 0;
-          totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
-          totalTelemetry.distinctnessAvg +=
-            (response.distinctnessAvg || 0) * response.questions.length;
-          totalTelemetry.multiStepDepthAvg +=
-            (response.multiStepDepthAvg || 0) * response.questions.length;
-          distinctnessWeight += response.questions.length;
-          multiStepDepthWeight += response.questions.length;
-
-          // Record this generation for cost estimation
-          addGenerationRecord({
-            id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            timestamp: new Date().toISOString(),
-            inputs: {
-              topic,
-              difficulty,
-              questionCount: count,
-              questionMode: 'written',
-              techMode,
-              averageMarksPerQuestion,
-              subtopics: getSubtopicsForTopic(topic),
-              customFocusArea: getCustomFocusArea(),
-            },
-            outputs: {
-              durationMs: response.durationMs || 0,
-              promptTokens: response.promptTokens,
-              completionTokens: response.completionTokens,
-              totalTokens: response.totalTokens,
-              estimatedCostUsd: response.estimatedCostUsd,
-              distinctnessAvg: response.distinctnessAvg,
-              multiStepDepthAvg: response.multiStepDepthAvg,
-            },
-          });
+              outputs: {
+                durationMs: response.durationMs || 0,
+                promptTokens: response.promptTokens,
+                completionTokens: response.completionTokens,
+                totalTokens: response.totalTokens,
+                estimatedCostUsd: response.estimatedCostUsd,
+                distinctnessAvg: response.distinctnessAvg,
+                multiStepDepthAvg: response.multiStepDepthAvg,
+              },
+            });
+          }
 
           if (isMultiTopic) setBatchEntryDone(i);
         } catch (topicError) {
@@ -1560,65 +1618,81 @@ export function GeneratorView() {
         if (isMultiTopic) setBatchEntryActive(i);
 
         try {
-          const response = await invoke<GenerateMcQuestionsResponse>(
-            'generate_mc_questions',
-            {
-              request: {
-                topics: [topic],
+          // Build per-subtopic calls so the client picks which subtopics to
+          // generate from. Also shuffle MC options client-side after LLM
+          // returns to avoid predictable answer positions.
+          const topicSubtopics = getSubtopicsForTopic(topic);
+          const subCalls = buildSubtopicCalls(topicSubtopics, count);
+          for (const call of subCalls) {
+            if (call.count === 0) continue;
+            const response = await invoke<GenerateMcQuestionsResponse>(
+              'generate_mc_questions',
+              {
+                request: {
+                  topics: [topic],
+                  difficulty,
+                  questionCount: call.count,
+                  model,
+                  apiKey,
+                  techMode,
+                  includeExamContext,
+                  subtopics: call.subtopics,
+                  customFocusArea: getCustomFocusArea(),
+                  avoidSimilarQuestions,
+                  priorQuestionPrompts: avoidSimilarQuestions
+                    ? getRecentSameTopicQuestionPrompts('multiple-choice')
+                    : [],
+                  aiDifficultyScalingEnabled,
+                  recentAverageScore,
+                  recentDifficulty: difficulty,
+                },
+              }
+            );
+
+            // Shuffle options for each returned MC question and relabel
+            const adjusted = (response.questions || []).map((q) =>
+              shuffleMcQuestionOptions(q)
+            );
+
+            allQuestions = allQuestions.concat(adjusted);
+            totalTelemetry.durationMs += response.durationMs || 0;
+            totalTelemetry.promptTokens += response.promptTokens || 0;
+            totalTelemetry.completionTokens += response.completionTokens || 0;
+            totalTelemetry.totalTokens += response.totalTokens || 0;
+            totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
+            totalTelemetry.distinctnessAvg +=
+              (response.distinctnessAvg || 0) * response.questions.length;
+            totalTelemetry.multiStepDepthAvg +=
+              (response.multiStepDepthAvg || 0) * response.questions.length;
+            distinctnessWeight += response.questions.length;
+            multiStepDepthWeight += response.questions.length;
+
+            // Record this generation for cost estimation
+            addGenerationRecord({
+              id: `gen-${topic}-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              timestamp: new Date().toISOString(),
+              inputs: {
+                topic,
                 difficulty,
-                questionCount: count,
-                model,
-                apiKey,
+                questionCount: call.count,
+                questionMode: 'multiple-choice',
                 techMode,
-                includeExamContext,
-                subtopics: getSubtopicsForTopic(topic),
-                customFocusArea: getCustomFocusArea(),
-                avoidSimilarQuestions,
-                priorQuestionPrompts: avoidSimilarQuestions
-                  ? getRecentSameTopicQuestionPrompts('multiple-choice')
-                  : [],
-                aiDifficultyScalingEnabled,
-                recentAverageScore,
-                recentDifficulty: difficulty,
+                averageMarksPerQuestion,
+                subtopics: call.subtopics,
               },
-            }
-          );
-
-          allQuestions = allQuestions.concat(response.questions);
-          totalTelemetry.durationMs += response.durationMs || 0;
-          totalTelemetry.promptTokens += response.promptTokens || 0;
-          totalTelemetry.completionTokens += response.completionTokens || 0;
-          totalTelemetry.totalTokens += response.totalTokens || 0;
-          totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
-          totalTelemetry.distinctnessAvg +=
-            (response.distinctnessAvg || 0) * response.questions.length;
-          totalTelemetry.multiStepDepthAvg +=
-            (response.multiStepDepthAvg || 0) * response.questions.length;
-          distinctnessWeight += response.questions.length;
-          multiStepDepthWeight += response.questions.length;
-
-          // Record this generation for cost estimation
-          addGenerationRecord({
-            id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            timestamp: new Date().toISOString(),
-            inputs: {
-              topic,
-              difficulty,
-              questionCount: count,
-              questionMode: 'multiple-choice',
-              techMode,
-              averageMarksPerQuestion,
-            },
-            outputs: {
-              durationMs: response.durationMs || 0,
-              promptTokens: response.promptTokens,
-              completionTokens: response.completionTokens,
-              totalTokens: response.totalTokens,
-              estimatedCostUsd: response.estimatedCostUsd,
-              distinctnessAvg: response.distinctnessAvg,
-              multiStepDepthAvg: response.multiStepDepthAvg,
-            },
-          });
+              outputs: {
+                durationMs: response.durationMs || 0,
+                promptTokens: response.promptTokens,
+                completionTokens: response.completionTokens,
+                totalTokens: response.totalTokens,
+                estimatedCostUsd: response.estimatedCostUsd,
+                distinctnessAvg: response.distinctnessAvg,
+                multiStepDepthAvg: response.multiStepDepthAvg,
+              },
+            });
+          }
 
           if (isMultiTopic) setBatchEntryDone(i);
         } catch (topicError) {

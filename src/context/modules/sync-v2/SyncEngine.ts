@@ -7,12 +7,7 @@
 
 import { SYNC_METADATA_KEY } from './config';
 import { applyResolutions, detectConflicts } from './ConflictResolver';
-import {
-  buildSnapshot,
-  cacheApplySnapshot,
-  cacheDelete,
-  cacheSet,
-} from './LocalCache';
+import { buildSnapshot, cacheApplySnapshot } from './LocalCache';
 import { QueueManager } from './QueueManager';
 import type { ChangeEvent } from './RealtimeListener';
 import { RealtimeListener } from './RealtimeListener';
@@ -308,6 +303,10 @@ export class SyncEngine {
   private eventCallbacks: Set<EventCallback> = new Set();
   private statusCallbacks: Set<StatusCallback> = new Set();
   private initialized = false;
+  private started = false;
+  private remotePullTimer: ReturnType<typeof setTimeout> | null = null;
+  private remotePullInFlight = false;
+  private remotePullQueued = false;
   private getState: (() => SyncableData) | null = null;
   private getTombstones: (() => DeletionTombstones) | null = null;
   private readonly onlineHandler: () => void;
@@ -401,7 +400,8 @@ export class SyncEngine {
   }
 
   async start(): Promise<void> {
-    if (!this.userId || !this.initialized) return;
+    if (!this.userId || !this.initialized || this.started) return;
+    this.started = true;
     await this.performStartupSync();
     this.realtimeListener?.start();
     if (this.isOnline && this.queueManager) {
@@ -410,8 +410,15 @@ export class SyncEngine {
   }
 
   stop(): void {
+    this.started = false;
     this.realtimeListener?.stop();
     this.queueManager?.destroy();
+    if (this.remotePullTimer) {
+      clearTimeout(this.remotePullTimer);
+      this.remotePullTimer = null;
+    }
+    this.remotePullInFlight = false;
+    this.remotePullQueued = false;
   }
 
   // ─── Sync Operations ────────────────────────────────────────────────────────
@@ -454,12 +461,11 @@ export class SyncEngine {
 
     // Apply winning data
     for (const [entityId, data] of results.entries()) {
+      const collection = this.findCollectionForEntity(entityId);
       if (data) {
-        this.queueManager?.enqueue(
-          this.findCollectionForEntity(entityId),
-          'upsert',
-          entityId
-        );
+        this.queueManager?.enqueue(collection, 'upsert', entityId);
+      } else {
+        this.queueManager?.enqueue(collection, 'delete', entityId);
       }
     }
 
@@ -571,34 +577,43 @@ export class SyncEngine {
     }
   }
 
-  private async handleRemoteChanges(events: ChangeEvent[]): Promise<void> {
+  private handleRemoteChanges(events: ChangeEvent[]): void {
     if (!this.userId) return;
 
-    // Apply remote changes to local cache
-    for (const event of events) {
-      if (event.type === 'removed') {
-        await cacheDelete(event.collection, event.docId);
-      } else if (event.data) {
-        await cacheSet({
-          id: event.docId,
-          collection: event.collection,
-          data: event.data,
-          lastModified: Date.now(),
-          syncedAt: Date.now(),
-          isDeleted: false,
-        });
-      }
+    this.addEvent(
+      'download',
+      `Received ${events.length} remote change${events.length === 1 ? '' : 's'}; pulling latest`
+    );
+    this.scheduleRemotePull();
+  }
+
+  private scheduleRemotePull(): void {
+    if (!this.isOnline || !this.userId) return;
+    if (this.remotePullTimer) {
+      clearTimeout(this.remotePullTimer);
+    }
+    this.remotePullTimer = setTimeout(() => {
+      this.remotePullTimer = null;
+      void this.runRemotePull();
+    }, 200);
+  }
+
+  private async runRemotePull(): Promise<void> {
+    if (this.remotePullInFlight) {
+      this.remotePullQueued = true;
+      return;
     }
 
-    // Trigger data change notification
-    const localState = this.getState?.() ?? {
-      settings: {},
-      questionHistory: [],
-      mcHistory: [],
-      savedSets: [],
-    };
-    this.notifyDataChange(localState);
-    this.addEvent('download', `Received ${events.length} remote changes`);
+    this.remotePullInFlight = true;
+    try {
+      await this.performPull();
+    } finally {
+      this.remotePullInFlight = false;
+      if (this.remotePullQueued) {
+        this.remotePullQueued = false;
+        this.scheduleRemotePull();
+      }
+    }
   }
 
   private async performStartupSync(): Promise<void> {
@@ -836,6 +851,29 @@ export class SyncEngine {
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
       if (this.userId) writeMetadata(this.userId, this.metadata);
+
+      const localState = this.getState?.() ?? {
+        settings: {},
+        questionHistory: [],
+        mcHistory: [],
+        savedSets: [],
+      };
+      const merged = mergeSyncableData(
+        localState,
+        {
+          settings: localState.settings,
+          questionHistory: qh.map((d) => d.data),
+          mcHistory: mc.map((d) => d.data),
+          savedSets: ss.map((d) => d.data),
+          presets: localState.presets ?? [],
+          studyGoals: localState.studyGoals,
+          streakData: localState.streakData,
+        },
+        this.tombstones
+      );
+
+      this.localData = merged;
+      this.notifyDataChange(merged);
 
       this.addEvent(
         'download',

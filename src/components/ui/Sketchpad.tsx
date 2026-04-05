@@ -235,6 +235,7 @@ export function Sketchpad({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [penOnlyMode, setPenOnlyMode] = useState(false);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
     null
   );
@@ -270,12 +271,30 @@ export function Sketchpad({
     px: number;
     py: number;
   } | null>(null);
+  const panPointerId = useRef<number | null>(null);
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
+  const touchGesture = useRef<{
+    active: boolean;
+    initialDistance: number;
+    initialCenter: { x: number; y: number };
+    initialZoom: number;
+    initialPan: { x: number; y: number };
+  } | null>(null);
 
   // Keep ref so bg-repaint effect always sees latest value
   const bgRef2 = useRef<BgType>(bg);
   useEffect(() => {
     bgRef2.current = bg;
   }, [bg]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
 
   useEffect(() => {
     if (activeTool !== 'eraser') previousNonEraserRef.current = activeTool;
@@ -447,9 +466,6 @@ export function Sketchpad({
 
   // ── Zoom via scroll and pinch ────────────────────────────────────────────
 
-  const initialTouchesRef = useRef<{ x: number; y: number }[]>([]);
-  const initialZoomRef = useRef(1);
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -461,43 +477,69 @@ export function Sketchpad({
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
-        initialTouchesRef.current = [
-          { x: e.touches[0].clientX, y: e.touches[0].clientY },
-          { x: e.touches[1].clientX, y: e.touches[1].clientY },
-        ];
-        initialZoomRef.current = zoom;
+        const t1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        const t2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
+        touchGesture.current = {
+          active: true,
+          initialDistance: Math.hypot(t2.x - t1.x, t2.y - t1.y),
+          initialCenter: { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 },
+          initialZoom: zoomRef.current,
+          initialPan: panRef.current,
+        };
+
+        setIsDrawing(false);
+        activeDrawingPointerId.current = null;
+        lastPoint.current = null;
+        hasMoved.current = false;
+        shapeStart.current = null;
+        shapeSnapshot.current = null;
+        clearOverlay();
+      } else if (e.touches.length < 2) {
+        touchGesture.current = null;
       }
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
+      if (e.touches.length === 2 && touchGesture.current) {
         e.preventDefault();
-        const touches = [
-          { x: e.touches[0].clientX, y: e.touches[0].clientY },
-          { x: e.touches[1].clientX, y: e.touches[1].clientY },
-        ];
-        const initialDist = Math.hypot(
-          initialTouchesRef.current[1].x - initialTouchesRef.current[0].x,
-          initialTouchesRef.current[1].y - initialTouchesRef.current[0].y
+        const t1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        const t2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
+        const currentDist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+        const center = { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 };
+        const scale =
+          touchGesture.current.initialDistance > 0
+            ? currentDist / touchGesture.current.initialDistance
+            : 1;
+
+        setZoom(
+          Math.min(5, Math.max(0.2, touchGesture.current.initialZoom * scale))
         );
-        const currentDist = Math.hypot(
-          touches[1].x - touches[0].x,
-          touches[1].y - touches[0].y
-        );
-        const scale = currentDist / initialDist;
-        setZoom(() =>
-          Math.min(5, Math.max(0.2, initialZoomRef.current * scale))
-        );
+
+        setPan({
+          x:
+            touchGesture.current.initialPan.x +
+            (center.x - touchGesture.current.initialCenter.x),
+          y:
+            touchGesture.current.initialPan.y +
+            (center.y - touchGesture.current.initialCenter.y),
+        });
       }
+    };
+    const endGesture = () => {
+      touchGesture.current = null;
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('touchstart', onTouchStart, { passive: false });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', endGesture);
+    el.addEventListener('touchcancel', endGesture);
     return () => {
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', endGesture);
+      el.removeEventListener('touchcancel', endGesture);
     };
-  }, [zoom]);
+  }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -726,9 +768,26 @@ export function Sketchpad({
     const ctx = getCtx();
     if (!canvas || !ctx) return;
 
+    if (
+      e.pointerType === 'touch' &&
+      touchGesture.current &&
+      touchGesture.current.active
+    ) {
+      return;
+    }
+
     if (spaceDown.current || e.button === 1) {
       if (e.button === 1) middleDown.current = true;
       setIsPanning(true);
+      panPointerId.current = e.pointerId;
+      panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
+      e.preventDefault();
+      return;
+    }
+
+    if (penOnlyMode && e.pointerType === 'touch') {
+      setIsPanning(true);
+      panPointerId.current = e.pointerId;
       panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
       e.preventDefault();
       return;
@@ -742,6 +801,9 @@ export function Sketchpad({
     }
 
     if (e.pointerType === 'touch' && hasActivePenPointer()) return;
+    if (penOnlyMode && e.pointerType !== 'pen' && e.pointerType !== 'mouse') {
+      return;
+    }
     (e.target as Element).setPointerCapture(e.pointerId);
     activePointers.current.set(e.pointerId, {
       type: e.pointerType,
@@ -799,7 +861,11 @@ export function Sketchpad({
       });
     }
 
-    if (isPanning && panStart.current) {
+    if (
+      isPanning &&
+      panStart.current &&
+      (panPointerId.current === null || panPointerId.current === e.pointerId)
+    ) {
       setPan({
         x: panStart.current.px + (e.clientX - panStart.current.mx),
         y: panStart.current.py + (e.clientY - panStart.current.my),
@@ -845,9 +911,10 @@ export function Sketchpad({
     const ctx = getCtx();
     if (!canvas || !ctx) return;
 
-    if (isPanning && (spaceDown.current || e.button === 1)) {
+    if (isPanning && panPointerId.current === e.pointerId) {
       if (e.button === 1) middleDown.current = false;
       setIsPanning(false);
+      panPointerId.current = null;
       panStart.current = null;
       return;
     }
@@ -1325,6 +1392,15 @@ export function Sketchpad({
             −
           </button>
         </div>
+        <label className="mt-3 flex items-center gap-2 text-xs text-white/70 select-none">
+          <input
+            type="checkbox"
+            checked={penOnlyMode}
+            onChange={(e) => setPenOnlyMode(e.target.checked)}
+            className="accent-indigo-400"
+          />
+          Pen Only (stylus draws, fingers pan/zoom)
+        </label>
       </div>
 
       {/* Actions */}

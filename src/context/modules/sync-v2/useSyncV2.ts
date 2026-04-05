@@ -228,7 +228,7 @@ function toFirebaseSyncableData(data: SyncableDataV2): FirebaseSyncableData {
 
 function extractSyncableData(state: AppState): SyncableDataV2 {
   return {
-    settings: {},
+    settings: state.syncApiKey ? { apiKey: state.apiKey } : {},
     questionHistory: state.questionHistory as unknown as Record<
       string,
       unknown
@@ -257,6 +257,9 @@ function applySyncableDataToStore(data: SyncableDataV2): Partial<AppState> {
   }
   if (data.streakData) {
     result.streakData = data.streakData as AppState['streakData'];
+  }
+  if (data.settings && typeof data.settings.apiKey === 'string') {
+    result.apiKey = data.settings.apiKey;
   }
   return result;
 }
@@ -487,6 +490,52 @@ export function useSyncV2(): UseFirebaseSyncReturn {
     return unsubscribe;
   }, [debugLog]);
 
+  const initEngine = useCallback((userId: string) => {
+    if (engineRef.current) engineRef.current.destroy();
+    telemetryUnsubRef.current?.();
+    queueUnsubRef.current?.();
+    const getState = () => extractSyncableData(useAppStore.getState());
+    const getTombstones = () => useAppStore.getState().deletionTombstones;
+    const setTombstones = (t: DeletionTombstones) => {
+      useAppStore.setState({ deletionTombstones: t });
+    };
+    const engine = new SyncEngine(getState, getTombstones, setTombstones);
+    engine.onStatusChange((status) => setSyncStatus(status));
+    engine.onEvent((event) => {
+      setSyncEvents((prev) => [event, ...prev].slice(0, SYNC_EVENT_LIMIT));
+    });
+    engine.onDataChange((data) => {
+      const storeUpdates = applySyncableDataToStore(data);
+      setSuppressPersistUntil(Date.now() + 1500);
+      useAppStore.setState(storeUpdates);
+      lastSyncedSnapshotRef.current = JSON.stringify(buildSyncSnapshot(data));
+      setPendingChanges(0);
+    });
+    engineRef.current = engine;
+    engine.initialize(userId);
+    isInitializedRef.current = true;
+
+    // subscribe to engine telemetry and queue count updates
+    telemetryUnsubRef.current?.();
+    queueUnsubRef.current?.();
+
+    telemetryUnsubRef.current = engine.onTelemetryChange((t: SyncTelemetry) =>
+      setSyncTelemetry(t)
+    );
+
+    queueUnsubRef.current = engine.onQueueCountChange((n: number) =>
+      setQueuedOpsCount(n)
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!user || !isSyncEnabled) return;
+    if (!engineRef.current || !isInitializedRef.current) {
+      initEngine(getUserId(user));
+    }
+    void engineRef.current?.start();
+  }, [user, isSyncEnabled, initEngine]);
+
   useEffect(() => {
     if (!user || !isSyncEnabled || !isInitializedRef.current) return;
     const checkPending = () => {
@@ -531,44 +580,6 @@ export function useSyncV2(): UseFirebaseSyncReturn {
     checkPending();
     return () => unsub();
   }, [user, isSyncEnabled]);
-
-  const initEngine = useCallback((userId: string) => {
-    if (engineRef.current) engineRef.current.destroy();
-    telemetryUnsubRef.current?.();
-    queueUnsubRef.current?.();
-    const getState = () => extractSyncableData(useAppStore.getState());
-    const getTombstones = () => useAppStore.getState().deletionTombstones;
-    const setTombstones = (t: DeletionTombstones) => {
-      useAppStore.setState({ deletionTombstones: t });
-    };
-    const engine = new SyncEngine(getState, getTombstones, setTombstones);
-    engine.onStatusChange((status) => setSyncStatus(status));
-    engine.onEvent((event) => {
-      setSyncEvents((prev) => [event, ...prev].slice(0, SYNC_EVENT_LIMIT));
-    });
-    engine.onDataChange((data) => {
-      const storeUpdates = applySyncableDataToStore(data);
-      setSuppressPersistUntil(Date.now() + 1500);
-      useAppStore.setState(storeUpdates);
-      lastSyncedSnapshotRef.current = JSON.stringify(buildSyncSnapshot(data));
-      setPendingChanges(0);
-    });
-    engineRef.current = engine;
-    engine.initialize(userId);
-    isInitializedRef.current = true;
-
-    // subscribe to engine telemetry and queue count updates
-    telemetryUnsubRef.current?.();
-    queueUnsubRef.current?.();
-
-    telemetryUnsubRef.current = engine.onTelemetryChange((t: SyncTelemetry) =>
-      setSyncTelemetry(t)
-    );
-
-    queueUnsubRef.current = engine.onQueueCountChange((n: number) =>
-      setQueuedOpsCount(n)
-    );
-  }, []);
 
   // telemetry and queue updates are delivered via engine callbacks (subscribed in initEngine)
 
@@ -804,6 +815,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
         }
 
         initEngine(userId);
+        await engineRef.current?.start();
         startupSyncDoneRef.current = true;
         setPendingChanges(0);
         setIsSyncEnabled(true);

@@ -34,6 +34,7 @@ export type PersistedSettings = {
   responseTextSize?: number;
   includeExamContext?: boolean;
   autoSyncIntervalMinutes?: number;
+  syncApiKey?: boolean;
 };
 
 export type PersistedGeneratorPreferences = {
