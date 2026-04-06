@@ -1,5 +1,16 @@
 import type { GeneratedQuestion, McQuestion } from './questions';
 
+export type GenerationQualityDiagnostics = {
+  selectedSubtopics: string[];
+  coveredSubtopics: string[];
+  uncoveredSubtopics: string[];
+  outOfScopeSubtopics: string[];
+  subtopicCoverageRatio: number;
+  minSubtopicCoverageRatio: number;
+  latexIssueCount: number;
+  latexIssueExamples: string[];
+};
+
 export type GenerationTelemetry = {
   durationMs: number;
   promptTokens?: number;
@@ -8,6 +19,7 @@ export type GenerationTelemetry = {
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  qualityDiagnostics?: GenerationQualityDiagnostics;
 };
 
 export type GenerateQuestionsResponse = {
@@ -19,6 +31,7 @@ export type GenerateQuestionsResponse = {
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  qualityDiagnostics?: GenerationQualityDiagnostics;
 };
 
 export type GenerateMcQuestionsResponse = {
@@ -30,4 +43,5 @@ export type GenerateMcQuestionsResponse = {
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  qualityDiagnostics?: GenerationQualityDiagnostics;
 };

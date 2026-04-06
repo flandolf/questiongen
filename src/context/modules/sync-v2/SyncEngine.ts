@@ -145,7 +145,7 @@ function mergeStreakData(
     ),
     lastActiveDate:
       (typeof local.lastActiveDate === 'string' ? local.lastActiveDate : '') >
-        (typeof remote.lastActiveDate === 'string' ? remote.lastActiveDate : '')
+      (typeof remote.lastActiveDate === 'string' ? remote.lastActiveDate : '')
         ? local.lastActiveDate
         : remote.lastActiveDate,
     dailyCompletions: merged,
@@ -642,7 +642,7 @@ export class SyncEngine {
         if (!id) continue;
         const lm =
           typeof item.lastModified === 'number' &&
-            Number.isFinite(item.lastModified)
+          Number.isFinite(item.lastModified)
             ? item.lastModified
             : 0;
         lmById.set(id, lm);
@@ -693,7 +693,7 @@ export class SyncEngine {
       if (!id) continue;
       const lm =
         typeof item.lastModified === 'number' &&
-          Number.isFinite(item.lastModified)
+        Number.isFinite(item.lastModified)
           ? item.lastModified
           : 0;
       lmById.set(id, lm);
@@ -707,10 +707,7 @@ export class SyncEngine {
       // Always keep settings ops — they don't participate in version tracking.
       if (op.collection === 'settings') return true;
 
-      const versions =
-        this.metadata.lastSyncVersions[
-        op.collection
-        ];
+      const versions = this.metadata.lastSyncVersions[op.collection];
       if (!versions) return true;
 
       const lastSynced = versions[op.entityId] ?? 0;
@@ -792,7 +789,10 @@ export class SyncEngine {
           ? this.localData.mcHistory
           : this.localData.savedSets;
 
-    if (ev.type !== 'removed' && this.isNoopCollectionEvent(coll, id, ev.data)) {
+    if (
+      ev.type !== 'removed' &&
+      this.isNoopCollectionEvent(coll, id, ev.data)
+    ) {
       this.updateCollectionVersion(coll, id, lm);
       return false;
     }
@@ -811,9 +811,9 @@ export class SyncEngine {
         ? { settings: this.localData.settings ?? {} }
         : id === 'goals'
           ? {
-            studyGoals: this.localData.studyGoals,
-            streakData: this.localData.streakData,
-          }
+              studyGoals: this.localData.studyGoals,
+              streakData: this.localData.streakData,
+            }
           : id === 'presets'
             ? { presets: this.localData.presets ?? [] }
             : null;
@@ -838,9 +838,7 @@ export class SyncEngine {
           ? this.localData.mcHistory
           : this.localData.savedSets;
 
-    const existing = arr.find(
-      (x) => ((x as { id?: string }).id ?? '') === id
-    );
+    const existing = arr.find((x) => ((x as { id?: string }).id ?? '') === id);
     return existing ? areEquivalentSyncValue(existing, data) : false;
   }
 

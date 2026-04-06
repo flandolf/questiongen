@@ -35,6 +35,14 @@ function wordCount(s: string) {
   return t.length === 0 ? 0 : t.split(/\s+/).length;
 }
 
+function getFooterNote(isExamMode: boolean | undefined): string {
+  if (isExamMode) {
+    return 'Your answer will be submitted for marking when you complete the exam.';
+  }
+
+  return 'Your answer is marked immediately using the configured marking model.';
+}
+
 export function WrittenAnswerCard({
   questionId,
   answer,
@@ -55,6 +63,7 @@ export function WrittenAnswerCard({
   const words = wordCount(answer);
   const hasContent = answer.trim().length > 0 || Boolean(image);
   const canSubmitFromSketchpad = canSubmit || activeTab === 'sketchpad';
+  const footerNote = getFooterNote(isExamMode);
 
   useEffect(() => {
     setActiveTab('response');
@@ -157,11 +166,7 @@ export function WrittenAnswerCard({
           </span>
         ) : undefined
       }
-      footerNote={
-        isExamMode
-          ? 'Your answer will be submitted for marking when you complete the exam.'
-          : 'Your answer is marked immediately using the configured marking model.'
-      }
+      footerNote={footerNote}
     >
       {activeTab === 'upload' && (
         <div className="space-y-2">

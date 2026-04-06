@@ -5,6 +5,8 @@ export type Difficulty =
   | 'Hard'
   | 'Extreme';
 
-export type TechMode = 'tech-free' | 'tech-active' | 'mix';
+export type TechMode = 'tech-free' | 'tech-active';
 
 export type QuestionMode = 'written' | 'multiple-choice';
+
+export type DiversityStrictness = 'lenient' | 'moderate' | 'strict';

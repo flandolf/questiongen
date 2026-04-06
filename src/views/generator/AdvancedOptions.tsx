@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import {
   CHEMISTRY_SUBTOPIC_GROUPS,
   type ChemistrySubtopic,
+  type DiversityStrictness,
   MATH_METHODS_SUBTOPIC_GROUPS,
   type MathMethodsSubtopic,
   PE_SUBTOPIC_GROUPS,
@@ -117,6 +118,14 @@ export type AdvancedOptionsGroupProps = {
   onSetShuffleQuestions: (enabled: boolean) => void;
   customFocusArea: string;
   onSetCustomFocusArea: (value: string) => void;
+  diversityStrictness: DiversityStrictness;
+  onSetDiversityStrictness: (value: DiversityStrictness) => void;
+  strictLatexValidation: boolean;
+  onSetStrictLatexValidation: (enabled: boolean) => void;
+  strictSubtopicCoverage: boolean;
+  onSetStrictSubtopicCoverage: (enabled: boolean) => void;
+  minSubtopicCoverageRatio: number;
+  onSetMinSubtopicCoverageRatio: (ratio: number) => void;
 };
 
 export function AdvancedOptionsGroup({
@@ -142,6 +151,14 @@ export function AdvancedOptionsGroup({
   onSetShuffleQuestions,
   customFocusArea,
   onSetCustomFocusArea,
+  diversityStrictness,
+  onSetDiversityStrictness,
+  strictLatexValidation,
+  onSetStrictLatexValidation,
+  strictSubtopicCoverage,
+  onSetStrictSubtopicCoverage,
+  minSubtopicCoverageRatio,
+  onSetMinSubtopicCoverageRatio,
 }: AdvancedOptionsGroupProps) {
   return (
     <div className="space-y-2 pt-3">
@@ -216,6 +233,31 @@ export function AdvancedOptionsGroup({
       <div className="space-y-2 pt-3">
         <SectionLabel>Generation Flags</SectionLabel>
         <div className="flex flex-col gap-2.5">
+          <div className="rounded-xl border bg-card px-4 py-3.5 space-y-2">
+            <Label className="text-sm font-semibold flex items-center gap-2">
+              <Blend className="w-4 h-4 text-primary" /> Diversity Strictness
+            </Label>
+            <div className="grid grid-cols-3 gap-1.5 bg-muted/40 p-1 rounded-lg">
+              {(['lenient', 'moderate', 'strict'] as DiversityStrictness[]).map(
+                (level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => onSetDiversityStrictness(level)}
+                    className={cn(
+                      'text-xs font-semibold rounded-md py-2 transition-colors',
+                      diversityStrictness === level
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-background'
+                    )}
+                  >
+                    {level[0].toUpperCase() + level.slice(1)}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
           {selectedTopics.length > 1 && (
             <ToggleRow
               id="shuffle-questions"
@@ -225,6 +267,45 @@ export function AdvancedOptionsGroup({
               checked={shuffleQuestions}
               onCheckedChange={onSetShuffleQuestions}
             />
+          )}
+          <ToggleRow
+            id="strict-latex-validation"
+            icon={<Calculator className="w-4 h-4" />}
+            label="Strict LaTeX Validation"
+            description="Rejects malformed math delimiters/braces before returning questions."
+            checked={strictLatexValidation}
+            onCheckedChange={onSetStrictLatexValidation}
+          />
+          {hasSubtopicSection && (
+            <>
+              <ToggleRow
+                id="strict-subtopic-coverage"
+                icon={<Blend className="w-4 h-4" />}
+                label="Strict Subtopic Coverage"
+                description="Forces selected focus areas to be represented in generated output."
+                checked={strictSubtopicCoverage}
+                onCheckedChange={onSetStrictSubtopicCoverage}
+              />
+              <div className="rounded-xl border bg-card px-4 py-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">
+                    Minimum Subtopic Coverage
+                  </Label>
+                  <span className="text-xs font-semibold text-primary tabular-nums">
+                    {Math.round(minSubtopicCoverageRatio * 100)}%
+                  </span>
+                </div>
+                <Slider
+                  min={40}
+                  max={100}
+                  step={5}
+                  value={[Math.round(minSubtopicCoverageRatio * 100)]}
+                  onValueChange={(val) =>
+                    onSetMinSubtopicCoverageRatio(val[0] / 100)
+                  }
+                />
+              </div>
+            </>
           )}
         </div>
         <div>
@@ -315,12 +396,7 @@ export function AdvancedOptionsGroup({
                   icon: <Pen className="w-4 h-4" />,
                   desc: 'Questions that do not require a calculator',
                 },
-                {
-                  value: 'mix' as TechMode,
-                  label: 'Mixed',
-                  icon: <Blend className="w-4 h-4" />,
-                  desc: 'Mix of calculator and non-calculator questions',
-                },
+                /* 'Mixed' option removed — only tech-free and tech-active supported */
                 {
                   value: 'tech-active' as TechMode,
                   label: 'Tech Active',

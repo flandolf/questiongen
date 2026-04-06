@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 
 import type { UseSyncV2Return } from './modules/sync-v2/useSyncV2';
 import { useSyncV2 } from './modules/sync-v2/useSyncV2';
@@ -70,14 +70,16 @@ export function FirebaseSyncProvider({
 }
 
 export function useFirebaseSyncContext(): UseSyncV2Return {
+  const fallbackValue = useSyncV2();
   const value = useContext(FirebaseSyncContext);
-  if (value) return value;
 
-  if (import.meta.env.DEV) {
-    console.warn(
-      'useFirebaseSyncContext used outside FirebaseSyncProvider; falling back to a standalone sync instance.'
-    );
-  }
+  useEffect(() => {
+    if (!value && import.meta.env.DEV) {
+      console.warn(
+        'useFirebaseSyncContext used outside FirebaseSyncProvider; falling back to a standalone sync instance.'
+      );
+    }
+  }, [value]);
 
-  return useSyncV2();
+  return value ?? fallbackValue;
 }

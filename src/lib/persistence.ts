@@ -58,7 +58,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   selectedTopics: [],
   difficulty: 'Medium',
-  techMode: 'mix',
+  techMode: 'tech-active',
   avoidSimilarQuestions: false,
   mathMethodsSubtopics: [],
   specialistMathSubtopics: [],
@@ -931,7 +931,7 @@ function isDifficulty(
 function isTechMode(
   value: unknown
 ): value is PersistedGeneratorPreferences['techMode'] {
-  return value === 'tech-free' || value === 'tech-active' || value === 'mix';
+  return value === 'tech-free' || value === 'tech-active';
 }
 
 function isQuestionMode(value: unknown): value is QuestionMode {

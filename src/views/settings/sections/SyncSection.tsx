@@ -143,36 +143,36 @@ export function SyncSection() {
     ? { label: 'Disconnected', tone: 'muted', hint: 'Sign in to sync devices.' }
     : !isOnline
       ? {
-        label: 'Offline',
-        tone: 'offline',
-        hint: 'Changes are queued until connection returns.',
-      }
+          label: 'Offline',
+          tone: 'offline',
+          hint: 'Changes are queued until connection returns.',
+        }
       : syncTelemetry.retryBlocked
         ? {
-          label: 'Blocked',
-          tone: 'blocked',
-          hint: `Retries paused after ${syncTelemetry.retryMaxAttempts} attempts.`,
-        }
+            label: 'Blocked',
+            tone: 'blocked',
+            hint: `Retries paused after ${syncTelemetry.retryMaxAttempts} attempts.`,
+          }
         : syncTelemetry.retryAttemptsCurrent > 0
           ? {
-            label: 'Degraded',
-            tone: 'degraded',
-            hint:
-              syncTelemetry.nextRetryAt && syncTelemetry.nextRetryAt > nowTs
-                ? `Retry in ${Math.max(1, Math.ceil((syncTelemetry.nextRetryAt - nowTs) / 1000))}s.`
-                : 'Transient sync errors detected.',
-          }
+              label: 'Degraded',
+              tone: 'degraded',
+              hint:
+                syncTelemetry.nextRetryAt && syncTelemetry.nextRetryAt > nowTs
+                  ? `Retry in ${Math.max(1, Math.ceil((syncTelemetry.nextRetryAt - nowTs) / 1000))}s.`
+                  : 'Transient sync errors detected.',
+            }
           : staleSync
             ? {
-              label: 'Stale',
-              tone: 'stale',
-              hint: 'Sync is behind and will catch up automatically.',
-            }
+                label: 'Stale',
+                tone: 'stale',
+                hint: 'Sync is behind and will catch up automatically.',
+              }
             : {
-              label: 'Healthy',
-              tone: 'healthy',
-              hint: 'Realtime sync is operating normally.',
-            };
+                label: 'Healthy',
+                tone: 'healthy',
+                hint: 'Realtime sync is operating normally.',
+              };
 
   const handleAuth = async () => {
     if (!syncAuthEmail.trim() || !syncAuthPassword) return;
@@ -237,8 +237,8 @@ export function SyncSection() {
               )}
             >
               {syncLoading ||
-                syncIsSubmitting ||
-                syncStatus === 'connecting' ? (
+              syncIsSubmitting ||
+              syncStatus === 'connecting' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               ) : syncStatus === 'syncing' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
@@ -298,17 +298,17 @@ export function SyncSection() {
                     className={cn(
                       'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
                       syncHealth.tone === 'healthy' &&
-                      'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                        'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
                       syncHealth.tone === 'degraded' &&
-                      'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+                        'bg-amber-500/15 text-amber-700 dark:text-amber-400',
                       syncHealth.tone === 'blocked' &&
-                      'bg-destructive/15 text-destructive',
+                        'bg-destructive/15 text-destructive',
                       syncHealth.tone === 'stale' &&
-                      'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+                        'bg-orange-500/15 text-orange-700 dark:text-orange-400',
                       syncHealth.tone === 'offline' &&
-                      'bg-slate-500/15 text-slate-700 dark:text-slate-300',
+                        'bg-slate-500/15 text-slate-700 dark:text-slate-300',
                       syncHealth.tone === 'muted' &&
-                      'bg-muted text-muted-foreground'
+                        'bg-muted text-muted-foreground'
                     )}
                   >
                     {syncHealth.label}

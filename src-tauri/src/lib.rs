@@ -291,7 +291,8 @@ fn generation_compliance_contract() -> &'static str {
 fn topic_field_contract() -> &'static str {
     "FIELD CONTRACT:\n\
          - topic: MUST be exactly one user-selected subject (for example, Mathematical Methods).\n\
-         - subtopic: MUST be exactly one selected focus area within that subject (or null when unavailable).\n\
+         - subtopic: MUST be one primary focus area label within that subject (or null when unavailable).\n\
+         - If a question integrates multiple focus areas, keep one primary subtopic label and blend the others in the question stem.\n\
          - Never place a subtopic value in the topic field."
 }
 
@@ -500,6 +501,29 @@ fn subtopics_note(selected: Option<&Vec<String>>) -> String {
     s
 }
 
+fn subtopic_synthesis_note(selected: Option<&Vec<String>>, question_count: usize) -> String {
+    let Some(subs) = selected.filter(|s| s.len() > 1) else {
+        return String::new();
+    };
+
+    let min_to_blend = if question_count <= 3 { 2 } else { 1 };
+    let blend_scope = if min_to_blend >= 2 {
+        "each question should integrate at least two focus areas where syllabus-valid"
+    } else {
+        "integrate multiple focus areas whenever pedagogically valid"
+    };
+
+    format!(
+        "\nINTEGRATED SUBTOPIC REQUIREMENT:\n\
+         - Multiple focus areas are provided in this request ({}).\n\
+         - {}.\n\
+         - Prefer exam-style synthesis tasks over isolated single-skill drills when possible.\n\
+         - Keep the `subtopic` field as one primary label, even when the question blends multiple focus areas.",
+        subs.join(", "),
+        blend_scope,
+    )
+}
+
 fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
     let mut constraints = Vec::<String>::new();
     if let Some(subs) = selected {
@@ -561,7 +585,233 @@ fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&
     lines.join("\n")
 }
 
-fn similarity_note(enabled: bool, _prior: Option<&[String]>) -> String {
+fn diversity_thresholds(level: Option<&str>) -> (f32, f32) {
+    match level.unwrap_or("moderate") {
+        "lenient" => (0.5, 0.25),
+        "strict" => (0.75, 0.5),
+        _ => (0.6, 0.35),
+    }
+}
+
+fn resolve_min_subtopic_coverage_ratio(
+    strict: bool,
+    requested: Option<f32>,
+    question_count: usize,
+    selected_count: usize,
+) -> f32 {
+    if selected_count == 0 {
+        return 1.0;
+    }
+    let feasible = (question_count as f32 / selected_count as f32).clamp(0.0, 1.0);
+    let base = requested
+        .unwrap_or(if strict { 1.0 } else { 0.7 })
+        .clamp(0.0, 1.0);
+    if strict {
+        feasible
+    } else {
+        base.min(feasible)
+    }
+}
+
+fn build_subtopic_coverage_diagnostics(
+    selected: Option<&Vec<String>>,
+    produced: Vec<Option<String>>,
+    strict: bool,
+    requested_ratio: Option<f32>,
+    question_count: usize,
+) -> Option<GenerationQualityDiagnostics> {
+    let Some(selected_raw) = selected else {
+        return None;
+    };
+    if selected_raw.is_empty() {
+        return None;
+    }
+
+    let mut selected_unique: Vec<String> = Vec::new();
+    for item in selected_raw {
+        if !selected_unique.iter().any(|s| s.eq_ignore_ascii_case(item)) {
+            selected_unique.push(item.clone());
+        }
+    }
+
+    let mut covered: Vec<String> = Vec::new();
+    let mut out_of_scope: Vec<String> = Vec::new();
+    for sub in produced.into_iter().flatten() {
+        if let Some(found) = selected_unique
+            .iter()
+            .find(|s| s.eq_ignore_ascii_case(sub.trim()))
+        {
+            if !covered.iter().any(|s| s.eq_ignore_ascii_case(found)) {
+                covered.push(found.clone());
+            }
+        } else if !out_of_scope
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case(sub.trim()))
+        {
+            out_of_scope.push(sub.trim().to_string());
+        }
+    }
+
+    let uncovered: Vec<String> = selected_unique
+        .iter()
+        .filter(|sel| !covered.iter().any(|c| c.eq_ignore_ascii_case(sel)))
+        .cloned()
+        .collect();
+
+    let min_ratio = resolve_min_subtopic_coverage_ratio(
+        strict,
+        requested_ratio,
+        question_count,
+        selected_unique.len(),
+    );
+    let ratio = if selected_unique.is_empty() {
+        1.0
+    } else {
+        covered.len() as f32 / selected_unique.len() as f32
+    };
+
+    Some(GenerationQualityDiagnostics {
+        selected_subtopics: selected_unique,
+        covered_subtopics: covered,
+        uncovered_subtopics: uncovered,
+        out_of_scope_subtopics: out_of_scope,
+        subtopic_coverage_ratio: ratio,
+        min_subtopic_coverage_ratio: min_ratio,
+        latex_issue_count: 0,
+        latex_issue_examples: Vec::new(),
+    })
+}
+
+fn latex_brace_issues(segment: &str) -> Option<String> {
+    let mut stack: Vec<char> = Vec::new();
+    let mut chars = segment.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            let _ = chars.next();
+            continue;
+        }
+        match ch {
+            '{' | '[' | '(' => stack.push(ch),
+            '}' => {
+                if stack.pop() != Some('{') {
+                    return Some("mismatched braces".to_string());
+                }
+            }
+            ']' => {
+                if stack.pop() != Some('[') {
+                    return Some("mismatched brackets".to_string());
+                }
+            }
+            ')' => {
+                if stack.pop() != Some('(') {
+                    return Some("mismatched parentheses".to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    if stack.is_empty() {
+        None
+    } else {
+        Some("unbalanced delimiters".to_string())
+    }
+}
+
+fn latex_issues_for_text(text: &str) -> Vec<String> {
+    let mut issues = Vec::<String>::new();
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0usize;
+    let mut inline_open = false;
+    let mut display_open = false;
+    let mut segment_start = 0usize;
+
+    while i < chars.len() {
+        let ch = chars[i];
+        if ch == '\\' {
+            i += 2;
+            continue;
+        }
+        if ch == '$' {
+            let is_display = i + 1 < chars.len() && chars[i + 1] == '$';
+            if is_display {
+                if display_open {
+                    let segment: String = chars[segment_start..i].iter().collect();
+                    if let Some(issue) = latex_brace_issues(&segment) {
+                        issues.push(format!("display math {issue}"));
+                    }
+                    display_open = false;
+                } else {
+                    display_open = true;
+                    segment_start = i + 2;
+                }
+                i += 2;
+                continue;
+            }
+
+            if inline_open {
+                let segment: String = chars[segment_start..i].iter().collect();
+                if let Some(issue) = latex_brace_issues(&segment) {
+                    issues.push(format!("inline math {issue}"));
+                }
+                inline_open = false;
+            } else {
+                inline_open = true;
+                segment_start = i + 1;
+            }
+        }
+        i += 1;
+    }
+
+    if inline_open {
+        issues.push("unclosed inline math delimiter ($)".to_string());
+    }
+    if display_open {
+        issues.push("unclosed display math delimiter ($$)".to_string());
+    }
+    if text.contains("\\$") && text.contains("$") && text.matches('$').count() % 2 != 0 {
+        issues.push("mixed currency/math dollar usage".to_string());
+    }
+
+    issues
+}
+
+fn truncate_for_prompt(s: &str, max_chars: usize) -> String {
+    if s.chars().count() <= max_chars {
+        return s.to_string();
+    }
+    let mut out = String::new();
+    for ch in s.chars().take(max_chars) {
+        out.push(ch);
+    }
+    out.push_str("...");
+    out
+}
+
+fn prior_examples_note(prior: Option<&[String]>) -> String {
+    let Some(prior) = prior else {
+        return String::new();
+    };
+    let mut out = Vec::new();
+    for item in prior.iter().take(3) {
+        let trimmed = item.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        out.push(format!(
+            "- {}",
+            sanitize_for_api(&truncate_for_prompt(trimmed, 140))
+        ));
+    }
+    if out.is_empty() {
+        return String::new();
+    }
+    format!(
+        "\nRECENT QUESTIONS TO AVOID PARAPHRASING:\n{}\nTreat these as banned scenario/style anchors.",
+        out.join("\n")
+    )
+}
+
+fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     // Compressed diversity constraint: reduced token overhead while maintaining clarity
     if !enabled {
         return String::from(
@@ -569,11 +819,12 @@ fn similarity_note(enabled: bool, _prior: Option<&[String]>) -> String {
              No repetition of previous questions' structure, numbers, or wording.",
         );
     }
-    String::from(
+    format!(
         "\nSTRICT DIVERSITY: Generate wholly distinct questions. Avoid reusing scenarios, \
          characters, names, settings, numbers, or reasoning patterns. If unable to invent \
          a unique question for a concept, choose a different concept instead. Prioritize \
-         creative variation in context and approach over paraphrased similarity.",
+         creative variation in context and approach over paraphrased similarity.{}",
+        prior_examples_note(prior)
     )
 }
 
@@ -727,6 +978,24 @@ fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
     }
 }
 
+fn math_methods_exam1_tech_free_note(topics: &[String], tech_mode: &str) -> &'static str {
+    let is_methods = topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case("Mathematical Methods"));
+    if !is_methods || tech_mode != "tech-free" {
+        return "";
+    }
+
+    "\nMATHEMATICAL METHODS EXAM 1 STYLE (TECH-FREE, MANDATORY):\n\
+     - Follow a scaffolded structure where earlier parts produce results that are explicitly reused in later parts.\n\
+     - Sequence cognitive demand as procedural setup -> analysis -> synthesis/justification.\n\
+     - Balance the batch across algebra/functions, calculus, and probability/statistics.\n\
+     - Include both discrete and continuous probability contexts where syllabus-valid; continuous tasks should require integral reasoning in a tech-free way.\n\
+     - For any item worth more than 1 mark, design prompts that require clear intermediate working, not just a final answer.\n\
+     - Include some later-question style tasks with literal constants/parameters (for example, w) that require symbolic reasoning rather than numeric-only substitution.\n\
+     - Maintain strict non-CAS framing: exact values and method-focused working where appropriate."
+}
+
 // ─── Shared parse pipeline ────────────────────────────────────────────────────
 
 /// Extract + deserialise a `{"questions":[...]}` payload from a raw model string.
@@ -736,7 +1005,9 @@ fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> Command
     let protected = protect_latex_in_raw_json(raw);
     let json_str = extract_json_object(&protected)
         .or_else(|| extract_json_array(&protected))
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object or array in response."))?;
+        .ok_or_else(|| {
+            AppError::new("MODEL_PARSE_ERROR", "No JSON object or array in response.")
+        })?;
     let value: serde_json::Value = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
     let normalised =
@@ -793,6 +1064,10 @@ async fn generate_questions(
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
     let include_exam_context = request.include_exam_context.unwrap_or(false);
+    let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
+    let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
+    let (distinctness_threshold, per_question_distinctness_threshold) =
+        diversity_thresholds(request.diversity_strictness.as_deref());
 
     // Adjust difficulty based on AI scaling
     let adjusted_difficulty = adjust_difficulty(
@@ -812,6 +1087,7 @@ async fn generate_questions(
         .map_or(String::new(), |v| {
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
+    let methods_exam1_note = math_methods_exam1_tech_free_note(&request.topics, tech_mode);
 
     emit_generation_status(
         &app,
@@ -842,7 +1118,7 @@ async fn generate_questions(
   A 3-mark question must NOT have 10 marks worth of sub-parts. A 1–2 mark question is a single short task. \
   A 3–4 mark question has at most 2 sub-parts. A 5–6 mark question has 2–3 sub-parts. \
   Count the marks of all parts before outputting — the total must equal maxMarks.\n\
-         {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}\n\n\
          Quality: distinct concepts/contexts/methods per question — no two questions should \
  test the same skill in the same way. No worked solutions in prompts.\
          {sim_note}\n\n\
@@ -854,10 +1130,12 @@ async fn generate_questions(
         difficulty            = adjusted_difficulty,
         diff_rules            = difficulty_guidance(&adjusted_difficulty),
         subs_note             = sanitize_for_api(&subtopics_note(selected_subs)),
+        synth_note            = sanitize_for_api(&subtopic_synthesis_note(selected_subs, request.question_count)),
         custom_note           = sanitize_for_api(&custom_note),
         tech                  = tech_note(tech_mode),
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
+        methods_exam1_note    = methods_exam1_note,
         focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
         exam_context_preamble = exam_context_preamble,
         average_marks         = average_marks,
@@ -945,6 +1223,74 @@ async fn generate_questions(
     validate_written(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
 
+    let mut latex_issue_examples = Vec::<String>::new();
+    for q in &payload.questions {
+        for issue in latex_issues_for_text(&q.prompt_markdown)
+            .into_iter()
+            .take(2)
+        {
+            latex_issue_examples.push(format!("{}: {}", q.id, issue));
+            if latex_issue_examples.len() >= 6 {
+                break;
+            }
+        }
+        if latex_issue_examples.len() >= 6 {
+            break;
+        }
+    }
+
+    let mut quality_diagnostics = build_subtopic_coverage_diagnostics(
+        selected_subs,
+        payload
+            .questions
+            .iter()
+            .map(|q| q.subtopic.clone())
+            .collect(),
+        strict_subtopic_coverage,
+        request.min_subtopic_coverage_ratio,
+        request.question_count,
+    );
+    if let Some(diag) = quality_diagnostics.as_mut() {
+        diag.latex_issue_count = latex_issue_examples.len();
+        diag.latex_issue_examples = latex_issue_examples.clone();
+    }
+
+    if strict_latex_validation && !latex_issue_examples.is_empty() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!(
+                "Generated output failed strict LaTeX validation ({} issue(s)); first issue: {}",
+                latex_issue_examples.len(),
+                latex_issue_examples[0]
+            ),
+        ));
+    }
+
+    if strict_subtopic_coverage {
+        if let Some(diag) = &quality_diagnostics {
+            if diag.subtopic_coverage_ratio + 0.0001 < diag.min_subtopic_coverage_ratio {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    format!(
+                        "Generated output did not meet subtopic coverage target ({:.0}% < {:.0}%). Missing: {}",
+                        diag.subtopic_coverage_ratio * 100.0,
+                        diag.min_subtopic_coverage_ratio * 100.0,
+                        diag.uncovered_subtopics.join(", ")
+                    ),
+                ));
+            }
+            if !diag.out_of_scope_subtopics.is_empty() {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    format!(
+                        "Generated output used out-of-scope subtopics: {}",
+                        diag.out_of_scope_subtopics.join(", ")
+                    ),
+                ));
+            }
+        }
+    }
+
     // Enforce average marks constraint: adjust marks to hit the target average.
     if !payload.questions.is_empty() {
         let current_total: i64 = payload.questions.iter().map(|q| q.max_marks as i64).sum();
@@ -1005,8 +1351,12 @@ async fn generate_questions(
     // higher temperature. This gives the model another chance to produce more
     // unique questions when the first output is too similar.
     if request.avoid_similar_questions.unwrap_or(false) {
-        let mut need_retry = summary.distinctness_avg.map_or(false, |v| v < 0.6)
-            || metrics.iter().any(|m| m.distinctness < 0.35);
+        let mut need_retry = summary
+            .distinctness_avg
+            .map_or(false, |v| v < distinctness_threshold)
+            || metrics
+                .iter()
+                .any(|m| m.distinctness < per_question_distinctness_threshold);
 
         let mut attempts = 0;
         while need_retry && attempts < 2 {
@@ -1045,20 +1395,39 @@ async fn generate_questions(
                     request.custom_focus_area.as_deref(),
                 ));
                 parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+                let synth = sanitize_for_api(&subtopic_synthesis_note(
+                    selected_subs,
+                    request.question_count,
+                ));
+                if !synth.is_empty() {
+                    parts.push(serde_json::json!({ "type": "text", "text": synth }));
+                }
+                if !methods_exam1_note.is_empty() {
+                    parts.push(serde_json::json!({ "type": "text", "text": methods_exam1_note }));
+                }
                 parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
                 if !adaptive_note.is_empty() {
                     parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
                 }
                 serde_json::Value::Array(parts)
             } else {
+                let synth = sanitize_for_api(&subtopic_synthesis_note(
+                    selected_subs,
+                    request.question_count,
+                ));
                 let mut prompt = format!(
-                    "{}\n\n{}\n\n{}",
+                    "{}\n\n{}\n\n{}\n\n{}",
                     regen_intro,
                     sanitize_for_api(&subtopics_note(selected_subs)),
+                    synth,
                     diversity_note
                 );
                 if !adaptive_note.is_empty() {
                     prompt.push_str(&adaptive_note);
+                }
+                if !methods_exam1_note.is_empty() {
+                    prompt.push_str("\n\n");
+                    prompt.push_str(methods_exam1_note);
                 }
                 serde_json::Value::String(prompt)
             };
@@ -1117,9 +1486,45 @@ async fn generate_questions(
             }
 
             need_retry = attempts < 2
-                && (summary.distinctness_avg.map_or(false, |v| v < 0.6)
-                    || metrics.iter().any(|m| m.distinctness < 0.35));
+                && (summary
+                    .distinctness_avg
+                    .map_or(false, |v| v < distinctness_threshold)
+                    || metrics
+                        .iter()
+                        .any(|m| m.distinctness < per_question_distinctness_threshold));
         }
+    }
+
+    // Recompute diagnostics from the final payload after any retry pass.
+    let mut final_latex_issue_examples = Vec::<String>::new();
+    for q in &payload.questions {
+        for issue in latex_issues_for_text(&q.prompt_markdown)
+            .into_iter()
+            .take(2)
+        {
+            final_latex_issue_examples.push(format!("{}: {}", q.id, issue));
+            if final_latex_issue_examples.len() >= 6 {
+                break;
+            }
+        }
+        if final_latex_issue_examples.len() >= 6 {
+            break;
+        }
+    }
+    quality_diagnostics = build_subtopic_coverage_diagnostics(
+        selected_subs,
+        payload
+            .questions
+            .iter()
+            .map(|q| q.subtopic.clone())
+            .collect(),
+        strict_subtopic_coverage,
+        request.min_subtopic_coverage_ratio,
+        request.question_count,
+    );
+    if let Some(diag) = quality_diagnostics.as_mut() {
+        diag.latex_issue_count = final_latex_issue_examples.len();
+        diag.latex_issue_examples = final_latex_issue_examples;
     }
 
     let estimated_cost_usd = stats_result.ok().and_then(|stats| {
@@ -1158,6 +1563,7 @@ async fn generate_questions(
         multi_step_depth_avg: summary.multi_step_depth_avg,
         command_verb_diversity: summary.command_verb_diversity,
         mark_allocation_variance: summary.mark_allocation_variance,
+        quality_diagnostics,
     })
 }
 
@@ -1189,6 +1595,10 @@ async fn generate_mc_questions(
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
     let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
     let include_exam_context = request.include_exam_context.unwrap_or(false);
+    let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
+    let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
+    let (distinctness_threshold, per_question_distinctness_threshold) =
+        diversity_thresholds(request.diversity_strictness.as_deref());
 
     // Adjust difficulty based on AI scaling
     let adjusted_difficulty = adjust_difficulty(
@@ -1228,7 +1638,7 @@ async fn generate_mc_questions(
         "Generate exactly {count} VCE multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
          Difficulty rules:\n{diff_rules}\n\n\
          Each question: 4 options (A–D), one correct answer, worth 1 mark each.\
-         {subs_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
          Quality: distinct concepts and contexts across the batch. Each wrong option must \
  target a specific, named student misconception (not just a random wrong value).\n\
          Explanation: ≤180 words — state the correct answer's reasoning and name the \
@@ -1242,6 +1652,7 @@ async fn generate_mc_questions(
         difficulty            = adjusted_difficulty,
         diff_rules            = difficulty_guidance(&adjusted_difficulty),
         subs_note             = sanitize_for_api(&subtopics_note(selected_subs)),
+        synth_note            = sanitize_for_api(&subtopic_synthesis_note(selected_subs, request.question_count)),
         custom_note           = sanitize_for_api(&custom_note),
         tech                  = tech_note(tech_mode),
         topic_notes           = topic_notes(&request.topics, selected_subs),
@@ -1335,6 +1746,83 @@ async fn generate_mc_questions(
     validate_mc(&payload.questions, request.question_count)?;
     apply_tech_override(&mut payload.questions, tech_mode);
 
+    let mut latex_issue_examples = Vec::<String>::new();
+    for q in &payload.questions {
+        for issue in latex_issues_for_text(&q.prompt_markdown)
+            .into_iter()
+            .take(2)
+        {
+            latex_issue_examples.push(format!("{} prompt: {}", q.id, issue));
+            if latex_issue_examples.len() >= 6 {
+                break;
+            }
+        }
+        for issue in latex_issues_for_text(&q.explanation_markdown)
+            .into_iter()
+            .take(1)
+        {
+            latex_issue_examples.push(format!("{} explanation: {}", q.id, issue));
+            if latex_issue_examples.len() >= 6 {
+                break;
+            }
+        }
+        if latex_issue_examples.len() >= 6 {
+            break;
+        }
+    }
+
+    let mut quality_diagnostics = build_subtopic_coverage_diagnostics(
+        selected_subs,
+        payload
+            .questions
+            .iter()
+            .map(|q| q.subtopic.clone())
+            .collect(),
+        strict_subtopic_coverage,
+        request.min_subtopic_coverage_ratio,
+        request.question_count,
+    );
+    if let Some(diag) = quality_diagnostics.as_mut() {
+        diag.latex_issue_count = latex_issue_examples.len();
+        diag.latex_issue_examples = latex_issue_examples.clone();
+    }
+
+    if strict_latex_validation && !latex_issue_examples.is_empty() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!(
+                "Generated output failed strict LaTeX validation ({} issue(s)); first issue: {}",
+                latex_issue_examples.len(),
+                latex_issue_examples[0]
+            ),
+        ));
+    }
+
+    if strict_subtopic_coverage {
+        if let Some(diag) = &quality_diagnostics {
+            if diag.subtopic_coverage_ratio + 0.0001 < diag.min_subtopic_coverage_ratio {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    format!(
+                        "Generated output did not meet subtopic coverage target ({:.0}% < {:.0}%). Missing: {}",
+                        diag.subtopic_coverage_ratio * 100.0,
+                        diag.min_subtopic_coverage_ratio * 100.0,
+                        diag.uncovered_subtopics.join(", ")
+                    ),
+                ));
+            }
+            if !diag.out_of_scope_subtopics.is_empty() {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    format!(
+                        "Generated output used out-of-scope subtopics: {}",
+                        diag.out_of_scope_subtopics.join(", ")
+                    ),
+                ));
+            }
+        }
+    }
+
     let texts: Vec<String> = payload
         .questions
         .iter()
@@ -1361,8 +1849,12 @@ async fn generate_mc_questions(
     }
 
     if request.avoid_similar_questions.unwrap_or(false) {
-        let mut need_retry = summary.distinctness_avg.map_or(false, |v| v < 0.6)
-            || metrics.iter().any(|m| m.distinctness < 0.35);
+        let mut need_retry = summary
+            .distinctness_avg
+            .map_or(false, |v| v < distinctness_threshold)
+            || metrics
+                .iter()
+                .any(|m| m.distinctness < per_question_distinctness_threshold);
 
         let mut attempts = 0;
         while need_retry && attempts < 2 {
@@ -1398,16 +1890,28 @@ async fn generate_mc_questions(
                     request.custom_focus_area.as_deref(),
                 ));
                 parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+                let synth = sanitize_for_api(&subtopic_synthesis_note(
+                    selected_subs,
+                    request.question_count,
+                ));
+                if !synth.is_empty() {
+                    parts.push(serde_json::json!({ "type": "text", "text": synth }));
+                }
                 parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
                 if !adaptive_note.is_empty() {
                     parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
                 }
                 serde_json::Value::Array(parts)
             } else {
+                let synth = sanitize_for_api(&subtopic_synthesis_note(
+                    selected_subs,
+                    request.question_count,
+                ));
                 let mut prompt = format!(
-                    "{}\n\n{}\n\n{}",
+                    "{}\n\n{}\n\n{}\n\n{}",
                     regen_intro,
                     sanitize_for_api(&subtopics_note(selected_subs)),
+                    synth,
                     diversity_note
                 );
                 if !adaptive_note.is_empty() {
@@ -1472,9 +1976,54 @@ async fn generate_mc_questions(
             }
 
             need_retry = attempts < 2
-                && (summary.distinctness_avg.map_or(false, |v| v < 0.6)
-                    || metrics.iter().any(|m| m.distinctness < 0.35));
+                && (summary
+                    .distinctness_avg
+                    .map_or(false, |v| v < distinctness_threshold)
+                    || metrics
+                        .iter()
+                        .any(|m| m.distinctness < per_question_distinctness_threshold));
         }
+    }
+
+    // Recompute diagnostics from the final payload after any retry pass.
+    let mut final_latex_issue_examples = Vec::<String>::new();
+    for q in &payload.questions {
+        for issue in latex_issues_for_text(&q.prompt_markdown)
+            .into_iter()
+            .take(2)
+        {
+            final_latex_issue_examples.push(format!("{} prompt: {}", q.id, issue));
+            if final_latex_issue_examples.len() >= 6 {
+                break;
+            }
+        }
+        for issue in latex_issues_for_text(&q.explanation_markdown)
+            .into_iter()
+            .take(1)
+        {
+            final_latex_issue_examples.push(format!("{} explanation: {}", q.id, issue));
+            if final_latex_issue_examples.len() >= 6 {
+                break;
+            }
+        }
+        if final_latex_issue_examples.len() >= 6 {
+            break;
+        }
+    }
+    quality_diagnostics = build_subtopic_coverage_diagnostics(
+        selected_subs,
+        payload
+            .questions
+            .iter()
+            .map(|q| q.subtopic.clone())
+            .collect(),
+        strict_subtopic_coverage,
+        request.min_subtopic_coverage_ratio,
+        request.question_count,
+    );
+    if let Some(diag) = quality_diagnostics.as_mut() {
+        diag.latex_issue_count = final_latex_issue_examples.len();
+        diag.latex_issue_examples = final_latex_issue_examples;
     }
 
     let estimated_cost_usd = stats_result.ok().and_then(|stats| {
@@ -1513,6 +2062,7 @@ async fn generate_mc_questions(
         multi_step_depth_avg: summary.multi_step_depth_avg,
         command_verb_diversity: summary.command_verb_diversity,
         mark_allocation_variance: summary.mark_allocation_variance,
+        quality_diagnostics,
     })
 }
 // ─── Tauri command: mark answer ───────────────────────────────────────────────
@@ -2340,5 +2890,38 @@ mod tests {
         // 10-mark question should have generous limits
         let sys_10 = marking_system(10, "", "");
         assert!(sys_10.contains("≤600 words"));
+    }
+
+    #[test]
+    fn latex_issue_detector_flags_unclosed_inline_math() {
+        let issues = latex_issues_for_text("Solve $\\frac{x+1}{2 for x.");
+        assert!(!issues.is_empty());
+        assert!(issues.iter().any(|i| i.contains("unclosed inline math")));
+    }
+
+    #[test]
+    fn subtopic_coverage_diagnostics_marks_missing_items() {
+        let selected = vec!["Functions and graphs".to_string(), "Calculus".to_string()];
+        let produced = vec![Some("Functions and graphs".to_string())];
+        let diag = build_subtopic_coverage_diagnostics(Some(&selected), produced, true, None, 1)
+            .expect("expected diagnostics");
+
+        assert_eq!(diag.covered_subtopics.len(), 1);
+        assert_eq!(diag.uncovered_subtopics.len(), 1);
+        assert!(diag.subtopic_coverage_ratio < 1.0);
+    }
+
+    #[test]
+    fn methods_exam1_note_applies_only_for_tech_free_methods() {
+        let topics = vec!["Mathematical Methods".to_string()];
+        let note = math_methods_exam1_tech_free_note(&topics, "tech-free");
+        assert!(note.contains("EXAM 1 STYLE"));
+
+        let mix_note = math_methods_exam1_tech_free_note(&topics, "mix");
+        assert!(mix_note.is_empty());
+
+        let other_topics = vec!["Chemistry".to_string()];
+        let other_note = math_methods_exam1_tech_free_note(&other_topics, "tech-free");
+        assert!(other_note.is_empty());
     }
 }

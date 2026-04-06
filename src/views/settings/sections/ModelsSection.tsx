@@ -8,6 +8,7 @@ import { useAppSettings } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
 import { PRESET_MODELS } from '../constants';
 import { fmt } from '../formatters';
+import { ImageModelSelectRow } from '../ImageModelSelectRow';
 import { ModelSearchPanel } from '../ModelSearchPanel';
 import {
   CustomModelInput,
@@ -144,10 +145,20 @@ export function ModelsSection() {
   );
   const [localUseSeparateMarkingModel, setLocalUseSeparateMarkingModel] =
     useState(settings.useSeparateMarkingModel);
+  const [
+    localUseSeparateImageMarkingModel,
+    setLocalUseSeparateImageMarkingModel,
+  ] = useState(settings.useSeparateImageMarkingModel);
+  const [localIncludeExamContext, setLocalIncludeExamContext] = useState(
+    settings.includeExamContext
+  );
 
   const [showCustom, setShowCustom] = useState(false);
-  const [_showCustomMarking, setShowCustomMarking] = useState(false);
+  const [showCustomMarking, setShowCustomMarking] = useState(false);
+  const [showCustomImageMarking, setShowCustomImageMarking] = useState(false);
   const [customId, setCustomId] = useState('');
+  const [customMarkingId, setCustomMarkingId] = useState('');
+  const [customImageMarkingId, setCustomImageMarkingId] = useState('');
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTarget, setSearchTarget] = useState<
@@ -164,6 +175,38 @@ export function ModelsSection() {
     if (localMarkingModel && localMarkingModel !== settings.markingModel)
       settings.setMarkingModel(localMarkingModel);
   }, [localMarkingModel, settings]);
+
+  useEffect(() => {
+    if (localUseSeparateMarkingModel !== settings.useSeparateMarkingModel) {
+      settings.setUseSeparateMarkingModel(localUseSeparateMarkingModel);
+    }
+  }, [localUseSeparateMarkingModel, settings]);
+
+  useEffect(() => {
+    if (
+      localImageMarkingModel &&
+      localImageMarkingModel !== settings.imageMarkingModel
+    ) {
+      settings.setImageMarkingModel(localImageMarkingModel);
+    }
+  }, [localImageMarkingModel, settings]);
+
+  useEffect(() => {
+    if (
+      localUseSeparateImageMarkingModel !==
+      settings.useSeparateImageMarkingModel
+    ) {
+      settings.setUseSeparateImageMarkingModel(
+        localUseSeparateImageMarkingModel
+      );
+    }
+  }, [localUseSeparateImageMarkingModel, settings]);
+
+  useEffect(() => {
+    if (localIncludeExamContext !== settings.includeExamContext) {
+      settings.setIncludeExamContext(localIncludeExamContext);
+    }
+  }, [localIncludeExamContext, settings]);
 
   /**
    * Refined useEffects: We pull the specific fetcher and state objects
@@ -192,14 +235,14 @@ export function ModelsSection() {
   useEffect(() => {
     if (
       settings.apiKey &&
-      settings.useSeparateImageMarkingModel &&
+      localUseSeparateImageMarkingModel &&
       localImageMarkingModel
     ) {
       void fetchImg(localImageMarkingModel);
     }
   }, [
     settings.apiKey,
-    settings.useSeparateImageMarkingModel,
+    localUseSeparateImageMarkingModel,
     localImageMarkingModel,
     fetchImg,
   ]);
@@ -218,6 +261,7 @@ export function ModelsSection() {
       setShowCustomMarking(false);
     } else {
       setLocalImageMarkingModel(id);
+      setShowCustomImageMarking(false);
     }
     setSearchOpen(false);
   };
@@ -228,14 +272,14 @@ export function ModelsSection() {
       mark: localMarkingModel,
       img: localImageMarkingModel,
       useMark: localUseSeparateMarkingModel,
-      useImg: settings.useSeparateImageMarkingModel,
+      useImg: localUseSeparateImageMarkingModel,
     }),
     [
       localModel,
       localMarkingModel,
       localImageMarkingModel,
       localUseSeparateMarkingModel,
-      settings.useSeparateImageMarkingModel,
+      localUseSeparateImageMarkingModel,
     ]
   );
 
@@ -297,21 +341,100 @@ export function ModelsSection() {
           label="Use a separate marking model"
         />
         {localUseSeparateMarkingModel && (
-          <FieldGroup label="Marking model" htmlFor="marking-model-select">
-            <ModelSelectRow
-              id="marking-model-select"
-              value={localMarkingModel}
-              models={PRESET_MODELS}
-              disabled={!settings.apiKey}
-              onSelect={(v) =>
-                v === 'custom'
-                  ? setShowCustomMarking(true)
-                  : (setShowCustomMarking(false), setLocalMarkingModel(v))
-              }
-              onSearch={() => openSearch('marking')}
-            />
-          </FieldGroup>
+          <div className="space-y-3">
+            <FieldGroup label="Marking model" htmlFor="marking-model-select">
+              <ModelSelectRow
+                id="marking-model-select"
+                value={localMarkingModel}
+                models={PRESET_MODELS}
+                disabled={!settings.apiKey}
+                onSelect={(v) =>
+                  v === 'custom'
+                    ? setShowCustomMarking(true)
+                    : (setShowCustomMarking(false), setLocalMarkingModel(v))
+                }
+                onSearch={() => openSearch('marking')}
+              />
+            </FieldGroup>
+            {showCustomMarking && (
+              <CustomModelInput
+                id="custom-marking-model-id"
+                label="Custom Marking Model ID"
+                value={customMarkingId}
+                onChange={setCustomMarkingId}
+                onApply={() => {
+                  setLocalMarkingModel(customMarkingId.trim());
+                  setShowCustomMarking(false);
+                }}
+              />
+            )}
+          </div>
         )}
+      </section>
+
+      <Divider />
+
+      <section>
+        <SectionHeader
+          title="Image Marking Model"
+          description="Optional separate vision model for marking uploaded answers."
+        />
+        <ToggleRow
+          id="use-separate-image-marking-model"
+          checked={localUseSeparateImageMarkingModel}
+          onChange={setLocalUseSeparateImageMarkingModel}
+          label="Use a separate image marking model"
+        />
+        {localUseSeparateImageMarkingModel && (
+          <div className="space-y-3 mt-3">
+            <FieldGroup
+              label="Image marking model"
+              htmlFor="image-marking-model-select"
+            >
+              <ImageModelSelectRow
+                id="image-marking-model-select"
+                value={localImageMarkingModel}
+                disabled={!settings.apiKey}
+                apiKey={settings.apiKey}
+                onSelect={(v) =>
+                  v === 'custom'
+                    ? setShowCustomImageMarking(true)
+                    : (setShowCustomImageMarking(false),
+                      setLocalImageMarkingModel(v))
+                }
+                onSearch={() => openSearch('imageMarking')}
+              />
+            </FieldGroup>
+            {showCustomImageMarking && (
+              <CustomModelInput
+                id="custom-image-marking-model-id"
+                label="Custom Image Marking Model ID"
+                value={customImageMarkingId}
+                onChange={setCustomImageMarkingId}
+                onApply={() => {
+                  setLocalImageMarkingModel(customImageMarkingId.trim());
+                  setShowCustomImageMarking(false);
+                }}
+              />
+            )}
+          </div>
+        )}
+      </section>
+
+      <Divider />
+
+      <section>
+        <SectionHeader
+          title="Exam Context"
+          description="Attach previous exam PDFs as style context when generating questions."
+        />
+        <ToggleRow
+          id="include-exam-context"
+          checked={localIncludeExamContext}
+          onChange={setLocalIncludeExamContext}
+          label="Upload previous exams to the model during generation"
+          description="Uses your local exam PDF references to improve style and marking alignment."
+        />
       </section>
 
       <Divider />

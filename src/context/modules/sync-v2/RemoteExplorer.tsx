@@ -449,10 +449,11 @@ export function RemoteExplorer() {
           role="treeitem"
           aria-selected={isSelected}
           tabIndex={0}
-          className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors border-l-2 ${isSelected
+          className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors border-l-2 ${
+            isSelected
               ? 'border-primary text-primary font-medium'
               : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+          }`}
           onClick={() => {
             if (node.type !== 'document') onToggle(node.id);
             else onSelect(node);
