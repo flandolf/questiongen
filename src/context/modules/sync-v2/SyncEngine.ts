@@ -292,6 +292,8 @@ type DataChangeCallback = (data: SyncableData) => void;
 type EventCallback = (event: SyncEvent) => void;
 type StatusCallback = (status: SyncStatus) => void;
 
+const FOREGROUND_PULL_COOLDOWN_MS = 15000;
+
 export class SyncEngine {
   private userId: string | null = null;
   private queueManager: QueueManager | null = null;
@@ -337,6 +339,9 @@ export class SyncEngine {
   private setTombstones: ((t: DeletionTombstones) => void) | null = null;
   private readonly onlineHandler: () => void;
   private readonly offlineHandler: () => void;
+  private readonly focusHandler: () => void;
+  private readonly visibilityHandler: () => void;
+  private lastForegroundPullAt = 0;
 
   constructor(
     getState: () => SyncableData,
@@ -350,8 +355,14 @@ export class SyncEngine {
 
     this.onlineHandler = () => this.handleOnline();
     this.offlineHandler = () => this.handleOffline();
+    this.focusHandler = () => this.handleForegroundResume();
+    this.visibilityHandler = () => {
+      if (!document.hidden) this.handleForegroundResume();
+    };
     window.addEventListener('online', this.onlineHandler);
     window.addEventListener('offline', this.offlineHandler);
+    window.addEventListener('focus', this.focusHandler);
+    document.addEventListener('visibilitychange', this.visibilityHandler);
   }
 
   onTelemetryChange(cb: (t: SyncTelemetry) => void): () => void {
@@ -433,6 +444,7 @@ export class SyncEngine {
     this.realtimeListener?.start();
     if (this.isOnline && this.queueManager) {
       void this.queueManager.flush();
+      this.scheduleRemotePull();
     }
   }
 
@@ -1190,11 +1202,24 @@ export class SyncEngine {
     if (this.queueManager && this.queueManager.pendingCount > 0) {
       this.queueManager.scheduleFlush();
     }
+    this.handleForegroundResume();
   }
 
   private handleOffline(): void {
     this.isOnline = false;
     this.setStatus('offline');
+  }
+
+  private handleForegroundResume(): void {
+    if (!this.started || !this.isOnline || !this.userId || !this.remoteRepo) {
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastForegroundPullAt < FOREGROUND_PULL_COOLDOWN_MS) {
+      return;
+    }
+    this.lastForegroundPullAt = now;
+    this.scheduleRemotePull();
   }
 
   private setStatus(status: SyncStatus): void {
@@ -1231,6 +1256,8 @@ export class SyncEngine {
     this.stop();
     window.removeEventListener('online', this.onlineHandler);
     window.removeEventListener('offline', this.offlineHandler);
+    window.removeEventListener('focus', this.focusHandler);
+    document.removeEventListener('visibilitychange', this.visibilityHandler);
     this.dataCallbacks.clear();
     this.eventCallbacks.clear();
     this.statusCallbacks.clear();

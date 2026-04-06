@@ -59,12 +59,9 @@ function getCollectionPath(
   shardKey?: ShardKey
 ): string {
   const base = `users/${userId}`;
-  if (
-    shardKey &&
-    (collectionName === 'questionHistory' || collectionName === 'mcHistory')
-  ) {
-    return `${base}/${collectionName}/${shardKey}`;
-  }
+  // Keep history collections flat to match existing cloud schema and realtime
+  // listeners. The shard key is currently ignored for compatibility.
+  void shardKey;
   return `${base}/${collectionName}`;
 }
 
@@ -699,15 +696,8 @@ export class RemoteRepository {
     lastSyncVersions: Record<string, number>,
     shardKey?: ShardKey
   ): Promise<RemoteDocument[]> {
-    // For sharded collections, we need to fetch all shards and apply delta logic
-    if (
-      !shardKey &&
-      (collection === 'questionHistory' || collection === 'mcHistory')
-    ) {
-      return this.getDeltaChangesSharded(collection, lastSyncVersions);
-    }
-
-    // For non-sharded collections and specific shards, use optimized server-side filtering
+    // Use a single flat-collection delta query so all devices observe the same
+    // paths as realtime listeners.
     return this.getDeltaChangesOptimized(
       collection,
       lastSyncVersions,
@@ -749,43 +739,6 @@ export class RemoteRepository {
     });
 
     return results;
-  }
-
-  private async getDeltaChangesSharded(
-    collection: 'questionHistory' | 'mcHistory',
-    lastSyncVersions: Record<string, number>
-  ): Promise<RemoteDocument[]> {
-    // For sharded collections, batch fetch from multiple shards in parallel
-    // Get all possible shards (current month and recent months)
-    const shards = this.getRecentShards();
-
-    const promises = shards.map((shard) =>
-      this.getDeltaChangesOptimized(collection, lastSyncVersions, shard).catch(
-        () => [] // Non-fatal: shard may not exist
-      )
-    );
-
-    const allResults = await Promise.all(promises);
-    return allResults.flat();
-  }
-
-  private getRecentShards(): ShardKey[] {
-    const now = new Date();
-    const shards: ShardKey[] = [];
-
-    // Current month
-    shards.push(this.getShardKey(now));
-
-    // Last 12 months (for users with history spanning year)
-    for (let i = 1; i <= 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const shard = this.getShardKey(date);
-      if (!shards.includes(shard)) {
-        shards.push(shard);
-      }
-    }
-
-    return shards;
   }
 
   async getRemoteCounts(
