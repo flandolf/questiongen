@@ -61,10 +61,14 @@ use openrouter::{
 };
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
-    clean_field, extract_json_object, normalise_envelope, normalise_mc, normalise_written,
-    protect_latex_in_raw_json, sanitize_for_api, validate_mc, validate_written,
+    clean_field, extract_json_array, extract_json_object, normalise_envelope, normalise_mc,
+    normalise_written, protect_latex_in_raw_json, repair_llm_json_trailing_commas,
+    sanitize_for_api, validate_mc, validate_written,
 };
-use persistence::{export_data_file, load_persisted_state, save_persisted_state};
+use persistence::{
+    export_data_file, export_data_file_to_directory, list_json_files_in_directory,
+    load_persisted_state, read_text_file, save_persisted_state,
+};
 use quality::score_batch;
 
 // ─── Token calculation helpers ────────────────────────────────────────────────
@@ -731,7 +735,8 @@ fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> Command
     // by JSON escape-sequence interpretation before any parsing occurs.
     let protected = protect_latex_in_raw_json(raw);
     let json_str = extract_json_object(&protected)
-        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object in response."))?;
+        .or_else(|| extract_json_array(&protected))
+        .ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", "No JSON object or array in response."))?;
     let value: serde_json::Value = serde_json::from_str(&json_str)
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
     let normalised =
@@ -1883,7 +1888,9 @@ fn parse_cleanup_mappings(raw: &str) -> CommandResult<Vec<(String, String)>> {
     let protected = protect_latex_in_raw_json(raw);
 
     // Try to parse as a complete JSON value first (handles both objects and arrays).
-    let value: Option<serde_json::Value> = serde_json::from_str(&protected).ok();
+    let value: Option<serde_json::Value> = serde_json::from_str(&protected)
+        .ok()
+        .or_else(|| serde_json::from_str(&repair_llm_json_trailing_commas(&protected)).ok());
 
     // If direct parse fails, try extracting a JSON object (for wrapped/text responses).
     let value = match value {
@@ -1928,8 +1935,8 @@ fn parse_cleanup_mappings(raw: &str) -> CommandResult<Vec<(String, String)>> {
         .and_then(|v| v.as_array())
         .or_else(|| value.as_array());
 
-    // If we got a bare array directly from extract_json_object (the scanner found
-    // the first {…} inside a bare array), arr_opt will be None but value will be
+    // If we got a single mapping object (not wrapped in mappings), arr_opt will be
+    // None but value will be
     // an object with "unknown"/"canonical" keys. Treat it as a single-element list.
     let items: Vec<&serde_json::Value> = match arr_opt {
         Some(arr) => arr.iter().collect(),
@@ -1956,53 +1963,6 @@ fn parse_cleanup_mappings(raw: &str) -> CommandResult<Vec<(String, String)>> {
         }
     }
     Ok(out)
-}
-
-/// Extract the first JSON array (`[…]`) from a string, stripping fences.
-fn extract_json_array(content: &str) -> Option<String> {
-    let s = content.trim();
-
-    // Already a clean array.
-    if s.starts_with('[') {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
-            if v.is_array() {
-                return Some(s.to_string());
-            }
-        }
-    }
-
-    // Strip ```json ... ``` fences.
-    let fence = s
-        .strip_prefix("```json")
-        .or_else(|| s.strip_prefix("```"))
-        .map(|s| s.trim_start_matches('\n'))
-        .and_then(|s| s.strip_suffix("```"))
-        .map(str::trim);
-    if let Some(inner) = fence {
-        if inner.starts_with('[') {
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(inner) {
-                if v.is_array() {
-                    return Some(inner.to_string());
-                }
-            }
-        }
-    }
-
-    // Scan for the first parseable array.
-    for (i, ch) in content.char_indices() {
-        if ch != '[' {
-            continue;
-        }
-        let slice = &content[i..];
-        let mut iter = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
-        if let Some(Ok(v)) = iter.next() {
-            if v.is_array() {
-                let end = i + iter.byte_offset();
-                return content.get(i..end).map(str::to_string);
-            }
-        }
-    }
-    None
 }
 
 /// Build the cleanup system prompt.  Kept as a helper so both topic and
@@ -2254,10 +2214,14 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             load_persisted_state,
             save_persisted_state,
             export_data_file,
+            export_data_file_to_directory,
+            list_json_files_in_directory,
+            read_text_file,
             generate_questions,
             mark_answer,
             batch_mark_answers,

@@ -14,18 +14,30 @@ import { formatCostUsd } from '@/lib/app-utils';
 import type {
   BatchTopicProgress,
   GenerationStatusEvent,
+  GenerationSubCallProgress,
   GenerationTelemetry,
 } from '@/types';
 
 type TimelinePhase = 'waiting' | 'active' | 'done' | 'error';
 
 const STAGE_ORDER = [
+  'allocating_subtopics',
   'preparing',
   'generating',
   'parsing',
   'completed',
 ] as const;
 type KnownStage = (typeof STAGE_ORDER)[number];
+
+/** Stages emitted by the backend or client; labels for timeline and batch rows. */
+const GENERATION_STAGE_LABELS: Record<string, string> = {
+  allocating_subtopics: 'Focus subtopics (local)',
+  preparing: 'Building prompt',
+  generating: 'Generating',
+  parsing: 'Parsing & validating',
+  completed: 'Complete',
+  failed: 'Failed',
+};
 
 function phaseForStage(
   stage: KnownStage,
@@ -61,10 +73,11 @@ function TimelineDot({ phase }: { phase: TimelinePhase }) {
 }
 
 const STAGE_LABELS: Record<KnownStage, string> = {
-  preparing: 'Building prompt',
-  generating: 'Generating',
-  parsing: 'Parsing & validating',
-  completed: 'Complete',
+  allocating_subtopics: GENERATION_STAGE_LABELS.allocating_subtopics,
+  preparing: GENERATION_STAGE_LABELS.preparing,
+  generating: GENERATION_STAGE_LABELS.generating,
+  parsing: GENERATION_STAGE_LABELS.parsing,
+  completed: GENERATION_STAGE_LABELS.completed,
 };
 
 export function LastGenerationStats({
@@ -166,6 +179,65 @@ function TimelineStages({
   );
 }
 
+function SubCallProgressHint({
+  progress,
+  topicLabel,
+  batchMode,
+}: {
+  progress: GenerationSubCallProgress | null | undefined;
+  topicLabel?: string;
+  batchMode?: boolean;
+}) {
+  if (!progress || progress.total <= 1) return null;
+  const suffix = batchMode
+    ? ' (local subtopic split)'
+    : ' (one focus area per pass)';
+  return (
+    <p className="text-[10px] font-mono text-muted-foreground/90 tabular-nums pl-0.5">
+      {topicLabel ? `${topicLabel}: ` : ''}API pass {progress.current} /{' '}
+      {progress.total}
+      <span className="text-muted-foreground/50 font-normal">{suffix}</span>
+    </p>
+  );
+}
+
+function GenerationTokenStream({
+  streamText,
+  currentStage,
+  isGenerating,
+  isDone,
+}: {
+  streamText: string;
+  currentStage: string;
+  isGenerating: boolean;
+  isDone: boolean;
+}) {
+  const streamRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (streamRef.current)
+      streamRef.current.scrollTop = streamRef.current.scrollHeight;
+  }, [streamText]);
+
+  if (!(currentStage === 'generating' || (isDone && streamText))) return null;
+
+  return (
+    <div
+      ref={streamRef}
+      className="max-h-28 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all"
+    >
+      {streamText ? (
+        streamText
+      ) : (
+        <span className="opacity-40">Waiting for tokens…</span>
+      )}
+      {isGenerating && currentStage === 'generating' && (
+        <span className="inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse" />
+      )}
+    </div>
+  );
+}
+
 function CompletedStats({
   completedEvent,
 }: {
@@ -207,6 +279,7 @@ function CompletedStats({
 
 export function GenerationTimeline({
   generationStatus,
+  generationSubCallProgress,
   formattedElapsedTime,
   streamText,
   isGenerating,
@@ -214,21 +287,17 @@ export function GenerationTimeline({
   onTogglePause,
 }: {
   generationStatus: GenerationStatusEvent | null;
+  /** Present when several API calls run for one subject (per locally chosen subtopic). */
+  generationSubCallProgress?: GenerationSubCallProgress | null;
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
   isPaused: boolean;
   onTogglePause: () => void;
 }) {
-  const streamRef = useRef<HTMLDivElement>(null);
   const currentStage = generationStatus?.stage ?? 'preparing';
   const isFailed = currentStage === 'failed';
   const isDone = currentStage === 'completed';
-
-  useEffect(() => {
-    if (streamRef.current)
-      streamRef.current.scrollTop = streamRef.current.scrollHeight;
-  }, [streamText]);
 
   const completedEvent = isDone ? generationStatus : null;
 
@@ -267,6 +336,10 @@ export function GenerationTimeline({
         </span>
       </div>
 
+      {isGenerating && (
+        <SubCallProgressHint progress={generationSubCallProgress} />
+      )}
+
       <TimelineStages
         currentStage={currentStage}
         isFailed={isFailed}
@@ -274,21 +347,12 @@ export function GenerationTimeline({
         isDone={isDone}
       />
 
-      {(currentStage === 'generating' || (isDone && streamText)) && (
-        <div
-          ref={streamRef}
-          className="max-h-28 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all"
-        >
-          {streamText ? (
-            streamText
-          ) : (
-            <span className="opacity-40">Waiting for tokens…</span>
-          )}
-          {isGenerating && currentStage === 'generating' && (
-            <span className="inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse" />
-          )}
-        </div>
-      )}
+      <GenerationTokenStream
+        streamText={streamText}
+        currentStage={currentStage}
+        isGenerating={isGenerating}
+        isDone={isDone}
+      />
 
       {isDone && <CompletedStats completedEvent={completedEvent} />}
     </div>
@@ -297,6 +361,7 @@ export function GenerationTimeline({
 
 export function BatchTimeline({
   entries,
+  generationSubCallProgress,
   formattedElapsedTime,
   streamText,
   isGenerating,
@@ -304,6 +369,7 @@ export function BatchTimeline({
   onTogglePause,
 }: {
   entries: BatchTopicProgress[];
+  generationSubCallProgress?: GenerationSubCallProgress | null;
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
@@ -372,7 +438,11 @@ export function BatchTimeline({
 
           const stageSuffix =
             isActive && entry.stage && entry.stage !== 'completed'
-              ? ` — ${STAGE_LABELS[entry.stage as KnownStage] ?? entry.stage}`
+              ? ` — ${
+                  STAGE_LABELS[entry.stage as KnownStage] ??
+                  GENERATION_STAGE_LABELS[entry.stage] ??
+                  entry.stage
+                }`
               : '';
 
           return (
@@ -425,6 +495,14 @@ export function BatchTimeline({
           );
         })}
       </div>
+
+      {isGenerating && activeEntry && (
+        <SubCallProgressHint
+          progress={generationSubCallProgress}
+          topicLabel={activeEntry.topic}
+          batchMode
+        />
+      )}
 
       {activeEntry?.stage === 'generating' && (
         <div

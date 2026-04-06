@@ -51,6 +51,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   includeExamContext: true,
   autoSyncIntervalMinutes: 0,
   syncApiKey: false,
+  localBackupFolderPath: '',
+  localBackupIntervalMinutes: 0,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -281,6 +283,12 @@ function normalizeSettings(raw: unknown): PersistedSettings {
         ? data.autoSyncIntervalMinutes
         : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
     syncApiKey: Boolean(data.syncApiKey),
+    localBackupFolderPath: asString(data.localBackupFolderPath),
+    localBackupIntervalMinutes:
+      typeof data.localBackupIntervalMinutes === 'number' &&
+      data.localBackupIntervalMinutes >= 0
+        ? data.localBackupIntervalMinutes
+        : DEFAULT_SETTINGS.localBackupIntervalMinutes,
   };
 }
 

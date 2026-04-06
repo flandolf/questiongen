@@ -14,6 +14,7 @@ import { listen } from '@tauri-apps/api/event';
 import React, { useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
+import { useLocalBackupExport } from './hooks/useLocalBackupExport';
 import { useAppStore } from './store';
 import type { GenerationStatusEvent } from './types';
 
@@ -22,6 +23,8 @@ import type { GenerationStatusEvent } from './types';
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
   const setGenerationStatus = useAppStore((s) => s.setGenerationStatus);
+
+  useLocalBackupExport();
 
   // Hydrate from persisted storage on mount
   useEffect(() => {

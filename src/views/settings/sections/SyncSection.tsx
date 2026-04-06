@@ -519,7 +519,7 @@ export function SyncSection() {
                   void disableSync();
                 }}
               >
-                Disconnect
+                Disable sync
               </Button>
               <Button
                 variant="outline"
@@ -548,18 +548,30 @@ export function SyncSection() {
             </div>
           )}
           {isSignedIn && !syncEnabled && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => {
-                void forceSync();
-              }}
-              disabled={isSyncing || !isOnline}
-            >
-              <Cloud className="h-3.5 w-3.5" />
-              {isSyncing ? 'Enabling...' : 'Enable Sync'}
-            </Button>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  void forceSync();
+                }}
+                disabled={isSyncing || !isOnline}
+              >
+                <Cloud className="h-3.5 w-3.5" />
+                {isSyncing ? 'Enabling...' : 'Enable Sync'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+              >
+                Sign out
+              </Button>
+            </div>
           )}
         </div>
 

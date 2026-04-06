@@ -285,7 +285,7 @@ export function ModelsSection() {
 
       <Divider />
 
-      <section className="space-y-3">
+      <section>
         <SectionHeader
           title="Marking Model"
           description="Optional separate model for grading."

@@ -36,6 +36,7 @@ import type {
   GenerateMcQuestionsResponse,
   GenerateQuestionsResponse,
   GenerationStatusEvent,
+  GenerationSubCallProgress,
   GenerationTelemetry,
   GenerationTokenEvent,
   MathMethodsSubtopic,
@@ -135,6 +136,19 @@ function rekeyMc(qs: McQuestion[]): McQuestion[] {
   return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
 }
 
+/**
+ * Hash a string into a numeric seed suitable for shuffleWithSeed.
+ * Uses a simple djb2-style hash to ensure different strings produce
+ * different seeds (unlike charCodeAt(0) which only reads the first char).
+ */
+function hashStringForSeed(str: string): number {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 33) ^ str.charCodeAt(i);
+  }
+  return Math.abs(hash | 0);
+}
+
 // Build per-subtopic generation calls when subtopics are present.
 // Uses locally-seeded randomization for reproducible subtopic selection.
 // If `total` <= subtopics.length, pick `total` distinct subtopics and
@@ -170,8 +184,10 @@ function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
     (o) => o.label === q.correctAnswer
   )?.text;
 
-  // Use seeded shuffle for reproducibility based on question content
-  const seed = q.id?.charCodeAt(0) || Date.now();
+  // Use a hash of the full question ID for a unique, reproducible seed per question
+  const seed = hashStringForSeed(
+    q.id ?? `${q.topic}-${q.promptMarkdown.slice(0, 50)}`
+  );
   const shuffled = shuffleWithSeed([...originalOptions], seed);
 
   const labels = shuffled.map((_, i) => String.fromCharCode(65 + i)); // 'A','B',...
@@ -285,6 +301,8 @@ export function GeneratorView() {
   // Per-topic batch progress — drives the multi-topic timeline in SetupPanel.
   // Empty when only one topic is selected (single-call path shows normal timeline).
   const [batchProgress, setBatchProgress] = useState<BatchTopicProgress[]>([]);
+  const [generationSubCallProgress, setGenerationSubCallProgress] =
+    useState<GenerationSubCallProgress | null>(null);
 
   // ── Context ─────────────────────────────────────────────────────────────────
   const {
@@ -1363,14 +1381,18 @@ export function GeneratorView() {
     }));
   }
 
-  function setBatchEntryActive(idx: number) {
+  function setBatchEntryActive(idx: number, topic: Topic) {
+    const topicSubtopics = getSubtopicsForTopic(topic);
+    const hasFocus = topicSubtopics.length > 0;
     setBatchProgress((prev) => {
       const next = [...prev];
       next[idx] = {
         ...next[idx],
         status: 'active',
-        stage: 'preparing',
-        message: undefined,
+        stage: 'allocating_subtopics',
+        message: hasFocus
+          ? 'Picking focus subtopics locally (seeded)…'
+          : 'Planning question mix locally…',
         errorMessage: undefined,
       };
       return next;
@@ -1403,16 +1425,23 @@ export function GeneratorView() {
     setErrorMessage(null);
     setLastFailedAction(null);
     setStreamText('');
+    setGenerationSubCallProgress(null);
+    const counts = distributeQuestions(selectedTopics, questionCount);
+    const firstActiveIdx = selectedTopics.findIndex((_, j) => counts[j] > 0);
+    const firstAllocTopic =
+      firstActiveIdx >= 0 ? selectedTopics[firstActiveIdx] : selectedTopics[0];
+    const firstHasFocus =
+      firstAllocTopic && getSubtopicsForTopic(firstAllocTopic).length > 0;
     setGenerationStatus({
       mode: 'written',
-      stage: 'preparing',
-      message: 'Preparing generation request.',
+      stage: 'allocating_subtopics',
+      message: firstHasFocus
+        ? 'Picking focus subtopics locally (seeded)…'
+        : 'Planning question mix locally…',
       attempt: 1,
     });
     setIsGenerating(true);
     setGenerationStartedAt(Date.now());
-
-    const counts = distributeQuestions(selectedTopics, questionCount);
     // Only show batch UI when more than one topic is selected
     const isMultiTopic = selectedTopics.length > 1;
     if (isMultiTopic) {
@@ -1444,7 +1473,7 @@ export function GeneratorView() {
           continue;
         }
 
-        if (isMultiTopic) setBatchEntryActive(i);
+        if (isMultiTopic) setBatchEntryActive(i, topic);
 
         try {
           // If subtopics are present, build per-subtopic calls so the client
@@ -1452,8 +1481,26 @@ export function GeneratorView() {
           // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
           const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic]);
-          for (const call of subCalls) {
+          if (!isMultiTopic) {
+            const hasFocus = topicSubtopics.length > 0;
+            setGenerationStatus({
+              mode: 'written',
+              stage: 'allocating_subtopics',
+              message: hasFocus
+                ? 'Picking focus subtopics locally (seeded)…'
+                : 'Planning question mix locally…',
+              attempt: 1,
+            });
+          }
+          for (let si = 0; si < subCalls.length; si++) {
+            const call = subCalls[si];
             if (call.count === 0) continue;
+            if (subCalls.length > 1) {
+              setGenerationSubCallProgress({
+                current: si + 1,
+                total: subCalls.length,
+              });
+            }
             const response = await invoke<GenerateQuestionsResponse>(
               'generate_questions',
               {
@@ -1519,10 +1566,12 @@ export function GeneratorView() {
               },
             });
           }
+          setGenerationSubCallProgress(null);
 
           if (isMultiTopic) setBatchEntryDone(i);
         } catch (topicError) {
           failedTopics.push(topic);
+          setGenerationSubCallProgress(null);
           if (isMultiTopic) {
             setBatchEntryError(i, readBackendError(topicError));
           } else {
@@ -1602,6 +1651,7 @@ export function GeneratorView() {
       setErrorMessage(readBackendError(error));
       setLastFailedAction('generate-written');
     } finally {
+      setGenerationSubCallProgress(null);
       setIsGenerating(false);
     }
   }
@@ -1613,16 +1663,26 @@ export function GeneratorView() {
     setErrorMessage(null);
     setLastFailedAction(null);
     setStreamText('');
+    setGenerationSubCallProgress(null);
+    const counts = distributeQuestions(selectedTopics, questionCount);
+    const firstActiveIdxMc = selectedTopics.findIndex((_, j) => counts[j] > 0);
+    const firstAllocTopicMc =
+      firstActiveIdxMc >= 0
+        ? selectedTopics[firstActiveIdxMc]
+        : selectedTopics[0];
+    const firstHasFocusMc =
+      firstAllocTopicMc && getSubtopicsForTopic(firstAllocTopicMc).length > 0;
     setGenerationStatus({
       mode: 'multiple-choice',
-      stage: 'preparing',
-      message: 'Preparing generation request.',
+      stage: 'allocating_subtopics',
+      message: firstHasFocusMc
+        ? 'Picking focus subtopics locally (seeded)…'
+        : 'Planning question mix locally…',
       attempt: 1,
     });
     setIsGenerating(true);
     setGenerationStartedAt(Date.now());
 
-    const counts = distributeQuestions(selectedTopics, questionCount);
     const isMultiTopic = selectedTopics.length > 1;
     if (isMultiTopic) {
       setBatchProgress(initBatchProgress(selectedTopics, counts));
@@ -1653,7 +1713,7 @@ export function GeneratorView() {
           continue;
         }
 
-        if (isMultiTopic) setBatchEntryActive(i);
+        if (isMultiTopic) setBatchEntryActive(i, topic);
 
         try {
           // Build per-subtopic calls so the client picks which subtopics to
@@ -1662,8 +1722,26 @@ export function GeneratorView() {
           // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
           const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic]);
-          for (const call of subCalls) {
+          if (!isMultiTopic) {
+            const hasFocus = topicSubtopics.length > 0;
+            setGenerationStatus({
+              mode: 'multiple-choice',
+              stage: 'allocating_subtopics',
+              message: hasFocus
+                ? 'Picking focus subtopics locally (seeded)…'
+                : 'Planning question mix locally…',
+              attempt: 1,
+            });
+          }
+          for (let si = 0; si < subCalls.length; si++) {
+            const call = subCalls[si];
             if (call.count === 0) continue;
+            if (subCalls.length > 1) {
+              setGenerationSubCallProgress({
+                current: si + 1,
+                total: subCalls.length,
+              });
+            }
             const response = await invoke<GenerateMcQuestionsResponse>(
               'generate_mc_questions',
               {
@@ -1732,10 +1810,12 @@ export function GeneratorView() {
               },
             });
           }
+          setGenerationSubCallProgress(null);
 
           if (isMultiTopic) setBatchEntryDone(i);
         } catch (topicError) {
           failedTopics.push(topic);
+          setGenerationSubCallProgress(null);
           if (isMultiTopic) {
             setBatchEntryError(i, readBackendError(topicError));
           } else {
@@ -1810,6 +1890,7 @@ export function GeneratorView() {
       setErrorMessage(readBackendError(error));
       setLastFailedAction('generate-mc');
     } finally {
+      setGenerationSubCallProgress(null);
       setIsGenerating(false);
     }
   }
@@ -2298,6 +2379,7 @@ export function GeneratorView() {
           lastGenerationTelemetry={lastSessionTelemetry}
           streamText={streamText}
           batchProgress={batchProgress}
+          generationSubCallProgress={generationSubCallProgress}
         />
       ) : /* ── Completion ── */
       showCompletionScreen && isSetComplete ? (

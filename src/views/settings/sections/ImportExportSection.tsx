@@ -14,11 +14,13 @@ import {
   downloadExport,
   exportAppState,
   type ImportCounts,
+  isTauriApp,
   parseImportFile,
 } from '../../../lib/import-export';
 import { useAppStore } from '../../../store';
 import type { PersistedAppState } from '../../../types';
 import { Card, Divider, ErrorBanner, SectionHeader } from '../SettingsUI';
+import { LocalBackupFolderCard } from './LocalBackupFolderCard';
 
 export function ImportExportSection() {
   const questionHistory = useAppStore((s) => s.questionHistory);
@@ -34,12 +36,23 @@ export function ImportExportSection() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Import preview state
   const [showPreview, setShowPreview] = useState(false);
   const [pendingImport, setPendingImport] = useState<PersistedAppState | null>(
     null
   );
   const [importCounts, setImportCounts] = useState<ImportCounts | null>(null);
+
+  const desktop = isTauriApp();
+
+  const notifyError = useCallback((message: string) => {
+    setError(message);
+    setSuccess(null);
+  }, []);
+
+  const notifySuccess = useCallback((message: string) => {
+    setSuccess(message);
+    setError(null);
+  }, []);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
@@ -64,6 +77,14 @@ export function ImportExportSection() {
     }
   }, []);
 
+  const beginImportPreview = useCallback((imported: PersistedAppState) => {
+    const state = useAppStore.getState();
+    const counts = computeImportCounts(state, imported);
+    setPendingImport(imported);
+    setImportCounts(counts);
+    setShowPreview(true);
+  }, []);
+
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -75,25 +96,19 @@ export function ImportExportSection() {
 
       try {
         const imported = await parseImportFile(file);
-        const state = useAppStore.getState();
-        const counts = computeImportCounts(state, imported);
-
-        setPendingImport(imported);
-        setImportCounts(counts);
-        setShowPreview(true);
+        beginImportPreview(imported);
       } catch (err) {
         setError(
           `Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`
         );
       } finally {
         setImporting(false);
-        // Reset file input so the same file can be selected again
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       }
     },
-    []
+    [beginImportPreview]
   );
 
   const handleConfirmImport = useCallback(() => {
@@ -167,7 +182,14 @@ export function ImportExportSection() {
         </div>
       )}
 
-      {/* Export Card */}
+      {!desktop && (
+        <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2">
+          Scheduled backups, saving to a chosen folder, and importing from that
+          folder are available in the desktop app. In the browser, use Export
+          and Choose File below.
+        </p>
+      )}
+
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <HardDriveDownload className="h-4 w-4 text-muted-foreground" />
@@ -200,9 +222,19 @@ export function ImportExportSection() {
         </Button>
       </Card>
 
+      {desktop && (
+        <>
+          <Divider />
+          <LocalBackupFolderCard
+            onError={notifyError}
+            onSuccess={notifySuccess}
+            onPreparedImport={beginImportPreview}
+          />
+        </>
+      )}
+
       <Divider />
 
-      {/* Import Card */}
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <HardDriveUpload className="h-4 w-4 text-muted-foreground" />
@@ -235,7 +267,6 @@ export function ImportExportSection() {
         </Button>
       </Card>
 
-      {/* Import Preview Modal */}
       {showPreview && importCounts && (
         <ConfirmModal
           open={showPreview}
