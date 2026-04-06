@@ -9,7 +9,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 import { RemoteExplorer } from '@/context/modules/sync-v2';
 import { cn } from '@/lib/utils';
@@ -28,133 +27,6 @@ import {
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
 import { signOutFirebase } from '../../../context/modules/firebase-auth';
 import { Card, FieldGroup, SectionHeader, ToggleRow } from '../SettingsUI';
-
-type LiveRetryItem = { nextAttemptAt?: number };
-type LiveImmediateLog = { message?: string };
-
-function getLiveRetryQueueSummary() {
-  try {
-    const raw = localStorage.getItem('firebase_live_retry_queue_v1') || '[]';
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed))
-      return { actionable: 0, total: 0, display: '—' };
-    const q = parsed as Array<LiveRetryItem>;
-    const now = Date.now();
-    const actionable = q.filter(
-      (item) => (item.nextAttemptAt ?? 0) <= now
-    ).length;
-    if (actionable > 0)
-      return { actionable, total: q.length, display: actionable };
-    if (q.length > 0)
-      return {
-        actionable: 0,
-        total: q.length,
-        display: `${q.length} (delayed)`,
-      };
-    return { actionable: 0, total: 0, display: '—' };
-  } catch {
-    return { actionable: 0, total: 0, display: '—' };
-  }
-}
-
-function getLiveImmediateLastLogMessage() {
-  try {
-    const raw = localStorage.getItem('firebase_live_immediate_logs_v1') || '[]';
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return '—';
-    const logs = parsed as Array<LiveImmediateLog>;
-    return logs.length > 0 && logs[0]?.message ? logs[0].message : '—';
-  } catch {
-    return '—';
-  }
-}
-
-function ImmediateSyncCard({
-  isSignedIn,
-  syncEnabled,
-}: {
-  isSignedIn: boolean;
-  syncEnabled: boolean;
-}) {
-  const [isFlushing, setIsFlushing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  if (!isSignedIn || !syncEnabled) return null;
-
-  const queueSummary = getLiveRetryQueueSummary();
-  const lastLiveMessage = getLiveImmediateLastLogMessage();
-
-  return (
-    <Card className="p-5" key={refreshKey}>
-      <h3 className="text-sm font-medium mb-2">Immediate Sync (Live)</h3>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-muted-foreground">
-            Queued immediate ops
-          </div>
-          <div className="font-medium">{queueSummary.display}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Last live op: {lastLiveMessage}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() => {
-              void (async () => {
-                const before = getLiveRetryQueueSummary();
-                if (before.total === 0) {
-                  toast.info('No queued live ops to flush');
-                  return;
-                }
-
-                const proc = (
-                  window as unknown as {
-                    __processLiveRetryQueue?: () => Promise<void>;
-                  }
-                ).__processLiveRetryQueue;
-
-                if (!proc) {
-                  toast.error('Live retry processor is not available');
-                  return;
-                }
-
-                setIsFlushing(true);
-                try {
-                  await proc();
-                  const after = getLiveRetryQueueSummary();
-                  setRefreshKey((k) => k + 1);
-
-                  if (after.total < before.total) {
-                    toast.success(
-                      `Flushed ${before.total - after.total} queued live op${before.total - after.total === 1 ? '' : 's'}`
-                    );
-                  } else if (after.actionable === 0 && after.total > 0) {
-                    toast.info(
-                      'No due ops to flush yet (remaining ops are delayed)'
-                    );
-                  } else {
-                    toast.info('Flush complete with no immediate queue change');
-                  }
-                } catch (error) {
-                  const message =
-                    error instanceof Error ? error.message : String(error);
-                  toast.error(`Flush failed: ${message}`);
-                } finally {
-                  setIsFlushing(false);
-                  setRefreshKey((k) => k + 1);
-                }
-              })();
-            }}
-            disabled={isFlushing}
-          >
-            {isFlushing ? 'Flushing...' : 'Flush queued ops'}
-          </Button>
-        </div>
-      </div>
-    </Card>
-  );
-}
 
 type SyncEvent = {
   id: string;
@@ -749,8 +621,6 @@ export function SyncSection() {
           </div>
         )}
       </Card>
-
-      <ImmediateSyncCard isSignedIn={isSignedIn} syncEnabled={syncEnabled} />
 
       {isSignedIn && (
         <Card className="p-5">

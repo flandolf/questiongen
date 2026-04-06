@@ -960,25 +960,30 @@ export class SyncEngine {
     return true;
   }
 
+  // eslint-disable-next-line complexity
   private async performPull(): Promise<void> {
     if (!this.userId || !this.remoteRepo) return;
     this.setStatus('syncing');
 
     try {
-      const [qh, mc, ss] = await Promise.all([
-        this.remoteRepo.getDeltaChanges(
-          'questionHistory',
-          this.metadata.lastSyncVersions.questionHistory
-        ),
-        this.remoteRepo.getDeltaChanges(
-          'mcHistory',
-          this.metadata.lastSyncVersions.mcHistory
-        ),
-        this.remoteRepo.getDeltaChanges(
-          'savedSets',
-          this.metadata.lastSyncVersions.savedSets
-        ),
-      ]);
+      const [qh, mc, ss, settingsMain, settingsGoals, settingsPresets] =
+        await Promise.all([
+          this.remoteRepo.getDeltaChanges(
+            'questionHistory',
+            this.metadata.lastSyncVersions.questionHistory
+          ),
+          this.remoteRepo.getDeltaChanges(
+            'mcHistory',
+            this.metadata.lastSyncVersions.mcHistory
+          ),
+          this.remoteRepo.getDeltaChanges(
+            'savedSets',
+            this.metadata.lastSyncVersions.savedSets
+          ),
+          this.remoteRepo.getSettingsDoc('main').catch(() => null),
+          this.remoteRepo.getSettingsDoc('goals').catch(() => null),
+          this.remoteRepo.getSettingsDoc('presets').catch(() => null),
+        ]);
 
       this.telemetry.fullSyncReads += 1;
       this.notifyTelemetryChange(this.telemetry);
@@ -1035,16 +1040,27 @@ export class SyncEngine {
         mcHistory: [],
         savedSets: [],
       };
+      const remoteSettings =
+        (settingsMain?.data?.settings as Record<string, unknown>) ?? {};
+      const remoteStudyGoals =
+        (settingsGoals?.data?.studyGoals as Record<string, unknown>) ??
+        undefined;
+      const remoteStreakData =
+        (settingsGoals?.data?.streakData as Record<string, unknown>) ??
+        undefined;
+      const remotePresets =
+        (settingsPresets?.data?.presets as Array<Record<string, unknown>>) ??
+        [];
       const merged = mergeSyncableData(
         localState,
         {
-          settings: localState.settings,
+          settings: remoteSettings,
           questionHistory: qh.map((d) => d.data),
           mcHistory: mc.map((d) => d.data),
           savedSets: ss.map((d) => d.data),
-          presets: localState.presets ?? [],
-          studyGoals: localState.studyGoals,
-          streakData: localState.streakData,
+          presets: remotePresets,
+          studyGoals: remoteStudyGoals,
+          streakData: remoteStreakData,
         },
         this.tombstones
       );

@@ -1,4 +1,5 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
+import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -31,10 +32,7 @@ export function ResizableAccordionContent({
       );
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      updateHeight();
-    });
-
+    const resizeObserver = new ResizeObserver(() => updateHeight());
     resizeObserver.observe(measured);
     updateHeight();
 
@@ -45,12 +43,12 @@ export function ResizableAccordionContent({
     <AccordionPrimitive.Content
       ref={contentRef}
       data-slot="accordion-content"
-      className="overflow-hidden px-2 text-xs/relaxed data-open:animate-accordion-down data-closed:animate-accordion-up"
+      className="overflow-hidden text-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
     >
       <div
         ref={wrapperRef}
         className={cn(
-          'h-(--radix-accordion-content-height) pt-0 pb-4 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4',
+          'h-(--radix-accordion-content-height) transition-[height] duration-300 ease-in-out pb-4',
           className
         )}
       >
@@ -62,16 +60,17 @@ export function ResizableAccordionContent({
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col">
-      <p className="text-[10px] font-bold text-primary/80 uppercase tracking-[0.15em]">
+    <div className="flex items-center gap-3 py-2">
+      <p className="text-xs font-bold text-primary tracking-[0.2em] uppercase">
         {children}
       </p>
+      <div className="h-px flex-1 bg-border/50 rounded-full" />
     </div>
   );
 }
 
 export function SectionDivider() {
-  return <div className="h-4" />;
+  return <div className="h-6 w-full" />;
 }
 
 export function GroupedSubtopicSelector({
@@ -95,15 +94,30 @@ export function GroupedSubtopicSelector({
     return units;
   });
 
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    const initial = new Set<string>();
-    for (const group of groups) {
-      if (group.subtopics.some((s) => selected.includes(s))) {
-        initial.add(group.groupId);
-      }
+  const toggleSelectAllInUnit = (unit: string) => {
+    const unitGroups = groups.filter((g) => g.unit === unit);
+    const allSubtopics = unitGroups.flatMap((g) => g.subtopics);
+
+    const toSelect = allSubtopics.filter((s) => !selected.includes(s));
+    if (toSelect.length > 0) {
+      toSelect.forEach((s) => onToggle(s));
+      return;
     }
-    return initial;
-  });
+
+    const toDeselect = allSubtopics.filter((s) => selected.includes(s));
+    toDeselect.forEach((s) => onToggle(s));
+  };
+
+  const toggleSelectAllInGroup = (group: TopicSubtopicGroup) => {
+    const toSelect = group.subtopics.filter((s) => !selected.includes(s));
+    if (toSelect.length > 0) {
+      toSelect.forEach((s) => onToggle(s));
+      return;
+    }
+
+    const toDeselect = group.subtopics.filter((s) => selected.includes(s));
+    toDeselect.forEach((s) => onToggle(s));
+  };
 
   const toggleUnit = (unit: string) => {
     setSelectedUnits((prev) => {
@@ -113,15 +127,6 @@ export function GroupedSubtopicSelector({
       } else {
         next.add(unit);
       }
-      return next;
-    });
-  };
-
-  const toggleGroup = (groupId: string) => {
-    setOpenGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
       return next;
     });
   };
@@ -146,102 +151,154 @@ export function GroupedSubtopicSelector({
   );
 
   return (
-    <div className="mt-5 mb-2 space-y-4">
-      <div className="flex items-baseline justify-between px-1">
-        <p className="text-[13px] font-semibold text-foreground/90">{label}</p>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
-          Select unit & area
-        </p>
-      </div>
+    <div className="flex flex-col gap-6 w-full">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-end justify-between px-1">
+          <h3 className="text-sm font-semibold tracking-tight text-foreground">
+            {label}
+          </h3>
+        </div>
 
-      <div
-        className={cn(
-          'grid gap-2',
-          units.length > 2 ? 'grid-cols-3' : 'grid-cols-2'
-        )}
-      >
-        {units.map((unit) => {
-          const isActive = selectedUnits.has(unit);
-          const unitGroups = groups.filter((g) => g.unit === unit);
-          const totalSubs = unitGroups.reduce(
-            (sum, g) => sum + g.subtopics.length,
-            0
-          );
-          const selectedCount = unitGroups.reduce(
-            (sum, g) =>
-              sum + g.subtopics.filter((s) => selected.includes(s)).length,
-            0
-          );
+        <div className="flex flex-wrap gap-2 p-1.5 bg-muted/30 rounded-2xl border border-border/40">
+          {units.map((unit) => {
+            const isActive = selectedUnits.has(unit);
+            const unitGroups = groups.filter((g) => g.unit === unit);
+            const totalSubs = unitGroups.reduce(
+              (sum, g) => sum + g.subtopics.length,
+              0
+            );
+            const selectedCount = unitGroups.reduce(
+              (sum, g) =>
+                sum + g.subtopics.filter((s) => selected.includes(s)).length,
+              0
+            );
 
-          return (
-            <button
-              key={unit}
-              type="button"
-              onClick={() => toggleUnit(unit)}
-              className={cn(
-                'relative flex items-center justify-between px-3 py-3 rounded-lg border text-[13px] font-medium transition-all duration-200 cursor-pointer select-none overflow-hidden',
-                isActive
-                  ? 'bg-primary/5 border-primary shadow-[0_2px_10px_-4px_rgba(var(--primary),0.3)] text-primary'
-                  : 'bg-background border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/10 hover:shadow-sm'
-              )}
-            >
-              <span className="relative z-10">{unit}</span>
-              {selectedCount > 0 && (
-                <Badge
-                  variant={isActive ? 'default' : 'secondary'}
-                  className={cn(
-                    'text-[10px] relative z-10',
-                    isActive ? 'bg-primary text-primary-foreground' : ''
-                  )}
-                >
-                  {selectedCount}/{totalSubs}
-                </Badge>
-              )}
-            </button>
-          );
-        })}
-      </div>
+            const progressPercentage =
+              totalSubs > 0 ? (selectedCount / totalSubs) * 100 : 0;
 
-      {visibleGroups.map((group) => {
-        const isGroupOpen = openGroups.has(group.groupId);
-        return (
-          <div key={group.groupId} className="space-y-1">
-            <button
-              type="button"
-              onClick={() => toggleGroup(group.groupId)}
-              className="flex w-full items-center justify-between px-2 py-1.5 text-[12px] font-medium text-foreground/80 hover:text-foreground"
-            >
-              <span>{group.aos}</span>
-              <span className="text-muted-foreground/50">
-                {group.subtopics.filter((s) => selected.includes(s)).length}/
-                {group.subtopics.length}
-              </span>
-            </button>
-            {isGroupOpen && (
-              <div className="grid grid-cols-2 gap-1.5 pl-1">
-                {group.subtopics.map((subtopic) => {
-                  const isSelected = selected.includes(subtopic);
-                  return (
+            return (
+              <button
+                key={unit}
+                type="button"
+                onClick={() => toggleUnit(unit)}
+                className={cn(
+                  'relative flex-1 min-w-[120px] flex flex-col items-start gap-1.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden',
+                  isActive
+                    ? 'bg-background shadow-sm border border-border/60 text-foreground ring-1 ring-primary/10'
+                    : 'bg-transparent border border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                )}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2 z-10">
+                    <span className="font-semibold">{unit}</span>
                     <button
-                      key={subtopic}
                       type="button"
-                      onClick={() => onToggle(subtopic)}
-                      className={cn(
-                        'px-2 py-1.5 rounded text-[11px] font-medium transition-all cursor-pointer text-left',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleSelectAllInUnit(unit);
+                      }}
+                      className="text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-md hover:bg-muted/20"
                     >
-                      {subtopic}
+                      <Plus className="w-3 h-3" />
                     </button>
-                  );
-                })}
+                  </div>
+                  {selectedCount > 0 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary z-10">
+                      {selectedCount}/{totalSubs}
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full h-1 bg-muted/50 rounded-full overflow-hidden z-10">
+                  <div
+                    className="h-full bg-primary transition-all duration-500 ease-out"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {visibleGroups.length > 0 && (
+        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          {visibleGroups.map((group) => {
+            const selectedCount = group.subtopics.filter((s) =>
+              selected.includes(s)
+            ).length;
+            const allSelected = selectedCount === group.subtopics.length;
+
+            return (
+              <div
+                key={group.groupId}
+                className={cn(
+                  'flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300',
+                  allSelected
+                    ? 'bg-primary/5 border-primary/20'
+                    : 'bg-card border-border/40 shadow-sm hover:border-border'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className={cn(
+                        'w-2 h-2 rounded-full',
+                        allSelected
+                          ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary),0.6)]'
+                          : 'bg-muted-foreground/30'
+                      )}
+                    />
+                    <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wide">
+                      {group.aos}
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectAllInGroup(group);
+                      }}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-2 py-0 h-5 font-semibold bg-background/50"
+                    >
+                      {selectedCount} selected
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {group.subtopics.map((subtopic) => {
+                    const isSelected = selected.includes(subtopic);
+                    return (
+                      <button
+                        key={subtopic}
+                        type="button"
+                        onClick={() => onToggle(subtopic)}
+                        className={cn(
+                          'inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 border',
+                          isSelected
+                            ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 hover:bg-primary/90'
+                            : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:bg-muted/30 hover:text-foreground'
+                        )}
+                      >
+                        {subtopic}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

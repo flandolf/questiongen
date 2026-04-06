@@ -1,4 +1,10 @@
-import { Info, Shuffle, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  Info,
+  Shuffle,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -37,7 +43,9 @@ export function GenerationSettingsSection() {
         <div>
           <p className="text-sm font-medium">Avoid Similar Questions</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {avoidSimilarQuestions ? 'Avoid similar questions is enabled.' : 'Avoid similar questions is disabled.'}
+            {avoidSimilarQuestions
+              ? 'Avoid similar questions is enabled.'
+              : 'Avoid similar questions is disabled.'}
           </p>
         </div>
         <Button
@@ -65,7 +73,9 @@ export function GenerationSettingsSection() {
           variant={aiDifficultyScalingEnabled ? 'default' : 'outline'}
           size="sm"
           className="gap-2 shrink-0 mt-2"
-          onClick={() => setAiDifficultyScalingEnabled(!aiDifficultyScalingEnabled)}
+          onClick={() =>
+            setAiDifficultyScalingEnabled(!aiDifficultyScalingEnabled)
+          }
         >
           <Sparkles className="h-4 w-4" />
           {aiDifficultyScalingEnabled ? 'Disable' : 'Enable'}
@@ -83,7 +93,8 @@ export function GenerationSettingsSection() {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="max-w-xs text-sm">
-                      Set the percentage thresholds for increasing or decreasing difficulty based on your performance.
+                      Set the percentage thresholds for increasing or decreasing
+                      difficulty based on your performance.
                     </p>
                   </TooltipContent>
                 </Tooltip>
