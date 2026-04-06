@@ -19,6 +19,21 @@ import {
   normalizePersistedAppState,
   savePersistedAppState,
 } from './persistence';
+import { formatTauriInvokeError } from './tauri-invoke-error';
+
+async function invokeTauri<T>(
+  cmd: string,
+  args: Record<string, unknown>
+): Promise<T> {
+  try {
+    return await invoke<T>(cmd, args);
+  } catch (e) {
+    // eslint-disable-next-line preserve-caught-error
+    throw new Error(
+      `Tauri command "${cmd}" failed: ${formatTauriInvokeError(e)}`
+    );
+  }
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -129,6 +144,48 @@ export function createExportEnvelope(state: PersistedAppState): ExportEnvelope {
   };
 }
 
+export function isTauriApp(): boolean {
+  return isTauriRuntime();
+}
+
+export type JsonBackupFileInfo = {
+  path: string;
+  name: string;
+  modifiedAtMs: number;
+};
+
+/** Write export JSON into a specific folder (desktop app only). */
+export async function exportEnvelopeToDirectory(
+  dirPath: string,
+  envelope: ExportEnvelope,
+  suggestedFilename?: string
+): Promise<string> {
+  if (!isTauriApp()) {
+    throw new Error('Saving to a backup folder requires the desktop app.');
+  }
+  return invokeTauri<string>('export_data_file_to_directory', {
+    dirPath,
+    envelope,
+    suggestedFilename: suggestedFilename ?? null,
+  });
+}
+
+export async function listJsonBackupsInDirectory(
+  dirPath: string
+): Promise<JsonBackupFileInfo[]> {
+  if (!isTauriApp()) return [];
+  return invokeTauri<JsonBackupFileInfo[]>('list_json_files_in_directory', {
+    dirPath,
+  });
+}
+
+export async function readBackupJsonFile(filePath: string): Promise<string> {
+  if (!isTauriApp()) {
+    throw new Error('Reading backup files requires the desktop app.');
+  }
+  return invokeTauri<string>('read_text_file', { path: filePath });
+}
+
 export async function downloadExport(
   envelope: ExportEnvelope
 ): Promise<string | null> {
@@ -136,10 +193,10 @@ export async function downloadExport(
   const today = new Date().toISOString().slice(0, 10);
   const filename = `questiongen-export-${today}.json`;
 
-  if (isTauriRuntime()) {
-    return invoke<string>('export_data_file', {
+  if (isTauriApp()) {
+    return invokeTauri<string>('export_data_file', {
       envelope,
-      suggested_filename: filename,
+      suggestedFilename: filename,
     });
   }
 
@@ -157,41 +214,47 @@ export async function downloadExport(
 
 // ─── Import ────────────────────────────────────────────────────────────────
 
+export function parseImportText(text: string): PersistedAppState {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error('Import file is not valid JSON.');
+  }
+
+  const validation = validateImportData(raw);
+  if (!validation.valid) {
+    throw new Error(validation.error ?? 'Invalid import file');
+  }
+
+  let rawState: unknown;
+  if (
+    typeof raw === 'object' &&
+    raw !== null &&
+    'state' in raw &&
+    typeof (raw as Record<string, unknown>).state === 'object'
+  ) {
+    rawState = (raw as Record<string, unknown>).state;
+  } else {
+    rawState = raw;
+  }
+
+  const normalized = normalizePersistedAppState(rawState);
+  normalized.settings = { ...normalized.settings, apiKey: '' };
+  return normalized;
+}
+
 export function parseImportFile(file: File): Promise<PersistedAppState> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const text = reader.result as string;
-        const raw: unknown = JSON.parse(text);
-        const validation = validateImportData(raw);
-        if (!validation.valid) {
-          reject(new Error(validation.error ?? 'Invalid import file'));
-          return;
-        }
-
-        // Handle envelope format or raw state
-        let rawState: unknown;
-        if (
-          typeof raw === 'object' &&
-          raw !== null &&
-          'state' in raw &&
-          typeof (raw as Record<string, unknown>).state === 'object'
-        ) {
-          rawState = (raw as Record<string, unknown>).state;
-        } else {
-          rawState = raw;
-        }
-
-        const normalized = normalizePersistedAppState(rawState);
-        // Strip API key from imported state — local key is preserved
-        normalized.settings = { ...normalized.settings, apiKey: '' };
-        resolve(normalized);
+        resolve(parseImportText(reader.result as string));
       } catch (err) {
         reject(
-          new Error(
-            `Failed to parse import file: ${err instanceof Error ? err.message : 'Unknown error'}`
-          )
+          err instanceof Error
+            ? err
+            : new Error('Failed to parse import file: Unknown error')
         );
       }
     };

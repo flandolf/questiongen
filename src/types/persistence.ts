@@ -35,6 +35,10 @@ export type PersistedSettings = {
   includeExamContext?: boolean;
   autoSyncIntervalMinutes?: number;
   syncApiKey?: boolean;
+  /** Absolute path to a user-chosen folder for timed JSON exports (desktop app). */
+  localBackupFolderPath?: string;
+  /** Minutes between automatic exports; 0 disables. */
+  localBackupIntervalMinutes?: number;
 };
 
 export type PersistedGeneratorPreferences = {

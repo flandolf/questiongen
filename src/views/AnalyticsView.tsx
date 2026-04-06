@@ -6,7 +6,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   Pie,
@@ -402,6 +401,30 @@ export function AnalyticsView() {
       ? recentMcAccuracy - earlyMcAccuracy
       : null;
 
+  const chartData = [
+    {
+      format: 'mcAttempts',
+      value: summary.mcAttempts,
+      fill: 'var(--color-mcAttempts)',
+    },
+    {
+      format: 'writtenAttempts',
+      value: summary.writtenAttempts,
+      fill: 'var(--color-writtenAttempts)',
+    },
+  ];
+
+  const chartConfig = {
+    mcAttempts: {
+      label: 'Multiple Choice',
+      color: 'oklch(54.6% 0.245 262.881)',
+    },
+    writtenAttempts: {
+      label: 'Written',
+      color: 'oklch(51.1% 0.262 276.966)',
+    },
+  } satisfies ChartConfig;
+
   if (!hasAnyAttempts) {
     return (
       <PageContainer>
@@ -688,40 +711,18 @@ export function AnalyticsView() {
               description="Multiple Choice versus Written attempts."
             />
             <div className="h-[250px] mt-4">
-              <ChartContainer config={{}} className="w-full h-full">
+              <ChartContainer config={chartConfig} className="w-full h-full">
                 <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent />} />
                   <Pie
-                    data={[
-                      {
-                        name: 'Multiple Choice',
-                        value: summary.mcAttempts,
-                        fill: '#2563eb',
-                      },
-                      {
-                        name: 'Written',
-                        value: summary.writtenAttempts,
-                        fill: '#8b5cf6',
-                      },
-                    ]}
-                    cx="50%"
-                    cy="50%"
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="format"
                     innerRadius={60}
                     outerRadius={100}
-                    dataKey="value"
-                    nameKey="name"
-                    paddingAngle={3}
                     stroke="none"
-                    shape={(props: PieSectorShapeProps) => (
-                      <Sector {...props} fill={props.fill} />
-                    )}
-                  >
-                    <Legend
-                      verticalAlign="bottom"
-                      height={36}
-                      wrapperStyle={{ fontSize: 12 }}
-                    />
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
                 </PieChart>
               </ChartContainer>
             </div>
@@ -1077,29 +1078,36 @@ export function AnalyticsView() {
                 }`}
               >
                 All subjects
-                <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
+                <span className="text-[10px] font-bold opacity-80 bg-muted px-1.5 py-0.5 rounded-sm ml-1">
                   {allAttempts.length}
                 </span>
               </button>
+
               {subjectList.map((topic) => {
                 const count = allAttempts.filter(
                   (a) => a.topic === topic
                 ).length;
+                const isActive = subjectFilter === topic;
+
                 return (
                   <button
                     key={topic}
                     type="button"
-                    onClick={() =>
-                      setSubjectFilter(subjectFilter === topic ? null : topic)
-                    }
+                    onClick={() => setSubjectFilter(isActive ? null : topic)}
                     className={`inline-flex items-center gap-2 rounded-sm px-4 py-1.5 text-xs font-medium border transition-colors ${
-                      subjectFilter === topic
+                      isActive
                         ? 'border-foreground/30 bg-secondary text-secondary-foreground'
                         : 'border-border/50 bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                     }`}
                   >
                     {topic}
-                    <span className="text-[10px] opacity-70 bg-background px-1.5 py-0.5 rounded-sm">
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-sm ml-1 ${
+                        isActive
+                          ? 'bg-background/80 text-foreground'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
                       {count}
                     </span>
                   </button>
@@ -1209,7 +1217,7 @@ export function AnalyticsView() {
                         <div className="text-sm  leading-relaxed text-foreground">
                           <MarkdownMath content={row.criterion} />
                         </div>
-                        <div className="flex justify-between items-center mt-2 bg-secondary/30 rounded-sm px-3 py-2">
+                        <div className="flex justify-between items-center mt-2 rounded-sm px-3 py-2">
                           <span
                             className={`text-xs font-medium ${accuracyColor(row.successPercent)}`}
                           >

@@ -382,6 +382,16 @@ export function useSyncV2(): UseFirebaseSyncReturn {
   });
   const [queuedOpsCount, setQueuedOpsCount] = useState<number>(0);
 
+  const isSyncingRef = useRef(false);
+  const isSyncEnabledRef = useRef(false);
+  const inForceSyncRef = useRef(false);
+  /** Bumped on disable/sign-out so stale manual-sync finallies do not clear a newer op's spinner. */
+  const manualSyncTicketRef = useRef(0);
+  /** Only re-apply persisted sync flag from storage when the signed-in Firebase uid changes. */
+  const lastAuthUidForPersistRef = useRef<string | null>(null);
+  isSyncingRef.current = isSyncing;
+  isSyncEnabledRef.current = isSyncEnabled;
+
   const engineRef = useRef<SyncEngine | null>(null);
   const isInitializedRef = useRef(false);
   const telemetryUnsubRef = useRef<(() => void) | null>(null);
@@ -474,6 +484,10 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       debugLog('Auth changed:', firebaseUser?.uid ?? 'null');
       setUser(firebaseUser);
       if (!firebaseUser) {
+        lastAuthUidForPersistRef.current = null;
+        manualSyncTicketRef.current += 1;
+        setIsSyncing(false);
+        inForceSyncRef.current = false;
         setIsSyncEnabled(false);
         isInitializedRef.current = false;
         startupSyncDoneRef.current = false;
@@ -481,9 +495,14 @@ export function useSyncV2(): UseFirebaseSyncReturn {
         engineRef.current?.destroy();
         engineRef.current = null;
       } else {
-        const persisted = readPersistedSyncEnabled(firebaseUser.uid);
-        debugLog('Persisted sync preference:', persisted);
-        setIsSyncEnabled(persisted);
+        const uid = firebaseUser.uid;
+        const uidChanged = lastAuthUidForPersistRef.current !== uid;
+        if (uidChanged) {
+          lastAuthUidForPersistRef.current = uid;
+          const persisted = readPersistedSyncEnabled(uid);
+          debugLog('Persisted sync preference:', persisted);
+          setIsSyncEnabled(persisted);
+        }
       }
       setIsLoading(false);
     });
@@ -837,6 +856,9 @@ export function useSyncV2(): UseFirebaseSyncReturn {
   );
 
   const disableSync = useCallback(() => {
+    manualSyncTicketRef.current += 1;
+    setIsSyncing(false);
+    inForceSyncRef.current = false;
     setIsSyncEnabled(false);
     isInitializedRef.current = false;
     setSyncStatus('idle');
@@ -871,8 +893,10 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       setSyncError('Not signed in');
       return;
     }
+    const ticket = ++manualSyncTicketRef.current;
     debugLog('Manual sync started');
     setIsSyncing(true);
+    inForceSyncRef.current = true;
     setSyncStatus('syncing');
     setIsSyncEnabled(true);
     isInitializedRef.current = true;
@@ -1015,7 +1039,6 @@ export function useSyncV2(): UseFirebaseSyncReturn {
 
       if (detectedConflicts.length > 0) {
         setConflicts(detectedConflicts);
-        setIsSyncing(false);
         setSyncStatus('idle');
         addSyncEvent(
           'conflict',
@@ -1140,7 +1163,10 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       addSyncEvent('error', `Manual sync failed: ${errorMessage}`);
       toast.error(`Sync failed: ${errorMessage}`);
     } finally {
-      setIsSyncing(false);
+      inForceSyncRef.current = false;
+      if (ticket === manualSyncTicketRef.current) {
+        setIsSyncing(false);
+      }
     }
   }, [user, debugLog, addSyncEvent]);
 
@@ -1149,6 +1175,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       setSyncError('Not signed in');
       return;
     }
+    const ticket = ++manualSyncTicketRef.current;
     debugLog('Manual pull started');
     setIsSyncing(true);
     setSyncStatus('syncing');
@@ -1224,7 +1251,9 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       addSyncEvent('error', `Pull failed: ${errorMessage}`);
       toast.error(`Pull failed: ${errorMessage}`);
     } finally {
-      setIsSyncing(false);
+      if (ticket === manualSyncTicketRef.current) {
+        setIsSyncing(false);
+      }
     }
   }, [user, debugLog, addSyncEvent]);
 
@@ -1233,6 +1262,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       setSyncError('Not signed in');
       return;
     }
+    const ticket = ++manualSyncTicketRef.current;
     debugLog('Manual push started');
     setIsSyncing(true);
     setSyncStatus('syncing');
@@ -1302,7 +1332,9 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       addSyncEvent('error', `Push failed: ${errorMessage}`);
       toast.error(`Push failed: ${errorMessage}`);
     } finally {
-      setIsSyncing(false);
+      if (ticket === manualSyncTicketRef.current) {
+        setIsSyncing(false);
+      }
     }
   }, [user, debugLog, addSyncEvent]);
 
@@ -1313,6 +1345,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
         return;
       }
 
+      const ticket = ++manualSyncTicketRef.current;
       debugLog('Manual collection pull started', { collection });
       setIsSyncing(true);
       setSyncStatus('syncing');
@@ -1405,7 +1438,9 @@ export function useSyncV2(): UseFirebaseSyncReturn {
           `${collectionLabel(collection)} pull failed: ${errorMessage}`
         );
       } finally {
-        setIsSyncing(false);
+        if (ticket === manualSyncTicketRef.current) {
+          setIsSyncing(false);
+        }
       }
     },
     [user, debugLog, addSyncEvent]
@@ -1418,6 +1453,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
         return;
       }
 
+      const ticket = ++manualSyncTicketRef.current;
       debugLog('Manual collection push started', { collection });
       setIsSyncing(true);
       setSyncStatus('syncing');
@@ -1498,7 +1534,9 @@ export function useSyncV2(): UseFirebaseSyncReturn {
           `${collectionLabel(collection)} push failed: ${errorMessage}`
         );
       } finally {
-        setIsSyncing(false);
+        if (ticket === manualSyncTicketRef.current) {
+          setIsSyncing(false);
+        }
       }
     },
     [user, debugLog, addSyncEvent]

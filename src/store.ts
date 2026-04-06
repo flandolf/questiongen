@@ -97,6 +97,8 @@ export interface AppState {
   includeExamContext: boolean;
   autoSyncIntervalMinutes: number;
   syncApiKey: boolean;
+  localBackupFolderPath: string;
+  localBackupIntervalMinutes: number;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -190,6 +192,8 @@ export interface AppActions {
   setIncludeExamContext: (enabled: boolean) => void;
   setAutoSyncIntervalMinutes: (minutes: number) => void;
   setSyncApiKey: (enabled: boolean) => void;
+  setLocalBackupFolderPath: (path: string) => void;
+  setLocalBackupIntervalMinutes: (minutes: number) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
@@ -351,6 +355,10 @@ const defaultState: AppState = {
   autoSyncIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
   syncApiKey: Boolean(EMPTY_PERSISTED_APP_STATE.settings.syncApiKey),
+  localBackupFolderPath:
+    EMPTY_PERSISTED_APP_STATE.settings.localBackupFolderPath ?? '',
+  localBackupIntervalMinutes:
+    EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
 
   // Preferences
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -489,6 +497,15 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
             ? s.settings.autoSyncIntervalMinutes
             : 0,
         syncApiKey: Boolean(s.settings.syncApiKey),
+        localBackupFolderPath:
+          typeof s.settings.localBackupFolderPath === 'string'
+            ? s.settings.localBackupFolderPath
+            : '',
+        localBackupIntervalMinutes:
+          typeof s.settings.localBackupIntervalMinutes === 'number' &&
+          s.settings.localBackupIntervalMinutes >= 0
+            ? s.settings.localBackupIntervalMinutes
+            : 0,
 
         // Preferences
         selectedTopics: s.preferences.selectedTopics,
@@ -589,6 +606,10 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
     set({ autoSyncIntervalMinutes }),
   setSyncApiKey: (syncApiKey) => set({ syncApiKey }),
+  setLocalBackupFolderPath: (localBackupFolderPath) =>
+    set({ localBackupFolderPath }),
+  setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
+    set({ localBackupIntervalMinutes }),
   clearApiKey: () => set({ apiKey: '' }),
 
   // ── Preset management (Firebase-synced) ──────────────────────────────────
@@ -1433,6 +1454,8 @@ function buildPersistedSnapshot(
       includeExamContext: s.includeExamContext,
       autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
       syncApiKey: s.syncApiKey,
+      localBackupFolderPath: s.localBackupFolderPath,
+      localBackupIntervalMinutes: s.localBackupIntervalMinutes,
     },
     preferences: {
       selectedTopics: s.selectedTopics,
