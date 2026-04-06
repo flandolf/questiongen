@@ -6,7 +6,7 @@
  */
 
 import { SYNC_METADATA_KEY } from './config';
-import { applyResolutions, detectConflicts } from './ConflictResolver';
+import { applyResolutions } from './ConflictResolver';
 import { buildSnapshot, cacheApplySnapshot } from './LocalCache';
 import { QueueManager } from './QueueManager';
 import type { ChangeEvent } from './RealtimeListener';
@@ -16,7 +16,6 @@ import type {
   CacheSnapshot,
   DeletionTombstones,
   LocalCacheEntry,
-  RemoteDocument,
   SyncableData,
   SyncConflict,
   SyncEvent,
@@ -263,6 +262,30 @@ function mergeSyncableData(
   return merged;
 }
 
+function normalizeSyncValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeSyncValue(entry));
+  }
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {};
+    const keys = Object.keys(source).sort((a, b) => a.localeCompare(b));
+    for (const key of keys) {
+      if (key === '_lastModified' || key === 'lastModified') continue;
+      normalized[key] = normalizeSyncValue(source[key]);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+function areEquivalentSyncValue(left: unknown, right: unknown): boolean {
+  return (
+    JSON.stringify(normalizeSyncValue(left)) ===
+    JSON.stringify(normalizeSyncValue(right))
+  );
+}
+
 // ─── SyncEngine ───────────────────────────────────────────────────────────────
 
 type DataChangeCallback = (data: SyncableData) => void;
@@ -311,16 +334,18 @@ export class SyncEngine {
   private remotePullQueued = false;
   private getState: (() => SyncableData) | null = null;
   private getTombstones: (() => DeletionTombstones) | null = null;
+  private setTombstones: ((t: DeletionTombstones) => void) | null = null;
   private readonly onlineHandler: () => void;
   private readonly offlineHandler: () => void;
 
   constructor(
     getState: () => SyncableData,
     getTombstones: () => DeletionTombstones,
-    _setTombstones: (t: DeletionTombstones) => void
+    setTombstones: (t: DeletionTombstones) => void
   ) {
     this.getState = getState;
     this.getTombstones = getTombstones;
+    this.setTombstones = setTombstones;
     this.tombstones = getTombstones();
 
     this.onlineHandler = () => this.handleOnline();
@@ -401,10 +426,10 @@ export class SyncEngine {
     this.setStatus('idle');
   }
 
-  async start(): Promise<void> {
+  start(): void {
     if (!this.userId || !this.initialized || this.started) return;
     this.started = true;
-    await this.performStartupSync();
+    this.performStartupSync();
     this.realtimeListener?.start();
     if (this.isOnline && this.queueManager) {
       void this.queueManager.flush();
@@ -433,11 +458,6 @@ export class SyncEngine {
   async pull(): Promise<void> {
     if (!this.userId || !this.remoteRepo) return;
     await this.performPull();
-  }
-
-  async forceSync(): Promise<void> {
-    await this.push();
-    await this.pull();
   }
 
   retryNow(): void {
@@ -543,10 +563,10 @@ export class SyncEngine {
 
   // ─── Internal Handlers ──────────────────────────────────────────────────────
 
+  // eslint-disable-next-line complexity
   private async handleFlush(ops: SyncOperation[]): Promise<void> {
     if (!this.remoteRepo) return;
     this.setStatus('syncing');
-    this.addEvent('upload', `Flushing ${ops.length} operations`);
 
     try {
       const state = this.getState?.() ?? {
@@ -566,7 +586,6 @@ export class SyncEngine {
       }
 
       if (nonNoopOps.length === 0) {
-        this.addEvent('upload', 'All operations were no-ops, skipping flush');
         return;
       }
 
@@ -583,8 +602,43 @@ export class SyncEngine {
 
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
+
+      // Record the lastModified of each successfully flushed upsert so that
+      // filterNoopOperations can skip them on the next flush if unchanged.
+      const allItems: Record<string, unknown>[] = [
+        ...state.questionHistory,
+        ...state.mcHistory,
+        ...state.savedSets,
+      ];
+      const lmById = new Map<string, number>();
+      for (const item of allItems) {
+        const id = typeof item.id === 'string' ? item.id : undefined;
+        if (!id) continue;
+        const lm =
+          typeof item.lastModified === 'number' &&
+            Number.isFinite(item.lastModified)
+            ? item.lastModified
+            : 0;
+        lmById.set(id, lm);
+      }
+      for (const op of nonNoopOps) {
+        if (
+          op.opType === 'upsert' &&
+          op.entityId &&
+          op.collection !== 'settings'
+        ) {
+          const coll = op.collection;
+          if (!this.metadata.lastSyncVersions[coll]) {
+            this.metadata.lastSyncVersions[coll] = {};
+          }
+          const lm = lmById.get(op.entityId) ?? 0;
+          if (lm > 0) {
+            this.metadata.lastSyncVersions[coll][op.entityId] = lm;
+          }
+        }
+      }
+
       if (this.userId) writeMetadata(this.userId, this.metadata);
-      this.addEvent('upload', `Successfully flushed ${nonNoopOps.length} operations`);
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error);
       this.addEvent('error', `Flush failed: ${this.lastError}`);
@@ -596,23 +650,65 @@ export class SyncEngine {
 
   private filterNoopOperations(
     ops: SyncOperation[],
-    _state: SyncableData
+    state: SyncableData
   ): SyncOperation[] {
-    // For now, return all ops. In the future, we could add hash-based
-    // detection of unchanged data by comparing snapshots with cached hashes.
-    // This would require storing hashes of last-synced versions.
-    return ops;
+    // Skip upsert ops where the entity's lastModified timestamp hasn't changed
+    // since we last synced it. This prevents re-writing every document to
+    // Firestore on every flush when nothing actually changed.
+    const allItems: Record<string, unknown>[] = [
+      ...state.questionHistory,
+      ...state.mcHistory,
+      ...state.savedSets,
+      ...(state.presets ?? []),
+    ];
+    const lmById = new Map<string, number>();
+    for (const item of allItems) {
+      const id = typeof item.id === 'string' ? item.id : undefined;
+      if (!id) continue;
+      const lm =
+        typeof item.lastModified === 'number' &&
+          Number.isFinite(item.lastModified)
+          ? item.lastModified
+          : 0;
+      lmById.set(id, lm);
+    }
+
+    return ops.filter((op) => {
+      // Always keep deletes — they must be sent regardless.
+      if (op.opType === 'delete') return true;
+      // Always keep ops without an entityId (collection-level ops).
+      if (!op.entityId) return true;
+      // Always keep settings ops — they don't participate in version tracking.
+      if (op.collection === 'settings') return true;
+
+      const versions =
+        this.metadata.lastSyncVersions[
+        op.collection
+        ];
+      if (!versions) return true;
+
+      const lastSynced = versions[op.entityId] ?? 0;
+      const currentLm = lmById.get(op.entityId) ?? 0;
+
+      // If the local lastModified hasn't advanced beyond what we last pushed,
+      // there's nothing new to write.
+      return currentLm > lastSynced;
+    });
   }
 
   private handleRemoteChanges(events: ChangeEvent[]): void {
     if (!this.userId) return;
+    this.tombstones = this.getTombstones?.() ?? this.tombstones;
 
     // Skip if empty events batch
     if (events.length === 0) return;
 
+    const added = events.filter((e) => e.type === 'added').length;
+    const modified = events.filter((e) => e.type === 'modified').length;
+    const removed = events.filter((e) => e.type === 'removed').length;
     this.addEvent(
       'download',
-      `Received ${events.length} remote change${events.length === 1 ? '' : 's'}; applying locally and scheduling pull`
+      `Realtime update: ${added} added, ${modified} updated, ${removed} removed`
     );
 
     // Ensure we have a local data object to mutate
@@ -623,36 +719,7 @@ export class SyncEngine {
     let mutated = false;
 
     for (const ev of events) {
-      const coll = ev.collection;
-      const id = ev.docId;
-      const lm = ev.lastModified ?? Date.now();
-
-      if (coll === 'settings') {
-        // settings docs are: main (settings), goals, presets
-        if (!this.localData)
-          this.localData = {
-            settings: {} as Record<string, unknown>,
-            questionHistory: [],
-            mcHistory: [],
-            savedSets: [],
-            presets: [],
-          };
-
-        const applied = this.applySettingsEvent(ev, id);
-        if (applied) mutated = true;
-        continue;
-      }
-
-      // For collections (questionHistory, mcHistory, savedSets)
-      if (!this.localData) continue;
-      const arr: Array<Record<string, unknown>> =
-        coll === 'questionHistory'
-          ? this.localData.questionHistory
-          : coll === 'mcHistory'
-            ? this.localData.mcHistory
-            : this.localData.savedSets;
-
-      if (this.applyCollectionEvent(ev, coll, arr, id, lm)) mutated = true;
+      if (this.applyRemoteChangeEvent(ev)) mutated = true;
     }
 
     if (mutated && this.localData) {
@@ -665,6 +732,105 @@ export class SyncEngine {
     // Pulls create unnecessary Firestore reads and can conflicting data
     // Only pull on startup or explicit user request
     // Note: scheduleRemotePull removed to improve realtime sync latency
+  }
+
+  private applyRemoteChangeEvent(ev: ChangeEvent): boolean {
+    const coll = ev.collection;
+    const id = ev.docId;
+    const lm = ev.lastModified ?? Date.now();
+
+    if (coll === 'settings') {
+      // settings docs are: main (settings), goals, presets
+      if (!this.localData)
+        this.localData = {
+          settings: {} as Record<string, unknown>,
+          questionHistory: [],
+          mcHistory: [],
+          savedSets: [],
+          presets: [],
+        };
+
+      if (this.isNoopSettingsEvent(id, ev.data)) {
+        return false;
+      }
+
+      return this.applySettingsEvent(ev, id);
+    }
+
+    // For collections (questionHistory, mcHistory, savedSets)
+    if (!this.localData) return false;
+    const arr: Array<Record<string, unknown>> =
+      coll === 'questionHistory'
+        ? this.localData.questionHistory
+        : coll === 'mcHistory'
+          ? this.localData.mcHistory
+          : this.localData.savedSets;
+
+    if (ev.type !== 'removed' && this.isNoopCollectionEvent(coll, id, ev.data)) {
+      this.updateCollectionVersion(coll, id, lm);
+      return false;
+    }
+
+    return this.applyCollectionEvent(ev, coll, arr, id, lm);
+  }
+
+  private isNoopSettingsEvent(
+    id: string,
+    data: Record<string, unknown> | null
+  ): boolean {
+    if (!this.localData || !data) return false;
+
+    const currentSettingsDoc =
+      id === 'main'
+        ? { settings: this.localData.settings ?? {} }
+        : id === 'goals'
+          ? {
+            studyGoals: this.localData.studyGoals,
+            streakData: this.localData.streakData,
+          }
+          : id === 'presets'
+            ? { presets: this.localData.presets ?? [] }
+            : null;
+
+    return (
+      currentSettingsDoc !== null &&
+      areEquivalentSyncValue(currentSettingsDoc, data)
+    );
+  }
+
+  private isNoopCollectionEvent(
+    coll: 'questionHistory' | 'mcHistory' | 'savedSets',
+    id: string,
+    data: Record<string, unknown> | null
+  ): boolean {
+    if (!this.localData || !data) return false;
+
+    const arr: Array<Record<string, unknown>> =
+      coll === 'questionHistory'
+        ? this.localData.questionHistory
+        : coll === 'mcHistory'
+          ? this.localData.mcHistory
+          : this.localData.savedSets;
+
+    const existing = arr.find(
+      (x) => ((x as { id?: string }).id ?? '') === id
+    );
+    return existing ? areEquivalentSyncValue(existing, data) : false;
+  }
+
+  private updateCollectionVersion(
+    coll: 'questionHistory' | 'mcHistory' | 'savedSets',
+    id: string,
+    lm: number
+  ): void {
+    if (!this.metadata.lastSyncVersions) {
+      this.metadata.lastSyncVersions = {
+        questionHistory: {},
+        mcHistory: {},
+        savedSets: {},
+      };
+    }
+    this.metadata.lastSyncVersions[coll][id] = lm;
   }
 
   private scheduleRemotePull(): void {
@@ -696,39 +862,30 @@ export class SyncEngine {
     }
   }
 
-  private async performStartupSync(): Promise<void> {
+  private performStartupSync(): void {
     if (!this.userId || !this.remoteRepo) return;
     this.setStatus('connecting');
 
     try {
-      const remoteData = await this.loadStartupRemoteData();
+      // On startup, just use local state. Realtime listeners will sync any
+      // remote changes immediately after they're subscribed.
+      // We skip the expensive full remote load and merge operation.
       const localState = this.getLocalState();
-      const merged = mergeSyncableData(localState, remoteData, this.tombstones);
-      this.conflicts = detectConflicts([
-        ...this.buildCollectionConflictInputs(
-          'questionHistory',
-          merged,
-          remoteData
-        ),
-        ...this.buildCollectionConflictInputs('mcHistory', merged, remoteData),
-      ]);
-
-      // Update local data
-      this.localData = merged;
+      this.localData = localState;
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
 
       // Update snapshot
-      this.snapshot = buildSnapshot(this.buildSnapshotEntries(merged));
+      this.snapshot = buildSnapshot(this.buildSnapshotEntries(localState));
 
       // Write metadata
       if (this.userId) writeMetadata(this.userId, this.metadata);
 
-      // Notify
-      this.notifyDataChange(merged);
+      // Notify with local state
+      this.notifyDataChange(localState);
       this.addEvent(
         'download',
-        `Startup sync complete: ${merged.questionHistory.length} QH, ${merged.mcHistory.length} MC, ${merged.savedSets.length} SS`
+        `Startup sync skipped (using realtime listeners): ${localState.questionHistory.length} QH, ${localState.mcHistory.length} MC, ${localState.savedSets.length} SS`
       );
       this.setStatus('idle');
     } catch (error) {
@@ -747,134 +904,6 @@ export class SyncEngine {
         savedSets: [],
       }
     );
-  }
-
-  private async loadStartupRemoteData(): Promise<SyncableData> {
-    if (!this.remoteRepo) {
-      return this.createEmptyRemoteData();
-    }
-
-    // Fetch all data in parallel
-    const [qh, mc, ss, settingsMain, settingsGoals, settingsPresets] =
-      await Promise.all([
-        this.remoteRepo.getCollection('questionHistory'),
-        this.remoteRepo.getCollection('mcHistory'),
-        this.remoteRepo.getCollection('savedSets'),
-        this.remoteRepo.getSettingsDoc('main').catch(() => null),
-        this.remoteRepo.getSettingsDoc('goals').catch(() => null),
-        this.remoteRepo.getSettingsDoc('presets').catch(() => null),
-      ]);
-
-    this.telemetry.fullSyncReads += 1;
-    this.notifyTelemetryChange(this.telemetry);
-
-    // Update settings metadata
-    this.updateSettingsLastModified(settingsMain, settingsGoals, settingsPresets);
-
-    // Build and return data
-    return {
-      settings: (settingsMain?.data?.settings as Record<string, unknown>) ?? {},
-      questionHistory: qh.map((d) => d.data),
-      mcHistory: mc.map((d) => d.data),
-      savedSets: ss.map((d) => d.data),
-      presets:
-        (settingsPresets?.data?.presets as Array<Record<string, unknown>>) ??
-        [],
-      studyGoals:
-        (settingsGoals?.data?.studyGoals as Record<string, unknown>) ??
-        undefined,
-      streakData:
-        (settingsGoals?.data?.streakData as Record<string, unknown>) ??
-        undefined,
-    };
-  }
-
-  private createEmptyRemoteData(): SyncableData {
-    return {
-      settings: {},
-      questionHistory: [],
-      mcHistory: [],
-      savedSets: [],
-    };
-  }
-
-  private updateSettingsLastModified(
-    settingsMain: RemoteDocument | null,
-    settingsGoals: RemoteDocument | null,
-    settingsPresets: RemoteDocument | null
-  ): void {
-    if (!this.metadata.settingsLastModified) {
-      this.metadata.settingsLastModified = { main: 0, goals: 0, presets: 0 };
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    const slm = this.metadata.settingsLastModified as any;
-    if (settingsMain && slm) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      slm.main = settingsMain.lastModified;
-    }
-    if (settingsGoals && slm) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      slm.goals = settingsGoals.lastModified;
-    }
-    if (settingsPresets && slm) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      slm.presets = settingsPresets.lastModified;
-    }
-  }
-
-  private buildCollectionConflictInputs(
-    collection: 'questionHistory' | 'mcHistory',
-    merged: SyncableData,
-    remoteData: SyncableData
-  ): Array<{
-    collection: 'questionHistory' | 'mcHistory';
-    entityId: string;
-    localData: Record<string, unknown>;
-    remoteData: Record<string, unknown>;
-    localModified: number;
-    remoteModified: number;
-    tombstones: DeletionTombstones;
-  }> {
-    const conflictInputs: Array<{
-      collection: 'questionHistory' | 'mcHistory';
-      entityId: string;
-      localData: Record<string, unknown>;
-      remoteData: Record<string, unknown>;
-      localModified: number;
-      remoteModified: number;
-      tombstones: DeletionTombstones;
-    }> = [];
-
-    const localItems =
-      collection === 'questionHistory'
-        ? merged.questionHistory
-        : merged.mcHistory;
-    const remoteItems =
-      collection === 'questionHistory'
-        ? remoteData.questionHistory
-        : remoteData.mcHistory;
-
-    for (const item of localItems) {
-      const itemId = (item as { id?: unknown }).id;
-      if (typeof itemId !== 'string' || itemId.length === 0) continue;
-
-      const remoteItem = remoteItems.find(
-        (r) => (r as { id?: unknown }).id === itemId
-      );
-      if (!remoteItem) continue;
-
-      conflictInputs.push({
-        collection,
-        entityId: itemId,
-        localData: item,
-        remoteData: remoteItem,
-        localModified: (item.lastModified as number) || 0,
-        remoteModified: (remoteItem.lastModified as number) || 0,
-        tombstones: this.tombstones,
-      });
-    }
-
-    return conflictInputs;
   }
 
   private buildSnapshotEntries(merged: SyncableData): LocalCacheEntry[] {
@@ -986,23 +1015,21 @@ export class SyncEngine {
     lm: number
   ): boolean {
     if (ev.type === 'removed') {
+      const confirmedDelete = this.confirmRemoteDelete(coll, id);
       const idx = arr.findIndex(
         (x) => ((x as { id?: string }).id ?? '') === id
       );
       if (idx >= 0) {
-        const tomb = this.tombstones[coll];
-        if (!(id in tomb)) {
-          arr.splice(idx, 1);
-          if (
-            this.metadata.lastSyncVersions &&
-            this.metadata.lastSyncVersions[coll]
-          ) {
-            delete this.metadata.lastSyncVersions[coll][id];
-          }
-          return true;
+        arr.splice(idx, 1);
+        if (
+          this.metadata.lastSyncVersions &&
+          this.metadata.lastSyncVersions[coll]
+        ) {
+          delete this.metadata.lastSyncVersions[coll][id];
         }
+        return true;
       }
-      return false;
+      return confirmedDelete;
     }
 
     const tomb = this.tombstones[coll];
@@ -1025,43 +1052,53 @@ export class SyncEngine {
     return true;
   }
 
-  // eslint-disable-next-line complexity
+  private confirmRemoteDelete(
+    coll: 'questionHistory' | 'mcHistory' | 'savedSets',
+    id: string
+  ): boolean {
+    if (!(id in this.tombstones[coll])) return false;
+
+    const nextCollection = { ...this.tombstones[coll] };
+    delete nextCollection[id];
+    const nextTombstones: DeletionTombstones = {
+      ...this.tombstones,
+      [coll]: nextCollection,
+    };
+
+    this.tombstones = nextTombstones;
+    this.setTombstones?.(nextTombstones);
+    return true;
+  }
+
   private async performPull(): Promise<void> {
     if (!this.userId || !this.remoteRepo) return;
     this.setStatus('syncing');
 
     try {
-      const [qh, mc, ss, settingsMain, settingsGoals, settingsPresets] =
-        await Promise.all([
-          this.remoteRepo.getDeltaChanges(
-            'questionHistory',
-            this.metadata.lastSyncVersions.questionHistory
-          ),
-          this.remoteRepo.getDeltaChanges(
-            'mcHistory',
-            this.metadata.lastSyncVersions.mcHistory
-          ),
-          this.remoteRepo.getDeltaChanges(
-            'savedSets',
-            this.metadata.lastSyncVersions.savedSets
-          ),
-          // Only fetch settings if we haven't checked recently or if they might have changed
-          this.shouldFetchSettingsDoc('main')
-            ? this.remoteRepo.getSettingsDoc('main')
-            : Promise.resolve(null),
-          this.shouldFetchSettingsDoc('goals')
-            ? this.remoteRepo.getSettingsDoc('goals')
-            : Promise.resolve(null),
-          this.shouldFetchSettingsDoc('presets')
-            ? this.remoteRepo.getSettingsDoc('presets')
-            : Promise.resolve(null),
-        ]);
+      // Fetch delta changes only for collections
+      // Settings are handled by realtime listeners, don't fetch them here
+      const [qh, mc, ss] = await Promise.all([
+        this.remoteRepo.getDeltaChanges(
+          'questionHistory',
+          this.metadata.lastSyncVersions.questionHistory
+        ),
+        this.remoteRepo.getDeltaChanges(
+          'mcHistory',
+          this.metadata.lastSyncVersions.mcHistory
+        ),
+        this.remoteRepo.getDeltaChanges(
+          'savedSets',
+          this.metadata.lastSyncVersions.savedSets
+        ),
+      ]);
 
       this.telemetry.fullSyncReads += 1;
       this.notifyTelemetryChange(this.telemetry);
 
+      // If no changes, we're done
       if (qh.length === 0 && mc.length === 0 && ss.length === 0) {
         this.telemetry.deltaNoChangePasses += 1;
+        this.addEvent('download', 'No changes from server');
         this.setStatus('idle');
         return;
       }
@@ -1095,7 +1132,7 @@ export class SyncEngine {
       ];
       await cacheApplySnapshot(entries);
 
-      // Update metadata
+      // Update metadata version tracking
       for (const d of qh)
         this.metadata.lastSyncVersions.questionHistory[d.id] = d.lastModified;
       for (const d of mc)
@@ -1103,63 +1140,38 @@ export class SyncEngine {
       for (const d of ss)
         this.metadata.lastSyncVersions.savedSets[d.id] = d.lastModified;
 
-      // Update settings lastModified timestamps
-      if (!this.metadata.settingsLastModified) {
-        this.metadata.settingsLastModified = { main: 0, goals: 0, presets: 0 };
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-      const slm = this.metadata.settingsLastModified as any;
-      if (settingsMain && slm) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        slm.main = settingsMain.lastModified;
-      }
-      if (settingsGoals && slm) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        slm.goals = settingsGoals.lastModified;
-      }
-      if (settingsPresets && slm) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        slm.presets = settingsPresets.lastModified;
-      }
-
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
       if (this.userId) writeMetadata(this.userId, this.metadata);
 
+      // Apply changes to local data
+      if (!this.localData) {
+        this.localData = this.getLocalState();
+      }
+
+      // Merge pulled data with current state
       const localState = this.getState?.() ?? {
         settings: {},
         questionHistory: [],
         mcHistory: [],
         savedSets: [],
       };
-      const remoteSettings =
-        (settingsMain?.data?.settings as Record<string, unknown>) ?? {};
-      const remoteStudyGoals =
-        (settingsGoals?.data?.studyGoals as Record<string, unknown>) ??
-        undefined;
-      const remoteStreakData =
-        (settingsGoals?.data?.streakData as Record<string, unknown>) ??
-        undefined;
-      const remotePresets =
-        (settingsPresets?.data?.presets as Array<Record<string, unknown>>) ??
-        [];
-      const merged = mergeSyncableData(
+
+      this.localData = mergeSyncableData(
         localState,
         {
-          settings: remoteSettings,
+          settings: this.localData.settings,
           questionHistory: qh.map((d) => d.data),
           mcHistory: mc.map((d) => d.data),
           savedSets: ss.map((d) => d.data),
-          presets: remotePresets,
-          studyGoals: remoteStudyGoals,
-          streakData: remoteStreakData,
+          presets: this.localData.presets,
+          studyGoals: this.localData.studyGoals,
+          streakData: this.localData.streakData,
         },
         this.tombstones
       );
 
-      this.localData = merged;
-      this.notifyDataChange(merged);
-
+      this.notifyDataChange(this.localData);
       this.addEvent(
         'download',
         `Pulled ${qh.length + mc.length + ss.length} changes`
@@ -1170,34 +1182,6 @@ export class SyncEngine {
       this.addEvent('error', `Pull failed: ${this.lastError}`);
       this.setStatus('error');
     }
-  }
-
-  private shouldFetchSettingsDoc(
-    docId: 'main' | 'goals' | 'presets'
-  ): boolean {
-    // Always fetch if we don't have metadata for it
-    if (!this.metadata.settingsLastModified) return true;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-    const slm = this.metadata.settingsLastModified as any;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-    const known = slm[docId] || 0;
-    if (!known || known === 0) return true;
-
-    // Re-fetch every 5 minutes or if realtime listener indicates change
-    // This reduces redundant reads for static settings
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const shouldFetch = this.lastSyncTime
-      ? this.lastSyncTime < fiveMinutesAgo
-      : true;
-
-    if (!shouldFetch) {
-      // Track avoided read
-      this.telemetry.estimatedReadsAvoided += 1;
-      this.notifyTelemetryChange(this.telemetry);
-    }
-
-    return shouldFetch;
   }
 
   private handleOnline(): void {

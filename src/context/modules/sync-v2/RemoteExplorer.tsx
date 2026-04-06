@@ -6,7 +6,6 @@
  * - Tree view of collections/documents with sharding support
  * - Document viewer/editor (JSON)
  * - CRUD operations (read, write, delete, add)
- * - Force sync button
  * - Status bar with connection info
  */
 
@@ -427,11 +426,6 @@ export function RemoteExplorer() {
     }
   }, [selectedNode, user, loadTree]);
 
-  const handleForceSync = useCallback(() => {
-    toast.info('Force sync triggered');
-    setLastSyncTime(Date.now());
-  }, []);
-
   const TreeItem = ({
     node,
     expandedNodes,
@@ -455,11 +449,10 @@ export function RemoteExplorer() {
           role="treeitem"
           aria-selected={isSelected}
           tabIndex={0}
-          className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors border-l-2 ${
-            isSelected
+          className={`flex items-center gap-1.5 py-1.5 px-2 cursor-pointer transition-colors border-l-2 ${isSelected
               ? 'border-primary text-primary font-medium'
               : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+            }`}
           onClick={() => {
             if (node.type !== 'document') onToggle(node.id);
             else onSelect(node);
@@ -526,8 +519,8 @@ export function RemoteExplorer() {
 
   return (
     <Card className="flex flex-col h-[800px] border bg-muted/0">
-      <header className="flex items-center justify-between px-4 pb-4 border-b">
-        <div className="flex items-center gap-4">
+      <header className="flex items-center px-4 pb-4 border-b">
+        <div className="flex items-center justify-between w-full gap-4">
           <h1 className="font-semibold tracking-tight">Database Explorer</h1>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {isOnline ? (
@@ -540,10 +533,6 @@ export function RemoteExplorer() {
             </span>
           </div>
         </div>
-
-        <Button variant="outline" size="sm" onClick={handleForceSync}>
-          <RefreshCw className="w-4 h-4 mr-2" /> Sync
-        </Button>
       </header>
 
       <main className="flex flex-1 overflow-hidden">

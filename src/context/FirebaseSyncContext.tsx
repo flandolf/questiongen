@@ -33,13 +33,9 @@ export function FirebaseSyncProvider({
       enableSync: firebaseSync.enableSync,
       disableSync: firebaseSync.disableSync,
       toggleSync: firebaseSync.toggleSync,
-      pullSync: firebaseSync.pullSync,
-      pushSync: firebaseSync.pushSync,
-      pullCollectionSync: firebaseSync.pullCollectionSync,
-      pushCollectionSync: firebaseSync.pushCollectionSync,
-      forceSync: firebaseSync.forceSync,
       retryQueuedOpsNow: firebaseSync.retryQueuedOpsNow,
       resolveConflicts: firebaseSync.resolveConflicts,
+      clearSyncEvents: firebaseSync.clearSyncEvents,
     }),
     [
       firebaseSync.user,
@@ -61,13 +57,9 @@ export function FirebaseSyncProvider({
       firebaseSync.enableSync,
       firebaseSync.disableSync,
       firebaseSync.toggleSync,
-      firebaseSync.pullSync,
-      firebaseSync.pushSync,
-      firebaseSync.pullCollectionSync,
-      firebaseSync.pushCollectionSync,
-      firebaseSync.forceSync,
       firebaseSync.retryQueuedOpsNow,
       firebaseSync.resolveConflicts,
+      firebaseSync.clearSyncEvents,
     ]
   );
   return (
@@ -79,10 +71,13 @@ export function FirebaseSyncProvider({
 
 export function useFirebaseSyncContext(): UseSyncV2Return {
   const value = useContext(FirebaseSyncContext);
-  if (!value) {
-    throw new Error(
-      'useFirebaseSyncContext must be used within FirebaseSyncProvider'
+  if (value) return value;
+
+  if (import.meta.env.DEV) {
+    console.warn(
+      'useFirebaseSyncContext used outside FirebaseSyncProvider; falling back to a standalone sync instance.'
     );
   }
-  return value;
+
+  return useSyncV2();
 }

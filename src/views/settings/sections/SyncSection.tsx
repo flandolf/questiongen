@@ -1,7 +1,5 @@
 import {
   AlertCircle,
-  ArrowDownToLine,
-  ArrowUpToLine,
   CheckCircle2,
   Cloud,
   CloudOff,
@@ -17,13 +15,6 @@ import { useAppSettings } from '../../../AppContext';
 import { ConflictResolutionDialog } from '../../../components/ConflictResolutionDialog';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../components/ui/select';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
 import { signOutFirebase } from '../../../context/modules/firebase-auth';
 import { Card, FieldGroup, SectionHeader, ToggleRow } from '../SettingsUI';
@@ -35,34 +26,30 @@ type SyncEvent = {
   timestamp: number | string;
 };
 
-type ManualSyncCollection =
-  | 'questionHistory'
-  | 'mcHistory'
-  | 'savedSets'
-  | 'presets';
-
-const MANUAL_COLLECTION_OPTIONS: Array<{
-  value: ManualSyncCollection;
-  label: string;
-}> = [
-  { value: 'questionHistory', label: 'Question History' },
-  { value: 'mcHistory', label: 'Multiple Choice History' },
-  { value: 'savedSets', label: 'Saved Sets' },
-  { value: 'presets', label: 'Presets' },
-];
-
 function SyncActivityCard({
   syncEvents,
   debugMode,
+  onClear,
 }: {
   syncEvents: Array<SyncEvent>;
   debugMode: boolean;
+  onClear?: () => void;
 }) {
   if (!syncEvents || syncEvents.length === 0) return null;
   return (
     <Card className="p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium">Sync Activity</h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => {
+            if (onClear) onClear();
+          }}
+        >
+          Clear
+        </Button>
       </div>
       <div
         className={cn('space-y-3', !debugMode && 'max-h-64 overflow-y-auto')}
@@ -114,8 +101,6 @@ export function SyncSection() {
   const [syncAuthEmail, setSyncAuthEmail] = useState('');
   const [syncAuthPassword, setSyncAuthPassword] = useState('');
   const [syncIsSubmitting, setSyncIsSubmitting] = useState(false);
-  const [manualCollection, setManualCollection] =
-    useState<ManualSyncCollection>('questionHistory');
   const [nowTs, setNowTs] = useState(Date.now());
 
   useEffect(() => {
@@ -142,13 +127,9 @@ export function SyncSection() {
     conflicts,
     enableSync,
     disableSync,
-    pullSync,
-    pushSync,
-    pullCollectionSync,
-    pushCollectionSync,
-    retryQueuedOpsNow,
-    forceSync,
+    toggleSync,
     resolveConflicts,
+    clearSyncEvents,
   } = firebaseSync;
 
   const syncEnabled = isSyncEnabled;
@@ -162,36 +143,36 @@ export function SyncSection() {
     ? { label: 'Disconnected', tone: 'muted', hint: 'Sign in to sync devices.' }
     : !isOnline
       ? {
-          label: 'Offline',
-          tone: 'offline',
-          hint: 'Changes are queued until connection returns.',
-        }
+        label: 'Offline',
+        tone: 'offline',
+        hint: 'Changes are queued until connection returns.',
+      }
       : syncTelemetry.retryBlocked
         ? {
-            label: 'Blocked',
-            tone: 'blocked',
-            hint: `Retries paused after ${syncTelemetry.retryMaxAttempts} attempts.`,
-          }
+          label: 'Blocked',
+          tone: 'blocked',
+          hint: `Retries paused after ${syncTelemetry.retryMaxAttempts} attempts.`,
+        }
         : syncTelemetry.retryAttemptsCurrent > 0
           ? {
-              label: 'Degraded',
-              tone: 'degraded',
-              hint:
-                syncTelemetry.nextRetryAt && syncTelemetry.nextRetryAt > nowTs
-                  ? `Retry in ${Math.max(1, Math.ceil((syncTelemetry.nextRetryAt - nowTs) / 1000))}s.`
-                  : 'Transient sync errors detected.',
-            }
+            label: 'Degraded',
+            tone: 'degraded',
+            hint:
+              syncTelemetry.nextRetryAt && syncTelemetry.nextRetryAt > nowTs
+                ? `Retry in ${Math.max(1, Math.ceil((syncTelemetry.nextRetryAt - nowTs) / 1000))}s.`
+                : 'Transient sync errors detected.',
+          }
           : staleSync
             ? {
-                label: 'Stale',
-                tone: 'stale',
-                hint: 'Sync is behind. Run Pull/Push to reconcile now.',
-              }
+              label: 'Stale',
+              tone: 'stale',
+              hint: 'Sync is behind and will catch up automatically.',
+            }
             : {
-                label: 'Healthy',
-                tone: 'healthy',
-                hint: 'Realtime sync is operating normally.',
-              };
+              label: 'Healthy',
+              tone: 'healthy',
+              hint: 'Realtime sync is operating normally.',
+            };
 
   const handleAuth = async () => {
     if (!syncAuthEmail.trim() || !syncAuthPassword) return;
@@ -207,16 +188,6 @@ export function SyncSection() {
     }
   };
 
-  const handlePullSync = async () => {
-    console.log('[FirebaseSync] Manual pull initiated by user');
-    await pullSync();
-  };
-
-  const handlePushSync = async () => {
-    console.log('[FirebaseSync] Manual push initiated by user');
-    await pushSync();
-  };
-
   const handleSignOut = async () => {
     try {
       await signOutFirebase();
@@ -230,7 +201,7 @@ export function SyncSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Cloud Sync"
-        description="Changes sync to the cloud automatically while you are online. Use Pull/Push controls for git-style sync actions."
+        description="Changes sync to the cloud automatically in realtime while you are online."
       />
 
       {!isOnline && (
@@ -266,8 +237,8 @@ export function SyncSection() {
               )}
             >
               {syncLoading ||
-              syncIsSubmitting ||
-              syncStatus === 'connecting' ? (
+                syncIsSubmitting ||
+                syncStatus === 'connecting' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               ) : syncStatus === 'syncing' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
@@ -327,17 +298,17 @@ export function SyncSection() {
                     className={cn(
                       'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
                       syncHealth.tone === 'healthy' &&
-                        'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                      'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
                       syncHealth.tone === 'degraded' &&
-                        'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+                      'bg-amber-500/15 text-amber-700 dark:text-amber-400',
                       syncHealth.tone === 'blocked' &&
-                        'bg-destructive/15 text-destructive',
+                      'bg-destructive/15 text-destructive',
                       syncHealth.tone === 'stale' &&
-                        'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+                      'bg-orange-500/15 text-orange-700 dark:text-orange-400',
                       syncHealth.tone === 'offline' &&
-                        'bg-slate-500/15 text-slate-700 dark:text-slate-300',
+                      'bg-slate-500/15 text-slate-700 dark:text-slate-300',
                       syncHealth.tone === 'muted' &&
-                        'bg-muted text-muted-foreground'
+                      'bg-muted text-muted-foreground'
                     )}
                   >
                     {syncHealth.label}
@@ -351,38 +322,6 @@ export function SyncSection() {
           </div>
           {syncEnabled && (
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  void handlePullSync();
-                }}
-                disabled={isSyncing || !isOnline}
-              >
-                <ArrowDownToLine
-                  className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')}
-                />
-                {isSyncing ? 'Working...' : 'Pull'}
-              </Button>
-              <Button
-                variant={
-                  pendingChanges > 0 || queuedOpsCount > 0
-                    ? 'default'
-                    : 'outline'
-                }
-                size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  void handlePushSync();
-                }}
-                disabled={isSyncing || !isOnline}
-              >
-                <ArrowUpToLine
-                  className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')}
-                />
-                {isSyncing ? 'Working...' : 'Push'}
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -403,20 +342,6 @@ export function SyncSection() {
               >
                 Sign out
               </Button>
-              {(syncTelemetry.retryBlocked ||
-                syncTelemetry.retryAttemptsCurrent > 0) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => {
-                    (retryQueuedOpsNow as () => void)();
-                  }}
-                  disabled={!isOnline}
-                >
-                  Retry queued ops now
-                </Button>
-              )}
             </div>
           )}
           {isSignedIn && !syncEnabled && (
@@ -426,7 +351,7 @@ export function SyncSection() {
                 size="sm"
                 className="gap-1.5"
                 onClick={() => {
-                  void forceSync();
+                  toggleSync();
                 }}
                 disabled={isSyncing || !isOnline}
               >
@@ -457,66 +382,6 @@ export function SyncSection() {
                 label="Sync API Key"
                 description="Include your OpenRouter API key in cloud sync so it's available on all your devices."
               />
-            </div>
-
-            <div className="pt-3 border-t border-border">
-              <FieldGroup
-                label="Selective Pull/Push"
-                htmlFor="manual-sync-collection"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Select
-                    value={manualCollection}
-                    onValueChange={(v) =>
-                      setManualCollection(v as ManualSyncCollection)
-                    }
-                  >
-                    <SelectTrigger id="manual-sync-collection" className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MANUAL_COLLECTION_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => {
-                      void (
-                        pullCollectionSync as (
-                          collection: ManualSyncCollection
-                        ) => Promise<void>
-                      )(manualCollection);
-                    }}
-                    disabled={isSyncing || !isOnline}
-                  >
-                    Pull selected
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => {
-                      void (
-                        pushCollectionSync as (
-                          collection: ManualSyncCollection
-                        ) => Promise<void>
-                      )(manualCollection);
-                    }}
-                    disabled={isSyncing || !isOnline}
-                  >
-                    Push selected
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Run targeted reconciliation for one data section without a
-                  full sync pass.
-                </p>
-              </FieldGroup>
             </div>
           </>
         )}
@@ -647,14 +512,16 @@ export function SyncSection() {
               Study goals and streak data
             </li>
           </ul>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Sync is manual-friendly: use Pull to fetch cloud changes and Push to
-            upload your local changes, similar to git-style workflows.
-          </p>
         </Card>
       )}
 
-      <SyncActivityCard syncEvents={syncEvents} debugMode={debugMode} />
+      <SyncActivityCard
+        syncEvents={syncEvents}
+        debugMode={debugMode}
+        onClear={() => {
+          void clearSyncEvents();
+        }}
+      />
 
       {debugMode && isSignedIn && debugLogs.length > 0 && (
         <Card className="p-5">

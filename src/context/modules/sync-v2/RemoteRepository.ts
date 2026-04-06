@@ -8,16 +8,18 @@
  *   users/{uid}/settings/{main, goals, presets}
  */
 
+import type { DocumentData, Firestore } from 'firebase/firestore';
 import {
   collection,
   deleteDoc,
   doc,
-  type DocumentData,
-  type Firestore,
+  documentId,
   getDoc,
   getDocs,
+  query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 
@@ -406,11 +408,46 @@ function extractLastModified(data: DocumentData): number {
   return 0;
 }
 
+function normalizeForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeForComparison(entry));
+  }
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const normalized: Record<string, unknown> = {};
+    const keys = Object.keys(source).sort((a, b) => a.localeCompare(b));
+    for (const key of keys) {
+      if (key === '_lastModified' || key === 'lastModified') continue;
+      normalized[key] = normalizeForComparison(source[key]);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+function areEquivalentForSync(
+  localPrepared: Record<string, unknown>,
+  remoteData: DocumentData
+): boolean {
+  const normalizedLocal = normalizeForComparison(localPrepared);
+  const normalizedRemote = normalizeForComparison(remoteData);
+  return JSON.stringify(normalizedLocal) === JSON.stringify(normalizedRemote);
+}
+
+function chunkIds(ids: string[], chunkSize: number): string[][] {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    chunks.push(ids.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
 // ─── RemoteRepository ─────────────────────────────────────────────────────────
 
 export class RemoteRepository {
   private userId: string;
   private firestore: Firestore;
+  private static readonly QUERY_IN_MAX = 10;
 
   constructor(userId: string, firestoreInstance?: Firestore) {
     this.userId = userId;
@@ -444,14 +481,22 @@ export class RemoteRepository {
       docId
     );
 
+    const localLm = extractLastModified(prepared as DocumentData);
+
     await withRetry(
       () =>
         withTimeout(
-          setDoc(
-            docRef,
-            { ...prepared, _lastModified: serverTimestamp() },
-            { merge: true }
-          ),
+          runTransaction(this.firestore, async (transaction) => {
+            const snap = await transaction.get(docRef);
+            const remote = snap.exists() ? snap.data() : undefined;
+            if (!this.shouldWriteDocument(prepared, localLm, remote)) return;
+
+            transaction.set(
+              docRef,
+              { ...prepared, _lastModified: serverTimestamp() },
+              { merge: true }
+            );
+          }),
           `upsert ${collection}/${docId}`
         ),
       `upsert ${collection}/${docId}`
@@ -531,23 +576,72 @@ export class RemoteRepository {
   ): Promise<number> {
     if (items.length === 0) return 0;
 
-    const effectiveShard = shardKey;
+    type PreparedCandidate = {
+      id: string;
+      prepared: Record<string, unknown>;
+      path: string;
+      localLastModified: number;
+    };
+
+    const candidates: PreparedCandidate[] = [];
+    const byPath = new Map<string, PreparedCandidate[]>();
+
+    for (const item of items) {
+      const prepared = prepareForFirestore(item.data, collection);
+      if (!prepared) continue;
+      const effectiveShard = shardKey ?? this.computeShardKey(item.data);
+      const path = getCollectionPath(this.userId, collection, effectiveShard);
+      const candidate: PreparedCandidate = {
+        id: item.id,
+        prepared,
+        path,
+        localLastModified: extractLastModified(prepared as DocumentData),
+      };
+      candidates.push(candidate);
+
+      if (!byPath.has(path)) byPath.set(path, []);
+      byPath.get(path)!.push(candidate);
+    }
+
+    if (candidates.length === 0) return 0;
+
+    const candidatesToWrite: PreparedCandidate[] = [];
+    for (const [path, pathCandidates] of byPath.entries()) {
+      const remoteById = await this.getRemoteDocsById(path, pathCandidates);
+      for (const candidate of pathCandidates) {
+        const remote = remoteById.get(candidate.id);
+        if (
+          this.shouldWriteDocument(
+            candidate.prepared,
+            candidate.localLastModified,
+            remote
+          )
+        ) {
+          candidatesToWrite.push(candidate);
+        }
+      }
+    }
+
+    if (candidatesToWrite.length === 0) return 0;
+
     let writes = 0;
 
-    for (let i = 0; i < items.length; i += FIRESTORE_BATCH_MAX_OPS) {
-      const chunk = items.slice(i, i + FIRESTORE_BATCH_MAX_OPS);
+    for (
+      let i = 0;
+      i < candidatesToWrite.length;
+      i += FIRESTORE_BATCH_MAX_OPS
+    ) {
+      const chunk = candidatesToWrite.slice(i, i + FIRESTORE_BATCH_MAX_OPS);
       const batch = writeBatch(this.firestore);
       let batchWrites = 0;
 
-      for (const item of chunk) {
-        const prepared = prepareForFirestore(item.data, collection);
-        if (!prepared) continue;
-        const docRef = doc(
-          this.firestore,
-          getCollectionPath(this.userId, collection, effectiveShard),
-          item.id
+      for (const candidate of chunk) {
+        const docRef = doc(this.firestore, candidate.path, candidate.id);
+        batch.set(
+          docRef,
+          { ...candidate.prepared, _lastModified: serverTimestamp() },
+          { merge: true }
         );
-        batch.set(docRef, { ...prepared, _lastModified: serverTimestamp() });
         batchWrites++;
       }
 
@@ -626,7 +720,6 @@ export class RemoteRepository {
     lastSyncVersions: Record<string, number>,
     shardKey?: ShardKey
   ): Promise<RemoteDocument[]> {
-
     const collRef = getCollectionRef(this.userId, collection, shardKey);
 
     // For items we haven't seen, fetch everything > 0
@@ -732,21 +825,83 @@ export class RemoteRepository {
       throw new Error(`Invalid settings payload for ${docId}`);
     }
     const docRef = doc(this.firestore, `users/${this.userId}/settings`, docId);
+    const localLm = extractLastModified(cleaned as DocumentData);
     await withRetry(
       () =>
         withTimeout(
-          setDoc(
-            docRef,
-            {
-              ...(cleaned as Record<string, unknown>),
-              _lastModified: serverTimestamp(),
-            },
-            { merge: true }
-          ),
+          runTransaction(this.firestore, async (transaction) => {
+            const snap = await transaction.get(docRef);
+            const remote = snap.exists() ? snap.data() : undefined;
+            if (
+              !this.shouldWriteDocument(
+                cleaned as Record<string, unknown>,
+                localLm,
+                remote
+              )
+            ) {
+              return;
+            }
+
+            transaction.set(
+              docRef,
+              {
+                ...(cleaned as Record<string, unknown>),
+                _lastModified: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }),
           `upsert settings/${docId}`
         ),
       `upsert settings/${docId}`
     );
+  }
+
+  private shouldWriteDocument(
+    localPrepared: Record<string, unknown>,
+    localLastModified: number,
+    remoteData?: DocumentData
+  ): boolean {
+    if (!remoteData) return true;
+    const remoteLastModified = extractLastModified(remoteData);
+
+    // If remote is newer than a timestamped local update, keep remote.
+    if (localLastModified > 0 && remoteLastModified > localLastModified) {
+      return false;
+    }
+
+    // Even when timestamps allow a write, skip if payload is unchanged.
+    return !areEquivalentForSync(localPrepared, remoteData);
+  }
+
+  private async getRemoteDocsById(
+    path: string,
+    candidates: Array<{ id: string }>
+  ): Promise<Map<string, DocumentData>> {
+    const uniqueIds = Array.from(
+      new Set(
+        candidates
+          .map((candidate) => candidate.id)
+          .filter((id) => typeof id === 'string' && id.length > 0)
+      )
+    );
+
+    const result = new Map<string, DocumentData>();
+    if (uniqueIds.length === 0) return result;
+
+    for (const idChunk of chunkIds(uniqueIds, RemoteRepository.QUERY_IN_MAX)) {
+      const collRef = collection(this.firestore, path);
+      const q = query(collRef, where(documentId(), 'in', idChunk));
+      const snap = await withRetry(
+        () => withTimeout(getDocs(q), `lookup docs ${path}`),
+        `lookup docs ${path}`
+      );
+      snap.forEach((docSnap) => {
+        result.set(docSnap.id, docSnap.data());
+      });
+    }
+
+    return result;
   }
 
   // ─── Shard Helpers ──────────────────────────────────────────────────────────

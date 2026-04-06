@@ -75,7 +75,7 @@ function coalesceKey(op: SyncOperation): string {
  * Rules:
  * - Keep only the latest operation per entity
  * - Delete after upsert = just delete (but entity was newly created, so skip entirely)
- * - Upsert after delete = upsert (entity was recreated)  
+ * - Upsert after delete = upsert (entity was recreated)
  * - Multiple upserts = keep last one
  * - Multiple deletes = keep one delete
  */
@@ -328,7 +328,7 @@ export class QueueManager {
     const jitter = Math.random() * 500;
     const delay = Math.min(
       this.config.retryBaseDelayMs * Math.pow(2, Math.min(attempt - 1, 4)) +
-      jitter,
+        jitter,
       this.config.retryMaxDelayMs
     );
     this.telemetry.nextRetryAt = Date.now() + delay;
