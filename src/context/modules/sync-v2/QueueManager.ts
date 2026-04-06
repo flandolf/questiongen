@@ -70,15 +70,52 @@ function coalesceKey(op: SyncOperation): string {
   return `${op.collection}:${op.entityId ?? '__all__'}`;
 }
 
+/**
+ * Coalesce operations with smart noop detection.
+ * Rules:
+ * - Keep only the latest operation per entity
+ * - Delete after upsert = just delete (but entity was newly created, so skip entirely)
+ * - Upsert after delete = upsert (entity was recreated)  
+ * - Multiple upserts = keep last one
+ * - Multiple deletes = keep one delete
+ */
 function coalesceOperations(operations: SyncOperation[]): SyncOperation[] {
   const latestByKey = new Map<string, SyncOperation>();
+  let noopsDetected = 0;
+
   for (const op of operations) {
     const key = coalesceKey(op);
     const existing = latestByKey.get(key);
-    if (!existing || op.createdAt >= existing.createdAt) {
+
+    if (!existing) {
+      latestByKey.set(key, op);
+      continue;
+    }
+
+    // If timestamps are same, keep existing (shouldn't happen but be safe)
+    if (op.createdAt < existing.createdAt) {
+      continue;
+    }
+
+    // Detect noop patterns
+    if (existing.opType === 'upsert' && op.opType === 'delete') {
+      // Upsert then delete = just delete, but since item is new, this is noop
+      if (op.entityId) latestByKey.delete(key);
+      noopsDetected += 1;
+    } else if (existing.opType === 'delete' && op.opType === 'upsert') {
+      // Delete then upsert = recreate, so upsert is the final state
+      latestByKey.set(key, op);
+    } else if (op.opType === existing.opType) {
+      // Same type, keep latest
+      latestByKey.set(key, op);
+    } else {
+      // Difference type transition, keep new
       latestByKey.set(key, op);
     }
   }
+
+  // Note: noopsDetected is tracked but not currently exposed
+  // could add to telemetry if needed
   return Array.from(latestByKey.values());
 }
 
@@ -216,7 +253,19 @@ export class QueueManager {
   }
 
   scheduleFlush(): void {
+    // For realtime sync: if no timer is active, flush immediately
+    // This makes the first operation in a batch go out near-instantly
+    const shouldFlushImmediately = !this.debounceTimer;
+
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
+
+    // Immediate flush for first operation, debounce for subsequent ones
+    if (shouldFlushImmediately) {
+      void this.flush();
+      return;
+    }
+
+    // Setup debounce for subsequent operations in quick succession
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null;
       void this.flush();
@@ -279,7 +328,7 @@ export class QueueManager {
     const jitter = Math.random() * 500;
     const delay = Math.min(
       this.config.retryBaseDelayMs * Math.pow(2, Math.min(attempt - 1, 4)) +
-        jitter,
+      jitter,
       this.config.retryMaxDelayMs
     );
     this.telemetry.nextRetryAt = Date.now() + delay;

@@ -258,12 +258,12 @@ function compactQuestionHistory(
     lastModified: trimmed.lastModified,
     question: qMeta
       ? {
-          id: qMeta.id,
-          topic: qMeta.topic,
-          subtopic: qMeta.subtopic,
-          maxMarks: qMeta.maxMarks,
-          promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
-        }
+        id: qMeta.id,
+        topic: qMeta.topic,
+        subtopic: qMeta.subtopic,
+        maxMarks: qMeta.maxMarks,
+        promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
+      }
       : undefined,
     uploadedAnswer: clipString(trimmed.uploadedAnswer, 20_000),
     markResponse: trimmed.markResponse,
@@ -299,11 +299,11 @@ function compactMcHistory(
     maxMarks: trimmed.maxMarks,
     question: qMeta
       ? {
-          id: qMeta.id,
-          topic: qMeta.topic,
-          subtopic: qMeta.subtopic,
-          promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
-        }
+        id: qMeta.id,
+        topic: qMeta.topic,
+        subtopic: qMeta.subtopic,
+        promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
+      }
       : undefined,
   };
   if (estimateDocSizeBytes(metadataOnly) <= FIRESTORE_DOC_SAFE_BYTES)
@@ -605,11 +605,94 @@ export class RemoteRepository {
     lastSyncVersions: Record<string, number>,
     shardKey?: ShardKey
   ): Promise<RemoteDocument[]> {
-    const docs = await this.getCollection(collection, shardKey);
-    return docs.filter((d) => {
-      const lastKnown = lastSyncVersions[d.id] ?? 0;
-      return d.lastModified > lastKnown;
+    // For sharded collections, we need to fetch all shards and apply delta logic
+    if (
+      !shardKey &&
+      (collection === 'questionHistory' || collection === 'mcHistory')
+    ) {
+      return this.getDeltaChangesSharded(collection, lastSyncVersions);
+    }
+
+    // For non-sharded collections and specific shards, use optimized server-side filtering
+    return this.getDeltaChangesOptimized(
+      collection,
+      lastSyncVersions,
+      shardKey
+    );
+  }
+
+  private async getDeltaChangesOptimized(
+    collection: SyncCollection,
+    lastSyncVersions: Record<string, number>,
+    shardKey?: ShardKey
+  ): Promise<RemoteDocument[]> {
+
+    const collRef = getCollectionRef(this.userId, collection, shardKey);
+
+    // For items we haven't seen, fetch everything > 0
+    // For items we have seen, we need to fetch everything and filter client-side
+    // because we need the exact id -> lastModified mapping
+    const snap = await withTimeout(
+      getDocs(collRef),
+      `getDeltaChanges ${collection}${shardKey ? `/${shardKey}` : ''}`
+    );
+
+    const results: RemoteDocument[] = [];
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const lm = extractLastModified(data);
+      const lastKnown = lastSyncVersions[docSnap.id] ?? 0;
+
+      // Include if: never seen before OR modified since last sync
+      if (lm > lastKnown) {
+        delete data._lastModified;
+        results.push({
+          id: docSnap.id,
+          data,
+          lastModified: lm,
+          shardKey,
+        });
+      }
     });
+
+    return results;
+  }
+
+  private async getDeltaChangesSharded(
+    collection: 'questionHistory' | 'mcHistory',
+    lastSyncVersions: Record<string, number>
+  ): Promise<RemoteDocument[]> {
+    // For sharded collections, batch fetch from multiple shards in parallel
+    // Get all possible shards (current month and recent months)
+    const shards = this.getRecentShards();
+
+    const promises = shards.map((shard) =>
+      this.getDeltaChangesOptimized(collection, lastSyncVersions, shard).catch(
+        () => [] // Non-fatal: shard may not exist
+      )
+    );
+
+    const allResults = await Promise.all(promises);
+    return allResults.flat();
+  }
+
+  private getRecentShards(): ShardKey[] {
+    const now = new Date();
+    const shards: ShardKey[] = [];
+
+    // Current month
+    shards.push(this.getShardKey(now));
+
+    // Last 12 months (for users with history spanning year)
+    for (let i = 1; i <= 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const shard = this.getShardKey(date);
+      if (!shards.includes(shard)) {
+        shards.push(shard);
+      }
+    }
+
+    return shards;
   }
 
   async getRemoteCounts(

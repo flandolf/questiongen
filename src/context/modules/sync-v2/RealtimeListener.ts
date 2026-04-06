@@ -132,19 +132,64 @@ export class RealtimeListener {
   }
 
   private startCollectionListener(collectionName: SyncCollection): void {
-    const key = `collection:${collectionName}`;
-    if (this.unsubscribes.has(key)) return;
+    // For sharded collections, listen to all monthly shards
+    const isSharded =
+      collectionName === 'questionHistory' || collectionName === 'mcHistory';
 
-    const collRef = collection(
-      this.firestore,
-      `users/${this.userId}/${collectionName}`
-    );
-    const unsub = onSnapshot(
-      collRef,
-      (snapshot) => this.handleSnapshot(collectionName, snapshot),
-      (error) => this.handleError(collectionName, error)
-    );
-    this.unsubscribes.set(key, unsub);
+    if (isSharded) {
+      this.startShardedCollectionListeners(collectionName);
+    } else {
+      // For non-sharded collections, listen to the root collection
+      const key = `collection:${collectionName}`;
+      if (this.unsubscribes.has(key)) return;
+
+      const collRef = collection(
+        this.firestore,
+        `users/${this.userId}/${collectionName}`
+      );
+      const unsub = onSnapshot(
+        collRef,
+        (snapshot) => this.handleSnapshot(collectionName, snapshot),
+        (error) => this.handleError(collectionName, error)
+      );
+      this.unsubscribes.set(key, unsub);
+    }
+  }
+
+  private startShardedCollectionListeners(collectionName: SyncCollection): void {
+    // Generate shard keys for all months in a range (past 24 months + future 12 months)
+    const shardKeys = this.generateShardKeys();
+
+    for (const shardKey of shardKeys) {
+      const key = `collection:${collectionName}:${shardKey}`;
+      if (this.unsubscribes.has(key)) continue; // already listening
+
+      const collRef = collection(
+        this.firestore,
+        `users/${this.userId}/${collectionName}/${shardKey}`
+      );
+      const unsub = onSnapshot(
+        collRef,
+        (snapshot) => this.handleSnapshot(collectionName, snapshot, shardKey),
+        (error) => this.handleError(collectionName, error)
+      );
+      this.unsubscribes.set(key, unsub);
+    }
+  }
+
+  private generateShardKeys(): string[] {
+    const now = new Date();
+    const shardKeys: string[] = [];
+
+    // Generate keys for past 24 months and future 12 months
+    for (let i = -24; i <= 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      shardKeys.push(`${year}-${month}`);
+    }
+
+    return shardKeys;
   }
 
   private startSettingsListener(docId: string): void {
@@ -192,7 +237,8 @@ export class RealtimeListener {
 
   private handleSnapshot(
     collectionName: SyncCollection,
-    snapshot: QuerySnapshot<DocumentData>
+    snapshot: QuerySnapshot<DocumentData>,
+    shardKey?: string
   ): void {
     const events: ChangeEvent[] = [];
     snapshot.docChanges().forEach((change) => {
@@ -215,6 +261,7 @@ export class RealtimeListener {
         docId: change.doc.id,
         data: change.type === 'removed' ? null : data,
         type: change.type as ChangeType,
+        shardKey,
         lastModified: lm,
       });
     });
@@ -229,6 +276,9 @@ export class RealtimeListener {
   }
 
   private enqueueEvents(events: ChangeEvent[]): void {
+    // Skip empty batches to reduce unnecessary pull cycles
+    if (events.length === 0) return;
+
     this.pendingEvents.push(...events);
     if (this.throttleTimer) return;
     this.throttleTimer = setTimeout(() => {

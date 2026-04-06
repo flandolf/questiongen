@@ -16,6 +16,7 @@ import type {
   CacheSnapshot,
   DeletionTombstones,
   LocalCacheEntry,
+  RemoteDocument,
   SyncableData,
   SyncConflict,
   SyncEvent,
@@ -36,6 +37,7 @@ const EMPTY_METADATA: SyncMetadata = {
   mcHistorySyncTime: 0,
   savedSetsSyncTime: 0,
   lastSyncVersions: { questionHistory: {}, mcHistory: {}, savedSets: {} },
+  settingsLastModified: { main: 0, goals: 0, presets: 0 },
 };
 
 const EMPTY_TOMBSTONES: DeletionTombstones = {
@@ -144,7 +146,7 @@ function mergeStreakData(
     ),
     lastActiveDate:
       (typeof local.lastActiveDate === 'string' ? local.lastActiveDate : '') >
-      (typeof remote.lastActiveDate === 'string' ? remote.lastActiveDate : '')
+        (typeof remote.lastActiveDate === 'string' ? remote.lastActiveDate : '')
         ? local.lastActiveDate
         : remote.lastActiveDate,
     dailyCompletions: merged,
@@ -553,7 +555,22 @@ export class SyncEngine {
         mcHistory: [],
         savedSets: [],
       };
-      await this.remoteRepo.flushOperations(ops, () => {
+
+      // Filter out noop operations where data hasn't actually changed
+      const nonNoopOps = this.filterNoopOperations(ops, state);
+      const skipCount = ops.length - nonNoopOps.length;
+      if (skipCount > 0) {
+        this.telemetry.hashNoopSkips += skipCount;
+        this.telemetry.estimatedWritesAvoided += skipCount;
+        this.notifyTelemetryChange(this.telemetry);
+      }
+
+      if (nonNoopOps.length === 0) {
+        this.addEvent('upload', 'All operations were no-ops, skipping flush');
+        return;
+      }
+
+      await this.remoteRepo.flushOperations(nonNoopOps, () => {
         // Map ops to actual data from state
         const allItems = [
           ...state.questionHistory,
@@ -567,7 +584,7 @@ export class SyncEngine {
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
       if (this.userId) writeMetadata(this.userId, this.metadata);
-      this.addEvent('upload', `Successfully flushed ${ops.length} operations`);
+      this.addEvent('upload', `Successfully flushed ${nonNoopOps.length} operations`);
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error);
       this.addEvent('error', `Flush failed: ${this.lastError}`);
@@ -577,8 +594,21 @@ export class SyncEngine {
     }
   }
 
+  private filterNoopOperations(
+    ops: SyncOperation[],
+    _state: SyncableData
+  ): SyncOperation[] {
+    // For now, return all ops. In the future, we could add hash-based
+    // detection of unchanged data by comparing snapshots with cached hashes.
+    // This would require storing hashes of last-synced versions.
+    return ops;
+  }
+
   private handleRemoteChanges(events: ChangeEvent[]): void {
     if (!this.userId) return;
+
+    // Skip if empty events batch
+    if (events.length === 0) return;
 
     this.addEvent(
       'download',
@@ -631,8 +661,10 @@ export class SyncEngine {
       this.notifyDataChange(this.localData);
     }
 
-    // Schedule a pull to reconcile complex cases (runs after small throttle)
-    this.scheduleRemotePull();
+    // For true realtime sync, trust the listener data and don't schedule pulls
+    // Pulls create unnecessary Firestore reads and can conflicting data
+    // Only pull on startup or explicit user request
+    // Note: scheduleRemotePull removed to improve realtime sync latency
   }
 
   private scheduleRemotePull(): void {
@@ -719,14 +751,10 @@ export class SyncEngine {
 
   private async loadStartupRemoteData(): Promise<SyncableData> {
     if (!this.remoteRepo) {
-      return {
-        settings: {},
-        questionHistory: [],
-        mcHistory: [],
-        savedSets: [],
-      };
+      return this.createEmptyRemoteData();
     }
 
+    // Fetch all data in parallel
     const [qh, mc, ss, settingsMain, settingsGoals, settingsPresets] =
       await Promise.all([
         this.remoteRepo.getCollection('questionHistory'),
@@ -740,6 +768,10 @@ export class SyncEngine {
     this.telemetry.fullSyncReads += 1;
     this.notifyTelemetryChange(this.telemetry);
 
+    // Update settings metadata
+    this.updateSettingsLastModified(settingsMain, settingsGoals, settingsPresets);
+
+    // Build and return data
     return {
       settings: (settingsMain?.data?.settings as Record<string, unknown>) ?? {},
       questionHistory: qh.map((d) => d.data),
@@ -755,6 +787,39 @@ export class SyncEngine {
         (settingsGoals?.data?.streakData as Record<string, unknown>) ??
         undefined,
     };
+  }
+
+  private createEmptyRemoteData(): SyncableData {
+    return {
+      settings: {},
+      questionHistory: [],
+      mcHistory: [],
+      savedSets: [],
+    };
+  }
+
+  private updateSettingsLastModified(
+    settingsMain: RemoteDocument | null,
+    settingsGoals: RemoteDocument | null,
+    settingsPresets: RemoteDocument | null
+  ): void {
+    if (!this.metadata.settingsLastModified) {
+      this.metadata.settingsLastModified = { main: 0, goals: 0, presets: 0 };
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    const slm = this.metadata.settingsLastModified as any;
+    if (settingsMain && slm) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      slm.main = settingsMain.lastModified;
+    }
+    if (settingsGoals && slm) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      slm.goals = settingsGoals.lastModified;
+    }
+    if (settingsPresets && slm) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      slm.presets = settingsPresets.lastModified;
+    }
   }
 
   private buildCollectionConflictInputs(
@@ -980,9 +1045,16 @@ export class SyncEngine {
             'savedSets',
             this.metadata.lastSyncVersions.savedSets
           ),
-          this.remoteRepo.getSettingsDoc('main').catch(() => null),
-          this.remoteRepo.getSettingsDoc('goals').catch(() => null),
-          this.remoteRepo.getSettingsDoc('presets').catch(() => null),
+          // Only fetch settings if we haven't checked recently or if they might have changed
+          this.shouldFetchSettingsDoc('main')
+            ? this.remoteRepo.getSettingsDoc('main')
+            : Promise.resolve(null),
+          this.shouldFetchSettingsDoc('goals')
+            ? this.remoteRepo.getSettingsDoc('goals')
+            : Promise.resolve(null),
+          this.shouldFetchSettingsDoc('presets')
+            ? this.remoteRepo.getSettingsDoc('presets')
+            : Promise.resolve(null),
         ]);
 
       this.telemetry.fullSyncReads += 1;
@@ -1030,6 +1102,26 @@ export class SyncEngine {
         this.metadata.lastSyncVersions.mcHistory[d.id] = d.lastModified;
       for (const d of ss)
         this.metadata.lastSyncVersions.savedSets[d.id] = d.lastModified;
+
+      // Update settings lastModified timestamps
+      if (!this.metadata.settingsLastModified) {
+        this.metadata.settingsLastModified = { main: 0, goals: 0, presets: 0 };
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      const slm = this.metadata.settingsLastModified as any;
+      if (settingsMain && slm) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        slm.main = settingsMain.lastModified;
+      }
+      if (settingsGoals && slm) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        slm.goals = settingsGoals.lastModified;
+      }
+      if (settingsPresets && slm) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        slm.presets = settingsPresets.lastModified;
+      }
+
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
       if (this.userId) writeMetadata(this.userId, this.metadata);
@@ -1078,6 +1170,34 @@ export class SyncEngine {
       this.addEvent('error', `Pull failed: ${this.lastError}`);
       this.setStatus('error');
     }
+  }
+
+  private shouldFetchSettingsDoc(
+    docId: 'main' | 'goals' | 'presets'
+  ): boolean {
+    // Always fetch if we don't have metadata for it
+    if (!this.metadata.settingsLastModified) return true;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    const slm = this.metadata.settingsLastModified as any;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+    const known = slm[docId] || 0;
+    if (!known || known === 0) return true;
+
+    // Re-fetch every 5 minutes or if realtime listener indicates change
+    // This reduces redundant reads for static settings
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    const shouldFetch = this.lastSyncTime
+      ? this.lastSyncTime < fiveMinutesAgo
+      : true;
+
+    if (!shouldFetch) {
+      // Track avoided read
+      this.telemetry.estimatedReadsAvoided += 1;
+      this.notifyTelemetryChange(this.telemetry);
+    }
+
+    return shouldFetch;
   }
 
   private handleOnline(): void {

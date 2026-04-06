@@ -6,10 +6,11 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
 import Sketchpad from '@/components/Sketchpad';
+import type { SketchpadHandle } from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,7 +26,7 @@ type WrittenAnswerCardProps = {
   onAnswerChange: (value: string) => void;
   onImageDrop: (files: File[]) => void;
   onImageRemove: () => void;
-  onSubmit: () => void;
+  onSubmit: (payload?: { image?: StudentAnswerImage }) => void | Promise<void>;
   onSketchpadActiveChange?: (active: boolean) => void;
 };
 
@@ -50,8 +51,10 @@ export function WrittenAnswerCard({
   const [activeTab, setActiveTab] = useState<
     'response' | 'upload' | 'sketchpad'
   >('response');
+  const sketchpadRef = useRef<SketchpadHandle | null>(null);
   const words = wordCount(answer);
   const hasContent = answer.trim().length > 0 || Boolean(image);
+  const canSubmitFromSketchpad = canSubmit || activeTab === 'sketchpad';
 
   useEffect(() => {
     setActiveTab('response');
@@ -72,6 +75,24 @@ export function WrittenAnswerCard({
     } catch {
       // noop
     }
+  }
+
+  async function handleSubmit() {
+    if (activeTab === 'sketchpad' && sketchpadRef.current) {
+      try {
+        const dataUrl = await sketchpadRef.current.exportDataUrl();
+        await onSubmit({
+          image: {
+            name: `sketch-${Date.now()}.webp`,
+            dataUrl,
+          },
+        });
+        return;
+      } catch {
+        // Fall back to the existing submit path if export fails.
+      }
+    }
+    await onSubmit();
   }
 
   return (
@@ -183,6 +204,7 @@ export function WrittenAnswerCard({
             <span className="text-xs uppercase tracking-wide">Sketchpad</span>
           </div>
           <Sketchpad
+            ref={sketchpadRef}
             embedded
             onSave={(dataUrl) => void handleSketchSave(dataUrl)}
           />
@@ -213,13 +235,12 @@ export function WrittenAnswerCard({
       {!isExamMode && (
         <Button
           size="lg"
-          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
-            hasContent && !isMarking
+          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${hasContent && !isMarking
               ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
               : ''
-          }`}
-          onClick={onSubmit}
-          disabled={!canSubmit || isMarking}
+            }`}
+          onClick={() => void handleSubmit()}
+          disabled={!canSubmitFromSketchpad || isMarking}
         >
           {isMarking ? (
             <>

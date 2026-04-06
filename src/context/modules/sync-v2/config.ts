@@ -5,7 +5,7 @@
 import type { SyncConfig } from './types';
 
 export const DEFAULT_CONFIG: SyncConfig = {
-  flushDebounceMs: 2000,
+  flushDebounceMs: 100,
   queueSizeThreshold: 50,
   retryMaxAttempts: 5,
   retryBaseDelayMs: 1000,
@@ -38,4 +38,4 @@ export const FIRESTORE_RETRY_BASE_DELAY_MS = 1000;
 export const FIRESTORE_RETRY_MAX_DELAY_MS = 30000;
 
 // Listeners
-export const LISTENER_THROTTLE_MS = 100;
+export const LISTENER_THROTTLE_MS = 30;
