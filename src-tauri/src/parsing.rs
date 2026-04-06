@@ -1,4 +1,6 @@
-use crate::constants::{DISALLOWED_SELF_TALK, MC_MAX_EXPLANATION_WORDS};
+use crate::constants::{
+    DISALLOWED_METHOD_INSTRUCTIONS, DISALLOWED_SELF_TALK, MC_MAX_EXPLANATION_WORDS,
+};
 use crate::models::{default_max_marks, AppError, CommandResult, GeneratedQuestion, McQuestion};
 
 // --- JSON pre-processing: protect LaTeX commands from JSON escape sequences --
@@ -877,6 +879,16 @@ pub fn validate_written(questions: &[GeneratedQuestion], expected: usize) -> Com
                 format!("Q{} has empty prompt.", q.id),
             ));
         }
+        let prompt_lower = q.prompt_markdown.to_lowercase();
+        if DISALLOWED_METHOD_INSTRUCTIONS
+            .iter()
+            .any(|m| prompt_lower.contains(m))
+        {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} prompt contains method instructions.", q.id),
+            ));
+        }
         if q.max_marks == 0 || q.max_marks > 30 {
             return Err(AppError::new(
                 "VALIDATION_ERROR",
@@ -952,6 +964,16 @@ pub fn validate_mc(questions: &[McQuestion], expected: usize) -> CommandResult<(
             return Err(AppError::new(
                 "VALIDATION_ERROR",
                 format!("Q{} empty prompt.", q.id),
+            ));
+        }
+        let prompt_lower = q.prompt_markdown.to_lowercase();
+        if DISALLOWED_METHOD_INSTRUCTIONS
+            .iter()
+            .any(|m| prompt_lower.contains(m))
+        {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("Q{} prompt contains method instructions.", q.id),
             ));
         }
         if q.explanation_markdown.is_empty() {

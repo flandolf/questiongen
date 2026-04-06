@@ -33,6 +33,31 @@ pub const DISALLOWED_SELF_TALK: &[&str] = &[
     "i'll update",
 ];
 
+pub const DISALLOWED_METHOD_INSTRUCTIONS: &[&str] = &[
+    "you will first",
+    "you will then",
+    "you will need to",
+    "first use",
+    "then apply",
+    "apply a",
+    "use differentiation to",
+    "use integration to",
+    "use the graph",
+    "transform the graph",
+    "obtain new",
+    "stationary-point information",
+    "you may need to",
+    "you should first",
+    "start by",
+    "begin by",
+    "proceed by",
+    "the student should first",
+    "the student will",
+    "must first",
+    "should first",
+    "need to first",
+];
+
 pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 
 // ─── Global style rules (truly constant, not curriculum-dependent) ────────────

@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { DeletionTombstones } from '../context/modules/deletion-tombstones';
 import { EMPTY_TOMBSTONES } from '../context/modules/deletion-tombstones';
 import type {
+  DiversityStrictness,
   GenerationRecord,
   McHistoryEntry,
   PersistedAppState,
@@ -92,6 +93,10 @@ export interface ImportExportState {
   writtenTimerState: PersistedAppState['writtenTimerState'];
   mcTimerState: PersistedAppState['mcTimerState'];
   deletionTombstones: DeletionTombstones;
+  diversityStrictness: DiversityStrictness;
+  strictLatexValidation: boolean;
+  strictSubtopicCoverage: boolean;
+  minSubtopicCoverageRatio: number;
 }
 
 export interface ExportEnvelope {
@@ -530,6 +535,10 @@ function buildExportSnapshot(
       questionMode: s.questionMode,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
+      diversityStrictness: s.diversityStrictness,
+      strictLatexValidation: s.strictLatexValidation,
+      strictSubtopicCoverage: s.strictSubtopicCoverage,
+      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
     },
     writtenSession: {
       questions: s.questions,

@@ -15,6 +15,7 @@ import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
   Difficulty,
+  DiversityStrictness,
   MathMethodsSubtopic,
   PersistedGeneratorPreferences,
   PhysicalEducationSubtopic,
@@ -37,6 +38,10 @@ export function buildPreferencesSnapshot(props: {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
+  diversityStrictness: DiversityStrictness;
+  strictLatexValidation: boolean;
+  strictSubtopicCoverage: boolean;
+  minSubtopicCoverageRatio: number;
 }): PersistedGeneratorPreferences {
   return {
     selectedTopics: props.selectedTopics,
@@ -50,6 +55,10 @@ export function buildPreferencesSnapshot(props: {
     questionCount: props.questionCount,
     averageMarksPerQuestion: props.averageMarksPerQuestion,
     questionMode: props.questionMode,
+    diversityStrictness: props.diversityStrictness,
+    strictLatexValidation: props.strictLatexValidation,
+    strictSubtopicCoverage: props.strictSubtopicCoverage,
+    minSubtopicCoverageRatio: props.minSubtopicCoverageRatio,
   };
 }
 
@@ -65,6 +74,10 @@ type PresetSectionProps = {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
+  diversityStrictness: DiversityStrictness;
+  strictLatexValidation: boolean;
+  strictSubtopicCoverage: boolean;
+  minSubtopicCoverageRatio: number;
 };
 
 const DIFFICULTY_META: Record<
@@ -115,6 +128,10 @@ export function PresetSection({
   questionCount,
   averageMarksPerQuestion,
   questionMode,
+  diversityStrictness,
+  strictLatexValidation,
+  strictSubtopicCoverage,
+  minSubtopicCoverageRatio,
 }: PresetSectionProps) {
   const presets = useAppStore((s) => s.presets);
   const addPreset = useAppStore((s) => s.addPreset);
@@ -139,6 +156,16 @@ export function PresetSection({
     (s) => s.setAverageMarksPerQuestion
   );
   const setQuestionMode = useAppStore((s) => s.setQuestionMode);
+  const setDiversityStrictness = useAppStore((s) => s.setDiversityStrictness);
+  const setStrictLatexValidation = useAppStore(
+    (s) => s.setStrictLatexValidation
+  );
+  const setStrictSubtopicCoverage = useAppStore(
+    (s) => s.setStrictSubtopicCoverage
+  );
+  const setMinSubtopicCoverageRatio = useAppStore(
+    (s) => s.setMinSubtopicCoverageRatio
+  );
   const setAiDifficultyScalingEnabled = useAppStore(
     (s) => s.setAiDifficultyScalingEnabled
   );
@@ -190,6 +217,10 @@ export function PresetSection({
       questionCount,
       averageMarksPerQuestion,
       questionMode,
+      diversityStrictness,
+      strictLatexValidation,
+      strictSubtopicCoverage,
+      minSubtopicCoverageRatio,
     });
     if (existing) {
       updatePreset({ ...existing, preferences: prefs, updatedAt: now });
@@ -206,7 +237,7 @@ export function PresetSection({
   };
 
   const handleLoadPreset = (preset: Preset) => {
-    const p = preset.preferences;
+    const p: PersistedGeneratorPreferences = preset.preferences;
     setSelectedTopics([...p.selectedTopics]);
     setDifficulty(p.difficulty);
     setTechMode(p.techMode);
@@ -218,6 +249,10 @@ export function PresetSection({
     setQuestionCount(p.questionCount);
     setAverageMarksPerQuestion(p.averageMarksPerQuestion);
     setQuestionMode(p.questionMode);
+    setDiversityStrictness(p.diversityStrictness);
+    setStrictLatexValidation(p.strictLatexValidation);
+    setStrictSubtopicCoverage(p.strictSubtopicCoverage);
+    setMinSubtopicCoverageRatio(p.minSubtopicCoverageRatio);
     setAiDifficultyScalingEnabled(p.aiDifficultyScalingEnabled ?? true);
     setDifficultyThresholds(
       p.difficultyThresholds ?? { increase: 85, decrease: 70 }
@@ -238,6 +273,10 @@ export function PresetSection({
       questionCount,
       averageMarksPerQuestion,
       questionMode,
+      diversityStrictness,
+      strictLatexValidation,
+      strictSubtopicCoverage,
+      minSubtopicCoverageRatio,
     });
     updatePreset({ ...preset, preferences: prefs, updatedAt: now });
   };
