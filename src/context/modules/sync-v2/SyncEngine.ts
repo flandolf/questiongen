@@ -292,7 +292,8 @@ type DataChangeCallback = (data: SyncableData) => void;
 type EventCallback = (event: SyncEvent) => void;
 type StatusCallback = (status: SyncStatus) => void;
 
-const FOREGROUND_PULL_COOLDOWN_MS = 15000;
+const FOREGROUND_PULL_COOLDOWN_MS = 300000;
+const FOREGROUND_PULL_MIN_BACKGROUND_MS = 120000;
 
 export class SyncEngine {
   private userId: string | null = null;
@@ -342,6 +343,8 @@ export class SyncEngine {
   private readonly focusHandler: () => void;
   private readonly visibilityHandler: () => void;
   private lastForegroundPullAt = 0;
+  private lastBackgroundedAt: number | null = null;
+  private shouldPullAfterResume = false;
 
   constructor(
     getState: () => SyncableData,
@@ -357,7 +360,11 @@ export class SyncEngine {
     this.offlineHandler = () => this.handleOffline();
     this.focusHandler = () => this.handleForegroundResume();
     this.visibilityHandler = () => {
-      if (!document.hidden) this.handleForegroundResume();
+      if (document.hidden) {
+        this.lastBackgroundedAt = Date.now();
+        return;
+      }
+      this.handleForegroundResume();
     };
     window.addEventListener('online', this.onlineHandler);
     window.addEventListener('offline', this.offlineHandler);
@@ -429,9 +436,16 @@ export class SyncEngine {
         this.notifyQueueChange(count);
       }
     );
-    this.realtimeListener = new RealtimeListener(userId, (events) => {
-      void this.handleRemoteChanges(events);
-    });
+    this.realtimeListener = new RealtimeListener(
+      userId,
+      (events) => {
+        void this.handleRemoteChanges(events);
+      },
+      undefined,
+      () => {
+        this.shouldPullAfterResume = true;
+      }
+    );
 
     this.initialized = true;
     this.setStatus('idle');
@@ -1111,6 +1125,7 @@ export class SyncEngine {
       if (qh.length === 0 && mc.length === 0 && ss.length === 0) {
         this.telemetry.deltaNoChangePasses += 1;
         this.addEvent('download', 'No changes from server');
+        this.shouldPullAfterResume = false;
         this.setStatus('idle');
         return;
       }
@@ -1188,6 +1203,7 @@ export class SyncEngine {
         'download',
         `Pulled ${qh.length + mc.length + ss.length} changes`
       );
+      this.shouldPullAfterResume = false;
       this.setStatus('idle');
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error);
@@ -1198,6 +1214,7 @@ export class SyncEngine {
 
   private handleOnline(): void {
     this.isOnline = true;
+    this.shouldPullAfterResume = true;
     this.setStatus(this.status === 'offline' ? 'idle' : this.status);
     if (this.queueManager && this.queueManager.pendingCount > 0) {
       this.queueManager.scheduleFlush();
@@ -1214,7 +1231,19 @@ export class SyncEngine {
     if (!this.started || !this.isOnline || !this.userId || !this.remoteRepo) {
       return;
     }
+
     const now = Date.now();
+    const backgroundMs =
+      this.lastBackgroundedAt !== null ? now - this.lastBackgroundedAt : 0;
+    const wasBackgroundedLongEnough =
+      backgroundMs >= FOREGROUND_PULL_MIN_BACKGROUND_MS;
+
+    // Normal focus toggles should stay listener-only. Pull only if we've been
+    // offline, the app was backgrounded for a while, or a listener error was seen.
+    if (!this.shouldPullAfterResume && !wasBackgroundedLongEnough) {
+      return;
+    }
+
     if (now - this.lastForegroundPullAt < FOREGROUND_PULL_COOLDOWN_MS) {
       return;
     }

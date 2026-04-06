@@ -34,6 +34,7 @@ export interface ChangeEvent {
 }
 
 type ChangeCallback = (events: ChangeEvent[]) => void;
+type ListenerErrorCallback = () => void;
 
 function toMillisValue(value: unknown): number {
   if (!value || typeof value !== 'object') return 0;
@@ -57,6 +58,7 @@ export class RealtimeListener {
   private firestore: Firestore;
   private unsubscribes: Map<string, Unsubscribe> = new Map();
   private callback: ChangeCallback;
+  private onListenerError: ListenerErrorCallback;
   private isRunning = false;
   private throttleTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingEvents: ChangeEvent[] = [];
@@ -70,11 +72,13 @@ export class RealtimeListener {
   constructor(
     userId: string,
     onChange: ChangeCallback,
-    firestoreInstance?: Firestore
+    firestoreInstance?: Firestore,
+    onError?: ListenerErrorCallback
   ) {
     this.userId = userId;
     this.firestore = firestoreInstance ?? db;
     this.callback = onChange;
+    this.onListenerError = onError ?? (() => undefined);
   }
 
   updateUserId(newUserId: string): void {
@@ -183,8 +187,8 @@ export class RealtimeListener {
         });
         if (events.length > 0) this.enqueueEvents(events);
       },
-      () => {
-        /* error handled silently */
+      (error) => {
+        this.handleSettingsError(error);
       }
     );
     this.unsubscribes.set(key, unsub);
@@ -226,6 +230,12 @@ export class RealtimeListener {
       `[SyncV2] Realtime listener error for ${collectionName}:`,
       error
     );
+    this.onListenerError();
+  }
+
+  private handleSettingsError(error: unknown): void {
+    console.warn('[SyncV2] Realtime listener error for settings:', error);
+    this.onListenerError();
   }
 
   private enqueueEvents(events: ChangeEvent[]): void {
