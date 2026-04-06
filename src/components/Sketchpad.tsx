@@ -1,12 +1,25 @@
+/* eslint-disable complexity */
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+import { Checkbox } from './ui/checkbox';
+import { Input } from './ui/input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ToolType =
   | 'pen'
-  | 'highlighter'
   | 'eraser'
   | 'fill'
   | 'line'
@@ -49,13 +62,6 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     smoothing: 0.5,
     pressureCurve: 'smooth',
     color: '#111827',
-  },
-  highlighter: {
-    size: 20,
-    opacity: 0.4,
-    smoothing: 0.5,
-    pressureCurve: 'linear',
-    color: '#eab308',
   },
   eraser: {
     size: 30,
@@ -122,7 +128,6 @@ const PALETTE = [
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
-  h: 'highlighter',
   e: 'eraser',
   b: 'fill',
   l: 'line',
@@ -133,7 +138,6 @@ const TOOL_KEYS: Record<string, ToolType> = {
 
 const TOOL_ICONS: Record<ToolType, string> = {
   pen: '✏️',
-  highlighter: '🖊',
   eraser: '⬜',
   fill: '🪣',
   line: '╱',
@@ -144,7 +148,6 @@ const TOOL_ICONS: Record<ToolType, string> = {
 
 const TOOL_LABELS: Record<ToolType, string> = {
   pen: 'Pen (P)',
-  highlighter: 'Highlighter (H)',
   eraser: 'Eraser (E)',
   fill: 'Fill (B)',
   line: 'Line (L)',
@@ -359,7 +362,6 @@ export function Sketchpad({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [isDrawing, setIsDrawing] = useState(false);
-  const [tiltShading, setTiltShading] = useState(true);
   const [activeTool, setActiveTool] = useState<ToolType>('pen');
   const [textInput, setTextInput] = useState<{
     id: number;
@@ -385,7 +387,7 @@ export function Sketchpad({
         try {
           const saved = localStorage.getItem(STORAGE_KEY);
           if (saved) {
-            const parsed = JSON.parse(saved);
+            const parsed = JSON.parse(saved) as Partial<ToolSettingsMap>;
             return { ...DEFAULT_TOOL_SETTINGS, ...parsed };
           }
         } catch {
@@ -403,7 +405,6 @@ export function Sketchpad({
   const activeToolRef = useRef(activeTool);
   const currentColor = toolSettingsMap[activeTool].color;
   const currentSize = toolSettingsMap[activeTool].size;
-  const currentOpacity = toolSettingsMap[activeTool].opacity;
   const currentSmoothing = toolSettingsMap[activeTool].smoothing;
   const currentPressureCurve = toolSettingsMap[activeTool].pressureCurve;
 
@@ -433,7 +434,6 @@ export function Sketchpad({
   const lastCursor = useRef<{ x: number; y: number } | null>(null);
   const spaceDown = useRef(false);
   const middleDown = useRef(false);
-  const tiltShadingRef = useRef(tiltShading);
   const panStart = useRef<{
     mx: number;
     my: number;
@@ -465,10 +465,6 @@ export function Sketchpad({
   useEffect(() => {
     panRef.current = pan;
   }, [pan]);
-
-  useEffect(() => {
-    tiltShadingRef.current = tiltShading;
-  }, [tiltShading]);
 
   useEffect(() => {
     toolSettingsMapRef.current = toolSettingsMap;
@@ -530,13 +526,6 @@ export function Sketchpad({
     [updateCurrentTool]
   );
 
-  const setOpacity = useCallback(
-    (opacity: number) => {
-      updateCurrentTool({ opacity });
-    },
-    [updateCurrentTool]
-  );
-
   const setSmoothing = useCallback(
     (smoothing: number) => {
       updateCurrentTool({ smoothing });
@@ -571,6 +560,7 @@ export function Sketchpad({
       input.select();
     });
     return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textInput?.id]);
 
   useEffect(() => {
@@ -593,6 +583,7 @@ export function Sketchpad({
     return () => {
       if (unlisten) unlisten();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAndroid, switchTool]);
 
   // ── Canvas init ──────────────────────────────────────────────────────────
@@ -700,7 +691,11 @@ export function Sketchpad({
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.shiftKey ? redo() : undo();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
@@ -719,6 +714,7 @@ export function Sketchpad({
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textInput]);
 
   // ── Zoom via scroll and pinch ────────────────────────────────────────────
@@ -821,6 +817,7 @@ export function Sketchpad({
       el.removeEventListener('touchend', endGesture);
       el.removeEventListener('touchcancel', endGesture);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -848,8 +845,6 @@ export function Sketchpad({
 
     const pt = { x: m.x, y: m.y };
     const pressure = m.pressure;
-    const tiltX = m.tiltX ?? 0;
-    const tiltY = m.tiltY ?? 0;
 
     if (
       ['line', 'rect', 'ellipse'].includes(activeTool) &&
@@ -868,7 +863,7 @@ export function Sketchpad({
 
     if (!lastPoint.current) return;
 
-    applyToolStyle(ctx, pressure, tiltX, tiltY);
+    applyToolStyle(ctx, pressure);
 
     const s = toolSettingsMapRef.current[activeToolRef.current].smoothing;
     const sx = lastPoint.current.x + (pt.x - lastPoint.current.x) * (1 - s);
@@ -977,12 +972,7 @@ export function Sketchpad({
     };
   }
 
-  function applyToolStyle(
-    ctx: CanvasRenderingContext2D,
-    pressure: number,
-    tiltX = 0,
-    tiltY = 0
-  ) {
+  function applyToolStyle(ctx: CanvasRenderingContext2D, pressure: number) {
     const tool = activeToolRef.current;
     const settings = toolSettingsMapRef.current[tool];
     const adjustedPressure = applyPressureCurve(
@@ -995,22 +985,6 @@ export function Sketchpad({
       isPressureSensitive ? settings.size * adjustedPressure : settings.size
     );
 
-    if (
-      tiltShadingRef.current &&
-      tool === 'highlighter' &&
-      (tiltX !== 0 || tiltY !== 0)
-    ) {
-      const tiltMagnitude = Math.min(
-        1,
-        Math.sqrt(tiltX * tiltX + tiltY * tiltY) / 0.5
-      );
-      const tiltFactor = Math.cos(Math.atan2(tiltY, tiltX));
-      ctx.lineWidth = Math.max(
-        1,
-        settings.size * tiltMagnitude * Math.abs(tiltFactor) * adjustedPressure
-      );
-    }
-
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (tool === 'eraser') {
@@ -1018,14 +992,9 @@ export function Sketchpad({
       ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(0,0,0,1)';
       ctx.fillStyle = 'rgba(0,0,0,1)';
-    } else if (tool === 'highlighter') {
-      ctx.globalCompositeOperation = 'multiply';
-      ctx.globalAlpha = 0.4 * settings.opacity;
-      ctx.strokeStyle = settings.color;
-      ctx.fillStyle = settings.color;
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = settings.opacity;
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = settings.color;
       ctx.fillStyle = settings.color;
     }
@@ -1066,16 +1035,14 @@ export function Sketchpad({
     pointerId: number,
     pt: { x: number; y: number },
     ctx: CanvasRenderingContext2D,
-    pressure: number,
-    tiltX = 0,
-    tiltY = 0
+    pressure: number
   ) {
     pushUndo();
     setIsDrawing(true);
     lastPoint.current = pt;
     activeDrawingPointerId.current = pointerId;
     ctx.beginPath();
-    applyToolStyle(ctx, pressure, tiltX, tiltY);
+    applyToolStyle(ctx, pressure);
     ctx.moveTo(pt.x, pt.y);
   }
 
@@ -1141,13 +1108,7 @@ export function Sketchpad({
 
     if (activeTool === 'fill') {
       pushUndo();
-      floodFill(
-        ctx,
-        Math.round(pt.x),
-        Math.round(pt.y),
-        currentColor,
-        currentOpacity
-      );
+      floodFill(ctx, Math.round(pt.x), Math.round(pt.y), currentColor, 1);
       return;
     }
 
@@ -1164,13 +1125,13 @@ export function Sketchpad({
     if (
       e.pointerType === 'touch' &&
       PALM_REJECTION.MIN_TOUCH_DURATION > 0 &&
-      ['pen', 'highlighter', 'eraser'].includes(activeTool)
+      ['pen', 'eraser'].includes(activeTool)
     ) {
       return;
     }
 
     hasMoved.current = false;
-    startStroke(e.pointerId, pt, ctx, pressure, e.tiltX, e.tiltY);
+    startStroke(e.pointerId, pt, ctx, pressure);
     pointerMeta.strokeStarted = true;
   }
 
@@ -1211,9 +1172,7 @@ export function Sketchpad({
 
     if (activeTool === 'text' || activeTool === 'fill') return;
 
-    const isFreehandTool = ['pen', 'highlighter', 'eraser'].includes(
-      activeTool
-    );
+    const isFreehandTool = ['pen', 'eraser'].includes(activeTool);
 
     if (pointerMeta.type === 'touch' && !pointerMeta.strokeStarted) {
       if (!isFreehandTool) return;
@@ -1223,7 +1182,7 @@ export function Sketchpad({
         return;
       }
       const pressureForStart = e.pressure > 0 ? e.pressure : 1;
-      startStroke(e.pointerId, pt, ctx, pressureForStart, e.tiltX, e.tiltY);
+      startStroke(e.pointerId, pt, ctx, pressureForStart);
       pointerMeta.strokeStarted = true;
       return;
     }
@@ -1306,10 +1265,7 @@ export function Sketchpad({
       drawShape(ctx, activeTool, shapeStart.current, pt);
       shapeStart.current = null;
       shapeSnapshot.current = null;
-    } else if (
-      !hasMoved.current &&
-      ['pen', 'highlighter', 'eraser'].includes(activeTool)
-    ) {
+    } else if (!hasMoved.current && ['pen', 'eraser'].includes(activeTool)) {
       applyToolStyle(ctx, pressure);
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, Math.max(1, currentSize / 2), 0, Math.PI * 2);
@@ -1352,6 +1308,7 @@ export function Sketchpad({
       canvas.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('pointerup', handlePointerUp);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDrawing, isPanning, activeTool, zoom, pan, penOnlyMode]);
 
   useEffect(() => {
@@ -1399,7 +1356,7 @@ export function Sketchpad({
         (blob) => {
           if (!blob) return reject(new Error('Unable to export'));
           const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
+          reader.onload = () => resolve(reader.result as string);
           reader.onerror = () => reject(new Error('Read error'));
           reader.readAsDataURL(blob);
         },
@@ -1471,11 +1428,7 @@ export function Sketchpad({
                   ? '2px solid black'
                   : `2px solid ${currentColor}`,
               background:
-                activeTool === 'eraser'
-                  ? 'transparent'
-                  : activeTool === 'highlighter'
-                    ? currentColor + '66'
-                    : 'transparent',
+                activeTool === 'eraser' ? 'transparent' : 'transparent',
               boxShadow: activeTool === 'eraser' ? 'none' : `0 0 0 1px white`,
               transition: 'width 0.1s, height 0.1s',
               opacity: isHovering && !spaceDown.current ? 0.7 : 1,
@@ -1500,7 +1453,7 @@ export function Sketchpad({
                 pushUndo();
                 ctx.font = `${currentSize * 5}px sans-serif`;
                 ctx.fillStyle = currentColor;
-                ctx.globalAlpha = currentOpacity;
+                ctx.globalAlpha = 1;
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.fillText(textInput.value, textInput.x, textInput.y);
                 setTextInput(null);
@@ -1516,7 +1469,7 @@ export function Sketchpad({
                 pushUndo();
                 ctx.font = `${currentSize * 5}px sans-serif`;
                 ctx.fillStyle = currentColor;
-                ctx.globalAlpha = currentOpacity;
+                ctx.globalAlpha = 1;
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.fillText(textInput.value, textInput.x, textInput.y);
                 setTextInput(null);
@@ -1582,7 +1535,14 @@ export function Sketchpad({
   );
 
   const propertiesPanel = sidebarCollapsed ? (
-    <div className="w-16 shrink-0 p-2 flex flex-col gap-2">
+    <div className="w-16 shrink-0 p-2 flex flex-col gap-2 min-h-[90vh]">
+      <button
+        onClick={() => setSidebarCollapsed(false)}
+        className="w-full py-2 text-xs rounded border border-gray-600 text-white/60 hover:bg-gray-700"
+        title="Expand Sidebar"
+      >
+        <ChevronRight className="w-3 h-3 mx-auto" />
+      </button>
       <div
         className="w-12 h-8 rounded border-2 border-gray-600"
         style={{
@@ -1598,37 +1558,32 @@ export function Sketchpad({
       </button>
       {embedded && (
         <button
-          onClick={async () => {
-            try {
-              const dataUrl = await saveAsDataUrl();
-              onSave(dataUrl);
-              hasExplicitlySaved.current = true;
-            } catch {
-              /* noop */
-            }
-          }}
+          onClick={
+            void (async () => {
+              try {
+                const dataUrl = await saveAsDataUrl();
+                onSave(dataUrl);
+                hasExplicitlySaved.current = true;
+              } catch {
+                /* noop */
+              }
+            })
+          }
           className="w-full py-2 text-xs rounded border border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 font-medium"
         >
           Save
         </button>
       )}
-      <button
-        onClick={() => setSidebarCollapsed(false)}
-        className="w-full py-2 text-xs rounded border border-gray-600 text-white/60 hover:bg-gray-700"
-        title="Expand Sidebar"
-      >
-        &gt;
-      </button>
     </div>
   ) : (
-    <div className="w-64 shrink-0 p-4 overflow-y-auto">
+    <div className="w-64 shrink-0 p-4 overflow-y-auto min-h-[90vh]">
       <div className="flex justify-end mb-2">
         <button
           onClick={() => setSidebarCollapsed(true)}
           className="text-xs text-white/40 hover:text-white/70"
           title="Collapse Sidebar"
         >
-          &lt;
+          <ChevronLeft className="w-3 h-3" />
         </button>
       </div>
       {/* Color */}
@@ -1692,51 +1647,27 @@ export function Sketchpad({
 
       {/* Brush Settings */}
       <div className="mb-6">
-        <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3">
+        <h3 className="text-xs uppercase tracking-wider mb-3">
           {TOOL_LABELS[activeTool]} Settings
         </h3>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-white/70 mb-1">Size</label>
+            <label className="block text-xs mb-1">Size</label>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="number"
                 min={1}
                 max={200}
                 value={currentSize}
-                onChange={(e) => setSize(Number(e.target.value) || 1)}
-                className="w-16 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
+                onChange={(e) => setSize(Number(e.target.value))}
+                className="w-16 px-2 py-1 text-xs"
               />
-              <input
+              <Input
                 type="range"
                 min={1}
                 max={200}
                 value={currentSize}
                 onChange={(e) => setSize(Number(e.target.value))}
-                className="flex-1 accent-indigo-400"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-white/70 mb-1">Opacity</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={Math.round(currentOpacity * 100)}
-                onChange={(e) => setOpacity(Number(e.target.value) / 100)}
-                disabled={activeTool === 'eraser'}
-                className="w-16 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
-              />
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(currentOpacity * 100)}
-                onChange={(e) => setOpacity(Number(e.target.value) / 100)}
-                disabled={activeTool === 'eraser'}
-                className="flex-1 accent-indigo-400"
               />
             </div>
           </div>
@@ -1745,27 +1676,22 @@ export function Sketchpad({
               Smoothing
             </label>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="number"
                 min={0}
-                max={100}
-                value={Math.round(currentSmoothing * 100)}
-                onChange={(e) => setSmoothing(Number(e.target.value) / 100)}
-                disabled={['fill', 'line', 'rect', 'ellipse'].includes(
-                  activeTool
-                )}
-                className="w-16 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
+                max={1}
+                step={0.01}
+                value={currentSmoothing}
+                onChange={(e) => setSmoothing(Number(e.target.value))}
+                className="w-16 px-2 py-1 text-xs"
               />
-              <input
+              <Input
                 type="range"
                 min={0}
-                max={100}
-                value={Math.round(currentSmoothing * 100)}
-                onChange={(e) => setSmoothing(Number(e.target.value) / 100)}
-                disabled={['fill', 'line', 'rect', 'ellipse'].includes(
-                  activeTool
-                )}
-                className="flex-1 accent-indigo-400"
+                max={1}
+                step={0.01}
+                value={currentSmoothing}
+                onChange={(e) => setSmoothing(Number(e.target.value))}
               />
             </div>
           </div>
@@ -1773,32 +1699,28 @@ export function Sketchpad({
             <label className="block text-xs text-white/70 mb-1">
               Pressure Curve
             </label>
-            <select
-              value={currentPressureCurve}
-              onChange={(e) =>
-                setPressureCurve(e.target.value as PressureCurve)
+            <Select
+              onValueChange={(value) =>
+                setPressureCurve(value as PressureCurve)
               }
+              value={currentPressureCurve}
               disabled={['fill', 'line', 'rect', 'ellipse'].includes(
                 activeTool
               )}
-              className="w-full px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
             >
-              <option value="linear">Linear</option>
-              <option value="smooth">Smooth</option>
-              <option value="exponential">Exponential</option>
-              <option value="heavy-ink">Heavy Ink</option>
-            </select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Pressure Curve" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="linear">Linear</SelectItem>
+                  <SelectItem value="smooth">Smooth</SelectItem>
+                  <SelectItem value="exponential">Exponential</SelectItem>
+                  <SelectItem value="heavy-ink">Heavy Ink</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
-          <label className="flex items-center gap-2 text-xs text-white/70 select-none">
-            <input
-              type="checkbox"
-              checked={tiltShading}
-              onChange={(e) => setTiltShading(e.target.checked)}
-              disabled={activeTool !== 'highlighter'}
-              className="accent-indigo-400"
-            />
-            Tilt Shading (Apple Pencil)
-          </label>
         </div>
       </div>
 
@@ -1861,21 +1783,21 @@ export function Sketchpad({
             −
           </button>
         </div>
-        <label className="mt-3 flex items-center gap-2 text-xs text-white/70 select-none">
-          <input
-            type="checkbox"
+        <label className="mt-3 flex items-center gap-2 text-xs select-none">
+          <Checkbox
             checked={penOnlyMode}
-            onChange={(e) => setPenOnlyMode(e.target.checked)}
-            className="accent-indigo-400"
+            onCheckedChange={(e) => {
+              setPenOnlyMode(e as boolean);
+            }}
           />
           Pen Only (stylus draws, fingers pan/zoom)
         </label>
-        <label className="flex items-center gap-2 text-xs text-white/70 select-none">
-          <input
-            type="checkbox"
+        <label className="flex items-center gap-2 text-xs select-none">
+          <Checkbox
             checked={antiAlias}
-            onChange={(e) => setAntiAlias(e.target.checked)}
-            className="accent-indigo-400"
+            onCheckedChange={(e) => {
+              setAntiAlias(e as boolean);
+            }}
           />
           Anti-Alias (smooth zoom)
         </label>
@@ -1883,15 +1805,13 @@ export function Sketchpad({
 
       {/* Actions */}
       <div>
-        <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3">
-          Actions
-        </h3>
+        <h3 className="text-xs uppercase tracking-wider mb-3">Actions</h3>
         <div className="space-y-2">
           <div className="flex gap-1">
             <button
               onClick={undo}
               disabled={undoStack.current.length === 0}
-              className="flex-1 py-2 text-xs rounded border border-gray-600 text-white/60 hover:bg-gray-700 disabled:opacity-30"
+              className="flex-1 py-2 text-xs rounded border disabled:opacity-30"
             >
               Undo
             </button>
@@ -1917,15 +1837,17 @@ export function Sketchpad({
           </button>
           {embedded && (
             <button
-              onClick={async () => {
-                try {
-                  const dataUrl = await saveAsDataUrl();
-                  onSave(dataUrl);
-                  hasExplicitlySaved.current = true;
-                } catch (err) {
-                  // noop
-                }
-              }}
+              onClick={
+                void (async () => {
+                  try {
+                    const dataUrl = await saveAsDataUrl();
+                    onSave(dataUrl);
+                    hasExplicitlySaved.current = true;
+                  } catch (err) {
+                    console.error('Save failed', err);
+                  }
+                })
+              }
               className="w-full py-2 text-xs rounded border border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 font-medium"
             >
               Save Sketch
@@ -1981,15 +1903,19 @@ export function Sketchpad({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-md"
-        onClick={async () => {
-          if (!hasExplicitlySaved.current) {
-            try {
-              const dataUrl = await saveAsDataUrl();
-              onSave(dataUrl);
-            } catch {}
-          }
-          onClose?.();
-        }}
+        onClick={
+          void (async () => {
+            if (!hasExplicitlySaved.current) {
+              try {
+                const dataUrl = await saveAsDataUrl();
+                onSave(dataUrl);
+              } catch (err) {
+                console.error('Save failed', err);
+              }
+            }
+            onClose?.();
+          })
+        }
       />
       <div
         className="relative w-full max-w-6xl mx-4 rounded-2xl border border-gray-700 p-5 shadow-2xl flex flex-col bg-gray-900"
@@ -2000,15 +1926,19 @@ export function Sketchpad({
             <div className="flex gap-1.5">
               <div
                 className="w-3 h-3 rounded-full bg-red-500/80 cursor-pointer"
-                onClick={async () => {
-                  if (!hasExplicitlySaved.current) {
-                    try {
-                      const dataUrl = await saveAsDataUrl();
-                      onSave(dataUrl);
-                    } catch {}
-                  }
-                  onClose?.();
-                }}
+                onClick={
+                  void (async () => {
+                    if (!hasExplicitlySaved.current) {
+                      try {
+                        const dataUrl = await saveAsDataUrl();
+                        onSave(dataUrl);
+                      } catch (err) {
+                        console.error('Save failed', err);
+                      }
+                    }
+                    onClose?.();
+                  })
+                }
               />
               <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
               <div className="w-3 h-3 rounded-full bg-green-500/80" />
