@@ -5,6 +5,13 @@
 
 import type { GeneratedQuestion, McQuestion } from '@/types';
 
+function getQuestionStem(question: GeneratedQuestion | McQuestion): string {
+  if (typeof question.promptMarkdown === 'string') {
+    return question.promptMarkdown.toLowerCase().trim();
+  }
+  return '';
+}
+
 interface GenerationCacheEntry {
   questions: GeneratedQuestion[] | McQuestion[];
   timestamp: number;
@@ -107,23 +114,19 @@ export function identifyDuplicateQuestions(
     for (let j = i + 1; j < questions.length; j++) {
       const q2 = questions[j];
 
-      // Check if stem is very similar
-      const stem1 =
-        (q1 as Record<string, unknown>).stem?.toString().toLowerCase().trim() ||
-        '';
-      const stem2 =
-        (q2 as Record<string, unknown>).stem?.toString().toLowerCase().trim() ||
-        '';
+      // Check if prompts are effectively duplicates.
+      const stem1 = getQuestionStem(q1);
+      const stem2 = getQuestionStem(q2);
 
-      // Simple similarity check: same topic and very similar stem length
+      // Skip duplicate checks when prompts are missing.
+      if (!stem1 || !stem2) continue;
+
       const sameTopic = q1.topic === q2.topic;
-      const stemLengthDiff = Math.abs(stem1.length - stem2.length);
-      const veryShortBoth = stem1.length < 50 && stem2.length < 50;
+      const normalizedStem1 = stem1.replace(/\s+/g, ' ');
+      const normalizedStem2 = stem2.replace(/\s+/g, ' ');
+      const isExactDuplicate = normalizedStem1 === normalizedStem2;
 
-      if (
-        sameTopic &&
-        (stemLengthDiff < 10 || (veryShortBoth && stem1 === stem2))
-      ) {
+      if (sameTopic && isExactDuplicate) {
         duplicateIndices.push(j);
       }
     }

@@ -44,7 +44,8 @@ pub const LATEX_RULES: &str = " LaTeX (STRICT):
 (3) Keep plain English outside delimiters. Put symbols, equations, function notation, subscripts/superscripts, fractions, radicals, vectors and operators inside delimiters.
 (4) For matrices or multi-line layouts, use display math blocks only (e.g. $$\\begin{pmatrix}...\\end{pmatrix}$$).
 (5) Chemistry species must use LaTeX text mode, e.g. $\\text{H}_2\\text{O}$, $\\text{Fe}^{3+}$.
-(6) Punctuation rule: punctuation belongs outside math delimiters unless mathematically required.";
+(6) Punctuation rule: punctuation belongs outside math delimiters unless mathematically required.
+(7) NO UNICODE: Use ONLY ASCII characters. Replace all Unicode symbols with LaTeX equivalents: use \\alpha, \\beta, \\gamma, \\theta, \\phi, \\omega, \\cdot, \\times, \\div, \\pm, \\leq, \\geq, \\neq, \\infty, \\sqrt, \\rightarrow, \\Rightarrow instead of alpha, beta, theta, etc. Never use em dashes (---), en dashes (--), smart quotes (\"\" or ''), bullet points (\\u2022), or any non-ASCII characters.";
 
 pub const QUESTION_STYLE_RULES: &str = "
 QUESTION STYLE RULES (STRICT — violation produces zero marks):

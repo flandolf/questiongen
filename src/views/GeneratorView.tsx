@@ -47,6 +47,7 @@ import type {
   PhysicalEducationSubtopic,
   QuestionHistoryEntry,
   SpecialistMathSubtopic,
+  StudentAnswerImage,
   Topic,
   WrittenAttemptKind,
 } from '@/types';
@@ -58,7 +59,7 @@ import {
   TOPICS,
 } from '@/types';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
-import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
+import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
 import type { BatchTopicProgress } from '@/views/generator/SetupPanel';
 import { SetupPanel } from '@/views/generator/SetupPanel';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
@@ -297,6 +298,10 @@ export function GeneratorView() {
   });
 
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
+  const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
+  const [mcImagesByQuestionId, setMcImagesByQuestionId] = useState<
+    Record<string, StudentAnswerImage>
+  >({});
 
   // Per-topic batch progress — drives the multi-topic timeline in SetupPanel.
   // Empty when only one topic is selected (single-call path shows normal timeline).
@@ -453,6 +458,11 @@ export function GeneratorView() {
     ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ??
       (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ''))
     : '';
+
+  useEffect(() => {
+    setMcSketchpadActive(false);
+  }, [activeMcQuestion?.id]);
+
   const getMcAwardedMarks = useCallback(
     (qId: string, selectedAnswer: string, correctAnswer: string) => {
       const ov = mcAwardedMarksByQuestionId[qId];
@@ -1063,6 +1073,7 @@ export function GeneratorView() {
       setMcMarkAppealByQuestionId((p) => removeKey(p, id));
       setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
+      setMcImagesByQuestionId((p) => removeKey(p, id));
       // Remove from history if it was already answered
       setMcHistory((prev) =>
         prev.filter((e: McHistoryEntry) => e.question.id !== id)
@@ -2129,6 +2140,31 @@ export function GeneratorView() {
     }
   }
 
+  // ── MC sketchpad handlers ───────────────────────────────────────────────────
+  function handleMcImageDrop(files: File[]) {
+    if (!activeMcQuestion) return;
+    const file = files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setMcImagesByQuestionId((prev) => ({
+        ...prev,
+        [activeMcQuestion.id]: { name: file.name, dataUrl },
+      }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleMcImageRemove() {
+    if (!activeMcQuestion) return;
+    setMcImagesByQuestionId((prev) => {
+      const next = { ...prev };
+      delete next[activeMcQuestion.id];
+      return next;
+    });
+  }
+
   function buildMcMarkingPrompt(question: typeof activeMcQuestion) {
     if (!question) return '';
     return `${question.promptMarkdown}\n\nOptions:\n${question.options.map((o: McOption) => `${o.label}. ${o.text}`).join('\n')}`;
@@ -2583,40 +2619,100 @@ export function GeneratorView() {
           {activeMcQuestion && (
             <div className="flex-1 overflow-y-auto">
               <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <div className="mx-auto space-y-5 pb-10">
-                  <div className="p-6 bg-muted/20 rounded-md space-y-2">
-                    <h1 className="text-xl font-bold">
-                      Question {activeMcQuestionIndex + 1}
-                    </h1>
-                    <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                <div
+                  className={`mx-auto space-y-5 lg:space-y-0 pb-10 lg:grid lg:gap-6 ${
+                    mcSketchpadActive
+                      ? 'lg:grid-cols-[40%_60%]'
+                      : 'lg:grid-cols-2'
+                  }`}
+                >
+                  <div className="space-y-5">
+                    <div className="p-6 bg-muted/20 rounded-md space-y-2">
+                      <h1 className="text-xl font-bold">
+                        Question {activeMcQuestionIndex + 1}
+                      </h1>
+                      <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                    </div>
+                    {countWords(activeMcQuestion.explanationMarkdown) >
+                      MC_MAX_EXPLANATION_WORDS && (
+                      <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
+                        <strong className="font-semibold">Warning:</strong>{' '}
+                        Explanation is{' '}
+                        {countWords(activeMcQuestion.explanationMarkdown)}
+                        words (max {MC_MAX_EXPLANATION_WORDS}). This may be
+                        rejected by the backend.
+                      </div>
+                    )}
+
+                    {mcSketchpadActive && (
+                      <div className="min-w-0">
+                        <McAnswerCard
+                          options={activeMcQuestion.options}
+                          correctAnswer={activeMcQuestion.correctAnswer}
+                          explanationMarkdown={
+                            activeMcQuestion.explanationMarkdown
+                          }
+                          selectedAnswer={activeMcAnswer}
+                          awardedMarks={activeMcAwardedMarks}
+                          appealText={activeMcMarkAppeal}
+                          overrideInput={activeMcOverrideInput}
+                          isMarking={isMarking}
+                          image={mcImagesByQuestionId[activeMcQuestion.id]}
+                          hideCorrectAnswer={false}
+                          onSelectAnswer={handleMcAnswer}
+                          onAppealChange={handleMcAppealChange}
+                          onOverrideInputChange={handleMcOverrideInputChange}
+                          onArgueForMark={() => void handleArgueForMcMark()}
+                          onApplyOverride={handleOverrideMcMark}
+                          isSketchpadOpen={mcSketchpadActive}
+                          onToggleSketchpad={() =>
+                            setMcSketchpadActive((prev) => !prev)
+                          }
+                          onImageDrop={handleMcImageDrop}
+                          onImageRemove={handleMcImageRemove}
+                          renderSketchpadInline={false}
+                        />
+                      </div>
+                    )}
                   </div>
-                  {countWords(activeMcQuestion.explanationMarkdown) >
-                    MC_MAX_EXPLANATION_WORDS && (
-                    <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
-                      <strong className="font-semibold">Warning:</strong>{' '}
-                      Explanation is{' '}
-                      {countWords(activeMcQuestion.explanationMarkdown)}
-                      words (max {MC_MAX_EXPLANATION_WORDS}). This may be
-                      rejected by the backend.
+
+                  {mcSketchpadActive ? (
+                    <div className="min-w-0 space-y-4">
+                      <McSketchpadPanel
+                        image={mcImagesByQuestionId[activeMcQuestion.id]}
+                        onImageDrop={handleMcImageDrop}
+                        onImageRemove={handleMcImageRemove}
+                      />
+                    </div>
+                  ) : (
+                    <div className="min-w-0 space-y-4">
+                      <McAnswerCard
+                        options={activeMcQuestion.options}
+                        correctAnswer={activeMcQuestion.correctAnswer}
+                        explanationMarkdown={
+                          activeMcQuestion.explanationMarkdown
+                        }
+                        selectedAnswer={activeMcAnswer}
+                        awardedMarks={activeMcAwardedMarks}
+                        appealText={activeMcMarkAppeal}
+                        overrideInput={activeMcOverrideInput}
+                        isMarking={isMarking}
+                        image={mcImagesByQuestionId[activeMcQuestion.id]}
+                        hideCorrectAnswer={false}
+                        onSelectAnswer={handleMcAnswer}
+                        onAppealChange={handleMcAppealChange}
+                        onOverrideInputChange={handleMcOverrideInputChange}
+                        onArgueForMark={() => void handleArgueForMcMark()}
+                        onApplyOverride={handleOverrideMcMark}
+                        isSketchpadOpen={mcSketchpadActive}
+                        onToggleSketchpad={() =>
+                          setMcSketchpadActive((prev) => !prev)
+                        }
+                        onImageDrop={handleMcImageDrop}
+                        onImageRemove={handleMcImageRemove}
+                      />
                     </div>
                   )}
-                  <McAnswerPanel
-                    questionId={activeMcQuestion.id}
-                    options={activeMcQuestion.options}
-                    correctAnswer={activeMcQuestion.correctAnswer}
-                    explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                    selectedAnswer={activeMcAnswer}
-                    awardedMarks={activeMcAwardedMarks}
-                    appealText={activeMcMarkAppeal}
-                    overrideInput={activeMcOverrideInput}
-                    isMarking={isMarking}
-                    hideCorrectAnswer={false}
-                    onSelectAnswer={handleMcAnswer}
-                    onAppealChange={handleMcAppealChange}
-                    onOverrideInputChange={handleMcOverrideInputChange}
-                    onArgueForMark={() => void handleArgueForMcMark()}
-                    onApplyOverride={handleOverrideMcMark}
-                  />
                 </div>
               </div>
             </div>

@@ -13,7 +13,8 @@ type ToolType =
   | 'rect'
   | 'ellipse'
   | 'text';
-type BgType = 'white-grid' | 'black-grid';
+type BgType = 'white-grid' | 'black-grid' | 'lined' | 'graph' | 'dot-grid';
+type PressureCurve = 'linear' | 'exponential' | 'smooth' | 'heavy-ink';
 
 type SketchpadProps = {
   open?: boolean;
@@ -27,7 +28,80 @@ type ActivePointerMeta = {
   touchDownTime?: number;
   rejected?: boolean;
   strokeStarted?: boolean;
+  tiltX?: number;
+  tiltY?: number;
 };
+
+type ToolSettings = {
+  size: number;
+  opacity: number;
+  smoothing: number;
+  pressureCurve: PressureCurve;
+  color: string;
+};
+
+type ToolSettingsMap = Record<ToolType, ToolSettings>;
+
+const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
+  pen: {
+    size: 4,
+    opacity: 1,
+    smoothing: 0.5,
+    pressureCurve: 'smooth',
+    color: '#111827',
+  },
+  highlighter: {
+    size: 20,
+    opacity: 0.4,
+    smoothing: 0.5,
+    pressureCurve: 'linear',
+    color: '#eab308',
+  },
+  eraser: {
+    size: 30,
+    opacity: 1,
+    smoothing: 0.3,
+    pressureCurve: 'linear',
+    color: '#ffffff',
+  },
+  fill: {
+    size: 10,
+    opacity: 1,
+    smoothing: 0,
+    pressureCurve: 'linear',
+    color: '#3b82f6',
+  },
+  line: {
+    size: 2,
+    opacity: 1,
+    smoothing: 0,
+    pressureCurve: 'linear',
+    color: '#111827',
+  },
+  rect: {
+    size: 2,
+    opacity: 1,
+    smoothing: 0,
+    pressureCurve: 'linear',
+    color: '#111827',
+  },
+  ellipse: {
+    size: 2,
+    opacity: 1,
+    smoothing: 0,
+    pressureCurve: 'linear',
+    color: '#111827',
+  },
+  text: {
+    size: 16,
+    opacity: 1,
+    smoothing: 0,
+    pressureCurve: 'linear',
+    color: '#111827',
+  },
+};
+
+const STORAGE_KEY = 'sketchpad-tool-settings';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -86,6 +160,23 @@ const PALM_REJECTION = {
   MIN_TOUCH_DURATION: 50,
   EDGE_MARGIN: 15,
 };
+
+// ─── Pressure Curve ──────────────────────────────────────────────────────────
+
+function applyPressureCurve(pressure: number, curve: PressureCurve): number {
+  const p = Math.max(0, Math.min(1, pressure));
+  switch (curve) {
+    case 'exponential':
+      return Math.pow(p, 0.5);
+    case 'smooth':
+      return p * p * (3 - 2 * p);
+    case 'heavy-ink':
+      return Math.pow(p, 0.3);
+    case 'linear':
+    default:
+      return p;
+  }
+}
 
 // ─── Flood Fill ───────────────────────────────────────────────────────────────
 
@@ -180,27 +271,75 @@ function paintBackground(
   height: number,
   bg: BgType
 ) {
-  if (bg === 'black-grid') {
+  const isDark = bg === 'black-grid';
+
+  if (isDark) {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = '#666666';
   } else {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
-    ctx.strokeStyle = '#d0d0d0';
   }
 
   ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = 0.5; x < width; x += 20) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
+
+  if (bg === 'lined') {
+    ctx.strokeStyle = isDark ? '#3a3a4e' : '#e0e0e0';
+    const lineSpacing = 30;
+    ctx.beginPath();
+    for (let y = lineSpacing; y < height; y += lineSpacing) {
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(width, y + 0.5);
+    }
+    ctx.stroke();
+  } else if (bg === 'graph') {
+    ctx.strokeStyle = isDark ? '#3a3a4e' : '#e0e0e0';
+    const gridSpacing = 20;
+    ctx.beginPath();
+    for (let x = 0.5; x < width; x += gridSpacing) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+    }
+    for (let y = 0.5; y < height; y += gridSpacing) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = isDark ? '#555577' : '#c0c0c0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const centerX = Math.floor(width / 2) + 0.5;
+    const centerY = Math.floor(height / 2) + 0.5;
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, height);
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(width, centerY);
+    ctx.stroke();
+  } else if (bg === 'dot-grid') {
+    ctx.fillStyle = isDark ? '#555577' : '#c0c0c0';
+    const dotSpacing = 20;
+    const dotRadius = 1.5;
+    for (let x = dotSpacing; x < width; x += dotSpacing) {
+      for (let y = dotSpacing; y < height; y += dotSpacing) {
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else {
+    ctx.strokeStyle = isDark ? '#666666' : '#d0d0d0';
+    ctx.beginPath();
+    for (let x = 0.5; x < width; x += 20) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+    }
+    for (let y = 0.5; y < height; y += 20) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+    }
+    ctx.stroke();
   }
-  for (let y = 0.5; y < height; y += 20) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-  }
-  ctx.stroke();
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -220,10 +359,7 @@ export function Sketchpad({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [isDrawing, setIsDrawing] = useState(false);
-  const [color, setColor] = useState('#111827');
-  const [size, setSize] = useState(4);
-  const [opacity, setOpacity] = useState(1);
-  const [smoothing, setSmoothing] = useState(0.5);
+  const [tiltShading, setTiltShading] = useState(true);
   const [activeTool, setActiveTool] = useState<ToolType>('pen');
   const [textInput, setTextInput] = useState<{
     id: number;
@@ -239,8 +375,37 @@ export function Sketchpad({
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [isHovering, setIsHovering] = useState(false);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [antiAlias, setAntiAlias] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [toolSettingsMap, setToolSettingsMap] = useState<ToolSettingsMap>(
+    () => {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            return { ...DEFAULT_TOOL_SETTINGS, ...parsed };
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      return DEFAULT_TOOL_SETTINGS;
+    }
+  );
   const [, forceUpdate] = useState(0);
   const hasExplicitlySaved = useRef(false);
+  const recentColorsRef = useRef(recentColors);
+
+  const toolSettingsMapRef = useRef(toolSettingsMap);
+  const activeToolRef = useRef(activeTool);
+  const currentColor = toolSettingsMap[activeTool].color;
+  const currentSize = toolSettingsMap[activeTool].size;
+  const currentOpacity = toolSettingsMap[activeTool].opacity;
+  const currentSmoothing = toolSettingsMap[activeTool].smoothing;
+  const currentPressureCurve = toolSettingsMap[activeTool].pressureCurve;
 
   const undoStack = useRef<string[]>([]);
   const redoStack = useRef<string[]>([]);
@@ -253,6 +418,7 @@ export function Sketchpad({
   const hasMoved = useRef(false);
   const isAndroid =
     typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+  const isHoveringRef = useRef(false);
 
   const moveRaf = useRef<number | null>(null);
   const lastMove = useRef<{
@@ -260,11 +426,14 @@ export function Sketchpad({
     y: number;
     pressure: number;
     pointerId: number;
+    tiltX?: number;
+    tiltY?: number;
   } | null>(null);
   const cursorRaf = useRef<number | null>(null);
   const lastCursor = useRef<{ x: number; y: number } | null>(null);
   const spaceDown = useRef(false);
   const middleDown = useRef(false);
+  const tiltShadingRef = useRef(tiltShading);
   const panStart = useRef<{
     mx: number;
     my: number;
@@ -298,6 +467,98 @@ export function Sketchpad({
   }, [pan]);
 
   useEffect(() => {
+    tiltShadingRef.current = tiltShading;
+  }, [tiltShading]);
+
+  useEffect(() => {
+    toolSettingsMapRef.current = toolSettingsMap;
+  }, [toolSettingsMap]);
+
+  useEffect(() => {
+    activeToolRef.current = activeTool;
+  }, [activeTool]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toolSettingsMap));
+  }, [toolSettingsMap]);
+
+  function addRecentColor(newColor: string) {
+    if (newColor === '#ffffff') return;
+    setRecentColors((prev) => {
+      const filtered = prev.filter((c) => c !== newColor);
+      const updated = [newColor, ...filtered].slice(0, 5);
+      recentColorsRef.current = updated;
+      return updated;
+    });
+  }
+
+  const switchTool = useCallback(
+    (newTool: ToolType) => {
+      if (newTool === activeTool) return;
+      setToolSettingsMap((prev) => ({
+        ...prev,
+        [activeTool]: {
+          size: prev[activeTool].size,
+          opacity: prev[activeTool].opacity,
+          smoothing: prev[activeTool].smoothing,
+          pressureCurve: prev[activeTool].pressureCurve,
+          color: prev[activeTool].color,
+        },
+      }));
+      setActiveTool(newTool);
+    },
+    [activeTool]
+  );
+
+  const updateCurrentTool = useCallback(
+    (updates: Partial<ToolSettings>) => {
+      setToolSettingsMap((prev) => ({
+        ...prev,
+        [activeTool]: {
+          ...prev[activeTool],
+          ...updates,
+        },
+      }));
+    },
+    [activeTool]
+  );
+
+  const setSize = useCallback(
+    (size: number) => {
+      updateCurrentTool({ size });
+    },
+    [updateCurrentTool]
+  );
+
+  const setOpacity = useCallback(
+    (opacity: number) => {
+      updateCurrentTool({ opacity });
+    },
+    [updateCurrentTool]
+  );
+
+  const setSmoothing = useCallback(
+    (smoothing: number) => {
+      updateCurrentTool({ smoothing });
+    },
+    [updateCurrentTool]
+  );
+
+  const setPressureCurve = useCallback(
+    (pressureCurve: PressureCurve) => {
+      updateCurrentTool({ pressureCurve });
+    },
+    [updateCurrentTool]
+  );
+
+  const setColor = useCallback(
+    (color: string) => {
+      updateCurrentTool({ color });
+    },
+    [updateCurrentTool]
+  );
+
+  useEffect(() => {
     if (activeTool !== 'eraser') previousNonEraserRef.current = activeTool;
   }, [activeTool]);
 
@@ -316,9 +577,12 @@ export function Sketchpad({
     if (!isAndroid) return;
     let unlisten: UnlistenFn | null = null;
     listen('stylus-double-tap', () => {
-      setActiveTool((cur) =>
-        cur !== 'eraser' ? 'eraser' : (previousNonEraserRef.current ?? 'pen')
-      );
+      const current = activeTool;
+      const nextTool =
+        current !== 'eraser'
+          ? 'eraser'
+          : (previousNonEraserRef.current ?? 'pen');
+      switchTool(nextTool);
     })
       .then((u) => {
         unlisten = u;
@@ -329,7 +593,7 @@ export function Sketchpad({
     return () => {
       if (unlisten) unlisten();
     };
-  }, [isAndroid]);
+  }, [isAndroid, switchTool]);
 
   // ── Canvas init ──────────────────────────────────────────────────────────
 
@@ -444,7 +708,7 @@ export function Sketchpad({
         return;
       }
       const tool = TOOL_KEYS[e.key.toLowerCase()];
-      if (tool) setActiveTool(tool);
+      if (tool) switchTool(tool);
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === 'Space') spaceDown.current = false;
@@ -584,6 +848,8 @@ export function Sketchpad({
 
     const pt = { x: m.x, y: m.y };
     const pressure = m.pressure;
+    const tiltX = m.tiltX ?? 0;
+    const tiltY = m.tiltY ?? 0;
 
     if (
       ['line', 'rect', 'ellipse'].includes(activeTool) &&
@@ -598,13 +864,13 @@ export function Sketchpad({
       return;
     }
 
-    if (activeTool === 'text') return;
+    if (activeToolRef.current === 'text') return;
 
     if (!lastPoint.current) return;
 
-    applyToolStyle(ctx, pressure);
+    applyToolStyle(ctx, pressure, tiltX, tiltY);
 
-    const s = smoothing;
+    const s = toolSettingsMapRef.current[activeToolRef.current].smoothing;
     const sx = lastPoint.current.x + (pt.x - lastPoint.current.x) * (1 - s);
     const sy = lastPoint.current.y + (pt.y - lastPoint.current.y) * (1 - s);
 
@@ -711,28 +977,57 @@ export function Sketchpad({
     };
   }
 
-  function applyToolStyle(ctx: CanvasRenderingContext2D, pressure: number) {
+  function applyToolStyle(
+    ctx: CanvasRenderingContext2D,
+    pressure: number,
+    tiltX = 0,
+    tiltY = 0
+  ) {
+    const tool = activeToolRef.current;
+    const settings = toolSettingsMapRef.current[tool];
+    const adjustedPressure = applyPressureCurve(
+      pressure,
+      settings.pressureCurve
+    );
+    const isPressureSensitive = tool === 'pen' || tool === 'eraser';
     ctx.lineWidth = Math.max(
       1,
-      activeTool === 'pen' || activeTool === 'eraser' ? size : size * pressure
+      isPressureSensitive ? settings.size * adjustedPressure : settings.size
     );
+
+    if (
+      tiltShadingRef.current &&
+      tool === 'highlighter' &&
+      (tiltX !== 0 || tiltY !== 0)
+    ) {
+      const tiltMagnitude = Math.min(
+        1,
+        Math.sqrt(tiltX * tiltX + tiltY * tiltY) / 0.5
+      );
+      const tiltFactor = Math.cos(Math.atan2(tiltY, tiltX));
+      ctx.lineWidth = Math.max(
+        1,
+        settings.size * tiltMagnitude * Math.abs(tiltFactor) * adjustedPressure
+      );
+    }
+
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    if (activeTool === 'eraser') {
+    if (tool === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(0,0,0,1)';
       ctx.fillStyle = 'rgba(0,0,0,1)';
-    } else if (activeTool === 'highlighter') {
+    } else if (tool === 'highlighter') {
       ctx.globalCompositeOperation = 'multiply';
-      ctx.globalAlpha = 0.4 * opacity;
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.4 * settings.opacity;
+      ctx.strokeStyle = settings.color;
+      ctx.fillStyle = settings.color;
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = opacity;
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
+      ctx.globalAlpha = settings.opacity;
+      ctx.strokeStyle = settings.color;
+      ctx.fillStyle = settings.color;
     }
   }
 
@@ -771,14 +1066,16 @@ export function Sketchpad({
     pointerId: number,
     pt: { x: number; y: number },
     ctx: CanvasRenderingContext2D,
-    pressure: number
+    pressure: number,
+    tiltX = 0,
+    tiltY = 0
   ) {
     pushUndo();
     setIsDrawing(true);
     lastPoint.current = pt;
     activeDrawingPointerId.current = pointerId;
     ctx.beginPath();
-    applyToolStyle(ctx, pressure);
+    applyToolStyle(ctx, pressure, tiltX, tiltY);
     ctx.moveTo(pt.x, pt.y);
   }
 
@@ -833,6 +1130,8 @@ export function Sketchpad({
       touchDownTime: e.pointerType === 'touch' ? performance.now() : undefined,
       rejected: e.pointerType === 'touch' && isLikelyPalmTouch(e),
       strokeStarted: false,
+      tiltX: e.tiltX,
+      tiltY: e.tiltY,
     });
 
     const pointerMeta = activePointers.current.get(e.pointerId);
@@ -842,7 +1141,13 @@ export function Sketchpad({
 
     if (activeTool === 'fill') {
       pushUndo();
-      floodFill(ctx, Math.round(pt.x), Math.round(pt.y), color, opacity);
+      floodFill(
+        ctx,
+        Math.round(pt.x),
+        Math.round(pt.y),
+        currentColor,
+        currentOpacity
+      );
       return;
     }
 
@@ -865,7 +1170,7 @@ export function Sketchpad({
     }
 
     hasMoved.current = false;
-    startStroke(e.pointerId, pt, ctx, pressure);
+    startStroke(e.pointerId, pt, ctx, pressure, e.tiltX, e.tiltY);
     pointerMeta.strokeStarted = true;
   }
 
@@ -901,6 +1206,9 @@ export function Sketchpad({
     const pointerMeta = activePointers.current.get(e.pointerId);
     if (!pointerMeta || pointerMeta.rejected) return;
 
+    pointerMeta.tiltX = e.tiltX;
+    pointerMeta.tiltY = e.tiltY;
+
     if (activeTool === 'text' || activeTool === 'fill') return;
 
     const isFreehandTool = ['pen', 'highlighter', 'eraser'].includes(
@@ -915,7 +1223,7 @@ export function Sketchpad({
         return;
       }
       const pressureForStart = e.pressure > 0 ? e.pressure : 1;
-      startStroke(e.pointerId, pt, ctx, pressureForStart);
+      startStroke(e.pointerId, pt, ctx, pressureForStart, e.tiltX, e.tiltY);
       pointerMeta.strokeStarted = true;
       return;
     }
@@ -926,7 +1234,14 @@ export function Sketchpad({
     hasMoved.current = true;
     const pressure = e.pressure > 0 ? e.pressure : 1;
 
-    lastMove.current = { x: pt.x, y: pt.y, pressure, pointerId: e.pointerId };
+    lastMove.current = {
+      x: pt.x,
+      y: pt.y,
+      pressure,
+      pointerId: e.pointerId,
+      tiltX: e.tiltX,
+      tiltY: e.tiltY,
+    };
     if (!moveRaf.current)
       moveRaf.current = requestAnimationFrame(processPendingMove);
   }
@@ -997,7 +1312,7 @@ export function Sketchpad({
     ) {
       applyToolStyle(ctx, pressure);
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, Math.max(1, size / 2), 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, Math.max(1, currentSize / 2), 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -1010,28 +1325,34 @@ export function Sketchpad({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const handlePointerEnter = (e: PointerEvent) => {
+      if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
+        isHoveringRef.current = true;
+        setIsHovering(true);
+      }
+    };
+
+    const handlePointerLeave = () => {
+      isHoveringRef.current = false;
+      setIsHovering(false);
+    };
+
     canvas.addEventListener('pointerdown', handlePointerDown);
     canvas.addEventListener('pointermove', handlePointerMove);
     canvas.addEventListener('pointercancel', handlePointerUp);
+    canvas.addEventListener('pointerenter', handlePointerEnter);
+    canvas.addEventListener('pointerleave', handlePointerLeave);
     window.addEventListener('pointerup', handlePointerUp);
     return () => {
       canvas.removeEventListener('pointerdown', handlePointerDown);
       canvas.removeEventListener('pointermove', handlePointerMove);
       canvas.removeEventListener('pointercancel', handlePointerUp);
+      canvas.removeEventListener('pointerenter', handlePointerEnter);
+      canvas.removeEventListener('pointerleave', handlePointerLeave);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [
-    isDrawing,
-    isPanning,
-    color,
-    size,
-    opacity,
-    smoothing,
-    activeTool,
-    zoom,
-    pan,
-    penOnlyMode,
-  ]);
+  }, [isDrawing, isPanning, activeTool, zoom, pan, penOnlyMode]);
 
   useEffect(() => {
     return () => {
@@ -1051,9 +1372,14 @@ export function Sketchpad({
       c.style.touchAction = 'none';
       c.style.willChange = 'transform';
     }
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.imageSmoothingEnabled = !isAndroid;
-  }, [isAndroid]);
+    for (const c of [canvas, overlay, bgCanvas]) {
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = antiAlias;
+        ctx.imageSmoothingQuality = 'high';
+      }
+    }
+  }, [isAndroid, antiAlias]);
 
   // ── Export ───────────────────────────────────────────────────────────────
 
@@ -1131,27 +1457,28 @@ export function Sketchpad({
       {cursorPos &&
         activeTool !== 'fill' &&
         activeTool !== 'text' &&
-        !spaceDown.current && (
+        (isHovering || !spaceDown.current) && (
           <div
             className="pointer-events-none fixed z-50 rounded-full"
             style={{
               left: cursorPos.x,
               top: cursorPos.y,
-              width: size,
-              height: size,
+              width: currentSize,
+              height: currentSize,
               transform: 'translate(-50%, -50%)',
               border:
                 activeTool === 'eraser'
                   ? '2px solid black'
-                  : `2px solid ${color}`,
+                  : `2px solid ${currentColor}`,
               background:
                 activeTool === 'eraser'
                   ? 'transparent'
                   : activeTool === 'highlighter'
-                    ? color + '66'
+                    ? currentColor + '66'
                     : 'transparent',
               boxShadow: activeTool === 'eraser' ? 'none' : `0 0 0 1px white`,
               transition: 'width 0.1s, height 0.1s',
+              opacity: isHovering && !spaceDown.current ? 0.7 : 1,
             }}
           />
         )}
@@ -1171,9 +1498,9 @@ export function Sketchpad({
               const ctx = getCtx();
               if (ctx) {
                 pushUndo();
-                ctx.font = `${size * 5}px sans-serif`;
-                ctx.fillStyle = color;
-                ctx.globalAlpha = opacity;
+                ctx.font = `${currentSize * 5}px sans-serif`;
+                ctx.fillStyle = currentColor;
+                ctx.globalAlpha = currentOpacity;
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.fillText(textInput.value, textInput.x, textInput.y);
                 setTextInput(null);
@@ -1187,9 +1514,9 @@ export function Sketchpad({
               const ctx = getCtx();
               if (ctx) {
                 pushUndo();
-                ctx.font = `${size * 5}px sans-serif`;
-                ctx.fillStyle = color;
-                ctx.globalAlpha = opacity;
+                ctx.font = `${currentSize * 5}px sans-serif`;
+                ctx.fillStyle = currentColor;
+                ctx.globalAlpha = currentOpacity;
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.fillText(textInput.value, textInput.x, textInput.y);
                 setTextInput(null);
@@ -1202,7 +1529,7 @@ export function Sketchpad({
             top: textInput.y * zoom + pan.y,
             transform: `scale(${zoom})`,
             transformOrigin: '0 0',
-            color: color,
+            color: currentColor,
           }}
         />
       )}
@@ -1240,7 +1567,7 @@ export function Sketchpad({
       {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => (
         <button
           key={tool}
-          onClick={() => setActiveTool(tool)}
+          onClick={() => switchTool(tool)}
           title={TOOL_LABELS[tool]}
           className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all ${
             activeTool === tool
@@ -1254,8 +1581,56 @@ export function Sketchpad({
     </div>
   );
 
-  const propertiesPanel = (
+  const propertiesPanel = sidebarCollapsed ? (
+    <div className="w-16 shrink-0 p-2 flex flex-col gap-2">
+      <div
+        className="w-12 h-8 rounded border-2 border-gray-600"
+        style={{
+          background: currentColor === '#ffffff' ? '#f0f0f0' : currentColor,
+        }}
+        title={`Current Color: ${currentColor}`}
+      />
+      <button
+        onClick={clearCanvas}
+        className="w-full py-2 text-xs rounded border border-red-500/30 text-red-400 hover:bg-red-500/10"
+      >
+        Clear
+      </button>
+      {embedded && (
+        <button
+          onClick={async () => {
+            try {
+              const dataUrl = await saveAsDataUrl();
+              onSave(dataUrl);
+              hasExplicitlySaved.current = true;
+            } catch {
+              /* noop */
+            }
+          }}
+          className="w-full py-2 text-xs rounded border border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 font-medium"
+        >
+          Save
+        </button>
+      )}
+      <button
+        onClick={() => setSidebarCollapsed(false)}
+        className="w-full py-2 text-xs rounded border border-gray-600 text-white/60 hover:bg-gray-700"
+        title="Expand Sidebar"
+      >
+        &gt;
+      </button>
+    </div>
+  ) : (
     <div className="w-64 shrink-0 p-4 overflow-y-auto">
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => setSidebarCollapsed(true)}
+          className="text-xs text-white/40 hover:text-white/70"
+          title="Collapse Sidebar"
+        >
+          &lt;
+        </button>
+      </div>
       {/* Color */}
       <div className="mb-6">
         <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3">
@@ -1265,9 +1640,12 @@ export function Sketchpad({
           {PALETTE.map((c) => (
             <button
               key={c}
-              onClick={() => setColor(c)}
+              onClick={() => {
+                setColor(c);
+                addRecentColor(c);
+              }}
               className={`w-6 h-6 rounded border-2 transition-all ${
-                color === c
+                currentColor === c
                   ? 'border-white scale-110'
                   : 'border-transparent hover:scale-105'
               }`}
@@ -1275,17 +1653,36 @@ export function Sketchpad({
             />
           ))}
         </div>
+        {recentColors.length > 0 && (
+          <div className="flex gap-1 mb-3">
+            {recentColors.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-5 h-5 rounded border transition-all ${
+                  currentColor === c
+                    ? 'border-white scale-110'
+                    : 'border-gray-600 hover:scale-105'
+                }`}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <input
             type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
+            value={currentColor}
+            onChange={(e) => {
+              setColor(e.target.value);
+              addRecentColor(e.target.value);
+            }}
             className="w-8 h-8 cursor-pointer rounded border border-white/20"
             disabled={activeTool === 'eraser'}
           />
           <input
             type="text"
-            value={color}
+            value={currentColor}
             onChange={(e) => setColor(e.target.value)}
             className="flex-1 px-2 py-1 text-xs border-gray-600 rounded text-white font-mono"
             disabled={activeTool === 'eraser'}
@@ -1296,7 +1693,7 @@ export function Sketchpad({
       {/* Brush Settings */}
       <div className="mb-6">
         <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3">
-          Brush
+          {TOOL_LABELS[activeTool]} Settings
         </h3>
         <div className="space-y-3">
           <div>
@@ -1306,7 +1703,7 @@ export function Sketchpad({
                 type="number"
                 min={1}
                 max={200}
-                value={size}
+                value={currentSize}
                 onChange={(e) => setSize(Number(e.target.value) || 1)}
                 className="w-16 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
               />
@@ -1314,7 +1711,7 @@ export function Sketchpad({
                 type="range"
                 min={1}
                 max={200}
-                value={size}
+                value={currentSize}
                 onChange={(e) => setSize(Number(e.target.value))}
                 className="flex-1 accent-indigo-400"
               />
@@ -1327,7 +1724,7 @@ export function Sketchpad({
                 type="number"
                 min={0}
                 max={100}
-                value={Math.round(opacity * 100)}
+                value={Math.round(currentOpacity * 100)}
                 onChange={(e) => setOpacity(Number(e.target.value) / 100)}
                 disabled={activeTool === 'eraser'}
                 className="w-16 px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
@@ -1336,7 +1733,7 @@ export function Sketchpad({
                 type="range"
                 min={0}
                 max={100}
-                value={Math.round(opacity * 100)}
+                value={Math.round(currentOpacity * 100)}
                 onChange={(e) => setOpacity(Number(e.target.value) / 100)}
                 disabled={activeTool === 'eraser'}
                 className="flex-1 accent-indigo-400"
@@ -1352,7 +1749,7 @@ export function Sketchpad({
                 type="number"
                 min={0}
                 max={100}
-                value={Math.round(smoothing * 100)}
+                value={Math.round(currentSmoothing * 100)}
                 onChange={(e) => setSmoothing(Number(e.target.value) / 100)}
                 disabled={['fill', 'line', 'rect', 'ellipse'].includes(
                   activeTool
@@ -1363,7 +1760,7 @@ export function Sketchpad({
                 type="range"
                 min={0}
                 max={100}
-                value={Math.round(smoothing * 100)}
+                value={Math.round(currentSmoothing * 100)}
                 onChange={(e) => setSmoothing(Number(e.target.value) / 100)}
                 disabled={['fill', 'line', 'rect', 'ellipse'].includes(
                   activeTool
@@ -1372,6 +1769,36 @@ export function Sketchpad({
               />
             </div>
           </div>
+          <div>
+            <label className="block text-xs text-white/70 mb-1">
+              Pressure Curve
+            </label>
+            <select
+              value={currentPressureCurve}
+              onChange={(e) =>
+                setPressureCurve(e.target.value as PressureCurve)
+              }
+              disabled={['fill', 'line', 'rect', 'ellipse'].includes(
+                activeTool
+              )}
+              className="w-full px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded text-white"
+            >
+              <option value="linear">Linear</option>
+              <option value="smooth">Smooth</option>
+              <option value="exponential">Exponential</option>
+              <option value="heavy-ink">Heavy Ink</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-white/70 select-none">
+            <input
+              type="checkbox"
+              checked={tiltShading}
+              onChange={(e) => setTiltShading(e.target.checked)}
+              disabled={activeTool !== 'highlighter'}
+              className="accent-indigo-400"
+            />
+            Tilt Shading (Apple Pencil)
+          </label>
         </div>
       </div>
 
@@ -1380,8 +1807,16 @@ export function Sketchpad({
         <h3 className="text-xs uppercase tracking-wider text-white/50 mb-3">
           Canvas
         </h3>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          {(['white-grid', 'black-grid'] as BgType[]).map((b) => (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {(
+            [
+              'white-grid',
+              'black-grid',
+              'lined',
+              'graph',
+              'dot-grid',
+            ] as BgType[]
+          ).map((b) => (
             <button
               key={b}
               onClick={() => setBg(b)}
@@ -1391,7 +1826,15 @@ export function Sketchpad({
                   : 'border-gray-600 text-white/60 hover:border-gray-500 hover:text-white'
               }`}
             >
-              {b === 'white-grid' ? 'White Grid' : 'Black Grid'}
+              {b === 'white-grid'
+                ? 'Grid'
+                : b === 'black-grid'
+                  ? 'Dark'
+                  : b === 'lined'
+                    ? 'Lined'
+                    : b === 'graph'
+                      ? 'Graph'
+                      : 'Dots'}
             </button>
           ))}
         </div>
@@ -1426,6 +1869,15 @@ export function Sketchpad({
             className="accent-indigo-400"
           />
           Pen Only (stylus draws, fingers pan/zoom)
+        </label>
+        <label className="flex items-center gap-2 text-xs text-white/70 select-none">
+          <input
+            type="checkbox"
+            checked={antiAlias}
+            onChange={(e) => setAntiAlias(e.target.checked)}
+            className="accent-indigo-400"
+          />
+          Anti-Alias (smooth zoom)
         </label>
       </div>
 
@@ -1488,16 +1940,17 @@ export function Sketchpad({
     <div className="h-8 border-t border-gray-700 flex items-center justify-between px-4 text-xs text-white/70">
       <div className="flex items-center gap-4">
         <span>Tool: {TOOL_LABELS[activeTool]}</span>
+        {isHovering && <span className="text-indigo-400">Stylus Hover</span>}
         {cursorPos && (
           <span>
-            Cursor: {Math.round(cursorPos.x)}, {Math.round(cursorPos.y)}
+            {Math.round(cursorPos.x)}, {Math.round(cursorPos.y)}
           </span>
         )}
       </div>
       <div className="flex items-center gap-4">
         <span>Zoom: {Math.round(zoom * 100)}%</span>
-        <span>Size: {size}px</span>
-        <span>Opacity: {Math.round(opacity * 100)}%</span>
+        <span>Size: {currentSize}px</span>
+        <span>Curve: {currentPressureCurve}</span>
       </div>
     </div>
   );

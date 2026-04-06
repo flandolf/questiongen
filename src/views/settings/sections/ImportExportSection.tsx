@@ -43,6 +43,9 @@ export function ImportExportSection() {
   const [importCounts, setImportCounts] = useState<ImportCounts | null>(null);
 
   const desktop = isTauriApp();
+  const isAndroid =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+  const supportsFolderBackups = desktop && !isAndroid;
 
   const notifyError = useCallback((message: string) => {
     setError(message);
@@ -182,11 +185,11 @@ export function ImportExportSection() {
         </div>
       )}
 
-      {!desktop && (
+      {!supportsFolderBackups && (
         <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2">
           Scheduled backups, saving to a chosen folder, and importing from that
-          folder are available in the desktop app. In the browser, use Export
-          and Choose File below.
+          folder are available on desktop. On Android and in the browser, use
+          Export and Choose File below.
         </p>
       )}
 
@@ -222,7 +225,7 @@ export function ImportExportSection() {
         </Button>
       </Card>
 
-      {desktop && (
+      {supportsFolderBackups && (
         <>
           <Divider />
           <LocalBackupFolderCard

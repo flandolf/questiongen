@@ -1,5 +1,4 @@
-import { MathJaxContext } from 'better-react-mathjax';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/layout/Layout';
@@ -12,7 +11,92 @@ import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
 import { useAppStore } from './store';
 
 const MATHJAX_CDN_URL =
-  'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
+  'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+const MATHJAX_SCRIPT_ID = 'mathjax-script';
+let mathJaxLoaderPromise: Promise<void> | null = null;
+
+type MathJaxRuntime = {
+  tex?: {
+    inlineMath?: [string, string][];
+    displayMath?: [string, string][];
+    packages?: Record<string, string[]>;
+  };
+  loader?: {
+    load?: string[];
+  };
+  startup?: {
+    typeset?: boolean;
+  };
+  typesetPromise?: (elements?: Element[]) => Promise<void>;
+};
+
+function getMathJaxRuntime(): MathJaxRuntime | undefined {
+  return window.MathJax as MathJaxRuntime | undefined;
+}
+
+function ensureMathJaxLoaded(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  if (mathJaxLoaderPromise) {
+    return mathJaxLoaderPromise;
+  }
+
+  if (!getMathJaxRuntime()) {
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        packages: {
+          '[+]': ['textmacros'],
+        },
+      },
+      loader: {
+        load: ['[tex]/textmacros'],
+      },
+      startup: {
+        typeset: false,
+      },
+    };
+  }
+
+  mathJaxLoaderPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById(
+      MATHJAX_SCRIPT_ID
+    ) as HTMLScriptElement | null;
+
+    const runtime = getMathJaxRuntime();
+    if (existing && typeof runtime?.typesetPromise === 'function') {
+      window.dispatchEvent(new Event('mathjax:ready'));
+      resolve();
+      return;
+    }
+
+    const script =
+      existing ??
+      (Object.assign(document.createElement('script'), {
+        id: MATHJAX_SCRIPT_ID,
+        async: true,
+        src: MATHJAX_CDN_URL,
+      }) as HTMLScriptElement);
+
+    script.addEventListener('load', () => {
+      window.dispatchEvent(new Event('mathjax:ready'));
+      resolve();
+    });
+
+    script.addEventListener('error', () => {
+      reject(new Error('Failed to load MathJax script'));
+    });
+
+    if (!existing) {
+      document.head.appendChild(script);
+    }
+  });
+
+  return mathJaxLoaderPromise;
+}
 
 const GeneratorView = lazy(() =>
   import('./views/GeneratorView').then((m) => ({ default: m.GeneratorView }))
@@ -85,38 +169,25 @@ function AppRoutes() {
 export default function App() {
   useTextSizeCssVars();
 
+  useEffect(() => {
+    void ensureMathJaxLoaded();
+  }, []);
+
   return (
-    <MathJaxContext
-      version={4}
-      src={MATHJAX_CDN_URL}
-      config={{
-        tex: {
-          inlineMath: [['$', '$']],
-          displayMath: [['$$', '$$']],
-          packages: {
-            '[+]': ['textmacros'],
-          },
-        },
-        loader: {
-          load: ['[tex]/textmacros'],
-        },
-      }}
-    >
-      <AppProvider>
-        <FirebaseSyncProvider>
-          <ErrorBoundary>
-            <AppRoutes />
-            <Toaster
-              position="bottom-right"
-              richColors
-              closeButton
-              toastOptions={{
-                duration: 4000,
-              }}
-            />
-          </ErrorBoundary>
-        </FirebaseSyncProvider>
-      </AppProvider>
-    </MathJaxContext>
+    <AppProvider>
+      <FirebaseSyncProvider>
+        <ErrorBoundary>
+          <AppRoutes />
+          <Toaster
+            position="bottom-right"
+            richColors
+            closeButton
+            toastOptions={{
+              duration: 4000,
+            }}
+          />
+        </ErrorBoundary>
+      </FirebaseSyncProvider>
+    </AppProvider>
   );
 }
