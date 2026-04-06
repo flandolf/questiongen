@@ -309,7 +309,10 @@ pub async fn call_openrouter_streaming_with_plugins(
     }
 
     if assembled.is_empty() {
-        return Err(AppError::new("EMPTY_RESULT", "OpenRouter returned no content."));
+        return Err(AppError::new(
+            "EMPTY_RESULT",
+            "OpenRouter returned no content.",
+        ));
     }
 
     // If the provider didn't include usage, fall back to a character-based
@@ -333,8 +336,54 @@ pub async fn call_openrouter_streaming_with_plugins(
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
+/// Check if a model is an Anthropic model.
+pub fn is_anthropic_model(model: &str) -> bool {
+    model.starts_with("anthropic/")
+}
+
+/// Recursively strip minimum/maximum constraints from integer types in a JSON schema.
+/// This is needed for Anthropic models which don't support these constraints.
+fn strip_integer_constraints(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            // Remove minimum and maximum for integer types
+            if map.get("type").and_then(|v| v.as_str()) == Some("integer") {
+                map.remove("minimum");
+                map.remove("maximum");
+            }
+            // Recursively process nested objects and arrays
+            for (_, v) in map.iter_mut() {
+                strip_integer_constraints(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                strip_integer_constraints(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Build a `response_format` value for a named JSON schema.
 pub fn json_schema_format(name: &'static str, schema: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": name,
+            "strict": true,
+            "schema": schema,
+        }
+    })
+}
+
+/// Build a `response_format` value for a named JSON schema, stripped for Anthropic compatibility.
+/// Removes minimum/maximum constraints that Anthropic models don't support.
+pub fn json_schema_format_anthropic(
+    name: &'static str,
+    mut schema: serde_json::Value,
+) -> serde_json::Value {
+    strip_integer_constraints(&mut schema);
     serde_json::json!({
         "type": "json_schema",
         "json_schema": {

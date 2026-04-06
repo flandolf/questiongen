@@ -57,7 +57,7 @@ fn adjust_difficulty(
 use models::*;
 use openrouter::{
     call_openrouter, call_openrouter_streaming_with_plugins, call_openrouter_with_plugins,
-    json_schema_format,
+    is_anthropic_model, json_schema_format, json_schema_format_anthropic,
 };
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
@@ -144,130 +144,139 @@ fn difficulty_to_temperature(difficulty: &str) -> (f32, f32) {
 
 // ─── Response format schemas ──────────────────────────────────────────────────
 
-fn written_format() -> serde_json::Value {
-    json_schema_format(
-        "written_questions",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["questions"],
-            "properties": {
-                "questions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["id","topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
-                        "properties": {
-                            "id": { "type": "string" },
-                            "topic": { "type": "string" },
-                            "subtopic": { "type": ["string","null"] },
-                            "promptMarkdown": { "type": "string" },
-                            "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
-                            "techAllowed": { "type": "boolean" }
-                        }
+fn written_format(model: &str) -> serde_json::Value {
+    let schema = serde_json::json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questions"],
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id","topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
+                    "properties": {
+                        "id": { "type": "string" },
+                        "topic": { "type": "string" },
+                        "subtopic": { "type": ["string","null"] },
+                        "promptMarkdown": { "type": "string" },
+                        "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
+                        "techAllowed": { "type": "boolean" }
                     }
                 }
             }
-        }),
-    )
+        }
+    });
+
+    if is_anthropic_model(model) {
+        json_schema_format_anthropic("written_questions", schema)
+    } else {
+        json_schema_format("written_questions", schema)
+    }
 }
 
-fn mc_format() -> serde_json::Value {
-    json_schema_format(
-        "mc_questions",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["questions"],
-            "properties": {
-                "questions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
-                        "properties": {
-                            "id":                  { "type": "string" },
-                            "topic":               { "type": "string" },
-                            "subtopic":            { "type": ["string","null"] },
-                            "promptMarkdown":      { "type": "string" },
-                            "options": {
-                                "type": "array", "minItems": 4, "maxItems": 4,
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": false,
-                                    "required": ["label","text"],
-                                    "properties": {
-                                        "label": { "type": "string" },
-                                        "text":  { "type": "string" }
-                                    }
+fn mc_format(model: &str) -> serde_json::Value {
+    let schema = serde_json::json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questions"],
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
+                    "properties": {
+                        "id":                  { "type": "string" },
+                        "topic":               { "type": "string" },
+                        "subtopic":            { "type": ["string","null"] },
+                        "promptMarkdown":      { "type": "string" },
+                        "options": {
+                            "type": "array", "minItems": 4, "maxItems": 4,
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": ["label","text"],
+                                "properties": {
+                                    "label": { "type": "string" },
+                                    "text":  { "type": "string" }
                                 }
-                            },
-                            "correctAnswer":       { "type": "string", "enum": ["A","B","C","D"] },
-                            "explanationMarkdown": { "type": "string" },
-                            "techAllowed":         { "type": "boolean" }
-                        }
+                            }
+                        },
+                        "correctAnswer":       { "type": "string", "enum": ["A","B","C","D"] },
+                        "explanationMarkdown": { "type": "string" },
+                        "techAllowed":         { "type": "boolean" }
                     }
                 }
             }
-        }),
-    )
+        }
+    });
+
+    if is_anthropic_model(model) {
+        json_schema_format_anthropic("mc_questions", schema)
+    } else {
+        json_schema_format("mc_questions", schema)
+    }
 }
 
-fn marking_format() -> serde_json::Value {
-    json_schema_format(
-        "mark_answer",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
-                         "vcaaMarkingScheme","comparisonToSolutionMarkdown",
-                         "feedbackMarkdown","workedSolutionMarkdown",
-                         "exemplarResponseMarkdown","mcOptionExplanations","promptTokens","completionTokens","totalTokens"],
-            "properties": {
-                "verdict":       { "type": "string" },
-                "achievedMarks": { "type": "integer", "minimum": 0 },
-                "maxMarks":      { "type": "integer", "minimum": 1 },
-                "scoreOutOf10":  { "type": "integer", "minimum": 0, "maximum": 10 },
-                "vcaaMarkingScheme": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["criterion","achievedMarks","maxMarks","rationale"],
-                        "properties": {
-                            "criterion":     { "type": "string" },
-                            "achievedMarks": { "type": "integer", "minimum": 0 },
-                            "maxMarks":      { "type": "integer", "minimum": 0 },
-                            "rationale":     { "type": "string" }
-                        }
+fn marking_format(model: &str) -> serde_json::Value {
+    let schema = serde_json::json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
+                     "vcaaMarkingScheme","comparisonToSolutionMarkdown",
+                     "feedbackMarkdown","workedSolutionMarkdown",
+                     "exemplarResponseMarkdown","mcOptionExplanations","promptTokens","completionTokens","totalTokens"],
+        "properties": {
+            "verdict":       { "type": "string" },
+            "achievedMarks": { "type": "integer", "minimum": 0 },
+            "maxMarks":      { "type": "integer", "minimum": 1 },
+            "scoreOutOf10":  { "type": "integer", "minimum": 0, "maximum": 10 },
+            "vcaaMarkingScheme": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["criterion","achievedMarks","maxMarks","rationale"],
+                    "properties": {
+                        "criterion":     { "type": "string" },
+                        "achievedMarks": { "type": "integer", "minimum": 0 },
+                        "maxMarks":      { "type": "integer", "minimum": 0 },
+                        "rationale":     { "type": "string" }
                     }
-                },
-                "comparisonToSolutionMarkdown": { "type": "string" },
-                "feedbackMarkdown":             { "type": "string" },
-                "workedSolutionMarkdown":       { "type": "string" },
-                "exemplarResponseMarkdown":     { "type": "string" },
-                // Present for MC questions; empty array for written questions.
-                "mcOptionExplanations": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["option","isCorrect","explanation"],
-                        "properties": {
-                            "option":      { "type": "string" },
-                            "isCorrect":   { "type": "boolean" },
-                            "explanation": { "type": "string" }
-                        }
+                }
+            },
+            "comparisonToSolutionMarkdown": { "type": "string" },
+            "feedbackMarkdown":             { "type": "string" },
+            "workedSolutionMarkdown":       { "type": "string" },
+            "exemplarResponseMarkdown":     { "type": "string" },
+            // Present for MC questions; empty array for written questions.
+            "mcOptionExplanations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["option","isCorrect","explanation"],
+                    "properties": {
+                        "option":      { "type": "string" },
+                        "isCorrect":   { "type": "boolean" },
+                        "explanation": { "type": "string" }
                     }
-                },
-                "promptTokens": { "type": "integer", "minimum": 0 },
-                "completionTokens": { "type": "integer", "minimum": 0 },
-                "totalTokens": { "type": "integer", "minimum": 0 }
-            }
-        }),
-    )
+                }
+            },
+            "promptTokens": { "type": "integer", "minimum": 0 },
+            "completionTokens": { "type": "integer", "minimum": 0 },
+            "totalTokens": { "type": "integer", "minimum": 0 }
+        }
+    });
+
+    if is_anthropic_model(model) {
+        json_schema_format_anthropic("mark_answer", schema)
+    } else {
+        json_schema_format("mark_answer", schema)
+    }
 }
 
 // ─── System prompt builders ───────────────────────────────────────────────────
@@ -1156,7 +1165,7 @@ async fn generate_questions(
     );
 
     let written_sys = written_system();
-    let written_fmt = written_format();
+    let written_fmt = written_format(&request.model);
     let max_tokens = calculate_optimal_max_tokens(
         request.question_count,
         average_marks,
@@ -1675,7 +1684,7 @@ async fn generate_mc_questions(
     );
 
     let mc_sys = mc_system();
-    let mc_fmt = mc_format();
+    let mc_fmt = mc_format(&request.model);
     // MC questions need less tokens per question (single answer + brief explanation)
     // but still benefit from the complexity-aware calculation
     let base_mc_tokens = calculate_optimal_max_tokens(
@@ -2232,7 +2241,7 @@ mathematical rigour.\n"
         &request.model,
         &marking_system(max_marks, chem_note, pe_note),
         user_content,
-        &marking_format(),
+        &marking_format(&request.model),
         max_tokens,
         temperature,
         top_p,
@@ -2393,15 +2402,27 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         .filter(|v| !v.trim().is_empty())
         .unwrap_or("What's in this image?");
 
-    let free_text_format = json_schema_format(
-        "text_response",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["text"],
-            "properties": { "text": { "type": "string" } }
-        }),
-    );
+    let free_text_format = if is_anthropic_model(&request.model) {
+        json_schema_format_anthropic(
+            "text_response",
+            serde_json::json!({
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["text"],
+                "properties": { "text": { "type": "string" } }
+            }),
+        )
+    } else {
+        json_schema_format(
+            "text_response",
+            serde_json::json!({
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["text"],
+                "properties": { "text": { "type": "string" } }
+            }),
+        )
+    };
 
     let temperature = request.temperature.unwrap_or(0.2);
     let top_p = request.top_p.unwrap_or(0.8);
@@ -2607,28 +2628,53 @@ async fn batch_cleanup(
         return Ok(mapping);
     }
 
-    let schema = json_schema_format(
-        "cleanup_mappings",
-        serde_json::json!({
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["mappings"],
-            "properties": {
-                "mappings": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": ["unknown", "canonical"],
-                        "properties": {
-                            "unknown": { "type": "string" },
-                            "canonical": { "type": "string" }
+    let schema = if is_anthropic_model(model) {
+        json_schema_format_anthropic(
+            "cleanup_mappings",
+            serde_json::json!({
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["mappings"],
+                "properties": {
+                    "mappings": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["unknown", "canonical"],
+                            "properties": {
+                                "unknown": { "type": "string" },
+                                "canonical": { "type": "string" }
+                            }
                         }
                     }
                 }
-            }
-        }),
-    );
+            }),
+        )
+    } else {
+        json_schema_format(
+            "cleanup_mappings",
+            serde_json::json!({
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["mappings"],
+                "properties": {
+                    "mappings": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["unknown", "canonical"],
+                            "properties": {
+                                "unknown": { "type": "string" },
+                                "canonical": { "type": "string" }
+                            }
+                        }
+                    }
+                }
+            }),
+        )
+    };
 
     let system_prompt = cleanup_system_prompt();
 
