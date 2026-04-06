@@ -9,12 +9,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 import { useAppStore } from '../../../store';
 import { Card, SectionHeader } from '../SettingsUI';
@@ -32,6 +34,22 @@ export function GenerationSettingsSection() {
   );
   const difficultyThresholds = useAppStore((s) => s.difficultyThresholds);
   const setDifficultyThresholds = useAppStore((s) => s.setDifficultyThresholds);
+  const diversityStrictness = useAppStore((s) => s.diversityStrictness);
+  const setDiversityStrictness = useAppStore((s) => s.setDiversityStrictness);
+  const strictLatexValidation = useAppStore((s) => s.strictLatexValidation);
+  const setStrictLatexValidation = useAppStore(
+    (s) => s.setStrictLatexValidation
+  );
+  const strictSubtopicCoverage = useAppStore((s) => s.strictSubtopicCoverage);
+  const setStrictSubtopicCoverage = useAppStore(
+    (s) => s.setStrictSubtopicCoverage
+  );
+  const minSubtopicCoverageRatio = useAppStore(
+    (s) => s.minSubtopicCoverageRatio
+  );
+  const setMinSubtopicCoverageRatio = useAppStore(
+    (s) => s.setMinSubtopicCoverageRatio
+  );
 
   return (
     <div className="space-y-6">
@@ -153,6 +171,85 @@ export function GenerationSettingsSection() {
           </div>
         </Card>
       )}
+      <Card className="flex flex-col p-4">
+        <SectionHeader
+          title="Generation Flags"
+          description="Global generation defaults."
+        />
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium">Diversity Strictness</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {(['lenient', 'moderate', 'strict'] as const).map((lvl) => (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => setDiversityStrictness(lvl)}
+                  className={cn(
+                    'text-xs font-semibold rounded-md py-2 transition-colors',
+                    diversityStrictness === lvl
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-background'
+                  )}
+                >
+                  {lvl[0].toUpperCase() + lvl.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Strict LaTeX Validation</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {strictLatexValidation
+                  ? 'Malformed math is rejected.'
+                  : 'Malformed math may be tolerated.'}
+              </p>
+            </div>
+            <Switch
+              checked={strictLatexValidation}
+              onCheckedChange={setStrictLatexValidation}
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Strict Subtopic Coverage</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {strictSubtopicCoverage
+                    ? 'Generator will prioritise selected subtopics.'
+                    : 'Subtopic coverage is flexible.'}
+                </p>
+              </div>
+              <Switch
+                checked={strictSubtopicCoverage}
+                onCheckedChange={setStrictSubtopicCoverage}
+              />
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-medium">Minimum Subtopic Coverage</p>
+                <span className="text-sm font-semibold">
+                  {Math.round(minSubtopicCoverageRatio * 100)}%
+                </span>
+              </div>
+              <Slider
+                min={40}
+                max={100}
+                step={5}
+                value={[Math.round(minSubtopicCoverageRatio * 100)]}
+                onValueChange={(val) =>
+                  setMinSubtopicCoverageRatio(val[0] / 100)
+                }
+              />
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

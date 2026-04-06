@@ -480,6 +480,10 @@ function SetupPanelImpl({
               questionCount={questionCount}
               averageMarksPerQuestion={averageMarksPerQuestion}
               questionMode={questionMode}
+              diversityStrictness={diversityStrictness}
+              strictLatexValidation={strictLatexValidation}
+              strictSubtopicCoverage={strictSubtopicCoverage}
+              minSubtopicCoverageRatio={minSubtopicCoverageRatio}
             />
           </div>
 

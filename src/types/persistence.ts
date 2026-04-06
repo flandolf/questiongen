@@ -5,7 +5,12 @@ import type {
   SpecialistMathSubtopic,
   Topic,
 } from './catalog';
-import type { Difficulty, QuestionMode, TechMode } from './generator';
+import type {
+  Difficulty,
+  DiversityStrictness,
+  QuestionMode,
+  TechMode,
+} from './generator';
 import type {
   GenerationRecord,
   McHistoryEntry,
@@ -55,6 +60,10 @@ export type PersistedGeneratorPreferences = {
   questionMode: QuestionMode;
   aiDifficultyScalingEnabled?: boolean;
   difficultyThresholds?: { increase: number; decrease: number };
+  diversityStrictness: DiversityStrictness;
+  strictLatexValidation: boolean;
+  strictSubtopicCoverage: boolean;
+  minSubtopicCoverageRatio: number;
 };
 
 export type PersistedWrittenSession = {

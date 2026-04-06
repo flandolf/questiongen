@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Blend,
   Calculator,
   Crosshair,
   Hash,
@@ -151,14 +150,6 @@ export function AdvancedOptionsGroup({
   onSetShuffleQuestions,
   customFocusArea,
   onSetCustomFocusArea,
-  diversityStrictness,
-  onSetDiversityStrictness,
-  strictLatexValidation,
-  onSetStrictLatexValidation,
-  strictSubtopicCoverage,
-  onSetStrictSubtopicCoverage,
-  minSubtopicCoverageRatio,
-  onSetMinSubtopicCoverageRatio,
 }: AdvancedOptionsGroupProps) {
   return (
     <div className="space-y-2 pt-3">
@@ -233,31 +224,6 @@ export function AdvancedOptionsGroup({
       <div className="space-y-2 pt-3">
         <SectionLabel>Generation Flags</SectionLabel>
         <div className="flex flex-col gap-2.5">
-          <div className="rounded-xl border bg-card px-4 py-3.5 space-y-2">
-            <Label className="text-sm font-semibold flex items-center gap-2">
-              <Blend className="w-4 h-4 text-primary" /> Diversity Strictness
-            </Label>
-            <div className="grid grid-cols-3 gap-1.5 bg-muted/40 p-1 rounded-lg">
-              {(['lenient', 'moderate', 'strict'] as DiversityStrictness[]).map(
-                (level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => onSetDiversityStrictness(level)}
-                    className={cn(
-                      'text-xs font-semibold rounded-md py-2 transition-colors',
-                      diversityStrictness === level
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:bg-background'
-                    )}
-                  >
-                    {level[0].toUpperCase() + level.slice(1)}
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-
           {selectedTopics.length > 1 && (
             <ToggleRow
               id="shuffle-questions"
@@ -267,45 +233,6 @@ export function AdvancedOptionsGroup({
               checked={shuffleQuestions}
               onCheckedChange={onSetShuffleQuestions}
             />
-          )}
-          <ToggleRow
-            id="strict-latex-validation"
-            icon={<Calculator className="w-4 h-4" />}
-            label="Strict LaTeX Validation"
-            description="Rejects malformed math delimiters/braces before returning questions."
-            checked={strictLatexValidation}
-            onCheckedChange={onSetStrictLatexValidation}
-          />
-          {hasSubtopicSection && (
-            <>
-              <ToggleRow
-                id="strict-subtopic-coverage"
-                icon={<Blend className="w-4 h-4" />}
-                label="Strict Subtopic Coverage"
-                description="Forces selected focus areas to be represented in generated output."
-                checked={strictSubtopicCoverage}
-                onCheckedChange={onSetStrictSubtopicCoverage}
-              />
-              <div className="rounded-xl border bg-card px-4 py-3.5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold">
-                    Minimum Subtopic Coverage
-                  </Label>
-                  <span className="text-xs font-semibold text-primary tabular-nums">
-                    {Math.round(minSubtopicCoverageRatio * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  min={40}
-                  max={100}
-                  step={5}
-                  value={[Math.round(minSubtopicCoverageRatio * 100)]}
-                  onValueChange={(val) =>
-                    onSetMinSubtopicCoverageRatio(val[0] / 100)
-                  }
-                />
-              </div>
-            </>
           )}
         </div>
         <div>
@@ -387,7 +314,7 @@ export function AdvancedOptionsGroup({
       {hasAnyMathTopic && (
         <div className="space-y-3 pt-6">
           <SectionLabel>Calculator Settings</SectionLabel>
-          <div className="grid grid-cols-3 gap-2 bg-card p-1.5 rounded-xl border">
+          <div className="grid grid-cols-2 gap-2 bg-card p-1.5 rounded-xl border">
             {(
               [
                 {

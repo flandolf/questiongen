@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import type {
   AnswerAnalytics,
+  DiversityStrictness,
   GenerationRecord,
   McAnswerAnalytics,
   McHistoryEntry,
@@ -69,6 +70,10 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   questionMode: 'written',
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
+  diversityStrictness: 'moderate',
+  strictLatexValidation: true,
+  strictSubtopicCoverage: true,
+  minSubtopicCoverageRatio: 0.6,
 };
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
@@ -294,6 +299,12 @@ function normalizeSettings(raw: unknown): PersistedSettings {
 
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
+  const diversityStrictness: DiversityStrictness =
+    data.diversityStrictness === 'lenient' ||
+    data.diversityStrictness === 'moderate' ||
+    data.diversityStrictness === 'strict'
+      ? data.diversityStrictness
+      : DEFAULT_PREFERENCES.diversityStrictness;
 
   return {
     selectedTopics: filterStringLiterals(data.selectedTopics, TOPICS),
@@ -358,6 +369,24 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
             ),
           }
         : DEFAULT_PREFERENCES.difficultyThresholds!,
+    diversityStrictness,
+    strictLatexValidation:
+      typeof data.strictLatexValidation === 'boolean'
+        ? data.strictLatexValidation
+        : DEFAULT_PREFERENCES.strictLatexValidation,
+    strictSubtopicCoverage:
+      typeof data.strictSubtopicCoverage === 'boolean'
+        ? data.strictSubtopicCoverage
+        : DEFAULT_PREFERENCES.strictSubtopicCoverage,
+    minSubtopicCoverageRatio:
+      typeof data.minSubtopicCoverageRatio === 'number'
+        ? clampWholeNumber(
+            data.minSubtopicCoverageRatio,
+            DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
+            0,
+            1
+          )
+        : DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
   };
 }
 
