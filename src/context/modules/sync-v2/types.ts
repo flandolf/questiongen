@@ -188,6 +188,12 @@ export interface SyncMetadata {
     mcHistory: Record<string, number>;
     savedSets: Record<string, number>;
   };
+  // Settings doc lastModified timestamps to avoid unnecessary fetches
+  settingsLastModified?: {
+    main: number;
+    goals: number;
+    presets: number;
+  };
 }
 
 // ─── Deletion Tombstones ──────────────────────────────────────────────────────
