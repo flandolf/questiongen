@@ -34,7 +34,6 @@ export type {
   DebugLogEntry,
   DeletionTombstones,
   LocalCacheEntry,
-  ManualSyncCollection,
   RemoteDocument,
   ShardKey,
   ShardPath,

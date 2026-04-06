@@ -7,8 +7,6 @@ import { toast } from 'sonner';
 
 import type { SyncConflict as DeletionSyncConflict } from '@/context/modules/deletion-tombstones';
 import {
-  buildConflictLabel,
-  detectDualDeletions,
   filterDeleted,
   purgePersistedTombstones,
   removeTombstone,
@@ -18,8 +16,6 @@ import { SyncEngine } from '@/context/modules/sync-v2/SyncEngine';
 import {
   buildVersionMap,
   deleteArchivedItems,
-  getRemoteHistoryCounts,
-  isRemotePresetsArrayDifferent,
   loadUserData,
   migrateUserDataForCompaction,
   onAuthChange,
@@ -30,7 +26,11 @@ import {
   signUpWithEmail,
 } from '@/context/modules/useFirebase';
 import type { AppState } from '@/store';
-import { setSuppressPersistUntil, useAppStore } from '@/store';
+import {
+  setSuppressPersistUntil,
+  suppressPersistUntil,
+  useAppStore,
+} from '@/store';
 
 import type {
   FirebaseUser,
@@ -39,7 +39,6 @@ import type {
 import type {
   DebugLogEntry,
   DeletionTombstones,
-  ManualSyncCollection,
   SyncableData as SyncableDataV2,
   SyncEvent,
   SyncStatus,
@@ -51,7 +50,6 @@ const DEBUG_LOG_LIMIT = 50;
 const SYNC_EVENT_LIMIT = 30;
 const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
 const SYNC_ENABLED_USER_STORAGE_KEY_PREFIX = 'firebase_sync_enabled_v2';
-const FOREGROUND_SYNC_COOLDOWN_MS = 60_000;
 
 function readPersistedSyncEnabled(userId?: string): boolean {
   try {
@@ -106,40 +104,6 @@ function hasRemoteDataCheck(data: SyncableDataV2 | null): boolean {
   return objectSections.some((section) =>
     Boolean(section && Object.keys(section).length > 0)
   );
-}
-
-function createEmptySyncableData(): SyncableDataV2 {
-  return {
-    settings: {},
-    questionHistory: [],
-    mcHistory: [],
-    savedSets: [],
-    presets: [],
-  };
-}
-
-function buildDeletedIdsForCollection(
-  tombstones: DeletionTombstones,
-  collection: ManualSyncCollection
-) {
-  return {
-    questionHistory:
-      collection === 'questionHistory'
-        ? Object.keys(tombstones.questionHistory)
-        : [],
-    mcHistory:
-      collection === 'mcHistory' ? Object.keys(tombstones.mcHistory) : [],
-    savedSets:
-      collection === 'savedSets' ? Object.keys(tombstones.savedSets) : [],
-    presets: collection === 'presets' ? Object.keys(tombstones.presets) : [],
-  };
-}
-
-function collectionLabel(collection: ManualSyncCollection): string {
-  if (collection === 'questionHistory') return 'Question History';
-  if (collection === 'mcHistory') return 'Multiple Choice History';
-  if (collection === 'savedSets') return 'Saved Sets';
-  return 'Presets';
 }
 
 function normalizeRemoteSyncableData(
@@ -288,6 +252,15 @@ interface SyncSnapshot {
   pr: SnapshotItem[];
 }
 
+interface RealtimeLocalBaseline {
+  qh: Map<string, number>;
+  mch: Map<string, number>;
+  ss: Map<string, number>;
+  qhTombs: Set<string>;
+  mchTombs: Set<string>;
+  ssTombs: Set<string>;
+}
+
 function getItemLastModified(item: Record<string, unknown>): number {
   if (
     typeof item.lastModified === 'number' &&
@@ -328,6 +301,29 @@ function buildSyncSnapshot(data: SyncableDataV2): SyncSnapshot {
   };
 }
 
+function toIdLastModifiedMap(items: Record<string, unknown>[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const item of items) {
+    const id = getSnapshotItemId(item);
+    if (!id) continue;
+    map.set(id, getItemLastModified(item));
+  }
+  return map;
+}
+
+function buildRealtimeLocalBaseline(state: AppState): RealtimeLocalBaseline {
+  return {
+    qh: toIdLastModifiedMap(
+      state.questionHistory as unknown as Record<string, unknown>[]
+    ),
+    mch: toIdLastModifiedMap(state.mcHistory as unknown as Record<string, unknown>[]),
+    ss: toIdLastModifiedMap(state.savedSets as unknown as Record<string, unknown>[]),
+    qhTombs: new Set(Object.keys(state.deletionTombstones.questionHistory)),
+    mchTombs: new Set(Object.keys(state.deletionTombstones.mcHistory)),
+    ssTombs: new Set(Object.keys(state.deletionTombstones.savedSets)),
+  };
+}
+
 export interface UseSyncV2Return {
   user: FirebaseUser | null;
   isLoading: boolean;
@@ -352,13 +348,9 @@ export interface UseSyncV2Return {
   ) => Promise<void>;
   disableSync: () => Promise<void>;
   toggleSync: () => void;
-  pullSync: () => Promise<void>;
-  pushSync: () => Promise<void>;
-  pullCollectionSync: (collection: ManualSyncCollection) => Promise<void>;
-  pushCollectionSync: (collection: ManualSyncCollection) => Promise<void>;
-  forceSync: () => Promise<void>;
   retryQueuedOpsNow: () => void;
   resolveConflicts: (resolutions: Map<string, 'keep' | 'delete'>) => void;
+  clearSyncEvents: () => void;
 }
 
 export function useSyncV2(): UseSyncV2Return {
@@ -376,7 +368,7 @@ export function useSyncV2(): UseSyncV2Return {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingChanges, setPendingChanges] = useState(0);
   const [conflicts, setConflicts] = useState<DeletionSyncConflict[]>([]);
-  const [lastFlushTime, setLastFlushTime] = useState<number | null>(null);
+  const [lastFlushTime] = useState<number | null>(null);
   const [syncTelemetry, setSyncTelemetry] = useState<SyncTelemetry>({
     queuedOpsTotal: 0,
     flushCount: 0,
@@ -397,7 +389,6 @@ export function useSyncV2(): UseSyncV2Return {
 
   const isSyncingRef = useRef(false);
   const isSyncEnabledRef = useRef(false);
-  const inForceSyncRef = useRef(false);
   /** Bumped on disable/sign-out so stale manual-sync finallies do not clear a newer op's spinner. */
   const manualSyncTicketRef = useRef(0);
   /** Only re-apply persisted sync flag from storage when the signed-in Firebase uid changes. */
@@ -410,7 +401,6 @@ export function useSyncV2(): UseSyncV2Return {
   const telemetryUnsubRef = useRef<(() => void) | null>(null);
   const queueUnsubRef = useRef<(() => void) | null>(null);
   const startupSyncDoneRef = useRef(false);
-  const foregroundSyncAtRef = useRef(0);
   const lastSyncedSnapshotRef = useRef<string>('');
   const syncMetadataRef = useRef({
     lastSyncTime: 0,
@@ -433,6 +423,10 @@ export function useSyncV2(): UseSyncV2Return {
     }
   }, []);
 
+  const clearSyncEvents = useCallback(() => {
+    setSyncEvents([]);
+  }, []);
+
   const addSyncEvent = useCallback(
     (type: SyncEvent['type'], description: string) => {
       const event: SyncEvent = {
@@ -453,16 +447,6 @@ export function useSyncV2(): UseSyncV2Return {
       Object.keys(tombstones.mcHistory).length +
       Object.keys(tombstones.savedSets).length +
       Object.keys(tombstones.presets).length
-    );
-  }, []);
-
-  const hasPendingLocalDeletes = useCallback((): boolean => {
-    const tombstones = useAppStore.getState().deletionTombstones;
-    return (
-      Object.keys(tombstones.questionHistory).length > 0 ||
-      Object.keys(tombstones.mcHistory).length > 0 ||
-      Object.keys(tombstones.savedSets).length > 0 ||
-      Object.keys(tombstones.presets).length > 0
     );
   }, []);
 
@@ -495,7 +479,6 @@ export function useSyncV2(): UseSyncV2Return {
         lastAuthUidForPersistRef.current = null;
         manualSyncTicketRef.current += 1;
         setIsSyncing(false);
-        inForceSyncRef.current = false;
         setIsSyncEnabled(false);
         isInitializedRef.current = false;
         startupSyncDoneRef.current = false;
@@ -562,6 +545,72 @@ export function useSyncV2(): UseSyncV2Return {
     }
     void engineRef.current?.start();
   }, [user, isSyncEnabled, initEngine]);
+
+  useEffect(() => {
+    if (!user || !isSyncEnabled || !isInitializedRef.current || !engineRef.current)
+      return;
+
+    let baseline = buildRealtimeLocalBaseline(useAppStore.getState());
+
+    const enqueueDiffs = (
+      prev: Map<string, number>,
+      next: Map<string, number>,
+      collection: 'questionHistory' | 'mcHistory' | 'savedSets'
+    ) => {
+      for (const [id, lm] of next) {
+        if (!prev.has(id) || prev.get(id) !== lm) {
+          engineRef.current?.enqueue(collection, 'upsert', id);
+        }
+      }
+      for (const id of prev.keys()) {
+        if (!next.has(id)) {
+          engineRef.current?.enqueue(collection, 'delete', id);
+        }
+      }
+    };
+
+    const enqueueNewTombstones = (
+      prev: Set<string>,
+      next: Set<string>,
+      collection: 'questionHistory' | 'mcHistory' | 'savedSets'
+    ) => {
+      for (const id of next) {
+        if (!prev.has(id)) {
+          engineRef.current?.enqueue(collection, 'delete', id);
+        }
+      }
+    };
+
+    const unsub = useAppStore.subscribe((state) => {
+      if (!state.isHydrated) return;
+
+      const nextBaseline = buildRealtimeLocalBaseline(state);
+
+      // Ignore remote-applied store patches and only advance baseline.
+      if (Date.now() < suppressPersistUntil) {
+        baseline = nextBaseline;
+        return;
+      }
+
+      enqueueDiffs(baseline.qh, nextBaseline.qh, 'questionHistory');
+      enqueueDiffs(baseline.mch, nextBaseline.mch, 'mcHistory');
+      enqueueDiffs(baseline.ss, nextBaseline.ss, 'savedSets');
+
+      enqueueNewTombstones(
+        baseline.qhTombs,
+        nextBaseline.qhTombs,
+        'questionHistory'
+      );
+      enqueueNewTombstones(baseline.mchTombs, nextBaseline.mchTombs, 'mcHistory');
+      enqueueNewTombstones(baseline.ssTombs, nextBaseline.ssTombs, 'savedSets');
+
+      baseline = nextBaseline;
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [user, isSyncEnabled]);
 
   useEffect(() => {
     if (!user || !isSyncEnabled || !isInitializedRef.current) return;
@@ -842,7 +891,7 @@ export function useSyncV2(): UseSyncV2Return {
         }
 
         initEngine(userId);
-        await engineRef.current?.start();
+        engineRef.current?.start();
         startupSyncDoneRef.current = true;
         setPendingChanges(0);
         setIsSyncEnabled(true);
@@ -866,7 +915,6 @@ export function useSyncV2(): UseSyncV2Return {
   const disableSync = useCallback(() => {
     manualSyncTicketRef.current += 1;
     setIsSyncing(false);
-    inForceSyncRef.current = false;
     setIsSyncEnabled(false);
     isInitializedRef.current = false;
     setSyncStatus('idle');
@@ -894,661 +942,6 @@ export function useSyncV2(): UseSyncV2Return {
       void engineRef.current?.start();
     }
   }, [isSyncEnabled, user, addSyncEvent]);
-
-  // eslint-disable-next-line complexity
-  const forceSync = useCallback(async () => {
-    if (!user) {
-      setSyncError('Not signed in');
-      return;
-    }
-    const ticket = ++manualSyncTicketRef.current;
-    debugLog('Manual sync started');
-    setIsSyncing(true);
-    inForceSyncRef.current = true;
-    setSyncStatus('syncing');
-    setIsSyncEnabled(true);
-    isInitializedRef.current = true;
-    toast.message('Syncing data...');
-    const userId = getUserId(user);
-
-    try {
-      const state = useAppStore.getState();
-      const localData = extractSyncableData(state);
-      const tombstones = state.deletionTombstones;
-
-      debugLog('Local data before sync', {
-        questionHistory: localData.questionHistory.length,
-        mcHistory: localData.mcHistory.length,
-        savedSets: localData.savedSets.length,
-      });
-
-      let remoteData: FirebaseSyncableData | null = null;
-      let remoteHasData = false;
-
-      // For manual push sync, we perform a full sync rather than delta-based sync
-      // This ensures all items are uploaded regardless of modification timestamps
-      remoteData = await loadUserData(userId);
-      setSyncTelemetry((prev) => ({
-        ...prev,
-        fullSyncReads: prev.fullSyncReads + 1,
-      }));
-      remoteHasData = hasRemoteDataCheck(
-        normalizeRemoteSyncableData(remoteData)
-      );
-
-      const detectedConflicts: DeletionSyncConflict[] = [];
-      if (remoteHasData && remoteData) {
-        const getIdString = (item: unknown): string => {
-          if (typeof item === 'object' && item !== null) {
-            const obj = item as Record<string, unknown>;
-            const id = obj.id;
-            if (typeof id === 'string') return id;
-            if (typeof id === 'number') return String(id);
-            return '';
-          }
-          return '';
-        };
-        const remoteQhIds = new Set(
-          (remoteData.questionHistory ?? []).map(getIdString)
-        );
-        const remoteMcIds = new Set(
-          (remoteData.mcHistory ?? []).map(getIdString)
-        );
-        const remoteSsIds = new Set(
-          (remoteData.savedSets ?? []).map(getIdString)
-        );
-        const prevSyncedQh = new Set(
-          Object.keys(syncMetadataRef.current.lastSyncVersions.questionHistory)
-        );
-        const prevSyncedMc = new Set(
-          Object.keys(syncMetadataRef.current.lastSyncVersions.mcHistory)
-        );
-        const prevSyncedSs = new Set(
-          Object.keys(syncMetadataRef.current.lastSyncVersions.savedSets)
-        );
-
-        for (const id of detectDualDeletions(
-          new Set(Object.keys(tombstones.questionHistory)),
-          remoteQhIds,
-          prevSyncedQh
-        )) {
-          detectedConflicts.push({
-            id,
-            collection: 'questionHistory',
-            label: buildConflictLabel(
-              'questionHistory',
-              id,
-              localData.questionHistory
-            ),
-            localDeletedAt: tombstones.questionHistory[id],
-          });
-        }
-        for (const id of detectDualDeletions(
-          new Set(Object.keys(tombstones.mcHistory)),
-          remoteMcIds,
-          prevSyncedMc
-        )) {
-          detectedConflicts.push({
-            id,
-            collection: 'mcHistory',
-            label: buildConflictLabel('mcHistory', id, localData.mcHistory),
-            localDeletedAt: tombstones.mcHistory[id],
-          });
-        }
-        for (const id of detectDualDeletions(
-          new Set(Object.keys(tombstones.savedSets)),
-          remoteSsIds,
-          prevSyncedSs
-        )) {
-          detectedConflicts.push({
-            id,
-            collection: 'savedSets',
-            label: buildConflictLabel('savedSets', id, localData.savedSets),
-            localDeletedAt: tombstones.savedSets[id],
-          });
-        }
-        const remotePresetIds = new Set(
-          (remoteData.presets ?? []).map((p: unknown): string => {
-            if (typeof p === 'object' && p !== null) {
-              const preset = p as Record<string, unknown>;
-              const id = preset.id;
-              if (typeof id === 'string') return id;
-              if (typeof id === 'number') return String(id);
-              return '';
-            }
-            return '';
-          })
-        );
-        const prevSyncedPresets = new Set(
-          (localData.presets ?? []).map((p: unknown): string => {
-            if (typeof p === 'object' && p !== null) {
-              const preset = p as Record<string, unknown>;
-              const id = preset.id;
-              if (typeof id === 'string') return id;
-              if (typeof id === 'number') return String(id);
-              return '';
-            }
-            return '';
-          })
-        );
-        for (const id of detectDualDeletions(
-          new Set(Object.keys(tombstones.presets)),
-          remotePresetIds,
-          prevSyncedPresets
-        )) {
-          detectedConflicts.push({
-            id,
-            collection: 'presets',
-            label: buildConflictLabel('presets', id, localData.presets ?? []),
-            localDeletedAt: tombstones.presets[id],
-          });
-        }
-      }
-
-      if (detectedConflicts.length > 0) {
-        setConflicts(detectedConflicts);
-        setSyncStatus('idle');
-        addSyncEvent(
-          'conflict',
-          `${detectedConflicts.length} deletion conflict${detectedConflicts.length === 1 ? '' : 's'} detected`
-        );
-        toast.warning(
-          `${detectedConflicts.length} deletion conflict${detectedConflicts.length === 1 ? '' : 's'} needs resolution`
-        );
-        return;
-      }
-
-      const filteredLocalData: SyncableDataV2 = {
-        ...localData,
-        questionHistory: filterDeleted(
-          localData.questionHistory,
-          tombstones.questionHistory
-        ),
-        mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
-        savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
-        presets: filterDeleted(localData.presets ?? [], tombstones.presets),
-      };
-
-      let merged = remoteHasData
-        ? mergeSyncableData(filteredLocalData, remoteData)
-        : filteredLocalData;
-      if (Object.keys(tombstones.presets).length > 0) {
-        merged = {
-          ...merged,
-          presets: (merged.presets ?? []).filter((p: unknown) => {
-            if (typeof p === 'object' && p !== null) {
-              const preset = p as Record<string, unknown>;
-              const id = preset.id;
-              const idStr =
-                typeof id === 'string'
-                  ? id
-                  : typeof id === 'number'
-                    ? String(id)
-                    : '';
-              return !idStr || !(idStr in tombstones.presets);
-            }
-            return true;
-          }),
-        };
-      }
-
-      if (remoteHasData) {
-        const storeUpdates = applySyncableDataToStore(merged);
-        setSuppressPersistUntil(Date.now() + 1500);
-        useAppStore.setState(storeUpdates);
-        addSyncEvent('download', 'Merged remote updates');
-      }
-
-      const deletedIds = tombstonesToDeletedIds(tombstones);
-      const hasDeletions =
-        deletedIds.questionHistory.length > 0 ||
-        deletedIds.mcHistory.length > 0 ||
-        deletedIds.savedSets.length > 0 ||
-        deletedIds.presets.length > 0;
-
-      debugLog('Manual push sync: uploading data', {
-        questionHistory: merged.questionHistory.length,
-        mcHistory: merged.mcHistory.length,
-        savedSets: merged.savedSets.length,
-        presets: merged.presets?.length ?? 0,
-        goals: merged.studyGoals ? 1 : 0,
-        streakData: merged.streakData ? 1 : 0,
-        hasDeletions,
-      });
-
-      await saveUserData(userId, toFirebaseSyncableData(merged), {
-        // For manual push sync, do NOT use deltaSyncVersions filtering
-        // This ensures ALL items are uploaded regardless of modification time
-        // fullSync: true will upload everything
-        fullSync: true,
-        ...(hasDeletions ? { deletedIds } : {}),
-      });
-      if (hasDeletions)
-        useAppStore.setState({
-          deletionTombstones: purgePersistedTombstones(tombstones, deletedIds),
-        });
-
-      try {
-        await saveDailyUsage(
-          userId,
-          state.generationHistory,
-          state.questionHistory,
-          state.mcHistory
-        );
-        await saveAnalyticsSummary(
-          userId,
-          state.generationHistory,
-          state.questionHistory,
-          state.mcHistory
-        );
-      } catch (err) {
-        console.warn('[SyncV2] Usage sync failed:', err);
-      }
-
-      const now = Date.now();
-      syncMetadataRef.current.lastSyncTime = now;
-      syncMetadataRef.current.lastSyncVersions.questionHistory =
-        buildVersionMap(merged.questionHistory);
-      syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        merged.mcHistory
-      );
-      syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        merged.savedSets
-      );
-      lastSyncedSnapshotRef.current = JSON.stringify(buildSyncSnapshot(merged));
-
-      setLastFlushTime(Date.now());
-      setPendingChanges(0);
-      setLastSyncTime(Date.now());
-      setSyncError(null);
-      setSyncStatus('idle');
-      toast.success('Sync complete');
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Force sync failed';
-      setSyncError(errorMessage);
-      setSyncStatus('error');
-      addSyncEvent('error', `Manual sync failed: ${errorMessage}`);
-      toast.error(`Sync failed: ${errorMessage}`);
-    } finally {
-      inForceSyncRef.current = false;
-      if (ticket === manualSyncTicketRef.current) {
-        setIsSyncing(false);
-      }
-    }
-  }, [user, debugLog, addSyncEvent]);
-
-  const pullSync = useCallback(async () => {
-    if (!user) {
-      setSyncError('Not signed in');
-      return;
-    }
-    const ticket = ++manualSyncTicketRef.current;
-    debugLog('Manual pull started');
-    setIsSyncing(true);
-    setSyncStatus('syncing');
-    setIsSyncEnabled(true);
-    isInitializedRef.current = true;
-    toast.message('Pulling cloud updates...');
-    const userId = getUserId(user);
-
-    try {
-      const state = useAppStore.getState();
-      const localData = extractSyncableData(state);
-      const tombstones = state.deletionTombstones;
-      const remoteData = await loadUserData(userId);
-      setSyncTelemetry((prev) => ({
-        ...prev,
-        fullSyncReads: prev.fullSyncReads + 1,
-      }));
-      const remoteHasData = hasRemoteDataCheck(
-        normalizeRemoteSyncableData(remoteData)
-      );
-
-      const filteredLocalData: SyncableDataV2 = {
-        ...localData,
-        questionHistory: filterDeleted(
-          localData.questionHistory,
-          tombstones.questionHistory
-        ),
-        mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
-        savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
-        presets: filterDeleted(localData.presets ?? [], tombstones.presets),
-      };
-
-      let merged = remoteHasData
-        ? mergeSyncableData(filteredLocalData, remoteData)
-        : filteredLocalData;
-      merged = {
-        ...merged,
-        questionHistory: filterDeleted(
-          merged.questionHistory,
-          tombstones.questionHistory
-        ),
-        mcHistory: filterDeleted(merged.mcHistory, tombstones.mcHistory),
-        savedSets: filterDeleted(merged.savedSets, tombstones.savedSets),
-        presets: filterDeleted(merged.presets ?? [], tombstones.presets),
-      };
-
-      const storeUpdates = applySyncableDataToStore(merged);
-      setSuppressPersistUntil(Date.now() + 1500);
-      useAppStore.setState(storeUpdates);
-
-      const now = Date.now();
-      syncMetadataRef.current.lastSyncTime = now;
-      syncMetadataRef.current.lastSyncVersions.questionHistory =
-        buildVersionMap(merged.questionHistory);
-      syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        merged.mcHistory
-      );
-      syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        merged.savedSets
-      );
-      lastSyncedSnapshotRef.current = JSON.stringify(buildSyncSnapshot(merged));
-
-      setLastSyncTime(Date.now());
-      setSyncError(null);
-      setSyncStatus('idle');
-      addSyncEvent('download', 'Pulled latest changes from cloud');
-      toast.success('Pull complete');
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Pull sync failed';
-      setSyncError(errorMessage);
-      setSyncStatus('error');
-      addSyncEvent('error', `Pull failed: ${errorMessage}`);
-      toast.error(`Pull failed: ${errorMessage}`);
-    } finally {
-      if (ticket === manualSyncTicketRef.current) {
-        setIsSyncing(false);
-      }
-    }
-  }, [user, debugLog, addSyncEvent]);
-
-  const pushSync = useCallback(async () => {
-    if (!user) {
-      setSyncError('Not signed in');
-      return;
-    }
-    const ticket = ++manualSyncTicketRef.current;
-    debugLog('Manual push started');
-    setIsSyncing(true);
-    setSyncStatus('syncing');
-    setIsSyncEnabled(true);
-    isInitializedRef.current = true;
-    toast.message('Pushing local changes...');
-    const userId = getUserId(user);
-
-    try {
-      const state = useAppStore.getState();
-      const localData = extractSyncableData(state);
-      const tombstones = state.deletionTombstones;
-
-      const filteredLocalData: SyncableDataV2 = {
-        ...localData,
-        questionHistory: filterDeleted(
-          localData.questionHistory,
-          tombstones.questionHistory
-        ),
-        mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
-        savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
-        presets: filterDeleted(localData.presets ?? [], tombstones.presets),
-      };
-
-      const deletedIds = tombstonesToDeletedIds(tombstones);
-      const hasDeletions =
-        deletedIds.questionHistory.length > 0 ||
-        deletedIds.mcHistory.length > 0 ||
-        deletedIds.savedSets.length > 0 ||
-        deletedIds.presets.length > 0;
-      await saveUserData(userId, toFirebaseSyncableData(filteredLocalData), {
-        deltaSyncVersions: syncMetadataRef.current.lastSyncVersions,
-        fullSync: false,
-        ...(hasDeletions ? { deletedIds } : {}),
-      });
-      if (hasDeletions)
-        useAppStore.setState({
-          deletionTombstones: purgePersistedTombstones(tombstones, deletedIds),
-        });
-
-      const now = Date.now();
-      syncMetadataRef.current.lastSyncTime = now;
-      syncMetadataRef.current.lastSyncVersions.questionHistory =
-        buildVersionMap(filteredLocalData.questionHistory);
-      syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-        filteredLocalData.mcHistory
-      );
-      syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-        filteredLocalData.savedSets
-      );
-      lastSyncedSnapshotRef.current = JSON.stringify(
-        buildSyncSnapshot(filteredLocalData)
-      );
-
-      setLastFlushTime(Date.now());
-      setPendingChanges(0);
-      setLastSyncTime(Date.now());
-      setSyncError(null);
-      setSyncStatus('idle');
-      addSyncEvent('upload', 'Pushed local changes to cloud');
-      toast.success('Push complete');
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Push sync failed';
-      setSyncError(errorMessage);
-      setSyncStatus('error');
-      addSyncEvent('error', `Push failed: ${errorMessage}`);
-      toast.error(`Push failed: ${errorMessage}`);
-    } finally {
-      if (ticket === manualSyncTicketRef.current) {
-        setIsSyncing(false);
-      }
-    }
-  }, [user, debugLog, addSyncEvent]);
-
-  const pullCollectionSync = useCallback(
-    async (collection: ManualSyncCollection) => {
-      if (!user) {
-        setSyncError('Not signed in');
-        return;
-      }
-
-      const ticket = ++manualSyncTicketRef.current;
-      debugLog('Manual collection pull started', { collection });
-      setIsSyncing(true);
-      setSyncStatus('syncing');
-      toast.message(`Pulling ${collectionLabel(collection)}...`);
-
-      try {
-        const state = useAppStore.getState();
-        const localData = extractSyncableData(state);
-        const tombstones = state.deletionTombstones;
-        const remoteData = normalizeRemoteSyncableData(
-          await loadUserData(getUserId(user))
-        );
-        setSyncTelemetry((prev) => ({
-          ...prev,
-          fullSyncReads: prev.fullSyncReads + 1,
-        }));
-
-        const base = {
-          ...localData,
-          questionHistory: filterDeleted(
-            localData.questionHistory,
-            tombstones.questionHistory
-          ),
-          mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
-          savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
-          presets: filterDeleted(localData.presets ?? [], tombstones.presets),
-        };
-
-        const source = remoteData ?? createEmptySyncableData();
-        let merged: SyncableDataV2 = base;
-
-        if (collection === 'questionHistory') {
-          merged = {
-            ...base,
-            questionHistory: filterDeleted(
-              source.questionHistory,
-              tombstones.questionHistory
-            ),
-          };
-        } else if (collection === 'mcHistory') {
-          merged = {
-            ...base,
-            mcHistory: filterDeleted(source.mcHistory, tombstones.mcHistory),
-          };
-        } else if (collection === 'savedSets') {
-          merged = {
-            ...base,
-            savedSets: filterDeleted(source.savedSets, tombstones.savedSets),
-          };
-        } else {
-          merged = {
-            ...base,
-            presets: filterDeleted(source.presets ?? [], tombstones.presets),
-          };
-        }
-
-        const storeUpdates = applySyncableDataToStore(merged);
-        setSuppressPersistUntil(Date.now() + 1500);
-        useAppStore.setState(storeUpdates);
-
-        const now = Date.now();
-        syncMetadataRef.current.lastSyncTime = now;
-        syncMetadataRef.current.lastSyncVersions.questionHistory =
-          buildVersionMap(merged.questionHistory);
-        syncMetadataRef.current.lastSyncVersions.mcHistory = buildVersionMap(
-          merged.mcHistory
-        );
-        syncMetadataRef.current.lastSyncVersions.savedSets = buildVersionMap(
-          merged.savedSets
-        );
-        lastSyncedSnapshotRef.current = JSON.stringify(
-          buildSyncSnapshot(merged)
-        );
-
-        setLastSyncTime(now);
-        setSyncStatus('idle');
-        setSyncError(null);
-        addSyncEvent('download', `Pulled ${collectionLabel(collection)}`);
-        toast.success(`${collectionLabel(collection)} pull complete`);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Collection pull failed';
-        setSyncError(errorMessage);
-        setSyncStatus('error');
-        addSyncEvent(
-          'error',
-          `${collectionLabel(collection)} pull failed: ${errorMessage}`
-        );
-        toast.error(
-          `${collectionLabel(collection)} pull failed: ${errorMessage}`
-        );
-      } finally {
-        if (ticket === manualSyncTicketRef.current) {
-          setIsSyncing(false);
-        }
-      }
-    },
-    [user, debugLog, addSyncEvent]
-  );
-
-  const pushCollectionSync = useCallback(
-    async (collection: ManualSyncCollection) => {
-      if (!user) {
-        setSyncError('Not signed in');
-        return;
-      }
-
-      const ticket = ++manualSyncTicketRef.current;
-      debugLog('Manual collection push started', { collection });
-      setIsSyncing(true);
-      setSyncStatus('syncing');
-      toast.message(`Pushing ${collectionLabel(collection)}...`);
-
-      try {
-        const state = useAppStore.getState();
-        const localData = extractSyncableData(state);
-        const tombstones = state.deletionTombstones;
-        const remoteData = normalizeRemoteSyncableData(
-          await loadUserData(getUserId(user))
-        );
-        setSyncTelemetry((prev) => ({
-          ...prev,
-          fullSyncReads: prev.fullSyncReads + 1,
-        }));
-
-        const filteredLocalData: SyncableDataV2 = {
-          ...localData,
-          questionHistory: filterDeleted(
-            localData.questionHistory,
-            tombstones.questionHistory
-          ),
-          mcHistory: filterDeleted(localData.mcHistory, tombstones.mcHistory),
-          savedSets: filterDeleted(localData.savedSets, tombstones.savedSets),
-          presets: filterDeleted(localData.presets ?? [], tombstones.presets),
-        };
-
-        const payload = remoteData ?? createEmptySyncableData();
-
-        if (collection === 'questionHistory') {
-          payload.questionHistory = filteredLocalData.questionHistory;
-        } else if (collection === 'mcHistory') {
-          payload.mcHistory = filteredLocalData.mcHistory;
-        } else if (collection === 'savedSets') {
-          payload.savedSets = filteredLocalData.savedSets;
-        } else {
-          payload.presets = filteredLocalData.presets;
-        }
-
-        const deletedIds = buildDeletedIdsForCollection(tombstones, collection);
-        const hasDeletions =
-          deletedIds.questionHistory.length > 0 ||
-          deletedIds.mcHistory.length > 0 ||
-          deletedIds.savedSets.length > 0 ||
-          deletedIds.presets.length > 0;
-
-        await saveUserData(getUserId(user), toFirebaseSyncableData(payload), {
-          fullSync: true,
-          ...(hasDeletions ? { deletedIds } : {}),
-        });
-
-        if (hasDeletions) {
-          useAppStore.setState({
-            deletionTombstones: purgePersistedTombstones(
-              tombstones,
-              deletedIds
-            ),
-          });
-        }
-
-        setLastFlushTime(Date.now());
-        setLastSyncTime(Date.now());
-        setSyncStatus('idle');
-        setSyncError(null);
-        addSyncEvent('upload', `Pushed ${collectionLabel(collection)}`);
-        toast.success(`${collectionLabel(collection)} push complete`);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Collection push failed';
-        setSyncError(errorMessage);
-        setSyncStatus('error');
-        addSyncEvent(
-          'error',
-          `${collectionLabel(collection)} push failed: ${errorMessage}`
-        );
-        toast.error(
-          `${collectionLabel(collection)} push failed: ${errorMessage}`
-        );
-      } finally {
-        if (ticket === manualSyncTicketRef.current) {
-          setIsSyncing(false);
-        }
-      }
-    },
-    [user, debugLog, addSyncEvent]
-  );
 
   const retryQueuedOpsNow = useCallback(() => {
     if (!engineRef.current) {
@@ -1608,107 +1001,9 @@ export function useSyncV2(): UseSyncV2Return {
           'conflict',
           `Confirmed deletion of ${deleted} item${deleted === 1 ? '' : 's'}`
         );
-      void forceSync();
     },
-    [conflicts, debugLog, addSyncEvent, forceSync]
+    [conflicts, debugLog, addSyncEvent]
   );
-
-  useEffect(() => {
-    if (
-      !user ||
-      !isSyncEnabled ||
-      !isOnline ||
-      !useAppStore.getState().isHydrated ||
-      startupSyncDoneRef.current
-    )
-      return;
-    startupSyncDoneRef.current = true;
-    const runStartupCheck = async () => {
-      try {
-        const hasDeletes = hasPendingLocalDeletes();
-        if (hasDeletes) {
-          debugLog('Startup reconciliation: pending deletes');
-          await forceSync();
-          return;
-        }
-        const current = useAppStore.getState();
-        const remoteCounts = await getRemoteHistoryCounts(getUserId(user));
-        const hasCountMismatch =
-          remoteCounts.questionHistory !== current.questionHistory.length ||
-          remoteCounts.mcHistory !== current.mcHistory.length;
-        const hasPresetsMismatch = await isRemotePresetsArrayDifferent(
-          getUserId(user),
-          current.presets ?? []
-        );
-        if (hasCountMismatch || hasPresetsMismatch) {
-          debugLog('Startup reconciliation: alignment mismatch');
-          await forceSync();
-        } else {
-          setSyncTelemetry((prev) => ({
-            ...prev,
-            deltaNoChangePasses: prev.deltaNoChangePasses + 1,
-            estimatedReadsAvoided: prev.estimatedReadsAvoided + 1,
-          }));
-          debugLog('Startup reconciliation skipped');
-        }
-      } catch {
-        startupSyncDoneRef.current = false;
-        addSyncEvent(
-          'retry',
-          'Startup reconciliation failed; will retry on next app focus'
-        );
-      }
-    };
-    void runStartupCheck();
-  }, [
-    user,
-    isSyncEnabled,
-    isOnline,
-    forceSync,
-    debugLog,
-    addSyncEvent,
-    hasPendingLocalDeletes,
-  ]);
-
-  useEffect(() => {
-    const maybeCatchUp = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (!user || !isSyncEnabled || !navigator.onLine || isSyncing) return;
-      if (conflicts.length > 0) return;
-      const now = Date.now();
-      if (now - foregroundSyncAtRef.current < FOREGROUND_SYNC_COOLDOWN_MS)
-        return;
-      foregroundSyncAtRef.current = now;
-      debugLog('Foreground catch-up sync triggered');
-      void forceSync();
-    };
-    window.addEventListener('focus', maybeCatchUp);
-    document.addEventListener('visibilitychange', maybeCatchUp);
-    return () => {
-      window.removeEventListener('focus', maybeCatchUp);
-      document.removeEventListener('visibilitychange', maybeCatchUp);
-    };
-  }, [user, isSyncEnabled, isSyncing, conflicts.length, forceSync, debugLog]);
-
-  const forceSyncRef = useRef(forceSync);
-  forceSyncRef.current = forceSync;
-  const autoSyncIntervalMinutes = useAppStore((s) => s.autoSyncIntervalMinutes);
-
-  useEffect(() => {
-    if (
-      !autoSyncIntervalMinutes ||
-      autoSyncIntervalMinutes <= 0 ||
-      !user ||
-      !isSyncEnabled
-    )
-      return;
-    const intervalMs = autoSyncIntervalMinutes * 60 * 1000;
-    const timerId = setInterval(() => {
-      if (!navigator.onLine || isSyncing) return;
-      void forceSyncRef.current();
-    }, intervalMs);
-    return () => clearInterval(timerId);
-  }, [user, isSyncEnabled, isSyncing, autoSyncIntervalMinutes]);
 
   return {
     user,
@@ -1730,12 +1025,8 @@ export function useSyncV2(): UseSyncV2Return {
     enableSync,
     disableSync,
     toggleSync,
-    pullSync,
-    pushSync,
-    pullCollectionSync,
-    pushCollectionSync,
-    forceSync,
     retryQueuedOpsNow,
     resolveConflicts,
+    clearSyncEvents,
   };
 }

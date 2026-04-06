@@ -191,17 +191,17 @@ export function GroupedSubtopicSelector({
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2 z-10">
                     <span className="font-semibold">{unit}</span>
-                    <button
-                      type="button"
+                    <span
+                      role="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
                         toggleSelectAllInUnit(unit);
                       }}
-                      className="text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-md hover:bg-muted/20"
+                      className="cursor-pointer text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-md hover:bg-muted/20"
                     >
                       <Plus className="w-3 h-3" />
-                    </button>
+                    </span>
                   </div>
                   {selectedCount > 0 && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary z-10">

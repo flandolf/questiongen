@@ -719,7 +719,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const ratio = window.devicePixelRatio || 1;
       const bgCtx = bgCanvas.getContext('2d')!;
       bgCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      paintBackground(bgCtx, bgCanvas.width / ratio, bgCanvas.height / ratio, bg);
+      paintBackground(
+        bgCtx,
+        bgCanvas.width / ratio,
+        bgCanvas.height / ratio,
+        bg
+      );
     }, [bg]);
 
     // ── Resize observer ──────────────────────────────────────────────────────
@@ -745,7 +750,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       const down = (e: KeyboardEvent) => {
         const textBoxFocused = document.activeElement === textInputRef.current;
-        if (textBoxFocused || isEditableTarget(e.target) || textInput !== null) {
+        if (
+          textBoxFocused ||
+          isEditableTarget(e.target) ||
+          textInput !== null
+        ) {
           return;
         }
 
@@ -972,7 +981,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         );
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo((lastPoint.current.x + sx) / 2, (lastPoint.current.y + sy) / 2);
+        ctx.moveTo(
+          (lastPoint.current.x + sx) / 2,
+          (lastPoint.current.y + sy) / 2
+        );
 
         lastPoint.current = { x: sx, y: sy };
       }
@@ -1166,7 +1178,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (e.button === 1) middleDown.current = true;
         setIsPanning(true);
         panPointerId.current = e.pointerId;
-        panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
+        panStart.current = {
+          mx: e.clientX,
+          my: e.clientY,
+          px: pan.x,
+          py: pan.y,
+        };
         e.preventDefault();
         return;
       }
@@ -1174,7 +1191,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (penOnlyMode && e.pointerType === 'touch') {
         setIsPanning(true);
         panPointerId.current = e.pointerId;
-        panStart.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
+        panStart.current = {
+          mx: e.clientX,
+          my: e.clientY,
+          px: pan.x,
+          py: pan.y,
+        };
         e.preventDefault();
         return;
       }
@@ -1197,7 +1219,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
       activePointers.current.set(e.pointerId, {
         type: e.pointerType,
-        touchDownTime: e.pointerType === 'touch' ? performance.now() : undefined,
+        touchDownTime:
+          e.pointerType === 'touch' ? performance.now() : undefined,
         rejected: e.pointerType === 'touch' && isLikelyPalmTouch(e),
         strokeStarted: false,
         tiltX: e.tiltX,
@@ -1308,7 +1331,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       // stylus input.
       const events: PointerEvent[] =
         isAndroid && typeof e.getCoalescedEvents === 'function'
-          ? (e.getCoalescedEvents())
+          ? e.getCoalescedEvents()
           : [];
 
       // Always include the primary event as fallback or last point
@@ -1670,10 +1693,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               key={tool}
               onClick={() => switchTool(tool)}
               title={`${TOOL_LABELS[tool]}${shortcut ? ` (${shortcut.toUpperCase()})` : ''}`}
-              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-all ${isActive
-                ? 'bg-indigo-500/90 text-white shadow-lg shadow-indigo-500/30'
-                : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
-                }`}
+              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-all ${
+                isActive
+                  ? 'bg-indigo-500/90 text-white shadow-lg shadow-indigo-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+              }`}
             >
               {TOOL_ICONS[tool]}
               <span className="text-[9px] uppercase leading-none mt-0.5 opacity-60">
@@ -1712,7 +1736,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           }}
         >
           <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center bg-black/30">
-            <span className="text-white text-[9px] font-mono font-bold">Click</span>
+            <span className="text-white text-[9px] font-mono font-bold">
+              Click
+            </span>
           </div>
         </div>
 
@@ -1808,7 +1834,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   className="w-6 h-6 rounded border-2 transition-all hover:scale-110 hover:shadow-lg"
                   style={{
                     background: c === '#ffffff' ? '#f0f0f0' : c,
-                    borderColor: currentColor === c ? '#fff' : 'rgba(107, 114, 128, 0.3)',
+                    borderColor:
+                      currentColor === c ? '#fff' : 'rgba(107, 114, 128, 0.3)',
                   }}
                   title={c}
                 />
@@ -1847,7 +1874,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     ) : (
       <div className="w-72 shrink-0 px-4 overflow-y-auto min-h-[90vh] rounded-xl">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xs uppercase tracking-widest text-gray-400 font-bold">Settings</h2>
+          <h2 className="text-xs uppercase tracking-widest text-gray-400 font-bold">
+            Settings
+          </h2>
           <button
             onClick={() => setSidebarCollapsed(true)}
             className="text-xs text-gray-500 hover:text-gray-300 p-1 rounded hover:bg-gray-700/40 inline-flex items-center justify-center gap-1 transition-colors"
@@ -1861,22 +1890,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         {/* Quick Status Panel */}
         <div className="mb-6 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
           <div className="flex items-center gap-3 mb-3">
-            <div className="text-indigo-400">
-              {TOOL_ICONS[activeTool]}
-            </div>
+            <div className="text-indigo-400">{TOOL_ICONS[activeTool]}</div>
             <div className="flex-1">
               <div className="text-xs font-semibold text-gray-300">
                 {TOOL_LABELS[activeTool]}
               </div>
               <div className="text-[10px] text-gray-500">
-                Shortcut: <span className="font-mono font-bold text-gray-400">{TOOL_SHORTCUTS[activeTool]}</span>
+                Shortcut:{' '}
+                <span className="font-mono font-bold text-gray-400">
+                  {TOOL_SHORTCUTS[activeTool]}
+                </span>
               </div>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
             <div>
               <div className="text-gray-500">Zoom</div>
-              <div className="text-indigo-300 font-bold">{Math.round(zoom * 100)}%</div>
+              <div className="text-indigo-300 font-bold">
+                {Math.round(zoom * 100)}%
+              </div>
             </div>
             {['pen', 'eraser'].includes(activeTool) && (
               <div>
@@ -1887,12 +1919,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             {activeTool === 'fill' && (
               <div>
                 <div className="text-gray-500">Tolerance</div>
-                <div className="text-indigo-300 font-bold">{floodFillTolerance}</div>
+                <div className="text-indigo-300 font-bold">
+                  {floodFillTolerance}
+                </div>
               </div>
             )}
             <div>
               <div className="text-gray-500">History</div>
-              <div className="text-indigo-300 font-bold">{undoStack.current.length}/{undoStack.current.length + redoStack.current.length}</div>
+              <div className="text-indigo-300 font-bold">
+                {undoStack.current.length}/
+                {undoStack.current.length + redoStack.current.length}
+              </div>
             </div>
           </div>
         </div>
@@ -1910,10 +1947,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   setColor(c);
                   addRecentColor(c);
                 }}
-                className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-105 ${currentColor === c
-                  ? 'border-white shadow-lg scale-105'
-                  : 'border-transparent'
-                  }`}
+                className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-105 ${
+                  currentColor === c
+                    ? 'border-white shadow-lg scale-105'
+                    : 'border-transparent'
+                }`}
                 style={{ background: c === '#ffffff' ? '#f0f0f0' : c }}
               />
             ))}
@@ -1924,10 +1962,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 <button
                   key={c}
                   onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-lg border transition-all hover:scale-105 ${currentColor === c
-                    ? 'border-white shadow scale-105'
-                    : 'border-gray-600/50'
-                    }`}
+                  className={`w-6 h-6 rounded-lg border transition-all hover:scale-105 ${
+                    currentColor === c
+                      ? 'border-white shadow scale-105'
+                      : 'border-gray-600/50'
+                  }`}
                   style={{ background: c }}
                 />
               ))}
@@ -2074,9 +2113,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   onCheckedChange={(e) => {
                     setDisablePressure(e as boolean);
                   }}
-                  disabled={['fill', 'line', 'rect', 'ellipse', 'text'].includes(
-                    activeTool
-                  )}
+                  disabled={[
+                    'fill',
+                    'line',
+                    'rect',
+                    'ellipse',
+                    'text',
+                  ].includes(activeTool)}
                   className="border-gray-600"
                 />
                 Disable Pressure
@@ -2091,26 +2134,27 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             Canvas
           </h3>
           <div className="grid grid-cols-3 gap-2 mb-4">
-            {(['white-grid', 'black-grid', 'lined', 'dot-grid'] as BgType[]).map(
-              (b) => (
-                <button
-                  key={b}
-                  onClick={() => setBg(b)}
-                  className={`py-2.5 text-xs rounded-lg border transition-all ${bg === b
+            {(
+              ['white-grid', 'black-grid', 'lined', 'dot-grid'] as BgType[]
+            ).map((b) => (
+              <button
+                key={b}
+                onClick={() => setBg(b)}
+                className={`py-2.5 text-xs rounded-lg border transition-all ${
+                  bg === b
                     ? 'border-indigo-400/70 text-indigo-300 bg-indigo-500/20'
                     : 'border-gray-600/50 text-gray-400 hover:border-gray-500 hover:text-gray-300'
-                    }`}
-                >
-                  {b === 'white-grid'
-                    ? 'Grid'
-                    : b === 'black-grid'
-                      ? 'Dark'
-                      : b === 'lined'
-                        ? 'Lined'
-                        : 'Dots'}
-                </button>
-              )
-            )}
+                }`}
+              >
+                {b === 'white-grid'
+                  ? 'Grid'
+                  : b === 'black-grid'
+                    ? 'Dark'
+                    : b === 'lined'
+                      ? 'Lined'
+                      : 'Dots'}
+              </button>
+            ))}
           </div>
           <div className="flex gap-2 mb-4">
             <button
@@ -2248,12 +2292,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               {Math.round(
                 (cursorPos.x -
                   containerRef.current.getBoundingClientRect().left) /
-                zoom
+                  zoom
               )}
               ,{' '}
               {Math.round(
-                (cursorPos.y - containerRef.current.getBoundingClientRect().top) /
-                zoom
+                (cursorPos.y -
+                  containerRef.current.getBoundingClientRect().top) /
+                  zoom
               )}
             </span>
           )}
@@ -2266,7 +2311,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 {undoStack.current.length}
               </>
             )}
-            {undoStack.current.length > 0 && redoStack.current.length > 0 && ' '}
+            {undoStack.current.length > 0 &&
+              redoStack.current.length > 0 &&
+              ' '}
             {redoStack.current.length > 0 && (
               <>
                 <Redo2 className="w-3 h-3" />
@@ -2275,7 +2322,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             )}
           </span>
           <span>
-            Zoom: <span className="text-gray-300">{Math.round(zoom * 100)}%</span>
+            Zoom:{' '}
+            <span className="text-gray-300">{Math.round(zoom * 100)}%</span>
           </span>
           <span>
             Size: <span className="text-gray-300">{currentSize}px</span>

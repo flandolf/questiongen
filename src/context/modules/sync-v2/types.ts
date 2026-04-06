@@ -99,12 +99,6 @@ export interface SyncTelemetry {
   estimatedReadsAvoided: number;
 }
 
-export type ManualSyncCollection =
-  | 'questionHistory'
-  | 'mcHistory'
-  | 'savedSets'
-  | 'presets';
-
 // ─── Conflicts ────────────────────────────────────────────────────────────────
 
 export type CollectionType = SyncCollection;
