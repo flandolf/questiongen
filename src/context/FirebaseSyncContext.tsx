@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useMemo } from 'react';
 
-import type { UseFirebaseSyncReturn } from './modules/sync-v2/useSyncV2';
+import type { UseSyncV2Return } from './modules/sync-v2/useSyncV2';
 import { useSyncV2 } from './modules/sync-v2/useSyncV2';
 
-const FirebaseSyncContext = createContext<UseFirebaseSyncReturn | null>(null);
+const FirebaseSyncContext = createContext<UseSyncV2Return | null>(null);
 
 export function FirebaseSyncProvider({
   children,
@@ -12,7 +12,7 @@ export function FirebaseSyncProvider({
 }) {
   const firebaseSync = useSyncV2();
 
-  const value = useMemo<UseFirebaseSyncReturn>(
+  const value = useMemo<UseSyncV2Return>(
     () => ({
       user: firebaseSync.user,
       isLoading: firebaseSync.isLoading,
@@ -77,7 +77,7 @@ export function FirebaseSyncProvider({
   );
 }
 
-export function useFirebaseSyncContext(): UseFirebaseSyncReturn {
+export function useFirebaseSyncContext(): UseSyncV2Return {
   const value = useContext(FirebaseSyncContext);
   if (!value) {
     throw new Error(

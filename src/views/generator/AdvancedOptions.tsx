@@ -166,8 +166,8 @@ export function AdvancedOptionsGroup({
               className="py-2"
             />
             <div className="flex justify-between text-[11px] text-muted-foreground">
-              x<span>1 min</span>
-              <span>20 max</span>
+              <span>1</span>
+              <span>20</span>
             </div>
           </div>
         </div>
@@ -193,8 +193,8 @@ export function AdvancedOptionsGroup({
                 className="py-2"
               />
               <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>1 min</span>
-                <span>15 max</span>
+                <span>1</span>
+                <span>15</span>
               </div>
             </div>
           </div>

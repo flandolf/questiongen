@@ -138,7 +138,7 @@ export class QueueManager {
   }
 
   get canRetry(): boolean {
-    return this.telemetry.retryBlocked;
+    return !this.telemetry.retryBlocked;
   }
 
   enqueue(

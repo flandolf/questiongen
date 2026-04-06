@@ -1,13 +1,11 @@
 /**
  * React hook wrapper for the sync-v2 engine.
- *
- * Drop-in replacement for useFirebaseSync — same API surface, same return type.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import type { SyncConflict as LegacySyncConflict } from '@/context/modules/deletion-tombstones';
+import type { SyncConflict as DeletionSyncConflict } from '@/context/modules/deletion-tombstones';
 import {
   buildConflictLabel,
   detectDualDeletions,
@@ -54,19 +52,6 @@ const SYNC_EVENT_LIMIT = 30;
 const SYNC_ENABLED_STORAGE_KEY = 'firebase_sync_enabled';
 const SYNC_ENABLED_USER_STORAGE_KEY_PREFIX = 'firebase_sync_enabled_v2';
 const FOREGROUND_SYNC_COOLDOWN_MS = 60_000;
-const LEGACY_SYNC_QUEUE_STORAGE_KEY = 'firebase_sync_queue_v1';
-
-/**
- * Clean up legacy v1 sync storage keys.
- * Run once on startup to migrate away from old storage format.
- */
-function cleanupLegacyStorage(): void {
-  try {
-    localStorage.removeItem(LEGACY_SYNC_QUEUE_STORAGE_KEY);
-  } catch {
-    /* non-fatal */
-  }
-}
 
 function readPersistedSyncEnabled(userId?: string): boolean {
   try {
@@ -181,6 +166,30 @@ function mergeSyncableData(
   );
   if (!normalizedRemote) return local;
 
+  const getLastModified = (item: Record<string, unknown>): number => {
+    const rawLastModified = item.lastModified;
+    if (
+      typeof rawLastModified === 'number' &&
+      Number.isFinite(rawLastModified)
+    ) {
+      return rawLastModified;
+    }
+
+    const rawUpdatedAt = item.updatedAt;
+    if (typeof rawUpdatedAt === 'string') {
+      const parsed = Date.parse(rawUpdatedAt);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+
+    const rawCreatedAt = item.createdAt;
+    if (typeof rawCreatedAt === 'string') {
+      const parsed = Date.parse(rawCreatedAt);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+
+    return 0;
+  };
+
   const byId = (
     localItems: Record<string, unknown>[],
     remoteItems: Record<string, unknown>[]
@@ -192,7 +201,11 @@ function mergeSyncableData(
     }
     for (const item of remoteItems) {
       const id = item.id;
-      if (typeof id === 'string' && id.length > 0) map.set(id, item);
+      if (typeof id !== 'string' || id.length === 0) continue;
+      const existing = map.get(id);
+      if (!existing || getLastModified(item) >= getLastModified(existing)) {
+        map.set(id, item);
+      }
     }
     return Array.from(map.values());
   };
@@ -315,7 +328,7 @@ function buildSyncSnapshot(data: SyncableDataV2): SyncSnapshot {
   };
 }
 
-export interface UseFirebaseSyncReturn {
+export interface UseSyncV2Return {
   user: FirebaseUser | null;
   isLoading: boolean;
   isSyncing: boolean;
@@ -331,7 +344,7 @@ export interface UseFirebaseSyncReturn {
   queuedOpsCount: number;
   lastFlushTime: number | null;
   syncTelemetry: SyncTelemetry;
-  conflicts: LegacySyncConflict[];
+  conflicts: DeletionSyncConflict[];
   enableSync: (
     email: string,
     password: string,
@@ -348,7 +361,7 @@ export interface UseFirebaseSyncReturn {
   resolveConflicts: (resolutions: Map<string, 'keep' | 'delete'>) => void;
 }
 
-export function useSyncV2(): UseFirebaseSyncReturn {
+export function useSyncV2(): UseSyncV2Return {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -362,7 +375,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
   const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [pendingChanges, setPendingChanges] = useState(0);
-  const [conflicts, setConflicts] = useState<LegacySyncConflict[]>([]);
+  const [conflicts, setConflicts] = useState<DeletionSyncConflict[]>([]);
   const [lastFlushTime, setLastFlushTime] = useState<number | null>(null);
   const [syncTelemetry, setSyncTelemetry] = useState<SyncTelemetry>({
     queuedOpsTotal: 0,
@@ -456,11 +469,6 @@ export function useSyncV2(): UseFirebaseSyncReturn {
   useEffect(() => {
     writePersistedSyncEnabled(isSyncEnabled, user?.uid);
   }, [isSyncEnabled, user?.uid]);
-
-  // One-time cleanup of legacy v1 storage on mount
-  useEffect(() => {
-    cleanupLegacyStorage();
-  }, []);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -928,7 +936,7 @@ export function useSyncV2(): UseFirebaseSyncReturn {
         normalizeRemoteSyncableData(remoteData)
       );
 
-      const detectedConflicts: LegacySyncConflict[] = [];
+      const detectedConflicts: DeletionSyncConflict[] = [];
       if (remoteHasData && remoteData) {
         const getIdString = (item: unknown): string => {
           if (typeof item === 'object' && item !== null) {
@@ -1547,10 +1555,31 @@ export function useSyncV2(): UseFirebaseSyncReturn {
       toast.info('Sync engine is not initialized yet');
       return;
     }
+    if (!isOnline) {
+      toast.info('Cannot retry while offline');
+      return;
+    }
+    if (!isSyncEnabledRef.current) {
+      toast.info('Enable sync before retrying queued operations');
+      return;
+    }
+    if (isSyncingRef.current) {
+      toast.info('Sync is already running');
+      return;
+    }
+    if (queuedOpsCount <= 0) {
+      toast.info('No queued operations to retry');
+      return;
+    }
+
     engineRef.current.retryNow();
-    addSyncEvent('retry', 'Manual retry requested for queued operations');
+    addSyncEvent(
+      'retry',
+      `Manual retry requested for ${queuedOpsCount} queued operation${queuedOpsCount === 1 ? '' : 's'}`
+    );
+    setSyncStatus('syncing');
     toast.message('Retrying queued operations...');
-  }, [addSyncEvent]);
+  }, [addSyncEvent, isOnline, queuedOpsCount]);
 
   const resolveConflicts = useCallback(
     (resolutions: Map<string, 'keep' | 'delete'>) => {
