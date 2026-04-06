@@ -411,10 +411,18 @@ pub fn decode_escapes(value: &str) -> String {
                 i += 2;
                 continue;
             }
-            // \n literal → newline, but only if not followed by a lowercase
-            // letter that would form a LaTeX command name (e.g. \nabla).
+            // \n literal → newline, but only if not followed by a character that
+            // would form a valid LaTeX command name (e.g. \nabla, \nu, \not).
+            // Valid LaTeX commands starting with \n have second char in: a, e, o, t, u
+            // (e.g. \nabla, \natural, \ne, \neq, \nearrow, \not, \notin, \nu).
+            // \nwhere (with 'w') is not a valid LaTeX command, so treat as newline.
             if chars[i + 1] == 'n' {
-                if chars.get(i + 2).map_or(false, |c| c.is_ascii_lowercase()) {
+                let next_char = chars.get(i + 2);
+                let is_latex_command = next_char.map_or(false, |c| {
+                    // Only these second characters can start valid LaTeX \n... commands
+                    matches!(c, 'a' | 'e' | 'o' | 't' | 'u')
+                });
+                if is_latex_command {
                     // Looks like a LaTeX command — keep the backslash.
                     out.push('\\');
                     out.push('n');
@@ -435,14 +443,111 @@ pub fn decode_escapes(value: &str) -> String {
 ///
 /// Applied to every markdown field after `decode_escapes`. Steps in order:
 ///
-/// 1. Un-double escaped delimiter chars that lenient JSON parsers leave as-is:
+/// 1. Repair common typo'd LaTeX commands that appear with an extra leading
+///    `b` after the backslash, e.g. `\bmathbb` -> `\mathbb`.
+/// 2. Un-double escaped delimiter chars that lenient JSON parsers leave as-is:
 ///    `\\(` → `\(`  etc.
 ///
-/// 2. Convert `\(...\)` → `$...$`  and  `\[...\]` → `$$...$$`.
+/// 3. Convert `\(...\)` → `$...$`  and  `\[...\]` → `$$...$$`.
 ///    MathJax is configured with only `$`/`$$` as delimiters.
 ///
-/// 3. Protect currency: a bare `$` immediately before an ASCII digit that is
+/// 4. Protect currency: a bare `$` immediately before an ASCII digit that is
 ///    not part of a `$$` display pair is replaced with `\$`.
+fn repair_common_latex_typos(text: &str) -> String {
+    const COMMANDS: &[&str] = &[
+        "alpha",
+        "approx",
+        "bar",
+        "beta",
+        "begin",
+        "bf",
+        "binom",
+        "big",
+        "Big",
+        "bigg",
+        "Bigg",
+        "cdot",
+        "cos",
+        "cosh",
+        "delta",
+        "div",
+        "end",
+        "epsilon",
+        "equiv",
+        "eta",
+        "exists",
+        "frac",
+        "forall",
+        "gamma",
+        "geq",
+        "hat",
+        "in",
+        "infty",
+        "int",
+        "lambda",
+        "leq",
+        "ln",
+        "log",
+        "mathbb",
+        "mathcal",
+        "mathfrak",
+        "mathrm",
+        "mathsf",
+        "mathtt",
+        "mu",
+        "nabla",
+        "neq",
+        "notin",
+        "omega",
+        "partial",
+        "phi",
+        "pi",
+        "pm",
+        "rho",
+        "rightarrow",
+        "Rightarrow",
+        "rm",
+        "sigma",
+        "sin",
+        "sinh",
+        "sqrt",
+        "subset",
+        "subseteq",
+        "sum",
+        "tan",
+        "tanh",
+        "text",
+        "theta",
+        "to",
+        "times",
+        "vec",
+        "xi",
+        "zeta",
+    ];
+
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(pos) = rest.find(r"\b") {
+        out.push_str(&rest[..pos]);
+        let after_b = &rest[pos + 2..];
+        if let Some(command) = COMMANDS
+            .iter()
+            .find(|command| after_b.starts_with(**command))
+        {
+            out.push('\\');
+            out.push_str(command);
+            rest = &after_b[command.len()..];
+        } else {
+            out.push_str(r"\b");
+            rest = after_b;
+        }
+    }
+
+    out.push_str(rest);
+    out
+}
+
 pub fn sanitise_latex(text: &str) -> String {
     // Step 1: undo double-escaping of delimiter chars
     let s = text
@@ -530,7 +635,9 @@ fn protect_currency_dollars(s: &str) -> String {
 ///   2. sanitise_latex      — normalise delimiters, protect currency $
 ///   3. normalise_typography — smart quotes, dashes, ellipsis → ASCII
 pub fn clean_field(s: &str) -> String {
-    normalise_typography(&sanitise_latex(&decode_escapes(s)))
+    normalise_typography(&sanitise_latex(&repair_common_latex_typos(
+        &decode_escapes(s),
+    )))
 }
 
 /// Strip characters that cause OpenRouter (or any JSON-based API) to reject
@@ -1249,8 +1356,38 @@ mod tests {
     }
 
     #[test]
+    fn repair_extra_b_before_common_commands() {
+        assert_eq!(
+            clean_field(r"$h: [1, \binfty) \to \bmathbb{R}$"),
+            r"$h: [1, \infty) \to \mathbb{R}$"
+        );
+    }
+
+    #[test]
+    fn does_not_change_valid_beta_command() {
+        assert_eq!(clean_field(r"\beta"), r"\beta");
+    }
+
+    #[test]
     fn decode_escapes_literal_backslash_r_plus_space_to_newline() {
         assert_eq!(decode_escapes(r"line1\r line2"), "line1\n line2");
+    }
+
+    #[test]
+    fn decode_escapes_literal_backslash_n_where_to_newline() {
+        // \nwhere (with 'w' as second char) is not a valid LaTeX command,
+        // so it should be treated as a newline followed by "where".
+        assert_eq!(
+            decode_escapes(r"condition\nwhere applies"),
+            "condition\nwhere applies"
+        );
+    }
+
+    #[test]
+    fn decode_escapes_preserves_valid_nabla_command() {
+        // \nabla IS a valid LaTeX command (second char 'a' is in allowed set),
+        // so the backslash should be preserved.
+        assert_eq!(decode_escapes(r"\nabla"), r"\nabla");
     }
 
     #[test]
