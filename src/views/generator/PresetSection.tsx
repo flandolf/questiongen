@@ -333,7 +333,7 @@ export function PresetSection({
                             ? ` · ${preset.preferences.questionCount} Qs`
                             : ''}
                           {preset.preferences.techMode !== 'tech-free'
-                            ? ` · ${preset.preferences.techMode === 'mix' ? 'Mixed' : 'Tech-Active'} calculator`
+                            ? ` · Tech-Active calculator`
                             : ''}
                         </p>
                       </div>

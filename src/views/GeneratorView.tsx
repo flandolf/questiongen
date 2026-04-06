@@ -40,6 +40,7 @@ import { applyBatchQualityChecks } from '@/lib/question-cache';
 import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
+  DiversityStrictness,
   GeneratedQuestion,
   GenerateMcQuestionsResponse,
   GenerateQuestionsResponse,
@@ -126,6 +127,11 @@ export function GeneratorView() {
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
   const [customFocusArea, setCustomFocusArea] = useState('');
+  const [diversityStrictness, setDiversityStrictness] =
+    useState<DiversityStrictness>('moderate');
+  const [strictLatexValidation, setStrictLatexValidation] = useState(false);
+  const [strictSubtopicCoverage, setStrictSubtopicCoverage] = useState(false);
+  const [minSubtopicCoverageRatio, setMinSubtopicCoverageRatio] = useState(0.7);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
     Record<string, string>
@@ -1289,6 +1295,9 @@ export function GeneratorView() {
     setLastFailedAction(null);
     setStreamText('');
     setGenerationSubCallProgress(null);
+    const generationSeed =
+      ((Date.now() & 0x7fffffff) ^ Math.floor(Math.random() * 0x7fffffff)) >>>
+      0;
     const counts = distributeQuestions(selectedTopics, questionCount);
     const firstActiveIdx = selectedTopics.findIndex((_, j) => counts[j] > 0);
     const firstAllocTopic =
@@ -1323,6 +1332,9 @@ export function GeneratorView() {
         estimatedCostUsd: 0,
         distinctnessAvg: 0,
         multiStepDepthAvg: 0,
+        qualityDiagnostics: undefined as
+          | GenerationTelemetry['qualityDiagnostics']
+          | undefined,
       };
       let distinctnessWeight = 0;
       let multiStepDepthWeight = 0;
@@ -1343,7 +1355,12 @@ export function GeneratorView() {
           // decides which subtopics to use (reducing LLM-side randomness).
           // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
-          const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic]);
+          const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic], {
+            seed: generationSeed + i * 1009,
+            combineForSmallBatches: true,
+            minSubtopicsPerQuestion: 2,
+            maxSubtopicsPerQuestion: 3,
+          });
           if (!isMultiTopic) {
             const hasFocus = topicSubtopics.length > 0;
             setGenerationStatus({
@@ -1379,6 +1396,10 @@ export function GeneratorView() {
                   subtopics: call.subtopics,
                   customFocusArea: getCustomFocusArea(),
                   avoidSimilarQuestions,
+                  strictLatexValidation,
+                  strictSubtopicCoverage,
+                  minSubtopicCoverageRatio,
+                  diversityStrictness,
                   priorQuestionPrompts: avoidSimilarQuestions
                     ? getRecentSameTopicQuestionPrompts('written')
                     : [],
@@ -1399,6 +1420,9 @@ export function GeneratorView() {
               (response.distinctnessAvg || 0) * response.questions.length;
             totalTelemetry.multiStepDepthAvg +=
               (response.multiStepDepthAvg || 0) * response.questions.length;
+            if (response.qualityDiagnostics) {
+              totalTelemetry.qualityDiagnostics = response.qualityDiagnostics;
+            }
             distinctnessWeight += response.questions.length;
             multiStepDepthWeight += response.questions.length;
 
@@ -1527,6 +1551,9 @@ export function GeneratorView() {
     setLastFailedAction(null);
     setStreamText('');
     setGenerationSubCallProgress(null);
+    const generationSeed =
+      ((Date.now() & 0x7fffffff) ^ Math.floor(Math.random() * 0x7fffffff)) >>>
+      0;
     const counts = distributeQuestions(selectedTopics, questionCount);
     const firstActiveIdxMc = selectedTopics.findIndex((_, j) => counts[j] > 0);
     const firstAllocTopicMc =
@@ -1563,6 +1590,9 @@ export function GeneratorView() {
         estimatedCostUsd: 0,
         distinctnessAvg: 0,
         multiStepDepthAvg: 0,
+        qualityDiagnostics: undefined as
+          | GenerationTelemetry['qualityDiagnostics']
+          | undefined,
       };
       let distinctnessWeight = 0;
       let multiStepDepthWeight = 0;
@@ -1584,7 +1614,12 @@ export function GeneratorView() {
           // returns to avoid predictable answer positions.
           // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
-          const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic]);
+          const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic], {
+            seed: generationSeed + i * 1009,
+            combineForSmallBatches: true,
+            minSubtopicsPerQuestion: 2,
+            maxSubtopicsPerQuestion: 3,
+          });
           if (!isMultiTopic) {
             const hasFocus = topicSubtopics.length > 0;
             setGenerationStatus({
@@ -1619,6 +1654,10 @@ export function GeneratorView() {
                   subtopics: call.subtopics,
                   customFocusArea: getCustomFocusArea(),
                   avoidSimilarQuestions,
+                  strictLatexValidation,
+                  strictSubtopicCoverage,
+                  minSubtopicCoverageRatio,
+                  diversityStrictness,
                   priorQuestionPrompts: avoidSimilarQuestions
                     ? getRecentSameTopicQuestionPrompts('multiple-choice')
                     : [],
@@ -1644,6 +1683,9 @@ export function GeneratorView() {
               (response.distinctnessAvg || 0) * response.questions.length;
             totalTelemetry.multiStepDepthAvg +=
               (response.multiStepDepthAvg || 0) * response.questions.length;
+            if (response.qualityDiagnostics) {
+              totalTelemetry.qualityDiagnostics = response.qualityDiagnostics;
+            }
             distinctnessWeight += response.questions.length;
             multiStepDepthWeight += response.questions.length;
 
@@ -2255,6 +2297,14 @@ export function GeneratorView() {
           onSetTechMode={setTechMode}
           customFocusArea={customFocusArea}
           onSetCustomFocusArea={setCustomFocusArea}
+          diversityStrictness={diversityStrictness}
+          onSetDiversityStrictness={setDiversityStrictness}
+          strictLatexValidation={strictLatexValidation}
+          onSetStrictLatexValidation={setStrictLatexValidation}
+          strictSubtopicCoverage={strictSubtopicCoverage}
+          onSetStrictSubtopicCoverage={setStrictSubtopicCoverage}
+          minSubtopicCoverageRatio={minSubtopicCoverageRatio}
+          onSetMinSubtopicCoverageRatio={setMinSubtopicCoverageRatio}
           difficulty={difficulty}
           onSetDifficulty={setDifficulty}
           questionCount={questionCount}

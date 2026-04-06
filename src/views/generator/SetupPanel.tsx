@@ -35,6 +35,7 @@ import {
   type BatchTopicProgress,
   type ChemistrySubtopic,
   type Difficulty,
+  type DiversityStrictness,
   type GenerationStatusEvent,
   type GenerationSubCallProgress,
   type GenerationTelemetry,
@@ -127,6 +128,14 @@ type SetupPanelProps = {
   onSetTechMode: (mode: TechMode) => void;
   customFocusArea: string;
   onSetCustomFocusArea: (value: string) => void;
+  diversityStrictness: DiversityStrictness;
+  onSetDiversityStrictness: (value: DiversityStrictness) => void;
+  strictLatexValidation: boolean;
+  onSetStrictLatexValidation: (enabled: boolean) => void;
+  strictSubtopicCoverage: boolean;
+  onSetStrictSubtopicCoverage: (enabled: boolean) => void;
+  minSubtopicCoverageRatio: number;
+  onSetMinSubtopicCoverageRatio: (ratio: number) => void;
   difficulty: Difficulty;
   onSetDifficulty: (level: Difficulty) => void;
   questionCount: number;
@@ -173,6 +182,14 @@ function SetupPanelImpl({
   onSetTechMode,
   customFocusArea,
   onSetCustomFocusArea,
+  diversityStrictness,
+  onSetDiversityStrictness,
+  strictLatexValidation,
+  onSetStrictLatexValidation,
+  strictSubtopicCoverage,
+  onSetStrictSubtopicCoverage,
+  minSubtopicCoverageRatio,
+  onSetMinSubtopicCoverageRatio,
   difficulty,
   onSetDifficulty,
   questionCount,
@@ -437,6 +454,14 @@ function SetupPanelImpl({
               onSetShuffleQuestions={onSetShuffleQuestions}
               customFocusArea={customFocusArea}
               onSetCustomFocusArea={onSetCustomFocusArea}
+              diversityStrictness={diversityStrictness}
+              onSetDiversityStrictness={onSetDiversityStrictness}
+              strictLatexValidation={strictLatexValidation}
+              onSetStrictLatexValidation={onSetStrictLatexValidation}
+              strictSubtopicCoverage={strictSubtopicCoverage}
+              onSetStrictSubtopicCoverage={onSetStrictSubtopicCoverage}
+              minSubtopicCoverageRatio={minSubtopicCoverageRatio}
+              onSetMinSubtopicCoverageRatio={onSetMinSubtopicCoverageRatio}
             />
           </div>
 

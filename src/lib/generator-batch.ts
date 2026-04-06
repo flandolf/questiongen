@@ -1,9 +1,17 @@
-import {
-  generateSeedFromTopics,
-  selectSubtopicsLocal,
-  shuffleWithSeed,
-} from '@/lib/randomization';
+import { generateSeedFromTopics, shuffleWithSeed } from '@/lib/randomization';
 import type { McQuestion, Topic } from '@/types';
+
+interface SubtopicCall {
+  subtopics: string[];
+  count: number;
+}
+
+interface SubtopicCallOptions {
+  seed?: number;
+  combineForSmallBatches?: boolean;
+  minSubtopicsPerQuestion?: number;
+  maxSubtopicsPerQuestion?: number;
+}
 
 export function distributeQuestions(topics: Topic[], total: number): number[] {
   if (topics.length === 0) return [];
@@ -15,20 +23,80 @@ export function distributeQuestions(topics: Topic[], total: number): number[] {
 export function buildSubtopicCalls(
   subtopics: string[],
   total: number,
-  topics: Topic[] = []
-) {
+  topics: Topic[] = [],
+  options: SubtopicCallOptions = {}
+): SubtopicCall[] {
   if (!subtopics || subtopics.length === 0)
     return [{ subtopics: [], count: total }];
 
-  const seed = generateSeedFromTopics(topics, subtopics);
+  const seed = options.seed ?? generateSeedFromTopics(topics, subtopics);
+  const shuffledSubs = shuffleWithSeed(subtopics, seed);
+
+  const combineForSmallBatches =
+    options.combineForSmallBatches !== false && shuffledSubs.length > 1;
+
+  const minSubtopicsPerQuestion = Math.max(
+    1,
+    Math.min(shuffledSubs.length, options.minSubtopicsPerQuestion ?? 2)
+  );
+  const maxSubtopicsPerQuestion = Math.max(
+    minSubtopicsPerQuestion,
+    Math.min(shuffledSubs.length, options.maxSubtopicsPerQuestion ?? 3)
+  );
 
   if (total <= subtopics.length) {
-    const picked = selectSubtopicsLocal(subtopics, total, seed);
-    return picked.map((s) => ({ subtopics: [s], count: 1 }));
+    const calls: SubtopicCall[] = [];
+
+    // For small batches, bundle multiple focus areas into each question call
+    // so integrated exam-style questions are more likely and coverage is wider.
+    const targetSubtopicsPerQuestion = combineForSmallBatches
+      ? Math.max(
+          minSubtopicsPerQuestion,
+          Math.min(
+            maxSubtopicsPerQuestion,
+            Math.ceil(shuffledSubs.length / total)
+          )
+        )
+      : 1;
+
+    for (let i = 0; i < total; i++) {
+      if (targetSubtopicsPerQuestion <= 1) {
+        calls.push({
+          subtopics: [shuffledSubs[i % shuffledSubs.length]],
+          count: 1,
+        });
+        continue;
+      }
+
+      const stride = Math.max(
+        1,
+        Math.floor(shuffledSubs.length / targetSubtopicsPerQuestion)
+      );
+      const chosen: string[] = [];
+      const seen = new Set<string>();
+
+      // Spread picks across the shuffled list to reduce overlap between calls.
+      for (
+        let step = 0;
+        step < shuffledSubs.length &&
+        chosen.length < targetSubtopicsPerQuestion;
+        step++
+      ) {
+        const idx = (i + step * stride) % shuffledSubs.length;
+        const candidate = shuffledSubs[idx];
+        if (!seen.has(candidate)) {
+          seen.add(candidate);
+          chosen.push(candidate);
+        }
+      }
+
+      calls.push({ subtopics: chosen, count: 1 });
+    }
+
+    return calls;
   }
 
   const counts = distributeQuestions(subtopics as Topic[], total);
-  const shuffledSubs = shuffleWithSeed(subtopics, seed);
   return shuffledSubs.map((s, i) => ({ subtopics: [s], count: counts[i] }));
 }
 

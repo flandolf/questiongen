@@ -257,12 +257,12 @@ function compactQuestionHistory(
     lastModified: trimmed.lastModified,
     question: qMeta
       ? {
-        id: qMeta.id,
-        topic: qMeta.topic,
-        subtopic: qMeta.subtopic,
-        maxMarks: qMeta.maxMarks,
-        promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
-      }
+          id: qMeta.id,
+          topic: qMeta.topic,
+          subtopic: qMeta.subtopic,
+          maxMarks: qMeta.maxMarks,
+          promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
+        }
       : undefined,
     uploadedAnswer: clipString(trimmed.uploadedAnswer, 20_000),
     markResponse: trimmed.markResponse,
@@ -298,11 +298,11 @@ function compactMcHistory(
     maxMarks: trimmed.maxMarks,
     question: qMeta
       ? {
-        id: qMeta.id,
-        topic: qMeta.topic,
-        subtopic: qMeta.subtopic,
-        promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
-      }
+          id: qMeta.id,
+          topic: qMeta.topic,
+          subtopic: qMeta.subtopic,
+          promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
+        }
       : undefined,
   };
   if (estimateDocSizeBytes(metadataOnly) <= FIRESTORE_DOC_SAFE_BYTES)

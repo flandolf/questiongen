@@ -91,6 +91,10 @@ pub struct GenerateQuestionsRequest {
     pub custom_focus_area: Option<String>,
     pub avoid_similar_questions: Option<bool>,
     pub prior_question_prompts: Option<Vec<String>>,
+    pub strict_latex_validation: Option<bool>,
+    pub strict_subtopic_coverage: Option<bool>,
+    pub min_subtopic_coverage_ratio: Option<f32>,
+    pub diversity_strictness: Option<String>,
     pub average_marks_per_question: Option<u8>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub recent_average_score: Option<f64>,
@@ -127,6 +131,21 @@ pub struct GenerateQuestionsResponse {
     pub command_verb_diversity: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mark_allocation_variance: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_diagnostics: Option<GenerationQualityDiagnostics>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationQualityDiagnostics {
+    pub selected_subtopics: Vec<String>,
+    pub covered_subtopics: Vec<String>,
+    pub uncovered_subtopics: Vec<String>,
+    pub out_of_scope_subtopics: Vec<String>,
+    pub subtopic_coverage_ratio: f32,
+    pub min_subtopic_coverage_ratio: f32,
+    pub latex_issue_count: usize,
+    pub latex_issue_examples: Vec<String>,
 }
 
 // ─── Answer marking ───────────────────────────────────────────────────────────
@@ -295,6 +314,10 @@ pub struct GenerateMcQuestionsRequest {
     pub custom_focus_area: Option<String>,
     pub avoid_similar_questions: Option<bool>,
     pub prior_question_prompts: Option<Vec<String>>,
+    pub strict_latex_validation: Option<bool>,
+    pub strict_subtopic_coverage: Option<bool>,
+    pub min_subtopic_coverage_ratio: Option<f32>,
+    pub diversity_strictness: Option<String>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
@@ -361,4 +384,6 @@ pub struct GenerateMcQuestionsResponse {
     pub command_verb_diversity: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mark_allocation_variance: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_diagnostics: Option<GenerationQualityDiagnostics>,
 }

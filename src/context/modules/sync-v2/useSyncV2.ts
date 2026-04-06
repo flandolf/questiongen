@@ -301,7 +301,9 @@ function buildSyncSnapshot(data: SyncableDataV2): SyncSnapshot {
   };
 }
 
-function toIdLastModifiedMap(items: Record<string, unknown>[]): Map<string, number> {
+function toIdLastModifiedMap(
+  items: Record<string, unknown>[]
+): Map<string, number> {
   const map = new Map<string, number>();
   for (const item of items) {
     const id = getSnapshotItemId(item);
@@ -316,8 +318,12 @@ function buildRealtimeLocalBaseline(state: AppState): RealtimeLocalBaseline {
     qh: toIdLastModifiedMap(
       state.questionHistory as unknown as Record<string, unknown>[]
     ),
-    mch: toIdLastModifiedMap(state.mcHistory as unknown as Record<string, unknown>[]),
-    ss: toIdLastModifiedMap(state.savedSets as unknown as Record<string, unknown>[]),
+    mch: toIdLastModifiedMap(
+      state.mcHistory as unknown as Record<string, unknown>[]
+    ),
+    ss: toIdLastModifiedMap(
+      state.savedSets as unknown as Record<string, unknown>[]
+    ),
     qhTombs: new Set(Object.keys(state.deletionTombstones.questionHistory)),
     mchTombs: new Set(Object.keys(state.deletionTombstones.mcHistory)),
     ssTombs: new Set(Object.keys(state.deletionTombstones.savedSets)),
@@ -547,7 +553,12 @@ export function useSyncV2(): UseSyncV2Return {
   }, [user, isSyncEnabled, initEngine]);
 
   useEffect(() => {
-    if (!user || !isSyncEnabled || !isInitializedRef.current || !engineRef.current)
+    if (
+      !user ||
+      !isSyncEnabled ||
+      !isInitializedRef.current ||
+      !engineRef.current
+    )
       return;
 
     let baseline = buildRealtimeLocalBaseline(useAppStore.getState());
@@ -601,7 +612,11 @@ export function useSyncV2(): UseSyncV2Return {
         nextBaseline.qhTombs,
         'questionHistory'
       );
-      enqueueNewTombstones(baseline.mchTombs, nextBaseline.mchTombs, 'mcHistory');
+      enqueueNewTombstones(
+        baseline.mchTombs,
+        nextBaseline.mchTombs,
+        'mcHistory'
+      );
       enqueueNewTombstones(baseline.ssTombs, nextBaseline.ssTombs, 'savedSets');
 
       baseline = nextBaseline;

@@ -81,7 +81,6 @@ function coalesceKey(op: SyncOperation): string {
  */
 function coalesceOperations(operations: SyncOperation[]): SyncOperation[] {
   const latestByKey = new Map<string, SyncOperation>();
-  let noopsDetected = 0;
 
   for (const op of operations) {
     const key = coalesceKey(op);
@@ -101,7 +100,6 @@ function coalesceOperations(operations: SyncOperation[]): SyncOperation[] {
     if (existing.opType === 'upsert' && op.opType === 'delete') {
       // Upsert then delete = just delete, but since item is new, this is noop
       if (op.entityId) latestByKey.delete(key);
-      noopsDetected += 1;
     } else if (existing.opType === 'delete' && op.opType === 'upsert') {
       // Delete then upsert = recreate, so upsert is the final state
       latestByKey.set(key, op);
@@ -113,9 +111,6 @@ function coalesceOperations(operations: SyncOperation[]): SyncOperation[] {
       latestByKey.set(key, op);
     }
   }
-
-  // Note: noopsDetected is tracked but not currently exposed
-  // could add to telemetry if needed
   return Array.from(latestByKey.values());
 }
 
