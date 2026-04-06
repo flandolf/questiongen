@@ -21,17 +21,25 @@ import {
   normalizeMarkResponse,
   readBackendError,
 } from '@/lib/app-utils';
-import { applyBatchQualityChecks } from '@/lib/question-cache';
 import {
-  generateSeedFromTopics,
-  selectSubtopicsLocal,
-  shuffleWithSeed,
-  validateMcqQuality,
-} from '@/lib/randomization';
+  buildSubtopicCalls,
+  distributeQuestions,
+  preprocessMcQuestions,
+  shuffleMcQuestionOptions,
+} from '@/lib/generator-batch';
+import {
+  countWords,
+  generateEntryId,
+  getDifficultyBadgeClasses,
+  isMathTopic,
+  rekeyMc,
+  rekeyWritten,
+  removeKey,
+} from '@/lib/generator-helpers';
+import { applyBatchQualityChecks } from '@/lib/question-cache';
 import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
-  Difficulty,
   GeneratedQuestion,
   GenerateMcQuestionsResponse,
   GenerateQuestionsResponse,
@@ -69,160 +77,7 @@ import { WrittenAnswerCard } from './generator/WrittenAnswerCard';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function countWords(value: string) {
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
-}
-
 const MC_MAX_EXPLANATION_WORDS = 180;
-
-function isMathTopic(topic?: string) {
-  return topic === 'Mathematical Methods' || topic === 'Specialist Mathematics';
-}
-
-function getDifficultyBadgeClasses(level: Difficulty) {
-  switch (level) {
-    case 'Essential Skills':
-      return 'border-green-300 bg-green-50 text-green-800 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-200';
-    case 'Easy':
-      return 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200';
-    case 'Medium':
-      return 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200';
-    case 'Hard':
-      return 'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-200';
-    case 'Extreme':
-      return 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200';
-    default:
-      return '';
-  }
-}
-
-// ─── Batch distribution helper ────────────────────────────────────────────────
-// Distributes `total` questions across `n` topics as evenly as possible.
-// The remainder is spread across the first topics (not the last) so that
-// e.g. 10 questions over 3 topics → [4, 3, 3] rather than [3, 3, 4].
-function distributeQuestions(topics: Topic[], total: number): number[] {
-  if (topics.length === 0) return [];
-  const base = Math.floor(total / topics.length);
-  const remainder = total % topics.length;
-  return topics.map((_, i) => base + (i < remainder ? 1 : 0));
-}
-
-// ─── Pure helpers (moved outside component) ───────────────────────────────────
-
-function removeKey<T>(
-  record: Record<string, T>,
-  key: string
-): Record<string, T> {
-  const next = { ...record };
-  delete next[key];
-  return next;
-}
-
-function generateEntryId(): string {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function rekeyWritten(qs: GeneratedQuestion[]): GeneratedQuestion[] {
-  return qs.map((q, i) => ({ ...q, id: `q${i + 1}` }));
-}
-
-function rekeyMc(qs: McQuestion[]): McQuestion[] {
-  return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
-}
-
-/**
- * Hash a string into a numeric seed suitable for shuffleWithSeed.
- * Uses a simple djb2-style hash to ensure different strings produce
- * different seeds (unlike charCodeAt(0) which only reads the first char).
- */
-function hashStringForSeed(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
-  }
-  return Math.abs(hash | 0);
-}
-
-// Build per-subtopic generation calls when subtopics are present.
-// Uses locally-seeded randomization for reproducible subtopic selection.
-// If `total` <= subtopics.length, pick `total` distinct subtopics and
-// request 1 question each. Otherwise distribute counts across subtopics.
-function buildSubtopicCalls(
-  subtopics: string[],
-  total: number,
-  topics: Topic[] = []
-) {
-  if (!subtopics || subtopics.length === 0)
-    return [{ subtopics: [], count: total }];
-
-  // Generate a seed from topics for reproducible randomization
-  const seed = generateSeedFromTopics(topics, subtopics);
-
-  if (total <= subtopics.length) {
-    // Select k subtopics locally with seeded randomization
-    const picked = selectSubtopicsLocal(subtopics, total, seed);
-    return picked.map((s) => ({ subtopics: [s], count: 1 }));
-  }
-
-  const counts = distributeQuestions(subtopics as Topic[], total);
-  // Shuffle subtopics with seed for variety
-  const shuffledSubs = shuffleWithSeed(subtopics, seed);
-  return shuffledSubs.map((s, i) => ({ subtopics: [s], count: counts[i] }));
-}
-
-function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
-  const originalOptions = q.options ?? [];
-  if (originalOptions.length < 2) return q; // Skip if insufficient options
-
-  const correctText = originalOptions.find(
-    (o) => o.label === q.correctAnswer
-  )?.text;
-
-  // Use a hash of the full question ID for a unique, reproducible seed per question
-  const seed = hashStringForSeed(
-    q.id ?? `${q.topic}-${q.promptMarkdown.slice(0, 50)}`
-  );
-  const shuffled = shuffleWithSeed([...originalOptions], seed);
-
-  const labels = shuffled.map((_, i) => String.fromCharCode(65 + i)); // 'A','B',...
-  const relabeled = shuffled.map((o, i) => ({
-    label: labels[i],
-    text: o.text,
-  }));
-
-  const newCorrect =
-    relabeled.find((o) =>
-      correctText ? o.text.trim() === correctText.trim() : false
-    )?.label ??
-    relabeled[0]?.label ??
-    q.correctAnswer;
-
-  return { ...q, options: relabeled, correctAnswer: newCorrect };
-}
-
-/**
- * Apply quality validation and shuffling to MCQ questions.
- * Logs issues but doesn't filter out questions.
- */
-function preprocessMcQuestions(questions: McQuestion[]): McQuestion[] {
-  return questions.map((q) => {
-    // Validate question quality
-    const validation = validateMcqQuality(q);
-    if (!validation.isValid) {
-      console.warn(`MCQ question ${q.id} has issues:`, validation.issues);
-    }
-
-    // Shuffle options locally using seeded random
-    return shuffleMcQuestionOptions(q);
-  });
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -343,9 +198,6 @@ export function GeneratorView() {
     questionMode,
     setQuestionMode,
     aiDifficultyScalingEnabled,
-    setAiDifficultyScalingEnabled,
-    difficultyThresholds,
-    setDifficultyThresholds,
   } = useAppPreferences();
 
   const {
@@ -2395,10 +2247,6 @@ export function GeneratorView() {
           onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
           shuffleQuestions={shuffleQuestions}
           onSetShuffleQuestions={setShuffleQuestions}
-          aiDifficultyScalingEnabled={aiDifficultyScalingEnabled}
-          onSetAiDifficultyScalingEnabled={setAiDifficultyScalingEnabled}
-          difficultyThresholds={difficultyThresholds}
-          onSetDifficultyThresholds={setDifficultyThresholds}
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}
           isGenerating={isGenerating}

@@ -1418,7 +1418,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
 // ─── Persistence snapshot builder ────────────────────────────────────────────
 
-function buildPersistedSnapshot(
+export function buildPersistedSnapshot(
   s: AppState,
   options?: { preserveImages?: boolean }
 ): PersistedAppState {
