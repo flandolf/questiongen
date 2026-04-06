@@ -9,9 +9,9 @@ import {
 import { useEffect, useState } from 'react';
 
 import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
+import Sketchpad from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
-import Sketchpad from '@/components/ui/Sketchpad';
 import { Textarea } from '@/components/ui/textarea';
 import type { StudentAnswerImage } from '@/types';
 

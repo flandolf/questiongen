@@ -11,11 +11,11 @@ import { memo } from 'react';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
+import Sketchpad from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import Sketchpad from '@/components/ui/Sketchpad';
 import { Textarea } from '@/components/ui/textarea';
 import type { McOption, StudentAnswerImage } from '@/types';
 
