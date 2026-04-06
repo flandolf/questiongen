@@ -44,6 +44,7 @@ export type Section =
   | 'credits'
   | 'appearance'
   | 'goals'
+  | 'generation'
   | 'debug'
   | 'sync'
   | 'cleanup'

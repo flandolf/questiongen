@@ -19,6 +19,7 @@ import { AppearanceSection } from './settings/sections/AppearanceSection';
 import { CleanupSection } from './settings/sections/CleanupSection';
 import { CreditsSection } from './settings/sections/CreditsSection';
 import { DebugSection } from './settings/sections/DebugSection';
+import { GenerationSettingsSection } from './settings/sections/GenerationSettingsSection';
 import { GoalsSection } from './settings/sections/GoalsSection';
 import { ImportExportSection } from './settings/sections/ImportExportSection';
 import { ModelsSection } from './settings/sections/ModelsSection';
@@ -38,6 +39,11 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
     id: 'goals',
     label: 'Study Goals',
     icon: <TrendingUp className="h-4 w-4" />,
+  },
+  {
+    id: 'generation',
+    label: 'Generation',
+    icon: <Wand2 className="h-4 w-4" />,
   },
   { id: 'debug', label: 'Debug', icon: <Bug className="h-4 w-4" /> },
   { id: 'sync', label: 'Cloud Sync', icon: <Cloud className="h-4 w-4" /> },
@@ -61,6 +67,8 @@ function renderSection(activeSection: Section) {
       return <AppearanceSection />;
     case 'goals':
       return <GoalsSection />;
+    case 'generation':
+      return <GenerationSettingsSection />;
     case 'debug':
       return <DebugSection />;
     case 'sync':

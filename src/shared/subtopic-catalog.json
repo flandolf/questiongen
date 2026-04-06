@@ -3,7 +3,10 @@
     {
       "name": "Mathematical Methods",
       "icon": "FunctionSquare",
-      "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+      "examPdfs": [
+        "2025-MathMethods1.pdf",
+        "2025-MathMethods2.pdf"
+      ],
       "reportPdfs": [
         "2025-MathematicalMethods1-report.pdf",
         "2025-MathematicalMethods2-report_0.pdf"
@@ -85,7 +88,10 @@
     {
       "name": "Specialist Mathematics",
       "icon": "SigmaSquare",
-      "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+      "examPdfs": [
+        "2025-SpecialistMaths1.pdf",
+        "2025-SpecialistMaths2.pdf"
+      ],
       "reportPdfs": [
         "2025-SpecialistMaths1-report.pdf",
         "2025-SpecialistMaths2-report.pdf"
@@ -174,129 +180,186 @@
     {
       "name": "Chemistry",
       "icon": "FlaskConical",
-      "examPdfs": ["2025-Chemistry.pdf"],
-      "reportPdfs": ["2025-Chemistry-report.pdf"],
+      "examPdfs": [
+        "2025-Chemistry.pdf"
+      ],
+      "reportPdfs": [
+        "2025-Chemistry-report.pdf"
+      ],
       "examGuidance": " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ",
       "subtopics": [
         {
-          "name": "Periodic Trends: Structure, Periodic Organisation, and Critical or Endangered Elements",
+          "name": "Elements and the Periodic Table",
           "instruction": "Create questions requiring the explanation of trends such as electronegativity, ionization energy, and atomic radius across periods and down groups using core charge and shielding effects. Include a sustainability focus by asking students to identify 'critical' elements used in modern technology and discuss the chemical or economic factors that lead to their endangerment. Students should justify the placement of elements in the periodic table based on their electronic configuration and resulting chemical properties.",
-          "group": "unit1-periodicity",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?",
+          "keyKnowledge": "Trends in the periodic table (electronegativity, ionization energy, atomic radius) and the role of critical elements in sustainability[cite: 152, 153, 195].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should require explanation of trends using core charge and shielding concepts\n- Include sustainability context by asking about critical elements and their endangerment"
         },
         {
           "name": "Molecular Structure: Lewis Structures, VSEPR Geometry, Polarity, and Intermolecular Forces",
           "instruction": "Design tasks where students must draw Lewis (electron dot) structures for molecules and polyatomic ions to predict 3D shapes using VSEPR theory (e.g., tetrahedral, V-shaped). Questions should require students to link molecular symmetry and bond dipoles to overall polarity and then determine the dominant intermolecular forces (dispersion, dipole-dipole, or hydrogen bonding). Ensure assessments ask for the correlation between these forces and physical properties like boiling points and solubility.",
-          "group": "unit1-structure",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?",
+          "keyKnowledge": "Lewis structures, VSEPR theory, polarity, and intermolecular forces[cite: 166, 167].",
+          "techniqueNotes": "EXAM STYLE:\n- Tasks should require drawing Lewis structures and predicting VSEPR geometries\n- Questions should link molecular symmetry and bond dipoles to overall polarity\n- Assessments should correlate intermolecular forces with physical properties"
         },
         {
           "name": "Metallic Bonding: Metallic Lattices and the Reactivity Series",
           "instruction": "Formulate questions describing the metallic lattice as a sea of delocalized electrons surrounding fixed positive cations, requiring students to explain properties like malleability and electrical conductivity. Include problems involving the reactivity series of metals, where students predict the outcome of displacement reactions or the reaction of metals with water and acids. Tasks should challenge students to explain how alloying or heat treatment modifies the lattice structure to change the metal's properties.",
-          "group": "unit1-bonding",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?",
+          "keyKnowledge": "Metallic lattice structure, delocalised electrons, and the reactivity series of metals[cite: 154, 228].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should describe the metallic lattice and explain properties like malleability and conductivity\n- Include problems on the reactivity series to predict displacement reactions\n- Challenge students to explain how alloying or heat treatment modifies properties"
         },
         {
           "name": "Ionic Chemistry: Ionic Bonding, Precipitation Reactions, and Solubility Tables",
           "instruction": "Construct problems requiring students to write balanced chemical and full ionic equations for precipitation reactions using provided solubility tables. Questions should focus on the electrostatic attraction in ionic lattices and ask students to explain high melting points and brittleness based on lattice structure. Students must be able to identify spectator ions and predict the formation of a precipitate when two aqueous solutions are mixed.",
-          "group": "unit1-bonding",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?",
+          "keyKnowledge": "Ionic bonding, crystal lattices, and use of solubility tables for precipitation reactions[cite: 166].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require writing balanced chemical and ionic equations for precipitation reactions\n- Questions should explain properties of ionic compounds based on lattice structure\n- Students must identify spectator ions and predict precipitate formation"
         },
         {
           "name": "Chemical Quantities: Moles, Molar Mass, Percentage Composition, and Empirical/Molecular Formulas",
           "instruction": "Develop stoichiometry problems requiring the use of $n=m/M$ and $n=N/N_A$ to calculate moles, masses, and numbers of particles. Questions should include determining empirical formulas from percentage composition by mass and then using molar mass to find the molecular formula. Ensure multi-step problems involve limiting reagent calculations and theoretical vs. actual yield percentages in a laboratory or industrial context.",
-          "group": "unit1-quantities",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-are-materials-quantified-and-classified?",
+          "keyKnowledge": "Mole concept, molar mass, and empirical/molecular formula calculations[cite: 168, 171].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require calculations using the mole concept and molar mass\n- Include tasks on determining empirical and molecular formulas from percentage composition\n- Ensure multi-step problems involve limiting reagent and yield calculations"
         },
         {
           "name": "Separation Techniques: Chromatography and Rf Value Identification",
           "instruction": "Design questions centered on thin-layer or paper chromatography, requiring students to calculate $R_f$ values and interpret chromatograms based on the polarity of the stationary and mobile phases. Problems should ask students to predict the relative movement of components based on their affinity for each phase and explain how changing the solvent affects separation. Include applications of HPLC or GC, focusing on the interpretation of retention times and peak areas for qualitative and quantitative analysis.",
-          "group": "unit1-analysis",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-are-materials-quantified-and-classified?",
+          "keyKnowledge": "Chromatography principles, Rf values, and interpretation of chromatograms[cite: 154, 167].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should require calculation of Rf values and interpretation of chromatograms\n- Problems should predict movement of components based on polarity\n- Include applications of HPLC or GC with interpretation of retention times and peak areas"
         },
         {
           "name": "Organic Classification: Alkanes, Alkenes, Alcohols, Carboxylic Acids, Haloalkanes, and IUPAC Naming",
           "instruction": "Create tasks requiring the systematic IUPAC naming of organic molecules containing up to eight carbon atoms and various functional groups. Questions should involve drawing structural, semi-structural, and skeletal formulas and identifying isomers (structural and stereoisomers). Students must be able to classify alcohols as primary, secondary, or tertiary and predict the products of basic organic reactions like the addition of halogens to alkenes.",
-          "group": "unit1-organic",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-are-materials-quantified-and-classified?",
+          "keyKnowledge": "IUPAC naming, structural isomers, and classification of organic functional groups up to C8[cite: 168, 348].",
+          "techniqueNotes": "EXAM STYLE:\n- Tasks should require systematic IUPAC naming of organic molecules\n- Questions should involve drawing various formula types and identifying isomers\n- Students must classify alcohols and predict products of basic organic reactions"
         },
         {
           "name": "Polymer Chemistry: Addition and Condensation Polymerisation, Plastics, and Recycling",
           "instruction": "Formulate questions on the formation of polymers from monomers, distinguishing between addition (e.g., polyethene) and condensation (e.g., polyesters, polyamides) processes. Students should be required to draw repeating units and identify the functional groups involved in the linkage. Include a discussion on the properties of thermoplastics versus thermosetting polymers and the environmental impact of plastic waste, focusing on the chemistry of recycling codes.",
-          "group": "unit1-organic",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-are-materials-quantified-and-classified?",
+          "keyKnowledge": "Addition and condensation polymerisation and environmental impacts of plastics[cite: 168, 174].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should distinguish between addition and condensation polymerisation\n- Tasks should require drawing repeating units and identifying functional groups\n- Include discussion on properties of thermoplastics vs thermosetting polymers and environmental impact of plastic waste"
         },
         {
           "name": "Sustainability: Green Chemistry, Circular Economy, and Sustainable Development",
           "instruction": "Develop problems that require students to evaluate chemical processes using the 12 principles of Green Chemistry, such as atom economy and the use of renewable feedstocks. Questions should focus on the transition from a linear 'take-make-dispose' model to a circular economy, emphasizing the reduction of waste and environmental footprint. Students must justify the choice of specific catalysts or solvents based on their sustainability and safety profiles.",
-          "group": "unit1-sustainability",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?",
+          "keyKnowledge": "Green chemistry principles, sustainable development, and the circular economy[cite: 151, 195].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require evaluation of chemical processes using Green Chemistry principles\n- Questions should focus on the transition to a circular economy and reduction of waste\n- Students must justify the choice of catalysts or solvents based on sustainability and safety"
         },
         {
           "name": "Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water",
           "instruction": "Construct questions requiring the explanation of water's unique properties - such as high specific heat capacity, surface tension, and the density of ice - based on its extensive hydrogen bonding. Students should calculate energy changes using $q = mc\\Delta T$ and explain the biological and environmental significance of water's ability to act as a universal solvent. Tasks should link the polarity of the water molecule to its interaction with various solutes through ion-dipole or hydrogen-bond forces.",
-          "group": "unit1-water",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-do-chemicals-interact-with-water?",
+          "keyKnowledge": "Hydrogen bonding and the anomalous properties of water (density, specific heat, latent heat)[cite: 232].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should require explanation of water's unique properties based on hydrogen bonding\n- Tasks should include calculations of energy changes using q = mcΔT\n- Questions should link water's polarity to its solvent properties and interactions with solutes"
         },
         {
           "name": "Acid-Base Chemistry: Bronsted-Lowry Theory, pH, Neutralisation, and Applications",
           "instruction": "Design problems based on the Bronsted-Lowry theory of proton transfer, requiring students to identify conjugate acid-base pairs in various reactions. Questions should involve calculating $\\text{pH}$, $[H^+]$, and $[OH^-]$ for strong acids and bases, as well as writing balanced equations for neutralization reactions. Include applications of buffers and the role of indicators in signaling the equivalence point of a reaction.",
-          "group": "unit1-acid-base",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-do-chemicals-interact-with-water?",
+          "keyKnowledge": "Bronsted-Lowry theory, pH calculations, and neutralisation reactions[cite: 233, 234].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require identification of conjugate acid-base pairs\n- Questions should involve pH calculations for strong acids and bases\n- Include tasks on writing balanced equations for neutralization reactions and applications of buffers and indicators"
         },
         {
           "name": "Redox Chemistry: Electron Transfer, Half-Equations, Displacement, and Corrosion",
           "instruction": "Formulate redox problems where students must assign oxidation numbers to identify the species being oxidized and reduced. Tasks should involve writing and balancing complex half-equations (in acidic or basic conditions) and combining them into a full ionic equation. Include scenarios involving the electrochemical series to predict the spontaneity of displacement reactions and the chemistry of corrosion prevention, such as sacrificial anodes or galvanizing.",
-          "group": "unit1-redox",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-do-chemicals-interact-with-water?",
+          "keyKnowledge": "Oxidation numbers, half-equations, and use of the electrochemical series[cite: 220, 309].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require assignment of oxidation numbers\n- Questions should involve writing and balancing half-equations\n- Include scenarios involving the electrochemical series and corrosion prevention"
         },
         {
           "name": "Solutions: Concentration Units and Solubility Relationships",
           "instruction": "Create questions involving the calculation of concentration in various units, including mol/L ($M$), g/L, ppm, and $\\% v/v$ or $\\% w/w$. Students should be required to interpret solubility curves to determine if a solution is saturated, unsaturated, or supersaturated at a given temperature. Include dilution problems using $C_1V_1 = C_2V_2$ and ask students to explain the process of dissolving at a molecular level, focusing on the breaking and forming of intermolecular forces.",
-          "group": "unit1-solutions",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-are-chemicals-measured-and-analysed?",
+          "keyKnowledge": "Concentration units (M, ppm, %v/v) and solubility curves[cite: 215, 234].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should involve calculations of concentration in various units\n- Tasks should require interpretation of solubility curves\n- Include dilution problems and explanations of dissolution at the molecular level"
         },
         {
           "name": "Volumetric Analysis: Acid-Base Titration, Standard Solutions, and Indicators",
           "instruction": "Design multi-step stoichiometry problems based on titration data, requiring students to calculate the concentration of an unknown analyte. Questions should focus on the preparation of a primary standard solution, the selection of appropriate indicators based on $pK_a$, and the identification of concordant titers. Students must explain the difference between the equivalence point and the end point and identify potential sources of systematic or random error in the procedure.",
-          "group": "unit1-analysis",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-are-chemicals-measured-and-analysed?",
+          "keyKnowledge": "Titration techniques, standard solutions, and error analysis[cite: 215, 234].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require multi-step calculations based on titration data\n- Questions should focus on preparation of primary standard solutions and selection of indicators\n- Include tasks on identifying concordant titers and explaining equivalence vs end point, as well as error analysis"
         },
         {
           "name": "Gas Chemistry: Ideal Gas Equation and Greenhouse Gases",
           "instruction": "Construct problems using the ideal gas equation $PV = nRT$ and molar volume at SLC to calculate the properties of gases involved in chemical reactions. Questions should also address the greenhouse effect, requiring students to explain how certain gas molecules absorb infrared radiation based on their molecular vibrations. Students should be able to discuss the environmental impact of increased concentrations of $\\text{CO}_2$, $\\text{CH}_4$, and $\\text{N}_2\\text{O}$ in the atmosphere.",
-          "group": "unit1-gases",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-are-chemicals-measured-and-analysed?",
+          "keyKnowledge": "Ideal gas equation and the chemistry of greenhouse gases[cite: 213, 234].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require calculations using the ideal gas equation and molar volume at SLC\n- Questions should address the greenhouse effect and molecular vibrations\n- Include discussion on the environmental impact of greenhouse gases"
         },
         {
           "name": "Analytical Techniques: Electrical Conductivity, Stoichiometry, and Colorimetry/UV-Vis Spectroscopy",
           "instruction": "Formulate tasks where students interpret data from analytical instruments to determine the concentration or identity of a sample. Questions should focus on the use of calibration curves in colorimetry and UV-Vis spectroscopy to determine unknown concentrations based on absorbance. Students must also be able to use gravimetric stoichiometry to calculate the mass of a precipitate and relate electrical conductivity to the concentration of ions present in a solution.",
-          "group": "unit1-analysis",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "group": "unit2-How-are-chemicals-measured-and-analysed?",
+          "keyKnowledge": "Colorimetry, UV-Vis spectroscopy, and gravimetric stoichiometry[cite: 215, 234].",
+          "techniqueNotes": "EXAM STYLE:\n- Tasks should require interpretation of data from analytical instruments\n- Questions should focus on calibration curves for colorimetry and UV-Vis spectroscopy\n- Include problems on gravimetric stoichiometry and relating electrical conductivity to ion concentration"
+        },
+        {
+          "name": "Energy from Fuels: Combustion and Sustainability",
+          "instruction": "Develop tasks comparing the energy outputs and environmental impacts of fossil fuels versus biofuels. Questions should require calculating enthalpy changes using $\\Delta H = q/n$ and writing balanced thermochemical equations for combustion. Evaluate fuel sustainability using green chemistry principles like atom economy and renewable feedstocks.",
+          "group": "unit3-What-are-the-current-and-future-options-for-energy-production?",
+          "keyKnowledge": "Thermochemical equations, enthalpy changes, and sustainability of biofuels[cite: 309, 310].",
+          "techniqueNotes": "EXAM STYLE:\n- Tasks should compare energy outputs and environmental impacts of fossil fuels vs biofuels\n- Questions should require calculations of enthalpy changes and writing thermochemical equations\n- Include evaluation of fuel sustainability using green chemistry principles"
+        },
+        {
+          "name": "Electrochemical Cells: Galvanic and Fuel Cells",
+          "instruction": "Design problems requiring students to predict cell voltage and reaction spontaneity using the electrochemical series. Tasks should involve drawing and labeling galvanic and fuel cells, identifying the anode/cathode, electron flow, and ion movement. Questions must address the operating principles of fuel cells, including the use of porous electrodes to increase efficiency.",
+          "group": "unit3-What-are-the-current-and-future-options-for-energy-production?",
+          "keyKnowledge": "Galvanic cell design, fuel cell operating principles, and use of the electrochemical series[cite: 309, 310].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require prediction of cell voltage and reaction spontaneity using the electrochemical series\n- Tasks should involve drawing and labeling galvanic and fuel cells, identifying components and flows\n- Questions must address operating principles of fuel cells, including porous electrodes"
+        },
+        {
+          "name": "Chemical Equilibrium and Le Chatelier’s Principle",
+          "instruction": "Formulate questions requiring the calculation of equilibrium constants ($K_c$) and reaction quotients ($Q$). Students must use Le Chatelier’s principle to predict shifts in equilibrium systems in response to changes in temperature, concentration, or pressure. Include tasks that link these shifts to the yield of industrial processes.",
+          "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?",
+          "keyKnowledge": "Equilibrium constant expressions and Le Chatelier's principle[cite: 312].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should require calculations of equilibrium constants and reaction quotients\n- Tasks should use Le Chatelier's principle to predict shifts in equilibrium\n- Include problems linking equilibrium shifts to industrial process yields"
+        },
+        {
+          "name": "Electrolysis and Faraday’s Laws",
+          "instruction": "Construct problems requiring the application of Faraday’s Laws to calculate the mass of product or time required for electrolysis. Questions should involve identifying the products of electrolysis in both molten and aqueous systems using the electrochemical series and evaluating the sustainability of these processes.",
+          "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?",
+          "keyKnowledge": "Electrolytic cell reactions and Faraday's Laws stoichiometry[cite: 312].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require application of Faraday's Laws to calculate mass of product or time for electrolysis\n- Questions should involve identifying products of electrolysis in molten and aqueous systems\n- Include evaluation of the sustainability of electrolysis processes"
+        },
+        {
+          "name": "Food Chemistry: Metabolism and Energy Value",
+          "instruction": "Design tasks focused on the chemical structures and metabolism of carbohydrates, proteins, and fats. Questions should involve writing equations for the hydrolysis of condensation polymers (e.g., starch, proteins) and calculating the energy content of food using calorimetry and specified energy values for macronutrients.",
+          "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?",
+          "keyKnowledge": "Metabolism of macronutrients and energy content calculations[cite: 337, 344].",
+          "techniqueNotes": "EXAM STYLE:\n- Tasks should focus on chemical structures and metabolism of carbohydrates, proteins, and fats\n- Questions should involve writing equations for hydrolysis of condensation polymers\n- Include calculations of energy content using calorimetry and specified energy values for macronutrients"
+        },
+        {
+          "name": "Instrumental Analysis of Organic Compounds",
+          "instruction": "Create problems requiring the deduction of organic structures from analytical data, including IR, NMR ($^1H$ and $^{13}C$), and mass spectrometry. Students must identify functional groups from IR absorption bands and determine carbon environments and hydrogen splitting patterns from NMR spectra.",
+          "group": "unit4-How-are-organic-compounds-analysed-and-used?",
+          "keyKnowledge": "Interpretation of IR, NMR, and mass spectrometry data[cite: 333, 348].",
+          "techniqueNotes": "EXAM STYLE:\n- Problems should require deduction of organic structures from IR, NMR, and mass spectrometry data\n- Questions must identify functional groups from IR absorption bands\n- Tasks should determine carbon environments and hydrogen splitting patterns from NMR spectra"
+        },
+        {
+          "name": "Medicinal Chemistry and Extraction",
+          "instruction": "Formulate questions on how medicines function at a molecular level, such as enzyme inhibition or receptor interactions. Include tasks requiring students to design or evaluate processes for the extraction and purification of natural medicines using solvent extraction or distillation.",
+          "group": "unit4-How-are-organic-compounds-analysed-and-used?",
+          "keyKnowledge": "Molecular action of medicines and purification techniques[cite: 332, 334].",
+          "techniqueNotes": "EXAM STYLE:\n- Questions should focus on the molecular action of medicines, such as enzyme inhibition or receptor interactions\n- Tasks should require design or evaluation of extraction and purification processes for natural medicines using solvent extraction or distillation"
         }
       ]
     },
     {
       "name": "Physical Education",
       "icon": "Dumbbell",
-      "examPdfs": ["2025-PhysicalEducation.pdf"],
-      "reportPdfs": ["2025-PhysEd-report.pdf"],
+      "examPdfs": [
+        "2025-PhysicalEducation.pdf"
+      ],
+      "reportPdfs": [
+        "2025-PhysEd-report.pdf"
+      ],
       "examGuidance": "\nVCAA PHYSICAL EDUCATION EXAM QUESTION GENERATION - COMPREHENSIVE INSTRUCTIONS\n=========================================================================================================================================================================================================================================================\n\nWRITING STYLE FOR PHYSICAL EDUCATION:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n- Do NOT use mathematical equations, derivations, or formula-heavy solutions.\n- Write all worked solutions and exemplar responses in prose - paragraphs and bullet points.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', '$\text{VO}_2$ max', '1RM', 'F = ma') - mention by name and explain application in words. Do NOT rearrange, derive, or chain equations.\n- Focus on qualitative analysis, evaluation, and justification rather than calculation.\n\nPE EXAM QUESTION TYPES & COGNITIVE DEMANDS:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nSHORT-ANSWER QUESTIONS (1-2 marks) - RECALL/COMPREHENSION\n|- Verbs: Define, identify, list, state, describe (basic), explain (simple)\n|- Example: \"Define the term 'discrete motor skill'.\"\n`- Expected response: 1-2 sentences with accurate definition\n\nEXTENDED-RESPONSE QUESTIONS (2-6 marks) - APPLICATION/ANALYSIS\n|- Verbs: Explain (with evidence), apply, demonstrate, analyze, evaluate, justify\n|- Example: \"Explain how the ATP-CP system is particularly suited to high-intensity, short-duration activities. Refer to its rate of ATP regeneration and the role of phosphocreatine in your response.\"\n`- Expected response: 3-4 detailed sentences or structured paragraphs\n\nAPPLICATION/SCENARIO QUESTIONS (3-8 marks) - SYNTHESIS/INTEGRATION\n|- Verbs: Design, evaluate, critique, create, analyze (multi-component), justify (complex)\n|- Example: \"A netball player is training to improve her vertical jump for shooting. Design a 4-week periodized training program that includes appropriate training methods and progression. Justify your choice of methods with reference to the physiological demands of jumping, energy systems used, and skill acquisition principles.\"\n`- Expected response: Structured program with detailed scientific justification\n\nDATA INTERPRETATION QUESTIONS (2-5 marks) - OBSERVATION/INFERENCE/APPLICATION\n|- Verbs: Interpret, analyze, identify (trends), explain (what data shows)\n|- Example: \"The graph shows a swimmer's lactate levels during a 400 m freestyle race. (a) Identify the point(s) where the anaerobic threshold was exceeded. (b) Explain what this suggests about energy system contribution. (c) Recommend a training method to improve lactate tolerance.\"\n`- Expected response: Observation -> explanation -> application progression\n\nCOMPARISON QUESTIONS (2-6 marks) - DIFFERENTIATION/CONTRAST\n|- Verbs: Compare (similarities AND differences), contrast, distinguish, evaluate (relative merit)\n|- Example: \"Compare the relative contribution of the aerobic and anaerobic glycolysis systems during (a) a 100 m sprint and (b) a 1500 m run. In your answer, consider rate of ATP yield, duration, and total ATP production.\"\n`- Expected response: Structured comparison with specific references to both similarities and differences\n\nAUTHENTICITY & CONTEXT REQUIREMENTS:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nVCAA questions must be grounded in REALISTIC sports and training contexts.\n\nCOMMON AUSTRALIAN SPORTS:\nAFL, cricket, rugby league, rugby union, netball, basketball, tennis, swimming, athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\nREALISTIC SCENARIOS:\n- Pre-season training and conditioning phases\n- Return-to-play after injury / rehabilitation\n- Peaking for competition (tapering strategies)\n- Performance plateau problems and solutions\n- Adapting training for different athlete levels (beginner, intermediate, elite)\n- Managing recovery and fatigue in multi-competition seasons\n- Technique refinement under fatigue\n\nATHLETE PERSPECTIVES:\n- Scenarios should relate to experiences of VCE PE students (school athletes, club athletes, potential elite pathway athletes)\n- Acknowledge recreational participation, competitive club level, and elite development\n- Consider both individual sports (tennis, gymnastics, swimming) and team sports (netball, AFL, basketball, soccer)\n\nQUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\n[OK] Aligned with Unit 3 or 4 key knowledge/skills from Study Design?\n[OK] Requires higher-order thinking (application, analysis, synthesis)?\n[OK] Context is realistic and relevant to VCE PE students?\n[OK] Mark allocation matches cognitive demand appropriately?\n[OK] Question is unambiguous and free of jargon confusion?\n[OK] A clear, defensible marking rubric exists?\n[OK] Question integrates multiple concepts where appropriate?\n[OK] All terms are defined or contextually clear?\n[OK] Question avoids leading or telegraphing the expected answer?\n[OK] Expected response length is reasonable for marks allocated?\n[OK] Question reflects the style and rigor of actual VCAA examinations?\n",
       "subtopics": [
         {
