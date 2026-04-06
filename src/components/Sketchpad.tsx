@@ -50,6 +50,7 @@ type ToolSettings = {
   opacity: number;
   smoothing: number;
   pressureCurve: PressureCurve;
+  disablePressure: boolean;
   color: string;
 };
 
@@ -61,6 +62,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0.5,
     pressureCurve: 'smooth',
+    disablePressure: false,
     color: '#111827',
   },
   eraser: {
@@ -68,6 +70,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0.3,
     pressureCurve: 'linear',
+    disablePressure: false,
     color: '#ffffff',
   },
   fill: {
@@ -75,6 +78,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
+    disablePressure: true,
     color: '#3b82f6',
   },
   line: {
@@ -82,6 +86,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
+    disablePressure: true,
     color: '#111827',
   },
   rect: {
@@ -89,6 +94,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
+    disablePressure: true,
     color: '#111827',
   },
   ellipse: {
@@ -96,6 +102,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
+    disablePressure: true,
     color: '#111827',
   },
   text: {
@@ -103,6 +110,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
+    disablePressure: true,
     color: '#111827',
   },
 };
@@ -407,6 +415,7 @@ export function Sketchpad({
   const currentSize = toolSettingsMap[activeTool].size;
   const currentSmoothing = toolSettingsMap[activeTool].smoothing;
   const currentPressureCurve = toolSettingsMap[activeTool].pressureCurve;
+  const currentDisablePressure = toolSettingsMap[activeTool].disablePressure;
 
   const undoStack = useRef<string[]>([]);
   const redoStack = useRef<string[]>([]);
@@ -498,6 +507,7 @@ export function Sketchpad({
           opacity: prev[activeTool].opacity,
           smoothing: prev[activeTool].smoothing,
           pressureCurve: prev[activeTool].pressureCurve,
+          disablePressure: prev[activeTool].disablePressure,
           color: prev[activeTool].color,
         },
       }));
@@ -536,6 +546,13 @@ export function Sketchpad({
   const setPressureCurve = useCallback(
     (pressureCurve: PressureCurve) => {
       updateCurrentTool({ pressureCurve });
+    },
+    [updateCurrentTool]
+  );
+
+  const setDisablePressure = useCallback(
+    (disablePressure: boolean) => {
+      updateCurrentTool({ disablePressure });
     },
     [updateCurrentTool]
   );
@@ -979,7 +996,8 @@ export function Sketchpad({
       pressure,
       settings.pressureCurve
     );
-    const isPressureSensitive = tool === 'pen' || tool === 'eraser';
+    const isPressureSensitive =
+      !settings.disablePressure && (tool === 'pen' || tool === 'eraser');
     ctx.lineWidth = Math.max(
       1,
       isPressureSensitive ? settings.size * adjustedPressure : settings.size
@@ -1720,6 +1738,18 @@ export function Sketchpad({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <label className="flex items-center gap-2 text-xs select-none">
+              <Checkbox
+                checked={currentDisablePressure}
+                onCheckedChange={(e) => {
+                  setDisablePressure(e as boolean);
+                }}
+                disabled={['fill', 'line', 'rect', 'ellipse', 'text'].includes(
+                  activeTool
+                )}
+              />
+              Disable Pressure (constant size)
+            </label>
           </div>
         </div>
       </div>
