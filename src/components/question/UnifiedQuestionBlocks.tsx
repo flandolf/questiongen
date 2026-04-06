@@ -79,7 +79,7 @@ export function UnifiedQuestionPromptCard({
         </div>
       )}
 
-      <div className="relative overflow-hidden px-5 py-5 sm:px-6 sm:py-6">
+      <div className="relative overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6">
         <div className="absolute inset-y-0 right-0 w-28 pointer-events-none" />
         <div
           className="relative leading-[1.75] text-foreground"

@@ -1432,43 +1432,43 @@ function PresetSection({
                           t === 'Mathematical Methods' ||
                           t === 'Specialist Mathematics'
                       ) && (
-                          <div className="flex items-center gap-2">
-                            <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
-                              Calculator
-                            </Label>
-                            <div className="flex gap-1">
-                              {(
-                                [
-                                  {
-                                    value: 'tech-free' as TechMode,
-                                    label: 'Tech-Free',
-                                  },
-                                  { value: 'mix' as TechMode, label: 'Mixed' },
-                                  {
-                                    value: 'tech-active' as TechMode,
-                                    label: 'Tech-Active',
-                                  },
-                                ] as const
-                              ).map(({ value, label }) => (
-                                <button
-                                  key={value}
-                                  type="button"
-                                  onClick={() =>
-                                    updateEditingPref('techMode', value)
-                                  }
-                                  className={cn(
-                                    'text-[10px] px-2 py-0.5 rounded border transition-colors',
-                                    editingPrefs.techMode === value
-                                      ? 'bg-primary text-primary-foreground border-primary'
-                                      : 'border-border text-muted-foreground hover:border-primary/40'
-                                  )}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[11px] font-medium text-muted-foreground shrink-0">
+                            Calculator
+                          </Label>
+                          <div className="flex gap-1">
+                            {(
+                              [
+                                {
+                                  value: 'tech-free' as TechMode,
+                                  label: 'Tech-Free',
+                                },
+                                { value: 'mix' as TechMode, label: 'Mixed' },
+                                {
+                                  value: 'tech-active' as TechMode,
+                                  label: 'Tech-Active',
+                                },
+                              ] as const
+                            ).map(({ value, label }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() =>
+                                  updateEditingPref('techMode', value)
+                                }
+                                className={cn(
+                                  'text-[10px] px-2 py-0.5 rounded border transition-colors',
+                                  editingPrefs.techMode === value
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'border-border text-muted-foreground hover:border-primary/40'
+                                )}
+                              >
+                                {label}
+                              </button>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
 
                       {/* Avg marks (for written mode) */}
                       {editingPrefs.questionMode === 'written' && (
@@ -2017,7 +2017,7 @@ function SetupPanelImpl({
                   )}
                 </span>
                 {estimated.promptCost != null ||
-                  estimated.completionCost != null ? (
+                estimated.completionCost != null ? (
                   <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
                     <DollarSign className="w-3 h-3 text-muted-foreground" />
                     {formatCostUsd(estimated.totalCost)}

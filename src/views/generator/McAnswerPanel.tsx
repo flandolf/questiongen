@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  PencilRuler,
   XCircle,
 } from 'lucide-react';
 import { memo, useState } from 'react';
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import Sketchpad from '@/components/ui/Sketchpad';
 import { Textarea } from '@/components/ui/textarea';
 import type { McOption } from '@/types';
 
@@ -54,9 +56,35 @@ export const McAnswerPanel = memo(function McAnswerPanel({
   const isCorrect = selectedAnswer === correctAnswer;
   const showResult = answered && !hideCorrectAnswer;
   const [disputeOpen, setDisputeOpen] = useState(false);
+  const [isSketchpadOpen, setIsSketchpadOpen] = useState(false);
 
   return (
-    <div className="space-y-4 rounded-md">
+    <div className="space-y-4 rounded-md flex flex-col h-full">
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant={isSketchpadOpen ? 'default' : 'outline'}
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setIsSketchpadOpen(!isSketchpadOpen)}
+        >
+          <PencilRuler className="h-3.5 w-3.5" />
+          {isSketchpadOpen ? 'Hide Sketchpad' : 'Show Sketchpad'}
+        </Button>
+      </div>
+
+      {isSketchpadOpen && (
+        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 text-muted-foreground/70">
+            <PencilRuler className="w-4 h-4" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
+              Sketchpad
+            </span>
+          </div>
+          <Sketchpad embedded onSave={() => {}} />
+        </div>
+      )}
+
       {/* Options */}
       <UnifiedMcqOptionsGrid
         options={options}
