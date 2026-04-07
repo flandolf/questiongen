@@ -662,7 +662,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => { });
+        .catch(() => {});
       return () => {
         if (unlisten) unlisten();
       };

@@ -96,78 +96,78 @@
           "name": "Additional Algebra and Number Systems",
           "instruction": "Design questions involving the use of partial fractions to decompose rational expressions and the application of the factor theorem for higher-degree polynomials. Focus on identifying subsets of the complex and real number systems, including proofs of irrationality and the use of the Pigeonhole Principle in discrete contexts. Ensure problems require formal mathematical notation and logical step-by-step derivation to reflect tech-free rigor.",
           "group": "unit1-algebra",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Partial fractions, factor theorem, subsets of complex and real numbers, proofs of irrationality, and the Pigeonhole Principle.",
+          "techniqueNotes": "For tech-free items, require algebraic manipulation by hand and exact answers. Use formal notation and step-by-step derivations to ensure rigor. Include problems that require proving properties of numbers or applying the Pigeonhole Principle in combinatorial contexts."
         },
         {
           "name": "Sequences and Series",
           "instruction": "Construct problems focusing on arithmetic and geometric sequences, requiring students to find general terms, specific terms, and sums to $n$ terms. Include questions on infinite geometric series where the condition for convergence $|r| < 1$ must be identified and applied. Integrate applications of first-order linear recurrence relations, asking students to model real-world growth or decay scenarios and solve for steady-state solutions where applicable.",
           "group": "unit1-algebra",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Arithmetic and geometric sequences, sums to $n$ terms, infinite geometric series, convergence conditions, first-order linear recurrence relations.",
+          "techniqueNotes": "For tech-free items, prefer sequences with hand-solvable terms and sums. Require explicit identification of convergence conditions for infinite series. Include real-world modelling problems that can be solved with recurrence relations, ensuring students derive and solve the relation algebraically."
         },
         {
           "name": "Reciprocals and Rational Functions",
           "instruction": "Formulate tasks involving the sketching of reciprocal functions such as $y = 1/f(x)$ and rational functions including those with oblique asymptotes. Students should be required to identify vertical and horizontal asymptotes, intercepts, and the behavior of the function as $x$ approaches infinity. Questions should emphasize the relationship between the features of $f(x)$ and its reciprocal, particularly regarding stationary points and zeros.",
           "group": "unit1-functions",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Reciprocal functions, rational functions, asymptotes, intercepts, and function behavior.",
+          "techniqueNotes": "For tech-free items, require students to sketch functions by hand and identify key features without technological aid. Emphasize the algebraic manipulation of rational expressions and the interpretation of asymptotic behavior."
         },
         {
           "name": "Combinatorics and Matrices",
           "instruction": "Develop combinatorial problems involving permutations and combinations with constraints, such as items that must be 'together' or 'separated.' In the matrix section, focus on matrix algebra, including the calculation of determinants and inverses for $2 \\times 2$ matrices and their application in solving systems of linear equations. Include transformations in the plane where matrices are used to represent dilations, reflections, and rotations, requiring students to map coordinates accurately.",
           "group": "unit1-algebra",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Combinatorics, permutations, combinations, matrix algebra, determinants, inverses, linear equations, transformations.",
+          "techniqueNotes": "For tech-free items, require students to perform matrix operations by hand and solve systems of equations algebraically."
         },
         {
           "name": "Trigonometric Functions and Identities",
           "instruction": "Design questions requiring the use of compound angle, double angle, and Pythagorean identities to simplify expressions or solve complex trigonometric equations. Focus on the reciprocal functions (secant, cosecant, and cotangent) and the inverse trigonometric functions ($\\arcsin$, $\\arccos$, $\\arctan$), including their restricted domains and ranges. Exam-style tasks should involve proving identities or using substitutions to evaluate integrals involving trigonometric terms.",
           "group": "unit1-functions",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Trigonometric functions, identities, reciprocal functions, inverse trigonometric functions.",
+          "techniqueNotes": "For tech-free items, require algebraic manipulation of trigonometric expressions and exact solutions. Include problems that test the ability to prove identities or evaluate integrals using trigonometric substitutions without technological aid."
         },
         {
           "name": "Proof",
           "instruction": "Construct rigorous mathematical proof questions utilizing methods such as proof by induction, proof by contradiction, and proof by contrapositive. Focus on divisibility proofs, summation formulas, and inequality proofs, ensuring that students provide a clear 'Base Case,' 'Inductive Step,' and 'Conclusion' for induction. Questions should assess the ability to follow a logical chain of reasoning and use formal quantifiers like $\\forall$ and $\\exists$ correctly.",
           "group": "unit1-proof",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Divisibility proofs, summation formulas, inequality proofs.",
+          "techniqueNotes": "For tech-free items, require students to write out full proofs by hand, emphasizing clarity and logical flow. Include problems that necessitate the use of formal quantifiers and require a structured approach to proof writing."
         },
         {
           "name": "Modulus",
           "instruction": "Create problems involving the modulus function $|f(x)|$, requiring students to solve absolute value equations and inequalities algebraically and graphically. Questions should include sketching graphs of $y = |f(x)|$ and $y = f(|x|)$, emphasizing the piecewise nature of the function. Ensure students can identify 'sharp' points (cusps) where the derivative is undefined and use the definition $|x| = \\sqrt{x^2}$ for algebraic manipulations.",
           "group": "unit1-functions",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Modulus function, absolute value equations, absolute value inequalities.",
+          "techniqueNotes": "For tech-free items, require students to solve equations and inequalities by hand and sketch graphs without technological aid. Emphasize the piecewise definition of modulus functions and the identification of cusps in the graph."
         },
         {
           "name": "Algorithms and Graph Theory",
           "instruction": "Formulate questions on graph theory concepts including vertices, edges, paths, and cycles, specifically focusing on Eulerian and Hamiltonian circuits. Include algorithmic tasks such as Dijkstra's algorithm for shortest paths or Prim's/Kruskal's algorithms for minimal spanning trees, requiring students to show their working through a table or step-by-step diagram. Problems should challenge students to analyze the efficiency or termination conditions of provided pseudo-code.",
           "group": "unit1-discrete",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Graph theory concepts, algorithms, efficiency analysis.",
+          "techniqueNotes": "For tech-free items, require students to perform algorithmic steps manually and analyze pseudo-code without technological aid. Include problems that test understanding of graph properties and the ability to apply algorithms to specific graph configurations."
         },
         {
           "name": "Graphing relations",
           "instruction": "Design tasks involving the sketching of relations such as circles, ellipses, and hyperbolas, requiring students to identify centers, radii, vertices, and asymptotes. Questions should involve converting between general and standard forms using completing the square and determining the domain and range of the relation. Include problems where students must find the intersection points of a relation and a linear function or determine values of a parameter for which a line is tangent to a curve.",
           "group": "unit1-functions",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Graphing relations, conic sections, domain and range.",
+          "techniqueNotes": "For tech-free items, require students to sketch graphs by hand and perform algebraic manipulations without technological aid. Emphasize the conversion between general and standard forms of conic sections and the identification of key features such as centers, vertices, and asymptotes."
         },
         {
           "name": "Complex numbers",
           "instruction": "Construct questions involving complex numbers in Cartesian, polar, and exponential forms, requiring students to perform operations and convert between forms using $z = r\\text{cis}(\\theta)$. Focus on the Fundamental Theorem of Algebra, solving polynomial equations with complex roots, and the geometric representation of sets in the complex plane (loci) such as circles and perpendicular bisectors. Exam-style tasks should include the use of De Moivre's Theorem to find powers and roots of complex numbers.",
           "group": "unit1-complex",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Complex numbers, polar form, exponential form, De Moivre's Theorem.",
+          "techniqueNotes": "For tech-free items, require students to perform calculations with complex numbers by hand and sketch their representations in the complex plane without technological aid."
         },
         {
           "name": "Transformations and Vectors in the plane",
           "instruction": "Develop problems using vector notation ($u = xi + yj$) to solve geometric problems in the plane, including the dot product for finding angles between vectors and projections. Include questions on vector equations of lines and the use of vectors to prove geometric theorems. Transformations should be explored through vector addition and scalar multiplication, as well as matrix-vector multiplication for mapping shapes within the Cartesian coordinate system.",
           "group": "unit1-vectors",
-          "keyKnowledge": "",
-          "techniqueNotes": ""
+          "keyKnowledge": "Vectors, transformations, dot product, projections.",
+          "techniqueNotes": "For tech-free items, require students to perform vector operations by hand and solve geometric problems without technological aid."
         }
       ]
     },

@@ -72,14 +72,20 @@ function isWrittenSessionComplete(
   questions: GeneratedQuestion[],
   feedbackByQuestionId: Record<string, MarkAnswerResponse>
 ) {
-  return questions.length > 0 && questions.every((q) => Boolean(feedbackByQuestionId[q.id]));
+  return (
+    questions.length > 0 &&
+    questions.every((q) => Boolean(feedbackByQuestionId[q.id]))
+  );
 }
 
 function isMcSessionComplete(
   questions: McQuestion[],
   answersByQuestionId: Record<string, string>
 ) {
-  return questions.length > 0 && questions.every((q) => Boolean(answersByQuestionId[q.id]));
+  return (
+    questions.length > 0 &&
+    questions.every((q) => Boolean(answersByQuestionId[q.id]))
+  );
 }
 
 export interface AppState {
@@ -258,15 +264,15 @@ export interface AppActions {
     images:
       | Record<string, StudentAnswerImage | undefined>
       | ((
-        prev: Record<string, StudentAnswerImage | undefined>
-      ) => Record<string, StudentAnswerImage | undefined>)
+          prev: Record<string, StudentAnswerImage | undefined>
+        ) => Record<string, StudentAnswerImage | undefined>)
   ) => void;
   setFeedbackByQuestionId: (
     feedback:
       | Record<string, MarkAnswerResponse>
       | ((
-        prev: Record<string, MarkAnswerResponse>
-      ) => Record<string, MarkAnswerResponse>)
+          prev: Record<string, MarkAnswerResponse>
+        ) => Record<string, MarkAnswerResponse>)
   ) => void;
   setQuestionHistory: (
     history:
@@ -630,7 +636,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         if (s.activeWrittenSavedSetId) {
           const completedSavedSetId = s.activeWrittenSavedSetId;
           set((state) => ({
-            savedSets: state.savedSets.filter((e) => e.id !== completedSavedSetId),
+            savedSets: state.savedSets.filter(
+              (e) => e.id !== completedSavedSetId
+            ),
             activeWrittenSavedSetId: null,
           }));
           void v3DeleteSavedSet(completedSavedSetId);
@@ -687,12 +695,17 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       return savedSetId;
     }
     if (s.mcQuestions.length === 0) return null;
-    const isComplete = isMcSessionComplete(s.mcQuestions, s.mcAnswersByQuestionId);
+    const isComplete = isMcSessionComplete(
+      s.mcQuestions,
+      s.mcAnswersByQuestionId
+    );
     if (isComplete) {
       if (s.activeMcSavedSetId) {
         const completedSavedSetId = s.activeMcSavedSetId;
         set((state) => ({
-          savedSets: state.savedSets.filter((e) => e.id !== completedSavedSetId),
+          savedSets: state.savedSets.filter(
+            (e) => e.id !== completedSavedSetId
+          ),
           activeMcSavedSetId: null,
         }));
         void v3DeleteSavedSet(completedSavedSetId);
@@ -764,41 +777,41 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: entry.questionMode,
         ...(entry.questionMode === 'written'
           ? {
-            questions: entry.writtenSession!.questions,
-            activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
-            writtenQuestionPresentedAtById:
-              entry.writtenSession!.presentedAtByQuestionId,
-            answersByQuestionId: entry.writtenSession!.answersByQuestionId,
-            imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
-            feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
-            writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
-            writtenGenerationTelemetry:
-              entry.writtenSession!.generationTelemetry ?? null,
-            activeWrittenSavedSetId: id,
-            mcQuestions: [],
-            activeMcQuestionIndex: 0,
-            mcQuestionPresentedAtById: {},
-            mcAnswersByQuestionId: {},
-            activeMcSavedSetId: null,
-          }
+              questions: entry.writtenSession!.questions,
+              activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
+              writtenQuestionPresentedAtById:
+                entry.writtenSession!.presentedAtByQuestionId,
+              answersByQuestionId: entry.writtenSession!.answersByQuestionId,
+              imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
+              feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
+              writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
+              writtenGenerationTelemetry:
+                entry.writtenSession!.generationTelemetry ?? null,
+              activeWrittenSavedSetId: id,
+              mcQuestions: [],
+              activeMcQuestionIndex: 0,
+              mcQuestionPresentedAtById: {},
+              mcAnswersByQuestionId: {},
+              activeMcSavedSetId: null,
+            }
           : {
-            mcQuestions: entry.mcSession!.questions,
-            activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
-            mcQuestionPresentedAtById:
-              entry.mcSession!.presentedAtByQuestionId,
-            mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
-            mcRawModelOutput: entry.mcSession!.rawModelOutput,
-            mcGenerationTelemetry:
-              entry.mcSession!.generationTelemetry ?? null,
-            activeMcSavedSetId: id,
-            questions: [],
-            activeQuestionIndex: 0,
-            writtenQuestionPresentedAtById: {},
-            answersByQuestionId: {},
-            imagesByQuestionId: {},
-            feedbackByQuestionId: {},
-            activeWrittenSavedSetId: null,
-          }),
+              mcQuestions: entry.mcSession!.questions,
+              activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
+              mcQuestionPresentedAtById:
+                entry.mcSession!.presentedAtByQuestionId,
+              mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
+              mcRawModelOutput: entry.mcSession!.rawModelOutput,
+              mcGenerationTelemetry:
+                entry.mcSession!.generationTelemetry ?? null,
+              activeMcSavedSetId: id,
+              questions: [],
+              activeQuestionIndex: 0,
+              writtenQuestionPresentedAtById: {},
+              answersByQuestionId: {},
+              imagesByQuestionId: {},
+              feedbackByQuestionId: {},
+              activeWrittenSavedSetId: null,
+            }),
       });
     });
   },
@@ -1073,7 +1086,8 @@ function mapPreferences(s: PersistedAppState): Partial<AppState> {
 function mapSessions(s: PersistedAppState): Partial<AppState> {
   const activeSavedSetIds = new Set(s.savedSets.map((entry) => entry.id));
   const writtenSavedSetId =
-    s.writtenSession.savedSetId && activeSavedSetIds.has(s.writtenSession.savedSetId)
+    s.writtenSession.savedSetId &&
+    activeSavedSetIds.has(s.writtenSession.savedSetId)
       ? s.writtenSession.savedSetId
       : null;
   const mcSavedSetId =
@@ -1104,7 +1118,9 @@ function mapSessions(s: PersistedAppState): Partial<AppState> {
 }
 
 function mapHistory(s: PersistedAppState): Partial<AppState> {
-  const savedSets = s.savedSets.filter((savedSet) => !isSavedSetComplete(savedSet));
+  const savedSets = s.savedSets.filter(
+    (savedSet) => !isSavedSetComplete(savedSet)
+  );
 
   return {
     questionHistory: s.questionHistory,
