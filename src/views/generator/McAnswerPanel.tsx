@@ -75,13 +75,7 @@ export const McAnswerPanel = memo(function McAnswerPanel({
 
       {isSketchpadOpen && (
         <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-2 text-muted-foreground/70">
-            <PencilRuler className="w-4 h-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
-              Sketchpad
-            </span>
-          </div>
-          <Sketchpad embedded onSave={() => {}} />
+          <Sketchpad embedded onSave={() => { }} />
         </div>
       )}
 
@@ -100,16 +94,14 @@ export const McAnswerPanel = memo(function McAnswerPanel({
       {showResult && (
         <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div
-            className={`flex gap-3 items-start rounded-[24px] border px-4 py-4 sm:px-5 sm:py-5 ${
-              isCorrect
+            className={`flex gap-3 items-start rounded-[24px] border px-4 py-4 sm:px-5 sm:py-5 ${isCorrect
                 ? 'bg-emerald-500/8 border-emerald-500/20'
                 : 'bg-rose-500/8 border-rose-500/20'
-            }`}
+              }`}
           >
             <div
-              className={`shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center ${
-                isCorrect ? 'bg-emerald-500/15' : 'bg-rose-500/15'
-              }`}
+              className={`shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center ${isCorrect ? 'bg-emerald-500/15' : 'bg-rose-500/15'
+                }`}
             >
               {isCorrect ? (
                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />

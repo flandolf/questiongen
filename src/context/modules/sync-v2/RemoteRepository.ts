@@ -36,6 +36,7 @@ import type {
   RemoteDocument,
   ShardKey,
   SyncCollection,
+  SyncableData,
   SyncOperation,
 } from './types';
 
@@ -257,12 +258,12 @@ function compactQuestionHistory(
     lastModified: trimmed.lastModified,
     question: qMeta
       ? {
-          id: qMeta.id,
-          topic: qMeta.topic,
-          subtopic: qMeta.subtopic,
-          maxMarks: qMeta.maxMarks,
-          promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
-        }
+        id: qMeta.id,
+        topic: qMeta.topic,
+        subtopic: qMeta.subtopic,
+        maxMarks: qMeta.maxMarks,
+        promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
+      }
       : undefined,
     uploadedAnswer: clipString(trimmed.uploadedAnswer, 20_000),
     markResponse: trimmed.markResponse,
@@ -298,11 +299,11 @@ function compactMcHistory(
     maxMarks: trimmed.maxMarks,
     question: qMeta
       ? {
-          id: qMeta.id,
-          topic: qMeta.topic,
-          subtopic: qMeta.subtopic,
-          promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
-        }
+        id: qMeta.id,
+        topic: qMeta.topic,
+        subtopic: qMeta.subtopic,
+        promptMarkdown: clipString(qMeta.promptMarkdown, 20_000),
+      }
       : undefined,
   };
   if (estimateDocSizeBytes(metadataOnly) <= FIRESTORE_DOC_SAFE_BYTES)
@@ -465,10 +466,11 @@ export class RemoteRepository {
   ): Promise<void> {
     const prepared = prepareForFirestore(data, collection);
     if (!prepared) {
-      console.warn(
-        `[SyncV2] Skipping oversize document ${collection}/${docId}`
+      throw new Error(
+        `[SyncV2] Cannot sync oversized document ${collection}/${docId}. ` +
+        `This document exceeds the 1MB limit after compression. ` +
+        `Try removing large attachments, images, or markdown content.`
       );
-      return;
     }
 
     const effectiveShard = shardKey ?? this.computeShardKey(data);
@@ -582,10 +584,14 @@ export class RemoteRepository {
 
     const candidates: PreparedCandidate[] = [];
     const byPath = new Map<string, PreparedCandidate[]>();
+    const oversizedDocs: string[] = [];
 
     for (const item of items) {
       const prepared = prepareForFirestore(item.data, collection);
-      if (!prepared) continue;
+      if (!prepared) {
+        oversizedDocs.push(item.id);
+        continue;
+      }
       const effectiveShard = shardKey ?? this.computeShardKey(item.data);
       const path = getCollectionPath(this.userId, collection, effectiveShard);
       const candidate: PreparedCandidate = {
@@ -598,6 +604,14 @@ export class RemoteRepository {
 
       if (!byPath.has(path)) byPath.set(path, []);
       byPath.get(path)!.push(candidate);
+    }
+
+    if (oversizedDocs.length > 0) {
+      throw new Error(
+        `[SyncV2] Cannot sync ${oversizedDocs.length} oversized document(s) in collection "${collection}": ${oversizedDocs.join(', ')}. ` +
+        `These documents exceed the 1MB limit after compression. ` +
+        `Try removing large attachments, images, or markdown content from these attempts.`
+      );
     }
 
     if (candidates.length === 0) return 0;
@@ -875,11 +889,16 @@ export class RemoteRepository {
 
   async flushOperations(
     ops: SyncOperation[],
-    getState: () => Record<string, unknown>[]
+    getState: () => SyncableData
   ): Promise<void> {
     const state = getState();
+    const historyItems: Record<string, unknown>[] = [
+      ...state.questionHistory,
+      ...state.mcHistory,
+      ...state.savedSets,
+    ];
     const stateById = new Map<string, Record<string, unknown>>();
-    for (const item of state) {
+    for (const item of historyItems) {
       if (item.id && typeof item.id === 'string') {
         stateById.set(item.id, item);
       }
@@ -895,10 +914,23 @@ export class RemoteRepository {
 
     for (const op of ops) {
       if (op.collection === 'settings') {
-        if (op.entityId === 'presets' || op.entityId === 'goals') {
+        if (op.entityId === 'main') {
           settingsOps.push({
-            docId: op.entityId,
-            data: { [op.entityId]: stateById.get(op.entityId) ?? {} },
+            docId: 'main',
+            data: { settings: state.settings ?? {} },
+          });
+        } else if (op.entityId === 'goals') {
+          settingsOps.push({
+            docId: 'goals',
+            data: {
+              studyGoals: state.studyGoals ?? {},
+              streakData: state.streakData ?? {},
+            },
+          });
+        } else if (op.entityId === 'presets') {
+          settingsOps.push({
+            docId: 'presets',
+            data: { presets: state.presets ?? [] },
           });
         }
         continue;

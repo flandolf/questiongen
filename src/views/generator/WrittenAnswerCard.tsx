@@ -204,10 +204,6 @@ export function WrittenAnswerCard({
 
       {activeTab === 'sketchpad' && (
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-muted-foreground/70">
-            <PencilRuler className="w-4 h-4" />
-            <span className="text-xs uppercase tracking-wide">Sketchpad</span>
-          </div>
           <Sketchpad
             ref={sketchpadRef}
             embedded
@@ -240,11 +236,10 @@ export function WrittenAnswerCard({
       {!isExamMode && (
         <Button
           size="lg"
-          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
-            hasContent && !isMarking
+          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${hasContent && !isMarking
               ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
               : ''
-          }`}
+            }`}
           onClick={() => void handleSubmit()}
           disabled={!canSubmitFromSketchpad || isMarking}
         >

@@ -140,11 +140,10 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                         </span>
                         <Badge
                           variant="secondary"
-                          className={`shrink-0 text-xs ${
-                            isWritten
+                          className={`shrink-0 text-xs ${isWritten
                               ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
                               : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-                          }`}
+                            }`}
                         >
                           {isWritten ? 'Written' : 'Multiple Choice'}
                         </Badge>
@@ -239,15 +238,14 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                       />
                     </div>
                     <p
-                      className={`text-xs text-right font-medium ${
-                        completedCount === 0
+                      className={`text-xs text-right font-medium ${completedCount === 0
                           ? 'text-muted-foreground/60 italic'
                           : completedCount === questionCount
                             ? isWritten
                               ? 'text-sky-600 dark:text-sky-400'
                               : 'text-violet-600 dark:text-violet-400'
                             : 'text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       {progressLabel}
                     </p>
@@ -371,27 +369,16 @@ export function SavedView() {
     return result;
   }, [savedSets, modeFilter, search, sortKey]);
 
-  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
-  const confirmDeleteTimeout = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
 
   function handleDeleteAll() {
-    if (confirmDeleteAll) {
-      deleteAllSavedSets();
-      setConfirmDeleteAll(false);
-      if (confirmDeleteTimeout.current)
-        clearTimeout(confirmDeleteTimeout.current);
-      toast.success('All saved sets cleared');
-    } else {
-      setConfirmDeleteAll(true);
-      if (confirmDeleteTimeout.current)
-        clearTimeout(confirmDeleteTimeout.current);
-      confirmDeleteTimeout.current = setTimeout(
-        () => setConfirmDeleteAll(false),
-        3000
-      );
-    }
+    setConfirmDeleteAllOpen(true);
+  }
+
+  function performDeleteAllConfirmed() {
+    deleteAllSavedSets();
+    setConfirmDeleteAllOpen(false);
+    toast.success('All saved sets cleared');
   }
 
   // Find the pending-load set's title for contextual confirm copy (#14)
@@ -465,7 +452,7 @@ export function SavedView() {
           className="h-8 gap-1.5 text-xs"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          {confirmDeleteAll ? 'Confirm clear' : 'Clear all'}
+          Clear all
         </Button>
       </Toolbar>
 
@@ -498,6 +485,16 @@ export function SavedView() {
           setConfirmOpen(false);
           setPendingDelete(null);
         }}
+      />
+
+      <ConfirmModal
+        open={confirmDeleteAllOpen}
+        title="Clear all saved sets"
+        description="All saved sets will be permanently deleted. Your history entries will be kept."
+        confirmText="Clear all"
+        cancelText="Cancel"
+        onConfirm={performDeleteAllConfirmed}
+        onCancel={() => setConfirmDeleteAllOpen(false)}
       />
 
       {/* --- #4 + #14: Reframed load confirm with set title --- */}

@@ -259,6 +259,23 @@ interface RealtimeLocalBaseline {
   qhTombs: Set<string>;
   mchTombs: Set<string>;
   ssTombs: Set<string>;
+  mainSettingsDoc: string;
+  goalsSettingsDoc: string;
+  presetsSettingsDoc: string;
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const source = value as Record<string, unknown>;
+    const keys = Object.keys(source).sort((a, b) => a.localeCompare(b));
+    return `{${keys
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(source[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function getItemLastModified(item: Record<string, unknown>): number {
@@ -314,6 +331,17 @@ function toIdLastModifiedMap(
 }
 
 function buildRealtimeLocalBaseline(state: AppState): RealtimeLocalBaseline {
+  const mainSettingsDoc = {
+    settings: state.syncApiKey ? { apiKey: state.apiKey } : {},
+  };
+  const goalsSettingsDoc = {
+    studyGoals: state.studyGoals ?? {},
+    streakData: state.streakData ?? {},
+  };
+  const presetsSettingsDoc = {
+    presets: (state.presets ?? []) as unknown as Record<string, unknown>[],
+  };
+
   return {
     qh: toIdLastModifiedMap(
       state.questionHistory as unknown as Record<string, unknown>[]
@@ -327,6 +355,9 @@ function buildRealtimeLocalBaseline(state: AppState): RealtimeLocalBaseline {
     qhTombs: new Set(Object.keys(state.deletionTombstones.questionHistory)),
     mchTombs: new Set(Object.keys(state.deletionTombstones.mcHistory)),
     ssTombs: new Set(Object.keys(state.deletionTombstones.savedSets)),
+    mainSettingsDoc: stableStringify(mainSettingsDoc),
+    goalsSettingsDoc: stableStringify(goalsSettingsDoc),
+    presetsSettingsDoc: stableStringify(presetsSettingsDoc),
   };
 }
 
@@ -618,6 +649,16 @@ export function useSyncV2(): UseSyncV2Return {
         'mcHistory'
       );
       enqueueNewTombstones(baseline.ssTombs, nextBaseline.ssTombs, 'savedSets');
+
+      if (baseline.mainSettingsDoc !== nextBaseline.mainSettingsDoc) {
+        engineRef.current?.enqueue('settings', 'upsert', 'main');
+      }
+      if (baseline.goalsSettingsDoc !== nextBaseline.goalsSettingsDoc) {
+        engineRef.current?.enqueue('settings', 'upsert', 'goals');
+      }
+      if (baseline.presetsSettingsDoc !== nextBaseline.presetsSettingsDoc) {
+        engineRef.current?.enqueue('settings', 'upsert', 'presets');
+      }
 
       baseline = nextBaseline;
     });
