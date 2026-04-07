@@ -52,9 +52,8 @@ fn write_export_envelope_to_dir(
         )
     })?;
 
-    let filename = normalize_export_filename(
-        suggested_filename.unwrap_or("questiongen-export.json"),
-    );
+    let filename =
+        normalize_export_filename(suggested_filename.unwrap_or("questiongen-export.json"));
     fs::create_dir_all(export_dir)
         .map_err(|e| AppError::new("EXPORT_DIR_ERROR", format!("Cannot create dir: {e}")))?;
 
@@ -133,11 +132,7 @@ pub fn export_data_file(
     suggested_filename: Option<String>,
 ) -> CommandResult<String> {
     let export_dir = export_dir_path(&app)?;
-    let path = write_export_envelope_to_dir(
-        &export_dir,
-        &envelope,
-        suggested_filename.as_deref(),
-    )?;
+    let path = write_export_envelope_to_dir(&export_dir, &envelope, suggested_filename.as_deref())?;
     Ok(path.to_string_lossy().to_string())
 }
 
@@ -156,11 +151,7 @@ pub fn export_data_file_to_directory(
         ));
     }
     let export_dir = PathBuf::from(trimmed);
-    let path = write_export_envelope_to_dir(
-        &export_dir,
-        &envelope,
-        suggested_filename.as_deref(),
-    )?;
+    let path = write_export_envelope_to_dir(&export_dir, &envelope, suggested_filename.as_deref())?;
     Ok(path.to_string_lossy().to_string())
 }
 
@@ -169,10 +160,7 @@ pub fn export_data_file_to_directory(
 pub fn list_json_files_in_directory(dir_path: String) -> CommandResult<Vec<JsonBackupEntry>> {
     let trimmed = normalize_fs_path_arg(&dir_path);
     if trimmed.is_empty() {
-        return Err(AppError::new(
-            "BACKUP_LIST_ERROR",
-            "Folder path is empty.",
-        ));
+        return Err(AppError::new("BACKUP_LIST_ERROR", "Folder path is empty."));
     }
     let dir = Path::new(trimmed.as_str());
     if !dir.is_dir() {
@@ -183,20 +171,12 @@ pub fn list_json_files_in_directory(dir_path: String) -> CommandResult<Vec<JsonB
     }
 
     let mut entries: Vec<JsonBackupEntry> = Vec::new();
-    let read_dir = fs::read_dir(dir).map_err(|e| {
-        AppError::new(
-            "BACKUP_LIST_ERROR",
-            format!("Cannot read folder: {e}"),
-        )
-    })?;
+    let read_dir = fs::read_dir(dir)
+        .map_err(|e| AppError::new("BACKUP_LIST_ERROR", format!("Cannot read folder: {e}")))?;
 
     for item in read_dir {
-        let item = item.map_err(|e| {
-            AppError::new(
-                "BACKUP_LIST_ERROR",
-                format!("Cannot read entry: {e}"),
-            )
-        })?;
+        let item = item
+            .map_err(|e| AppError::new("BACKUP_LIST_ERROR", format!("Cannot read entry: {e}")))?;
         let path = item.path();
         if !path.is_file() {
             continue;
@@ -210,8 +190,8 @@ pub fn list_json_files_in_directory(dir_path: String) -> CommandResult<Vec<JsonB
             .and_then(|m| m.modified().ok())
             .and_then(|t| {
                 t.duration_since(std::time::UNIX_EPOCH).ok().map(|d| {
-                    (d.as_secs().saturating_mul(1000))
-                        .saturating_add(u64::from(d.subsec_millis())) as i64
+                    (d.as_secs().saturating_mul(1000)).saturating_add(u64::from(d.subsec_millis()))
+                        as i64
                 })
             })
             .unwrap_or(0);
@@ -253,12 +233,8 @@ pub fn read_text_file(path: String) -> CommandResult<String> {
         ));
     }
 
-    fs::read_to_string(p).map_err(|e| {
-        AppError::new(
-            "READ_FILE_ERROR",
-            format!("Could not read file: {e}"),
-        )
-    })
+    fs::read_to_string(p)
+        .map_err(|e| AppError::new("READ_FILE_ERROR", format!("Could not read file: {e}")))
 }
 
 fn state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
@@ -283,7 +259,12 @@ fn export_dir_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
     app.path()
         .app_data_dir()
         .map(|d| d.join("exports"))
-        .map_err(|e| AppError::new("EXPORT_PATH_ERROR", format!("Cannot resolve export dir: {e}")))
+        .map_err(|e| {
+            AppError::new(
+                "EXPORT_PATH_ERROR",
+                format!("Cannot resolve export dir: {e}"),
+            )
+        })
 }
 
 fn normalize_export_filename(raw: &str) -> String {
@@ -317,7 +298,10 @@ fn next_available_path(dir: &Path, filename: &str) -> PathBuf {
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("questiongen-export");
-    let ext = base_path.extension().and_then(|s| s.to_str()).unwrap_or("json");
+    let ext = base_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("json");
 
     for i in 1..1000 {
         let candidate = dir.join(format!("{stem}-{i}.{ext}"));

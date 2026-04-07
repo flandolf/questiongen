@@ -747,9 +747,8 @@ fn levenshtein(a: &str, b: &str) -> usize {
         return len_a;
     }
 
-    // Two-row optimization for memory efficiency
-    let mut prev = (0..=len_b).collect::<Vec<_>>();
-    let mut curr = vec![0usize; len_b + 1];
+    let mut prev: Vec<usize> = (0..=len_b).collect();
+    let mut curr: Vec<usize> = vec![0; len_b + 1];
 
     for i in 1..=len_a {
         curr[0] = i;

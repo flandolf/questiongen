@@ -23,6 +23,15 @@ bun run typecheck
 echo "💅 Formatting code with Prettier..."
 bun run prettier
 
+echo "🧹 Running cargo fmt..."
+cargo fmt --manifest-path ./src-tauri/Cargo.toml
+
+echo "🔍 Running cargo clippy..."
+cargo clippy --manifest-path ./src-tauri/Cargo.toml -- -D warnings
+
+echo "🔍 Running cargo check..."
+cargo check --manifest-path ./src-tauri/Cargo.toml
+
 echo "🎉 All pre-commit checks passed!"
 
 echo "📦 Bumping version code..."
