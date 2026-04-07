@@ -152,14 +152,16 @@ export const McAnswerCard = memo(function McAnswerCard({
       {showResult ? (
         <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div
-            className={`flex gap-3 items-start rounded-[24px] border px-4 py-4 sm:px-5 sm:py-5 ${isCorrect
-              ? 'bg-emerald-500/8 border-emerald-500/20'
-              : 'bg-rose-500/8 border-rose-500/20'
-              }`}
+            className={`flex gap-3 items-start rounded-[24px] border px-4 py-4 sm:px-5 sm:py-5 ${
+              isCorrect
+                ? 'bg-emerald-500/8 border-emerald-500/20'
+                : 'bg-rose-500/8 border-rose-500/20'
+            }`}
           >
             <div
-              className={`shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center ${isCorrect ? 'bg-emerald-500/15' : 'bg-rose-500/15'
-                }`}
+              className={`shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center ${
+                isCorrect ? 'bg-emerald-500/15' : 'bg-rose-500/15'
+              }`}
             >
               {isCorrect ? (
                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />
@@ -169,16 +171,18 @@ export const McAnswerCard = memo(function McAnswerCard({
             </div>
             <div className="flex-1 min-w-0">
               <p
-                className={`font-semibold text-base mb-2 ${isCorrect ? 'text-emerald-200' : 'text-rose-200'
-                  }`}
+                className={`font-semibold text-base mb-2 ${
+                  isCorrect ? 'text-emerald-200' : 'text-rose-200'
+                }`}
               >
                 {isCorrect
                   ? 'Correct!'
                   : `Incorrect — the answer is ${correctAnswer}.`}
               </p>
               <div
-                className={`prose prose-sm max-w-none ${isCorrect ? 'prose-emerald' : 'prose-rose'
-                  }`}
+                className={`prose prose-sm max-w-none ${
+                  isCorrect ? 'prose-emerald' : 'prose-rose'
+                }`}
               >
                 <MarkdownMath content={explanationMarkdown} />
               </div>
@@ -274,7 +278,7 @@ export const McAnswerCard = memo(function McAnswerCard({
           </div>
         </div>
       ) : (
-        <div className='grid grid-cols-2 justify-between items-center'>
+        <div className="grid grid-cols-2 justify-between items-center">
           <div className="text-sm text-muted-foreground animate-in fade-in duration-200">
             Select an answer above to see the result.
           </div>
@@ -291,7 +295,6 @@ export const McAnswerCard = memo(function McAnswerCard({
           </div>
         </div>
       )}
-
     </div>
   );
 });

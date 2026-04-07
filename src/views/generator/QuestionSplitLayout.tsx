@@ -22,7 +22,7 @@ export function QuestionSplitLayout({
   className,
 }: QuestionSplitLayoutProps) {
   const isWritten = mode === 'written';
-  
+
   // Ratios match existing GeneratorView logic
   const gridCols = sketchpadActive
     ? isWritten
@@ -31,19 +31,9 @@ export function QuestionSplitLayout({
     : 'lg:grid-cols-2';
 
   return (
-    <div
-      className={cn(
-        'grid grid-cols-1 lg:gap-8 pb-10',
-        gridCols,
-        className
-      )}
-    >
-      <div className="min-w-0 space-y-5">
-        {leftSlot}
-      </div>
-      <div className="min-w-0 space-y-5">
-        {rightSlot}
-      </div>
+    <div className={cn('grid grid-cols-1 lg:gap-8 pb-10', gridCols, className)}>
+      <div className="min-w-0 space-y-5">{leftSlot}</div>
+      <div className="min-w-0 space-y-5">{rightSlot}</div>
     </div>
   );
 }

@@ -13,12 +13,12 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useAppStore } from '@/store';
 import {
   normalizeMcHistory,
   normalizeQuestionHistory,
   normalizeSavedSets,
 } from '@/lib/persistence';
+import { useAppStore } from '@/store';
 import type { Preset, StreakData, StudyGoals } from '@/types';
 
 import { auth, db } from '../firebase-init';
