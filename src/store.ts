@@ -32,6 +32,7 @@ import type {
   GeneratedQuestion,
   GenerationRecord,
   GenerationStatusEvent,
+  GenerationStrategy,
   GenerationTelemetry,
   MarkAnswerResponse,
   MathMethodsSubtopic,
@@ -130,6 +131,7 @@ export interface AppState {
   strictLatexValidation: boolean;
   strictSubtopicCoverage: boolean;
   minSubtopicCoverageRatio: number;
+  generationStrategy: GenerationStrategy;
 
   // ── Written session ────────────────────────────────────────────────────────
   questions: GeneratedQuestion[];
@@ -246,6 +248,7 @@ export interface AppActions {
   setStrictLatexValidation: (enabled: boolean) => void;
   setStrictSubtopicCoverage: (enabled: boolean) => void;
   setMinSubtopicCoverageRatio: (ratio: number) => void;
+  setGenerationStrategy: (strategy: GenerationStrategy) => void;
 
   // Written session
   setQuestions: (questions: GeneratedQuestion[]) => void;
@@ -399,6 +402,7 @@ const defaultState: AppState = {
   strictLatexValidation: true,
   strictSubtopicCoverage: true,
   minSubtopicCoverageRatio: 0.6,
+  generationStrategy: 'multi-pass',
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
   activeQuestionIndex:
     EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
@@ -569,6 +573,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({ strictSubtopicCoverage }),
   setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) =>
     set({ minSubtopicCoverageRatio }),
+  setGenerationStrategy: (generationStrategy) => set({ generationStrategy }),
 
   setQuestions: (questions) => set({ questions }),
   setActiveQuestionIndex: (activeQuestionIndex) => set({ activeQuestionIndex }),
@@ -663,6 +668,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         strictLatexValidation: s.strictLatexValidation,
         strictSubtopicCoverage: s.strictSubtopicCoverage,
         minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+        generationStrategy: s.generationStrategy,
       };
       const writtenSession: PersistedWrittenSession = {
         questions: s.questions,
@@ -730,6 +736,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       strictLatexValidation: s.strictLatexValidation,
       strictSubtopicCoverage: s.strictSubtopicCoverage,
       minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+      generationStrategy: s.generationStrategy,
     };
     const mcSession: PersistedMcSession = {
       questions: s.mcQuestions,
@@ -1002,6 +1009,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       strictLatexValidation: s.strictLatexValidation,
       strictSubtopicCoverage: s.strictSubtopicCoverage,
       minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+      generationStrategy: s.generationStrategy,
     },
     writtenSession: {
       questions: s.questions,
@@ -1076,6 +1084,7 @@ function mapPreferences(s: PersistedAppState): Partial<AppState> {
     strictLatexValidation: p.strictLatexValidation ?? true,
     strictSubtopicCoverage: p.strictSubtopicCoverage ?? true,
     minSubtopicCoverageRatio: p.minSubtopicCoverageRatio ?? 0.6,
+    generationStrategy: p.generationStrategy ?? 'multi-pass',
     difficultyThresholds: p.difficultyThresholds ?? {
       increase: 85,
       decrease: 70,

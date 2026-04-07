@@ -205,6 +205,7 @@ export function GeneratorView() {
     questionMode,
     setQuestionMode,
     aiDifficultyScalingEnabled,
+    generationStrategy,
   } = useAppPreferences();
 
   const {
@@ -1347,10 +1348,91 @@ export function GeneratorView() {
         if (isMultiTopic) setBatchEntryActive(i, topic);
 
         try {
-          // If subtopics are present, build per-subtopic calls so the client
-          // decides which subtopics to use (reducing LLM-side randomness).
-          // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
+
+          // Single-pass: let LLM decide subtopics in one prompt
+          if (generationStrategy === 'single-pass') {
+            if (!isMultiTopic) {
+              setGenerationStatus({
+                mode: 'written',
+                stage: 'generating',
+                message: 'Generating questions...',
+                attempt: 1,
+              });
+            }
+            const response = await invoke<GenerateQuestionsResponse>(
+              'generate_questions',
+              {
+                request: {
+                  topics: [topic],
+                  difficulty,
+                  questionCount: count,
+                  averageMarksPerQuestion,
+                  model,
+                  apiKey,
+                  techMode,
+                  includeExamContext,
+                  subtopics: [],
+                  customFocusArea: getCustomFocusArea(),
+                  avoidSimilarQuestions,
+                  strictLatexValidation,
+                  strictSubtopicCoverage,
+                  minSubtopicCoverageRatio,
+                  diversityStrictness,
+                  priorQuestionPrompts: avoidSimilarQuestions
+                    ? getRecentSameTopicQuestionPrompts('written')
+                    : [],
+                  aiDifficultyScalingEnabled,
+                  recentAverageScore,
+                  recentDifficulty: difficulty,
+                },
+              }
+            );
+
+            allQuestions = allQuestions.concat(response.questions);
+            totalTelemetry.durationMs += response.durationMs || 0;
+            totalTelemetry.promptTokens += response.promptTokens || 0;
+            totalTelemetry.completionTokens += response.completionTokens || 0;
+            totalTelemetry.totalTokens += response.totalTokens || 0;
+            totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
+            totalTelemetry.distinctnessAvg +=
+              (response.distinctnessAvg || 0) * response.questions.length;
+            totalTelemetry.multiStepDepthAvg +=
+              (response.multiStepDepthAvg || 0) * response.questions.length;
+            if (response.qualityDiagnostics) {
+              totalTelemetry.qualityDiagnostics = response.qualityDiagnostics;
+            }
+            distinctnessWeight += response.questions.length;
+            multiStepDepthWeight += response.questions.length;
+
+            // Record this generation for cost estimation
+            addGenerationRecord({
+              id: `gen-${topic}-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              timestamp: new Date().toISOString(),
+              inputs: {
+                topic,
+                difficulty,
+                questionCount: response.questions.length,
+                questionMode: 'written',
+                techMode,
+                averageMarksPerQuestion,
+                subtopics: [],
+                customFocusArea: getCustomFocusArea(),
+              },
+              outputs: {
+                durationMs: response.durationMs,
+                promptTokens: response.promptTokens,
+                completionTokens: response.completionTokens,
+                totalTokens: response.totalTokens,
+                estimatedCostUsd: response.estimatedCostUsd,
+              },
+            });
+            continue;
+          }
+
+          // Multi-pass: build per-subtopic calls
           const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic], {
             seed: generationSeed + i * 1009,
             combineForSmallBatches: true,
@@ -1605,11 +1687,96 @@ export function GeneratorView() {
         if (isMultiTopic) setBatchEntryActive(i, topic);
 
         try {
-          // Build per-subtopic calls so the client picks which subtopics to
-          // generate from. Also shuffle MC options client-side after LLM
-          // returns to avoid predictable answer positions.
-          // Uses seeded randomization based on topic for reproducibility.
           const topicSubtopics = getSubtopicsForTopic(topic);
+
+          // Single-pass: let LLM decide subtopics in one prompt
+          if (generationStrategy === 'single-pass') {
+            if (!isMultiTopic) {
+              setGenerationStatus({
+                mode: 'multiple-choice',
+                stage: 'generating',
+                message: 'Generating questions...',
+                attempt: 1,
+              });
+            }
+            const response = await invoke<GenerateMcQuestionsResponse>(
+              'generate_mc_questions',
+              {
+                request: {
+                  topics: [topic],
+                  difficulty,
+                  questionCount: count,
+                  model,
+                  apiKey,
+                  techMode,
+                  includeExamContext,
+                  subtopics: [],
+                  customFocusArea: getCustomFocusArea(),
+                  avoidSimilarQuestions,
+                  strictLatexValidation,
+                  strictSubtopicCoverage,
+                  minSubtopicCoverageRatio,
+                  diversityStrictness,
+                  priorQuestionPrompts: avoidSimilarQuestions
+                    ? getRecentSameTopicQuestionPrompts('multiple-choice')
+                    : [],
+                  aiDifficultyScalingEnabled,
+                  recentAverageScore,
+                  recentDifficulty: difficulty,
+                },
+              }
+            );
+
+            // Shuffle options for each returned MC question and relabel
+            const adjusted = (response.questions || []).map((q) =>
+              shuffleMcQuestionOptions(q)
+            );
+
+            allQuestions = allQuestions.concat(adjusted);
+            totalTelemetry.durationMs += response.durationMs || 0;
+            totalTelemetry.promptTokens += response.promptTokens || 0;
+            totalTelemetry.completionTokens += response.completionTokens || 0;
+            totalTelemetry.totalTokens += response.totalTokens || 0;
+            totalTelemetry.estimatedCostUsd += response.estimatedCostUsd || 0;
+            totalTelemetry.distinctnessAvg +=
+              (response.distinctnessAvg || 0) * response.questions.length;
+            totalTelemetry.multiStepDepthAvg +=
+              (response.multiStepDepthAvg || 0) * response.questions.length;
+            if (response.qualityDiagnostics) {
+              totalTelemetry.qualityDiagnostics = response.qualityDiagnostics;
+            }
+            distinctnessWeight += response.questions.length;
+            multiStepDepthWeight += response.questions.length;
+
+            // Record this generation for cost estimation
+            addGenerationRecord({
+              id: `gen-${topic}-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              timestamp: new Date().toISOString(),
+              inputs: {
+                topic,
+                difficulty,
+                questionCount: response.questions.length,
+                questionMode: 'multiple-choice',
+                techMode,
+                subtopics: [],
+                customFocusArea: getCustomFocusArea(),
+              },
+              outputs: {
+                durationMs: response.durationMs,
+                promptTokens: response.promptTokens,
+                completionTokens: response.completionTokens,
+                totalTokens: response.totalTokens,
+                estimatedCostUsd: response.estimatedCostUsd,
+              },
+            });
+
+            if (isMultiTopic) setBatchEntryDone(i);
+            continue;
+          }
+
+          // Multi-pass: build per-subtopic calls
           const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic], {
             seed: generationSeed + i * 1009,
             combineForSmallBatches: true,

@@ -297,7 +297,7 @@ fn topic_field_contract() -> &'static str {
 
 fn written_system() -> String {
     format!(
-                "You are an expert VCE exam writer for written-response questions.\n\
+        "You are an expert VCE exam writer for written-response questions.\n\
                  {contract}\n\
                  {latex_rules}\n\
                  {question_style_rules}\n\n\
@@ -308,10 +308,10 @@ fn written_system() -> String {
                  - 'explain/justify': reasoning required.\n\n\
                  {field_contract}\n\n\
                  'promptMarkdown' contains STEM ONLY. No worked solutions or answers.",
-                contract = generation_compliance_contract(),
-                latex_rules = constants::LATEX_RULES,
-                question_style_rules = constants::QUESTION_STYLE_RULES,
-                field_contract = topic_field_contract(),
+        contract = generation_compliance_contract(),
+        latex_rules = constants::LATEX_RULES,
+        question_style_rules = constants::QUESTION_STYLE_RULES,
+        field_contract = topic_field_contract(),
     )
 }
 
@@ -1007,7 +1007,7 @@ async fn generate_questions(
     };
 
     let prompt = format!(
-        "Generate {count} VCE written questions. Topics: {topics}. Difficulty: {difficulty}. \
+        "Generate {count} VCE written questions. Topics: {topics}. Difficulty: {difficulty}, {diff_rules}. \
          Avg marks: {average_marks}. Total marks: {total_marks}. \
          Complexity must match marks (e.g., 5-6 marks = 2-3 parts). \
          {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{sim_note}{focus_lock}{exam_context_preamble} \
@@ -1522,7 +1522,7 @@ async fn generate_mc_questions(
     };
 
     let prompt = format!(
-        "Generate {count} VCE multiple-choice questions (1 mark each). Topics: {topics}. Difficulty: {difficulty}. \
+        "Generate {count} VCE multiple-choice questions (1 mark each). Topics: {topics}. Difficulty: {difficulty}, {diff_rules}. \
          {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{sim_note}{focus_lock}{exam_context_preamble} \
          Output exactly {count} questions.",
         count                 = request.question_count,

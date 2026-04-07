@@ -215,6 +215,8 @@ export function useAppPreferences() {
       setAiDifficultyScalingEnabled: s.setAiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
       setDifficultyThresholds: s.setDifficultyThresholds,
+      generationStrategy: s.generationStrategy,
+      setGenerationStrategy: s.setGenerationStrategy,
     }))
   );
 }

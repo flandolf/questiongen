@@ -4,6 +4,7 @@ import type {
   AnswerAnalytics,
   DiversityStrictness,
   GenerationRecord,
+  GenerationStrategy,
   McAnswerAnalytics,
   McHistoryEntry,
   McOption,
@@ -74,6 +75,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   strictLatexValidation: true,
   strictSubtopicCoverage: true,
   minSubtopicCoverageRatio: 0.6,
+  generationStrategy: 'multi-pass',
 };
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
@@ -387,6 +389,9 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
             1
           )
         : DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
+    generationStrategy: isGenerationStrategy(data.generationStrategy)
+      ? data.generationStrategy
+      : DEFAULT_PREFERENCES.generationStrategy,
   };
 }
 
@@ -1005,6 +1010,10 @@ function isTechMode(
 
 function isQuestionMode(value: unknown): value is QuestionMode {
   return value === 'written' || value === 'multiple-choice';
+}
+
+function isGenerationStrategy(value: unknown): value is GenerationStrategy {
+  return value === 'multi-pass' || value === 'single-pass';
 }
 
 function filterStringLiterals<T extends readonly string[]>(
