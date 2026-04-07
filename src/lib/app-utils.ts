@@ -137,3 +137,24 @@ export function formatCostUsd(costUsd: number | null | undefined): string {
   if (costUsd < 0.01) return `$${costUsd.toFixed(5)}`;
   return `$${costUsd.toFixed(4)}`;
 }
+
+/**
+ * Recursively removes all undefined keys from an object.
+ * Required for Firestore, which throws an error if an object contains 'undefined'.
+ */
+export function removeUndefined<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => removeUndefined(item)) as unknown as T;
+  }
+
+  const result: any = {};
+  Object.keys(obj as any).forEach((key) => {
+    const value = (obj as any)[key];
+    if (value !== undefined) {
+      result[key] = removeUndefined(value);
+    }
+  });
+  return result as T;
+}

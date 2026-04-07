@@ -1,6 +1,11 @@
 import { getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
@@ -28,15 +33,12 @@ const shouldForceLongPolling =
 
 const db = (() => {
   try {
-    if (shouldForceLongPolling) {
-      console.log(
-        '[Firebase] Android detected; enabling Firestore long-polling transport'
-      );
-      return initializeFirestore(app, {
-        experimentalForceLongPolling: true,
-      });
-    }
-    return getFirestore(app);
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: shouldForceLongPolling,
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
   } catch (error) {
     console.warn(
       '[Firebase] Firestore init fallback to default transport',
