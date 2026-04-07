@@ -662,7 +662,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -1881,7 +1881,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           <div className="flex items-center gap-3 px-2">
             <div className="flex items-center gap-1">
               {[0.5, 1, 2].map((m) => {
-                const baseSize = activeTool === 'eraser' ? 20 : 4;
+                const baseSize = activeTool === 'eraser' ? 40 : 4;
                 const size = baseSize * m;
                 const isActive = currentSize === size;
                 return (
