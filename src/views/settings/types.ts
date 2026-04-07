@@ -63,4 +63,4 @@ export interface StatsColumn {
   loading: boolean;
 }
 
-export const APP_VERSION = '3.0.19';
+export const APP_VERSION = '3.0.21';

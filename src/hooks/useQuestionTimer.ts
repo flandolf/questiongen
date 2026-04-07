@@ -477,7 +477,10 @@ export function useQuestionTimer(
         return;
 
       const nowSec = Date.now() / 1000;
-      const currentPausedMs = getEffectivePausedMs(s, pauseStartedAtRef.current);
+      const currentPausedMs = getEffectivePausedMs(
+        s,
+        pauseStartedAtRef.current
+      );
       const next = {
         ...s,
         byQuestionId: {
@@ -534,7 +537,10 @@ export function useQuestionTimer(
 
       const qs = questionsRef.current;
       const nowSec = Date.now() / 1000;
-      const currentPausedMs = getEffectivePausedMs(s, pauseStartedAtRef.current);
+      const currentPausedMs = getEffectivePausedMs(
+        s,
+        pauseStartedAtRef.current
+      );
       const updatedById = { ...s.byQuestionId };
 
       // Freeze the outgoing question's elapsed time

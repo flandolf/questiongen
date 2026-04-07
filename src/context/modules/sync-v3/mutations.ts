@@ -1,5 +1,9 @@
-import { doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+
 import { removeUndefined } from '@/lib/app-utils';
+import type { McHistoryEntry, QuestionHistoryEntry } from '@/types/history';
+import type { SavedQuestionSet } from '@/types/persistence';
+import type { Preset, StreakData, StudyGoals } from '@/types/study';
 
 import { auth, db } from '../firebase-init';
 
@@ -8,17 +12,20 @@ import { auth, db } from '../firebase-init';
  * These bypass the old queue system and rely on Firestore's native offline persistence.
  */
 
-export async function saveQuestionHistoryEntry(entry: any) {
+export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
   const uid = getUid();
   if (!uid) {
     console.warn('[SyncV3] No UID available to save question history entry');
     return;
   }
   try {
-    await setDoc(doc(db, `users/${uid}/questionHistory`, entry.id), removeUndefined({
-      ...entry,
-      updatedAt: serverTimestamp(),
-    }));
+    await setDoc(
+      doc(db, `users/${uid}/questionHistory`, entry.id),
+      removeUndefined({
+        ...entry,
+        updatedAt: serverTimestamp(),
+      })
+    );
   } catch (error) {
     console.error('[SyncV3] Failed to save question history entry:', error);
   }
@@ -30,17 +37,20 @@ export async function deleteQuestionHistoryEntry(id: string) {
   await deleteDoc(doc(db, `users/${uid}/questionHistory`, id));
 }
 
-export async function saveMcHistoryEntry(entry: any) {
+export async function saveMcHistoryEntry(entry: McHistoryEntry) {
   const uid = getUid();
   if (!uid) {
     console.warn('[SyncV3] No UID available to save MC history entry');
     return;
   }
   try {
-    await setDoc(doc(db, `users/${uid}/mcHistory`, entry.id), removeUndefined({
-      ...entry,
-      updatedAt: serverTimestamp(),
-    }));
+    await setDoc(
+      doc(db, `users/${uid}/mcHistory`, entry.id),
+      removeUndefined({
+        ...entry,
+        updatedAt: serverTimestamp(),
+      })
+    );
   } catch (error) {
     console.error('[SyncV3] Failed to save MC history entry:', error);
   }
@@ -52,14 +62,17 @@ export async function deleteMcHistoryEntry(id: string) {
   await deleteDoc(doc(db, `users/${uid}/mcHistory`, id));
 }
 
-export async function saveSavedSet(entry: any) {
+export async function saveSavedSet(entry: SavedQuestionSet) {
   const uid = getUid();
   if (!uid) return;
   try {
-    await setDoc(doc(db, `users/${uid}/savedSets`, entry.id), removeUndefined({
-      ...entry,
-      updatedAt: serverTimestamp(),
-    }));
+    await setDoc(
+      doc(db, `users/${uid}/savedSets`, entry.id),
+      removeUndefined({
+        ...entry,
+        updatedAt: serverTimestamp(),
+      })
+    );
   } catch (error) {
     console.error('[SyncV3] Failed to save saved set:', error);
   }
@@ -71,28 +84,39 @@ export async function deleteSavedSet(id: string) {
   await deleteDoc(doc(db, `users/${uid}/savedSets`, id));
 }
 
-export async function updateStudyGoals(goals: any, streakData: any) {
+export async function updateStudyGoals(
+  goals: StudyGoals,
+  streakData: StreakData
+) {
   const uid = getUid();
   if (!uid) return;
   try {
-    await setDoc(doc(db, `users/${uid}/settings`, 'goals'), removeUndefined({
-      studyGoals: goals,
-      streakData: streakData,
-      updatedAt: serverTimestamp(),
-    }), { merge: true });
+    await setDoc(
+      doc(db, `users/${uid}/settings`, 'goals'),
+      removeUndefined({
+        studyGoals: goals,
+        streakData: streakData,
+        updatedAt: serverTimestamp(),
+      }),
+      { merge: true }
+    );
   } catch (error) {
     console.error('[SyncV3] Failed to update study goals:', error);
   }
 }
 
-export async function updatePresets(presets: any[]) {
+export async function updatePresets(presets: Preset[]) {
   const uid = getUid();
   if (!uid) return;
   try {
-    await setDoc(doc(db, `users/${uid}/settings`, 'presets'), removeUndefined({
-      presets,
-      updatedAt: serverTimestamp(),
-    }), { merge: true });
+    await setDoc(
+      doc(db, `users/${uid}/settings`, 'presets'),
+      removeUndefined({
+        presets,
+        updatedAt: serverTimestamp(),
+      }),
+      { merge: true }
+    );
   } catch (error) {
     console.error('[SyncV3] Failed to update presets:', error);
   }
@@ -102,10 +126,14 @@ export async function updateApiKey(apiKey: string) {
   const uid = getUid();
   if (!uid) return;
   try {
-    await setDoc(doc(db, `users/${uid}/settings`, 'main'), removeUndefined({
-      apiKey,
-      updatedAt: serverTimestamp(),
-    }), { merge: true });
+    await setDoc(
+      doc(db, `users/${uid}/settings`, 'main'),
+      removeUndefined({
+        apiKey,
+        updatedAt: serverTimestamp(),
+      }),
+      { merge: true }
+    );
   } catch (error) {
     console.error('[SyncV3] Failed to update API key:', error);
   }

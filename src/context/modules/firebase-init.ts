@@ -1,10 +1,10 @@
 import { getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { 
-  getFirestore, 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager 
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -24,17 +24,11 @@ if (!app) {
 }
 
 const auth = getAuth(app);
-const isTauriRuntime =
-  typeof window !== 'undefined' &&
-  ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
-const shouldForceLongPolling =
-  isTauriRuntime ||
-  (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent));
 
 const db = (() => {
   try {
     return initializeFirestore(app, {
-      experimentalForceLongPolling: shouldForceLongPolling,
+      experimentalAutoDetectLongPolling: true,
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager(),
       }),

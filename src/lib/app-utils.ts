@@ -10,8 +10,8 @@ export {
   trainLogRegressionModel,
 } from './token-estimation';
 
-export function formatDate(isoString: string): string {
-  const date = new Date(isoString);
+export function formatDate(dateInput: string | number): string {
+  const date = new Date(dateInput);
   if (Number.isNaN(date.getTime())) {
     return 'Unknown time';
   }
@@ -146,15 +146,20 @@ export function removeUndefined<T>(obj: T): T {
   if (obj === null || typeof obj !== 'object') return obj;
 
   if (Array.isArray(obj)) {
-    return obj.map((item) => removeUndefined(item)) as unknown as T;
+    return (obj as unknown[]).map((item) =>
+      removeUndefined(item)
+    ) as unknown as T;
   }
 
-  const result: any = {};
-  Object.keys(obj as any).forEach((key) => {
-    const value = (obj as any)[key];
+  const record = obj as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  Object.keys(record).forEach((key) => {
+    const value = record[key];
     if (value !== undefined) {
       result[key] = removeUndefined(value);
     }
   });
+
   return result as T;
 }

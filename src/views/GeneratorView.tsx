@@ -962,8 +962,6 @@ export function GeneratorView() {
     setMarkAppealByQuestionId,
     setMarkOverrideInputByQuestionId,
     setWrittenResponseEnteredAtById,
-    addQuestionHistoryEntry,
-    updateQuestionHistoryEntry,
     deleteQuestionHistoryEntry,
     writtenTimer,
     setMcQuestions,
@@ -974,8 +972,6 @@ export function GeneratorView() {
     setMcMarkAppealByQuestionId,
     setMcMarkOverrideInputByQuestionId,
     setMcAwardedMarksByQuestionId,
-    addMcHistoryEntry,
-    updateMcHistoryEntry,
     deleteMcHistoryEntry,
     mcTimer,
     setErrorMessage,
@@ -1147,7 +1143,9 @@ export function GeneratorView() {
     awardedMarks: number
   ) {
     const now = Date.now();
-    const entry = mcHistory.find((e: McHistoryEntry) => e.question.id === questionId);
+    const entry = mcHistory.find(
+      (e: McHistoryEntry) => e.question.id === questionId
+    );
     if (!entry) return;
     const updatedEntry = {
       ...entry,

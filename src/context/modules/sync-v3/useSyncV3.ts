@@ -1,21 +1,29 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { 
-  collection, 
-  doc, 
-  onSnapshot, 
-  type Unsubscribe 
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  type Unsubscribe,
 } from 'firebase/firestore';
-import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { auth, db } from '../firebase-init';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import { useAppStore } from '@/store';
-import type { 
-  McHistoryEntry, 
-  Preset, 
-  QuestionHistoryEntry, 
-  SavedQuestionSet, 
-  StudyGoals, 
-  StreakData 
+import type {
+  McHistoryEntry,
+  Preset,
+  QuestionHistoryEntry,
+  SavedQuestionSet,
+  StreakData,
+  StudyGoals,
 } from '@/types';
+
+import { auth, db } from '../firebase-init';
 
 export interface UseSyncV3Return {
   user: FirebaseUser | null;
@@ -30,7 +38,11 @@ export interface UseSyncV3Return {
   pendingDeletions: number; // Always 0
   queuedOpsCount: number; // Always 0
   lastFlushTime: number | null;
-  enableSync: (email: string, password: string, isSignUp?: boolean) => Promise<void>;
+  enableSync: (
+    email: string,
+    password: string,
+    isSignUp?: boolean
+  ) => Promise<void>;
   disableSync: () => Promise<void>;
   toggleSync: () => void;
 }
@@ -40,9 +52,283 @@ export function useSyncV3(): UseSyncV3Return {
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncEnabled, setIsSyncEnabled] = useState(true); // Default to true if user is logged in
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error' | 'offline' | 'connecting'>('idle');
-  
+  const [syncStatus, setSyncStatus] = useState<
+    'idle' | 'syncing' | 'error' | 'offline' | 'connecting'
+  >('idle');
+
   const unsubscribesRef = useRef<Unsubscribe[]>([]);
+
+  // Define callback functions first before using them in useEffect
+  const cleanupListeners = useCallback(() => {
+    unsubscribesRef.current.forEach((unsub) => unsub());
+    unsubscribesRef.current = [];
+  }, []);
+
+  const manualRefreshData = useCallback(async (uid: string) => {
+    try {
+      // Fetch saved sets
+      const savedSetsSnapshot = await getDocs(
+        collection(db, `users/${uid}/savedSets`)
+      );
+      const sets: SavedQuestionSet[] = [];
+      savedSetsSnapshot.forEach((doc) => {
+        sets.push({ id: doc.id, ...doc.data() } as SavedQuestionSet);
+      });
+      sets.sort((a, b) =>
+        String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+      );
+      useAppStore.setState({ savedSets: sets });
+
+      // Fetch question history
+      const qhSnapshot = await getDocs(
+        collection(db, `users/${uid}/questionHistory`)
+      );
+      const qh: QuestionHistoryEntry[] = [];
+      qhSnapshot.forEach((doc) => {
+        qh.push({ id: doc.id, ...doc.data() } as QuestionHistoryEntry);
+      });
+      qh.sort((a, b) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+      );
+      useAppStore.setState({ questionHistory: qh });
+
+      // Fetch MC history
+      const mchSnapshot = await getDocs(
+        collection(db, `users/${uid}/mcHistory`)
+      );
+      const mch: McHistoryEntry[] = [];
+      mchSnapshot.forEach((doc) => {
+        mch.push({ id: doc.id, ...doc.data() } as McHistoryEntry);
+      });
+      mch.sort((a, b) =>
+        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+      );
+      useAppStore.setState({ mcHistory: mch });
+
+      console.log('[FirebaseSync] Manual data refresh completed');
+    } catch (error) {
+      console.error('[FirebaseSync] Manual refresh error:', error);
+    }
+  }, []);
+
+  const setupListeners = useCallback(
+    (uid: string) => {
+      cleanupListeners();
+      setSyncStatus('syncing');
+
+      try {
+        // 1. Question History
+        const qhUnsub = onSnapshot(
+          collection(db, `users/${uid}/questionHistory`),
+          (snapshot) => {
+            try {
+              const history: QuestionHistoryEntry[] = [];
+              snapshot.forEach((doc) => {
+                history.push({
+                  id: doc.id,
+                  ...doc.data(),
+                } as QuestionHistoryEntry);
+              });
+              // Ensure newest first
+              history.sort((a, b) =>
+                String(b.createdAt || '').localeCompare(
+                  String(a.createdAt || '')
+                )
+              );
+              useAppStore.setState({ questionHistory: history });
+            } catch (error) {
+              console.error(
+                '[FirebaseSync] Error processing question history snapshot:',
+                error
+              );
+            }
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Error listening to question history:',
+              error
+            );
+            setSyncStatus('error');
+          }
+        );
+
+        // 2. MC History
+        const mchUnsub = onSnapshot(
+          collection(db, `users/${uid}/mcHistory`),
+          (snapshot) => {
+            try {
+              const history: McHistoryEntry[] = [];
+              snapshot.forEach((doc) => {
+                history.push({ id: doc.id, ...doc.data() } as McHistoryEntry);
+              });
+              // Ensure newest first
+              history.sort((a, b) =>
+                String(b.createdAt || '').localeCompare(
+                  String(a.createdAt || '')
+                )
+              );
+              useAppStore.setState({ mcHistory: history });
+            } catch (error) {
+              console.error(
+                '[FirebaseSync] Error processing MC history snapshot:',
+                error
+              );
+            }
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Error listening to MC history:',
+              error
+            );
+            setSyncStatus('error');
+          }
+        );
+
+        // 3. Saved Sets
+        const ssUnsub = onSnapshot(
+          collection(db, `users/${uid}/savedSets`),
+          (snapshot) => {
+            try {
+              const sets: SavedQuestionSet[] = [];
+              snapshot.forEach((doc) => {
+                sets.push({ id: doc.id, ...doc.data() } as SavedQuestionSet);
+              });
+              // Ensure newest modified/updated first
+              sets.sort((a, b) =>
+                String(b.updatedAt || '').localeCompare(
+                  String(a.updatedAt || '')
+                )
+              );
+              useAppStore.setState({ savedSets: sets });
+            } catch (error) {
+              console.error(
+                '[FirebaseSync] Error processing saved sets snapshot:',
+                error
+              );
+            }
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Error listening to saved sets:',
+              error
+            );
+            setSyncStatus('error');
+          }
+        );
+
+        // 4. Settings - Main
+        const settingsMainUnsub = onSnapshot(
+          doc(db, `users/${uid}/settings`, 'main'),
+          (snapshot) => {
+            try {
+              if (snapshot.exists()) {
+                const data = snapshot.data() as { apiKey?: string };
+                if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
+              }
+            } catch (error) {
+              console.error(
+                '[FirebaseSync] Error processing main settings snapshot:',
+                error
+              );
+            }
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Error listening to main settings:',
+              error
+            );
+            setSyncStatus('error');
+          }
+        );
+
+        // 5. Settings - Goals
+        const settingsGoalsUnsub = onSnapshot(
+          doc(db, `users/${uid}/settings`, 'goals'),
+          (snapshot) => {
+            try {
+              if (snapshot.exists()) {
+                const data = snapshot.data() as {
+                  studyGoals?: StudyGoals;
+                  streakData?: StreakData;
+                };
+                if (data?.studyGoals)
+                  useAppStore.setState({
+                    studyGoals: data.studyGoals,
+                  });
+                if (data?.streakData)
+                  useAppStore.setState({
+                    streakData: data.streakData,
+                  });
+              }
+            } catch (error) {
+              console.error(
+                '[FirebaseSync] Error processing goals settings snapshot:',
+                error
+              );
+            }
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Error listening to goals settings:',
+              error
+            );
+            setSyncStatus('error');
+          }
+        );
+
+        // 6. Settings - Presets
+        const settingsPresetsUnsub = onSnapshot(
+          doc(db, `users/${uid}/settings`, 'presets'),
+          (snapshot) => {
+            try {
+              if (snapshot.exists()) {
+                const data = snapshot.data() as { presets?: Preset[] };
+                if (data?.presets)
+                  useAppStore.setState({ presets: data.presets });
+              }
+            } catch (error) {
+              console.error(
+                '[FirebaseSync] Error processing presets settings snapshot:',
+                error
+              );
+            }
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Error listening to presets settings:',
+              error
+            );
+            setSyncStatus('error');
+          }
+        );
+
+        unsubscribesRef.current = [
+          qhUnsub,
+          mchUnsub,
+          ssUnsub,
+          settingsMainUnsub,
+          settingsGoalsUnsub,
+          settingsPresetsUnsub,
+        ];
+
+        // Manually fetch data as a fallback to ensure we have the latest
+        // This handles cases where listeners might not fire immediately
+        manualRefreshData(uid).catch((err) => {
+          console.error('[FirebaseSync] Manual refresh failed:', err);
+        });
+
+        setSyncStatus('idle');
+        console.log(
+          '[FirebaseSync] Listeners set up successfully for user:',
+          uid
+        );
+      } catch (error) {
+        console.error('[FirebaseSync] Error setting up listeners:', error);
+        setSyncStatus('error');
+      }
+    },
+    [cleanupListeners, manualRefreshData]
+  );
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -59,7 +345,7 @@ export function useSyncV3(): UseSyncV3Return {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsLoading(false);
-      
+
       if (firebaseUser) {
         setupListeners(firebaseUser.uid);
       } else {
@@ -71,87 +357,22 @@ export function useSyncV3(): UseSyncV3Return {
       unsubscribeAuth();
       cleanupListeners();
     };
-  }, []);
+  }, [setupListeners, cleanupListeners]);
 
-  const cleanupListeners = useCallback(() => {
-    unsubscribesRef.current.forEach((unsub) => unsub());
-    unsubscribesRef.current = [];
-  }, []);
+  // No periodic refresh needed as listeners handle real-time updates.
+  // The initial manual refresh in setupListeners ensures we have data if listeners are slow to start.
 
-  const setupListeners = useCallback((uid: string) => {
-    cleanupListeners();
-    setSyncStatus('syncing');
-
-    // 1. Question History
-    const qhUnsub = onSnapshot(collection(db, `users/${uid}/questionHistory`), (snapshot) => {
-      const history: QuestionHistoryEntry[] = [];
-      snapshot.forEach((doc) => history.push({ id: doc.id, ...doc.data() } as QuestionHistoryEntry));
-      // Ensure newest first
-      history.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      useAppStore.setState({ questionHistory: history });
-    });
-
-    // 2. MC History
-    const mchUnsub = onSnapshot(collection(db, `users/${uid}/mcHistory`), (snapshot) => {
-      const history: McHistoryEntry[] = [];
-      snapshot.forEach((doc) => history.push({ id: doc.id, ...doc.data() } as McHistoryEntry));
-      // Ensure newest first
-      history.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      useAppStore.setState({ mcHistory: history });
-    });
-
-    // 3. Saved Sets
-    const ssUnsub = onSnapshot(collection(db, `users/${uid}/savedSets`), (snapshot) => {
-      const sets: SavedQuestionSet[] = [];
-      snapshot.forEach((doc) => sets.push({ id: doc.id, ...doc.data() } as SavedQuestionSet));
-      // Ensure newest modified/updated first
-      sets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-      useAppStore.setState({ savedSets: sets });
-    });
-
-    // 4. Settings - Main
-    const settingsMainUnsub = onSnapshot(doc(db, `users/${uid}/settings`, 'main'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.apiKey) useAppStore.setState({ apiKey: data.apiKey });
-      }
-    });
-
-    // 5. Settings - Goals
-    const settingsGoalsUnsub = onSnapshot(doc(db, `users/${uid}/settings`, 'goals'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.studyGoals) useAppStore.setState({ studyGoals: data.studyGoals as StudyGoals });
-        if (data.streakData) useAppStore.setState({ streakData: data.streakData as StreakData });
-      }
-    });
-
-    // 6. Settings - Presets
-    const settingsPresetsUnsub = onSnapshot(doc(db, `users/${uid}/settings`, 'presets'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.presets) useAppStore.setState({ presets: data.presets as Preset[] });
-      }
-    });
-
-    unsubscribesRef.current = [
-      qhUnsub, 
-      mchUnsub, 
-      ssUnsub, 
-      settingsMainUnsub, 
-      settingsGoalsUnsub, 
-      settingsPresetsUnsub
-    ];
-    setSyncStatus('idle');
-  }, [cleanupListeners]);
-
-  const enableSync = async (_email: string, _password: string, _isSignUp = false) => {
+  const enableSync = async (
+    email: string,
+    password: string,
+    isSignUp = false
+  ) => {
     setSyncStatus('connecting');
     try {
-      if (_isSignUp) {
-        // Sign up logic (using standard firebase auth)
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
       } else {
-        // Sign in logic
+        await signInWithEmailAndPassword(auth, email, password);
       }
       // Note: onAuthStateChanged will trigger and setup listeners
     } catch (error) {

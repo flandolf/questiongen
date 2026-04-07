@@ -5,6 +5,17 @@
 import { startTransition } from 'react';
 import { create } from 'zustand';
 
+import {
+  deleteMcHistoryEntry as v3DeleteMcHistoryEntry,
+  deleteQuestionHistoryEntry as v3DeleteQuestionHistoryEntry,
+  deleteSavedSet as v3DeleteSavedSet,
+  saveMcHistoryEntry as v3SaveMcHistoryEntry,
+  saveQuestionHistoryEntry as v3SaveQuestionHistoryEntry,
+  saveSavedSet as v3SaveSavedSet,
+  updateApiKey,
+  updatePresets,
+  updateStudyGoals,
+} from '@/context/modules/sync-v3/mutations';
 import { mergeImportedState, persistAndRehydrate } from '@/lib/import-export';
 import {
   EMPTY_PERSISTED_APP_STATE,
@@ -13,18 +24,6 @@ import {
 } from '@/lib/persistence';
 import { createCard, isDue, reviewCard } from '@/lib/spaced-repetition';
 import { getTodayKey } from '@/lib/utils';
-import { 
-  saveQuestionHistoryEntry as v3SaveQuestionHistoryEntry, 
-  deleteQuestionHistoryEntry as v3DeleteQuestionHistoryEntry,
-  saveMcHistoryEntry as v3SaveMcHistoryEntry,
-  deleteMcHistoryEntry as v3DeleteMcHistoryEntry,
-  saveSavedSet as v3SaveSavedSet,
-  deleteSavedSet as v3DeleteSavedSet,
-  updateStudyGoals,
-  updatePresets,
-  updateApiKey
-} from '@/context/modules/sync-v3/mutations';
-
 
 import type {
   ChemistrySubtopic,
@@ -337,27 +336,41 @@ const defaultState: AppState = {
   showApiKey: false,
   model: EMPTY_PERSISTED_APP_STATE.settings.model,
   markingModel: EMPTY_PERSISTED_APP_STATE.settings.markingModel,
-  useSeparateMarkingModel: Boolean(EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel),
+  useSeparateMarkingModel: Boolean(
+    EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel
+  ),
   imageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.imageMarkingModel,
-  useSeparateImageMarkingModel: Boolean(EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel),
+  useSeparateImageMarkingModel: Boolean(
+    EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel
+  ),
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
-  includeExamContext: Boolean(EMPTY_PERSISTED_APP_STATE.settings.includeExamContext),
-  autoSyncIntervalMinutes: EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
+  includeExamContext: Boolean(
+    EMPTY_PERSISTED_APP_STATE.settings.includeExamContext
+  ),
+  autoSyncIntervalMinutes:
+    EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
   syncApiKey: Boolean(EMPTY_PERSISTED_APP_STATE.settings.syncApiKey),
-  localBackupFolderPath: EMPTY_PERSISTED_APP_STATE.settings.localBackupFolderPath ?? '',
-  localBackupIntervalMinutes: EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
+  localBackupFolderPath:
+    EMPTY_PERSISTED_APP_STATE.settings.localBackupFolderPath ?? '',
+  localBackupIntervalMinutes:
+    EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
   difficulty: EMPTY_PERSISTED_APP_STATE.preferences.difficulty,
   techMode: EMPTY_PERSISTED_APP_STATE.preferences.techMode,
-  avoidSimilarQuestions: EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
-  mathMethodsSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
-  specialistMathSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
+  avoidSimilarQuestions:
+    EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
+  mathMethodsSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
+  specialistMathSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
   chemistrySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
-  physicalEducationSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
+  physicalEducationSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
-  averageMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
+  averageMarksPerQuestion:
+    EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
   questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
@@ -366,22 +379,34 @@ const defaultState: AppState = {
   strictSubtopicCoverage: true,
   minSubtopicCoverageRatio: 0.6,
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
-  activeQuestionIndex: EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
-  writtenQuestionPresentedAtById: EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
-  answersByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
-  imagesByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
-  feedbackByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
+  activeQuestionIndex:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
+  writtenQuestionPresentedAtById:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
+  answersByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
+  imagesByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
+  feedbackByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
   questionHistory: EMPTY_PERSISTED_APP_STATE.questionHistory,
-  writtenRawModelOutput: EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
-  writtenGenerationTelemetry: EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
-  activeWrittenSavedSetId: EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null,
+  writtenRawModelOutput:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
+  writtenGenerationTelemetry:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
+  activeWrittenSavedSetId:
+    EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null,
   mcQuestions: EMPTY_PERSISTED_APP_STATE.mcSession.questions,
-  activeMcQuestionIndex: EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
-  mcQuestionPresentedAtById: EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
-  mcAnswersByQuestionId: EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
+  activeMcQuestionIndex:
+    EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
+  mcQuestionPresentedAtById:
+    EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
+  mcAnswersByQuestionId:
+    EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
   mcHistory: EMPTY_PERSISTED_APP_STATE.mcHistory,
   mcRawModelOutput: EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput,
-  mcGenerationTelemetry: EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
+  mcGenerationTelemetry:
+    EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
   activeMcSavedSetId: EMPTY_PERSISTED_APP_STATE.mcSession.savedSetId ?? null,
   savedSets: EMPTY_PERSISTED_APP_STATE.savedSets,
   isGenerating: false,
@@ -426,67 +451,9 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   hydrate: async () => {
     try {
       const persisted = await loadPersistedAppState();
-      const s = persisted;
-      const preferences = persisted.preferences as any;
       set({
-        apiKey: s.settings.apiKey,
-        model: s.settings.model,
-        markingModel: s.settings.markingModel,
-        useSeparateMarkingModel: Boolean(s.settings.useSeparateMarkingModel),
-        imageMarkingModel: s.settings.imageMarkingModel,
-        useSeparateImageMarkingModel: Boolean(s.settings.useSeparateImageMarkingModel),
-        debugMode: s.settings.debugMode,
-        questionTextSize: s.settings.questionTextSize ?? 16,
-        responseTextSize: s.settings.responseTextSize ?? 16,
-        includeExamContext: Boolean(s.settings.includeExamContext),
-        autoSyncIntervalMinutes: s.settings.autoSyncIntervalMinutes ?? 0,
-        syncApiKey: Boolean(s.settings.syncApiKey),
-        localBackupFolderPath: s.settings.localBackupFolderPath ?? '',
-        localBackupIntervalMinutes: s.settings.localBackupIntervalMinutes ?? 0,
-        selectedTopics: s.preferences.selectedTopics,
-        difficulty: s.preferences.difficulty,
-        techMode: s.preferences.techMode,
-        avoidSimilarQuestions: s.preferences.avoidSimilarQuestions,
-        mathMethodsSubtopics: s.preferences.mathMethodsSubtopics,
-        specialistMathSubtopics: s.preferences.specialistMathSubtopics,
-        chemistrySubtopics: s.preferences.chemistrySubtopics,
-        physicalEducationSubtopics: s.preferences.physicalEducationSubtopics,
-        questionCount: s.preferences.questionCount,
-        averageMarksPerQuestion: s.preferences.averageMarksPerQuestion,
-        questionMode: s.preferences.questionMode,
-        aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? true,
-        diversityStrictness: preferences.diversityStrictness ?? 'moderate',
-        strictLatexValidation: preferences.strictLatexValidation ?? true,
-        strictSubtopicCoverage: preferences.strictSubtopicCoverage ?? true,
-        minSubtopicCoverageRatio: preferences.minSubtopicCoverageRatio ?? 0.6,
-        difficultyThresholds: preferences.difficultyThresholds ?? { increase: 85, decrease: 70 },
-        questions: s.writtenSession.questions,
-        activeQuestionIndex: s.writtenSession.activeQuestionIndex,
-        writtenQuestionPresentedAtById: s.writtenSession.presentedAtByQuestionId,
-        answersByQuestionId: s.writtenSession.answersByQuestionId,
-        imagesByQuestionId: s.writtenSession.imagesByQuestionId,
-        feedbackByQuestionId: s.writtenSession.feedbackByQuestionId,
-        writtenRawModelOutput: s.writtenSession.rawModelOutput,
-        writtenGenerationTelemetry: s.writtenSession.generationTelemetry ?? null,
-        activeWrittenSavedSetId: s.writtenSession.savedSetId ?? null,
-        mcQuestions: s.mcSession.questions,
-        activeMcQuestionIndex: s.mcSession.activeQuestionIndex,
-        mcQuestionPresentedAtById: s.mcSession.presentedAtByQuestionId,
-        mcAnswersByQuestionId: s.mcSession.answersByQuestionId,
-        mcRawModelOutput: s.mcSession.rawModelOutput,
-        mcGenerationTelemetry: s.mcSession.generationTelemetry ?? null,
-        activeMcSavedSetId: s.mcSession.savedSetId ?? null,
-        questionHistory: s.questionHistory,
-        mcHistory: s.mcHistory,
-        savedSets: s.savedSets,
-        spacedRepetitionCards: s.spacedRepetition ?? {},
-        studyGoals: s.studyGoals ?? defaultState.studyGoals,
-        streakData: s.streakData ?? defaultState.streakData,
+        ...snapshotToState(persisted),
         isHydrated: true,
-        generationHistory: s.generationHistory ?? [],
-        presets: s.presets ?? [],
-        writtenTimerState: s.writtenTimerState ?? null,
-        mcTimerState: s.mcTimerState ?? null,
       });
     } catch {
       console.error('Hydration failed');
@@ -494,68 +461,138 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     }
   },
 
-  addGenerationRecord: (record) => set((s) => ({ generationHistory: [record, ...s.generationHistory].slice(0, 1000) })),
+  addGenerationRecord: (record) =>
+    set((s) => ({
+      generationHistory: [record, ...s.generationHistory].slice(0, 1000),
+    })),
   setWrittenTimerState: (writtenTimerState) => set({ writtenTimerState }),
   setMcTimerState: (mcTimerState) => set({ mcTimerState }),
-  setApiKey: (key) => { set({ apiKey: key }); void updateApiKey(key); },
+  setApiKey: (key) => {
+    set({ apiKey: key });
+    void updateApiKey(key);
+  },
   setShowApiKey: (show) => set({ showApiKey: show }),
   setModel: (model) => set({ model }),
   setMarkingModel: (markingModel) => set({ markingModel }),
-  setUseSeparateMarkingModel: (useSeparateMarkingModel) => set({ useSeparateMarkingModel }),
+  setUseSeparateMarkingModel: (useSeparateMarkingModel) =>
+    set({ useSeparateMarkingModel }),
   setImageMarkingModel: (imageMarkingModel) => set({ imageMarkingModel }),
-  setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) => set({ useSeparateImageMarkingModel }),
+  setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) =>
+    set({ useSeparateImageMarkingModel }),
   setDebugMode: (debugMode) => set({ debugMode }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
-  setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) => set({ autoSyncIntervalMinutes }),
+  setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
+    set({ autoSyncIntervalMinutes }),
   setSyncApiKey: (syncApiKey) => set({ syncApiKey }),
-  setLocalBackupFolderPath: (localBackupFolderPath) => set({ localBackupFolderPath }),
-  setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) => set({ localBackupIntervalMinutes }),
+  setLocalBackupFolderPath: (localBackupFolderPath) =>
+    set({ localBackupFolderPath }),
+  setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
+    set({ localBackupIntervalMinutes }),
   clearApiKey: () => set({ apiKey: '' }),
 
   setPresets: (presets) => set({ presets }),
-  addPreset: (preset) => set((s) => { const next = [preset, ...s.presets]; void updatePresets(next); return { presets: next }; }),
-  updatePreset: (preset) => set((s) => { const next = s.presets.map((p) => (p.id === preset.id ? preset : p)); void updatePresets(next); return { presets: next }; }),
-  deletePreset: (id) => set((s) => { const next = s.presets.filter((p) => p.id !== id); void updatePresets(next); return { presets: next }; }),
+  addPreset: (preset) =>
+    set((s) => {
+      const next = [preset, ...s.presets];
+      void updatePresets(next);
+      return { presets: next };
+    }),
+  updatePreset: (preset) =>
+    set((s) => {
+      const next = s.presets.map((p) => (p.id === preset.id ? preset : p));
+      void updatePresets(next);
+      return { presets: next };
+    }),
+  deletePreset: (id) =>
+    set((s) => {
+      const next = s.presets.filter((p) => p.id !== id);
+      void updatePresets(next);
+      return { presets: next };
+    }),
 
-  setSelectedTopics: (update) => set((s) => ({ selectedTopics: resolve(update, s.selectedTopics) })),
+  setSelectedTopics: (update) =>
+    set((s) => ({ selectedTopics: resolve(update, s.selectedTopics) })),
   setDifficulty: (difficulty) => set({ difficulty }),
   setTechMode: (techMode) => set({ techMode }),
-  setAvoidSimilarQuestions: (avoidSimilarQuestions) => set({ avoidSimilarQuestions }),
-  setMathMethodsSubtopics: (update) => set((s) => ({ mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics) })),
-  setSpecialistMathSubtopics: (update) => set((s) => ({ specialistMathSubtopics: resolve(update, s.specialistMathSubtopics) })),
-  setChemistrySubtopics: (update) => set((s) => ({ chemistrySubtopics: resolve(update, s.chemistrySubtopics) })),
-  setPhysicalEducationSubtopics: (update) => set((s) => ({ physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics) })),
+  setAvoidSimilarQuestions: (avoidSimilarQuestions) =>
+    set({ avoidSimilarQuestions }),
+  setMathMethodsSubtopics: (update) =>
+    set((s) => ({
+      mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics),
+    })),
+  setSpecialistMathSubtopics: (update) =>
+    set((s) => ({
+      specialistMathSubtopics: resolve(update, s.specialistMathSubtopics),
+    })),
+  setChemistrySubtopics: (update) =>
+    set((s) => ({ chemistrySubtopics: resolve(update, s.chemistrySubtopics) })),
+  setPhysicalEducationSubtopics: (update) =>
+    set((s) => ({
+      physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics),
+    })),
   setQuestionCount: (questionCount) => set({ questionCount }),
-  setAverageMarksPerQuestion: (averageMarksPerQuestion) => set({ averageMarksPerQuestion }),
+  setAverageMarksPerQuestion: (averageMarksPerQuestion) =>
+    set({ averageMarksPerQuestion }),
   setQuestionMode: (questionMode) => set({ questionMode }),
 
-  setAiDifficultyScalingEnabled: (enabled) => set({ aiDifficultyScalingEnabled: enabled }),
-  setDifficultyThresholds: (thresholds) => set({ difficultyThresholds: thresholds }),
+  setAiDifficultyScalingEnabled: (enabled) =>
+    set({ aiDifficultyScalingEnabled: enabled }),
+  setDifficultyThresholds: (thresholds) =>
+    set({ difficultyThresholds: thresholds }),
   setDiversityStrictness: (diversityStrictness) => set({ diversityStrictness }),
-  setStrictLatexValidation: (strictLatexValidation) => set({ strictLatexValidation }),
-  setStrictSubtopicCoverage: (strictSubtopicCoverage) => set({ strictSubtopicCoverage }),
-  setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) => set({ minSubtopicCoverageRatio }),
+  setStrictLatexValidation: (strictLatexValidation) =>
+    set({ strictLatexValidation }),
+  setStrictSubtopicCoverage: (strictSubtopicCoverage) =>
+    set({ strictSubtopicCoverage }),
+  setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) =>
+    set({ minSubtopicCoverageRatio }),
 
   setQuestions: (questions) => set({ questions }),
   setActiveQuestionIndex: (activeQuestionIndex) => set({ activeQuestionIndex }),
-  setWrittenQuestionPresentedAtById: (update) => set((s) => ({ writtenQuestionPresentedAtById: resolve(update, s.writtenQuestionPresentedAtById) })),
-  setAnswersByQuestionId: (update) => set((s) => ({ answersByQuestionId: resolve(update, s.answersByQuestionId) })),
-  setImagesByQuestionId: (update) => set((s) => ({ imagesByQuestionId: resolve(update, s.imagesByQuestionId) })),
-  setFeedbackByQuestionId: (update) => set((s) => ({ feedbackByQuestionId: resolve(update, s.feedbackByQuestionId) })),
-  setQuestionHistory: (update) => set((s) => ({ questionHistory: resolve(update, s.questionHistory) })),
-  setWrittenRawModelOutput: (writtenRawModelOutput) => set({ writtenRawModelOutput }),
-  setWrittenGenerationTelemetry: (writtenGenerationTelemetry) => set({ writtenGenerationTelemetry }),
-  setActiveWrittenSavedSetId: (activeWrittenSavedSetId) => set({ activeWrittenSavedSetId }),
+  setWrittenQuestionPresentedAtById: (update) =>
+    set((s) => ({
+      writtenQuestionPresentedAtById: resolve(
+        update,
+        s.writtenQuestionPresentedAtById
+      ),
+    })),
+  setAnswersByQuestionId: (update) =>
+    set((s) => ({
+      answersByQuestionId: resolve(update, s.answersByQuestionId),
+    })),
+  setImagesByQuestionId: (update) =>
+    set((s) => ({ imagesByQuestionId: resolve(update, s.imagesByQuestionId) })),
+  setFeedbackByQuestionId: (update) =>
+    set((s) => ({
+      feedbackByQuestionId: resolve(update, s.feedbackByQuestionId),
+    })),
+  setQuestionHistory: (update) =>
+    set((s) => ({ questionHistory: resolve(update, s.questionHistory) })),
+  setWrittenRawModelOutput: (writtenRawModelOutput) =>
+    set({ writtenRawModelOutput }),
+  setWrittenGenerationTelemetry: (writtenGenerationTelemetry) =>
+    set({ writtenGenerationTelemetry }),
+  setActiveWrittenSavedSetId: (activeWrittenSavedSetId) =>
+    set({ activeWrittenSavedSetId }),
 
   setMcQuestions: (mcQuestions) => set({ mcQuestions }),
-  setActiveMcQuestionIndex: (activeMcQuestionIndex) => set({ activeMcQuestionIndex }),
-  setMcQuestionPresentedAtById: (update) => set((s) => ({ mcQuestionPresentedAtById: resolve(update, s.mcQuestionPresentedAtById) })),
-  setMcAnswersByQuestionId: (update) => set((s) => ({ mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId) })),
-  setMcHistory: (update) => set((s) => ({ mcHistory: resolve(update, s.mcHistory) })),
+  setActiveMcQuestionIndex: (activeMcQuestionIndex) =>
+    set({ activeMcQuestionIndex }),
+  setMcQuestionPresentedAtById: (update) =>
+    set((s) => ({
+      mcQuestionPresentedAtById: resolve(update, s.mcQuestionPresentedAtById),
+    })),
+  setMcAnswersByQuestionId: (update) =>
+    set((s) => ({
+      mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId),
+    })),
+  setMcHistory: (update) =>
+    set((s) => ({ mcHistory: resolve(update, s.mcHistory) })),
   setMcRawModelOutput: (mcRawModelOutput) => set({ mcRawModelOutput }),
-  setMcGenerationTelemetry: (mcGenerationTelemetry) => set({ mcGenerationTelemetry }),
+  setMcGenerationTelemetry: (mcGenerationTelemetry) =>
+    set({ mcGenerationTelemetry }),
   setActiveMcSavedSetId: (activeMcSavedSetId) => set({ activeMcSavedSetId }),
 
   setIsGenerating: (isGenerating) => set({ isGenerating }),
@@ -570,87 +607,479 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     const nowMs = Date.now();
     if (s.questionMode === 'written') {
       if (s.questions.length === 0) return null;
-      const savedSetId = s.activeWrittenSavedSetId ?? `saved-written-${crypto.randomUUID()}`;
+      const savedSetId =
+        s.activeWrittenSavedSetId ?? `saved-written-${crypto.randomUUID()}`;
       const preferencesSnapshot: PersistedGeneratorPreferences = {
-        selectedTopics: s.selectedTopics, difficulty: s.difficulty, techMode: s.techMode, avoidSimilarQuestions: s.avoidSimilarQuestions, mathMethodsSubtopics: s.mathMethodsSubtopics, specialistMathSubtopics: s.specialistMathSubtopics, chemistrySubtopics: s.chemistrySubtopics, physicalEducationSubtopics: s.physicalEducationSubtopics, questionCount: s.questionCount, averageMarksPerQuestion: s.averageMarksPerQuestion, questionMode: s.questionMode, diversityStrictness: s.diversityStrictness, strictLatexValidation: s.strictLatexValidation, strictSubtopicCoverage: s.strictSubtopicCoverage, minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+        selectedTopics: s.selectedTopics,
+        difficulty: s.difficulty,
+        techMode: s.techMode,
+        avoidSimilarQuestions: s.avoidSimilarQuestions,
+        mathMethodsSubtopics: s.mathMethodsSubtopics,
+        specialistMathSubtopics: s.specialistMathSubtopics,
+        chemistrySubtopics: s.chemistrySubtopics,
+        physicalEducationSubtopics: s.physicalEducationSubtopics,
+        questionCount: s.questionCount,
+        averageMarksPerQuestion: s.averageMarksPerQuestion,
+        questionMode: s.questionMode,
+        diversityStrictness: s.diversityStrictness,
+        strictLatexValidation: s.strictLatexValidation,
+        strictSubtopicCoverage: s.strictSubtopicCoverage,
+        minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
       };
-      const writtenSession: PersistedWrittenSession = { questions: s.questions, activeQuestionIndex: s.activeQuestionIndex, presentedAtByQuestionId: s.writtenQuestionPresentedAtById, answersByQuestionId: s.answersByQuestionId, imagesByQuestionId: s.imagesByQuestionId, feedbackByQuestionId: s.feedbackByQuestionId, rawModelOutput: s.writtenRawModelOutput, generationTelemetry: s.writtenGenerationTelemetry, savedSetId };
-      const nextEntry: SavedQuestionSet = { id: savedSetId, title: buildSavedSetTitle('written', s.selectedTopics), questionMode: 'written', createdAt: s.savedSets.find(e => e.id === savedSetId)?.createdAt ?? now, updatedAt: now, lastModified: nowMs, preferences: preferencesSnapshot, writtenSession };
-      const nextSavedSets = [nextEntry, ...s.savedSets.filter((e) => e.id !== savedSetId)];
+      const writtenSession: PersistedWrittenSession = {
+        questions: s.questions,
+        activeQuestionIndex: s.activeQuestionIndex,
+        presentedAtByQuestionId: s.writtenQuestionPresentedAtById,
+        answersByQuestionId: s.answersByQuestionId,
+        imagesByQuestionId: s.imagesByQuestionId,
+        feedbackByQuestionId: s.feedbackByQuestionId,
+        rawModelOutput: s.writtenRawModelOutput,
+        generationTelemetry: s.writtenGenerationTelemetry,
+        savedSetId,
+      };
+      const nextEntry: SavedQuestionSet = {
+        id: savedSetId,
+        title: buildSavedSetTitle('written', s.selectedTopics),
+        questionMode: 'written',
+        createdAt:
+          s.savedSets.find((e) => e.id === savedSetId)?.createdAt ?? now,
+        updatedAt: now,
+        lastModified: nowMs,
+        preferences: preferencesSnapshot,
+        writtenSession,
+      };
+      const nextSavedSets = [
+        nextEntry,
+        ...s.savedSets.filter((e) => e.id !== savedSetId),
+      ];
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
       void v3SaveSavedSet(nextEntry);
       return savedSetId;
     }
     if (s.mcQuestions.length === 0) return null;
-    const savedSetId = s.activeMcSavedSetId ?? `saved-mc-${crypto.randomUUID()}`;
+    const savedSetId =
+      s.activeMcSavedSetId ?? `saved-mc-${crypto.randomUUID()}`;
     const preferencesSnapshot: PersistedGeneratorPreferences = {
-      selectedTopics: s.selectedTopics, difficulty: s.difficulty, techMode: s.techMode, avoidSimilarQuestions: s.avoidSimilarQuestions, mathMethodsSubtopics: s.mathMethodsSubtopics, specialistMathSubtopics: s.specialistMathSubtopics, chemistrySubtopics: s.chemistrySubtopics, physicalEducationSubtopics: s.physicalEducationSubtopics, questionCount: s.questionCount, averageMarksPerQuestion: s.averageMarksPerQuestion, questionMode: s.questionMode, diversityStrictness: s.diversityStrictness, strictLatexValidation: s.strictLatexValidation, strictSubtopicCoverage: s.strictSubtopicCoverage, minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+      selectedTopics: s.selectedTopics,
+      difficulty: s.difficulty,
+      techMode: s.techMode,
+      avoidSimilarQuestions: s.avoidSimilarQuestions,
+      mathMethodsSubtopics: s.mathMethodsSubtopics,
+      specialistMathSubtopics: s.specialistMathSubtopics,
+      chemistrySubtopics: s.chemistrySubtopics,
+      physicalEducationSubtopics: s.physicalEducationSubtopics,
+      questionCount: s.questionCount,
+      averageMarksPerQuestion: s.averageMarksPerQuestion,
+      questionMode: s.questionMode,
+      diversityStrictness: s.diversityStrictness,
+      strictLatexValidation: s.strictLatexValidation,
+      strictSubtopicCoverage: s.strictSubtopicCoverage,
+      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
     };
-    const mcSession: PersistedMcSession = { questions: s.mcQuestions, activeQuestionIndex: s.activeMcQuestionIndex, presentedAtByQuestionId: s.mcQuestionPresentedAtById, answersByQuestionId: s.mcAnswersByQuestionId, rawModelOutput: s.mcRawModelOutput, generationTelemetry: s.mcGenerationTelemetry, savedSetId };
-    const nextEntry: SavedQuestionSet = { id: savedSetId, title: buildSavedSetTitle('multiple-choice', s.selectedTopics), questionMode: 'multiple-choice', createdAt: s.savedSets.find(e => e.id === savedSetId)?.createdAt ?? now, updatedAt: now, lastModified: nowMs, preferences: preferencesSnapshot, mcSession };
-    const nextSavedSets = [nextEntry, ...s.savedSets.filter((e) => e.id !== savedSetId)];
+    const mcSession: PersistedMcSession = {
+      questions: s.mcQuestions,
+      activeQuestionIndex: s.activeMcQuestionIndex,
+      presentedAtByQuestionId: s.mcQuestionPresentedAtById,
+      answersByQuestionId: s.mcAnswersByQuestionId,
+      rawModelOutput: s.mcRawModelOutput,
+      generationTelemetry: s.mcGenerationTelemetry,
+      savedSetId,
+    };
+    const nextEntry: SavedQuestionSet = {
+      id: savedSetId,
+      title: buildSavedSetTitle('multiple-choice', s.selectedTopics),
+      questionMode: 'multiple-choice',
+      createdAt: s.savedSets.find((e) => e.id === savedSetId)?.createdAt ?? now,
+      updatedAt: now,
+      lastModified: nowMs,
+      preferences: preferencesSnapshot,
+      mcSession,
+    };
+    const nextSavedSets = [
+      nextEntry,
+      ...s.savedSets.filter((e) => e.id !== savedSetId),
+    ];
     set({ savedSets: nextSavedSets, activeMcSavedSetId: savedSetId });
     void v3SaveSavedSet(nextEntry);
     return savedSetId;
   },
 
   loadSavedSet: (id) => {
-    const entry = get().savedSets.find(e => e.id === id);
+    const entry = get().savedSets.find((e) => e.id === id);
     if (!entry) return;
     startTransition(() => {
       set({
-        selectedTopics: entry.preferences.selectedTopics, difficulty: entry.preferences.difficulty, techMode: entry.preferences.techMode, avoidSimilarQuestions: entry.preferences.avoidSimilarQuestions, mathMethodsSubtopics: entry.preferences.mathMethodsSubtopics, specialistMathSubtopics: entry.preferences.specialistMathSubtopics, chemistrySubtopics: entry.preferences.chemistrySubtopics, physicalEducationSubtopics: entry.preferences.physicalEducationSubtopics, questionCount: entry.preferences.questionCount, questionMode: entry.questionMode,
-        ...(entry.questionMode === 'written' ? { questions: entry.writtenSession!.questions, activeQuestionIndex: entry.writtenSession!.activeQuestionIndex, writtenQuestionPresentedAtById: entry.writtenSession!.presentedAtByQuestionId, answersByQuestionId: entry.writtenSession!.answersByQuestionId, imagesByQuestionId: entry.writtenSession!.imagesByQuestionId, feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId, writtenRawModelOutput: entry.writtenSession!.rawModelOutput, writtenGenerationTelemetry: entry.writtenSession!.generationTelemetry ?? null, activeWrittenSavedSetId: id, mcQuestions: [], activeMcQuestionIndex: 0, mcQuestionPresentedAtById: {}, mcAnswersByQuestionId: {}, activeMcSavedSetId: null }
-        : { mcQuestions: entry.mcSession!.questions, activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex, mcQuestionPresentedAtById: entry.mcSession!.presentedAtByQuestionId, mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId, mcRawModelOutput: entry.mcSession!.rawModelOutput, mcGenerationTelemetry: entry.mcSession!.generationTelemetry ?? null, activeMcSavedSetId: id, questions: [], activeQuestionIndex: 0, writtenQuestionPresentedAtById: {}, answersByQuestionId: {}, imagesByQuestionId: {}, feedbackByQuestionId: {}, activeWrittenSavedSetId: null })
+        selectedTopics: entry.preferences.selectedTopics,
+        difficulty: entry.preferences.difficulty,
+        techMode: entry.preferences.techMode,
+        avoidSimilarQuestions: entry.preferences.avoidSimilarQuestions,
+        mathMethodsSubtopics: entry.preferences.mathMethodsSubtopics,
+        specialistMathSubtopics: entry.preferences.specialistMathSubtopics,
+        chemistrySubtopics: entry.preferences.chemistrySubtopics,
+        physicalEducationSubtopics:
+          entry.preferences.physicalEducationSubtopics,
+        questionCount: entry.preferences.questionCount,
+        questionMode: entry.questionMode,
+        ...(entry.questionMode === 'written'
+          ? {
+              questions: entry.writtenSession!.questions,
+              activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
+              writtenQuestionPresentedAtById:
+                entry.writtenSession!.presentedAtByQuestionId,
+              answersByQuestionId: entry.writtenSession!.answersByQuestionId,
+              imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
+              feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
+              writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
+              writtenGenerationTelemetry:
+                entry.writtenSession!.generationTelemetry ?? null,
+              activeWrittenSavedSetId: id,
+              mcQuestions: [],
+              activeMcQuestionIndex: 0,
+              mcQuestionPresentedAtById: {},
+              mcAnswersByQuestionId: {},
+              activeMcSavedSetId: null,
+            }
+          : {
+              mcQuestions: entry.mcSession!.questions,
+              activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
+              mcQuestionPresentedAtById:
+                entry.mcSession!.presentedAtByQuestionId,
+              mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
+              mcRawModelOutput: entry.mcSession!.rawModelOutput,
+              mcGenerationTelemetry:
+                entry.mcSession!.generationTelemetry ?? null,
+              activeMcSavedSetId: id,
+              questions: [],
+              activeQuestionIndex: 0,
+              writtenQuestionPresentedAtById: {},
+              answersByQuestionId: {},
+              imagesByQuestionId: {},
+              feedbackByQuestionId: {},
+              activeWrittenSavedSetId: null,
+            }),
       });
     });
   },
 
-  needsSaveBeforeLoad: (id) => { const s = get(); return (s.questionMode === 'written' ? s.questions.length > 0 : s.mcQuestions.length > 0) && (s.questionMode === 'written' ? s.activeWrittenSavedSetId !== id : s.activeMcSavedSetId !== id); },
-  deleteSavedSet: (id) => { set((s) => ({ savedSets: s.savedSets.filter(e => e.id !== id), activeWrittenSavedSetId: s.activeWrittenSavedSetId === id ? null : s.activeWrittenSavedSetId, activeMcSavedSetId: s.activeMcSavedSetId === id ? null : s.activeMcSavedSetId })); void v3DeleteSavedSet(id); },
-  deleteAllSavedSets: () => { set((s) => { s.savedSets.forEach(ss => void v3DeleteSavedSet(ss.id)); return { savedSets: [], activeWrittenSavedSetId: null, activeMcSavedSetId: null }; }); },
-  deleteQuestionHistoryEntry: (id) => { set((s) => ({ questionHistory: s.questionHistory.filter(e => e.id !== id) })); void v3DeleteQuestionHistoryEntry(id); },
-  deleteMcHistoryEntry: (id) => { set((s) => ({ mcHistory: s.mcHistory.filter(e => e.id !== id) })); void v3DeleteMcHistoryEntry(id); },
-  addQuestionHistoryEntry: (entry) => { set((s) => ({ questionHistory: [entry, ...s.questionHistory] })); void v3SaveQuestionHistoryEntry(entry); },
-  addMcHistoryEntry: (entry) => { set((s) => ({ mcHistory: [entry, ...s.mcHistory] })); void v3SaveMcHistoryEntry(entry); },
-  updateQuestionHistoryEntry: (entry) => { set((s) => ({ questionHistory: s.questionHistory.map(e => e.id === entry.id ? entry : e) })); void v3SaveQuestionHistoryEntry(entry); },
-  updateMcHistoryEntry: (entry) => { set((s) => ({ mcHistory: s.mcHistory.map(e => e.id === entry.id ? entry : e) })); void v3SaveMcHistoryEntry(entry); },
-  clearQuestionHistory: () => { set((s) => { s.questionHistory.forEach(e => void v3DeleteQuestionHistoryEntry(e.id)); return { questionHistory: [] }; }); },
-  clearMcHistory: () => { set((s) => { s.mcHistory.forEach(e => void v3DeleteMcHistoryEntry(e.id)); return { mcHistory: [] }; }); },
-
-  reviewSpacedCard: (id, q) => set((s) => { const card = s.spacedRepetitionCards[id] ? reviewCard(s.spacedRepetitionCards[id], q) : reviewCard(createCard(), q); return { spacedRepetitionCards: { ...s.spacedRepetitionCards, [id]: card } }; }),
-  getDueCards: () => Object.entries(get().spacedRepetitionCards).filter(([, c]) => isDue(c)).map(([id, c]) => ({ questionId: id, card: c })).sort((a,b) => new Date(a.card.nextReviewDate).getTime() - new Date(b.card.nextReviewDate).getTime()),
-
-  setStudyGoals: (goals) => set((s) => { const next = { ...s.studyGoals, ...goals }; void updateStudyGoals(next, s.streakData); return { studyGoals: next }; }),
-  recordCompletion: (mode) => {
-    const today = getTodayKey(); set((s) => {
-      const todayData = s.streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
-      const updatedDay = { total: todayData.total + 1, written: todayData.written + (mode === 'written' ? 1 : 0), mc: todayData.mc + (mode === 'multiple-choice' ? 1 : 0) };
-      const nextStreakData = { ...s.streakData, currentStreak: todayData.total > 0 ? s.streakData.currentStreak : s.streakData.currentStreak + 1, longestStreak: Math.max(s.streakData.longestStreak, s.streakData.currentStreak + 1), lastActiveDate: today, dailyCompletions: { ...s.streakData.dailyCompletions, [today]: updatedDay } };
-      void updateStudyGoals(s.studyGoals, nextStreakData); return { streakData: nextStreakData };
+  needsSaveBeforeLoad: (id) => {
+    const s = get();
+    return (
+      (s.questionMode === 'written'
+        ? s.questions.length > 0
+        : s.mcQuestions.length > 0) &&
+      (s.questionMode === 'written'
+        ? s.activeWrittenSavedSetId !== id
+        : s.activeMcSavedSetId !== id)
+    );
+  },
+  deleteSavedSet: (id) => {
+    set((s) => ({
+      savedSets: s.savedSets.filter((e) => e.id !== id),
+      activeWrittenSavedSetId:
+        s.activeWrittenSavedSetId === id ? null : s.activeWrittenSavedSetId,
+      activeMcSavedSetId:
+        s.activeMcSavedSetId === id ? null : s.activeMcSavedSetId,
+    }));
+    void v3DeleteSavedSet(id);
+  },
+  deleteAllSavedSets: () => {
+    set((s) => {
+      s.savedSets.forEach((ss) => void v3DeleteSavedSet(ss.id));
+      return {
+        savedSets: [],
+        activeWrittenSavedSetId: null,
+        activeMcSavedSetId: null,
+      };
     });
   },
-  getTodayCompletions: () => get().streakData.dailyCompletions[getTodayKey()] ?? { total: 0, written: 0, mc: 0 },
+  deleteQuestionHistoryEntry: (id) => {
+    set((s) => ({
+      questionHistory: s.questionHistory.filter((e) => e.id !== id),
+    }));
+    void v3DeleteQuestionHistoryEntry(id);
+  },
+  deleteMcHistoryEntry: (id) => {
+    set((s) => ({ mcHistory: s.mcHistory.filter((e) => e.id !== id) }));
+    void v3DeleteMcHistoryEntry(id);
+  },
+  addQuestionHistoryEntry: (entry) => {
+    set((s) => ({ questionHistory: [entry, ...s.questionHistory] }));
+    void v3SaveQuestionHistoryEntry(entry);
+  },
+  addMcHistoryEntry: (entry) => {
+    set((s) => ({ mcHistory: [entry, ...s.mcHistory] }));
+    void v3SaveMcHistoryEntry(entry);
+  },
+  updateQuestionHistoryEntry: (entry) => {
+    set((s) => ({
+      questionHistory: s.questionHistory.map((e) =>
+        e.id === entry.id ? entry : e
+      ),
+    }));
+    void v3SaveQuestionHistoryEntry(entry);
+  },
+  updateMcHistoryEntry: (entry) => {
+    set((s) => ({
+      mcHistory: s.mcHistory.map((e) => (e.id === entry.id ? entry : e)),
+    }));
+    void v3SaveMcHistoryEntry(entry);
+  },
+  clearQuestionHistory: () => {
+    set((s) => {
+      s.questionHistory.forEach((e) => void v3DeleteQuestionHistoryEntry(e.id));
+      return { questionHistory: [] };
+    });
+  },
+  clearMcHistory: () => {
+    set((s) => {
+      s.mcHistory.forEach((e) => void v3DeleteMcHistoryEntry(e.id));
+      return { mcHistory: [] };
+    });
+  },
 
-  importState: (imported) => { const s = get(); const merged = mergeImportedState(s, imported); set(merged as any); void persistAndRehydrate(get()); },
+  reviewSpacedCard: (id, q) =>
+    set((s) => {
+      const card = s.spacedRepetitionCards[id]
+        ? reviewCard(s.spacedRepetitionCards[id], q)
+        : reviewCard(createCard(), q);
+      return {
+        spacedRepetitionCards: { ...s.spacedRepetitionCards, [id]: card },
+      };
+    }),
+  getDueCards: () =>
+    Object.entries(get().spacedRepetitionCards)
+      .filter(([, c]) => isDue(c))
+      .map(([id, c]) => ({ questionId: id, card: c }))
+      .sort(
+        (a, b) =>
+          new Date(a.card.nextReviewDate).getTime() -
+          new Date(b.card.nextReviewDate).getTime()
+      ),
+
+  setStudyGoals: (goals) =>
+    set((s) => {
+      const next = { ...s.studyGoals, ...goals };
+      void updateStudyGoals(next, s.streakData);
+      return { studyGoals: next };
+    }),
+  recordCompletion: (mode) => {
+    const today = getTodayKey();
+    set((s) => {
+      const todayData = s.streakData.dailyCompletions[today] ?? {
+        total: 0,
+        written: 0,
+        mc: 0,
+      };
+      const updatedDay = {
+        total: todayData.total + 1,
+        written: todayData.written + (mode === 'written' ? 1 : 0),
+        mc: todayData.mc + (mode === 'multiple-choice' ? 1 : 0),
+      };
+      const nextStreakData = {
+        ...s.streakData,
+        currentStreak:
+          todayData.total > 0
+            ? s.streakData.currentStreak
+            : s.streakData.currentStreak + 1,
+        longestStreak: Math.max(
+          s.streakData.longestStreak,
+          s.streakData.currentStreak + 1
+        ),
+        lastActiveDate: today,
+        dailyCompletions: {
+          ...s.streakData.dailyCompletions,
+          [today]: updatedDay,
+        },
+      };
+      void updateStudyGoals(s.studyGoals, nextStreakData);
+      return { streakData: nextStreakData };
+    });
+  },
+  getTodayCompletions: () =>
+    get().streakData.dailyCompletions[getTodayKey()] ?? {
+      total: 0,
+      written: 0,
+      mc: 0,
+    },
+
+  importState: (imported) => {
+    const s = get();
+    const merged = mergeImportedState(s, imported);
+    set(merged as Partial<AppState & AppActions>);
+    void persistAndRehydrate(get());
+  },
 }));
 
 export function buildPersistedSnapshot(s: AppState): PersistedAppState {
   return {
     version: EMPTY_PERSISTED_APP_STATE.version,
-    settings: { apiKey: s.apiKey, model: s.model, markingModel: s.markingModel, useSeparateMarkingModel: s.useSeparateMarkingModel, imageMarkingModel: s.imageMarkingModel, useSeparateImageMarkingModel: s.useSeparateImageMarkingModel, debugMode: s.debugMode, questionTextSize: s.questionTextSize, responseTextSize: s.responseTextSize, includeExamContext: s.includeExamContext, autoSyncIntervalMinutes: s.autoSyncIntervalMinutes, syncApiKey: s.syncApiKey, localBackupFolderPath: s.localBackupFolderPath, localBackupIntervalMinutes: s.localBackupIntervalMinutes },
-    preferences: { selectedTopics: s.selectedTopics, difficulty: s.difficulty, techMode: s.techMode, avoidSimilarQuestions: s.avoidSimilarQuestions, mathMethodsSubtopics: s.mathMethodsSubtopics, specialistMathSubtopics: s.specialistMathSubtopics, chemistrySubtopics: s.chemistrySubtopics, physicalEducationSubtopics: s.physicalEducationSubtopics, questionCount: s.questionCount, averageMarksPerQuestion: s.averageMarksPerQuestion, questionMode: s.questionMode, aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled, difficultyThresholds: s.difficultyThresholds, diversityStrictness: s.diversityStrictness, strictLatexValidation: s.strictLatexValidation, strictSubtopicCoverage: s.strictSubtopicCoverage, minSubtopicCoverageRatio: s.minSubtopicCoverageRatio },
-    writtenSession: { questions: s.questions, activeQuestionIndex: s.activeQuestionIndex, presentedAtByQuestionId: s.writtenQuestionPresentedAtById, answersByQuestionId: s.answersByQuestionId, imagesByQuestionId: s.imagesByQuestionId, feedbackByQuestionId: s.feedbackByQuestionId, rawModelOutput: s.writtenRawModelOutput, generationTelemetry: s.writtenGenerationTelemetry, savedSetId: s.activeWrittenSavedSetId },
-    mcSession: { questions: s.mcQuestions, activeQuestionIndex: s.activeMcQuestionIndex, presentedAtByQuestionId: s.mcQuestionPresentedAtById, answersByQuestionId: s.mcAnswersByQuestionId, rawModelOutput: s.mcRawModelOutput, generationTelemetry: s.mcGenerationTelemetry, savedSetId: s.activeMcSavedSetId },
-    writtenTimerState: s.writtenTimerState, mcTimerState: s.mcTimerState, questionHistory: s.questionHistory, mcHistory: s.mcHistory, savedSets: s.savedSets, spacedRepetition: s.spacedRepetitionCards, studyGoals: s.studyGoals, streakData: s.streakData, generationHistory: s.generationHistory, presets: s.presets,
+    settings: {
+      apiKey: s.apiKey,
+      model: s.model,
+      markingModel: s.markingModel,
+      useSeparateMarkingModel: s.useSeparateMarkingModel,
+      imageMarkingModel: s.imageMarkingModel,
+      useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
+      debugMode: s.debugMode,
+      questionTextSize: s.questionTextSize,
+      responseTextSize: s.responseTextSize,
+      includeExamContext: s.includeExamContext,
+      autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
+      syncApiKey: s.syncApiKey,
+      localBackupFolderPath: s.localBackupFolderPath,
+      localBackupIntervalMinutes: s.localBackupIntervalMinutes,
+    },
+    preferences: {
+      selectedTopics: s.selectedTopics,
+      difficulty: s.difficulty,
+      techMode: s.techMode,
+      avoidSimilarQuestions: s.avoidSimilarQuestions,
+      mathMethodsSubtopics: s.mathMethodsSubtopics,
+      specialistMathSubtopics: s.specialistMathSubtopics,
+      chemistrySubtopics: s.chemistrySubtopics,
+      physicalEducationSubtopics: s.physicalEducationSubtopics,
+      questionCount: s.questionCount,
+      averageMarksPerQuestion: s.averageMarksPerQuestion,
+      questionMode: s.questionMode,
+      aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
+      difficultyThresholds: s.difficultyThresholds,
+      diversityStrictness: s.diversityStrictness,
+      strictLatexValidation: s.strictLatexValidation,
+      strictSubtopicCoverage: s.strictSubtopicCoverage,
+      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+    },
+    writtenSession: {
+      questions: s.questions,
+      activeQuestionIndex: s.activeQuestionIndex,
+      presentedAtByQuestionId: s.writtenQuestionPresentedAtById,
+      answersByQuestionId: s.answersByQuestionId,
+      imagesByQuestionId: s.imagesByQuestionId,
+      feedbackByQuestionId: s.feedbackByQuestionId,
+      rawModelOutput: s.writtenRawModelOutput,
+      generationTelemetry: s.writtenGenerationTelemetry,
+      savedSetId: s.activeWrittenSavedSetId,
+    },
+    mcSession: {
+      questions: s.mcQuestions,
+      activeQuestionIndex: s.activeMcQuestionIndex,
+      presentedAtByQuestionId: s.mcQuestionPresentedAtById,
+      answersByQuestionId: s.mcAnswersByQuestionId,
+      rawModelOutput: s.mcRawModelOutput,
+      generationTelemetry: s.mcGenerationTelemetry,
+      savedSetId: s.activeMcSavedSetId,
+    },
+    writtenTimerState: s.writtenTimerState,
+    mcTimerState: s.mcTimerState,
+    questionHistory: s.questionHistory,
+    mcHistory: s.mcHistory,
+    savedSets: s.savedSets,
+    spacedRepetition: s.spacedRepetitionCards,
+    studyGoals: s.studyGoals,
+    streakData: s.streakData,
+    generationHistory: s.generationHistory,
+    presets: s.presets,
   };
 }
 
-let persistTimer: any = null;
+function mapSettings(s: PersistedAppState): Partial<AppState> {
+  return {
+    apiKey: s.settings.apiKey,
+    model: s.settings.model,
+    markingModel: s.settings.markingModel,
+    useSeparateMarkingModel: Boolean(s.settings.useSeparateMarkingModel),
+    imageMarkingModel: s.settings.imageMarkingModel,
+    useSeparateImageMarkingModel: Boolean(
+      s.settings.useSeparateImageMarkingModel
+    ),
+    debugMode: s.settings.debugMode,
+    questionTextSize: s.settings.questionTextSize ?? 16,
+    responseTextSize: s.settings.responseTextSize ?? 16,
+    includeExamContext: Boolean(s.settings.includeExamContext),
+    autoSyncIntervalMinutes: s.settings.autoSyncIntervalMinutes ?? 0,
+    syncApiKey: Boolean(s.settings.syncApiKey),
+    localBackupFolderPath: s.settings.localBackupFolderPath ?? '',
+    localBackupIntervalMinutes: s.settings.localBackupIntervalMinutes ?? 0,
+  };
+}
+
+function mapPreferences(s: PersistedAppState): Partial<AppState> {
+  const p = s.preferences;
+  return {
+    selectedTopics: p.selectedTopics,
+    difficulty: p.difficulty,
+    techMode: p.techMode,
+    avoidSimilarQuestions: p.avoidSimilarQuestions,
+    mathMethodsSubtopics: p.mathMethodsSubtopics,
+    specialistMathSubtopics: p.specialistMathSubtopics,
+    chemistrySubtopics: p.chemistrySubtopics,
+    physicalEducationSubtopics: p.physicalEducationSubtopics,
+    questionCount: p.questionCount,
+    averageMarksPerQuestion: p.averageMarksPerQuestion,
+    questionMode: p.questionMode,
+    aiDifficultyScalingEnabled: p.aiDifficultyScalingEnabled ?? true,
+    diversityStrictness: p.diversityStrictness ?? 'moderate',
+    strictLatexValidation: p.strictLatexValidation ?? true,
+    strictSubtopicCoverage: p.strictSubtopicCoverage ?? true,
+    minSubtopicCoverageRatio: p.minSubtopicCoverageRatio ?? 0.6,
+    difficultyThresholds: p.difficultyThresholds ?? {
+      increase: 85,
+      decrease: 70,
+    },
+  };
+}
+
+function mapSessions(s: PersistedAppState): Partial<AppState> {
+  return {
+    questions: s.writtenSession.questions,
+    activeQuestionIndex: s.writtenSession.activeQuestionIndex,
+    writtenQuestionPresentedAtById: s.writtenSession.presentedAtByQuestionId,
+    answersByQuestionId: s.writtenSession.answersByQuestionId,
+    imagesByQuestionId: s.writtenSession.imagesByQuestionId,
+    feedbackByQuestionId: s.writtenSession.feedbackByQuestionId,
+    writtenRawModelOutput: s.writtenSession.rawModelOutput,
+    writtenGenerationTelemetry: s.writtenSession.generationTelemetry ?? null,
+    activeWrittenSavedSetId: s.writtenSession.savedSetId ?? null,
+    mcQuestions: s.mcSession.questions,
+    activeMcQuestionIndex: s.mcSession.activeQuestionIndex,
+    mcQuestionPresentedAtById: s.mcSession.presentedAtByQuestionId,
+    mcAnswersByQuestionId: s.mcSession.answersByQuestionId,
+    mcRawModelOutput: s.mcSession.rawModelOutput,
+    mcGenerationTelemetry: s.mcSession.generationTelemetry ?? null,
+    activeMcSavedSetId: s.mcSession.savedSetId ?? null,
+    writtenTimerState: s.writtenTimerState ?? null,
+    mcTimerState: s.mcTimerState ?? null,
+  };
+}
+
+function mapHistory(s: PersistedAppState): Partial<AppState> {
+  return {
+    questionHistory: s.questionHistory,
+    mcHistory: s.mcHistory,
+    savedSets: s.savedSets,
+    spacedRepetitionCards: s.spacedRepetition ?? {},
+    studyGoals: s.studyGoals ?? defaultState.studyGoals,
+    streakData: s.streakData ?? defaultState.streakData,
+    generationHistory: s.generationHistory ?? [],
+    presets: s.presets ?? [],
+  };
+}
+
+export function snapshotToState(s: PersistedAppState): Partial<AppState> {
+  return {
+    ...mapSettings(s),
+    ...mapPreferences(s),
+    ...mapSessions(s),
+    ...mapHistory(s),
+  };
+}
+
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
 useAppStore.subscribe((state) => {
   if (!state.isHydrated) return;
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
-    void savePersistedAppState(buildPersistedSnapshot(useAppStore.getState())).catch(console.error);
+    void savePersistedAppState(
+      buildPersistedSnapshot(useAppStore.getState())
+    ).catch(console.error);
   }, 500);
 });
