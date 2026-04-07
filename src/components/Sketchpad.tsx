@@ -33,8 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-import { Checkbox } from './ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,9 +85,13 @@ type ToolSettings = {
 
 type ToolSettingsMap = Record<ToolType, ToolSettings>;
 
+const A4_ASPECT = 210 / 297;
+const INTERNAL_RES_WIDTH = 1240; // Approx 150 DPI for A4
+const INTERNAL_RES_HEIGHT = Math.round(INTERNAL_RES_WIDTH / A4_ASPECT);
+
 const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
   pen: {
-    size: 2,
+    size: 4,
     opacity: 1,
     smoothing: 0.5,
     pressureCurve: 'smooth',
@@ -91,7 +99,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     color: '#111827',
   },
   eraser: {
-    size: 30,
+    size: 40,
     opacity: 1,
     smoothing: 0.3,
     pressureCurve: 'linear',
@@ -107,7 +115,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     color: '#007AFF',
   },
   line: {
-    size: 2,
+    size: 4,
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
@@ -115,7 +123,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     color: '#111827',
   },
   rect: {
-    size: 2,
+    size: 4,
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
@@ -123,7 +131,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     color: '#111827',
   },
   ellipse: {
-    size: 2,
+    size: 4,
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
@@ -131,7 +139,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     color: '#111827',
   },
   text: {
-    size: 16,
+    size: 24,
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
@@ -146,16 +154,13 @@ const PEN_ONLY_STORAGE_KEY = 'sketchpad-pen-only-mode';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PALETTE = [
-  '#111827', // Black
-  '#ef4444', // Red
-  '#007AFF', // iOS Blue
-  '#22c55e', // Green
-  '#f59e0b', // Yellow/Orange
-  '#ec4899', // Pink
+  '#2D3436', // Obsidian
+  '#D63031', // Crimson
+  '#0984E3', // Royal Blue
+  '#00B894', // Mint
+  '#F1C40F', // Sunflower
+  '#6C5CE7', // Lavender
 ];
-
-const PRESET_PEN_SIZES = [2, 5, 10];
-const PRESET_ERASER_SIZES = [20, 30, 40];
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
@@ -188,11 +193,11 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 const PALM_REJECTION = {
-  WIDTH_THRESHOLD: 35,
-  HEIGHT_THRESHOLD: 35,
-  MIN_PRESSURE: 0.05,
-  MIN_TOUCH_DURATION: 50,
-  EDGE_MARGIN: 15,
+  WIDTH_THRESHOLD: 25,
+  HEIGHT_THRESHOLD: 25,
+  MIN_PRESSURE: 0.02,
+  MIN_TOUCH_DURATION: 30, // ms
+  EDGE_MARGIN: 10,
 };
 
 // ─── Pressure Curve ──────────────────────────────────────────────────────────
@@ -278,6 +283,46 @@ function floodFill(
     if (y > 0) queue.push(flat - w);
   }
   ctx.putImageData(imageData, 0, 0);
+}
+
+// ─── Cropping ─────────────────────────────────────────────────────────────────
+
+function getCropBoundingBox(canvas: HTMLCanvasElement, padding: number = 20) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+
+  let minX = w,
+    minY = h,
+    maxX = 0,
+    maxY = 0;
+  let found = false;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const alpha = data[(y * w + x) * 4 + 3];
+      if (alpha > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        found = true;
+      }
+    }
+  }
+
+  if (!found) return null;
+
+  return {
+    x: Math.max(0, minX - padding),
+    y: Math.max(0, minY - padding),
+    width: Math.min(w, maxX - minX + padding * 2),
+    height: Math.min(h, maxY - minY + padding * 2),
+  };
 }
 
 // ─── Draw shape preview ───────────────────────────────────────────────────────
@@ -401,9 +446,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       null
     );
     const [isHovering, setIsHovering] = useState(false);
-    const [recentColors, setRecentColors] = useState<string[]>(['#111827', '#ef4444', '#007AFF']);
-    const [antiAlias, _setAntiAlias] = useState(true);
-    const [floodFillTolerance, setFloodFillTolerance] = useState(32);
+    const [recentColors, setRecentColors] = useState<string[]>([
+      '#111827',
+      '#ef4444',
+      '#007AFF',
+    ]);
+    const [antiAlias] = useState(true);
     const [toolSettingsMap, setToolSettingsMap] = useState<ToolSettingsMap>(
       () => {
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -434,11 +482,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const redoStack = useRef<string[]>([]);
     const activePointers = useRef<Map<number, ActivePointerMeta>>(new Map());
     const activeDrawingPointerId = useRef<number | null>(null);
-    const lastPoint = useRef<{ x: number; y: number } | null>(null);
     const shapeStart = useRef<{ x: number; y: number } | null>(null);
     const shapeSnapshot = useRef<string | null>(null);
     const previousNonEraserRef = useRef<ToolType>('pen');
     const hasMoved = useRef(false);
+    const lastPointReal = useRef<{
+      x: number;
+      y: number;
+      pressure: number;
+      time: number;
+    } | null>(null);
+    const velocityRef = useRef(0);
     const isAndroid = useRef(
       typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
     ).current;
@@ -601,8 +655,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {
-        });
+        .catch(() => {});
       return () => {
         if (unlisten) unlisten();
       };
@@ -615,19 +668,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const container = containerRef.current;
       if (!canvas || !overlay || !bgCanvas || !container) return;
 
-      const deviceRatio = window.devicePixelRatio || 1;
-      const ratio = deviceRatio;
-      const clientW = Math.max(1, Math.floor(container.clientWidth));
-      const clientH = Math.max(1, Math.floor(container.clientHeight));
-      const newW = Math.floor(clientW * ratio);
-      const newH = Math.floor(clientH * ratio);
+      const newW = INTERNAL_RES_WIDTH;
+      const newH = INTERNAL_RES_HEIGHT;
+
+      // Only resize if needed (prevents unnecessary clear)
+      if (canvas.width === newW && canvas.height === newH) return;
 
       let snapshot: string | null = null;
       if (canvas.width > 0 && canvas.height > 0) {
         try {
           snapshot = canvas.toDataURL('image/png');
         } catch {
-          throw new Error('Failed to capture canvas snapshot for resizing');
+          /* ignore */
         }
       }
 
@@ -635,25 +687,36 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         c.width = newW;
         c.height = newH;
         const ctx = c.getContext('2d')!;
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
       }
 
       bgCanvas.width = newW;
       bgCanvas.height = newH;
       const bgCtx = bgCanvas.getContext('2d')!;
-      bgCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      paintBackground(bgCtx, clientW, clientH, bgRef2.current);
+      bgCtx.setTransform(1, 0, 0, 1, 0, 0);
+      paintBackground(bgCtx, newW, newH, bgRef2.current);
 
       if (snapshot) {
         const ctx = canvas.getContext('2d')!;
         const img = new Image();
         img.onload = () => {
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.drawImage(img, 0, 0, newW, newH);
-          ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+          ctx.drawImage(img, 0, 0);
         };
         img.src = snapshot;
       }
+
+      // Initial zoom to fit
+      const containerW = container.clientWidth;
+      const containerH = container.clientHeight;
+      const fitZoom = Math.min(
+        (containerW - 80) / newW,
+        (containerH - 80) / newH
+      );
+      setZoom(fitZoom);
+      setPan({
+        x: (containerW - newW * fitZoom) / 2,
+        y: (containerH - newH * fitZoom) / 2,
+      });
     }, []);
 
     useEffect(() => {
@@ -778,7 +841,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
           setIsDrawing(false);
           activeDrawingPointerId.current = null;
-          lastPoint.current = null;
+          lastPointReal.current = null;
           hasMoved.current = false;
           shapeStart.current = null;
           shapeSnapshot.current = null;
@@ -870,46 +933,58 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const moves = lastMove.current;
       if (moves.length === 0) return;
 
+      const tool = activeToolRef.current;
+
       for (const m of moves) {
         const pt = { x: m.x, y: m.y };
         const pressure = m.pressure;
+        const now = performance.now();
 
         if (
-          ['line', 'rect', 'ellipse'].includes(activeTool) &&
+          ['line', 'rect', 'ellipse'].includes(tool) &&
           shapeStart.current &&
           shapeSnapshot.current
         ) {
           const octx = getOverlayCtx();
           if (!octx) continue;
           clearOverlay();
-          applyToolStyle(octx, pressure);
-          drawShape(octx, activeTool, shapeStart.current, pt);
+          applyToolStyle(octx, pressure, 0);
+          drawShape(octx, tool, shapeStart.current, pt);
           continue;
         }
 
-        if (activeToolRef.current === 'text') continue;
-        if (!lastPoint.current) continue;
+        if (tool === 'text') continue;
+        if (!lastPointReal.current) {
+          lastPointReal.current = { ...pt, pressure, time: now };
+          continue;
+        }
 
-        applyToolStyle(ctx, pressure);
+        // Calculate velocity for dynamic stroke width
+        const dx = pt.x - lastPointReal.current.x;
+        const dy = pt.y - lastPointReal.current.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dt = Math.max(1, now - lastPointReal.current.time);
+        const velocity = dist / dt;
 
-        const s = toolSettingsMapRef.current[activeToolRef.current].smoothing;
-        const sx = lastPoint.current.x + (pt.x - lastPoint.current.x) * (1 - s);
-        const sy = lastPoint.current.y + (pt.y - lastPoint.current.y) * (1 - s);
+        velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
+
+        applyToolStyle(ctx, pressure, velocityRef.current);
+
+        // Midpoint logic for smoothing
+        const midX = (lastPointReal.current.x + pt.x) / 2;
+        const midY = (lastPointReal.current.y + pt.y) / 2;
 
         ctx.quadraticCurveTo(
-          lastPoint.current.x,
-          lastPoint.current.y,
-          (lastPoint.current.x + sx) / 2,
-          (lastPoint.current.y + sy) / 2
+          lastPointReal.current.x,
+          lastPointReal.current.y,
+          midX,
+          midY
         );
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(
-          (lastPoint.current.x + sx) / 2,
-          (lastPoint.current.y + sy) / 2
-        );
+        ctx.moveTo(midX, midY);
 
-        lastPoint.current = { x: sx, y: sy };
+        lastPointReal.current = { x: pt.x, y: pt.y, pressure, time: now };
       }
 
       lastMove.current = [];
@@ -1016,7 +1091,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
     }
 
-    function applyToolStyle(ctx: CanvasRenderingContext2D, pressure: number) {
+    function applyToolStyle(
+      ctx: CanvasRenderingContext2D,
+      pressure: number,
+      velocity: number = 0
+    ) {
       const tool = activeToolRef.current;
       const settings = toolSettingsMapRef.current[tool];
       const adjustedPressure = applyPressureCurve(
@@ -1025,11 +1104,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       );
       const isPressureSensitive =
         !settings.disablePressure && (tool === 'pen' || tool === 'eraser');
-      ctx.lineWidth = Math.max(
-        1,
-        isPressureSensitive ? settings.size * adjustedPressure : settings.size
-      );
 
+      let size = settings.size;
+      if (isPressureSensitive) {
+        // Taper based on pressure AND velocity
+        // Lower velocity = thicker, Higher velocity = thinner
+        const velocityFactor = Math.max(0.5, 1.5 - velocity * 0.5);
+        size = settings.size * adjustedPressure * velocityFactor;
+      }
+
+      ctx.lineWidth = Math.max(0.5, size);
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       if (tool === 'eraser') {
@@ -1084,10 +1168,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     ) {
       pushUndo();
       setIsDrawing(true);
-      lastPoint.current = pt;
+      lastPointReal.current = { ...pt, pressure, time: performance.now() };
+      velocityRef.current = 0;
       activeDrawingPointerId.current = pointerId;
       ctx.beginPath();
-      applyToolStyle(ctx, pressure);
+      applyToolStyle(ctx, pressure, 0);
       ctx.moveTo(pt.x, pt.y);
     }
 
@@ -1166,14 +1251,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       if (activeTool === 'fill') {
         pushUndo();
-        floodFill(
-          ctx,
-          Math.round(pt.x),
-          Math.round(pt.y),
-          currentColor,
-          1,
-          floodFillTolerance
-        );
+        floodFill(ctx, Math.round(pt.x), Math.round(pt.y), currentColor, 1, 32);
         return;
       }
 
@@ -1349,7 +1427,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       setIsDrawing(false);
-      lastPoint.current = null;
+      lastPointReal.current = null;
       lastMove.current = [];
       activeDrawingPointerId.current = null;
       ctx.closePath();
@@ -1387,7 +1465,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             moveRaf.current = null;
           }
           lastMove.current = [];
-          lastPoint.current = null;
+          lastPointReal.current = null;
           shapeStart.current = null;
           shapeSnapshot.current = null;
           activeDrawingPointerId.current = null;
@@ -1443,14 +1521,50 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const saveAsDataUrl = useCallback(async (): Promise<string> => {
       const canvas = canvasRef.current;
       if (!canvas) throw new Error('Canvas missing');
+
+      const bounds = getCropBoundingBox(canvas, 40);
+      const exportW = bounds ? bounds.width : canvas.width;
+      const exportH = bounds ? bounds.height : canvas.height;
+      const startX = bounds ? bounds.x : 0;
+      const startY = bounds ? bounds.y : 0;
+
       return new Promise((resolve, reject) => {
         const tmp = document.createElement('canvas');
-        tmp.width = canvas.width;
-        tmp.height = canvas.height;
+        tmp.width = exportW;
+        tmp.height = exportH;
         const tctx = tmp.getContext('2d');
         if (!tctx) return reject(new Error('Unable to export'));
-        paintBackground(tctx, tmp.width, tmp.height, bg);
-        tctx.drawImage(canvas, 0, 0);
+
+        // Draw background cropped
+        const bgCanvas = bgRef.current;
+        if (bgCanvas) {
+          tctx.drawImage(
+            bgCanvas,
+            startX,
+            startY,
+            exportW,
+            exportH,
+            0,
+            0,
+            exportW,
+            exportH
+          );
+        } else {
+          paintBackground(tctx, exportW, exportH, bg);
+        }
+
+        // Draw ink cropped
+        tctx.drawImage(
+          canvas,
+          startX,
+          startY,
+          exportW,
+          exportH,
+          0,
+          0,
+          exportW,
+          exportH
+        );
 
         tmp.toBlob(
           (blob) => {
@@ -1461,7 +1575,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             reader.readAsDataURL(blob);
           },
           'image/webp',
-          0.92
+          0.85
         );
       });
     }, [bg]);
@@ -1565,7 +1679,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         <canvas
           ref={bgRef}
           className="absolute inset-0 w-full h-full pointer-events-none"
-          style={canvasTransform}
+          style={{
+            ...canvasTransform,
+            boxShadow: '0 0 30px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb',
+          }}
         />
 
         <canvas
@@ -1583,172 +1701,87 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           className="absolute inset-0 w-full h-full pointer-events-none"
           style={canvasTransform}
         />
+
+        {/* Subtle Paper Texture Overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{
+            ...canvasTransform,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3C%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          }}
+        />
       </div>
     );
 
-    const activeColorPalette = Array.from(new Set([currentColor, ...recentColors])).slice(0, 3);
+    const activeColorPalette = Array.from(
+      new Set([currentColor, ...recentColors])
+    ).slice(0, 3);
     while (activeColorPalette.length < 3) {
-      const fallback = PALETTE.find(c => !activeColorPalette.includes(c));
+      const fallback = PALETTE.find((c) => !activeColorPalette.includes(c));
       if (fallback) activeColorPalette.push(fallback);
     }
 
-    const topNavigationBar = (
-      <div className="flex flex-col w-full border-b border-gray-200 bg-[#F7F7F9] shrink-0 z-10 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200/60 bg-white">
-          <div className="flex items-center gap-4">
-            {!embedded && (
-              <button
-                onClick={onClose}
-                className="text-gray-500 hover:text-gray-800 transition-colors font-medium text-sm flex items-center gap-1"
-              >
-                <ChevronLeft size={16} /> Close
-              </button>
-            )}
-            <div className="flex items-center gap-2 border-l border-gray-200 pl-4">
-              <button
-                onClick={undo}
-                disabled={undoStack.current.length === 0}
-                className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-md disabled:opacity-30 transition-colors"
-                title="Undo"
-              >
-                <Undo2 size={18} />
-              </button>
-              <button
-                onClick={redo}
-                disabled={redoStack.current.length === 0}
-                className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-md disabled:opacity-30 transition-colors"
-                title="Redo"
-              >
-                <Redo2 size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-light text-gray-800 tracking-tight">Sketchpad</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1 text-gray-500 hover:bg-white rounded shadow-sm transition-all"><ZoomOut size={14} /></button>
-              <span className="text-xs font-medium text-gray-600 px-2 w-12 text-center">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => setZoom((z) => Math.min(10, z + 0.25))} className="p-1 text-gray-500 hover:bg-white rounded shadow-sm transition-all"><ZoomIn size={14} /></button>
-            </div>
-            <button
-              onClick={clearCanvas}
-              className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-              title="Clear Canvas"
-            >
-              <Trash2 size={18} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between px-4 py-2 bg-[#F7F7F9] relative">
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-            {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
-              const isActive = activeTool === tool;
-              return (
-                <button
-                  key={tool}
-                  onClick={() => switchTool(tool)}
-                  title={TOOL_LABELS[tool]}
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${isActive
-                    ? 'bg-[#007AFF]/10 text-[#007AFF]'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
-                    }`}
-                >
-                  {TOOL_ICONS[tool]}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="absolute right-4 flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              {activeColorPalette.map((c, i) => (
-                <button
-                  key={`${c}-${i}`}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${currentColor === c && activeTool !== 'eraser'
-                    ? 'border-[#007AFF] scale-110 shadow-sm'
-                    : 'border-transparent hover:scale-105'
-                    }`}
-                  style={{ background: c === '#ffffff' ? '#f0f0f0' : c }}
-                />
-              ))}
-              <div className="w-px h-6 bg-gray-300 mx-1" />
-              <input
-                type="color"
-                value={currentColor}
-                onChange={(e) => {
-                  setColor(e.target.value);
-                  addRecentColor(e.target.value);
-                }}
-                className="w-7 h-7 p-0 border-0 rounded-full cursor-pointer overflow-hidden bg-transparent"
-                disabled={activeTool === 'eraser'}
-              />
-            </div>
-
-            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-full px-3 py-1.5 shadow-sm">
-              {(activeTool === 'eraser' ? PRESET_ERASER_SIZES : PRESET_PEN_SIZES).map((s, i) => (
-                <button
-                  key={s}
-                  onClick={() => setSize(s)}
-                  className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-100 transition-colors"
-                >
-                  <div
-                    className={`rounded-full transition-all ${currentSize === s ? 'bg-[#007AFF]' : 'bg-gray-400'
-                      }`}
-                    style={{
-                      width: `${Math.max(2, PRESET_PEN_SIZES[i] * 1.5)}px`,
-                      height: `${Math.max(2, PRESET_PEN_SIZES[i] * 1.5)}px`
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-
     const settingsFooter = (
-      <div className="h-10 border-t border-gray-200 flex items-center justify-between px-4 text-xs text-gray-500 bg-white shrink-0">
-        <div className="flex items-center gap-4">
-          <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-            <SelectTrigger className="h-7 w-32 text-xs border-gray-200 bg-gray-50">
-              <SelectValue placeholder="Background" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="white-grid">Grid Paper</SelectItem>
-                <SelectItem value="lined">Lined Paper</SelectItem>
-                <SelectItem value="dot-grid">Dotted Paper</SelectItem>
-                <SelectItem value="black-grid">Dark Canvas</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+      <div className="flex items-center gap-3 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-white pointer-events-auto">
+        <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
+          <SelectTrigger className="h-9 w-32 text-xs border-none bg-gray-100/50 hover:bg-gray-100 rounded-xl transition-all">
+            <SelectValue placeholder="Background" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl border-none shadow-2xl">
+            <SelectGroup>
+              <SelectItem value="white-grid">Grid Paper</SelectItem>
+              <SelectItem value="lined">Lined Paper</SelectItem>
+              <SelectItem value="dot-grid">Dotted Paper</SelectItem>
+              <SelectItem value="black-grid">Dark Canvas</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
 
-          <label className="flex items-center gap-2 cursor-pointer hover:text-gray-700">
-            <Checkbox
-              checked={penOnlyMode}
-              onCheckedChange={(e) => setPenOnlyMode(e as boolean)}
-              className="border-gray-300 w-4 h-4 rounded-sm data-[state=checked]:bg-[#007AFF] data-[state=checked]:border-[#007AFF]"
-            />
-            Stylus Only
-          </label>
+        <div className="w-px h-6 bg-gray-200/50 mx-1" />
+
+        <button
+          onClick={() => setPenOnlyMode(!penOnlyMode)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-xs font-medium ${
+            penOnlyMode
+              ? 'bg-[#007AFF] text-white'
+              : 'bg-gray-100/50 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
+        </button>
+
+        <div className="w-px h-6 bg-gray-200/50 mx-1" />
+
+        <div className="flex items-center gap-3 px-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+            Size
+          </span>
+          <input
+            type="range"
+            min={1}
+            max={100}
+            step={1}
+            value={currentSize}
+            onChange={(e) => setSize(Number(e.target.value))}
+            className="w-20 accent-[#007AFF]"
+          />
         </div>
 
-        <div className="flex items-center gap-4">
-          {activeTool === 'fill' && (
-            <div className="flex items-center gap-2">
-              <span>Tolerance:</span>
-              <input type="range" min={0} max={128} value={floodFillTolerance} onChange={(e) => setFloodFillTolerance(Number(e.target.value))} className="w-20 accent-[#007AFF]" />
-            </div>
-          )}
-          <div className="flex items-center gap-1">
-            <span>Smoothing:</span>
-            <input type="range" min={0} max={1} step={0.05} value={currentSmoothing} onChange={(e) => setSmoothing(Number(e.target.value))} className="w-20 accent-[#007AFF]" />
-          </div>
+        <div className="w-px h-6 bg-gray-200/50 mx-1" />
+
+        <div className="flex items-center gap-3 px-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+            Smooth
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={currentSmoothing}
+            onChange={(e) => setSmoothing(Number(e.target.value))}
+            className="w-20 accent-[#007AFF]"
+          />
         </div>
       </div>
     );
@@ -1766,22 +1799,152 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       [onSave, saveAsDataUrl]
     );
 
+    const topNavigationBar = (
+      <TooltipProvider>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-2xl z-50 transition-all hover:bg-white">
+          <div className="flex items-center gap-0.5 px-2 border-r border-gray-200/50 mr-1">
+            {!embedded && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onClose}
+                    className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Close</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={undo}
+                  disabled={undoStack.current.length === 0}
+                  className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl disabled:opacity-20 transition-all font-medium"
+                >
+                  <Undo2 size={20} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Undo</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={redo}
+                  disabled={redoStack.current.length === 0}
+                  className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl disabled:opacity-20 transition-all font-medium"
+                >
+                  <Redo2 size={20} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Redo</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
+              const isActive = activeTool === tool;
+              return (
+                <Tooltip key={tool}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => switchTool(tool)}
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                        isActive
+                          ? 'bg-[#007AFF] text-white shadow-lg shadow-[#007AFF]/30 scale-105'
+                          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                    >
+                      {TOOL_ICONS[tool]}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{TOOL_LABELS[tool]}</TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+
+          <div className="w-px h-8 bg-gray-200/50 mx-2" />
+
+          <div className="flex items-center gap-3 pr-2">
+            <div className="flex items-center gap-2">
+              {activeColorPalette.map((c, i) => (
+                <button
+                  key={`${c}-${i}`}
+                  onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                    currentColor === c && activeTool !== 'eraser'
+                      ? 'border-[#007AFF] scale-110 shadow-md ring-4 ring-[#007AFF]/20'
+                      : 'border-white hover:scale-110'
+                  }`}
+                  style={{ background: c }}
+                />
+              ))}
+              <input
+                type="color"
+                value={currentColor}
+                onChange={(e) => {
+                  setColor(e.target.value);
+                  addRecentColor(e.target.value);
+                }}
+                className="w-7 h-7 p-0 border-0 rounded-full cursor-pointer overflow-hidden bg-white shadow-sm hover:scale-110 transition-all"
+              />
+            </div>
+            <div className="w-px h-8 bg-gray-200/50 mx-1" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={clearCanvas}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Clear Canvas</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </TooltipProvider>
+    );
+
+    const zoomIndicator = (
+      <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-xl z-50">
+        <button
+          onClick={() => setZoom((z) => Math.max(0.1, z - 0.25))}
+          className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+        >
+          <ZoomOut size={18} />
+        </button>
+        <span className="text-sm font-semibold text-gray-700 w-14 text-center tabular-nums">
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          onClick={() => setZoom((z) => Math.min(10, z + 0.25))}
+          className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+        >
+          <ZoomIn size={18} />
+        </button>
+      </div>
+    );
+
     if (!embedded && !open) return null;
 
     if (embedded) {
       return (
-        <div className="flex flex-col flex-1 min-h-[70vh] bg-white border border-gray-200 rounded-xl overflow-hidden font-sans shadow-sm">
+        <div className="flex flex-col flex-1 min-h-[70vh] bg-[#F1F3F5] relative overflow-hidden font-sans border border-gray-200 rounded-2xl shadow-inner">
           {topNavigationBar}
           {canvasArea}
-          {settingsFooter}
+          {zoomIndicator}
+          <div className="absolute bottom-6 left-6 z-50">{settingsFooter}</div>
         </div>
       );
     }
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center font-sans">
+      <div className="fixed inset-0 z-50 flex items-center justify-center font-sans overflow-hidden">
         <div
-          className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+          className="absolute inset-0 bg-gray-900/60 backdrop-blur-xl"
           onClick={
             void (async () => {
               if (!hasExplicitlySaved.current) {
@@ -1796,13 +1959,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })
           }
         />
-        <div
-          className="relative w-full max-w-[90vw] h-[85vh] rounded-2xl shadow-2xl flex flex-col bg-white overflow-hidden border border-gray-200"
-        >
-          <div className="flex-1 min-h-0 flex flex-col">
+        <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto h-full w-full relative flex flex-col">
             {topNavigationBar}
             {canvasArea}
-            {settingsFooter}
+            {zoomIndicator}
+            <div className="absolute bottom-6 left-6 z-50 pointer-events-auto">
+              {settingsFooter}
+            </div>
           </div>
         </div>
       </div>
