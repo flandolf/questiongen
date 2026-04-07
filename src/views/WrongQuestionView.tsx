@@ -43,9 +43,9 @@ import type {
   SpacedRepetitionCard,
 } from '@/types';
 import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
+import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
 import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
-import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
 
 import { SessionHeader } from './generator/SessionHeader';
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -506,7 +506,7 @@ function ReattemptView({
   const writtenEntry = isWritten ? entry : null;
   const isLast = idx === questions.length - 1;
   const completedCount = results.filter((r) => r.correct).length;
-  
+
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
 
   // Session timer
@@ -870,7 +870,9 @@ function ReattemptView({
               <QuestionSplitLayout
                 mode="written"
                 sketchpadActive={writtenSketchpadActive}
-                leftSlot={<MarkdownMath content={entry.question.promptMarkdown} />}
+                leftSlot={
+                  <MarkdownMath content={entry.question.promptMarkdown} />
+                }
                 rightSlot={
                   <WrittenAnswerCard
                     questionId={entry.id}
@@ -919,7 +921,9 @@ function ReattemptView({
                         onArgueForMark={() => {}}
                         onApplyOverride={handleApplyMcOverride}
                         isSketchpadOpen={mcSketchpadActive}
-                        onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
+                        onToggleSketchpad={() =>
+                          setMcSketchpadActive((v) => !v)
+                        }
                         onImageDrop={(files) => {
                           void fileToDataUrl(files[0]).then((dataUrl) =>
                             setImage({ name: files[0].name, dataUrl })
