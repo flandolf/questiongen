@@ -63,7 +63,7 @@ pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 // ─── Global style rules (truly constant, not curriculum-dependent) ────────────
 
 /// Injected into every system prompt.
-pub const LATEX_RULES: &str = " LaTeX: Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\]. Put all math symbols, notation, and Chemistry species ($\\text{H}_2\\text{O}$) inside delimiters. ASCII ONLY: Use LaTeX for all Greek letters and symbols. No unicode/smart-quotes.";
+pub const LATEX_RULES: &str = " LaTeX: Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\]. Put all math symbols, notation, and Chemistry species ($\\text{H}_2\\text{O}$) inside delimiters. ASCII ONLY: Use LaTeX for all Greek letters and symbols. No unicode/smart-quotes. No fancy characters like ™, ®, ℓ, Ω. Use plain ASCII text, math mode, or standard LaTeX.";
 
 pub const QUESTION_STYLE_RULES: &str = "
 VCAA STYLE RULES:
@@ -72,15 +72,15 @@ VCAA STYLE RULES:
 3. MARKING: 1 mark = recall/direct sub. 2 marks = method + execution. 3+ marks = multi-step/justification.
 4. DIFFICULTY: Easy (direct), Medium (method choice), Hard (non-routine/no signposting).
 5. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No two questions testing same skill in one batch.
-6. HYGIENE: Valid JSON only. No fences/commentary.";
+6. HYGIENE: Valid JSON only. No fences/commentary. ASCII text only—no unicode, smart-quotes, or fancy punctuation. Avoid excessive exclamation marks (!). Use proper punctuation sparingly and professionally.";
 
 /// Injected into MC question-generation prompts for distractor quality.
 pub const MC_DISTRACTOR_RULES: &str = "
 MC RULES:
 1. OPTIONS: 4 options (A-D), parallel style, standalone text (no fragments). NO labels in promptMarkdown.
 2. DISTRACTORS: Must target specific misconceptions. No 'all/none of the above'.
-3. EXPLANATION: Justify correct option and name misconceptions for each wrong option.
-4. HYGIENE: Valid JSON only. No fences/commentary.";
+3. EXPLANATION: Justify correct option and name misconceptions for each wrong option. Keep explanation professional and measured.
+4. HYGIENE: Valid JSON only. No fences/commentary. ASCII text only—no unicode or fancy characters. Avoid excessive exclamation marks (!). Punctuation must be standard and professional.";
 
 /// Chemistry-specific LaTeX guidance.
 pub const CHEMISTRY_LATEX_GUIDANCE: &str =

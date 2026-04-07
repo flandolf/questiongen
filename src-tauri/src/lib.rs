@@ -350,7 +350,7 @@ fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String 
          MARKING: 1. Apply criterion-based marking (steps, not just answers). 2. Award for method even if arithmetic slips. 3. 'show that' needs steps. 4. 'hence' must use previous part. 5. MC: explain all 4 options. \
          REPORTS: If PDFs attached, they are PRIMARY authority for criteria and common errors. \
          LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words}). \
-         FEEDBACK STYLE: Use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers ONLY. \
+         FEEDBACK STYLE: Use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers ONLY. Keep tone professional and measured. Avoid excessive exclamation marks (!). \
          {latex_rules}{chem_note}{phys_ed_note}\n\n\
          Return valid JSON only. No fences/commentary.",
          rationale_words = rationale_words,
@@ -893,6 +893,39 @@ fn math_methods_exam1_tech_free_note(topics: &[String], tech_mode: &str) -> &'st
      - Maintain strict non-CAS framing: exact values and method-focused working where appropriate."
 }
 
+fn probability_distribution_table_note(topics: &[String]) -> &'static str {
+    let needs_table_note = topics.iter().any(|t| {
+        let low = t.to_lowercase();
+        low.contains("probability")
+            || low.contains("random variables")
+            || low.contains("statistics")
+            || low.contains("data analysis")
+            || low.contains("mathematical methods")
+            || low.contains("specialist mathematics")
+    });
+
+    if !needs_table_note {
+        return "";
+    }
+
+    // Removed the semicolon to allow the expression to return
+    // Used a Raw String literal for cleaner LaTeX and quote handling
+    r#"
+PROBABILITY DISTRIBUTION TABLE FORMAT (MANDATORY, STRICT):
+- USE LATEX ARRAY WITH DOUBLE BACKSLASH ROW TERMINATOR: \\ (TWO CONSECUTIVE BACKSLASHES)
+- CORRECT EXAMPLES:
+  * \begin{array}{c|cc} X & 0 & 1 \\ \hline P(X=x) & 0.5 & 0.5 \end{array}
+  * \begin{array}{c|ccc} Y & 1 & 2 & 3 \\ \hline P(Y=y) & \frac{1}{6} & \frac{1}{3} & \frac{1}{2} \end{array}
+- CRITICAL: Row breaks use \\ (double backslash), NOT \ (single backslash followed by space).
+- FORBIDDEN FORMATS:
+  * Using single backslash: x & 1 & 2 \ \hline (WRONG — generates LaTeX errors)
+  * Markdown tables: | X | 0 | 1 | (WRONG — invalid)
+  * Plain text columns: X: 0, 1 (WRONG — invalid)
+- Mathematical Integrity: All probabilities must satisfy $\sum_y P(Y=y) = 1$. If the model's probabilities do not sum to 1, correct them or show the algebraic normalisation step.
+- Parametric Calculation: If probabilities are expressed using a parameter (e.g., $k$), explicitly solve for the parameter and substitute the numeric values. Example: if $10k = 1$ then state $k = 0.1$ and show substituted probabilities.
+- Numeric/Precision: Provide probabilities as decimals or exact fractions in LaTeX; avoid imprecise text like "about 0.2".
+- Continuous Variables: For PDFs provide an explicit LaTeX expression for the PDF and state the domain and integration limits used to verify total probability equals 1."#
+}
 // ─── Shared parse pipeline ────────────────────────────────────────────────────
 
 /// Extract + deserialise a `{"questions":[...]}` payload from a raw model string.
@@ -985,6 +1018,7 @@ async fn generate_questions(
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
     let methods_exam1_note = math_methods_exam1_tech_free_note(&request.topics, tech_mode);
+    let prob_table_note = probability_distribution_table_note(&request.topics);
 
     emit_generation_status(
         &app,
@@ -1007,7 +1041,7 @@ async fn generate_questions(
         "Generate {count} VCE written questions. Topics: {topics}. Difficulty: {difficulty}, {diff_rules}. \
          Avg marks: {average_marks}. Total marks: {total_marks}. \
          Complexity must match marks (e.g., 5-6 marks = 2-3 parts). \
-         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{sim_note}{focus_lock}{exam_context_preamble} \
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble} \
          Output exactly {count} questions.",
         count                 = request.question_count,
         topics                = sanitize_for_api(&request.topics.join(", ")),
@@ -1020,6 +1054,7 @@ async fn generate_questions(
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
         methods_exam1_note    = methods_exam1_note,
+        prob_table_note       = prob_table_note,
         focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
         exam_context_preamble = exam_context_preamble,
         average_marks         = average_marks,
@@ -1488,6 +1523,7 @@ async fn generate_mc_questions(
         .map_or(String::new(), |v| {
             format!(" Custom focus: \"{v}\". Align all questions to this where syllabus-valid.")
         });
+    let prob_table_note = probability_distribution_table_note(&request.topics);
 
     emit_generation_status(
         &app,
@@ -1508,7 +1544,7 @@ async fn generate_mc_questions(
 
     let prompt = format!(
         "Generate {count} VCE multiple-choice questions (1 mark each). Topics: {topics}. Difficulty: {difficulty}, {diff_rules}. \
-         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{sim_note}{focus_lock}{exam_context_preamble} \
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble} \
          Output exactly {count} questions.",
         count                 = request.question_count,
         topics                = sanitize_for_api(&request.topics.join(", ")),
@@ -1520,6 +1556,7 @@ async fn generate_mc_questions(
         tech                  = tech_note(tech_mode, &request.topics),
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
+        prob_table_note       = prob_table_note,
         focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
         exam_context_preamble = exam_context_preamble,
         sim_note              = sanitize_for_api(&similarity_note(
