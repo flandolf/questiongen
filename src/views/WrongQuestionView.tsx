@@ -15,7 +15,15 @@ import {
   Trophy,
   XCircle,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -252,6 +260,10 @@ export function VirtualizedWrongList({
   spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const setIdsKey = useMemo(
+    () => entries.map((s) => s.id).join('|'),
+    [entries]
+  );
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: () => parentRef.current,
@@ -263,12 +275,12 @@ export function VirtualizedWrongList({
   // Reset scroll to top when entries change
   useEffect(() => {
     rowVirtualizer.scrollToIndex(0);
-  }, [entries.length, rowVirtualizer]);
+  }, [setIdsKey, rowVirtualizer]);
 
-  // Auto-measure elements after they render
-  useEffect(() => {
+  // Re-measure in layout phase when item identities/order change.
+  useLayoutEffect(() => {
     rowVirtualizer.measure();
-  }, [entries.length, expandedIds.size, rowVirtualizer]);
+  }, [setIdsKey, rowVirtualizer]);
 
   return (
     <div ref={parentRef} className="flex-1 overflow-auto min-h-0">
