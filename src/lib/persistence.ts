@@ -432,7 +432,7 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
   };
 }
 
-function normalizeSavedSets(raw: unknown): SavedQuestionSet[] {
+export function normalizeSavedSets(raw: unknown): SavedQuestionSet[] {
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -487,7 +487,7 @@ function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
   };
 }
 
-function normalizeQuestionHistory(raw: unknown): QuestionHistoryEntry[] {
+export function normalizeQuestionHistory(raw: unknown): QuestionHistoryEntry[] {
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -538,7 +538,7 @@ function normalizeQuestionHistoryEntry(
   };
 }
 
-function normalizeMcHistory(raw: unknown): McHistoryEntry[] {
+export function normalizeMcHistory(raw: unknown): McHistoryEntry[] {
   if (!Array.isArray(raw)) {
     return [];
   }
@@ -909,7 +909,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
+  if (typeof value === 'string') return value;
+
+  // Handle Firestore Timestamp objects: { seconds: number, nanoseconds: number }
+  if (
+    isRecord(value) &&
+    typeof value.seconds === 'number' &&
+    Number.isFinite(value.seconds)
+  ) {
+    try {
+      return new Date(value.seconds * 1000).toISOString();
+    } catch {
+      return '';
+    }
+  }
+
+  // Handle objects with a toDate method (like modern Firestore Timestamp objects)
+  if (isRecord(value) && typeof value.toDate === 'function') {
+    try {
+      const date = (value as { toDate: () => Date }).toDate();
+      return date.toISOString();
+    } catch {
+      return '';
+    }
+  }
+
+  return '';
 }
 
 function normalizeNullableString(value: unknown): string | null {
