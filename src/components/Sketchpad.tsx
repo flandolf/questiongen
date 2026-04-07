@@ -98,7 +98,7 @@ const INTERNAL_RES_HEIGHT = Math.round(INTERNAL_RES_WIDTH / A4_ASPECT);
 
 const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
   pen: {
-    size: 4,
+    size: 3,
     opacity: 1,
     smoothing: 0.5,
     pressureCurve: 'smooth',
@@ -662,7 +662,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -1757,43 +1757,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
-        <div className="flex items-center gap-3 px-2">
-          <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-            Size
-          </Label>
-          <div className="flex items-center gap-1">
-            {[0.5, 1, 2].map((m) => {
-              const baseSize = activeTool === 'eraser' ? 20 : 4;
-              const size = baseSize * m;
-              const isActive = currentSize === size;
-              return (
-                <Button
-                  key={size}
-                  variant={isActive ? 'default' : 'ghost'}
-                  size="icon-sm"
-                  onClick={() => setSize(size)}
-                  className="size-6 rounded-lg"
-                >
-                  <div
-                    className={cn(
-                      'rounded-full',
-                      isActive ? 'bg-primary-foreground' : 'bg-foreground/50'
-                    )}
-                    style={{ width: 4 * m, height: 4 * m }}
-                  />
-                </Button>
-              );
-            })}
-          </div>
-          <Slider
-            min={1}
-            max={100}
-            step={1}
-            value={[currentSize]}
-            onValueChange={([val]) => setSize(val)}
-            className="w-24 ml-1"
-          />
-        </div>
+        <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+          Size
+        </Label>
+
+        <Slider
+          min={1}
+          max={100}
+          step={1}
+          value={[currentSize]}
+          onValueChange={([val]) => setSize(val)}
+          className="w-20 ml-1"
+        />
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
@@ -1899,6 +1874,35 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 </Tooltip>
               );
             })}
+          </div>
+
+          <Separator orientation="vertical" className="h-8 mx-1" />
+
+          <div className="flex items-center gap-3 px-2">
+            <div className="flex items-center gap-1">
+              {[0.5, 1, 2].map((m) => {
+                const baseSize = activeTool === 'eraser' ? 20 : 4;
+                const size = baseSize * m;
+                const isActive = currentSize === size;
+                return (
+                  <Button
+                    key={size}
+                    variant={isActive ? 'default' : 'ghost'}
+                    size="icon-sm"
+                    onClick={() => setSize(size)}
+                    className="size-6 rounded-lg"
+                  >
+                    <div
+                      className={cn(
+                        'rounded-full',
+                        isActive ? 'bg-primary-foreground' : 'bg-foreground/50'
+                      )}
+                      style={{ width: 6 * m, height: 6 * m }}
+                    />
+                  </Button>
+                );
+              })}
+            </div>
           </div>
 
           <Separator orientation="vertical" className="h-8 mx-1" />
