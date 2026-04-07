@@ -284,14 +284,14 @@ function normalizeSettings(raw: unknown): PersistedSettings {
         : DEFAULT_SETTINGS.includeExamContext,
     autoSyncIntervalMinutes:
       typeof data.autoSyncIntervalMinutes === 'number' &&
-        data.autoSyncIntervalMinutes >= 0
+      data.autoSyncIntervalMinutes >= 0
         ? data.autoSyncIntervalMinutes
         : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
     syncApiKey: Boolean(data.syncApiKey),
     localBackupFolderPath: asString(data.localBackupFolderPath),
     localBackupIntervalMinutes:
       typeof data.localBackupIntervalMinutes === 'number' &&
-        data.localBackupIntervalMinutes >= 0
+      data.localBackupIntervalMinutes >= 0
         ? data.localBackupIntervalMinutes
         : DEFAULT_SETTINGS.localBackupIntervalMinutes,
   };
@@ -301,8 +301,8 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
   const diversityStrictness: DiversityStrictness =
     data.diversityStrictness === 'lenient' ||
-      data.diversityStrictness === 'moderate' ||
-      data.diversityStrictness === 'strict'
+    data.diversityStrictness === 'moderate' ||
+    data.diversityStrictness === 'strict'
       ? data.diversityStrictness
       : DEFAULT_PREFERENCES.diversityStrictness;
 
@@ -352,22 +352,22 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
         : DEFAULT_PREFERENCES.aiDifficultyScalingEnabled,
     difficultyThresholds:
       isRecord(data.difficultyThresholds) &&
-        typeof data.difficultyThresholds.increase === 'number' &&
-        typeof data.difficultyThresholds.decrease === 'number'
+      typeof data.difficultyThresholds.increase === 'number' &&
+      typeof data.difficultyThresholds.decrease === 'number'
         ? {
-          increase: clampWholeNumber(
-            data.difficultyThresholds.increase,
-            DEFAULT_PREFERENCES.difficultyThresholds!.increase,
-            0,
-            100
-          ),
-          decrease: clampWholeNumber(
-            data.difficultyThresholds.decrease,
-            DEFAULT_PREFERENCES.difficultyThresholds!.decrease,
-            0,
-            100
-          ),
-        }
+            increase: clampWholeNumber(
+              data.difficultyThresholds.increase,
+              DEFAULT_PREFERENCES.difficultyThresholds!.increase,
+              0,
+              100
+            ),
+            decrease: clampWholeNumber(
+              data.difficultyThresholds.decrease,
+              DEFAULT_PREFERENCES.difficultyThresholds!.decrease,
+              0,
+              100
+            ),
+          }
         : DEFAULT_PREFERENCES.difficultyThresholds!,
     diversityStrictness,
     strictLatexValidation:
@@ -381,11 +381,11 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     minSubtopicCoverageRatio:
       typeof data.minSubtopicCoverageRatio === 'number'
         ? clampWholeNumber(
-          data.minSubtopicCoverageRatio,
-          DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
-          0,
-          1
-        )
+            data.minSubtopicCoverageRatio,
+            DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
+            0,
+            1
+          )
         : DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
   };
 }
