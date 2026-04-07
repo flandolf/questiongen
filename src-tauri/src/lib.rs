@@ -288,21 +288,11 @@ fn marking_format(model: &str) -> serde_json::Value {
 //       This is more reliable than relying on response_format alone.
 
 fn generation_compliance_contract() -> &'static str {
-    "HIGH-PRIORITY CONTRACT (obey in this order):\n\
-         1) Study Design authority: only generate assessable content explicitly covered by the\n\
-                provided key knowledge/focus constraints. If unsure, exclude it.\n\
-         2) Focus lock authority: selected subtopics/custom focus override all style references.\n\
-         3) PDF authority: exam/report PDFs are style+marking references only, never a content source.\n\
-         4) Originality: do not copy or paraphrase scenarios, wording, numbers, or structures from PDFs.\n\
-         5) Output hygiene: return valid JSON only, no markdown fences, no commentary, no extra keys."
+    "CONTRACT: 1. Only assessable Study Design content. 2. Focus constraints override style PDFs. 3. PDFs are style-only; do NOT copy scenarios/content. 4. Valid JSON only."
 }
 
 fn topic_field_contract() -> &'static str {
-    "FIELD CONTRACT:\n\
-         - topic: MUST be exactly one user-selected subject (for example, Mathematical Methods).\n\
-         - subtopic: MUST be one primary focus area label within that subject (or null when unavailable).\n\
-         - If a question integrates multiple focus areas, keep one primary subtopic label and blend the others in the question stem.\n\
-         - Never place a subtopic value in the topic field."
+    "FIELDS: 'topic' = subject name (e.g. Mathematical Methods); 'subtopic' = focus area label. No subtopics in 'topic' field."
 }
 
 fn written_system() -> String {
@@ -311,16 +301,13 @@ fn written_system() -> String {
                  {contract}\n\
                  {latex_rules}\n\
                  {question_style_rules}\n\n\
-                 HARD CONSTRAINTS:\n\
-                 - Question complexity must match maxMarks (parts, reasoning depth, and expected response length).\n\
-                 - Before finalizing, verify each question's internal part marks sum exactly to maxMarks.\n\
-                 - 'show that' questions: every step of the proof must be explicitly shown; a bald final line with no working scores zero.\n\
-                 - 'hence' questions: the student MUST use the result from the previous part; a correct independent method scores zero for the 'hence' mark.\n\
-                 - 'explain/justify' questions: a bare numerical answer without explanation scores zero.\n\n\
+                 RULES:\n\
+                 - Sum of part marks must equal maxMarks.\n\
+                 - 'show that': explicit steps required.\n\
+                 - 'hence': must use previous result.\n\
+                 - 'explain/justify': reasoning required.\n\n\
                  {field_contract}\n\n\
-                 The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
-                 including worked solutions or answers inside the \"promptMarkdown\" string.\n\n\
-                 No markdown fences, no extra keys, no commentary outside JSON.",
+                 'promptMarkdown' contains STEM ONLY. No worked solutions or answers.",
                 contract = generation_compliance_contract(),
                 latex_rules = constants::LATEX_RULES,
                 question_style_rules = constants::QUESTION_STYLE_RULES,
@@ -335,28 +322,8 @@ fn mc_system() -> String {
                  {contract}\n\
                  {latex_rules}\n\
                  {mc_distractor_rules}\n\n\
-                 {field_contract}\n\
-                 OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
-                 {{\n\
-                     \"questions\": [\n\
-                         {{\n\
-                             \"topic\": string (the SUBJECT — must be one of the user-selected topics, e.g. \"Mathematical Methods\", NOT a subtopic like \"Functions and Graphs\"),\n\
-                             \"subtopic\": string | null (the focus area within the subject, e.g. \"Functions and Graphs\"),\n\
-                             \"promptMarkdown\": string,\n\
-                             \"options\": [\n\
-                                 {{ \"label\": \"A\" | \"B\" | \"C\" | \"D\", \"text\": string }}\n\
-                             ],\n\
-                             \"correctAnswer\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-                             \"explanationMarkdown\": string (≤180 words — name the misconception each wrong option targets),\n\
-                             \"techAllowed\": boolean\n\
-                         }}\n\
-                     ]\n\
-                 }}\n\
-                 STRICT RULE FOR PROMPT MARKDOWN:\n\
-                 The \"promptMarkdown\" field MUST ONLY contain the question stem. You are FORBIDDEN from \
-                 including the answer options (A, B, C, D) inside the \"promptMarkdown\" string, as these \
-                 are handled by the \"options\" array in the JSON schema.\n\n\
-                 No markdown fences, no extra keys, no commentary outside JSON.",
+                 {field_contract}\n\n\
+                 'promptMarkdown' contains STEM ONLY. No options (A-D) in stem. Return valid JSON only.",
                  contract = generation_compliance_contract(),
                  latex_rules = constants::LATEX_RULES,
                  mc_distractor_rules = constants::MC_DISTRACTOR_RULES,
@@ -377,81 +344,13 @@ fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String 
     let rationale_words = (max_marks as usize * 30).max(100).min(400);
 
     format!(
-        "You are a strict but constructive VCE marker.\n\
-         \n\
-         MARKING PHILOSOPHY:\n\
-         - Apply VCAA criterion-based marking: award marks for correct, clearly demonstrated \
-steps — not for lucky final answers where working is absent or incorrect.\n\
-         - Do NOT award marks for: restating the question, vague statements without justification, \
-correct answers with wrong or missing method (unless the question is answer-only).\n\
-         - DO award marks for: correct method even if arithmetic slips, correct use of \
-relevant formulas with appropriate substitution, logical reasoning that reaches the right conclusion.\n\
-         - For 'show that' questions: every step of the proof must be explicitly shown; \
-a bald final line with no working scores zero.\n\
-         - For 'hence' questions: the student MUST use the result from the previous part; \
-a correct independent method scores zero for the 'hence' mark.\n\
-         - For 'explain/justify' questions: a bare numerical answer without explanation scores zero.\n\
-         - For MC: the student selected a single letter — mark it correct or incorrect, then explain \
-ALL four options (what misconception each wrong option targets and why the correct one is right).\n\
-         \n\
-         EXAMINERS' REPORT RULE: If VCAA examiners' report PDFs are attached, treat them as the \
-PRIMARY marking authority. Use the official marking schemes, expected solutions, and common error \
-patterns from the reports to: (1) determine exact criterion breakdowns, (2) identify which steps \
-earn which marks, (3) recognise common student mistakes and address them in feedback. Where the \
-report specifies partial credit rules, apply them consistently.\n\
-         \n\
-         CONCISENESS LIMITS (scale with mark value):\n\
-         - Verdict: \"Correct\" or \"Incorrect\" — do NOT hedge or use non-committal language.\n\
-         - Each criterion rationale: ≤{rationale_words} words — reference the student's specific wording.\n\
-         - comparisonToSolution: ≤{comparison_words} words.\n\
-         - feedbackMarkdown: ≤{feedback_words} words — be specific and actionable, not generic.\n\
-         - workedSolutionMarkdown: ≤{worked_words} words — show every step explicitly.\n\
-         \n\
-        FEEDBACK STYLE — STANDARDISED FORMAT (MANDATORY):\n\
-         - Format `feedbackMarkdown` using Markdown, following EXACTLY this Markdown structure (Notice the usage of headers):\n\
-           ## Strengths\n\
-           - (2–3 bullet points naming specific things the student did well, quoting their work)\n\
-           ## Areas for Improvement\n\
-           - (2–3 bullet points with specific, actionable advice — name the skill or step that needs work)\n\
-           ## Common Pitfalls\n\
-           - (1–2 bullet points on misconceptions this question typically targets)\n\
-         - Do NOT include an exemplar response inside feedbackMarkdown — it has its own field.\n\
-         - Do NOT add any other top-level headings to feedbackMarkdown.\n\
-         - Use Markdown headings, bullet points, and short math/code fences where appropriate.\n\
-         - Also use Markdown in `comparisonToSolutionMarkdown` and `workedSolutionMarkdown` (headings, lists, and clear step structure).\n\
-         - `exemplarResponseMarkdown`: a concise ideal student answer (aligned to the marking scheme) that would earn full marks. Keep it focused on the key steps or reasoning required. This is a SEPARATE field — do NOT duplicate it in feedbackMarkdown.\n\
-        \n\
-        {latex_rules}{chem_note}\n\n\
-        {phys_ed_note}\n\n\
-         OUTPUT FORMAT — respond with a JSON object matching this schema exactly:\n\
-         {{\n\
-             \"verdict\": string,\n\
-             \"achievedMarks\": integer ≥ 0,\n\
-             \"maxMarks\": integer ≥ 1,\n\
-             \"scoreOutOf10\": integer 0–10,\n\
-             \"vcaaMarkingScheme\": [\n\
-                 {{\n\
-                     \"criterion\": string (name the specific skill/knowledge being tested),\n\
-                     \"achievedMarks\": integer,\n\
-                     \"maxMarks\": integer,\n\
-                     \"rationale\": string (≤{rationale_words} words — quote or paraphrase \
-the student's answer to justify the mark)\n\
-                 }}\n\
-             ],\n\
-              \"comparisonToSolutionMarkdown\": string (≤{comparison_words} words),\n\
-              \"feedbackMarkdown\": string (≤{feedback_words} words — MUST use the ## Strengths / ## Areas for Improvement / ## Common Pitfalls format specified above),\n\
-              \"workedSolutionMarkdown\": string (≤{worked_words} words — full step-by-step solution),\n\
-              \"exemplarResponseMarkdown\": string (concise ideal student answer for full marks — do NOT repeat this in feedbackMarkdown),\n\
-             \"mcOptionExplanations\": [\n\
-                 {{\n\
-                     \"option\": \"A\" | \"B\" | \"C\" | \"D\",\n\
-                     \"isCorrect\": boolean,\n\
-                     \"explanation\": string (for wrong options: name the misconception it targets; \
-for correct: why it is right)\n\
-                 }}\n\
-             ]  // empty array [] for written questions\n\
-         }}\n\
-         No markdown fences, no extra keys, no commentary outside JSON.",
+        "You are a strict VCE marker. \
+         MARKING: 1. Apply criterion-based marking (steps, not just answers). 2. Award for method even if arithmetic slips. 3. 'show that' needs steps. 4. 'hence' must use previous part. 5. MC: explain all 4 options. \
+         REPORTS: If PDFs attached, they are PRIMARY authority for criteria and common errors. \
+         LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words}). \
+         FEEDBACK STYLE: Use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers ONLY. \
+         {latex_rules}{chem_note}{phys_ed_note}\n\n\
+         Return valid JSON only. No fences/commentary.",
          rationale_words = rationale_words,
          comparison_words = comparison_words,
          feedback_words = feedback_words,
@@ -476,11 +375,28 @@ fn topic_notes(topics: &[String], _selected_subs: Option<&Vec<String>>) -> Strin
     s
 }
 
-fn tech_note(mode: &str) -> &'static str {
+fn tech_note(mode: &str, topics: &[String]) -> String {
+    let is_math = topics.iter().any(|t| {
+        let low = t.to_lowercase();
+        low.contains("methods") || low.contains("specialist")
+    });
+
     match mode {
-        "tech-free" => " All questions tech-free; set techAllowed:false.",
-        "tech-active" => " All questions tech-active; set techAllowed:true.",
-        _ => " Mix tech-free and tech-active; set techAllowed per question.",
+        "tech-free" => {
+            let mut s = " All questions tech-free; set techAllowed:false.".to_string();
+            if is_math {
+                s.push_str(" For math, focus on direct application of skills.");
+            }
+            s
+        }
+        "tech-active" => {
+            let mut s = " All questions tech-active; set techAllowed:true.".to_string();
+            if is_math {
+                s.push_str(" For math, focus on application in realistic scenarios/contexts.");
+            }
+            s
+        }
+        _ => " Mix tech-free and tech-active; set techAllowed per question.".to_string(),
     }
 }
 
@@ -495,55 +411,39 @@ fn subtopics_note(selected: Option<&Vec<String>>) -> String {
     for sub in subs {
         let key = sub.trim().to_ascii_lowercase();
 
-        // Find this subtopic in the catalog to get its parent topic
-        if let Some(topic_name) = catalog::subtopic_to_topic(&key) {
-            let kk = catalog::subtopic_key_knowledge(topic_name, sub);
-            if !kk.is_empty() {
-                s.push_str(&format!("\n\n[{sub}]\n{kk}"));
-            }
-        }
-
         if let Some(exam) = exam_map.get(key.as_str()) {
-            s.push_str(&format!("\n{exam}"));
+            s.push_str(&format!("\n\n[{sub}]\n{exam}"));
         }
     }
     s
 }
 
 fn subtopic_synthesis_note(selected: Option<&Vec<String>>, question_count: usize) -> String {
-    let Some(subs) = selected.filter(|s| s.len() > 1) else {
+    let Some(_) = selected.filter(|s| s.len() > 1) else {
         return String::new();
     };
 
     let min_to_blend = if question_count <= 3 { 2 } else { 1 };
     let blend_scope = if min_to_blend >= 2 {
-        "each question should integrate at least two focus areas where syllabus-valid"
+        "integrate at least two focus areas per question"
     } else {
-        "integrate multiple focus areas whenever pedagogically valid"
+        "integrate multiple areas where valid"
     };
 
-    format!(
-        "\nINTEGRATED SUBTOPIC REQUIREMENT:\n\
-         - Multiple focus areas are provided in this request ({}).\n\
-         - {}.\n\
-         - Prefer exam-style synthesis tasks over isolated single-skill drills when possible.\n\
-         - Keep the `subtopic` field as one primary label, even when the question blends multiple focus areas.",
-        subs.join(", "),
-        blend_scope,
-    )
+    format!("\nINTEGRATED: {blend_scope}. Prefer exam-style synthesis. Use one primary subtopic label per question.")
 }
 
 fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
     let mut constraints = Vec::<String>::new();
     if let Some(subs) = selected {
         if !subs.is_empty() {
-            constraints.push(format!("Selected subtopics: {}.", subs.join(", ")));
+            constraints.push(format!("Subtopics: {}.", subs.join(", ")));
         }
     }
     if let Some(area) = custom_focus_area {
         let trimmed = area.trim();
         if !trimmed.is_empty() {
-            constraints.push(format!("Custom focus area: \"{trimmed}\"."));
+            constraints.push(format!("Custom focus: \"{trimmed}\"."));
         }
     }
 
@@ -552,11 +452,7 @@ fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&st
     }
 
     format!(
-        "\nFOCUS LOCK (HIGHEST PRIORITY):\n\
-         - {} \n\
-         - Every question part must map directly to the focus constraints above.\n\
-         - Do NOT introduce outside concepts, even if they appear in attached exam PDFs.\n\
-         - If there is any conflict, prioritize these focus constraints over PDF content.",
+        "\nFOCUS LOCK: {}. Use these focus constraints exclusively; prioritize over PDF content.",
         constraints.join(" ")
     )
 }
@@ -568,27 +464,22 @@ fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&st
 fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
     let mut lines = vec![
         "── PDF STYLE REFERENCE ENDS HERE ──".to_string(),
-        "You have now seen the exam PDF(s). Return to the focus constraints specified earlier:"
-            .to_string(),
+        "Return to the focus constraints specified earlier:".to_string(),
     ];
     if let Some(subs) = selected {
         if !subs.is_empty() {
-            lines.push(format!("• Selected subtopics: {}.", subs.join(", ")));
+            lines.push(format!("• Subtopics: {}.", subs.join(", ")));
         }
     }
     if let Some(area) = custom_focus_area {
         let trimmed = area.trim();
         if !trimmed.is_empty() {
-            lines.push(format!("• Custom focus area: \"{trimmed}\"."));
+            lines.push(format!("• Custom focus: \"{trimmed}\"."));
         }
     }
     lines.push(
-        "IMPORTANT: The PDF was provided for formatting style ONLY.\n\
-         - DO NOT copy, paraphrase, or reuse any scenario, context, numbers, or question ideas from the PDF.\n\
-         - Every question you generate must use a new, original scenario and context, and must map exclusively to the Study Design key knowledge listed above.\n\
-         - If you cannot invent a new scenario, skip that question and try a different concept.\n\
-         - Do NOT use the same names, settings, or numbers as the PDF.\n\
-         - The PDF is NOT a source of content, only a style reference."
+        "IMPORTANT: PDFs are for style ONLY. DO NOT reuse any content, scenarios, or numbers. \
+         Generate original contexts mapping exclusively to focus constraints."
             .to_string(),
     );
     lines.join("\n")
@@ -1116,23 +1007,10 @@ async fn generate_questions(
     };
 
     let prompt = format!(
-        "Generate exactly {count} VCE written-response questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
-         Difficulty rules:\n{diff_rules}\n\n\
-         CRITICAL MARK ALLOCATION RULE (you MUST follow this):\n\
-          - Target average marks per question: {average_marks}\n\
-          - Total marks across all {count} questions MUST equal {count} × {average_marks} = {total_marks}\n\
-          - Vary individual maxMarks to suit command-term demand, but the arithmetic mean of all maxMarks values MUST equal {average_marks}\n\
-          - Verify your output: sum all maxMarks and confirm it equals {total_marks}\n\
-          - QUESTION LENGTH MUST MATCH maxMarks: A question worth {average_marks} marks on average must have proportional complexity. \
-  A 3-mark question must NOT have 10 marks worth of sub-parts. A 1–2 mark question is a single short task. \
-  A 3–4 mark question has at most 2 sub-parts. A 5–6 mark question has 2–3 sub-parts. \
-  Count the marks of all parts before outputting — the total must equal maxMarks.\n\
-         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}\n\n\
-         Quality: distinct concepts/contexts/methods per question — no two questions should \
- test the same skill in the same way. No worked solutions in prompts.\
-         {sim_note}\n\n\
-         Topic/subtopic fields must follow the system field contract above.\n\
-         {focus_lock}{exam_context_preamble}\n\
+        "Generate {count} VCE written questions. Topics: {topics}. Difficulty: {difficulty}. \
+         Avg marks: {average_marks}. Total marks: {total_marks}. \
+         Complexity must match marks (e.g., 5-6 marks = 2-3 parts). \
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{sim_note}{focus_lock}{exam_context_preamble} \
          Output exactly {count} questions.",
         count                 = request.question_count,
         topics                = sanitize_for_api(&request.topics.join(", ")),
@@ -1141,7 +1019,7 @@ async fn generate_questions(
         subs_note             = sanitize_for_api(&subtopics_note(selected_subs)),
         synth_note            = sanitize_for_api(&subtopic_synthesis_note(selected_subs, request.question_count)),
         custom_note           = sanitize_for_api(&custom_note),
-        tech                  = tech_note(tech_mode),
+        tech                  = tech_note(tech_mode, &request.topics),
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
         methods_exam1_note    = methods_exam1_note,
@@ -1644,17 +1522,8 @@ async fn generate_mc_questions(
     };
 
     let prompt = format!(
-        "Generate exactly {count} VCE multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.\n\n\
-         Difficulty rules:\n{diff_rules}\n\n\
-         Each question: 4 options (A–D), one correct answer, worth 1 mark each.\
-         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}\n\n\
-         Quality: distinct concepts and contexts across the batch. Each wrong option must \
- target a specific, named student misconception (not just a random wrong value).\n\
-         Explanation: ≤180 words — state the correct answer's reasoning and name the \
- misconception each wrong option targets. No chain-of-thought, no self-talk.\
-         {sim_note}\n\n\
-         Topic/subtopic fields must follow the system field contract above.\
-         {focus_lock}{exam_context_preamble}\
+        "Generate {count} VCE multiple-choice questions (1 mark each). Topics: {topics}. Difficulty: {difficulty}. \
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{sim_note}{focus_lock}{exam_context_preamble} \
          Output exactly {count} questions.",
         count                 = request.question_count,
         topics                = sanitize_for_api(&request.topics.join(", ")),
@@ -1663,7 +1532,7 @@ async fn generate_mc_questions(
         subs_note             = sanitize_for_api(&subtopics_note(selected_subs)),
         synth_note            = sanitize_for_api(&subtopic_synthesis_note(selected_subs, request.question_count)),
         custom_note           = sanitize_for_api(&custom_note),
-        tech                  = tech_note(tech_mode),
+        tech                  = tech_note(tech_mode, &request.topics),
         topic_notes           = topic_notes(&request.topics, selected_subs),
         math_diff             = math_difficulty_note(&adjusted_difficulty, &request.topics),
         focus_lock            = sanitize_for_api(&focus_lock_note(selected_subs, request.custom_focus_area.as_deref())),
