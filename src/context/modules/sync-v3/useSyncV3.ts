@@ -14,14 +14,16 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
+  isSavedSetComplete,
   normalizeMcHistory,
   normalizeQuestionHistory,
-  normalizeSavedSets,
+  normalizeSavedSet,
 } from '@/lib/persistence';
 import { useAppStore } from '@/store';
 import type { Preset, StreakData, StudyGoals } from '@/types';
 
 import { auth, db } from '../firebase-init';
+import { deleteSavedSet as v3DeleteSavedSet } from './mutations';
 
 export interface UseSyncV3Return {
   user: FirebaseUser | null;
@@ -62,40 +64,60 @@ export function useSyncV3(): UseSyncV3Return {
     unsubscribesRef.current = [];
   }, []);
 
-  const manualRefreshData = useCallback(async (uid: string) => {
-    try {
-      // Fetch saved sets
-      const savedSetsSnapshot = await getDocs(
-        collection(db, `users/${uid}/savedSets`)
-      );
-      const sets = normalizeSavedSets(
-        savedSetsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-      );
-      useAppStore.setState({ savedSets: sets });
+  const syncSavedSetsFromRaw = useCallback((rawSavedSets: unknown[]) => {
+    const parsedSavedSets = rawSavedSets
+      .map((entry) => normalizeSavedSet(entry))
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
-      // Fetch question history
-      const qhSnapshot = await getDocs(
-        collection(db, `users/${uid}/questionHistory`)
-      );
-      const qh = normalizeQuestionHistory(
-        qhSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-      );
-      useAppStore.setState({ questionHistory: qh });
+    const completedSavedSetIds = parsedSavedSets
+      .filter((entry) => isSavedSetComplete(entry))
+      .map((entry) => entry.id);
 
-      // Fetch MC history
-      const mchSnapshot = await getDocs(
-        collection(db, `users/${uid}/mcHistory`)
-      );
-      const mch = normalizeMcHistory(
-        mchSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-      );
-      useAppStore.setState({ mcHistory: mch });
+    useAppStore.setState({
+      savedSets: parsedSavedSets.filter((entry) => !isSavedSetComplete(entry)),
+    });
 
-      console.log('[FirebaseSync] Manual data refresh completed');
-    } catch (error) {
-      console.error('[FirebaseSync] Manual refresh error:', error);
-    }
+    completedSavedSetIds.forEach((id) => {
+      void v3DeleteSavedSet(id);
+    });
   }, []);
+
+  const manualRefreshData = useCallback(
+    async (uid: string) => {
+      try {
+        // Fetch saved sets
+        const savedSetsSnapshot = await getDocs(
+          collection(db, `users/${uid}/savedSets`)
+        );
+        syncSavedSetsFromRaw(
+          savedSetsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+        );
+
+        // Fetch question history
+        const qhSnapshot = await getDocs(
+          collection(db, `users/${uid}/questionHistory`)
+        );
+        const qh = normalizeQuestionHistory(
+          qhSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+        );
+        useAppStore.setState({ questionHistory: qh });
+
+        // Fetch MC history
+        const mchSnapshot = await getDocs(
+          collection(db, `users/${uid}/mcHistory`)
+        );
+        const mch = normalizeMcHistory(
+          mchSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+        );
+        useAppStore.setState({ mcHistory: mch });
+
+        console.log('[FirebaseSync] Manual data refresh completed');
+      } catch (error) {
+        console.error('[FirebaseSync] Manual refresh error:', error);
+      }
+    },
+    [syncSavedSetsFromRaw]
+  );
 
   const setupListeners = useCallback(
     (uid: string) => {
@@ -158,10 +180,9 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/savedSets`),
           (snapshot) => {
             try {
-              const sets = normalizeSavedSets(
+              syncSavedSetsFromRaw(
                 snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
               );
-              useAppStore.setState({ savedSets: sets });
             } catch (error) {
               console.error(
                 '[FirebaseSync] Error processing saved sets snapshot:',
@@ -289,7 +310,7 @@ export function useSyncV3(): UseSyncV3Return {
         setSyncStatus('error');
       }
     },
-    [cleanupListeners, manualRefreshData]
+    [cleanupListeners, manualRefreshData, syncSavedSetsFromRaw]
   );
 
   useEffect(() => {
