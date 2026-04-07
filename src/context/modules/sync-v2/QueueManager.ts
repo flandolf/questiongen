@@ -74,7 +74,7 @@ function coalesceKey(op: SyncOperation): string {
  * Coalesce operations with smart noop detection.
  * Rules:
  * - Keep only the latest operation per entity
- * - Delete after upsert = just delete (but entity was newly created, so skip entirely)
+ * - Delete after upsert = keep delete (final state is deleted)
  * - Upsert after delete = upsert (entity was recreated)
  * - Multiple upserts = keep last one
  * - Multiple deletes = keep one delete
@@ -98,8 +98,9 @@ function coalesceOperations(operations: SyncOperation[]): SyncOperation[] {
 
     // Detect noop patterns
     if (existing.opType === 'upsert' && op.opType === 'delete') {
-      // Upsert then delete = just delete, but since item is new, this is noop
-      if (op.entityId) latestByKey.delete(key);
+      // Upsert then delete => keep delete. We cannot safely assume the
+      // upserted entity was newly created on remote.
+      latestByKey.set(key, op);
     } else if (existing.opType === 'delete' && op.opType === 'upsert') {
       // Delete then upsert = recreate, so upsert is the final state
       latestByKey.set(key, op);
@@ -323,7 +324,7 @@ export class QueueManager {
     const jitter = Math.random() * 500;
     const delay = Math.min(
       this.config.retryBaseDelayMs * Math.pow(2, Math.min(attempt - 1, 4)) +
-        jitter,
+      jitter,
       this.config.retryMaxDelayMs
     );
     this.telemetry.nextRetryAt = Date.now() + delay;
