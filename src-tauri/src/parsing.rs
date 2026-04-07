@@ -184,7 +184,7 @@ fn strip_json_code_fence(s: &str) -> Option<&str> {
     if i + 4 <= b.len() && t[i..i + 4].eq_ignore_ascii_case("json") {
         i += 4;
     }
-    let inner = t[i..].trim_start_matches(|c| matches!(c, '\n' | '\r'));
+    let inner = t[i..].trim_start_matches(['\n', '\r']);
     inner.strip_suffix("```").map(str::trim)
 }
 
@@ -382,7 +382,6 @@ pub fn normalise_envelope(value: serde_json::Value) -> Result<serde_json::Value,
 ///   - Real newlines embedded by the model are already `\n` (U+000A).
 ///   - The sequence backslash-n written literally inside a string value (rare)
 ///     appears as two chars `\` `n`.
-/// This function handles the second case conservatively.
 pub fn decode_escapes(value: &str) -> String {
     let chars: Vec<char> = value.chars().collect();
     let mut out = String::with_capacity(value.len());
@@ -402,7 +401,7 @@ pub fn decode_escapes(value: &str) -> String {
             // \r literal → newline, but only if not followed by a letter that
             // would form a LaTeX command (e.g. \rho, \rightarrow, \Re).
             if chars[i + 1] == 'r' {
-                if chars.get(i + 2).map_or(false, |c| c.is_ascii_alphabetic()) {
+                if chars.get(i + 2).is_some_and(|c| c.is_ascii_alphabetic()) {
                     out.push('\\');
                     out.push('r');
                 } else {
@@ -418,7 +417,7 @@ pub fn decode_escapes(value: &str) -> String {
             // \nwhere (with 'w') is not a valid LaTeX command, so treat as newline.
             if chars[i + 1] == 'n' {
                 let next_char = chars.get(i + 2);
-                let is_latex_command = next_char.map_or(false, |c| {
+                let is_latex_command = next_char.is_some_and(|c| {
                     // Only these second characters can start valid LaTeX \n... commands
                     matches!(c, 'a' | 'e' | 'o' | 't' | 'u')
                 });
@@ -614,7 +613,7 @@ fn protect_currency_dollars(s: &str) -> String {
         if ch == '$' {
             let prev_dollar = i > 0 && chars[i - 1] == '$';
             let next_dollar = chars.get(i + 1) == Some(&'$');
-            let next_digit = chars.get(i + 1).map_or(false, |c| c.is_ascii_digit());
+            let next_digit = chars.get(i + 1).is_some_and(|c| c.is_ascii_digit());
             if !prev_dollar && !next_dollar && next_digit {
                 out.push_str("\\$");
                 continue;
@@ -673,7 +672,7 @@ pub fn sanitize_for_api(s: &str) -> String {
             // Drop Unicode noncharacters: U+FFFE and U+FFFF per plane,
             // plus U+FDD0–U+FDEF.
             let cp = c as u32;
-            if cp >= 0xFDD0 && cp <= 0xFDEF {
+            if (0xFDD0..=0xFDEF).contains(&cp) {
                 return false;
             }
             if (cp & 0xFFFE) == 0xFFFE {
@@ -686,12 +685,9 @@ pub fn sanitize_for_api(s: &str) -> String {
 
 /// Replace Unicode typographic characters with their plain ASCII equivalents.
 fn normalise_typography(s: &str) -> String {
-    s.replace('\u{2018}', "'")
-        .replace('\u{2019}', "'")
-        .replace('\u{201C}', "\"")
-        .replace('\u{201D}', "\"")
-        .replace('\u{2013}', "--")
-        .replace('\u{2014}', "--")
+    s.replace(['\u{2018}', '\u{2019}'], "'")
+        .replace(['\u{201C}', '\u{201D}'], "\"")
+        .replace(['\u{2013}', '\u{2014}'], "--")
         .replace('\u{2026}', "...")
 }
 
@@ -702,7 +698,7 @@ fn normalise_typography(s: &str) -> String {
 fn canonical_topics() -> &'static [&'static str] {
     use std::sync::OnceLock;
     static TOPICS: OnceLock<Vec<&'static str>> = OnceLock::new();
-    TOPICS.get_or_init(|| crate::catalog::topic_names())
+    TOPICS.get_or_init(crate::catalog::topic_names)
 }
 
 /// Map each canonical subtopic (lowercased) to its parent subject.
@@ -730,7 +726,7 @@ fn subtopic_to_subject() -> &'static std::collections::HashMap<String, String> {
 fn all_canonical_subtopics() -> &'static [&'static str] {
     use std::sync::OnceLock;
     static SUBS: OnceLock<Vec<&'static str>> = OnceLock::new();
-    SUBS.get_or_init(|| crate::catalog::all_subtopic_names_lower())
+    SUBS.get_or_init(crate::catalog::all_subtopic_names_lower)
 }
 
 /// Compute the Levenshtein edit distance between two strings.

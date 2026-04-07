@@ -324,7 +324,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
                         .get(&endpoints_url)
                         .header(AUTHORIZATION, format!("Bearer {api_key}"))
                         .send(),
-                    fetch_catalogue_and_lookup(&client, api_key.trim(), model_id.trim()),
+                    fetch_catalogue_and_lookup(client, api_key.trim(), model_id.trim()),
                 );
                 (ep, (img, files))
             }
@@ -367,7 +367,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         let prompt_price = parse_price(ep.pricing.as_ref().and_then(|p| p.prompt.as_ref()));
         let completion_price = parse_price(ep.pricing.as_ref().and_then(|p| p.completion.as_ref()));
         if let Some(pp) = prompt_price {
-            if best_prompt_price.map_or(true, |prev: f64| pp < prev) {
+            if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
                 best_prompt_price = Some(pp);
                 best_completion_price = completion_price;
             }
@@ -377,7 +377,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
             context_length = Some(context_length.map_or(ctx, |prev: u64| prev.max(ctx)));
         }
 
-        if ep.supported_parameters.as_deref().map_or(false, |params| {
+        if ep.supported_parameters.as_deref().is_some_and(|params| {
             params.iter().any(|p| p == "response_format")
         }) {
             supports_structured = true;
