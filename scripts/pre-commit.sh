@@ -14,16 +14,18 @@ fi
 
 echo "🔄 Running pre-commit checks..."
 
-echo "📦 Bumping version code..."
-bun run scripts/version.ts
-
-echo "💅 Formatting code with Prettier..."
-bun run prettier
-
 echo "🔧 Fixing linting issues..."
 bun run lint:fix
 
 echo "✅ Running typecheck..."
 bun run typecheck
 
+echo "💅 Formatting code with Prettier..."
+bun run prettier
+
 echo "🎉 All pre-commit checks passed!"
+
+echo "📦 Bumping version code..."
+bun run scripts/version.ts
+
+echo "✅ Pre-commit script completed successfully!"

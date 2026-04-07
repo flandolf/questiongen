@@ -11,7 +11,7 @@ import {
   SortAsc,
   Trash2,
 } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -75,6 +75,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   onDelete: (id: string, title: string) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const setIdsKey = useMemo(() => sets.map((s) => s.id).join('|'), [sets]);
   const rowVirtualizer = useVirtualizer({
     count: sets.length,
     getScrollElement: () => parentRef.current,
@@ -86,12 +87,12 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
   // Reset scroll to top when sets change (e.g. after delete)
   useEffect(() => {
     rowVirtualizer.scrollToIndex(0);
-  }, [sets.length, rowVirtualizer]);
+  }, [setIdsKey, rowVirtualizer]);
 
-  // Auto-measure elements after they render
-  useEffect(() => {
+  // Re-measure in layout phase when item identities/order change.
+  useLayoutEffect(() => {
     rowVirtualizer.measure();
-  }, [sets.length, rowVirtualizer]);
+  }, [setIdsKey, rowVirtualizer]);
 
   return (
     <div
@@ -108,6 +109,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const savedSet = sets[virtualRow.index];
+          if (!savedSet) return null;
           const {
             questionCount,
             completedCount,
@@ -140,11 +142,10 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                         </span>
                         <Badge
                           variant="secondary"
-                          className={`shrink-0 text-xs ${
-                            isWritten
+                          className={`shrink-0 text-xs ${isWritten
                               ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
                               : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-                          }`}
+                            }`}
                         >
                           {isWritten ? 'Written' : 'Multiple Choice'}
                         </Badge>
@@ -239,15 +240,14 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                       />
                     </div>
                     <p
-                      className={`text-xs text-right font-medium ${
-                        completedCount === 0
+                      className={`text-xs text-right font-medium ${completedCount === 0
                           ? 'text-muted-foreground/60 italic'
                           : completedCount === questionCount
                             ? isWritten
                               ? 'text-sky-600 dark:text-sky-400'
                               : 'text-violet-600 dark:text-violet-400'
                             : 'text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       {progressLabel}
                     </p>
