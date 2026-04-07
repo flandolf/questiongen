@@ -219,7 +219,9 @@ export function GeneratorView() {
     feedbackByQuestionId,
     setFeedbackByQuestionId,
     questionHistory,
-    setQuestionHistory,
+    addQuestionHistoryEntry,
+    updateQuestionHistoryEntry,
+    deleteQuestionHistoryEntry,
     setWrittenRawModelOutput,
     writtenGenerationTelemetry,
     setWrittenGenerationTelemetry,
@@ -236,7 +238,9 @@ export function GeneratorView() {
     mcAnswersByQuestionId,
     setMcAnswersByQuestionId,
     mcHistory,
-    setMcHistory,
+    addMcHistoryEntry,
+    updateMcHistoryEntry,
+    deleteMcHistoryEntry,
     setMcRawModelOutput,
     mcGenerationTelemetry,
     setMcGenerationTelemetry,
@@ -910,9 +914,7 @@ export function GeneratorView() {
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
       // Remove from history if it was already answered
-      setQuestionHistory((prev) =>
-        prev.filter((e: QuestionHistoryEntry) => e.question.id !== id)
-      );
+      deleteQuestionHistoryEntry(id);
       // Subtract question time from session timer
       writtenTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -933,9 +935,7 @@ export function GeneratorView() {
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
       setMcImagesByQuestionId((p) => removeKey(p, id));
       // Remove from history if it was already answered
-      setMcHistory((prev) =>
-        prev.filter((e: McHistoryEntry) => e.question.id !== id)
-      );
+      deleteMcHistoryEntry(id);
       // Subtract question time from session timer
       mcTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -962,7 +962,9 @@ export function GeneratorView() {
     setMarkAppealByQuestionId,
     setMarkOverrideInputByQuestionId,
     setWrittenResponseEnteredAtById,
-    setQuestionHistory,
+    addQuestionHistoryEntry,
+    updateQuestionHistoryEntry,
+    deleteQuestionHistoryEntry,
     writtenTimer,
     setMcQuestions,
     setActiveMcSavedSetId,
@@ -972,7 +974,9 @@ export function GeneratorView() {
     setMcMarkAppealByQuestionId,
     setMcMarkOverrideInputByQuestionId,
     setMcAwardedMarksByQuestionId,
-    setMcHistory,
+    addMcHistoryEntry,
+    updateMcHistoryEntry,
+    deleteMcHistoryEntry,
     mcTimer,
     setErrorMessage,
   ]);
@@ -1102,7 +1106,7 @@ export function GeneratorView() {
         finalAnswerChangedAtMs: responseAt,
       },
     };
-    setMcHistory((prev) => [entry, ...prev]);
+    addMcHistoryEntry(entry);
   }
 
   function updateLatestMcHistoryEntry(
@@ -1113,33 +1117,29 @@ export function GeneratorView() {
   ) {
     const now = Date.now();
     const responseAt = responseEnteredAtMs ?? now;
-    setMcHistory((prev) => {
-      const idx = prev.findIndex(
-        (e: McHistoryEntry) =>
-          e.question.id === questionId &&
-          (e.analytics?.attemptKind ?? 'initial') === 'initial'
-      );
-      if (idx === -1) return prev;
-      const entry = prev[idx];
-      const next = [...prev];
-      next[idx] = {
-        ...entry,
-        selectedAnswer,
-        correct: awardedMarks >= 1,
-        awardedMarks,
-        lastModified: now,
-        analytics: {
-          attemptSequence: entry.analytics?.attemptSequence ?? 0,
-          answerCharacterCount: entry.analytics?.answerCharacterCount ?? 0,
-          answerWordCount: entry.analytics?.answerWordCount ?? 0,
-          usedImageUpload: entry.analytics?.usedImageUpload ?? false,
-          attemptKind: entry.analytics?.attemptKind,
-          responseLatencyMs: entry.analytics?.responseLatencyMs,
-          finalAnswerChangedAtMs: responseAt,
-        },
-      };
-      return next;
-    });
+    const entry = mcHistory.find(
+      (e: McHistoryEntry) =>
+        e.question.id === questionId &&
+        (e.analytics?.attemptKind ?? 'initial') === 'initial'
+    );
+    if (!entry) return;
+    const updatedEntry = {
+      ...entry,
+      selectedAnswer,
+      correct: awardedMarks >= 1,
+      awardedMarks,
+      lastModified: now,
+      analytics: {
+        attemptSequence: entry.analytics?.attemptSequence ?? 0,
+        answerCharacterCount: entry.analytics?.answerCharacterCount ?? 0,
+        answerWordCount: entry.analytics?.answerWordCount ?? 0,
+        usedImageUpload: entry.analytics?.usedImageUpload ?? false,
+        attemptKind: entry.analytics?.attemptKind,
+        responseLatencyMs: entry.analytics?.responseLatencyMs,
+        finalAnswerChangedAtMs: responseAt,
+      },
+    };
+    updateMcHistoryEntry(updatedEntry);
   }
 
   function updateLatestMcHistoryEntryMark(
@@ -1147,21 +1147,15 @@ export function GeneratorView() {
     awardedMarks: number
   ) {
     const now = Date.now();
-    setMcHistory((prev) => {
-      const idx = prev.findIndex(
-        (e: McHistoryEntry) => e.question.id === questionId
-      );
-      if (idx === -1) return prev;
-      const entry = prev[idx];
-      const next = [...prev];
-      next[idx] = {
-        ...entry,
-        correct: awardedMarks >= 1,
-        awardedMarks,
-        lastModified: now,
-      };
-      return next;
-    });
+    const entry = mcHistory.find((e: McHistoryEntry) => e.question.id === questionId);
+    if (!entry) return;
+    const updatedEntry = {
+      ...entry,
+      correct: awardedMarks >= 1,
+      awardedMarks,
+      lastModified: now,
+    };
+    updateMcHistoryEntry(updatedEntry);
   }
 
   function updateLatestWrittenHistoryEntry(
@@ -1169,30 +1163,26 @@ export function GeneratorView() {
     response: ReturnType<typeof normalizeMarkResponse>
   ) {
     const now = Date.now();
-    setQuestionHistory((prev) => {
-      const idx = prev.findIndex(
-        (e: QuestionHistoryEntry) => e.question.id === questionId
-      );
-      if (idx === -1) return prev;
-      const entry = prev[idx];
-      const next = [...prev];
-      next[idx] = {
-        ...entry,
-        markResponse: response,
-        workedSolutionMarkdown: response.workedSolutionMarkdown,
-        lastModified: now,
-        analytics: {
-          attemptSequence: entry.analytics?.attemptSequence ?? 0,
-          attemptKind: entry.analytics?.attemptKind ?? 'initial',
-          answerCharacterCount: entry.analytics?.answerCharacterCount ?? 0,
-          answerWordCount: entry.analytics?.answerWordCount ?? 0,
-          usedImageUpload: entry.analytics?.usedImageUpload ?? false,
-          responseLatencyMs: entry.analytics?.responseLatencyMs,
-          markingLatencyMs: entry.analytics?.markingLatencyMs,
-        },
-      };
-      return next;
-    });
+    const entry = questionHistory.find(
+      (e: QuestionHistoryEntry) => e.question.id === questionId
+    );
+    if (!entry) return;
+    const updatedEntry = {
+      ...entry,
+      markResponse: response,
+      workedSolutionMarkdown: response.workedSolutionMarkdown,
+      lastModified: now,
+      analytics: {
+        attemptSequence: entry.analytics?.attemptSequence ?? 0,
+        attemptKind: entry.analytics?.attemptKind ?? 'initial',
+        answerCharacterCount: entry.analytics?.answerCharacterCount ?? 0,
+        answerWordCount: entry.analytics?.answerWordCount ?? 0,
+        usedImageUpload: entry.analytics?.usedImageUpload ?? false,
+        responseLatencyMs: entry.analytics?.responseLatencyMs,
+        markingLatencyMs: entry.analytics?.markingLatencyMs,
+      },
+    };
+    updateQuestionHistoryEntry(updatedEntry);
   }
 
   function appendWrittenHistoryEntry(
@@ -1231,7 +1221,7 @@ export function GeneratorView() {
         markingLatencyMs: options?.markingLatencyMs,
       },
     };
-    setQuestionHistory((prev) => [entry, ...prev]);
+    addQuestionHistoryEntry(entry);
   }
 
   // ── Batch progress helpers ───────────────────────────────────────────────────

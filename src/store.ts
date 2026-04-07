@@ -1,20 +1,10 @@
 /**
  * store.ts — Zustand replacement for AppContext.tsx
- *
- * Drop this file into your project alongside the updated AppContext.tsx.
- * All public hook APIs (useAppContext, useAppPreferences, useAppSettings,
- * useWrittenSession, useMultipleChoiceSession, useSavedSets) are preserved
- * so every consumer file is unchanged.
  */
 
 import { startTransition } from 'react';
 import { create } from 'zustand';
 
-import type { DeletionTombstones } from '@/context/modules/deletion-tombstones';
-import {
-  addTombstone,
-  EMPTY_TOMBSTONES,
-} from '@/context/modules/deletion-tombstones';
 import { mergeImportedState, persistAndRehydrate } from '@/lib/import-export';
 import {
   EMPTY_PERSISTED_APP_STATE,
@@ -23,6 +13,18 @@ import {
 } from '@/lib/persistence';
 import { createCard, isDue, reviewCard } from '@/lib/spaced-repetition';
 import { getTodayKey } from '@/lib/utils';
+import { 
+  saveQuestionHistoryEntry as v3SaveQuestionHistoryEntry, 
+  deleteQuestionHistoryEntry as v3DeleteQuestionHistoryEntry,
+  saveMcHistoryEntry as v3SaveMcHistoryEntry,
+  deleteMcHistoryEntry as v3DeleteMcHistoryEntry,
+  saveSavedSet as v3SaveSavedSet,
+  deleteSavedSet as v3DeleteSavedSet,
+  updateStudyGoals,
+  updatePresets,
+  updateApiKey
+} from '@/context/modules/sync-v3/mutations';
+
 
 import type {
   ChemistrySubtopic,
@@ -156,9 +158,6 @@ export interface AppState {
   // ── Timer state (survives navigation) ──────────────────────────
   writtenTimerState: PersistedTimerState | null;
   mcTimerState: PersistedTimerState | null;
-
-  // ── Deletion tombstones (tracks local deletes pending cloud sync) ─
-  deletionTombstones: DeletionTombstones;
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -301,6 +300,10 @@ export interface AppActions {
   deleteAllSavedSets: () => void;
   deleteQuestionHistoryEntry: (id: string) => void;
   deleteMcHistoryEntry: (id: string) => void;
+  addQuestionHistoryEntry: (entry: QuestionHistoryEntry) => void;
+  addMcHistoryEntry: (entry: McHistoryEntry) => void;
+  updateQuestionHistoryEntry: (entry: QuestionHistoryEntry) => void;
+  updateMcHistoryEntry: (entry: McHistoryEntry) => void;
   clearQuestionHistory: () => void;
   clearMcHistory: () => void;
 
@@ -322,9 +325,6 @@ export interface AppActions {
   setWrittenTimerState: (state: PersistedTimerState | null) => void;
   setMcTimerState: (state: PersistedTimerState | null) => void;
 
-  // Deletion tombstones
-  setDeletionTombstones: (tombstones: DeletionTombstones) => void;
-
   // Import / Export
   importState: (imported: PersistedAppState) => void;
 }
@@ -333,105 +333,63 @@ export interface AppActions {
 
 const defaultState: AppState = {
   isHydrated: false,
-
-  // Settings — pulled from the empty persisted state default
   apiKey: EMPTY_PERSISTED_APP_STATE.settings.apiKey,
   showApiKey: false,
   model: EMPTY_PERSISTED_APP_STATE.settings.model,
   markingModel: EMPTY_PERSISTED_APP_STATE.settings.markingModel,
-  useSeparateMarkingModel:
-    EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel,
+  useSeparateMarkingModel: Boolean(EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel),
   imageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.imageMarkingModel,
-  useSeparateImageMarkingModel:
-    EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
+  useSeparateImageMarkingModel: Boolean(EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel),
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
-  includeExamContext:
-    EMPTY_PERSISTED_APP_STATE.settings.includeExamContext ?? false,
-  autoSyncIntervalMinutes:
-    EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
+  includeExamContext: Boolean(EMPTY_PERSISTED_APP_STATE.settings.includeExamContext),
+  autoSyncIntervalMinutes: EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
   syncApiKey: Boolean(EMPTY_PERSISTED_APP_STATE.settings.syncApiKey),
-  localBackupFolderPath:
-    EMPTY_PERSISTED_APP_STATE.settings.localBackupFolderPath ?? '',
-  localBackupIntervalMinutes:
-    EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
-
-  // Preferences
+  localBackupFolderPath: EMPTY_PERSISTED_APP_STATE.settings.localBackupFolderPath ?? '',
+  localBackupIntervalMinutes: EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
   difficulty: EMPTY_PERSISTED_APP_STATE.preferences.difficulty,
   techMode: EMPTY_PERSISTED_APP_STATE.preferences.techMode,
-  avoidSimilarQuestions:
-    EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
-  mathMethodsSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
-  specialistMathSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
+  avoidSimilarQuestions: EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
+  mathMethodsSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
+  specialistMathSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
   chemistrySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
-  physicalEducationSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
+  physicalEducationSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
-  averageMarksPerQuestion:
-    EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
+  averageMarksPerQuestion: EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
   questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
-
-  // AI Difficulty Scaling
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
-  // Generation flags — default to enabled
   diversityStrictness: 'moderate',
   strictLatexValidation: true,
   strictSubtopicCoverage: true,
   minSubtopicCoverageRatio: 0.6,
-
-  // Written session
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
-  activeQuestionIndex:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
-  writtenQuestionPresentedAtById:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
-  answersByQuestionId:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
-  imagesByQuestionId:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
-  feedbackByQuestionId:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
+  activeQuestionIndex: EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
+  writtenQuestionPresentedAtById: EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
+  answersByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
+  imagesByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
+  feedbackByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
   questionHistory: EMPTY_PERSISTED_APP_STATE.questionHistory,
-  writtenRawModelOutput:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
-  writtenGenerationTelemetry:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
-  activeWrittenSavedSetId:
-    EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null,
-
-  // MC session
+  writtenRawModelOutput: EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
+  writtenGenerationTelemetry: EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
+  activeWrittenSavedSetId: EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId ?? null,
   mcQuestions: EMPTY_PERSISTED_APP_STATE.mcSession.questions,
-  activeMcQuestionIndex:
-    EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
-  mcQuestionPresentedAtById:
-    EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
-  mcAnswersByQuestionId:
-    EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
+  activeMcQuestionIndex: EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
+  mcQuestionPresentedAtById: EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
+  mcAnswersByQuestionId: EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
   mcHistory: EMPTY_PERSISTED_APP_STATE.mcHistory,
   mcRawModelOutput: EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput,
-  mcGenerationTelemetry:
-    EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
+  mcGenerationTelemetry: EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
   activeMcSavedSetId: EMPTY_PERSISTED_APP_STATE.mcSession.savedSetId ?? null,
-
-  // Saved sets
   savedSets: EMPTY_PERSISTED_APP_STATE.savedSets,
-
-  // Status
   isGenerating: false,
   generationStatus: null,
   generationStartedAt: null,
   isMarking: false,
   errorMessage: null,
-
-  // Spaced repetition
   spacedRepetitionCards: {},
-
-  // Study goals & streaks
   studyGoals: {
     dailyQuestionGoal: 10,
     dailyWrittenGoal: 5,
@@ -444,12 +402,10 @@ const defaultState: AppState = {
     lastActiveDate: '',
     dailyCompletions: {},
   },
-
   generationHistory: [],
   presets: [],
   writtenTimerState: null,
   mcTimerState: null,
-  deletionTombstones: { ...EMPTY_TOMBSTONES },
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -467,56 +423,26 @@ function resolve<T>(update: Updater<T>, previous: T): T {
 export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   ...defaultState,
 
-  // ── Hydration ──────────────────────────────────────────────────────────────
-
-  // eslint-disable-next-line complexity
   hydrate: async () => {
     try {
       const persisted = await loadPersistedAppState();
       const s = persisted;
-      const preferences =
-        persisted.preferences as PersistedGeneratorPreferences & {
-          diversityStrictness: 'lenient' | 'moderate' | 'strict';
-          strictLatexValidation: boolean;
-          strictSubtopicCoverage: boolean;
-          minSubtopicCoverageRatio: number;
-        };
+      const preferences = persisted.preferences as any;
       set({
-        // Settings
         apiKey: s.settings.apiKey,
         model: s.settings.model,
         markingModel: s.settings.markingModel,
         useSeparateMarkingModel: Boolean(s.settings.useSeparateMarkingModel),
         imageMarkingModel: s.settings.imageMarkingModel,
-        useSeparateImageMarkingModel: Boolean(
-          s.settings.useSeparateImageMarkingModel
-        ),
+        useSeparateImageMarkingModel: Boolean(s.settings.useSeparateImageMarkingModel),
         debugMode: s.settings.debugMode,
-        questionTextSize:
-          typeof s.settings.questionTextSize === 'number'
-            ? s.settings.questionTextSize
-            : 16,
-        responseTextSize:
-          typeof s.settings.responseTextSize === 'number'
-            ? s.settings.responseTextSize
-            : 16,
+        questionTextSize: s.settings.questionTextSize ?? 16,
+        responseTextSize: s.settings.responseTextSize ?? 16,
         includeExamContext: Boolean(s.settings.includeExamContext),
-        autoSyncIntervalMinutes:
-          typeof s.settings.autoSyncIntervalMinutes === 'number'
-            ? s.settings.autoSyncIntervalMinutes
-            : 0,
+        autoSyncIntervalMinutes: s.settings.autoSyncIntervalMinutes ?? 0,
         syncApiKey: Boolean(s.settings.syncApiKey),
-        localBackupFolderPath:
-          typeof s.settings.localBackupFolderPath === 'string'
-            ? s.settings.localBackupFolderPath
-            : '',
-        localBackupIntervalMinutes:
-          typeof s.settings.localBackupIntervalMinutes === 'number' &&
-          s.settings.localBackupIntervalMinutes >= 0
-            ? s.settings.localBackupIntervalMinutes
-            : 0,
-
-        // Preferences
+        localBackupFolderPath: s.settings.localBackupFolderPath ?? '',
+        localBackupIntervalMinutes: s.settings.localBackupIntervalMinutes ?? 0,
         selectedTopics: s.preferences.selectedTopics,
         difficulty: s.preferences.difficulty,
         techMode: s.preferences.techMode,
@@ -528,31 +454,21 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionCount: s.preferences.questionCount,
         averageMarksPerQuestion: s.preferences.averageMarksPerQuestion,
         questionMode: s.preferences.questionMode,
-        aiDifficultyScalingEnabled:
-          s.preferences.aiDifficultyScalingEnabled ?? true,
-        diversityStrictness: preferences.diversityStrictness,
-        strictLatexValidation: preferences.strictLatexValidation,
-        strictSubtopicCoverage: preferences.strictSubtopicCoverage,
-        minSubtopicCoverageRatio: preferences.minSubtopicCoverageRatio,
-        difficultyThresholds: preferences.difficultyThresholds ?? {
-          increase: 85,
-          decrease: 70,
-        },
-
-        // Written session
+        aiDifficultyScalingEnabled: s.preferences.aiDifficultyScalingEnabled ?? true,
+        diversityStrictness: preferences.diversityStrictness ?? 'moderate',
+        strictLatexValidation: preferences.strictLatexValidation ?? true,
+        strictSubtopicCoverage: preferences.strictSubtopicCoverage ?? true,
+        minSubtopicCoverageRatio: preferences.minSubtopicCoverageRatio ?? 0.6,
+        difficultyThresholds: preferences.difficultyThresholds ?? { increase: 85, decrease: 70 },
         questions: s.writtenSession.questions,
         activeQuestionIndex: s.writtenSession.activeQuestionIndex,
-        writtenQuestionPresentedAtById:
-          s.writtenSession.presentedAtByQuestionId,
+        writtenQuestionPresentedAtById: s.writtenSession.presentedAtByQuestionId,
         answersByQuestionId: s.writtenSession.answersByQuestionId,
         imagesByQuestionId: s.writtenSession.imagesByQuestionId,
         feedbackByQuestionId: s.writtenSession.feedbackByQuestionId,
         writtenRawModelOutput: s.writtenSession.rawModelOutput,
-        writtenGenerationTelemetry:
-          s.writtenSession.generationTelemetry ?? null,
+        writtenGenerationTelemetry: s.writtenSession.generationTelemetry ?? null,
         activeWrittenSavedSetId: s.writtenSession.savedSetId ?? null,
-
-        // MC session
         mcQuestions: s.mcSession.questions,
         activeMcQuestionIndex: s.mcSession.activeQuestionIndex,
         mcQuestionPresentedAtById: s.mcSession.presentedAtByQuestionId,
@@ -560,28 +476,17 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         mcRawModelOutput: s.mcSession.rawModelOutput,
         mcGenerationTelemetry: s.mcSession.generationTelemetry ?? null,
         activeMcSavedSetId: s.mcSession.savedSetId ?? null,
-
-        // History + saved sets
         questionHistory: s.questionHistory,
         mcHistory: s.mcHistory,
         savedSets: s.savedSets,
-
-        // Spaced repetition
         spacedRepetitionCards: s.spacedRepetition ?? {},
-
-        // Study goals & streaks
         studyGoals: s.studyGoals ?? defaultState.studyGoals,
         streakData: s.streakData ?? defaultState.streakData,
-
         isHydrated: true,
         generationHistory: s.generationHistory ?? [],
         presets: s.presets ?? [],
         writtenTimerState: s.writtenTimerState ?? null,
         mcTimerState: s.mcTimerState ?? null,
-        deletionTombstones: (s as Record<string, unknown>).deletionTombstones
-          ? ((s as Record<string, unknown>)
-              .deletionTombstones as DeletionTombstones)
-          : { ...EMPTY_TOMBSTONES },
       });
     } catch {
       console.error('Hydration failed');
@@ -589,149 +494,69 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     }
   },
 
-  // ── Settings ───────────────────────────────────────────────────────────────
-
-  addGenerationRecord: (record) =>
-    set((s) => ({
-      generationHistory: [record, ...s.generationHistory].slice(0, 1000),
-    })),
-
-  // Timer state
+  addGenerationRecord: (record) => set((s) => ({ generationHistory: [record, ...s.generationHistory].slice(0, 1000) })),
   setWrittenTimerState: (writtenTimerState) => set({ writtenTimerState }),
   setMcTimerState: (mcTimerState) => set({ mcTimerState }),
-
-  // Deletion tombstones
-  setDeletionTombstones: (deletionTombstones) => set({ deletionTombstones }),
-
-  setApiKey: (key) => set({ apiKey: key }),
+  setApiKey: (key) => { set({ apiKey: key }); void updateApiKey(key); },
   setShowApiKey: (show) => set({ showApiKey: show }),
   setModel: (model) => set({ model }),
   setMarkingModel: (markingModel) => set({ markingModel }),
-  setUseSeparateMarkingModel: (useSeparateMarkingModel) =>
-    set({ useSeparateMarkingModel }),
+  setUseSeparateMarkingModel: (useSeparateMarkingModel) => set({ useSeparateMarkingModel }),
   setImageMarkingModel: (imageMarkingModel) => set({ imageMarkingModel }),
-  setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) =>
-    set({ useSeparateImageMarkingModel }),
+  setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) => set({ useSeparateImageMarkingModel }),
   setDebugMode: (debugMode) => set({ debugMode }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
-  setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
-    set({ autoSyncIntervalMinutes }),
+  setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) => set({ autoSyncIntervalMinutes }),
   setSyncApiKey: (syncApiKey) => set({ syncApiKey }),
-  setLocalBackupFolderPath: (localBackupFolderPath) =>
-    set({ localBackupFolderPath }),
-  setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
-    set({ localBackupIntervalMinutes }),
+  setLocalBackupFolderPath: (localBackupFolderPath) => set({ localBackupFolderPath }),
+  setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) => set({ localBackupIntervalMinutes }),
   clearApiKey: () => set({ apiKey: '' }),
 
-  // ── Preset management (Firebase-synced) ──────────────────────────────────
   setPresets: (presets) => set({ presets }),
-  addPreset: (preset) => set((s) => ({ presets: [preset, ...s.presets] })),
-  updatePreset: (preset) =>
-    set((s) => ({
-      presets: s.presets.map((p) => (p.id === preset.id ? preset : p)),
-    })),
-  deletePreset: (id) =>
-    set((s) => ({
-      presets: s.presets.filter((p) => p.id !== id),
-      deletionTombstones: addTombstone(s.deletionTombstones, 'presets', id),
-    })),
+  addPreset: (preset) => set((s) => { const next = [preset, ...s.presets]; void updatePresets(next); return { presets: next }; }),
+  updatePreset: (preset) => set((s) => { const next = s.presets.map((p) => (p.id === preset.id ? preset : p)); void updatePresets(next); return { presets: next }; }),
+  deletePreset: (id) => set((s) => { const next = s.presets.filter((p) => p.id !== id); void updatePresets(next); return { presets: next }; }),
 
-  // ── Preferences ────────────────────────────────────────────────────────────
-
-  setSelectedTopics: (update) =>
-    set((s) => ({ selectedTopics: resolve(update, s.selectedTopics) })),
+  setSelectedTopics: (update) => set((s) => ({ selectedTopics: resolve(update, s.selectedTopics) })),
   setDifficulty: (difficulty) => set({ difficulty }),
   setTechMode: (techMode) => set({ techMode }),
-  setAvoidSimilarQuestions: (avoidSimilarQuestions) =>
-    set({ avoidSimilarQuestions }),
-  setMathMethodsSubtopics: (update) =>
-    set((s) => ({
-      mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics),
-    })),
-  setSpecialistMathSubtopics: (update) =>
-    set((s) => ({
-      specialistMathSubtopics: resolve(update, s.specialistMathSubtopics),
-    })),
-  setChemistrySubtopics: (update) =>
-    set((s) => ({ chemistrySubtopics: resolve(update, s.chemistrySubtopics) })),
-  setPhysicalEducationSubtopics: (update) =>
-    set((s) => ({
-      physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics),
-    })),
+  setAvoidSimilarQuestions: (avoidSimilarQuestions) => set({ avoidSimilarQuestions }),
+  setMathMethodsSubtopics: (update) => set((s) => ({ mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics) })),
+  setSpecialistMathSubtopics: (update) => set((s) => ({ specialistMathSubtopics: resolve(update, s.specialistMathSubtopics) })),
+  setChemistrySubtopics: (update) => set((s) => ({ chemistrySubtopics: resolve(update, s.chemistrySubtopics) })),
+  setPhysicalEducationSubtopics: (update) => set((s) => ({ physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics) })),
   setQuestionCount: (questionCount) => set({ questionCount }),
-  setAverageMarksPerQuestion: (averageMarksPerQuestion) =>
-    set({ averageMarksPerQuestion }),
+  setAverageMarksPerQuestion: (averageMarksPerQuestion) => set({ averageMarksPerQuestion }),
   setQuestionMode: (questionMode) => set({ questionMode }),
 
-  // ── AI Difficulty Scaling ──────────────────────────────────────────────────
-  setAiDifficultyScalingEnabled: (enabled) =>
-    set({ aiDifficultyScalingEnabled: enabled }),
-  setDifficultyThresholds: (thresholds) =>
-    set({ difficultyThresholds: thresholds }),
-  // Generation flags
+  setAiDifficultyScalingEnabled: (enabled) => set({ aiDifficultyScalingEnabled: enabled }),
+  setDifficultyThresholds: (thresholds) => set({ difficultyThresholds: thresholds }),
   setDiversityStrictness: (diversityStrictness) => set({ diversityStrictness }),
-  setStrictLatexValidation: (strictLatexValidation) =>
-    set({ strictLatexValidation }),
-  setStrictSubtopicCoverage: (strictSubtopicCoverage) =>
-    set({ strictSubtopicCoverage }),
-  setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) =>
-    set({ minSubtopicCoverageRatio }),
-
-  // ── Written session ────────────────────────────────────────────────────────
+  setStrictLatexValidation: (strictLatexValidation) => set({ strictLatexValidation }),
+  setStrictSubtopicCoverage: (strictSubtopicCoverage) => set({ strictSubtopicCoverage }),
+  setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) => set({ minSubtopicCoverageRatio }),
 
   setQuestions: (questions) => set({ questions }),
   setActiveQuestionIndex: (activeQuestionIndex) => set({ activeQuestionIndex }),
-  setWrittenQuestionPresentedAtById: (update) =>
-    set((s) => ({
-      writtenQuestionPresentedAtById: resolve(
-        update,
-        s.writtenQuestionPresentedAtById
-      ),
-    })),
-  setAnswersByQuestionId: (update) =>
-    set((s) => ({
-      answersByQuestionId: resolve(update, s.answersByQuestionId),
-    })),
-  setImagesByQuestionId: (update) =>
-    set((s) => ({ imagesByQuestionId: resolve(update, s.imagesByQuestionId) })),
-  setFeedbackByQuestionId: (update) =>
-    set((s) => ({
-      feedbackByQuestionId: resolve(update, s.feedbackByQuestionId),
-    })),
-  setQuestionHistory: (update) =>
-    set((s) => ({
-      questionHistory: resolve(update, s.questionHistory),
-    })),
-  setWrittenRawModelOutput: (writtenRawModelOutput) =>
-    set({ writtenRawModelOutput }),
-  setWrittenGenerationTelemetry: (writtenGenerationTelemetry) =>
-    set({ writtenGenerationTelemetry }),
-  setActiveWrittenSavedSetId: (activeWrittenSavedSetId) =>
-    set({ activeWrittenSavedSetId }),
-
-  // ── MC session ─────────────────────────────────────────────────────────────
+  setWrittenQuestionPresentedAtById: (update) => set((s) => ({ writtenQuestionPresentedAtById: resolve(update, s.writtenQuestionPresentedAtById) })),
+  setAnswersByQuestionId: (update) => set((s) => ({ answersByQuestionId: resolve(update, s.answersByQuestionId) })),
+  setImagesByQuestionId: (update) => set((s) => ({ imagesByQuestionId: resolve(update, s.imagesByQuestionId) })),
+  setFeedbackByQuestionId: (update) => set((s) => ({ feedbackByQuestionId: resolve(update, s.feedbackByQuestionId) })),
+  setQuestionHistory: (update) => set((s) => ({ questionHistory: resolve(update, s.questionHistory) })),
+  setWrittenRawModelOutput: (writtenRawModelOutput) => set({ writtenRawModelOutput }),
+  setWrittenGenerationTelemetry: (writtenGenerationTelemetry) => set({ writtenGenerationTelemetry }),
+  setActiveWrittenSavedSetId: (activeWrittenSavedSetId) => set({ activeWrittenSavedSetId }),
 
   setMcQuestions: (mcQuestions) => set({ mcQuestions }),
-  setActiveMcQuestionIndex: (activeMcQuestionIndex) =>
-    set({ activeMcQuestionIndex }),
-  setMcQuestionPresentedAtById: (update) =>
-    set((s) => ({
-      mcQuestionPresentedAtById: resolve(update, s.mcQuestionPresentedAtById),
-    })),
-  setMcAnswersByQuestionId: (update) =>
-    set((s) => ({
-      mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId),
-    })),
-  setMcHistory: (update) =>
-    set((s) => ({ mcHistory: resolve(update, s.mcHistory) })),
+  setActiveMcQuestionIndex: (activeMcQuestionIndex) => set({ activeMcQuestionIndex }),
+  setMcQuestionPresentedAtById: (update) => set((s) => ({ mcQuestionPresentedAtById: resolve(update, s.mcQuestionPresentedAtById) })),
+  setMcAnswersByQuestionId: (update) => set((s) => ({ mcAnswersByQuestionId: resolve(update, s.mcAnswersByQuestionId) })),
+  setMcHistory: (update) => set((s) => ({ mcHistory: resolve(update, s.mcHistory) })),
   setMcRawModelOutput: (mcRawModelOutput) => set({ mcRawModelOutput }),
-  setMcGenerationTelemetry: (mcGenerationTelemetry) =>
-    set({ mcGenerationTelemetry }),
+  setMcGenerationTelemetry: (mcGenerationTelemetry) => set({ mcGenerationTelemetry }),
   setActiveMcSavedSetId: (activeMcSavedSetId) => set({ activeMcSavedSetId }),
-
-  // ── Status ─────────────────────────────────────────────────────────────────
 
   setIsGenerating: (isGenerating) => set({ isGenerating }),
   setGenerationStatus: (generationStatus) => set({ generationStatus }),
@@ -739,597 +564,93 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setIsMarking: (isMarking) => set({ isMarking }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
 
-  // ── Saved sets ─────────────────────────────────────────────────────────────
-
   saveCurrentSet: () => {
     const s = get();
     const now = new Date().toISOString();
     const nowMs = Date.now();
-
     if (s.questionMode === 'written') {
       if (s.questions.length === 0) return null;
-
-      const savedSetId =
-        s.activeWrittenSavedSetId ?? `saved-written-${crypto.randomUUID()}`;
-      const existing = s.savedSets.find((e) => e.id === savedSetId);
-
+      const savedSetId = s.activeWrittenSavedSetId ?? `saved-written-${crypto.randomUUID()}`;
       const preferencesSnapshot: PersistedGeneratorPreferences = {
-        selectedTopics: s.selectedTopics,
-        difficulty: s.difficulty,
-        techMode: s.techMode,
-        avoidSimilarQuestions: s.avoidSimilarQuestions,
-        mathMethodsSubtopics: s.mathMethodsSubtopics,
-        specialistMathSubtopics: s.specialistMathSubtopics,
-        chemistrySubtopics: s.chemistrySubtopics,
-        physicalEducationSubtopics: s.physicalEducationSubtopics,
-        questionCount: s.questionCount,
-        averageMarksPerQuestion: s.averageMarksPerQuestion,
-        questionMode: s.questionMode,
-        diversityStrictness: s.diversityStrictness,
-        strictLatexValidation: s.strictLatexValidation,
-        strictSubtopicCoverage: s.strictSubtopicCoverage,
-        minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+        selectedTopics: s.selectedTopics, difficulty: s.difficulty, techMode: s.techMode, avoidSimilarQuestions: s.avoidSimilarQuestions, mathMethodsSubtopics: s.mathMethodsSubtopics, specialistMathSubtopics: s.specialistMathSubtopics, chemistrySubtopics: s.chemistrySubtopics, physicalEducationSubtopics: s.physicalEducationSubtopics, questionCount: s.questionCount, averageMarksPerQuestion: s.averageMarksPerQuestion, questionMode: s.questionMode, diversityStrictness: s.diversityStrictness, strictLatexValidation: s.strictLatexValidation, strictSubtopicCoverage: s.strictSubtopicCoverage, minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
       };
-
-      const writtenSession: PersistedWrittenSession = {
-        questions: s.questions,
-        activeQuestionIndex: s.activeQuestionIndex,
-        presentedAtByQuestionId: s.writtenQuestionPresentedAtById,
-        answersByQuestionId: s.answersByQuestionId,
-        imagesByQuestionId: s.imagesByQuestionId,
-        feedbackByQuestionId: s.feedbackByQuestionId,
-        rawModelOutput: s.writtenRawModelOutput,
-        generationTelemetry: s.writtenGenerationTelemetry,
-        savedSetId,
-      };
-
-      const nextEntry: SavedQuestionSet = {
-        id: savedSetId,
-        title: buildSavedSetTitle('written', s.selectedTopics),
-        questionMode: 'written',
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
-        lastModified: nowMs,
-        preferences: preferencesSnapshot,
-        writtenSession,
-      };
-
-      const nextSavedSets = [
-        nextEntry,
-        ...s.savedSets.filter((e) => e.id !== savedSetId),
-      ];
-
+      const writtenSession: PersistedWrittenSession = { questions: s.questions, activeQuestionIndex: s.activeQuestionIndex, presentedAtByQuestionId: s.writtenQuestionPresentedAtById, answersByQuestionId: s.answersByQuestionId, imagesByQuestionId: s.imagesByQuestionId, feedbackByQuestionId: s.feedbackByQuestionId, rawModelOutput: s.writtenRawModelOutput, generationTelemetry: s.writtenGenerationTelemetry, savedSetId };
+      const nextEntry: SavedQuestionSet = { id: savedSetId, title: buildSavedSetTitle('written', s.selectedTopics), questionMode: 'written', createdAt: s.savedSets.find(e => e.id === savedSetId)?.createdAt ?? now, updatedAt: now, lastModified: nowMs, preferences: preferencesSnapshot, writtenSession };
+      const nextSavedSets = [nextEntry, ...s.savedSets.filter((e) => e.id !== savedSetId)];
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
-
-      // Immediate persist for explicit save
-      const persistedSnapshot = buildPersistedSnapshot(
-        {
-          ...s,
-          savedSets: nextSavedSets,
-        },
-        { preserveImages: true }
-      );
-      void savePersistedAppState(persistedSnapshot).catch(() =>
-        set((cur) => ({
-          errorMessage: cur.errorMessage ?? 'Could not save app data.',
-        }))
-      );
-
+      void v3SaveSavedSet(nextEntry);
       return savedSetId;
     }
-
-    // Multiple choice
     if (s.mcQuestions.length === 0) return null;
-
-    const savedSetId =
-      s.activeMcSavedSetId ?? `saved-mc-${crypto.randomUUID()}`;
-    const existing = s.savedSets.find((e) => e.id === savedSetId);
-
+    const savedSetId = s.activeMcSavedSetId ?? `saved-mc-${crypto.randomUUID()}`;
     const preferencesSnapshot: PersistedGeneratorPreferences = {
-      selectedTopics: s.selectedTopics,
-      difficulty: s.difficulty,
-      techMode: s.techMode,
-      avoidSimilarQuestions: s.avoidSimilarQuestions,
-      mathMethodsSubtopics: s.mathMethodsSubtopics,
-      specialistMathSubtopics: s.specialistMathSubtopics,
-      chemistrySubtopics: s.chemistrySubtopics,
-      physicalEducationSubtopics: s.physicalEducationSubtopics,
-      questionCount: s.questionCount,
-      averageMarksPerQuestion: s.averageMarksPerQuestion,
-      questionMode: s.questionMode,
-      diversityStrictness: s.diversityStrictness,
-      strictLatexValidation: s.strictLatexValidation,
-      strictSubtopicCoverage: s.strictSubtopicCoverage,
-      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
+      selectedTopics: s.selectedTopics, difficulty: s.difficulty, techMode: s.techMode, avoidSimilarQuestions: s.avoidSimilarQuestions, mathMethodsSubtopics: s.mathMethodsSubtopics, specialistMathSubtopics: s.specialistMathSubtopics, chemistrySubtopics: s.chemistrySubtopics, physicalEducationSubtopics: s.physicalEducationSubtopics, questionCount: s.questionCount, averageMarksPerQuestion: s.averageMarksPerQuestion, questionMode: s.questionMode, diversityStrictness: s.diversityStrictness, strictLatexValidation: s.strictLatexValidation, strictSubtopicCoverage: s.strictSubtopicCoverage, minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
     };
-
-    const mcSession: PersistedMcSession = {
-      questions: s.mcQuestions,
-      activeQuestionIndex: s.activeMcQuestionIndex,
-      presentedAtByQuestionId: s.mcQuestionPresentedAtById,
-      answersByQuestionId: s.mcAnswersByQuestionId,
-      rawModelOutput: s.mcRawModelOutput,
-      generationTelemetry: s.mcGenerationTelemetry,
-      savedSetId,
-    };
-
-    const nextEntry: SavedQuestionSet = {
-      id: savedSetId,
-      title: buildSavedSetTitle('multiple-choice', s.selectedTopics),
-      questionMode: 'multiple-choice',
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-      lastModified: nowMs,
-      preferences: preferencesSnapshot,
-      mcSession,
-    };
-
-    const nextSavedSets = [
-      nextEntry,
-      ...s.savedSets.filter((e) => e.id !== savedSetId),
-    ];
-
+    const mcSession: PersistedMcSession = { questions: s.mcQuestions, activeQuestionIndex: s.activeMcQuestionIndex, presentedAtByQuestionId: s.mcQuestionPresentedAtById, answersByQuestionId: s.mcAnswersByQuestionId, rawModelOutput: s.mcRawModelOutput, generationTelemetry: s.mcGenerationTelemetry, savedSetId };
+    const nextEntry: SavedQuestionSet = { id: savedSetId, title: buildSavedSetTitle('multiple-choice', s.selectedTopics), questionMode: 'multiple-choice', createdAt: s.savedSets.find(e => e.id === savedSetId)?.createdAt ?? now, updatedAt: now, lastModified: nowMs, preferences: preferencesSnapshot, mcSession };
+    const nextSavedSets = [nextEntry, ...s.savedSets.filter((e) => e.id !== savedSetId)];
     set({ savedSets: nextSavedSets, activeMcSavedSetId: savedSetId });
-
-    const persistedSnapshot = buildPersistedSnapshot(
-      {
-        ...s,
-        savedSets: nextSavedSets,
-      },
-      { preserveImages: true }
-    );
-    void savePersistedAppState(persistedSnapshot).catch(() =>
-      set((cur) => ({
-        errorMessage: cur.errorMessage ?? 'Could not save app data.',
-      }))
-    );
-
+    void v3SaveSavedSet(nextEntry);
     return savedSetId;
   },
 
-  loadSavedSet: (savedSetId) => {
-    const entry = get().savedSets.find((c) => c.id === savedSetId);
+  loadSavedSet: (id) => {
+    const entry = get().savedSets.find(e => e.id === id);
     if (!entry) return;
-
-    // Reset updatedAt timestamp on load so it moves to top of "Last saved" sort
-    const now = new Date().toISOString();
-
-    // Timer state: resume from saved session start time
-    let generationStartedAt: number | null = null;
-    if (entry.questionMode === 'written' && entry.writtenSession) {
-      const presented = entry.writtenSession.presentedAtByQuestionId;
-      generationStartedAt =
-        presented && Object.values(presented).length > 0
-          ? Math.min(...Object.values(presented))
-          : Date.now();
-    } else if (entry.questionMode === 'multiple-choice' && entry.mcSession) {
-      const presented = entry.mcSession.presentedAtByQuestionId;
-      generationStartedAt =
-        presented && Object.values(presented).length > 0
-          ? Math.min(...Object.values(presented))
-          : Date.now();
-    }
-
-    // Update the saved set's updatedAt in the store for persistence
-    const updatedSets = get().savedSets.map((ss) =>
-      ss.id === savedSetId ? { ...ss, updatedAt: now } : ss
-    );
-
     startTransition(() => {
       set({
-        savedSets: updatedSets,
-        selectedTopics: entry.preferences.selectedTopics,
-        difficulty: entry.preferences.difficulty,
-        techMode: entry.preferences.techMode,
-        avoidSimilarQuestions: entry.preferences.avoidSimilarQuestions,
-        mathMethodsSubtopics: entry.preferences.mathMethodsSubtopics,
-        specialistMathSubtopics: entry.preferences.specialistMathSubtopics,
-        chemistrySubtopics: entry.preferences.chemistrySubtopics,
-        physicalEducationSubtopics:
-          entry.preferences.physicalEducationSubtopics,
-        questionCount: entry.preferences.questionCount,
-        questionMode: entry.questionMode,
-        ...(entry.questionMode === 'written' && entry.writtenSession
-          ? {
-              questions: entry.writtenSession.questions,
-              activeQuestionIndex: entry.writtenSession.activeQuestionIndex,
-              writtenQuestionPresentedAtById:
-                entry.writtenSession.presentedAtByQuestionId,
-              answersByQuestionId: entry.writtenSession.answersByQuestionId,
-              imagesByQuestionId: entry.writtenSession.imagesByQuestionId,
-              feedbackByQuestionId: entry.writtenSession.feedbackByQuestionId,
-              writtenRawModelOutput: entry.writtenSession.rawModelOutput,
-              writtenGenerationTelemetry:
-                entry.writtenSession.generationTelemetry ?? null,
-              activeWrittenSavedSetId: entry.id,
-              // Clear opposite mode's session
-              mcQuestions: [],
-              activeMcQuestionIndex: 0,
-              mcQuestionPresentedAtById: {},
-              mcAnswersByQuestionId: {},
-              mcHistory: [],
-              mcRawModelOutput: '',
-              mcGenerationTelemetry: null,
-              activeMcSavedSetId: null,
-            }
-          : {}),
-        ...(entry.questionMode === 'multiple-choice' && entry.mcSession
-          ? {
-              mcQuestions: entry.mcSession.questions,
-              activeMcQuestionIndex: entry.mcSession.activeQuestionIndex,
-              mcQuestionPresentedAtById:
-                entry.mcSession.presentedAtByQuestionId,
-              mcAnswersByQuestionId: entry.mcSession.answersByQuestionId,
-              mcRawModelOutput: entry.mcSession.rawModelOutput,
-              mcGenerationTelemetry:
-                entry.mcSession.generationTelemetry ?? null,
-              activeMcSavedSetId: entry.id,
-              // Clear opposite mode's session
-              questions: [],
-              activeQuestionIndex: 0,
-              writtenQuestionPresentedAtById: {},
-              answersByQuestionId: {},
-              imagesByQuestionId: {},
-              feedbackByQuestionId: {},
-              writtenRawModelOutput: '',
-              writtenGenerationTelemetry: null,
-              activeWrittenSavedSetId: null,
-            }
-          : {}),
-        generationStartedAt,
+        selectedTopics: entry.preferences.selectedTopics, difficulty: entry.preferences.difficulty, techMode: entry.preferences.techMode, avoidSimilarQuestions: entry.preferences.avoidSimilarQuestions, mathMethodsSubtopics: entry.preferences.mathMethodsSubtopics, specialistMathSubtopics: entry.preferences.specialistMathSubtopics, chemistrySubtopics: entry.preferences.chemistrySubtopics, physicalEducationSubtopics: entry.preferences.physicalEducationSubtopics, questionCount: entry.preferences.questionCount, questionMode: entry.questionMode,
+        ...(entry.questionMode === 'written' ? { questions: entry.writtenSession!.questions, activeQuestionIndex: entry.writtenSession!.activeQuestionIndex, writtenQuestionPresentedAtById: entry.writtenSession!.presentedAtByQuestionId, answersByQuestionId: entry.writtenSession!.answersByQuestionId, imagesByQuestionId: entry.writtenSession!.imagesByQuestionId, feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId, writtenRawModelOutput: entry.writtenSession!.rawModelOutput, writtenGenerationTelemetry: entry.writtenSession!.generationTelemetry ?? null, activeWrittenSavedSetId: id, mcQuestions: [], activeMcQuestionIndex: 0, mcQuestionPresentedAtById: {}, mcAnswersByQuestionId: {}, activeMcSavedSetId: null }
+        : { mcQuestions: entry.mcSession!.questions, activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex, mcQuestionPresentedAtById: entry.mcSession!.presentedAtByQuestionId, mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId, mcRawModelOutput: entry.mcSession!.rawModelOutput, mcGenerationTelemetry: entry.mcSession!.generationTelemetry ?? null, activeMcSavedSetId: id, questions: [], activeQuestionIndex: 0, writtenQuestionPresentedAtById: {}, answersByQuestionId: {}, imagesByQuestionId: {}, feedbackByQuestionId: {}, activeWrittenSavedSetId: null })
       });
     });
   },
 
-  needsSaveBeforeLoad: (savedSetId) => {
-    const s = get();
-    const entry = s.savedSets.find((c) => c.id === savedSetId);
-    if (!entry) return false;
-    const hasUnsaved =
-      (s.questionMode === 'written'
-        ? s.questions.length > 0
-        : s.mcQuestions.length > 0) &&
-      !(
-        entry.id ===
-        (s.questionMode === 'written'
-          ? s.activeWrittenSavedSetId
-          : s.activeMcSavedSetId)
-      );
-    return hasUnsaved;
-  },
+  needsSaveBeforeLoad: (id) => { const s = get(); return (s.questionMode === 'written' ? s.questions.length > 0 : s.mcQuestions.length > 0) && (s.questionMode === 'written' ? s.activeWrittenSavedSetId !== id : s.activeMcSavedSetId !== id); },
+  deleteSavedSet: (id) => { set((s) => ({ savedSets: s.savedSets.filter(e => e.id !== id), activeWrittenSavedSetId: s.activeWrittenSavedSetId === id ? null : s.activeWrittenSavedSetId, activeMcSavedSetId: s.activeMcSavedSetId === id ? null : s.activeMcSavedSetId })); void v3DeleteSavedSet(id); },
+  deleteAllSavedSets: () => { set((s) => { s.savedSets.forEach(ss => void v3DeleteSavedSet(ss.id)); return { savedSets: [], activeWrittenSavedSetId: null, activeMcSavedSetId: null }; }); },
+  deleteQuestionHistoryEntry: (id) => { set((s) => ({ questionHistory: s.questionHistory.filter(e => e.id !== id) })); void v3DeleteQuestionHistoryEntry(id); },
+  deleteMcHistoryEntry: (id) => { set((s) => ({ mcHistory: s.mcHistory.filter(e => e.id !== id) })); void v3DeleteMcHistoryEntry(id); },
+  addQuestionHistoryEntry: (entry) => { set((s) => ({ questionHistory: [entry, ...s.questionHistory] })); void v3SaveQuestionHistoryEntry(entry); },
+  addMcHistoryEntry: (entry) => { set((s) => ({ mcHistory: [entry, ...s.mcHistory] })); void v3SaveMcHistoryEntry(entry); },
+  updateQuestionHistoryEntry: (entry) => { set((s) => ({ questionHistory: s.questionHistory.map(e => e.id === entry.id ? entry : e) })); void v3SaveQuestionHistoryEntry(entry); },
+  updateMcHistoryEntry: (entry) => { set((s) => ({ mcHistory: s.mcHistory.map(e => e.id === entry.id ? entry : e) })); void v3SaveMcHistoryEntry(entry); },
+  clearQuestionHistory: () => { set((s) => { s.questionHistory.forEach(e => void v3DeleteQuestionHistoryEntry(e.id)); return { questionHistory: [] }; }); },
+  clearMcHistory: () => { set((s) => { s.mcHistory.forEach(e => void v3DeleteMcHistoryEntry(e.id)); return { mcHistory: [] }; }); },
 
-  deleteSavedSet: (savedSetId) => {
-    set((s) => ({
-      savedSets: s.savedSets.filter((e) => e.id !== savedSetId),
-      activeWrittenSavedSetId:
-        s.activeWrittenSavedSetId === savedSetId
-          ? null
-          : s.activeWrittenSavedSetId,
-      activeMcSavedSetId:
-        s.activeMcSavedSetId === savedSetId ? null : s.activeMcSavedSetId,
-      deletionTombstones: addTombstone(
-        s.deletionTombstones,
-        'savedSets',
-        savedSetId
-      ),
-    }));
-  },
+  reviewSpacedCard: (id, q) => set((s) => { const card = s.spacedRepetitionCards[id] ? reviewCard(s.spacedRepetitionCards[id], q) : reviewCard(createCard(), q); return { spacedRepetitionCards: { ...s.spacedRepetitionCards, [id]: card } }; }),
+  getDueCards: () => Object.entries(get().spacedRepetitionCards).filter(([, c]) => isDue(c)).map(([id, c]) => ({ questionId: id, card: c })).sort((a,b) => new Date(a.card.nextReviewDate).getTime() - new Date(b.card.nextReviewDate).getTime()),
 
-  deleteAllSavedSets: () => {
-    set((s) => {
-      let tombstones = s.deletionTombstones;
-      for (const ss of s.savedSets) {
-        tombstones = addTombstone(tombstones, 'savedSets', ss.id);
-      }
-      return {
-        savedSets: [],
-        activeWrittenSavedSetId: null,
-        activeMcSavedSetId: null,
-        deletionTombstones: tombstones,
-      };
-    });
-  },
-
-  deleteQuestionHistoryEntry: (id) => {
-    set((s) => ({
-      questionHistory: s.questionHistory.filter((e) => e.id !== id),
-      deletionTombstones: addTombstone(
-        s.deletionTombstones,
-        'questionHistory',
-        id
-      ),
-    }));
-  },
-
-  deleteMcHistoryEntry: (id) => {
-    set((s) => ({
-      mcHistory: s.mcHistory.filter((e) => e.id !== id),
-      deletionTombstones: addTombstone(s.deletionTombstones, 'mcHistory', id),
-    }));
-  },
-
-  clearQuestionHistory: () => {
-    set((s) => {
-      let tombstones = s.deletionTombstones;
-      for (const entry of s.questionHistory) {
-        tombstones = addTombstone(tombstones, 'questionHistory', entry.id);
-      }
-      return { questionHistory: [], deletionTombstones: tombstones };
-    });
-  },
-
-  clearMcHistory: () => {
-    set((s) => {
-      let tombstones = s.deletionTombstones;
-      for (const entry of s.mcHistory) {
-        tombstones = addTombstone(tombstones, 'mcHistory', entry.id);
-      }
-      return { mcHistory: [], deletionTombstones: tombstones };
-    });
-  },
-
-  // ── Spaced repetition ─────────────────────────────────────────────────────
-
-  reviewSpacedCard: (questionId, quality) => {
-    set((s) => {
-      const existing = s.spacedRepetitionCards[questionId];
-      const updated = existing
-        ? reviewCard(existing, quality)
-        : reviewCard(createCard(), quality);
-      return {
-        spacedRepetitionCards: {
-          ...s.spacedRepetitionCards,
-          [questionId]: updated,
-        },
-      };
-    });
-  },
-
-  getDueCards: () => {
-    const cards = get().spacedRepetitionCards;
-    return Object.entries(cards)
-      .filter(([, card]) => isDue(card))
-      .map(([questionId, card]) => ({ questionId, card }))
-      .sort(
-        (a, b) =>
-          new Date(a.card.nextReviewDate).getTime() -
-          new Date(b.card.nextReviewDate).getTime()
-      );
-  },
-
-  // ── Study goals & streaks ─────────────────────────────────────────────────
-
-  setStudyGoals: (goals) => {
-    set((s) => ({ studyGoals: { ...s.studyGoals, ...goals } }));
-  },
-
+  setStudyGoals: (goals) => set((s) => { const next = { ...s.studyGoals, ...goals }; void updateStudyGoals(next, s.streakData); return { studyGoals: next }; }),
   recordCompletion: (mode) => {
-    const today = getTodayKey(); // YYYY-MM-DD (local time)
-    set((s) => {
-      const todayData = s.streakData.dailyCompletions[today] ?? {
-        total: 0,
-        written: 0,
-        mc: 0,
-      };
-      const updatedDay = {
-        total: todayData.total + 1,
-        written: todayData.written + (mode === 'written' ? 1 : 0),
-        mc: todayData.mc + (mode === 'multiple-choice' ? 1 : 0),
-      };
-
-      // Calculate streak
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-      const hadYesterday =
-        s.streakData.dailyCompletions[yesterdayKey]?.total > 0;
-      const hadToday = todayData.total > 0;
-
-      let newStreak = s.streakData.currentStreak;
-      if (!hadToday) {
-        // First completion today
-        newStreak = hadYesterday ? s.streakData.currentStreak + 1 : 1;
-      }
-
-      return {
-        streakData: {
-          ...s.streakData,
-          currentStreak: newStreak,
-          longestStreak: Math.max(s.streakData.longestStreak, newStreak),
-          lastActiveDate: today,
-          dailyCompletions: {
-            ...s.streakData.dailyCompletions,
-            [today]: updatedDay,
-          },
-        },
-      };
+    const today = getTodayKey(); set((s) => {
+      const todayData = s.streakData.dailyCompletions[today] ?? { total: 0, written: 0, mc: 0 };
+      const updatedDay = { total: todayData.total + 1, written: todayData.written + (mode === 'written' ? 1 : 0), mc: todayData.mc + (mode === 'multiple-choice' ? 1 : 0) };
+      const nextStreakData = { ...s.streakData, currentStreak: todayData.total > 0 ? s.streakData.currentStreak : s.streakData.currentStreak + 1, longestStreak: Math.max(s.streakData.longestStreak, s.streakData.currentStreak + 1), lastActiveDate: today, dailyCompletions: { ...s.streakData.dailyCompletions, [today]: updatedDay } };
+      void updateStudyGoals(s.studyGoals, nextStreakData); return { streakData: nextStreakData };
     });
   },
+  getTodayCompletions: () => get().streakData.dailyCompletions[getTodayKey()] ?? { total: 0, written: 0, mc: 0 },
 
-  getTodayCompletions: () => {
-    const today = getTodayKey(); // YYYY-MM-DD (local time)
-    return (
-      get().streakData.dailyCompletions[today] ?? {
-        total: 0,
-        written: 0,
-        mc: 0,
-      }
-    );
-  },
-
-  // ── Import / Export ──────────────────────────────────────────────────────
-
-  importState: (imported) => {
-    const s = get();
-    const merged = mergeImportedState(s, imported);
-    set(merged as Partial<AppState>);
-    // Persist immediately so the UI reflects the merged state
-    void persistAndRehydrate(get()).catch(() =>
-      set((cur) => ({
-        errorMessage: cur.errorMessage ?? 'Could not save imported data.',
-      }))
-    );
-  },
+  importState: (imported) => { const s = get(); const merged = mergeImportedState(s, imported); set(merged as any); void persistAndRehydrate(get()); },
 }));
 
-// ─── Persistence snapshot builder ────────────────────────────────────────────
-
-export function buildPersistedSnapshot(
-  s: AppState,
-  options?: { preserveImages?: boolean }
-): PersistedAppState {
-  const preserveImages = options?.preserveImages ?? false;
-  // Strip base64 dataUrls from images to reduce serialized payload size.
-  // Images for the active session are kept in the store (in-memory) for marking;
-  // only names are persisted so the UI can show which images were uploaded.
-  const strippedImages: Record<
-    string,
-    { name: string; dataUrl: string } | undefined
-  > = {};
-  for (const [key, img] of Object.entries(s.imagesByQuestionId)) {
-    if (img) {
-      strippedImages[key] = {
-        name: img.name,
-        dataUrl: preserveImages ? img.dataUrl : '',
-      };
-    }
-  }
-
+export function buildPersistedSnapshot(s: AppState): PersistedAppState {
   return {
     version: EMPTY_PERSISTED_APP_STATE.version,
-    settings: {
-      apiKey: s.apiKey,
-      model: s.model,
-      markingModel: s.markingModel,
-      useSeparateMarkingModel: s.useSeparateMarkingModel,
-      imageMarkingModel: s.imageMarkingModel,
-      useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
-      debugMode: s.debugMode,
-      questionTextSize: s.questionTextSize,
-      responseTextSize: s.responseTextSize,
-      includeExamContext: s.includeExamContext,
-      autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
-      syncApiKey: s.syncApiKey,
-      localBackupFolderPath: s.localBackupFolderPath,
-      localBackupIntervalMinutes: s.localBackupIntervalMinutes,
-    },
-    preferences: {
-      selectedTopics: s.selectedTopics,
-      difficulty: s.difficulty,
-      techMode: s.techMode,
-      avoidSimilarQuestions: s.avoidSimilarQuestions,
-      mathMethodsSubtopics: s.mathMethodsSubtopics,
-      specialistMathSubtopics: s.specialistMathSubtopics,
-      chemistrySubtopics: s.chemistrySubtopics,
-      physicalEducationSubtopics: s.physicalEducationSubtopics,
-      questionCount: s.questionCount,
-      averageMarksPerQuestion: s.averageMarksPerQuestion,
-      questionMode: s.questionMode,
-      aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
-      difficultyThresholds: s.difficultyThresholds,
-      diversityStrictness: s.diversityStrictness,
-      strictLatexValidation: s.strictLatexValidation,
-      strictSubtopicCoverage: s.strictSubtopicCoverage,
-      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
-    },
-    writtenSession: {
-      questions: s.questions,
-      activeQuestionIndex: s.activeQuestionIndex,
-      presentedAtByQuestionId: s.writtenQuestionPresentedAtById,
-      answersByQuestionId: s.answersByQuestionId,
-      imagesByQuestionId: strippedImages,
-      feedbackByQuestionId: s.feedbackByQuestionId,
-      rawModelOutput: s.writtenRawModelOutput,
-      generationTelemetry: s.writtenGenerationTelemetry,
-      savedSetId: s.activeWrittenSavedSetId,
-    },
-    mcSession: {
-      questions: s.mcQuestions,
-      activeQuestionIndex: s.activeMcQuestionIndex,
-      presentedAtByQuestionId: s.mcQuestionPresentedAtById,
-      answersByQuestionId: s.mcAnswersByQuestionId,
-      rawModelOutput: s.mcRawModelOutput,
-      generationTelemetry: s.mcGenerationTelemetry,
-      savedSetId: s.activeMcSavedSetId,
-    },
-    writtenTimerState: s.writtenTimerState,
-    mcTimerState: s.mcTimerState,
-    questionHistory: s.questionHistory.map((entry) =>
-      entry.uploadedAnswerImage
-        ? {
-            ...entry,
-            uploadedAnswerImage: {
-              name: entry.uploadedAnswerImage.name,
-              dataUrl: '',
-            },
-          }
-        : entry
-    ),
-    mcHistory: s.mcHistory,
-    savedSets: s.savedSets,
-    spacedRepetition: s.spacedRepetitionCards,
-    studyGoals: s.studyGoals,
-    streakData: s.streakData,
-    generationHistory: s.generationHistory,
-    presets: s.presets,
-    deletionTombstones: s.deletionTombstones as unknown as Record<
-      string,
-      Record<string, number>
-    >,
+    settings: { apiKey: s.apiKey, model: s.model, markingModel: s.markingModel, useSeparateMarkingModel: s.useSeparateMarkingModel, imageMarkingModel: s.imageMarkingModel, useSeparateImageMarkingModel: s.useSeparateImageMarkingModel, debugMode: s.debugMode, questionTextSize: s.questionTextSize, responseTextSize: s.responseTextSize, includeExamContext: s.includeExamContext, autoSyncIntervalMinutes: s.autoSyncIntervalMinutes, syncApiKey: s.syncApiKey, localBackupFolderPath: s.localBackupFolderPath, localBackupIntervalMinutes: s.localBackupIntervalMinutes },
+    preferences: { selectedTopics: s.selectedTopics, difficulty: s.difficulty, techMode: s.techMode, avoidSimilarQuestions: s.avoidSimilarQuestions, mathMethodsSubtopics: s.mathMethodsSubtopics, specialistMathSubtopics: s.specialistMathSubtopics, chemistrySubtopics: s.chemistrySubtopics, physicalEducationSubtopics: s.physicalEducationSubtopics, questionCount: s.questionCount, averageMarksPerQuestion: s.averageMarksPerQuestion, questionMode: s.questionMode, aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled, difficultyThresholds: s.difficultyThresholds, diversityStrictness: s.diversityStrictness, strictLatexValidation: s.strictLatexValidation, strictSubtopicCoverage: s.strictSubtopicCoverage, minSubtopicCoverageRatio: s.minSubtopicCoverageRatio },
+    writtenSession: { questions: s.questions, activeQuestionIndex: s.activeQuestionIndex, presentedAtByQuestionId: s.writtenQuestionPresentedAtById, answersByQuestionId: s.answersByQuestionId, imagesByQuestionId: s.imagesByQuestionId, feedbackByQuestionId: s.feedbackByQuestionId, rawModelOutput: s.writtenRawModelOutput, generationTelemetry: s.writtenGenerationTelemetry, savedSetId: s.activeWrittenSavedSetId },
+    mcSession: { questions: s.mcQuestions, activeQuestionIndex: s.activeMcQuestionIndex, presentedAtByQuestionId: s.mcQuestionPresentedAtById, answersByQuestionId: s.mcAnswersByQuestionId, rawModelOutput: s.mcRawModelOutput, generationTelemetry: s.mcGenerationTelemetry, savedSetId: s.activeMcSavedSetId },
+    writtenTimerState: s.writtenTimerState, mcTimerState: s.mcTimerState, questionHistory: s.questionHistory, mcHistory: s.mcHistory, savedSets: s.savedSets, spacedRepetition: s.spacedRepetitionCards, studyGoals: s.studyGoals, streakData: s.streakData, generationHistory: s.generationHistory, presets: s.presets,
   };
 }
 
-// ─── Auto-persist on state changes (debounced) ───────────────────────────────
-//
-// Subscribe outside of React so this runs regardless of which component
-// triggered the change. The debounce prevents hammering the file system
-// on rapid keystrokes (e.g. answer textarea).
-
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
-let hydratedOnce = false;
-export let suppressPersistUntil = 0;
-
-export function setSuppressPersistUntil(ms: number): void {
-  suppressPersistUntil = ms;
-}
-
+let persistTimer: any = null;
 useAppStore.subscribe((state) => {
-  // Don't persist before the initial hydration is complete — that would
-  // overwrite the persisted file with empty defaults.
   if (!state.isHydrated) return;
-
-  // During Firebase sync merges we suppress immediate writes, but we still
-  // schedule one deferred persist so merged cloud data survives app restart.
-  if (Date.now() < suppressPersistUntil) {
-    if (persistTimer) clearTimeout(persistTimer);
-    const delay = Math.max(50, suppressPersistUntil - Date.now() + 50);
-    persistTimer = setTimeout(() => {
-      if (!hydratedOnce) return;
-      if (Date.now() < suppressPersistUntil) return;
-      const snapshot = buildPersistedSnapshot(useAppStore.getState());
-      void savePersistedAppState(snapshot).catch(() => {
-        useAppStore.setState((cur) => ({
-          errorMessage: cur.errorMessage ?? 'Could not save app data.',
-        }));
-      });
-    }, delay);
-    return;
-  }
-
-  // Mark that we've seen at least one post-hydration update.
-  hydratedOnce = true;
-
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
-    if (!hydratedOnce) return;
-    if (Date.now() < suppressPersistUntil) return;
-    const snapshot = buildPersistedSnapshot(useAppStore.getState());
-    void savePersistedAppState(snapshot).catch(() => {
-      useAppStore.setState((cur) => ({
-        errorMessage: cur.errorMessage ?? 'Could not save app data.',
-      }));
-    });
+    void savePersistedAppState(buildPersistedSnapshot(useAppStore.getState())).catch(console.error);
   }, 500);
 });
-
-// Sync responsibilities are handled exclusively by sync-v2.

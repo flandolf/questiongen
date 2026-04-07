@@ -1,7 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 
-import type { DeletionTombstones } from '../context/modules/deletion-tombstones';
-import { EMPTY_TOMBSTONES } from '../context/modules/deletion-tombstones';
 import type {
   DiversityStrictness,
   GenerationRecord,
@@ -92,7 +90,6 @@ export interface ImportExportState {
   presets: Preset[];
   writtenTimerState: PersistedAppState['writtenTimerState'];
   mcTimerState: PersistedAppState['mcTimerState'];
-  deletionTombstones: DeletionTombstones;
   diversityStrictness: DiversityStrictness;
   strictLatexValidation: boolean;
   strictSubtopicCoverage: boolean;
@@ -131,7 +128,7 @@ export function exportAppState(s: ImportExportState): PersistedAppState {
     preferences: { ...ss.preferences },
   }));
 
-  // Strip API key from preset preferences (if they have one — they don't in current schema, but be safe)
+  // Strip API key from preset preferences
   snapshot.presets = (snapshot.presets ?? []).map((p) => ({
     ...p,
     preferences: { ...p.preferences },
@@ -428,12 +425,6 @@ export function mergeImportedState(
   merged.writtenTimerState = imported.writtenTimerState ?? null;
   merged.mcTimerState = imported.mcTimerState ?? null;
 
-  // Deletion tombstones: merge (union, keeping higher timestamps)
-  merged.deletionTombstones = mergeTombstones(
-    current.deletionTombstones,
-    imported as unknown as Record<string, unknown>
-  );
-
   return merged;
 }
 
@@ -452,40 +443,6 @@ function mergeById<T extends { id: string }>(
 ): T[] {
   const existingIds = new Set(existing.map((e) => e.id));
   return [...existing, ...incoming.filter((item) => !existingIds.has(item.id))];
-}
-
-function mergeTombstones(
-  current: DeletionTombstones,
-  importedRaw: Record<string, unknown>
-): DeletionTombstones {
-  const importedTombstones = importedRaw.deletionTombstones as
-    | Record<string, Record<string, number>>
-    | undefined;
-  if (!importedTombstones) return current;
-
-  const result: DeletionTombstones = { ...EMPTY_TOMBSTONES };
-  const collections: Array<keyof DeletionTombstones> = [
-    'questionHistory',
-    'mcHistory',
-    'savedSets',
-    'presets',
-  ];
-
-  for (const collection of collections) {
-    const currentMap = current[collection] ?? {};
-    const importedMap = importedTombstones[collection] ?? {};
-    const merged: Record<string, number> = { ...currentMap };
-
-    for (const [id, timestamp] of Object.entries(importedMap)) {
-      if (!(id in merged) || timestamp > merged[id]) {
-        merged[id] = timestamp;
-      }
-    }
-
-    result[collection] = merged;
-  }
-
-  return result;
 }
 
 function buildExportSnapshot(
@@ -581,10 +538,6 @@ function buildExportSnapshot(
     streakData: s.streakData,
     generationHistory: s.generationHistory,
     presets: s.presets,
-    deletionTombstones: s.deletionTombstones as unknown as Record<
-      string,
-      Record<string, number>
-    >,
   };
 }
 
