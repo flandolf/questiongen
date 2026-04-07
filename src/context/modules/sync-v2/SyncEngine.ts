@@ -622,22 +622,32 @@ export class SyncEngine {
 
       // Record the lastModified of each successfully flushed upsert so that
       // filterNoopOperations can skip them on the next flush if unchanged.
-      const allItems: Record<string, unknown>[] = [
-        ...state.questionHistory,
-        ...state.mcHistory,
-        ...state.savedSets,
-      ];
-      const lmById = new Map<string, number>();
-      for (const item of allItems) {
-        const id = typeof item.id === 'string' ? item.id : undefined;
-        if (!id) continue;
-        const lm =
-          typeof item.lastModified === 'number' &&
-            Number.isFinite(item.lastModified)
-            ? item.lastModified
-            : 0;
-        lmById.set(id, lm);
-      }
+      const lmByCollection: Record<
+        'questionHistory' | 'mcHistory' | 'savedSets',
+        Map<string, number>
+      > = {
+        questionHistory: new Map<string, number>(),
+        mcHistory: new Map<string, number>(),
+        savedSets: new Map<string, number>(),
+      };
+      const collectLastModified = (
+        collection: 'questionHistory' | 'mcHistory' | 'savedSets',
+        items: Record<string, unknown>[]
+      ) => {
+        for (const item of items) {
+          const id = typeof item.id === 'string' ? item.id : undefined;
+          if (!id) continue;
+          const lm =
+            typeof item.lastModified === 'number' &&
+              Number.isFinite(item.lastModified)
+              ? item.lastModified
+              : 0;
+          lmByCollection[collection].set(id, lm);
+        }
+      };
+      collectLastModified('questionHistory', state.questionHistory);
+      collectLastModified('mcHistory', state.mcHistory);
+      collectLastModified('savedSets', state.savedSets);
       for (const op of nonNoopOps) {
         if (
           op.opType === 'upsert' &&
@@ -648,7 +658,7 @@ export class SyncEngine {
           if (!this.metadata.lastSyncVersions[coll]) {
             this.metadata.lastSyncVersions[coll] = {};
           }
-          const lm = lmById.get(op.entityId) ?? 0;
+          const lm = lmByCollection[coll].get(op.entityId) ?? 0;
           if (lm > 0) {
             this.metadata.lastSyncVersions[coll][op.entityId] = lm;
           }
@@ -672,23 +682,32 @@ export class SyncEngine {
     // Skip upsert ops where the entity's lastModified timestamp hasn't changed
     // since we last synced it. This prevents re-writing every document to
     // Firestore on every flush when nothing actually changed.
-    const allItems: Record<string, unknown>[] = [
-      ...state.questionHistory,
-      ...state.mcHistory,
-      ...state.savedSets,
-      ...(state.presets ?? []),
-    ];
-    const lmById = new Map<string, number>();
-    for (const item of allItems) {
-      const id = typeof item.id === 'string' ? item.id : undefined;
-      if (!id) continue;
-      const lm =
-        typeof item.lastModified === 'number' &&
-          Number.isFinite(item.lastModified)
-          ? item.lastModified
-          : 0;
-      lmById.set(id, lm);
-    }
+    const lmByCollection: Record<
+      'questionHistory' | 'mcHistory' | 'savedSets',
+      Map<string, number>
+    > = {
+      questionHistory: new Map<string, number>(),
+      mcHistory: new Map<string, number>(),
+      savedSets: new Map<string, number>(),
+    };
+    const collectLastModified = (
+      collection: 'questionHistory' | 'mcHistory' | 'savedSets',
+      items: Record<string, unknown>[]
+    ) => {
+      for (const item of items) {
+        const id = typeof item.id === 'string' ? item.id : undefined;
+        if (!id) continue;
+        const lm =
+          typeof item.lastModified === 'number' &&
+            Number.isFinite(item.lastModified)
+            ? item.lastModified
+            : 0;
+        lmByCollection[collection].set(id, lm);
+      }
+    };
+    collectLastModified('questionHistory', state.questionHistory);
+    collectLastModified('mcHistory', state.mcHistory);
+    collectLastModified('savedSets', state.savedSets);
 
     return ops.filter((op) => {
       // Always keep deletes — they must be sent regardless.
@@ -701,8 +720,18 @@ export class SyncEngine {
       const versions = this.metadata.lastSyncVersions[op.collection];
       if (!versions) return true;
 
+      // If we have never recorded a sync version for this entity, treat it as
+      // unsynced and force an upload.
+      if (!Object.prototype.hasOwnProperty.call(versions, op.entityId)) {
+        return true;
+      }
+
       const lastSynced = versions[op.entityId] ?? 0;
-      const currentLm = lmById.get(op.entityId) ?? 0;
+      const currentLm = lmByCollection[op.collection].get(op.entityId) ?? 0;
+
+      // Unknown/zero timestamps are not reliable enough for noop-skipping.
+      // Keep the op so we do not strand local-only records.
+      if (lastSynced <= 0 || currentLm <= 0) return true;
 
       // If the local lastModified hasn't advanced beyond what we last pushed,
       // there's nothing new to write.
@@ -725,10 +754,10 @@ export class SyncEngine {
       `Realtime update: ${added} added, ${modified} updated, ${removed} removed`
     );
 
-    // Ensure we have a local data object to mutate
-    if (!this.localData) {
-      this.localData = this.getLocalState();
-    }
+    // Always start from the latest local store state so incoming realtime
+    // events cannot clobber newly-created local entries that are queued but
+    // not yet flushed to Firestore.
+    this.localData = this.getLocalState();
 
     let mutated = false;
 
@@ -838,6 +867,7 @@ export class SyncEngine {
     id: string,
     lm: number
   ): void {
+    if (!Number.isFinite(lm) || lm <= 0) return;
     if (!this.metadata.lastSyncVersions) {
       this.metadata.lastSyncVersions = {
         questionHistory: {},
@@ -1063,7 +1093,7 @@ export class SyncEngine {
         mcHistory: {},
         savedSets: {},
       };
-    this.metadata.lastSyncVersions[coll][id] = lm;
+    this.updateCollectionVersion(coll, id, lm);
     return true;
   }
 
@@ -1149,12 +1179,15 @@ export class SyncEngine {
       await cacheApplySnapshot(entries);
 
       // Update metadata version tracking
-      for (const d of qh)
-        this.metadata.lastSyncVersions.questionHistory[d.id] = d.lastModified;
-      for (const d of mc)
-        this.metadata.lastSyncVersions.mcHistory[d.id] = d.lastModified;
-      for (const d of ss)
-        this.metadata.lastSyncVersions.savedSets[d.id] = d.lastModified;
+      for (const d of qh) {
+        this.updateCollectionVersion('questionHistory', d.id, d.lastModified);
+      }
+      for (const d of mc) {
+        this.updateCollectionVersion('mcHistory', d.id, d.lastModified);
+      }
+      for (const d of ss) {
+        this.updateCollectionVersion('savedSets', d.id, d.lastModified);
+      }
 
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;

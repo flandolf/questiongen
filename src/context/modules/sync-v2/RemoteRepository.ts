@@ -892,17 +892,27 @@ export class RemoteRepository {
     getState: () => SyncableData
   ): Promise<void> {
     const state = getState();
-    const historyItems: Record<string, unknown>[] = [
-      ...state.questionHistory,
-      ...state.mcHistory,
-      ...state.savedSets,
-    ];
-    const stateById = new Map<string, Record<string, unknown>>();
-    for (const item of historyItems) {
-      if (item.id && typeof item.id === 'string') {
-        stateById.set(item.id, item);
+    const stateByCollectionAndId: Record<
+      'questionHistory' | 'mcHistory' | 'savedSets',
+      Map<string, Record<string, unknown>>
+    > = {
+      questionHistory: new Map<string, Record<string, unknown>>(),
+      mcHistory: new Map<string, Record<string, unknown>>(),
+      savedSets: new Map<string, Record<string, unknown>>(),
+    };
+    const indexCollection = (
+      collection: 'questionHistory' | 'mcHistory' | 'savedSets',
+      items: Record<string, unknown>[]
+    ) => {
+      for (const item of items) {
+        if (item.id && typeof item.id === 'string') {
+          stateByCollectionAndId[collection].set(item.id, item);
+        }
       }
-    }
+    };
+    indexCollection('questionHistory', state.questionHistory);
+    indexCollection('mcHistory', state.mcHistory);
+    indexCollection('savedSets', state.savedSets);
 
     const upsertsByCollection = new Map<
       string,
@@ -942,7 +952,12 @@ export class RemoteRepository {
         if (op.entityId) deletesByCollection.get(key)!.push(op.entityId);
       } else {
         if (op.entityId) {
-          const data = stateById.get(op.entityId);
+          const data =
+            op.collection === 'questionHistory' ||
+              op.collection === 'mcHistory' ||
+              op.collection === 'savedSets'
+              ? stateByCollectionAndId[op.collection].get(op.entityId)
+              : undefined;
           if (data) {
             if (!upsertsByCollection.has(key)) upsertsByCollection.set(key, []);
             upsertsByCollection.get(key)!.push({ id: op.entityId, data });
