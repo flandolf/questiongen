@@ -542,11 +542,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => { });
-    const redoActionRef = useRef<() => void>(() => { });
-    const clearActionRef = useRef<() => void>(() => { });
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
-    const resetViewportRef = useRef<() => void>(() => { });
+    const undoActionRef = useRef<() => void>(() => {});
+    const redoActionRef = useRef<() => void>(() => {});
+    const clearActionRef = useRef<() => void>(() => {});
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
+    const resetViewportRef = useRef<() => void>(() => {});
 
     const bgRef2 = useRef<BgType>(bg);
 
@@ -746,7 +746,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => { });
+        .catch(() => {});
       return () => {
         if (unlisten) unlisten();
       };
@@ -905,7 +905,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         window.removeEventListener('keydown', down);
         window.removeEventListener('keyup', up);
       };
-
     }, [textInput, switchTool]);
 
     useEffect(() => {
@@ -1025,7 +1024,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         el.removeEventListener('touchend', endGesture);
         el.removeEventListener('touchcancel', endGesture);
       };
-
     }, [zoomAroundClientPoint]);
 
     function getCtx() {

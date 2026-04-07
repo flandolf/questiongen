@@ -1,8 +1,8 @@
 use crate::models::{AppError, CommandResult};
 use crate::openrouter::http_client;
+use once_cell::sync::Lazy;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -186,8 +186,16 @@ fn catalogue_lookup(api_key: &str, model_id: &str) -> Option<(bool, bool)> {
         return None; // stale — let caller trigger a refresh
     }
     // A missing key means the model wasn't in the catalogue (unknown → false).
-    let supports_images = entry.supports_images_map.get(model_id).copied().unwrap_or(false);
-    let supports_files = entry.supports_files_map.get(model_id).copied().unwrap_or(false);
+    let supports_images = entry
+        .supports_images_map
+        .get(model_id)
+        .copied()
+        .unwrap_or(false);
+    let supports_files = entry
+        .supports_files_map
+        .get(model_id)
+        .copied()
+        .unwrap_or(false);
     Some((supports_images, supports_files))
 }
 
@@ -236,12 +244,8 @@ async fn fetch_catalogue_and_lookup(
             .architecture
             .as_ref()
             .and_then(|a| a.input_modalities.as_deref());
-        let supports_images = modalities
-            .map(modalities_include_image)
-            .unwrap_or(false);
-        let supports_files = modalities
-            .map(modalities_include_file)
-            .unwrap_or(false);
+        let supports_images = modalities.map(modalities_include_image).unwrap_or(false);
+        let supports_files = modalities.map(modalities_include_file).unwrap_or(false);
         supports_images_map.insert(entry.id.clone(), supports_images);
         supports_files_map.insert(entry.id.clone(), supports_files);
     }
@@ -361,8 +365,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         }
 
         let prompt_price = parse_price(ep.pricing.as_ref().and_then(|p| p.prompt.as_ref()));
-        let completion_price =
-            parse_price(ep.pricing.as_ref().and_then(|p| p.completion.as_ref()));
+        let completion_price = parse_price(ep.pricing.as_ref().and_then(|p| p.completion.as_ref()));
         if let Some(pp) = prompt_price {
             if best_prompt_price.map_or(true, |prev: f64| pp < prev) {
                 best_prompt_price = Some(pp);
@@ -374,11 +377,9 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
             context_length = Some(context_length.map_or(ctx, |prev: u64| prev.max(ctx)));
         }
 
-        if ep
-            .supported_parameters
-            .as_deref()
-            .map_or(false, |params| params.iter().any(|p| p == "response_format"))
-        {
+        if ep.supported_parameters.as_deref().map_or(false, |params| {
+            params.iter().any(|p| p == "response_format")
+        }) {
             supports_structured = true;
         }
 

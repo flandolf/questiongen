@@ -8,8 +8,10 @@ mod parsing;
 mod persistence;
 mod quality;
 
+#[allow(unused_imports)]
 use base64::{engine::general_purpose, Engine as _};
 use once_cell::sync::OnceCell;
+#[allow(unused_imports)]
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -1178,15 +1180,13 @@ async fn generate_questions(
         }
     }
 
-    // Enforce average marks constraint: adjust marks to hit the target average.
     if !payload.questions.is_empty() {
         let current_total: i64 = payload.questions.iter().map(|q| q.max_marks as i64).sum();
-        let target_total = total_marks as i64;
-        let diff = target_total - current_total;
+        let diff = total_marks as i64 - current_total;
         if diff != 0 {
             let q_count = payload.questions.len();
             let base_adj = diff / q_count as i64;
-            let remainder = diff % q_count as i64;
+            let remainder = diff.abs() % q_count as i64;
 
             let mut indices: Vec<usize> = (0..q_count).collect();
             if diff > 0 {
@@ -1197,18 +1197,15 @@ async fn generate_questions(
 
             for (pos, &i) in indices.iter().enumerate() {
                 let adj = base_adj
-                    + if (pos as i64) < remainder.abs() {
-                        if diff > 0 {
-                            1
-                        } else {
-                            -1
-                        }
+                    + if (pos as i64) < remainder {
+                        diff.signum()
                     } else {
                         0
                     };
-                let new_marks = (payload.questions[i].max_marks as i64 + adj)
-                    .max(constants::MIN_MARKS_PER_QUESTION as i64)
-                    .min(constants::MAX_MARKS_PER_QUESTION as i64);
+                let new_marks = (payload.questions[i].max_marks as i64 + adj).clamp(
+                    constants::MIN_MARKS_PER_QUESTION as i64,
+                    constants::MAX_MARKS_PER_QUESTION as i64,
+                );
                 payload.questions[i].max_marks = new_marks as u8;
             }
         }
@@ -1219,29 +1216,31 @@ async fn generate_questions(
         .iter()
         .map(|q| q.prompt_markdown.clone())
         .collect();
-    let (mut metrics, mut summary) = score_batch(&texts);
+    let (metrics, mut summary) = score_batch(&texts);
 
-    // Compute mark allocation variance for quality assessment
     let mark_values: Vec<u8> = payload.questions.iter().map(|q| q.max_marks).collect();
     summary.mark_allocation_variance =
         Some(quality::compute_mark_allocation_variance(&mark_values));
 
-    for (q, metric) in payload.questions.iter_mut().zip(metrics.clone()) {
+    for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
         q.distinctness_score = Some(metric.distinctness);
         q.multi_step_depth = Some(metric.depth);
         q.verb_diversity_count = Some(metric.verb_diversity);
-        q.scaffold_pattern = Some(metric.scaffold_pattern);
+        q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
     }
 
     // If de-duplication requested and batch shows low distinctness, attempt a
     // small number of retries with stronger diversity instruction and slightly
     // higher temperature. This gives the model another chance to produce more
     // unique questions when the first output is too similar.
+    let mut metrics = metrics;
+    let mut summary = summary;
+    let metrics_ref = &metrics;
     if request.avoid_similar_questions.unwrap_or(false) {
         let mut need_retry = summary
             .distinctness_avg
             .map_or(false, |v| v < distinctness_threshold)
-            || metrics
+            || metrics_ref
                 .iter()
                 .any(|m| m.distinctness < per_question_distinctness_threshold);
 
@@ -1259,7 +1258,7 @@ async fn generate_questions(
             );
 
             let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
-            let adaptive_note = adaptive_quality_note(&metrics);
+            let adaptive_note = adaptive_quality_note(metrics_ref);
 
             // Build a compact regeneration prompt that does not reuse the original
             // `prompt` variable (which may have been moved). This focuses the
@@ -1359,10 +1358,12 @@ async fn generate_questions(
                                 payload = new_payload;
                                 metrics = new_metrics;
                                 summary = new_summary;
-                                for (q, metric) in payload.questions.iter_mut().zip(metrics.clone())
+                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter())
                                 {
                                     q.distinctness_score = Some(metric.distinctness);
                                     q.multi_step_depth = Some(metric.depth);
+                                    q.verb_diversity_count = Some(metric.verb_diversity);
+                                    q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
                                 }
                                 break;
                             }
@@ -1376,7 +1377,7 @@ async fn generate_questions(
                 && (summary
                     .distinctness_avg
                     .map_or(false, |v| v < distinctness_threshold)
-                    || metrics
+                    || metrics_ref
                         .iter()
                         .any(|m| m.distinctness < per_question_distinctness_threshold));
         }
@@ -1714,23 +1715,26 @@ async fn generate_mc_questions(
             format!("{} {opts}", q.prompt_markdown)
         })
         .collect();
-    let (mut metrics, mut summary) = score_batch(&texts);
+    let (metrics, mut summary) = score_batch(&texts);
 
     // MC questions are all 1 mark each, so mark variance is always 0.0 (no distribution)
     summary.mark_allocation_variance = Some(0.0);
 
-    for (q, metric) in payload.questions.iter_mut().zip(metrics.clone()) {
+    for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
         q.distinctness_score = Some(metric.distinctness);
         q.multi_step_depth = Some(metric.depth);
         q.verb_diversity_count = Some(metric.verb_diversity);
-        q.scaffold_pattern = Some(metric.scaffold_pattern);
+        q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
     }
 
+    let mut metrics = metrics;
+    let mut summary = summary;
+    let metrics_ref = &metrics;
     if request.avoid_similar_questions.unwrap_or(false) {
         let mut need_retry = summary
             .distinctness_avg
             .map_or(false, |v| v < distinctness_threshold)
-            || metrics
+            || metrics_ref
                 .iter()
                 .any(|m| m.distinctness < per_question_distinctness_threshold);
 
@@ -1748,7 +1752,7 @@ async fn generate_mc_questions(
             );
 
             let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
-            let adaptive_note = adaptive_quality_note(&metrics);
+            let adaptive_note = adaptive_quality_note(metrics_ref);
 
             let regen_intro = format!(
                 "Regenerate {count} multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.",
@@ -1857,7 +1861,7 @@ async fn generate_mc_questions(
                 && (summary
                     .distinctness_avg
                     .map_or(false, |v| v < distinctness_threshold)
-                    || metrics
+                    || metrics_ref
                         .iter()
                         .any(|m| m.distinctness < per_question_distinctness_threshold));
         }

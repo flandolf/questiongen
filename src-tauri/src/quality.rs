@@ -1,5 +1,42 @@
 use std::collections::HashSet;
 
+const COMMAND_VERBS: [&str; 34] = [
+    "define",
+    "state",
+    "list",
+    "identify",
+    "calculate",
+    "determine",
+    "find",
+    "solve",
+    "derive",
+    "prove",
+    "show",
+    "deduce",
+    "evaluate",
+    "estimate",
+    "justify",
+    "explain",
+    "compare",
+    "contrast",
+    "discuss",
+    "analyze",
+    "synthesize",
+    "apply",
+    "sketch",
+    "draw",
+    "construct",
+    "differentiate",
+    "integrate",
+    "verify",
+    "comment",
+    "interpret",
+    "predict",
+    "outline",
+    "describe",
+    "assess",
+];
+
 pub struct QualitySummary {
     pub distinctness_avg: Option<f32>,
     pub multi_step_depth_avg: Option<f32>,
@@ -30,8 +67,12 @@ pub fn score_batch(prompt_texts: &[String]) -> (Vec<QuestionQualityMetrics>, Qua
         );
     }
 
-    // Compute standard token-based distinctness
     let token_sets: Vec<HashSet<String>> = prompt_texts.iter().map(|t| tokenize(t)).collect();
+
+    let mut verbs_per_item: Vec<Vec<String>> = Vec::with_capacity(prompt_texts.len());
+    for text in prompt_texts {
+        verbs_per_item.push(extract_command_verbs(text));
+    }
 
     let metrics: Vec<QuestionQualityMetrics> = prompt_texts
         .iter()
@@ -43,9 +84,10 @@ pub fn score_batch(prompt_texts: &[String]) -> (Vec<QuestionQualityMetrics>, Qua
                 .filter(|(j, _)| *j != i)
                 .map(|(_, other)| jaccard(&token_sets[i], other))
                 .fold(0.0f32, f32::max);
-            // Weight distinctness by command verb presence
+
+            let verb_count = verbs_per_item[i].len();
             let base_distinctness = (1.0 - max_sim).clamp(0.0, 1.0);
-            let verb_boost = extract_command_verbs(text).len() as f32 * 0.05;
+            let verb_boost = verb_count as f32 * 0.05;
             let weighted_distinctness = (base_distinctness + verb_boost).clamp(0.0, 1.0);
             let depth = round(multi_step_depth(text));
             let scaffold_pattern = detect_scaffold_pattern(text);
@@ -53,24 +95,24 @@ pub fn score_batch(prompt_texts: &[String]) -> (Vec<QuestionQualityMetrics>, Qua
             QuestionQualityMetrics {
                 distinctness: round(weighted_distinctness),
                 depth,
-                verb_diversity: extract_command_verbs(text).len() as f32,
+                verb_diversity: verb_count as f32,
                 scaffold_pattern,
             }
         })
         .collect();
 
-    // Compute command verb diversity
+    // Use primary-command diversity in summary so this metric reflects instructional variety.
     let verb_diversity = compute_command_verb_diversity(prompt_texts);
 
-    let avg_distinctness =
-        round(metrics.iter().map(|m| m.distinctness).sum::<f32>() / metrics.len() as f32);
-    let avg_depth = round(metrics.iter().map(|m| m.depth).sum::<f32>() / metrics.len() as f32);
+    let count = metrics.len() as f32;
+    let avg_distinctness = round(metrics.iter().map(|m| m.distinctness).sum::<f32>() / count);
+    let avg_depth = round(metrics.iter().map(|m| m.depth).sum::<f32>() / count);
 
     let summary = QualitySummary {
         distinctness_avg: Some(avg_distinctness),
         multi_step_depth_avg: Some(avg_depth),
         command_verb_diversity: Some(verb_diversity),
-        mark_allocation_variance: None, // Set by caller after parsing max_marks
+        mark_allocation_variance: None,
     };
 
     (metrics, summary)
@@ -85,7 +127,7 @@ pub fn compute_command_verb_diversity(texts: &[String]) -> f32 {
     let verbs: Vec<String> = texts
         .iter()
         .map(|t| extract_primary_command_verb(t))
-        .filter(|v| !v.is_empty())
+        .filter(|v| v != "other")
         .collect();
 
     if verbs.is_empty() {
@@ -99,24 +141,23 @@ pub fn compute_command_verb_diversity(texts: &[String]) -> f32 {
 
 /// Calculate mark allocation variance (higher = more distributed, lower = concentrated).
 pub fn compute_mark_allocation_variance(mark_values: &[u8]) -> f32 {
-    if mark_values.is_empty() {
+    let len = mark_values.len();
+    if len == 0 {
         return 0.0;
     }
 
-    let mean = mark_values.iter().map(|&m| m as f32).sum::<f32>() / mark_values.len() as f32;
-    let variance = mark_values
+    let sum: f32 = mark_values.iter().map(|&m| m as f32).sum();
+    let mean = sum / len as f32;
+    let variance: f32 = mark_values
         .iter()
         .map(|&m| {
             let diff = m as f32 - mean;
             diff * diff
         })
         .sum::<f32>()
-        / mark_values.len() as f32;
+        / len as f32;
 
-    // Normalize variance to 0.0-1.0 (higher = more variance/spread)
-    let std_dev = variance.sqrt();
-    // For VCE (1-30 marks), normalize std_dev where max meaningful std_dev ≈ 10
-    round((std_dev / 10.0).clamp(0.0, 1.0))
+    variance.sqrt().min(10.0) / 10.0
 }
 
 fn tokenize(text: &str) -> HashSet<String> {
@@ -200,44 +241,8 @@ fn round(v: f32) -> f32 {
 /// Extract command verbs from text to assess cognitive demand variety.
 fn extract_command_verbs(text: &str) -> Vec<String> {
     let low = text.to_ascii_lowercase();
-    let command_verbs = vec![
-        "define",
-        "state",
-        "list",
-        "identify",
-        "calculate",
-        "determine",
-        "find",
-        "solve",
-        "derive",
-        "prove",
-        "show",
-        "deduce",
-        "evaluate",
-        "estimate",
-        "justify",
-        "explain",
-        "compare",
-        "contrast",
-        "discuss",
-        "analyze",
-        "synthesize",
-        "apply",
-        "sketch",
-        "draw",
-        "construct",
-        "differentiate",
-        "integrate",
-        "verify",
-        "comment",
-        "interpret",
-        "predict",
-        "outline",
-        "describe",
-        "assess",
-    ];
 
-    command_verbs
+    COMMAND_VERBS
         .iter()
         .filter(|verb| low.contains(*verb))
         .map(|s| s.to_string())
@@ -247,46 +252,12 @@ fn extract_command_verbs(text: &str) -> Vec<String> {
 /// Get the primary (first occurring) command verb from text.
 fn extract_primary_command_verb(text: &str) -> String {
     let low = text.to_ascii_lowercase();
-    let command_verbs = vec![
-        "define",
-        "state",
-        "list",
-        "identify",
-        "calculate",
-        "determine",
-        "find",
-        "solve",
-        "derive",
-        "prove",
-        "show",
-        "deduce",
-        "evaluate",
-        "estimate",
-        "justify",
-        "explain",
-        "compare",
-        "contrast",
-        "discuss",
-        "analyze",
-        "synthesize",
-        "apply",
-        "sketch",
-        "draw",
-        "construct",
-        "differentiate",
-        "integrate",
-        "verify",
-        "comment",
-        "interpret",
-        "predict",
-        "outline",
-        "describe",
-        "assess",
-    ];
-
-    for verb in command_verbs {
-        if low.contains(verb) {
-            return verb.to_string();
+    for token in low
+        .split(|c: char| !c.is_ascii_alphabetic())
+        .filter(|t| !t.is_empty())
+    {
+        if COMMAND_VERBS.contains(&token) {
+            return token.to_string();
         }
     }
     "other".to_string()
