@@ -340,10 +340,10 @@ fn mc_system() -> String {
 /// model always has enough room for a useful response.
 fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String {
     // Scale word limits by marks, with sensible floors.
-    let worked_words = (max_marks as usize * 200).max(500).min(2000);
-    let comparison_words = (max_marks as usize * 60).max(200).min(800);
-    let feedback_words = (max_marks as usize * 50).max(200).min(600);
-    let rationale_words = (max_marks as usize * 30).max(100).min(400);
+    let worked_words = (max_marks as usize * 200).clamp(500, 2000);
+    let comparison_words = (max_marks as usize * 60).clamp(200, 800);
+    let feedback_words = (max_marks as usize * 50).clamp(200, 600);
+    let rationale_words = (max_marks as usize * 30).clamp(100, 400);
 
     format!(
         "You are a strict VCE marker. \
@@ -522,12 +522,7 @@ fn build_subtopic_coverage_diagnostics(
     requested_ratio: Option<f32>,
     question_count: usize,
 ) -> Option<GenerationQualityDiagnostics> {
-    let Some(selected_raw) = selected else {
-        return None;
-    };
-    if selected_raw.is_empty() {
-        return None;
-    }
+    let selected_raw = selected?;
 
     let mut selected_unique: Vec<String> = Vec::new();
     for item in selected_raw {
@@ -670,7 +665,7 @@ fn latex_issues_for_text(text: &str) -> Vec<String> {
     if display_open {
         issues.push("unclosed display math delimiter ($$)".to_string());
     }
-    if text.contains("\\$") && text.contains("$") && text.matches('$').count() % 2 != 0 {
+    if text.contains("\\$") && text.contains("$") && !text.matches('$').count().is_multiple_of(2) {
         issues.push("mixed currency/math dollar usage".to_string());
     }
 
@@ -1055,10 +1050,7 @@ async fn generate_questions(
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
-    let supports_files = stats_result
-        .as_ref()
-        .ok()
-        .map_or(false, |s| s.supports_files);
+    let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
@@ -1234,12 +1226,11 @@ async fn generate_questions(
     // higher temperature. This gives the model another chance to produce more
     // unique questions when the first output is too similar.
     let mut metrics = metrics;
-    let mut summary = summary;
     let metrics_ref = &metrics;
     if request.avoid_similar_questions.unwrap_or(false) {
         let mut need_retry = summary
             .distinctness_avg
-            .map_or(false, |v| v < distinctness_threshold)
+            .is_some_and(|v| v < distinctness_threshold)
             || metrics_ref
                 .iter()
                 .any(|m| m.distinctness < per_question_distinctness_threshold);
@@ -1336,47 +1327,40 @@ async fn generate_questions(
             .await;
 
             if let Ok(r) = retry_result {
-                match parse_questions_payload::<WrittenQuestionsPayload>(&r.content) {
-                    Ok(mut new_payload) => {
-                        normalise_written(
-                            &mut new_payload.questions,
-                            &request.topics,
-                            selected_subs,
-                        );
-                        if validate_written(&new_payload.questions, request.question_count).is_ok()
+                if let Ok(mut new_payload) =
+                    parse_questions_payload::<WrittenQuestionsPayload>(&r.content)
+                {
+                    normalise_written(&mut new_payload.questions, &request.topics, selected_subs);
+                    if validate_written(&new_payload.questions, request.question_count).is_ok() {
+                        let new_texts: Vec<String> = new_payload
+                            .questions
+                            .iter()
+                            .map(|q| q.prompt_markdown.clone())
+                            .collect();
+                        let (new_metrics, new_summary) = score_batch(&new_texts);
+                        // Accept retry if distinctness improved.
+                        if new_summary.distinctness_avg.unwrap_or(0.0)
+                            > summary.distinctness_avg.unwrap_or(0.0)
                         {
-                            let new_texts: Vec<String> = new_payload
-                                .questions
-                                .iter()
-                                .map(|q| q.prompt_markdown.clone())
-                                .collect();
-                            let (new_metrics, new_summary) = score_batch(&new_texts);
-                            // Accept retry if distinctness improved.
-                            if new_summary.distinctness_avg.unwrap_or(0.0)
-                                > summary.distinctness_avg.unwrap_or(0.0)
-                            {
-                                payload = new_payload;
-                                metrics = new_metrics;
-                                summary = new_summary;
-                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter())
-                                {
-                                    q.distinctness_score = Some(metric.distinctness);
-                                    q.multi_step_depth = Some(metric.depth);
-                                    q.verb_diversity_count = Some(metric.verb_diversity);
-                                    q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
-                                }
-                                break;
+                            payload = new_payload;
+                            metrics = new_metrics;
+                            summary = new_summary;
+                            for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
+                                q.distinctness_score = Some(metric.distinctness);
+                                q.multi_step_depth = Some(metric.depth);
+                                q.verb_diversity_count = Some(metric.verb_diversity);
+                                q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
                             }
+                            break;
                         }
                     }
-                    Err(_) => {}
                 }
             }
 
             need_retry = attempts < 2
                 && (summary
                     .distinctness_avg
-                    .map_or(false, |v| v < distinctness_threshold)
+                    .is_some_and(|v| v < distinctness_threshold)
                     || metrics_ref
                         .iter()
                         .any(|m| m.distinctness < per_question_distinctness_threshold));
@@ -1568,10 +1552,7 @@ async fn generate_mc_questions(
 
     // Determine model capabilities and plugins before building the request.
     let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
-    let supports_files = stats_result
-        .as_ref()
-        .ok()
-        .map_or(false, |s| s.supports_files);
+    let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
     let plugins = plugins_for_model(supports_files);
 
     let user_content = if include_exam_context {
@@ -1728,12 +1709,11 @@ async fn generate_mc_questions(
     }
 
     let mut metrics = metrics;
-    let mut summary = summary;
     let metrics_ref = &metrics;
     if request.avoid_similar_questions.unwrap_or(false) {
         let mut need_retry = summary
             .distinctness_avg
-            .map_or(false, |v| v < distinctness_threshold)
+            .is_some_and(|v| v < distinctness_threshold)
             || metrics_ref
                 .iter()
                 .any(|m| m.distinctness < per_question_distinctness_threshold);
@@ -1820,47 +1800,45 @@ async fn generate_mc_questions(
             .await;
 
             if let Ok(r) = retry_result {
-                match parse_questions_payload::<McQuestionsPayload>(&r.content) {
-                    Ok(mut new_payload) => {
-                        normalise_mc(&mut new_payload.questions, &request.topics, selected_subs);
-                        if validate_mc(&new_payload.questions, request.question_count).is_ok() {
-                            let new_texts: Vec<String> = new_payload
-                                .questions
-                                .iter()
-                                .map(|q| {
-                                    let opts = q
-                                        .options
-                                        .iter()
-                                        .map(|o| format!("{}: {}", o.label, o.text))
-                                        .collect::<Vec<_>>()
-                                        .join(" ");
-                                    format!("{} {opts}", q.prompt_markdown)
-                                })
-                                .collect();
-                            let (new_metrics, new_summary) = score_batch(&new_texts);
-                            if new_summary.distinctness_avg.unwrap_or(0.0)
-                                > summary.distinctness_avg.unwrap_or(0.0)
-                            {
-                                payload = new_payload;
-                                metrics = new_metrics;
-                                summary = new_summary;
-                                for (q, metric) in payload.questions.iter_mut().zip(metrics.clone())
-                                {
-                                    q.distinctness_score = Some(metric.distinctness);
-                                    q.multi_step_depth = Some(metric.depth);
-                                }
-                                break;
+                if let Ok(mut new_payload) =
+                    parse_questions_payload::<McQuestionsPayload>(&r.content)
+                {
+                    normalise_mc(&mut new_payload.questions, &request.topics, selected_subs);
+                    if validate_mc(&new_payload.questions, request.question_count).is_ok() {
+                        let new_texts: Vec<String> = new_payload
+                            .questions
+                            .iter()
+                            .map(|q| {
+                                let opts = q
+                                    .options
+                                    .iter()
+                                    .map(|o| format!("{}: {}", o.label, o.text))
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+                                format!("{} {opts}", q.prompt_markdown)
+                            })
+                            .collect();
+                        let (new_metrics, new_summary) = score_batch(&new_texts);
+                        if new_summary.distinctness_avg.unwrap_or(0.0)
+                            > summary.distinctness_avg.unwrap_or(0.0)
+                        {
+                            payload = new_payload;
+                            metrics = new_metrics;
+                            summary = new_summary;
+                            for (q, metric) in payload.questions.iter_mut().zip(metrics.clone()) {
+                                q.distinctness_score = Some(metric.distinctness);
+                                q.multi_step_depth = Some(metric.depth);
                             }
+                            break;
                         }
                     }
-                    Err(_) => {}
                 }
             }
 
             need_retry = attempts < 2
                 && (summary
                     .distinctness_avg
-                    .map_or(false, |v| v < distinctness_threshold)
+                    .is_some_and(|v| v < distinctness_threshold)
                     || metrics_ref
                         .iter()
                         .any(|m| m.distinctness < per_question_distinctness_threshold));
@@ -1958,7 +1936,7 @@ async fn mark_answer(
     let has_image = request
         .student_answer_image_data_url
         .as_ref()
-        .map_or(false, |v| !v.trim().is_empty());
+        .is_some_and(|v| !v.trim().is_empty());
     if !has_text && !has_image {
         return Err(AppError::new(
             "VALIDATION_ERROR",
@@ -1972,15 +1950,14 @@ async fn mark_answer(
 
     const MAX_ANSWER_CHARS: usize = 12_000;
     let mut answer = sanitize_for_api(
-        &request
+        request
             .student_answer
             .replace("\r\n", "\n")
             .lines()
             .map(str::trim_end)
             .collect::<Vec<_>>()
             .join("\n")
-            .trim()
-            .to_string(),
+            .trim(),
     );
     if answer.chars().count() > MAX_ANSWER_CHARS {
         answer = answer.chars().take(MAX_ANSWER_CHARS).collect();
@@ -2019,7 +1996,7 @@ mathematical rigour.\n"
     let max_marks = request.question.max_marks;
 
     // Load VCAA examiners' report PDFs for the question's topic to guide marking.
-    let report_parts = build_report_file_parts(&app, &[question_topic.clone()]);
+    let report_parts = build_report_file_parts(&app, std::slice::from_ref(&question_topic));
     let has_reports = !report_parts.is_empty();
 
     let report_preamble = if has_reports {
@@ -2100,10 +2077,7 @@ mathematical rigour.\n"
     let plugins = if has_reports {
         // Determine model file support for plugin configuration.
         let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
-        let supports_files = stats_result
-            .as_ref()
-            .ok()
-            .map_or(false, |s| s.supports_files);
+        let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
         plugins_for_model(supports_files)
     } else {
         serde_json::json!([{ "id": "response-healing" }])
