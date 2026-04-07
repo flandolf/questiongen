@@ -14,14 +14,12 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAppStore } from '@/store';
-import type {
-  McHistoryEntry,
-  Preset,
-  QuestionHistoryEntry,
-  SavedQuestionSet,
-  StreakData,
-  StudyGoals,
-} from '@/types';
+import {
+  normalizeMcHistory,
+  normalizeQuestionHistory,
+  normalizeSavedSets,
+} from '@/lib/persistence';
+import type { Preset, StreakData, StudyGoals } from '@/types';
 
 import { auth, db } from '../firebase-init';
 
@@ -70,12 +68,8 @@ export function useSyncV3(): UseSyncV3Return {
       const savedSetsSnapshot = await getDocs(
         collection(db, `users/${uid}/savedSets`)
       );
-      const sets: SavedQuestionSet[] = [];
-      savedSetsSnapshot.forEach((doc) => {
-        sets.push({ id: doc.id, ...doc.data() } as SavedQuestionSet);
-      });
-      sets.sort((a, b) =>
-        String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+      const sets = normalizeSavedSets(
+        savedSetsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
       );
       useAppStore.setState({ savedSets: sets });
 
@@ -83,12 +77,8 @@ export function useSyncV3(): UseSyncV3Return {
       const qhSnapshot = await getDocs(
         collection(db, `users/${uid}/questionHistory`)
       );
-      const qh: QuestionHistoryEntry[] = [];
-      qhSnapshot.forEach((doc) => {
-        qh.push({ id: doc.id, ...doc.data() } as QuestionHistoryEntry);
-      });
-      qh.sort((a, b) =>
-        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+      const qh = normalizeQuestionHistory(
+        qhSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
       );
       useAppStore.setState({ questionHistory: qh });
 
@@ -96,12 +86,8 @@ export function useSyncV3(): UseSyncV3Return {
       const mchSnapshot = await getDocs(
         collection(db, `users/${uid}/mcHistory`)
       );
-      const mch: McHistoryEntry[] = [];
-      mchSnapshot.forEach((doc) => {
-        mch.push({ id: doc.id, ...doc.data() } as McHistoryEntry);
-      });
-      mch.sort((a, b) =>
-        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+      const mch = normalizeMcHistory(
+        mchSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
       );
       useAppStore.setState({ mcHistory: mch });
 
@@ -122,18 +108,8 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/questionHistory`),
           (snapshot) => {
             try {
-              const history: QuestionHistoryEntry[] = [];
-              snapshot.forEach((doc) => {
-                history.push({
-                  id: doc.id,
-                  ...doc.data(),
-                } as QuestionHistoryEntry);
-              });
-              // Ensure newest first
-              history.sort((a, b) =>
-                String(b.createdAt || '').localeCompare(
-                  String(a.createdAt || '')
-                )
+              const history = normalizeQuestionHistory(
+                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
               );
               useAppStore.setState({ questionHistory: history });
             } catch (error) {
@@ -157,15 +133,8 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/mcHistory`),
           (snapshot) => {
             try {
-              const history: McHistoryEntry[] = [];
-              snapshot.forEach((doc) => {
-                history.push({ id: doc.id, ...doc.data() } as McHistoryEntry);
-              });
-              // Ensure newest first
-              history.sort((a, b) =>
-                String(b.createdAt || '').localeCompare(
-                  String(a.createdAt || '')
-                )
+              const history = normalizeMcHistory(
+                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
               );
               useAppStore.setState({ mcHistory: history });
             } catch (error) {
@@ -189,15 +158,8 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/savedSets`),
           (snapshot) => {
             try {
-              const sets: SavedQuestionSet[] = [];
-              snapshot.forEach((doc) => {
-                sets.push({ id: doc.id, ...doc.data() } as SavedQuestionSet);
-              });
-              // Ensure newest modified/updated first
-              sets.sort((a, b) =>
-                String(b.updatedAt || '').localeCompare(
-                  String(a.updatedAt || '')
-                )
+              const sets = normalizeSavedSets(
+                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
               );
               useAppStore.setState({ savedSets: sets });
             } catch (error) {

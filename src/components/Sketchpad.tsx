@@ -25,6 +25,10 @@ import {
   useState,
 } from 'react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -33,12 +37,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -429,7 +436,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       y: number;
       value: string;
     } | null>(null);
-    const [bg, setBg] = useState<BgType>('white-grid');
+    const [bg, setBg] = useState<BgType>('lined');
     const [zoom, setZoom] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
@@ -655,7 +662,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -1601,7 +1608,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasArea = (
       <div
         ref={containerRef}
-        className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-200"
+        className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30"
       >
         {cursorPos &&
           activeTool !== 'fill' &&
@@ -1665,7 +1672,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 }
               }
             }}
-            className="absolute z-50 px-2 py-1 text-sm border border-dashed border-[#007AFF] bg-white/90 outline-none"
+            className="absolute z-50 px-2 py-1 text-sm border-2 border-primary rounded-md bg-background/90 shadow-lg outline-none"
             style={{
               left: textInput.x * zoom + pan.x,
               top: textInput.y * zoom + pan.y,
@@ -1678,17 +1685,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         <canvas
           ref={bgRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
+          className="absolute top-0 left-0 pointer-events-none"
           style={{
             ...canvasTransform,
-            boxShadow: '0 0 30px rgba(0,0,0,0.15)',
-            border: '1px solid #e5e7eb',
+            boxShadow: 'var(--shadow-xl)',
+            border: '1px solid var(--border)',
           }}
         />
 
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
+          className="absolute top-0 left-0"
           style={{
             cursor: cursorStyle,
             touchAction: 'none',
@@ -1698,16 +1705,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         <canvas
           ref={overlayRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
+          className="absolute top-0 left-0 pointer-events-none"
           style={canvasTransform}
         />
 
         {/* Subtle Paper Texture Overlay */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          className="absolute top-0 left-0 pointer-events-none opacity-[0.03]"
           style={{
             ...canvasTransform,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3C%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+            width: INTERNAL_RES_WIDTH,
+            height: INTERNAL_RES_HEIGHT,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
           }}
         />
       </div>
@@ -1722,68 +1731,86 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }
 
     const settingsFooter = (
-      <div className="flex items-center gap-3 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-white pointer-events-auto">
+      <Card className="flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-card pointer-events-auto">
         <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-          <SelectTrigger className="h-9 w-32 text-xs border-none bg-gray-100/50 hover:bg-gray-100 rounded-xl transition-all">
+          <SelectTrigger className="h-9 w-32 border-none rounded-xl transition-all">
             <SelectValue placeholder="Background" />
           </SelectTrigger>
-          <SelectContent className="rounded-xl border-none shadow-2xl">
+          <SelectContent className="rounded-xl">
             <SelectGroup>
-              <SelectItem value="white-grid">Grid Paper</SelectItem>
               <SelectItem value="lined">Lined Paper</SelectItem>
+              <SelectItem value="white-grid">Grid Paper</SelectItem>
               <SelectItem value="dot-grid">Dotted Paper</SelectItem>
               <SelectItem value="black-grid">Dark Canvas</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
 
-        <div className="w-px h-6 bg-gray-200/50 mx-1" />
-
-        <button
+        <Button
+          variant={penOnlyMode ? 'default' : 'secondary'}
+          size="sm"
           onClick={() => setPenOnlyMode(!penOnlyMode)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-xs font-medium ${
-            penOnlyMode
-              ? 'bg-[#007AFF] text-white'
-              : 'bg-gray-100/50 text-gray-600 hover:bg-gray-100'
-          }`}
+          className="rounded-xl h-9"
         >
           {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
-        </button>
+        </Button>
 
-        <div className="w-px h-6 bg-gray-200/50 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1" />
 
-        <div className="flex items-center gap-3 px-2 whitespace-nowrap">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+        <div className="flex items-center gap-3 px-2">
+          <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
             Size
-          </span>
-          <input
-            type="range"
+          </Label>
+          <div className="flex items-center gap-1">
+            {[0.5, 1, 2].map((m) => {
+              const baseSize = activeTool === 'eraser' ? 20 : 4;
+              const size = baseSize * m;
+              const isActive = currentSize === size;
+              return (
+                <Button
+                  key={size}
+                  variant={isActive ? 'default' : 'ghost'}
+                  size="icon-sm"
+                  onClick={() => setSize(size)}
+                  className="size-6 rounded-lg"
+                >
+                  <div
+                    className={cn(
+                      'rounded-full',
+                      isActive ? 'bg-primary-foreground' : 'bg-foreground/50'
+                    )}
+                    style={{ width: 4 * m, height: 4 * m }}
+                  />
+                </Button>
+              );
+            })}
+          </div>
+          <Slider
             min={1}
             max={100}
             step={1}
-            value={currentSize}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="w-20 accent-[#007AFF]"
+            value={[currentSize]}
+            onValueChange={([val]) => setSize(val)}
+            className="w-24 ml-1"
           />
         </div>
 
-        <div className="w-px h-6 bg-gray-200/50 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1" />
 
-        <div className="flex items-center gap-3 px-2 whitespace-nowrap">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+        <div className="flex items-center gap-3 px-2">
+          <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
             Smooth
-          </span>
-          <input
-            type="range"
+          </Label>
+          <Slider
             min={0}
             max={1}
             step={0.05}
-            value={currentSmoothing}
-            onChange={(e) => setSmoothing(Number(e.target.value))}
-            className="w-20 accent-[#007AFF]"
+            value={[currentSmoothing]}
+            onValueChange={([val]) => setSmoothing(val)}
+            className="w-24"
           />
         </div>
-      </div>
+      </Card>
     );
 
     useImperativeHandle(
@@ -1801,63 +1828,72 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const topNavigationBar = (
       <TooltipProvider>
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-2xl z-50 transition-all hover:bg-white">
-          <div className="flex items-center gap-0.5 px-2 border-r border-gray-200/50 mr-1">
+        <Card className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50 transition-all hover:bg-card">
+          <div className="flex items-center gap-0.5 px-1 pr-2">
             {!embedded && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={onClose}
-                    className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+                    className="rounded-xl"
                   >
                     <ChevronLeft size={20} />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>Close</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={undo}
                   disabled={undoStack.current.length === 0}
-                  className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl disabled:opacity-20 transition-all font-medium"
+                  className="rounded-xl disabled:opacity-20"
                 >
                   <Undo2 size={20} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>Undo</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={redo}
                   disabled={redoStack.current.length === 0}
-                  className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl disabled:opacity-20 transition-all font-medium"
+                  className="rounded-xl disabled:opacity-20"
                 >
                   <Redo2 size={20} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>Redo</TooltipContent>
             </Tooltip>
           </div>
 
-          <div className="flex items-center gap-1">
+          <Separator orientation="vertical" className="h-8 mx-1" />
+
+          <div className="flex items-center gap-1 px-1">
             {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
               const isActive = activeTool === tool;
               return (
                 <Tooltip key={tool}>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button
+                      variant={isActive ? 'default' : 'ghost'}
+                      size="icon"
                       onClick={() => switchTool(tool)}
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
-                        isActive
-                          ? 'bg-[#007AFF] text-white shadow-lg shadow-[#007AFF]/30 scale-105'
-                          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                      }`}
+                      className={cn(
+                        'rounded-xl transition-all',
+                        isActive && 'shadow-lg shadow-primary/20 scale-105'
+                      )}
                     >
                       {TOOL_ICONS[tool]}
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>{TOOL_LABELS[tool]}</TooltipContent>
                 </Tooltip>
@@ -1865,74 +1901,86 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })}
           </div>
 
-          <div className="w-px h-8 bg-gray-200/50 mx-2" />
+          <Separator orientation="vertical" className="h-8 mx-1" />
 
-          <div className="flex items-center gap-3 pr-2">
+          <div className="flex items-center gap-3 px-2">
             <div className="flex items-center gap-2">
               {activeColorPalette.map((c, i) => (
                 <button
                   key={`${c}-${i}`}
                   onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                  className={cn(
+                    'w-7 h-7 rounded-full border-2 transition-all',
                     currentColor === c && activeTool !== 'eraser'
-                      ? 'border-[#007AFF] scale-110 shadow-md ring-4 ring-[#007AFF]/20'
-                      : 'border-white hover:scale-110'
-                  }`}
+                      ? 'border-primary scale-110 shadow-md ring-4 ring-primary/20'
+                      : 'border-background hover:scale-110'
+                  )}
                   style={{ background: c }}
                 />
               ))}
-              <input
-                type="color"
-                value={currentColor}
-                onChange={(e) => {
-                  setColor(e.target.value);
-                  addRecentColor(e.target.value);
-                }}
-                className="w-7 h-7 p-0 border-0 rounded-full cursor-pointer overflow-hidden bg-white shadow-sm hover:scale-110 transition-all"
-              />
+              <div className="relative w-7 h-7 rounded-full overflow-hidden border border-border shadow-sm hover:scale-110 transition-all">
+                <input
+                  type="color"
+                  value={currentColor}
+                  onChange={(e) => {
+                    setColor(e.target.value);
+                    addRecentColor(e.target.value);
+                  }}
+                  className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
+                />
+              </div>
             </div>
-            <div className="w-px h-8 bg-gray-200/50 mx-1" />
+            <Separator orientation="vertical" className="h-8 mx-1" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={clearCanvas}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  className="p-2 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl"
                 >
                   <Trash2 size={20} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>Clear Canvas</TooltipContent>
             </Tooltip>
           </div>
-        </div>
+        </Card>
       </TooltipProvider>
     );
 
     const zoomIndicator = (
-      <div className="absolute bottom-6 right-6 flex items-center gap-2 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-xl z-50">
-        <button
+      <Card className="absolute bottom-6 right-6 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50">
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setZoom((z) => Math.max(0.1, z - 0.25))}
-          className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+          className="rounded-xl"
         >
-          <ZoomOut size={18} />
-        </button>
-        <span className="text-sm font-semibold text-gray-700 w-14 text-center tabular-nums">
+          <ZoomOut size={12} />
+        </Button>
+        <Badge
+          variant="secondary"
+          className="bg-muted px-2 py-0.5 text-[10px] font-bold tabular-nums rounded-lg"
+        >
           {Math.round(zoom * 100)}%
-        </span>
-        <button
+        </Badge>
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setZoom((z) => Math.min(10, z + 0.25))}
-          className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+          className="rounded-xl"
         >
-          <ZoomIn size={18} />
-        </button>
-      </div>
+          <ZoomIn size={12} />
+        </Button>
+      </Card>
     );
 
     if (!embedded && !open) return null;
 
     if (embedded) {
       return (
-        <div className="flex flex-col flex-1 min-h-[70vh] bg-[#F1F3F5] relative overflow-hidden font-sans border border-gray-200 rounded-2xl shadow-inner">
+        <div className="flex flex-col flex-1 min-h-[70vh] bg-muted/20 relative overflow-hidden font-sans border border-border rounded-2xl shadow-inner">
           {topNavigationBar}
           {canvasArea}
           {zoomIndicator}
@@ -1944,7 +1992,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center font-sans overflow-hidden">
         <div
-          className="absolute inset-0 bg-gray-900/60 backdrop-blur-xl"
+          className="absolute inset-0 bg-background/60 backdrop-blur-xl"
           onClick={
             void (async () => {
               if (!hasExplicitlySaved.current) {

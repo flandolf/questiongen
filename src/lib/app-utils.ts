@@ -10,8 +10,27 @@ export {
   trainLogRegressionModel,
 } from './token-estimation';
 
-export function formatDate(dateInput: string | number): string {
-  const date = new Date(dateInput);
+export function formatDate(dateInput: any): string {
+  if (!dateInput) return 'Unknown time';
+
+  let date: Date;
+  if (
+    typeof dateInput === 'object' &&
+    typeof dateInput.seconds === 'number' &&
+    typeof dateInput.nanoseconds === 'number'
+  ) {
+    // Handle Firestore Timestamp {seconds, nanoseconds}
+    date = new Date(dateInput.seconds * 1000);
+  } else if (
+    typeof dateInput === 'object' &&
+    typeof dateInput.toDate === 'function'
+  ) {
+    // Handle Firestore Timestamp object with .toDate() method
+    date = dateInput.toDate();
+  } else {
+    date = new Date(dateInput);
+  }
+
   if (Number.isNaN(date.getTime())) {
     return 'Unknown time';
   }

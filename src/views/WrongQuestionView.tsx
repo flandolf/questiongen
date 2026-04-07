@@ -42,9 +42,10 @@ import type {
   QuestionHistoryEntry,
   SpacedRepetitionCard,
 } from '@/types';
-import { McAnswerPanel } from '@/views/generator/McAnswerPanel';
+import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
 import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
+import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
 
 import { SessionHeader } from './generator/SessionHeader';
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -426,6 +427,7 @@ interface McQuestionState {
   awardedMarks: number | undefined;
   mcAppealText: string;
   mcOverrideInput: string;
+  mcSketchpadActive: boolean;
   result: ReattemptResult | null;
   timeSeconds: number;
 }
@@ -504,6 +506,8 @@ function ReattemptView({
   const writtenEntry = isWritten ? entry : null;
   const isLast = idx === questions.length - 1;
   const completedCount = results.filter((r) => r.correct).length;
+  
+  const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
 
   // Session timer
   const [startedAt] = useState(() => Date.now());
@@ -520,6 +524,7 @@ function ReattemptView({
   >(null);
   const [appealText, setAppealText] = useState<string>('');
   const [overrideInput, setOverrideInput] = useState<string>('');
+  const activeFeedback = isWritten ? feedback : null;
 
   // --- MC state ---
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -528,6 +533,7 @@ function ReattemptView({
   );
   const [mcAppealText, setMcAppealText] = useState<string>('');
   const [mcOverrideInput, setMcOverrideInput] = useState<string>('');
+  const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
 
   // --- Save current question state before leaving it ---
   const saveCurrentState = useCallback(() => {
@@ -561,6 +567,7 @@ function ReattemptView({
             awardedMarks,
             mcAppealText,
             mcOverrideInput,
+            mcSketchpadActive,
             result: results.find((r) => r.id === currentEntry.id) ?? null,
             timeSeconds: totalTime,
           };
@@ -578,6 +585,7 @@ function ReattemptView({
     awardedMarks,
     mcAppealText,
     mcOverrideInput,
+    mcSketchpadActive,
     results,
     questionStartedAt,
     savedStates,
@@ -589,16 +597,9 @@ function ReattemptView({
       const state = savedStates[entryId];
       if (!state) {
         // Fresh question - reset everything
-        setWrittenAnswer('');
-        setImage(undefined);
-        setFeedback(null);
-        setMarkingScheme(null);
-        setAppealText('');
-        setOverrideInput('');
-        setSelectedAnswer('');
-        setAwardedMarks(undefined);
         setMcAppealText('');
         setMcOverrideInput('');
+        setMcSketchpadActive(false);
         return;
       }
       if ('writtenAnswer' in state) {
@@ -613,6 +614,7 @@ function ReattemptView({
         setAwardedMarks(state.awardedMarks);
         setMcAppealText(state.mcAppealText);
         setMcOverrideInput(state.mcOverrideInput);
+        setMcSketchpadActive(state.mcSketchpadActive);
       }
     },
     [savedStates]
@@ -839,73 +841,137 @@ function ReattemptView({
         />
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-        {isWritten ? (
-          <div className="mx-auto w-full max-w-8xl flex flex-col space-y-4 pb-10">
-            {!feedback ? (
-              <>
-                <MarkdownMath content={entry.question.promptMarkdown} />
-                <WrittenAnswerCard
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+          {isWritten ? (
+            activeFeedback ? (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-400">
+                <WrittenFeedbackPanel
                   questionId={entry.id}
+                  promptMarkdown={entry.question.promptMarkdown}
                   answer={writtenAnswer}
                   image={image}
+                  feedback={
+                    (feedback && markingScheme
+                      ? { ...feedback, vcaaMarkingScheme: markingScheme }
+                      : feedback) as MarkAnswerResponse
+                  }
+                  appealText={appealText}
+                  overrideInput={overrideInput}
                   isMarking={isMarking}
-                  canSubmit={writtenAnswer.trim().length > 0 || !!image}
-                  onAnswerChange={setWrittenAnswer}
-                  onImageDrop={(files) => {
-                    void fileToDataUrl(files[0]).then((dataUrl) =>
-                      setImage({ name: files[0].name, dataUrl })
-                    );
-                  }}
-                  onImageRemove={() => setImage(undefined)}
-                  onSubmit={() => void doMark()}
+                  onAppealChange={setAppealText}
+                  onOverrideInputChange={setOverrideInput}
+                  onArgueForMark={() => {}}
+                  onApplyOverride={handleApplyOverride}
+                  onCriterionChange={handleCriterionChange}
                 />
-              </>
+              </div>
             ) : (
-              <WrittenFeedbackPanel
-                questionId={entry.id}
-                promptMarkdown={entry.question.promptMarkdown}
-                answer={writtenAnswer}
-                image={image}
-                feedback={
-                  feedback && markingScheme
-                    ? { ...feedback, vcaaMarkingScheme: markingScheme }
-                    : feedback
+              <QuestionSplitLayout
+                mode="written"
+                sketchpadActive={writtenSketchpadActive}
+                leftSlot={<MarkdownMath content={entry.question.promptMarkdown} />}
+                rightSlot={
+                  <WrittenAnswerCard
+                    questionId={entry.id}
+                    answer={writtenAnswer}
+                    image={image}
+                    isMarking={isMarking}
+                    canSubmit={writtenAnswer.trim().length > 0 || !!image}
+                    onAnswerChange={setWrittenAnswer}
+                    onImageDrop={(files) => {
+                      void fileToDataUrl(files[0]).then((dataUrl) =>
+                        setImage({ name: files[0].name, dataUrl })
+                      );
+                    }}
+                    onImageRemove={() => setImage(undefined)}
+                    onSubmit={() => void doMark()}
+                    onSketchpadActiveChange={setWrittenSketchpadActive}
+                  />
                 }
-                appealText={appealText}
-                overrideInput={overrideInput}
-                isMarking={isMarking}
-                onAppealChange={setAppealText}
-                onOverrideInputChange={setOverrideInput}
-                onArgueForMark={() => {}}
-                onApplyOverride={handleApplyOverride}
-                onCriterionChange={handleCriterionChange}
               />
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="max-w-8xl mx-auto flex flex-col space-y-4 pb-10">
-              <MarkdownMath content={entry.question.promptMarkdown} />
-              <McAnswerPanel
-                questionId={entry.id}
-                options={entry.question.options}
-                correctAnswer={entry.question.correctAnswer}
-                explanationMarkdown={entry.question.explanationMarkdown}
-                selectedAnswer={selectedAnswer}
-                awardedMarks={awardedMarks}
-                appealText={mcAppealText}
-                overrideInput={mcOverrideInput}
-                isMarking={false}
-                onSelectAnswer={handleSelectAnswer}
-                onAppealChange={setMcAppealText}
-                onOverrideInputChange={setMcOverrideInput}
-                onArgueForMark={() => {}}
-                onApplyOverride={handleApplyMcOverride}
-              />
-            </div>
-          </>
-        )}
+            )
+          ) : (
+            <QuestionSplitLayout
+              mode="mc"
+              sketchpadActive={mcSketchpadActive}
+              leftSlot={
+                <div className="space-y-5">
+                  <div className="p-6 bg-muted/20 rounded-md space-y-2">
+                    <h1 className="text-xl font-bold">Question {idx + 1}</h1>
+                    <MarkdownMath content={entry.question.promptMarkdown} />
+                  </div>
+                  {mcSketchpadActive && (
+                    <div className="min-w-0">
+                      <McAnswerCard
+                        options={entry.question.options}
+                        correctAnswer={entry.question.correctAnswer}
+                        explanationMarkdown={entry.question.explanationMarkdown}
+                        selectedAnswer={selectedAnswer}
+                        awardedMarks={awardedMarks}
+                        appealText={mcAppealText}
+                        overrideInput={mcOverrideInput}
+                        isMarking={false}
+                        hideCorrectAnswer={false}
+                        onSelectAnswer={handleSelectAnswer}
+                        onAppealChange={setMcAppealText}
+                        onOverrideInputChange={setMcOverrideInput}
+                        onArgueForMark={() => {}}
+                        onApplyOverride={handleApplyMcOverride}
+                        isSketchpadOpen={mcSketchpadActive}
+                        onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
+                        onImageDrop={(files) => {
+                          void fileToDataUrl(files[0]).then((dataUrl) =>
+                            setImage({ name: files[0].name, dataUrl })
+                          );
+                        }}
+                        onImageRemove={() => setImage(undefined)}
+                        renderSketchpadInline={false}
+                      />
+                    </div>
+                  )}
+                </div>
+              }
+              rightSlot={
+                mcSketchpadActive ? (
+                  <McSketchpadPanel
+                    onImageDrop={(files) => {
+                      void fileToDataUrl(files[0]).then((dataUrl) =>
+                        setImage({ name: files[0].name, dataUrl })
+                      );
+                    }}
+                    onImageRemove={() => setImage(undefined)}
+                  />
+                ) : (
+                  <McAnswerCard
+                    options={entry.question.options}
+                    correctAnswer={entry.question.correctAnswer}
+                    explanationMarkdown={entry.question.explanationMarkdown}
+                    selectedAnswer={selectedAnswer}
+                    awardedMarks={awardedMarks}
+                    appealText={mcAppealText}
+                    overrideInput={mcOverrideInput}
+                    isMarking={false}
+                    hideCorrectAnswer={false}
+                    onSelectAnswer={handleSelectAnswer}
+                    onAppealChange={setMcAppealText}
+                    onOverrideInputChange={setMcOverrideInput}
+                    onArgueForMark={() => {}}
+                    onApplyOverride={handleApplyMcOverride}
+                    isSketchpadOpen={mcSketchpadActive}
+                    onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
+                    onImageDrop={(files) => {
+                      void fileToDataUrl(files[0]).then((dataUrl) =>
+                        setImage({ name: files[0].name, dataUrl })
+                      );
+                    }}
+                    onImageRemove={() => setImage(undefined)}
+                  />
+                )
+              }
+            />
+          )}
+        </div>
       </div>
     </div>
   );
