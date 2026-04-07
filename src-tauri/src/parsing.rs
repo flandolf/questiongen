@@ -558,8 +558,87 @@ pub fn sanitise_latex(text: &str) -> String {
     // Step 2: convert paren/bracket delimiters to $ delimiters
     let s = convert_paren_delimiters(&s);
 
-    // Step 3: protect bare currency dollars
+    // Step 3: repair malformed table row breaks like `\ \hline` where the
+    // first row terminator slash is missing (should be `\\ \hline`).
+    let s = repair_tabular_row_breaks(&s);
+
+    // Step 4: protect bare currency dollars
     protect_currency_dollars(&s)
+}
+
+/// Repair malformed row-break + rule sequences in LaTeX tables.
+///
+/// Some model outputs use `\ \hline` (single slash + space + `\hline`),
+/// which triggers "Misplaced \\noalign" / "misplaced \hline" errors.
+/// This normalizes those cases to `\\ \hline`.
+fn repair_tabular_row_breaks(s: &str) -> String {
+    const RULE_COMMANDS: [&str; 6] = [
+        "hline",
+        "cline",
+        "cmidrule",
+        "toprule",
+        "midrule",
+        "bottomrule",
+    ];
+
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(len + 8);
+    let mut i = 0usize;
+
+    while i < len {
+        if bytes[i] == b'\\' {
+            // Count consecutive backslashes starting at i.
+            let mut run_end = i + 1;
+            while run_end < len && bytes[run_end] == b'\\' {
+                run_end += 1;
+            }
+
+            // Only repair single-backslash run; `\\` is already valid.
+            if run_end == i + 1 {
+                let mut j = run_end;
+                while j < len && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+
+                // Look for `\<rule-command>` after optional whitespace.
+                if j + 1 < len && bytes[j] == b'\\' {
+                    let cmd_start = j + 1;
+                    let mut cmd_end = cmd_start;
+                    while cmd_end < len && bytes[cmd_end].is_ascii_alphabetic() {
+                        cmd_end += 1;
+                    }
+
+                    if cmd_end > cmd_start {
+                        let cmd = &s[cmd_start..cmd_end];
+                        if RULE_COMMANDS.iter().any(|candidate| candidate == &cmd) {
+                            out.push_str("\\\\");
+                            out.push_str(&s[run_end..j]);
+                            out.push_str(&s[j..cmd_end]);
+                            i = cmd_end;
+                            continue;
+                        }
+                    }
+                }
+
+                // Also repair a common malformed row break in `cases`/`array`
+                // where the next row starts with a digit, e.g. `... 1\0, ...`
+                // instead of `... 1\\0, ...`.
+                if j < len && bytes[j].is_ascii_digit() {
+                    out.push_str("\\\\");
+                    out.push_str(&s[run_end..j]);
+                    out.push(bytes[j] as char);
+                    i = j + 1;
+                    continue;
+                }
+            }
+        }
+
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+
+    out
 }
 
 /// Replace `\(...\)` with `$...$` and `\[...\]` with `$$...$$`.
@@ -1279,6 +1358,38 @@ mod tests {
     #[test]
     fn currency_followed_by_display_math_not_mangled() {
         assert_eq!(sanitise_latex("$$x = 1$$"), "$$x = 1$$");
+    }
+
+    #[test]
+    fn repairs_single_slash_before_hline() {
+        let input = r"\begin{array}{c|ccc} x & 0 & 1 & 2 \ \hline P(X=x) & \dfrac{5}{14} & \dfrac{15}{28} & k \end{array}";
+        let output = sanitise_latex(input);
+        assert!(
+            output.contains(r"2 \\ \hline"),
+            "row break before hline not repaired: {output}"
+        );
+    }
+
+    #[test]
+    fn does_not_change_valid_double_slash_before_hline() {
+        let input = r"\begin{array}{c|cc} X & 0 & 1 \\ \hline P(X=x) & 0.5 & 0.5 \end{array}";
+        assert_eq!(sanitise_latex(input), input);
+    }
+
+    #[test]
+    fn repairs_single_slash_before_digit_in_cases() {
+        let input = r"f(x)=\begin{cases}2x, & 0\le x\le 1\0, & \text{otherwise}\end{cases}";
+        let output = sanitise_latex(input);
+        assert!(
+            output.contains(r"1\\0"),
+            "single slash before digit row start not repaired: {output}"
+        );
+    }
+
+    #[test]
+    fn does_not_change_valid_double_slash_before_digit_in_cases() {
+        let input = r"f(x)=\begin{cases}2x, & 0\le x\le 1\\0, & \text{otherwise}\end{cases}";
+        assert_eq!(sanitise_latex(input), input);
     }
 
     // --- clean_field / normalise_typography ---
