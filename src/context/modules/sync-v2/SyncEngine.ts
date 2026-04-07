@@ -145,7 +145,7 @@ function mergeStreakData(
     ),
     lastActiveDate:
       (typeof local.lastActiveDate === 'string' ? local.lastActiveDate : '') >
-      (typeof remote.lastActiveDate === 'string' ? remote.lastActiveDate : '')
+        (typeof remote.lastActiveDate === 'string' ? remote.lastActiveDate : '')
         ? local.lastActiveDate
         : remote.lastActiveDate,
     dailyCompletions: merged,
@@ -615,16 +615,7 @@ export class SyncEngine {
         return;
       }
 
-      await this.remoteRepo.flushOperations(nonNoopOps, () => {
-        // Map ops to actual data from state
-        const allItems = [
-          ...state.questionHistory,
-          ...state.mcHistory,
-          ...state.savedSets,
-          ...(state.presets ?? []),
-        ];
-        return allItems;
-      });
+      await this.remoteRepo.flushOperations(nonNoopOps, () => state);
 
       this.lastSyncTime = Date.now();
       this.metadata.lastSyncTime = this.lastSyncTime;
@@ -642,7 +633,7 @@ export class SyncEngine {
         if (!id) continue;
         const lm =
           typeof item.lastModified === 'number' &&
-          Number.isFinite(item.lastModified)
+            Number.isFinite(item.lastModified)
             ? item.lastModified
             : 0;
         lmById.set(id, lm);
@@ -693,7 +684,7 @@ export class SyncEngine {
       if (!id) continue;
       const lm =
         typeof item.lastModified === 'number' &&
-        Number.isFinite(item.lastModified)
+          Number.isFinite(item.lastModified)
           ? item.lastModified
           : 0;
       lmById.set(id, lm);
@@ -811,9 +802,9 @@ export class SyncEngine {
         ? { settings: this.localData.settings ?? {} }
         : id === 'goals'
           ? {
-              studyGoals: this.localData.studyGoals,
-              streakData: this.localData.streakData,
-            }
+            studyGoals: this.localData.studyGoals,
+            streakData: this.localData.streakData,
+          }
           : id === 'presets'
             ? { presets: this.localData.presets ?? [] }
             : null;

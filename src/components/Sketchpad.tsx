@@ -2,11 +2,7 @@
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
 import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
   ChevronLeft,
-  ChevronRight,
   Circle,
   Droplet,
   Eraser,
@@ -39,7 +35,6 @@ import {
 } from '@/components/ui/select';
 
 import { Checkbox } from './ui/checkbox';
-import { Input } from './ui/input';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,7 +83,7 @@ type ToolSettingsMap = Record<ToolType, ToolSettings>;
 
 const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
   pen: {
-    size: 4,
+    size: 2,
     opacity: 1,
     smoothing: 0.5,
     pressureCurve: 'smooth',
@@ -109,7 +104,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     smoothing: 0,
     pressureCurve: 'linear',
     disablePressure: true,
-    color: '#3b82f6',
+    color: '#007AFF',
   },
   line: {
     size: 2,
@@ -151,19 +146,16 @@ const PEN_ONLY_STORAGE_KEY = 'sketchpad-pen-only-mode';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PALETTE = [
-  '#111827',
-  '#ffffff',
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#84cc16',
-  '#f59e0b',
+  '#111827', // Black
+  '#ef4444', // Red
+  '#007AFF', // iOS Blue
+  '#22c55e', // Green
+  '#f59e0b', // Yellow/Orange
+  '#ec4899', // Pink
 ];
+
+const PRESET_PEN_SIZES = [2, 5, 10];
+const PRESET_ERASER_SIZES = [20, 30, 40];
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
@@ -186,23 +178,13 @@ const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
 };
 
 const TOOL_LABELS: Record<ToolType, string> = {
-  pen: 'Pen (P)',
-  eraser: 'Eraser (E)',
-  fill: 'Fill (B)',
-  line: 'Line (L)',
-  rect: 'Rectangle (R)',
-  ellipse: 'Ellipse (C)',
-  text: 'Text (T)',
-};
-
-const TOOL_SHORTCUTS: Record<ToolType, string> = {
-  pen: 'P',
-  eraser: 'E',
-  fill: 'B',
-  line: 'L',
-  rect: 'R',
-  ellipse: 'C',
-  text: 'T',
+  pen: 'Pen',
+  eraser: 'Eraser',
+  fill: 'Fill',
+  line: 'Line',
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  text: 'Text',
 };
 
 const PALM_REJECTION = {
@@ -331,10 +313,10 @@ function paintBackground(
 ) {
   const isDark = bg === 'black-grid';
 
-  const darkBg = 'oklch(21% 0.006 285.885)';
-  const lightBg = 'oklch(96.7% 0.001 286.375)';
-  const darkStroke = 'oklch(35% 0.001 286.375)';
-  const lightStroke = 'oklch(37% 0.013 285.805)';
+  const darkBg = 'oklch(27.4% 0.006 286.033)';
+  const lightBg = 'oklch(98.5% 0 0)';
+  const darkStroke = 'oklch(20% 0.1 0)';
+  const lightStroke = 'oklch(87% 0 0)';
 
   if (isDark) {
     ctx.fillStyle = darkBg;
@@ -391,8 +373,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const overlayRef = useRef<HTMLCanvasElement | null>(null);
     const textInputRef = useRef<HTMLInputElement | null>(null);
-    // Dedicated background canvas — sits below the drawing canvas so grid is
-    // always painted directly and isn't blocked by GPU compositing layers.
     const bgRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -421,10 +401,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       null
     );
     const [isHovering, setIsHovering] = useState(false);
-    const [recentColors, setRecentColors] = useState<string[]>([]);
-    const [antiAlias, setAntiAlias] = useState(true);
+    const [recentColors, setRecentColors] = useState<string[]>(['#111827', '#ef4444', '#007AFF']);
+    const [antiAlias, _setAntiAlias] = useState(true);
     const [floodFillTolerance, setFloodFillTolerance] = useState(32);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [toolSettingsMap, setToolSettingsMap] = useState<ToolSettingsMap>(
       () => {
         if (typeof window !== 'undefined' && window.localStorage) {
@@ -450,8 +429,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const currentColor = toolSettingsMap[activeTool].color;
     const currentSize = toolSettingsMap[activeTool].size;
     const currentSmoothing = toolSettingsMap[activeTool].smoothing;
-    const currentPressureCurve = toolSettingsMap[activeTool].pressureCurve;
-    const currentDisablePressure = toolSettingsMap[activeTool].disablePressure;
 
     const undoStack = useRef<string[]>([]);
     const redoStack = useRef<string[]>([]);
@@ -500,7 +477,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     } | null>(null);
     const multiTouchActive = useRef(false);
 
-    // Keep ref so bg-repaint effect always sees latest value
     const bgRef2 = useRef<BgType>(bg);
     useEffect(() => {
       bgRef2.current = bg;
@@ -538,7 +514,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (newColor === '#ffffff') return;
       setRecentColors((prev) => {
         const filtered = prev.filter((c) => c !== newColor);
-        const updated = [newColor, ...filtered].slice(0, 5);
+        const updated = [newColor, ...filtered].slice(0, 3);
         recentColorsRef.current = updated;
         return updated;
       });
@@ -590,20 +566,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       [updateCurrentTool]
     );
 
-    const setPressureCurve = useCallback(
-      (pressureCurve: PressureCurve) => {
-        updateCurrentTool({ pressureCurve });
-      },
-      [updateCurrentTool]
-    );
-
-    const setDisablePressure = useCallback(
-      (disablePressure: boolean) => {
-        updateCurrentTool({ disablePressure });
-      },
-      [updateCurrentTool]
-    );
-
     const setColor = useCallback(
       (color: string) => {
         updateCurrentTool({ color });
@@ -621,11 +583,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const input = textInputRef.current;
         if (!input) return;
         input.focus();
-        input.select();
       });
       return () => cancelAnimationFrame(raf);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [textInput?.id]);
+    }, [textInput, textInput?.id]);
 
     useEffect(() => {
       if (!isAndroid) return;
@@ -642,15 +602,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           unlisten = u;
         })
         .catch(() => {
-          /* ignore if not running inside Tauri */
         });
       return () => {
         if (unlisten) unlisten();
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAndroid, switchTool]);
-
-    // ── Canvas init ──────────────────────────────────────────────────────────
+    }, [isAndroid, switchTool, activeTool]);
 
     const initCanvas = useCallback(() => {
       const canvas = canvasRef.current;
@@ -666,17 +622,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const newW = Math.floor(clientW * ratio);
       const newH = Math.floor(clientH * ratio);
 
-      // Preserve drawing content across resizes
       let snapshot: string | null = null;
       if (canvas.width > 0 && canvas.height > 0) {
         try {
           snapshot = canvas.toDataURL('image/png');
         } catch {
-          /* ignore */
+          throw new Error('Failed to capture canvas snapshot for resizing');
         }
       }
 
-      // Resize drawing + overlay canvases
       for (const c of [canvas, overlay]) {
         c.width = newW;
         c.height = newH;
@@ -684,14 +638,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       }
 
-      // Resize and paint background canvas
       bgCanvas.width = newW;
       bgCanvas.height = newH;
       const bgCtx = bgCanvas.getContext('2d')!;
       bgCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
       paintBackground(bgCtx, clientW, clientH, bgRef2.current);
 
-      // Restore drawing content after resize
       if (snapshot) {
         const ctx = canvas.getContext('2d')!;
         const img = new Image();
@@ -709,10 +661,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       initCanvas();
     }, [embedded, open, initCanvas]);
 
-    // ── Repaint background canvas whenever bg theme changes ──────────────────
-    // This is the core fix: instead of relying on CSS bleeding through a
-    // GPU-composited canvas layer (unreliable), we paint the grid directly
-    // onto a dedicated background canvas element.
     useEffect(() => {
       const bgCanvas = bgRef.current;
       if (!bgCanvas || bgCanvas.width === 0 || bgCanvas.height === 0) return;
@@ -727,8 +675,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       );
     }, [bg]);
 
-    // ── Resize observer ──────────────────────────────────────────────────────
-
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
@@ -737,8 +683,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       ro.observe(container);
       return () => ro.disconnect();
     }, [initCanvas]);
-
-    // ── Keyboard shortcuts ───────────────────────────────────────────────────
 
     useEffect(() => {
       const isEditableTarget = (target: EventTarget | null) => {
@@ -755,13 +699,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           isEditableTarget(e.target) ||
           textInput !== null
         ) {
-          return;
-        }
-
-        // Toggle sidebar with Shift+Tab
-        if (e.shiftKey && e.code === 'Tab') {
-          e.preventDefault();
-          setSidebarCollapsed((prev) => !prev);
           return;
         }
 
@@ -816,9 +753,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         window.removeEventListener('keyup', up);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [textInput]);
-
-    // ── Zoom via scroll and pinch ────────────────────────────────────────────
+    }, [textInput, switchTool]);
 
     useEffect(() => {
       const el = containerRef.current;
@@ -867,17 +802,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               ? currentDist / touchGesture.current.initialDistance
               : 1;
 
-          // Compute new zoom clamped to allowed range
           const newZoom = Math.min(
             10,
             Math.max(0.1, touchGesture.current.initialZoom * scale)
           );
 
-          // To zoom towards the gesture *start* point (rather than the top-left),
-          // compute the content coordinate that was under the initial gesture
-          // center and keep that content point fixed while scaling. Also allow
-          // the user to translate the two-finger center, so include the center
-          // displacement as an additional pan offset.
           const z0 = touchGesture.current.initialZoom;
           const p0 = touchGesture.current.initialPan;
           const c0 = touchGesture.current.initialCenter;
@@ -892,7 +821,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             y: c0.y - contentAtStart.y * newZoom,
           };
 
-          // Apply additional translation from movement of the current center
           const panWithTranslation = {
             x: panAfterScale.x + (center.x - c0.x),
             y: panAfterScale.y + (center.y - c0.y),
@@ -921,20 +849,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     function getCtx() {
       return canvasRef.current?.getContext('2d') ?? null;
     }
     function getOverlayCtx() {
       return overlayRef.current?.getContext('2d') ?? null;
     }
-    function clearOverlay() {
+    const clearOverlay = useCallback(() => {
       const canvas = overlayRef.current;
       const ctx = getOverlayCtx();
       if (!canvas || !ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    }, []);
 
     function processPendingMove() {
       moveRaf.current = null;
@@ -944,7 +870,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const moves = lastMove.current;
       if (moves.length === 0) return;
 
-      // Drain the queue — draw every coalesced point in order
       for (const m of moves) {
         const pt = { x: m.x, y: m.y };
         const pressure = m.pressure;
@@ -959,8 +884,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           clearOverlay();
           applyToolStyle(octx, pressure);
           drawShape(octx, activeTool, shapeStart.current, pt);
-          // For shape preview only the last move matters visually; still iterate
-          // to keep lastPoint up to date.
           continue;
         }
 
@@ -1012,7 +935,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 redoStack.current = [];
                 forceUpdate((n) => n + 1);
               } catch {
-                /* ignore */
+                throw new Error('Failed to capture canvas snapshot for undo');
               }
             },
             'image/png',
@@ -1025,53 +948,64 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         redoStack.current = [];
         forceUpdate((n) => n + 1);
       } catch {
-        /* ignore */
+        throw new Error('Failed to capture canvas snapshot for undo');
       }
     }
 
-    function restoreImage(dataUrl: string) {
-      const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
-      const img = new Image();
-      img.onload = () => {
-        const ratio = window.devicePixelRatio || 1;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      };
-      img.src = dataUrl;
-    }
-
-    function undo() {
+    const undo = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas || !undoStack.current.length) return;
       redoStack.current.push(canvas.toDataURL('image/png'));
       const last = undoStack.current.pop();
-      if (last) restoreImage(last);
+      if (last) {
+        const ctx = getCtx();
+        if (!canvas || !ctx) return;
+        const img = new Image();
+        img.onload = () => {
+          const ratio = window.devicePixelRatio || 1;
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        };
+        img.src = last;
+      }
       forceUpdate((n) => n + 1);
-    }
+    }, []);
 
-    function redo() {
+    const redo = useCallback(() => {
       const canvas = canvasRef.current;
       if (!canvas || !redoStack.current.length) return;
       undoStack.current.push(canvas.toDataURL('image/png'));
       const next = redoStack.current.pop();
-      if (next) restoreImage(next);
+      if (next) {
+        const ctx = getCtx();
+        if (!canvas || !ctx) return;
+        const img = new Image();
+        img.onload = () => {
+          const ratio = window.devicePixelRatio || 1;
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        };
+        img.src = next;
+      }
       forceUpdate((n) => n + 1);
-    }
+    }, []);
 
-    function clearCanvas() {
+    const clearCanvas = useCallback(() => {
       const canvas = canvasRef.current;
       const ctx = getCtx();
       if (!canvas || !ctx) return;
       pushUndo();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       forceUpdate((n) => n + 1);
-    }
+    }, []);
 
     function getCanvasPoint(e: PointerEvent) {
       const canvas = canvasRef.current!;
@@ -1157,8 +1091,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       ctx.moveTo(pt.x, pt.y);
     }
 
-    // ── Pointer handlers ─────────────────────────────────────────────────────
-
     function handlePointerDown(e: PointerEvent) {
       const canvas = canvasRef.current;
       const ctx = getCtx();
@@ -1215,7 +1147,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       try {
         (e.target as Element).setPointerCapture(e.pointerId);
       } catch {
-        /* Android WebView may throw if element state is invalid; safe to ignore */
+        console.error('Failed to capture pointer');
       }
       activePointers.current.set(e.pointerId, {
         type: e.pointerType,
@@ -1325,16 +1257,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       hasMoved.current = true;
 
-      // Use coalesced events on Android to replay all intermediate stylus
-      // positions the browser batched since the last frame. This prevents the
-      // skippy/jagged strokes caused by event coalescing on high-frequency
-      // stylus input.
       const events: PointerEvent[] =
         isAndroid && typeof e.getCoalescedEvents === 'function'
           ? e.getCoalescedEvents()
           : [];
 
-      // Always include the primary event as fallback or last point
       if (events.length === 0) events.push(e);
 
       for (const ce of events) {
@@ -1385,7 +1312,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       try {
         (e.target as Element).releasePointerCapture(e.pointerId);
       } catch {
-        /* ignore */
+        console.error('Failed to release pointer capture');
       }
       activePointers.current.delete(e.pointerId);
 
@@ -1439,8 +1366,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         }
       };
 
-      // pointerover fires more reliably than pointerenter on Android WebView
-      // for stylus hover-before-contact detection
       const handlePointerOver = (e: PointerEvent) => {
         if (e.pointerType === 'pen') {
           isHoveringRef.current = true;
@@ -1453,9 +1378,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         setIsHovering(false);
       };
 
-      // On Android, pointercancel fires when the OS intercepts the stylus (e.g.
-      // palm rejection, app switch). We must clean up all drawing state and the
-      // overlay so the next stroke starts fresh.
       const handlePointerCancel = (e: PointerEvent) => {
         clearOverlay();
         activePointers.current.delete(e.pointerId);
@@ -1500,8 +1422,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
     }, []);
 
-    // ── Rendering hints ──────────────────────────────────────────────────────
-
     useEffect(() => {
       const canvas = canvasRef.current;
       const overlay = overlayRef.current;
@@ -1519,8 +1439,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         }
       }
     }, [isAndroid, antiAlias]);
-
-    // ── Export ───────────────────────────────────────────────────────────────
 
     const saveAsDataUrl = useCallback(async (): Promise<string> => {
       const canvas = canvasRef.current;
@@ -1548,8 +1466,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       });
     }, [bg]);
 
-    // ── Cursor ───────────────────────────────────────────────────────────────
-
     const isGrabMode = spaceDown.current || middleDown.current;
     const cursorStyle = isGrabMode
       ? isPanning
@@ -1563,9 +1479,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             ? 'crosshair'
             : 'none';
 
-    // ── UI ───────────────────────────────────────────────────────────────────
-
-    // Shared transform applied to all three canvas layers
     const canvasTransform: React.CSSProperties = {
       transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
       transformOrigin: '0 0',
@@ -1574,10 +1487,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasArea = (
       <div
         ref={containerRef}
-        className="relative flex-1 min-w-0 min-h-0 overflow-hidden"
-        style={{ minHeight: 360 }}
+        className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-200"
       >
-        {/* Custom brush cursor */}
         {cursorPos &&
           activeTool !== 'fill' &&
           activeTool !== 'text' &&
@@ -1587,23 +1498,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               style={{
                 left: cursorPos.x,
                 top: cursorPos.y,
-                width: currentSize,
-                height: currentSize,
+                width: currentSize * zoom,
+                height: currentSize * zoom,
                 transform: 'translate(-50%, -50%)',
                 border:
                   activeTool === 'eraser'
-                    ? '2px solid black'
-                    : `2px solid ${currentColor}`,
-                background:
-                  activeTool === 'eraser' ? 'transparent' : 'transparent',
-                boxShadow: activeTool === 'eraser' ? 'none' : `0 0 0 1px white`,
+                    ? '1px solid rgba(0,0,0,0.5)'
+                    : `1px solid ${currentColor}`,
+                background: 'transparent',
                 transition: 'width 0.1s, height 0.1s',
                 opacity: isHovering && !spaceDown.current ? 0.7 : 1,
               }}
             />
           )}
 
-        {/* Text input */}
         {textInput && (
           <input
             ref={textInputRef}
@@ -1643,7 +1551,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 }
               }
             }}
-            className="absolute z-50 px-2 py-1 text-sm border border-dashed border-indigo-500 rounded-none bg-white/90"
+            className="absolute z-50 px-2 py-1 text-sm border border-dashed border-[#007AFF] bg-white/90 outline-none"
             style={{
               left: textInput.x * zoom + pan.x,
               top: textInput.y * zoom + pan.y,
@@ -1654,15 +1562,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           />
         )}
 
-        {/* Background grid canvas — painted directly so it's never hidden by
-          GPU compositing layers created by willChange: transform on siblings */}
         <canvas
           ref={bgRef}
           className="absolute inset-0 w-full h-full pointer-events-none"
           style={canvasTransform}
         />
 
-        {/* Drawing canvas */}
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
@@ -1673,7 +1578,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           }}
         />
 
-        {/* Shape preview overlay */}
         <canvas
           ref={overlayRef}
           className="absolute inset-0 w-full h-full pointer-events-none"
@@ -1682,655 +1586,169 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       </div>
     );
 
-    const toolPanel = (
-      <div className="flex flex-col gap-1 w-14 shrink-0 rounded-xl">
-        {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
-          const shortcut =
-            Object.entries(TOOL_KEYS).find(([, v]) => v === tool)?.[0] || '';
-          const isActive = activeTool === tool;
-          return (
-            <button
-              key={tool}
-              onClick={() => switchTool(tool)}
-              title={`${TOOL_LABELS[tool]}${shortcut ? ` (${shortcut.toUpperCase()})` : ''}`}
-              className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center transition-all ${
-                isActive
-                  ? 'bg-indigo-500/90 text-white shadow-lg shadow-indigo-500/30'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
-              }`}
-            >
-              {TOOL_ICONS[tool]}
-              <span className="text-[9px] uppercase leading-none mt-0.5 opacity-60">
-                {shortcut}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    );
+    const activeColorPalette = Array.from(new Set([currentColor, ...recentColors])).slice(0, 3);
+    while (activeColorPalette.length < 3) {
+      const fallback = PALETTE.find(c => !activeColorPalette.includes(c));
+      if (fallback) activeColorPalette.push(fallback);
+    }
 
-    const propertiesPanel = sidebarCollapsed ? (
-      <div className="w-24 shrink-0 px-2 flex flex-col gap-2 min-h-[90vh] rounded-xl mx-2 border border-gray-700/30">
-        {/* Expand Button */}
-        <button
-          onClick={() => setSidebarCollapsed(false)}
-          className="w-full py-2 text-xs rounded-lg border border-indigo-500/40 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400 transition-all inline-flex items-center justify-center gap-1 font-medium"
-          title="Expand Sidebar (Shift+Tab)"
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="hidden xs:inline">Show</span>
-        </button>
-
-        {/* Color Swatch */}
-        <div
-          className="w-full h-12 rounded-lg border-2 border-gray-600/50 cursor-pointer hover:border-indigo-400 transition-all hover:shadow-lg hover:shadow-indigo-500/20 group relative"
-          style={{
-            background: currentColor === '#ffffff' ? '#f0f0f0' : currentColor,
-          }}
-          title={`Color: ${currentColor}`}
-          onClick={() => {
-            const input = document.querySelector(
-              'input[type="color"]'
-            ) as HTMLInputElement;
-            input?.click();
-          }}
-        >
-          <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center bg-black/30">
-            <span className="text-white text-[9px] font-mono font-bold">
-              Click
-            </span>
-          </div>
-        </div>
-
-        {/* Tool Size Indicator */}
-        {['pen', 'eraser'].includes(activeTool) && (
-          <div className="space-y-1.5">
-            <div className="text-[10px] text-center text-gray-400 uppercase font-semibold tracking-tight">
-              Size
-            </div>
-            <div className="flex items-center justify-center">
-              <div
-                className="rounded-full border border-gray-500 bg-gray-700/40"
-                style={{
-                  width: `${Math.min(currentSize, 48)}px`,
-                  height: `${Math.min(currentSize, 48)}px`,
-                  opacity: 0.6,
-                }}
-              />
-            </div>
-            <div className="text-[11px] text-center text-gray-500">
-              {currentSize}px
-            </div>
-          </div>
-        )}
-
-        {/* Zoom Display */}
-        <div className="space-y-1 pt-1">
-          <div className="text-[10px] text-center text-gray-400 uppercase font-semibold tracking-tight">
-            Zoom
-          </div>
-          <div className="text-[13px] text-center text-indigo-400 font-bold monoospace">
-            {Math.round(zoom * 100)}%
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))}
-              className="flex-1 py-1 text-[9px] rounded border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 transition-colors inline-flex items-center justify-center"
-              title="Zoom Out"
-            >
-              −
-            </button>
-            <button
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-              }}
-              className="flex-1 py-1 text-[9px] rounded border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 transition-colors font-medium"
-              title="Reset"
-            >
-              1:1
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.min(10, z + 0.25))}
-              className="flex-1 py-1 text-[9px] rounded border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 transition-colors inline-flex items-center justify-center"
-              title="Zoom In"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        {/* Fill Tolerance */}
-        {activeTool === 'fill' && (
-          <div className="space-y-1">
-            <div className="text-[10px] text-center text-gray-400 uppercase font-semibold tracking-tight">
-              Tolerance
-            </div>
-            <div className="text-[12px] text-center text-gray-400 font-mono">
-              {floodFillTolerance}
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={128}
-              value={floodFillTolerance}
-              onChange={(e) => setFloodFillTolerance(Number(e.target.value))}
-              className="w-full h-1 rounded accent-indigo-500"
-            />
-          </div>
-        )}
-
-        {/* Recent Colors */}
-        {recentColors.length > 0 && (
-          <div className="space-y-1.5 pt-1">
-            <div className="text-[10px] text-center text-gray-400 uppercase font-semibold tracking-tight">
-              Recent
-            </div>
-            <div className="grid grid-cols-3 gap-1">
-              {recentColors.slice(0, 6).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className="w-6 h-6 rounded border-2 transition-all hover:scale-110 hover:shadow-lg"
-                  style={{
-                    background: c === '#ffffff' ? '#f0f0f0' : c,
-                    borderColor:
-                      currentColor === c ? '#fff' : 'rgba(107, 114, 128, 0.3)',
-                  }}
-                  title={c}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="space-y-1 border-t border-gray-700/50">
-          <button
-            onClick={undo}
-            disabled={undoStack.current.length === 0}
-            className="w-full py-1.5 text-[11px] rounded border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center"
-            title={`Undo (${undoStack.current.length})`}
-          >
-            <Undo2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={redo}
-            disabled={redoStack.current.length === 0}
-            className="w-full py-1.5 text-[11px] rounded border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center"
-            title={`Redo (${redoStack.current.length})`}
-          >
-            <Redo2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={clearCanvas}
-            className="w-full py-1.5 text-[11px] rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/20 hover:text-red-400 transition-colors inline-flex items-center justify-center"
-            title="Clear Canvas"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    ) : (
-      <div className="w-72 shrink-0 px-4 overflow-y-auto min-h-[90vh] rounded-xl">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xs uppercase tracking-widest text-gray-400 font-bold">
-            Settings
-          </h2>
-          <button
-            onClick={() => setSidebarCollapsed(true)}
-            className="text-xs text-gray-500 hover:text-gray-300 p-1 rounded hover:bg-gray-700/40 inline-flex items-center justify-center gap-1 transition-colors"
-            title="Collapse Sidebar (Shift+Tab)"
-          >
-            <span className="text-[10px]">Shift+Tab</span>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Quick Status Panel */}
-        <div className="mb-6 p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="text-indigo-400">{TOOL_ICONS[activeTool]}</div>
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-gray-300">
-                {TOOL_LABELS[activeTool]}
-              </div>
-              <div className="text-[10px] text-gray-500">
-                Shortcut:{' '}
-                <span className="font-mono font-bold text-gray-400">
-                  {TOOL_SHORTCUTS[activeTool]}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
-            <div>
-              <div className="text-gray-500">Zoom</div>
-              <div className="text-indigo-300 font-bold">
-                {Math.round(zoom * 100)}%
-              </div>
-            </div>
-            {['pen', 'eraser'].includes(activeTool) && (
-              <div>
-                <div className="text-gray-500">Size</div>
-                <div className="text-indigo-300 font-bold">{currentSize}px</div>
-              </div>
-            )}
-            {activeTool === 'fill' && (
-              <div>
-                <div className="text-gray-500">Tolerance</div>
-                <div className="text-indigo-300 font-bold">
-                  {floodFillTolerance}
-                </div>
-              </div>
-            )}
-            <div>
-              <div className="text-gray-500">History</div>
-              <div className="text-indigo-300 font-bold">
-                {undoStack.current.length}/
-                {undoStack.current.length + redoStack.current.length}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Color */}
-        <div className="mb-6">
-          <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">
-            Color
-          </h3>
-          <div className="grid grid-cols-6 gap-2 mb-3">
-            {PALETTE.map((c) => (
+    const topNavigationBar = (
+      <div className="flex flex-col w-full border-b border-gray-200 bg-[#F7F7F9] shrink-0 z-10 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200/60 bg-white">
+          <div className="flex items-center gap-4">
+            {!embedded && (
               <button
-                key={c}
-                onClick={() => {
-                  setColor(c);
-                  addRecentColor(c);
-                }}
-                className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-105 ${
-                  currentColor === c
-                    ? 'border-white shadow-lg scale-105'
-                    : 'border-transparent'
-                }`}
-                style={{ background: c === '#ffffff' ? '#f0f0f0' : c }}
-              />
-            ))}
-          </div>
-          {recentColors.length > 0 && (
-            <div className="flex gap-2 mb-3">
-              {recentColors.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-lg border transition-all hover:scale-105 ${
-                    currentColor === c
-                      ? 'border-white shadow scale-105'
-                      : 'border-gray-600/50'
-                  }`}
-                  style={{ background: c }}
-                />
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={currentColor}
-              onChange={(e) => {
-                setColor(e.target.value);
-                addRecentColor(e.target.value);
-              }}
-              className="w-10 h-10 cursor-pointer rounded-lg border border-gray-600/50 bg-transparent"
-              disabled={activeTool === 'eraser'}
-            />
-            <input
-              type="text"
-              value={currentColor}
-              onChange={(e) => setColor(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm border border-gray-600/50 rounded-lg text-gray-300 font-mono bg-gray-800/30"
-              disabled={activeTool === 'eraser'}
-            />
-          </div>
-        </div>
-
-        {/* Brush Settings */}
-        <div className="mb-6">
-          <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">
-            {TOOL_LABELS[activeTool]}
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs text-gray-400 mb-2">Size</label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={currentSize}
-                  onChange={(e) => setSize(Number(e.target.value))}
-                  className="w-20 px-3 py-2 text-sm rounded-lg border border-gray-600/50 bg-gray-800/30 text-gray-300"
-                />
-                <Input
-                  type="range"
-                  min={1}
-                  max={200}
-                  value={currentSize}
-                  onChange={(e) => setSize(Number(e.target.value))}
-                  className="flex-1 accent-indigo-500"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-2">
-                Smoothing
-              </label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={currentSmoothing}
-                  onChange={(e) => setSmoothing(Number(e.target.value))}
-                  className="w-20 px-3 py-2 text-sm rounded-lg border border-gray-600/50 bg-gray-800/30 text-gray-300"
-                />
-                <Input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={currentSmoothing}
-                  onChange={(e) => setSmoothing(Number(e.target.value))}
-                  className="flex-1 accent-indigo-500"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-2">
-                Pressure Curve
-              </label>
-              <Select
-                onValueChange={(value) =>
-                  setPressureCurve(value as PressureCurve)
-                }
-                value={currentPressureCurve}
-                disabled={['fill', 'line', 'rect', 'ellipse'].includes(
-                  activeTool
-                )}
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-800 transition-colors font-medium text-sm flex items-center gap-1"
               >
-                <SelectTrigger className="w-full rounded-lg border border-gray-600/50 bg-gray-800/30 text-gray-300">
-                  <SelectValue placeholder="Pressure Curve" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectGroup>
-                    <SelectItem value="linear" className="text-gray-300">
-                      Linear
-                    </SelectItem>
-                    <SelectItem value="smooth" className="text-gray-300">
-                      Smooth
-                    </SelectItem>
-                    <SelectItem value="exponential" className="text-gray-300">
-                      Exponential
-                    </SelectItem>
-                    <SelectItem value="heavy-ink" className="text-gray-300">
-                      Heavy Ink
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              {activeTool === 'fill' && (
-                <div className="mt-3">
-                  <label className="block text-xs text-gray-400 mb-2">
-                    Fill Tolerance
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={128}
-                      value={floodFillTolerance}
-                      onChange={(e) =>
-                        setFloodFillTolerance(Number(e.target.value))
-                      }
-                      className="w-20 px-3 py-2 text-sm rounded-lg border border-gray-600/50 bg-gray-800/30 text-gray-300"
-                    />
-                    <Input
-                      type="range"
-                      min={0}
-                      max={128}
-                      value={floodFillTolerance}
-                      onChange={(e) =>
-                        setFloodFillTolerance(Number(e.target.value))
-                      }
-                      className="flex-1 accent-indigo-500"
-                    />
-                  </div>
-                </div>
-              )}
-              <label className="flex items-center gap-2 text-xs text-gray-400 mt-3 select-none cursor-pointer">
-                <Checkbox
-                  checked={currentDisablePressure}
-                  onCheckedChange={(e) => {
-                    setDisablePressure(e as boolean);
-                  }}
-                  disabled={[
-                    'fill',
-                    'line',
-                    'rect',
-                    'ellipse',
-                    'text',
-                  ].includes(activeTool)}
-                  className="border-gray-600"
-                />
-                Disable Pressure
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Canvas Settings */}
-        <div className="mb-6">
-          <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">
-            Canvas
-          </h3>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {(
-              ['white-grid', 'black-grid', 'lined', 'dot-grid'] as BgType[]
-            ).map((b) => (
-              <button
-                key={b}
-                onClick={() => setBg(b)}
-                className={`py-2.5 text-xs rounded-lg border transition-all ${
-                  bg === b
-                    ? 'border-indigo-400/70 text-indigo-300 bg-indigo-500/20'
-                    : 'border-gray-600/50 text-gray-400 hover:border-gray-500 hover:text-gray-300'
-                }`}
-              >
-                {b === 'white-grid'
-                  ? 'Grid'
-                  : b === 'black-grid'
-                    ? 'Dark'
-                    : b === 'lined'
-                      ? 'Lined'
-                      : 'Dots'}
+                <ChevronLeft size={16} /> Close
               </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setZoom((z) => Math.min(10, z + 0.25))}
-              className="flex-1 py-2.5 text-sm rounded-lg border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300 inline-flex items-center justify-center"
-              title="Zoom In (Ctrl++)"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-              }}
-              onDoubleClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-              }}
-              className="flex-1 py-2.5 text-sm rounded-lg border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300"
-              title="Reset Zoom (Ctrl+0)"
-            >
-              1:1
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))}
-              className="flex-1 py-2.5 text-sm rounded-lg border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300 inline-flex items-center justify-center"
-              title="Zoom Out (Ctrl+-)"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setPan({ x: pan.x + 50, y: pan.y })}
-              className="flex-1 py-2 text-xs rounded-lg border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 inline-flex items-center justify-center"
-              title="Pan Left"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setPan({ x: pan.x, y: pan.y + 50 })}
-              className="flex-1 py-2 text-xs rounded-lg border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 inline-flex items-center justify-center"
-              title="Pan Up"
-            >
-              <ArrowUp className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setPan({ x: pan.x, y: pan.y - 50 })}
-              className="flex-1 py-2 text-xs rounded-lg border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 inline-flex items-center justify-center"
-              title="Pan Down"
-            >
-              <ArrowDown className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setPan({ x: pan.x - 50, y: pan.y })}
-              className="flex-1 py-2 text-xs rounded-lg border border-gray-600/50 text-gray-500 hover:bg-gray-700/40 inline-flex items-center justify-center"
-              title="Pan Right"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex flex-row gap-2 items-center">
-            <label className="flex items-center gap-2 text-xs text-gray-400 select-none cursor-pointer">
-              <Checkbox
-                checked={penOnlyMode}
-                onCheckedChange={(e) => {
-                  setPenOnlyMode(e as boolean);
-                }}
-                className="border-gray-600"
-              />
-              Pen Only Mode
-            </label>
-
-            <label className="flex items-center gap-2 text-xs text-gray-400 select-none cursor-pointer">
-              <Checkbox
-                checked={antiAlias}
-                onCheckedChange={(e) => {
-                  setAntiAlias(e as boolean);
-                }}
-                className="border-gray-600"
-              />
-              Anti-Alias
-            </label>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div>
-          <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">
-            Actions
-          </h3>
-          <div className="space-y-2">
-            <div className="flex gap-2">
+            )}
+            <div className="flex items-center gap-2 border-l border-gray-200 pl-4">
               <button
                 onClick={undo}
                 disabled={undoStack.current.length === 0}
-                title="Undo (Ctrl+Z)"
-                className="flex-1 py-2.5 text-sm rounded-lg border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 inline-flex items-center justify-center gap-2"
+                className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-md disabled:opacity-30 transition-colors"
+                title="Undo"
               >
-                <Undo2 className="w-4 h-4" /> Undo
+                <Undo2 size={18} />
               </button>
               <button
                 onClick={redo}
                 disabled={redoStack.current.length === 0}
-                title="Redo (Ctrl+Y)"
-                className="flex-1 py-2.5 text-sm rounded-lg border border-gray-600/50 text-gray-400 hover:bg-gray-700/40 hover:text-gray-300 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 inline-flex items-center justify-center gap-2"
+                className="p-1.5 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-md disabled:opacity-30 transition-colors"
+                title="Redo"
               >
-                Redo <Redo2 className="w-4 h-4" />
+                <Redo2 size={18} />
               </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-light text-gray-800 tracking-tight">Sketchpad</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1 text-gray-500 hover:bg-white rounded shadow-sm transition-all"><ZoomOut size={14} /></button>
+              <span className="text-xs font-medium text-gray-600 px-2 w-12 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom((z) => Math.min(10, z + 0.25))} className="p-1 text-gray-500 hover:bg-white rounded shadow-sm transition-all"><ZoomIn size={14} /></button>
             </div>
             <button
               onClick={clearCanvas}
-              className="w-full py-2.5 text-sm rounded-lg border border-red-500/30 text-red-400/70 hover:bg-red-500/20 hover:text-red-400"
+              className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+              title="Clear Canvas"
             >
-              Clear Canvas
+              <Trash2 size={18} />
             </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-2 bg-[#F7F7F9] relative">
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+            {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
+              const isActive = activeTool === tool;
+              return (
+                <button
+                  key={tool}
+                  onClick={() => switchTool(tool)}
+                  title={TOOL_LABELS[tool]}
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${isActive
+                    ? 'bg-[#007AFF]/10 text-[#007AFF]'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                    }`}
+                >
+                  {TOOL_ICONS[tool]}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="absolute right-4 flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              {activeColorPalette.map((c, i) => (
+                <button
+                  key={`${c}-${i}`}
+                  onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${currentColor === c && activeTool !== 'eraser'
+                    ? 'border-[#007AFF] scale-110 shadow-sm'
+                    : 'border-transparent hover:scale-105'
+                    }`}
+                  style={{ background: c === '#ffffff' ? '#f0f0f0' : c }}
+                />
+              ))}
+              <div className="w-px h-6 bg-gray-300 mx-1" />
+              <input
+                type="color"
+                value={currentColor}
+                onChange={(e) => {
+                  setColor(e.target.value);
+                  addRecentColor(e.target.value);
+                }}
+                className="w-7 h-7 p-0 border-0 rounded-full cursor-pointer overflow-hidden bg-transparent"
+                disabled={activeTool === 'eraser'}
+              />
+            </div>
+
+            <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-full px-3 py-1.5 shadow-sm">
+              {(activeTool === 'eraser' ? PRESET_ERASER_SIZES : PRESET_PEN_SIZES).map((s, i) => (
+                <button
+                  key={s}
+                  onClick={() => setSize(s)}
+                  className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <div
+                    className={`rounded-full transition-all ${currentSize === s ? 'bg-[#007AFF]' : 'bg-gray-400'
+                      }`}
+                    style={{
+                      width: `${Math.max(2, PRESET_PEN_SIZES[i] * 1.5)}px`,
+                      height: `${Math.max(2, PRESET_PEN_SIZES[i] * 1.5)}px`
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
     );
 
-    const statusBar = (
-      <div className="h-10 border-t border-gray-700/50 flex items-center justify-between px-5 text-xs text-gray-400 bg-gray-800/30">
-        <div className="flex items-center gap-5">
-          <span className="text-gray-500">Tool:</span>
-          <span className="text-gray-300 font-medium">
-            {TOOL_LABELS[activeTool]}
-          </span>
-          <span className="px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400 text-[10px]">
-            {TOOL_SHORTCUTS[activeTool]}
-          </span>
-          {isHovering && <span className="text-indigo-400">Stylus Hover</span>}
-          {cursorPos && containerRef.current && (
-            <span className="text-gray-500 font-mono">
-              {Math.round(
-                (cursorPos.x -
-                  containerRef.current.getBoundingClientRect().left) /
-                  zoom
-              )}
-              ,{' '}
-              {Math.round(
-                (cursorPos.y -
-                  containerRef.current.getBoundingClientRect().top) /
-                  zoom
-              )}
-            </span>
-          )}
+    const settingsFooter = (
+      <div className="h-10 border-t border-gray-200 flex items-center justify-between px-4 text-xs text-gray-500 bg-white shrink-0">
+        <div className="flex items-center gap-4">
+          <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
+            <SelectTrigger className="h-7 w-32 text-xs border-gray-200 bg-gray-50">
+              <SelectValue placeholder="Background" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="white-grid">Grid Paper</SelectItem>
+                <SelectItem value="lined">Lined Paper</SelectItem>
+                <SelectItem value="dot-grid">Dotted Paper</SelectItem>
+                <SelectItem value="black-grid">Dark Canvas</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          <label className="flex items-center gap-2 cursor-pointer hover:text-gray-700">
+            <Checkbox
+              checked={penOnlyMode}
+              onCheckedChange={(e) => setPenOnlyMode(e as boolean)}
+              className="border-gray-300 w-4 h-4 rounded-sm data-[state=checked]:bg-[#007AFF] data-[state=checked]:border-[#007AFF]"
+            />
+            Stylus Only
+          </label>
         </div>
-        <div className="flex items-center gap-5">
-          <span className="text-gray-500 flex items-center gap-1">
-            {undoStack.current.length > 0 && (
-              <>
-                <Undo2 className="w-3 h-3" />
-                {undoStack.current.length}
-              </>
-            )}
-            {undoStack.current.length > 0 &&
-              redoStack.current.length > 0 &&
-              ' '}
-            {redoStack.current.length > 0 && (
-              <>
-                <Redo2 className="w-3 h-3" />
-                {redoStack.current.length}
-              </>
-            )}
-          </span>
-          <span>
-            Zoom:{' '}
-            <span className="text-gray-300">{Math.round(zoom * 100)}%</span>
-          </span>
-          <span>
-            Size: <span className="text-gray-300">{currentSize}px</span>
-          </span>
-          <span>
-            Curve: <span className="text-gray-300">{currentPressureCurve}</span>
-          </span>
+
+        <div className="flex items-center gap-4">
+          {activeTool === 'fill' && (
+            <div className="flex items-center gap-2">
+              <span>Tolerance:</span>
+              <input type="range" min={0} max={128} value={floodFillTolerance} onChange={(e) => setFloodFillTolerance(Number(e.target.value))} className="w-20 accent-[#007AFF]" />
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <span>Smoothing:</span>
+            <input type="range" min={0} max={1} step={0.05} value={currentSmoothing} onChange={(e) => setSmoothing(Number(e.target.value))} className="w-20 accent-[#007AFF]" />
+          </div>
         </div>
       </div>
     );
@@ -2350,30 +1768,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     if (!embedded && !open) return null;
 
-    const inner = (
-      <div
-        className="flex gap-0 h-full min-h-0"
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
-      >
-        {toolPanel}
-        {canvasArea}
-        {propertiesPanel}
-      </div>
-    );
-
     if (embedded) {
       return (
-        <div className="flex flex-col flex-1 min-h-0">
-          {inner}
-          {statusBar}
+        <div className="flex flex-col flex-1 min-h-[70vh] bg-white border border-gray-200 rounded-xl overflow-hidden font-sans shadow-sm">
+          {topNavigationBar}
+          {canvasArea}
+          {settingsFooter}
         </div>
       );
     }
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center rounded-md border border-gray-700/60">
+      <div className="fixed inset-0 z-50 flex items-center justify-center font-sans">
         <div
-          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
           onClick={
             void (async () => {
               if (!hasExplicitlySaved.current) {
@@ -2389,37 +1797,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           }
         />
         <div
-          className="relative w-full max-w-6xl mx-4 rounded-2xl border border-gray-700/60 p-6 shadow-2xl flex flex-col bg-gray-900/95"
-          style={{ maxHeight: '95vh' }}
+          className="relative w-full max-w-[90vw] h-[85vh] rounded-2xl shadow-2xl flex flex-col bg-white overflow-hidden border border-gray-200"
         >
-          <div className="flex items-center justify-between mb-5 shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="flex gap-2">
-                <div
-                  className="w-3.5 h-3.5 rounded-full bg-red-500/80 cursor-pointer hover:bg-red-500"
-                  onClick={
-                    void (async () => {
-                      if (!hasExplicitlySaved.current) {
-                        try {
-                          const dataUrl = await saveAsDataUrl();
-                          onSave(dataUrl);
-                        } catch (err) {
-                          console.error('Save failed', err);
-                        }
-                      }
-                      onClose?.();
-                    })
-                  }
-                />
-                <div className="w-3.5 h-3.5 rounded-full bg-yellow-500/80" />
-                <div className="w-3.5 h-3.5 rounded-full bg-green-500/80" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-200">Sketchpad</h3>
-            </div>
-          </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            {inner}
-            {statusBar}
+            {topNavigationBar}
+            {canvasArea}
+            {settingsFooter}
           </div>
         </div>
       </div>
