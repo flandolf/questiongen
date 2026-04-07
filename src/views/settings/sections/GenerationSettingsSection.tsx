@@ -50,6 +50,8 @@ export function GenerationSettingsSection() {
   const setMinSubtopicCoverageRatio = useAppStore(
     (s) => s.setMinSubtopicCoverageRatio
   );
+  const generationStrategy = useAppStore((s) => s.generationStrategy);
+  const setGenerationStrategy = useAppStore((s) => s.setGenerationStrategy);
 
   return (
     <div className="space-y-6">
@@ -178,6 +180,32 @@ export function GenerationSettingsSection() {
         />
 
         <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium">Generation Strategy</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(['multi-pass', 'single-pass'] as const).map((strategy) => (
+                <button
+                  key={strategy}
+                  type="button"
+                  onClick={() => setGenerationStrategy(strategy)}
+                  className={cn(
+                    'text-xs font-semibold rounded-md py-2 px-3 transition-colors text-left',
+                    generationStrategy === strategy
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-background'
+                  )}
+                >
+                  {strategy === 'multi-pass' ? 'Multi-pass' : 'Single-pass'}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {generationStrategy === 'multi-pass'
+                ? 'Generate per subtopic, then combine.'
+                : 'Single LLM prompt, let LLM decide subtopics.'}
+            </p>
+          </div>
+
           <div>
             <p className="text-sm font-medium">Diversity Strictness</p>
             <div className="mt-2 grid grid-cols-3 gap-2">

@@ -157,6 +157,9 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
 
 const STORAGE_KEY = 'sketchpad-tool-settings';
 const PEN_ONLY_STORAGE_KEY = 'sketchpad-pen-only-mode';
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 10;
+const KEYBOARD_ZOOM_STEP = 0.25;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -535,10 +538,91 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       initialCenter: { x: number; y: number };
       initialZoom: number;
       initialPan: { x: number; y: number };
+      lastDistance: number;
+      lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
 
     const bgRef2 = useRef<BgType>(bg);
+
+    const clampZoom = useCallback(
+      (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)),
+      []
+    );
+
+    const zoomAroundClientPoint = useCallback(
+      (clientX: number, clientY: number, nextZoom: number) => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const rect = container.getBoundingClientRect();
+        const localX = clientX - rect.left;
+        const localY = clientY - rect.top;
+
+        const currentZoom = zoomRef.current;
+        const currentPan = panRef.current;
+        const safeCurrentZoom = Math.max(currentZoom, 0.0001);
+        const targetZoom = clampZoom(nextZoom);
+
+        if (Math.abs(targetZoom - currentZoom) < 0.0001) return;
+
+        const contentX = (localX - currentPan.x) / safeCurrentZoom;
+        const contentY = (localY - currentPan.y) / safeCurrentZoom;
+
+        setZoom(targetZoom);
+        setPan({
+          x: localX - contentX * targetZoom,
+          y: localY - contentY * targetZoom,
+        });
+      },
+      [clampZoom]
+    );
+
+    const zoomAroundCenter = useCallback(
+      (nextZoom: number) => {
+        const container = containerRef.current;
+        if (!container) {
+          setZoom(clampZoom(nextZoom));
+          return;
+        }
+        const rect = container.getBoundingClientRect();
+        zoomAroundClientPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+          nextZoom
+        );
+      },
+      [clampZoom, zoomAroundClientPoint]
+    );
+
+    const zoomByKeyboardStep = useCallback(
+      (direction: 1 | -1) => {
+        zoomAroundCenter(zoomRef.current + direction * KEYBOARD_ZOOM_STEP);
+      },
+      [zoomAroundCenter]
+    );
+
+    const resetViewport = useCallback(() => {
+      const container = containerRef.current;
+      const nextZoom = 1;
+      if (!container) {
+        setZoom(nextZoom);
+        setPan({ x: 0, y: 0 });
+        return;
+      }
+
+      setZoom(nextZoom);
+      setPan({
+        x: (container.clientWidth - INTERNAL_RES_WIDTH * nextZoom) / 2,
+        y: (container.clientHeight - INTERNAL_RES_HEIGHT * nextZoom) / 2,
+      });
+    }, []);
+
     useEffect(() => {
       bgRef2.current = bg;
     }, [bg]);
@@ -662,7 +746,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -779,35 +863,34 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         }
         if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
           if (e.shiftKey) {
-            redo();
+            redoActionRef.current();
           } else {
-            undo();
+            undoActionRef.current();
           }
           return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-          redo();
+          redoActionRef.current();
           return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {
           e.preventDefault();
-          clearCanvas();
+          clearActionRef.current();
           return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === '=') {
           e.preventDefault();
-          setZoom((z) => Math.min(10, z + 0.25));
+          keyboardZoomStepRef.current(1);
           return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === '-') {
           e.preventDefault();
-          setZoom((z) => Math.max(0.1, z - 0.25));
+          keyboardZoomStepRef.current(-1);
           return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key === '0') {
           e.preventDefault();
-          setZoom(1);
-          setPan({ x: 0, y: 0 });
+          resetViewportRef.current();
           return;
         }
         const tool = TOOL_KEYS[e.key.toLowerCase()];
@@ -822,28 +905,41 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         window.removeEventListener('keydown', down);
         window.removeEventListener('keyup', up);
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [textInput, switchTool]);
 
     useEffect(() => {
       const el = containerRef.current;
       if (!el) return;
       const onWheel = (e: WheelEvent) => {
-        if (!e.ctrlKey && !e.metaKey) return;
         e.preventDefault();
-        setZoom((z) => Math.min(10, Math.max(0.1, z - e.deltaY * 0.002)));
+        if (!e.ctrlKey && !e.metaKey) {
+          setPan((prev) => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+          return;
+        }
+
+        const zoomFactor = Math.exp(-e.deltaY * 0.01);
+        zoomAroundClientPoint(
+          e.clientX,
+          e.clientY,
+          zoomRef.current * zoomFactor
+        );
       };
+
       const onTouchStart = (e: TouchEvent) => {
         if (e.touches.length === 2) {
           e.preventDefault();
           const t1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
           const t2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
+
           touchGesture.current = {
             active: true,
             initialDistance: Math.hypot(t2.x - t1.x, t2.y - t1.y),
             initialCenter: { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 },
             initialZoom: zoomRef.current,
             initialPan: panRef.current,
+            lastDistance: Math.hypot(t2.x - t1.x, t2.y - t1.y),
+            lastCenter: { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 },
           };
 
           setIsDrawing(false);
@@ -852,13 +948,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           hasMoved.current = false;
           shapeStart.current = null;
           shapeSnapshot.current = null;
-          clearOverlay();
+
+          const overlay = overlayRef.current;
+          const overlayCtx = overlay?.getContext('2d');
+          if (overlay && overlayCtx) {
+            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+          }
           multiTouchActive.current = true;
         } else if (e.touches.length < 2) {
           touchGesture.current = null;
           multiTouchActive.current = false;
         }
       };
+
       const onTouchMove = (e: TouchEvent) => {
         multiTouchActive.current = e.touches.length >= 2;
         if (e.touches.length === 2 && touchGesture.current) {
@@ -867,48 +969,55 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           const t2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
           const currentDist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
           const center = { x: (t1.x + t2.x) / 2, y: (t1.y + t2.y) / 2 };
-          const scale =
-            touchGesture.current.initialDistance > 0
-              ? currentDist / touchGesture.current.initialDistance
-              : 1;
 
-          const newZoom = Math.min(
-            10,
-            Math.max(0.1, touchGesture.current.initialZoom * scale)
-          );
+          const { lastDistance, lastCenter } = touchGesture.current;
+          const currentPan = panRef.current;
+          const currentZoom = zoomRef.current;
 
-          const z0 = touchGesture.current.initialZoom;
-          const p0 = touchGesture.current.initialPan;
-          const c0 = touchGesture.current.initialCenter;
+          const scaleDelta = lastDistance > 0 ? currentDist / lastDistance : 1;
+          let newZoom = currentZoom * scaleDelta;
+          newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZoom));
 
-          const contentAtStart = {
-            x: (c0.x - p0.x) / z0,
-            y: (c0.y - p0.y) / z0,
-          };
+          const actualScaleDelta = currentZoom > 0 ? newZoom / currentZoom : 1;
 
-          const panAfterScale = {
-            x: c0.x - contentAtStart.x * newZoom,
-            y: c0.y - contentAtStart.y * newZoom,
-          };
+          const dx = center.x - lastCenter.x;
+          const dy = center.y - lastCenter.y;
 
-          const panWithTranslation = {
-            x: panAfterScale.x + (center.x - c0.x),
-            y: panAfterScale.y + (center.y - c0.y),
-          };
+          let nextPanX = currentPan.x + dx;
+          let nextPanY = currentPan.y + dy;
+
+          const container = containerRef.current;
+          if (container && actualScaleDelta !== 1) {
+            const rect = container.getBoundingClientRect();
+            const localX = center.x - rect.left;
+            const localY = center.y - rect.top;
+
+            const contentX = (localX - nextPanX) / currentZoom;
+            const contentY = (localY - nextPanY) / currentZoom;
+
+            nextPanX = localX - contentX * newZoom;
+            nextPanY = localY - contentY * newZoom;
+          }
 
           setZoom(newZoom);
-          setPan(panWithTranslation);
+          setPan({ x: nextPanX, y: nextPanY });
+
+          touchGesture.current.lastDistance = currentDist;
+          touchGesture.current.lastCenter = center;
         }
       };
+
       const endGesture = () => {
         touchGesture.current = null;
         multiTouchActive.current = false;
       };
+
       el.addEventListener('wheel', onWheel, { passive: false });
       el.addEventListener('touchstart', onTouchStart, { passive: false });
       el.addEventListener('touchmove', onTouchMove, { passive: false });
       el.addEventListener('touchend', endGesture);
       el.addEventListener('touchcancel', endGesture);
+
       return () => {
         el.removeEventListener('wheel', onWheel);
         el.removeEventListener('touchstart', onTouchStart);
@@ -916,8 +1025,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         el.removeEventListener('touchend', endGesture);
         el.removeEventListener('touchcancel', endGesture);
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+
+    }, [zoomAroundClientPoint]);
 
     function getCtx() {
       return canvasRef.current?.getContext('2d') ?? null;
@@ -1002,31 +1111,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (!canvas) return;
       hasExplicitlySaved.current = false;
       try {
-        if (canvas.toBlob) {
-          canvas.toBlob(
-            (blob) => {
-              try {
-                if (!blob) return;
-                const url = URL.createObjectURL(blob);
-                undoStack.current.push(url);
-                if (undoStack.current.length > 40) {
-                  const removed = undoStack.current.shift();
-                  if (removed && removed.startsWith('blob:'))
-                    URL.revokeObjectURL(removed);
-                }
-                redoStack.current = [];
-                forceUpdate((n) => n + 1);
-              } catch {
-                throw new Error('Failed to capture canvas snapshot for undo');
-              }
-            },
-            'image/png',
-            0.9
-          );
-        } else {
-          undoStack.current.push(canvas.toDataURL('image/png'));
+        undoStack.current.push(canvas.toDataURL('image/png'));
+        if (undoStack.current.length > 40) {
+          undoStack.current.shift();
         }
-        if (undoStack.current.length > 40) undoStack.current.shift();
         redoStack.current = [];
         forceUpdate((n) => n + 1);
       } catch {
@@ -1044,13 +1132,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (!canvas || !ctx) return;
         const img = new Image();
         img.onload = () => {
-          const ratio = window.devicePixelRatio || 1;
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
         };
         img.src = last;
       }
@@ -1067,13 +1153,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (!canvas || !ctx) return;
         const img = new Image();
         img.onload = () => {
-          const ratio = window.devicePixelRatio || 1;
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
         };
         img.src = next;
       }
@@ -1089,12 +1173,22 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       forceUpdate((n) => n + 1);
     }, []);
 
+    useEffect(() => {
+      undoActionRef.current = undo;
+      redoActionRef.current = redo;
+      clearActionRef.current = clearCanvas;
+      keyboardZoomStepRef.current = zoomByKeyboardStep;
+      resetViewportRef.current = resetViewport;
+    }, [undo, redo, clearCanvas, zoomByKeyboardStep, resetViewport]);
+
     function getCanvasPoint(e: PointerEvent) {
       const canvas = canvasRef.current!;
       const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       return {
-        x: (e.clientX - rect.left) / zoom,
-        y: (e.clientY - rect.top) / zoom,
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
       };
     }
 
@@ -1608,7 +1702,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasArea = (
       <div
         ref={containerRef}
-        className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30"
+        className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none"
       >
         {cursorPos &&
           activeTool !== 'fill' &&
@@ -1958,7 +2052,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => setZoom((z) => Math.max(0.1, z - 0.25))}
+          onClick={() => zoomByKeyboardStep(-1)}
           className="rounded-xl"
         >
           <ZoomOut size={12} />
@@ -1972,7 +2066,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => setZoom((z) => Math.min(10, z + 0.25))}
+          onClick={() => zoomByKeyboardStep(1)}
           className="rounded-xl"
         >
           <ZoomIn size={12} />

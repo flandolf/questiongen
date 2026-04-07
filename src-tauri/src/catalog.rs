@@ -40,6 +40,7 @@ pub struct TopicEntry {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct SubtopicEntry {
     pub name: String,
     pub key_knowledge: String,
@@ -96,17 +97,6 @@ static SUBTOPIC_INDEX: Lazy<HashMap<String, (usize, usize)>> = Lazy::new(|| {
     m
 });
 
-/// Lowercased subtopic name -> parent topic name
-static SUBTOPIC_TO_TOPIC: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    for topic in &*CATALOG {
-        for sub in &topic.subtopics {
-            m.insert(sub.name.to_lowercase(), topic.name.clone());
-        }
-    }
-    m
-});
-
 // ─── Public accessors ─────────────────────────────────────────────────────────
 
 pub fn all_topics() -> &'static [TopicEntry] {
@@ -138,25 +128,6 @@ pub fn topic_report_pdfs(name: &str) -> &'static [String] {
     find_topic(name)
         .map(|t| t.report_pdfs.as_slice())
         .unwrap_or(&[])
-}
-
-fn find_subtopic(topic_name: &str, subtopic_name: &str) -> Option<&'static SubtopicEntry> {
-    let topic = find_topic(topic_name)?;
-    topic
-        .subtopics
-        .iter()
-        .find(|s| s.name.eq_ignore_ascii_case(subtopic_name))
-}
-
-pub fn subtopic_key_knowledge(topic_name: &str, subtopic_name: &str) -> &'static str {
-    find_subtopic(topic_name, subtopic_name)
-        .map(|s| s.key_knowledge.as_str())
-        .unwrap_or("")
-}
-
-/// Map a lowercased subtopic name to its parent topic name.
-pub fn subtopic_to_topic(subtopic_lower: &str) -> Option<&'static str> {
-    SUBTOPIC_TO_TOPIC.get(subtopic_lower).map(|s| s.as_str())
 }
 
 /// All canonical subtopic names (lowercased) across all topics.

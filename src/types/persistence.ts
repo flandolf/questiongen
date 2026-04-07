@@ -8,6 +8,7 @@ import type {
 import type {
   Difficulty,
   DiversityStrictness,
+  GenerationStrategy,
   QuestionMode,
   TechMode,
 } from './generator';
@@ -64,6 +65,7 @@ export type PersistedGeneratorPreferences = {
   strictLatexValidation: boolean;
   strictSubtopicCoverage: boolean;
   minSubtopicCoverageRatio: number;
+  generationStrategy?: GenerationStrategy;
 };
 
 export type PersistedWrittenSession = {
