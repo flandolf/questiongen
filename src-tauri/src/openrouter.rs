@@ -16,6 +16,106 @@ pub fn http_client() -> &'static reqwest::Client {
     })
 }
 
+/// Configuration for OpenRouter requests.
+pub struct OpenRouterRequestConfig {
+    pub api_key: String,
+    pub model: String,
+    pub system_prompt: String,
+    pub user_content: serde_json::Value,
+    pub response_format: serde_json::Value,
+    pub max_tokens: u32,
+    pub temperature: f32,
+    pub top_p: f32,
+    pub seed: Option<u64>,
+    pub plugins: serde_json::Value,
+    pub app: Option<tauri::AppHandle>,
+}
+
+impl OpenRouterRequestConfig {
+    // pub fn new(
+    //     api_key: &str,
+    //     model: &str,
+    //     system_prompt: &str,
+    //     user_content: serde_json::Value,
+    //     response_format: &serde_json::Value,
+    //     max_tokens: u32,
+    //     temperature: f32,
+    //     top_p: f32,
+    //     seed: Option<u64>,
+    // ) -> Self {
+    //     Self {
+    //         api_key: api_key.to_string(),
+    //         model: model.to_string(),
+    //         system_prompt: system_prompt.to_string(),
+    //         user_content,
+    //         response_format: response_format.clone(),
+    //         max_tokens,
+    //         temperature,
+    //         top_p,
+    //         seed,
+    //         plugins: serde_json::json!([{ "id": "response-healing" }]),
+    //         app: None,
+    //     }
+    // }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_plugins(
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_content: serde_json::Value,
+        response_format: &serde_json::Value,
+        max_tokens: u32,
+        temperature: f32,
+        top_p: f32,
+        seed: Option<u64>,
+        plugins: serde_json::Value,
+    ) -> Self {
+        Self {
+            api_key: api_key.to_string(),
+            model: model.to_string(),
+            system_prompt: system_prompt.to_string(),
+            user_content,
+            response_format: response_format.clone(),
+            max_tokens,
+            temperature,
+            top_p,
+            seed,
+            plugins,
+            app: None,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_app(
+        app: tauri::AppHandle,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_content: serde_json::Value,
+        response_format: &serde_json::Value,
+        max_tokens: u32,
+        temperature: f32,
+        top_p: f32,
+        seed: Option<u64>,
+        plugins: serde_json::Value,
+    ) -> Self {
+        Self {
+            api_key: api_key.to_string(),
+            model: model.to_string(),
+            system_prompt: system_prompt.to_string(),
+            user_content,
+            response_format: response_format.clone(),
+            max_tokens,
+            temperature,
+            top_p,
+            seed,
+            plugins,
+            app: Some(app),
+        }
+    }
+}
+
 /// Result of a single OpenRouter call: raw content string + token usage.
 pub struct OpenRouterResult {
     pub content: String,
@@ -26,7 +126,7 @@ pub struct OpenRouterResult {
 
 // ─── Non-streaming (kept for mark_answer / analyze_image) ────────────────────
 
-/// Make a single non-streaming OpenRouter request.
+#[allow(clippy::too_many_arguments)]
 pub async fn call_openrouter(
     api_key: &str,
     model: &str,
@@ -38,7 +138,7 @@ pub async fn call_openrouter(
     top_p: f32,
     seed: Option<u64>,
 ) -> CommandResult<OpenRouterResult> {
-    call_openrouter_with_plugins(
+    call_openrouter_with_plugins(OpenRouterRequestConfig::with_plugins(
         api_key,
         model,
         system_prompt,
@@ -49,42 +149,33 @@ pub async fn call_openrouter(
         top_p,
         seed,
         serde_json::json!([{ "id": "response-healing" }]),
-    )
+    ))
     .await
 }
 
 /// Make a single non-streaming OpenRouter request with custom plugins.
 pub async fn call_openrouter_with_plugins(
-    api_key: &str,
-    model: &str,
-    system_prompt: &str,
-    user_content: serde_json::Value,
-    response_format: &serde_json::Value,
-    max_tokens: u32,
-    temperature: f32,
-    top_p: f32,
-    seed: Option<u64>,
-    plugins: serde_json::Value,
+    config: OpenRouterRequestConfig,
 ) -> CommandResult<OpenRouterResult> {
     let mut body = serde_json::json!({
-        "model": model,
+        "model": config.model,
         "messages": [
-            { "role": "system", "content": system_prompt },
-            { "role": "user",   "content": user_content  },
+            { "role": "system", "content": config.system_prompt },
+            { "role": "user",   "content": config.user_content  },
         ],
-        "temperature": temperature,
-        "top_p": top_p,
-        "max_tokens": max_tokens,
-        "response_format": response_format,
-        "plugins": plugins,
+        "temperature": config.temperature,
+        "top_p": config.top_p,
+        "max_tokens": config.max_tokens,
+        "response_format": config.response_format,
+        "plugins": config.plugins,
     });
-    if let Some(seed) = seed {
+    if let Some(seed) = config.seed {
         body["seed"] = serde_json::json!(seed);
     }
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)
-        .header(AUTHORIZATION, format!("Bearer {api_key}"))
+        .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&body)
         .send()
@@ -156,40 +247,30 @@ struct SseUsage {
 
 /// Streaming OpenRouter request with custom plugins.
 pub async fn call_openrouter_streaming_with_plugins(
-    app: &tauri::AppHandle,
-    api_key: &str,
-    model: &str,
-    system_prompt: &str,
-    user_content: serde_json::Value,
-    response_format: &serde_json::Value,
-    max_tokens: u32,
-    temperature: f32,
-    top_p: f32,
-    seed: Option<u64>,
-    plugins: serde_json::Value,
+    config: OpenRouterRequestConfig,
 ) -> CommandResult<OpenRouterResult> {
     let mut body = serde_json::json!({
-        "model": model,
+        "model": config.model,
         "messages": [
-            { "role": "system", "content": system_prompt },
-            { "role": "user",   "content": user_content  },
+            { "role": "system", "content": config.system_prompt },
+            { "role": "user",   "content": config.user_content  },
         ],
-        "temperature": temperature,
-        "top_p": top_p,
-        "max_tokens": max_tokens,
-        "response_format": response_format,
-        "plugins": plugins,
+        "temperature": config.temperature,
+        "top_p": config.top_p,
+        "max_tokens": config.max_tokens,
+        "response_format": config.response_format,
+        "plugins": config.plugins,
         "stream": true,
         // Request usage in the final stream chunk (supported by most providers).
         "stream_options": { "include_usage": true },
     });
-    if let Some(seed) = seed {
+    if let Some(seed) = config.seed {
         body["seed"] = serde_json::json!(seed);
     }
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)
-        .header(AUTHORIZATION, format!("Bearer {api_key}"))
+        .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&body)
         .send()
@@ -214,6 +295,8 @@ pub async fn call_openrouter_streaming_with_plugins(
     // Rolling incomplete-line buffer (SSE lines can be split across chunks).
     let mut buf = String::new();
     let mut done = false;
+
+    let app = config.app;
 
     while let Some(chunk) = stream.next().await {
         let chunk =
@@ -264,10 +347,12 @@ pub async fn call_openrouter_streaming_with_plugins(
                                 if let Some(text) = delta.content {
                                     if !text.is_empty() {
                                         assembled.push_str(&text);
-                                        let _ = app.emit(
-                                            "generation-token",
-                                            serde_json::json!({ "text": text }),
-                                        );
+                                        if let Some(ref app) = app {
+                                            let _ = app.emit(
+                                                "generation-token",
+                                                serde_json::json!({ "text": text }),
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -294,10 +379,12 @@ pub async fn call_openrouter_streaming_with_plugins(
                                 if let Some(text) = delta.content {
                                     if !text.is_empty() {
                                         assembled.push_str(&text);
-                                        let _ = app.emit(
-                                            "generation-token",
-                                            serde_json::json!({ "text": text }),
-                                        );
+                                        if let Some(ref app) = app {
+                                            let _ = app.emit(
+                                                "generation-token",
+                                                serde_json::json!({ "text": text }),
+                                            );
+                                        }
                                     }
                                 }
                             }
