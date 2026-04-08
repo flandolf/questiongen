@@ -59,7 +59,7 @@ fn adjust_difficulty(
 use models::*;
 use openrouter::{
     call_openrouter, call_openrouter_streaming_with_plugins, call_openrouter_with_plugins,
-    is_anthropic_model, json_schema_format, json_schema_format_anthropic,
+    is_anthropic_model, json_schema_format, json_schema_format_anthropic, OpenRouterRequestConfig,
 };
 use openrouter_info::{compute_generation_cost, get_credits, get_model_stats};
 use parsing::{
@@ -1110,8 +1110,8 @@ async fn generate_questions(
     let top_p = request.top_p.unwrap_or(base_top_p);
     let seed = request.seed;
 
-    let result = call_openrouter_streaming_with_plugins(
-        &app,
+    let result = call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
+        app.clone(),
         &request.api_key,
         &request.model,
         &written_sys,
@@ -1122,7 +1122,7 @@ async fn generate_questions(
         top_p,
         seed,
         plugins.clone(),
-    )
+    ))
     .await?;
 
     emit_generation_status(
@@ -1346,20 +1346,21 @@ async fn generate_questions(
 
             let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
 
-            let retry_result = call_openrouter_streaming_with_plugins(
-                &app,
-                &request.api_key,
-                &request.model,
-                &written_sys,
-                new_user_content,
-                &written_fmt,
-                max_tokens,
-                retry_temp,
-                top_p,
-                None,
-                plugins.clone(),
-            )
-            .await;
+            let retry_result =
+                call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
+                    app.clone(),
+                    &request.api_key,
+                    &request.model,
+                    &written_sys,
+                    new_user_content,
+                    &written_fmt,
+                    max_tokens,
+                    retry_temp,
+                    top_p,
+                    None,
+                    plugins.clone(),
+                ))
+                .await;
 
             if let Ok(r) = retry_result {
                 if let Ok(mut new_payload) =
@@ -1614,8 +1615,8 @@ async fn generate_mc_questions(
     let top_p = request.top_p.unwrap_or(base_top_p);
     let seed = request.seed;
 
-    let result = call_openrouter_streaming_with_plugins(
-        &app,
+    let result = call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
+        app.clone(),
         &request.api_key,
         &request.model,
         &mc_sys,
@@ -1626,7 +1627,7 @@ async fn generate_mc_questions(
         top_p,
         seed,
         plugins.clone(),
-    )
+    ))
     .await?;
 
     emit_generation_status(
@@ -1821,20 +1822,21 @@ async fn generate_mc_questions(
 
             let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
 
-            let retry_result = call_openrouter_streaming_with_plugins(
-                &app,
-                &request.api_key,
-                &request.model,
-                &mc_sys,
-                new_user_content,
-                &mc_fmt,
-                base_mc_tokens,
-                retry_temp,
-                top_p,
-                None,
-                plugins.clone(),
-            )
-            .await;
+            let retry_result =
+                call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
+                    app.clone(),
+                    &request.api_key,
+                    &request.model,
+                    &mc_sys,
+                    new_user_content,
+                    &mc_fmt,
+                    base_mc_tokens,
+                    retry_temp,
+                    top_p,
+                    None,
+                    plugins.clone(),
+                ))
+                .await;
 
             if let Ok(r) = retry_result {
                 if let Ok(mut new_payload) =
@@ -2120,7 +2122,7 @@ mathematical rigour.\n"
         serde_json::json!([{ "id": "response-healing" }])
     };
 
-    let result = call_openrouter_with_plugins(
+    let result = call_openrouter_with_plugins(OpenRouterRequestConfig::with_plugins(
         &request.api_key,
         &request.model,
         &marking_system(max_marks, chem_note, pe_note),
@@ -2131,7 +2133,7 @@ mathematical rigour.\n"
         top_p,
         seed,
         plugins,
-    )
+    ))
     .await?;
 
     // Protect LaTeX commands before JSON parsing — same pipeline as question generation.
