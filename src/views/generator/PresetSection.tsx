@@ -15,9 +15,7 @@ import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
   Difficulty,
-  DiversityStrictness,
   MathMethodsSubtopic,
-  PersistedGeneratorPreferences,
   PhysicalEducationSubtopic,
   Preset,
   QuestionMode,
@@ -25,42 +23,6 @@ import type {
   TechMode,
   Topic,
 } from '@/types';
-
-export function buildPreferencesSnapshot(props: {
-  selectedTopics: Topic[];
-  difficulty: Difficulty;
-  techMode: TechMode;
-  avoidSimilarQuestions: boolean;
-  mathMethodsSubtopics: MathMethodsSubtopic[];
-  specialistMathSubtopics: SpecialistMathSubtopic[];
-  chemistrySubtopics: ChemistrySubtopic[];
-  physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  questionCount: number;
-  averageMarksPerQuestion: number;
-  questionMode: QuestionMode;
-  diversityStrictness: DiversityStrictness;
-  strictLatexValidation: boolean;
-  strictSubtopicCoverage: boolean;
-  minSubtopicCoverageRatio: number;
-}): PersistedGeneratorPreferences {
-  return {
-    selectedTopics: props.selectedTopics,
-    difficulty: props.difficulty,
-    techMode: props.techMode,
-    avoidSimilarQuestions: props.avoidSimilarQuestions,
-    mathMethodsSubtopics: props.mathMethodsSubtopics,
-    specialistMathSubtopics: props.specialistMathSubtopics,
-    chemistrySubtopics: props.chemistrySubtopics,
-    physicalEducationSubtopics: props.physicalEducationSubtopics,
-    questionCount: props.questionCount,
-    averageMarksPerQuestion: props.averageMarksPerQuestion,
-    questionMode: props.questionMode,
-    diversityStrictness: props.diversityStrictness,
-    strictLatexValidation: props.strictLatexValidation,
-    strictSubtopicCoverage: props.strictSubtopicCoverage,
-    minSubtopicCoverageRatio: props.minSubtopicCoverageRatio,
-  };
-}
 
 type PresetSectionProps = {
   selectedTopics: Topic[];
@@ -74,10 +36,6 @@ type PresetSectionProps = {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
-  diversityStrictness: DiversityStrictness;
-  strictLatexValidation: boolean;
-  strictSubtopicCoverage: boolean;
-  minSubtopicCoverageRatio: number;
 };
 
 const DIFFICULTY_META: Record<
@@ -128,10 +86,6 @@ export function PresetSection({
   questionCount,
   averageMarksPerQuestion,
   questionMode,
-  diversityStrictness,
-  strictLatexValidation,
-  strictSubtopicCoverage,
-  minSubtopicCoverageRatio,
 }: PresetSectionProps) {
   const presets = useAppStore((s) => s.presets);
   const addPreset = useAppStore((s) => s.addPreset);
@@ -139,9 +93,6 @@ export function PresetSection({
   const deletePreset = useAppStore((s) => s.deletePreset);
   const setDifficulty = useAppStore((s) => s.setDifficulty);
   const setTechMode = useAppStore((s) => s.setTechMode);
-  const setAvoidSimilarQuestions = useAppStore(
-    (s) => s.setAvoidSimilarQuestions
-  );
   const setSelectedTopics = useAppStore((s) => s.setSelectedTopics);
   const setMathMethodsSubtopics = useAppStore((s) => s.setMathMethodsSubtopics);
   const setSpecialistMathSubtopics = useAppStore(
@@ -156,20 +107,6 @@ export function PresetSection({
     (s) => s.setAverageMarksPerQuestion
   );
   const setQuestionMode = useAppStore((s) => s.setQuestionMode);
-  const setDiversityStrictness = useAppStore((s) => s.setDiversityStrictness);
-  const setStrictLatexValidation = useAppStore(
-    (s) => s.setStrictLatexValidation
-  );
-  const setStrictSubtopicCoverage = useAppStore(
-    (s) => s.setStrictSubtopicCoverage
-  );
-  const setMinSubtopicCoverageRatio = useAppStore(
-    (s) => s.setMinSubtopicCoverageRatio
-  );
-  const setAiDifficultyScalingEnabled = useAppStore(
-    (s) => s.setAiDifficultyScalingEnabled
-  );
-  const setDifficultyThresholds = useAppStore((s) => s.setDifficultyThresholds);
 
   const [presetName, setPresetName] = useState('');
   const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
@@ -200,28 +137,36 @@ export function PresetSection({
     else if (e.key === 'Escape') setRenamingPresetId(null);
   };
 
+  const buildCurrentPreferences = () => {
+    const topicSet = new Set(selectedTopics);
+    return {
+      selectedTopics,
+      difficulty,
+      techMode,
+      avoidSimilarQuestions,
+      questionCount,
+      averageMarksPerQuestion,
+      questionMode,
+      ...(topicSet.has('Mathematical Methods')
+        ? { mathMethodsSubtopics }
+        : {}),
+      ...(topicSet.has('Specialist Mathematics')
+        ? { specialistMathSubtopics }
+        : {}),
+      ...(topicSet.has('Chemistry') ? { chemistrySubtopics } : {}),
+      ...(topicSet.has('Physical Education')
+        ? { physicalEducationSubtopics }
+        : {}),
+    };
+  };
+
+
   const handleSavePreset = () => {
     const name = presetName.trim();
     if (!name) return;
     const now = new Date().toISOString();
     const existing = presets.find((p) => p.name === name);
-    const prefs = buildPreferencesSnapshot({
-      selectedTopics,
-      difficulty,
-      techMode,
-      avoidSimilarQuestions,
-      mathMethodsSubtopics,
-      specialistMathSubtopics,
-      chemistrySubtopics,
-      physicalEducationSubtopics,
-      questionCount,
-      averageMarksPerQuestion,
-      questionMode,
-      diversityStrictness,
-      strictLatexValidation,
-      strictSubtopicCoverage,
-      minSubtopicCoverageRatio,
-    });
+    const prefs = buildCurrentPreferences();
     if (existing) {
       updatePreset({ ...existing, preferences: prefs, updatedAt: now });
     } else {
@@ -237,47 +182,22 @@ export function PresetSection({
   };
 
   const handleLoadPreset = (preset: Preset) => {
-    const p: PersistedGeneratorPreferences = preset.preferences;
+    const p = preset.preferences;
     setSelectedTopics([...p.selectedTopics]);
     setDifficulty(p.difficulty);
     setTechMode(p.techMode);
-    setAvoidSimilarQuestions(p.avoidSimilarQuestions);
-    setMathMethodsSubtopics([...p.mathMethodsSubtopics]);
-    setSpecialistMathSubtopics([...p.specialistMathSubtopics]);
-    setChemistrySubtopics([...p.chemistrySubtopics]);
-    setPhysicalEducationSubtopics([...p.physicalEducationSubtopics]);
+    setMathMethodsSubtopics([...(p.mathMethodsSubtopics ?? [])]);
+    setSpecialistMathSubtopics([...(p.specialistMathSubtopics ?? [])]);
+    setChemistrySubtopics([...(p.chemistrySubtopics ?? [])]);
+    setPhysicalEducationSubtopics([...(p.physicalEducationSubtopics ?? [])]);
     setQuestionCount(p.questionCount);
     setAverageMarksPerQuestion(p.averageMarksPerQuestion);
     setQuestionMode(p.questionMode);
-    setDiversityStrictness(p.diversityStrictness);
-    setStrictLatexValidation(p.strictLatexValidation);
-    setStrictSubtopicCoverage(p.strictSubtopicCoverage);
-    setMinSubtopicCoverageRatio(p.minSubtopicCoverageRatio);
-    setAiDifficultyScalingEnabled(p.aiDifficultyScalingEnabled ?? true);
-    setDifficultyThresholds(
-      p.difficultyThresholds ?? { increase: 85, decrease: 70 }
-    );
   };
 
   const handleUpdatePreset = (preset: Preset) => {
     const now = new Date().toISOString();
-    const prefs = buildPreferencesSnapshot({
-      selectedTopics,
-      difficulty,
-      techMode,
-      avoidSimilarQuestions,
-      mathMethodsSubtopics,
-      specialistMathSubtopics,
-      chemistrySubtopics,
-      physicalEducationSubtopics,
-      questionCount,
-      averageMarksPerQuestion,
-      questionMode,
-      diversityStrictness,
-      strictLatexValidation,
-      strictSubtopicCoverage,
-      minSubtopicCoverageRatio,
-    });
+    const prefs = buildCurrentPreferences();
     updatePreset({ ...preset, preferences: prefs, updatedAt: now });
   };
 
