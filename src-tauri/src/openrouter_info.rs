@@ -377,9 +377,11 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
             context_length = Some(context_length.map_or(ctx, |prev: u64| prev.max(ctx)));
         }
 
-        if ep.supported_parameters.as_deref().is_some_and(|params| {
-            params.iter().any(|p| p == "response_format")
-        }) {
+        if ep
+            .supported_parameters
+            .as_deref()
+            .is_some_and(|params| params.iter().any(|p| p == "response_format"))
+        {
             supports_structured = true;
         }
 

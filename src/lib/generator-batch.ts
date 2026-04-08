@@ -51,12 +51,12 @@ export function buildSubtopicCalls(
     // so integrated exam-style questions are more likely and coverage is wider.
     const targetSubtopicsPerQuestion = combineForSmallBatches
       ? Math.max(
-        minSubtopicsPerQuestion,
-        Math.min(
-          maxSubtopicsPerQuestion,
-          Math.ceil(shuffledSubs.length / total)
+          minSubtopicsPerQuestion,
+          Math.min(
+            maxSubtopicsPerQuestion,
+            Math.ceil(shuffledSubs.length / total)
+          )
         )
-      )
       : 1;
 
     for (let i = 0; i < total; i++) {
@@ -133,7 +133,7 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
   const oldToNewLabel: Record<string, string> = {};
   originalOptions.forEach((opt, index) => {
     const oldLabel = String.fromCharCode(65 + index);
-    const newOpt = relabeled.find(o => o.text.trim() === opt.text.trim());
+    const newOpt = relabeled.find((o) => o.text.trim() === opt.text.trim());
     if (newOpt) {
       oldToNewLabel[oldLabel] = newOpt.label;
     }
@@ -148,12 +148,17 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
       new RegExp(`\\b${oldLabel}\\b`, 'g'), // Word boundary (catches "A" as standalone)
       new RegExp(`\\(${oldLabel}\\)`, 'g'), // (A)
     ];
-    patterns.forEach(pattern => {
+    patterns.forEach((pattern) => {
       fixedExplanation = fixedExplanation.replace(pattern, newLabel);
     });
   });
 
-  return { ...q, options: relabeled, correctAnswer: newCorrect, explanationMarkdown: fixedExplanation };
+  return {
+    ...q,
+    options: relabeled,
+    correctAnswer: newCorrect,
+    explanationMarkdown: fixedExplanation,
+  };
 }
 
 export function hashStringForSeed(str: string): number {

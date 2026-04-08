@@ -49,11 +49,11 @@ function ensureMathJaxLoaded(): Promise<void> {
         inlineMath: [['$', '$']],
         displayMath: [['$$', '$$']],
         packages: {
-          '[+]': ['textmacros'],
+          '[+]': ['ams', 'textmacros'],
         },
       },
       loader: {
-        load: ['[tex]/textmacros'],
+        load: ['[tex]/ams', '[tex]/textmacros'],
       },
       startup: {
         typeset: false,
