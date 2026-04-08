@@ -598,7 +598,7 @@ function SetupPanelImpl({
                   )}
                 </span>
                 {estimated.promptCost != null ||
-                  estimated.completionCost != null ? (
+                estimated.completionCost != null ? (
                   <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
                     <DollarSign className="w-3 h-3 text-muted-foreground" />
                     {formatCostUsd(estimated.totalCost)}

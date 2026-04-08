@@ -4,9 +4,7 @@ type MathJaxConfig = {
   tex?: {
     inlineMath?: [string, string][];
     displayMath?: [string, string][];
-    packages?: Record<string, string[]> = {
-    '[+]': ['ams']
-    };
+    packages?: Record<string, string[]>;
   };
   loader?: {
     load?: string[];
@@ -26,4 +24,4 @@ declare global {
   }
 }
 
-export { };
+export {};

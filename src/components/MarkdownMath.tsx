@@ -60,7 +60,9 @@ export const MarkdownMath = memo(function MarkdownMath({
       ref={containerRef}
       className="prose prose-base dark:prose-invert max-w-none font-normal"
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} key={sanitized}>{sanitized}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} key={sanitized}>
+        {sanitized}
+      </ReactMarkdown>
     </div>
   );
 });

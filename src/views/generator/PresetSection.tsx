@@ -147,9 +147,7 @@ export function PresetSection({
       questionCount,
       averageMarksPerQuestion,
       questionMode,
-      ...(topicSet.has('Mathematical Methods')
-        ? { mathMethodsSubtopics }
-        : {}),
+      ...(topicSet.has('Mathematical Methods') ? { mathMethodsSubtopics } : {}),
       ...(topicSet.has('Specialist Mathematics')
         ? { specialistMathSubtopics }
         : {}),
@@ -159,7 +157,6 @@ export function PresetSection({
         : {}),
     };
   };
-
 
   const handleSavePreset = () => {
     const name = presetName.trim();

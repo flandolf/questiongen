@@ -5,11 +5,7 @@ import type {
   SpecialistMathSubtopic,
   Topic,
 } from './catalog';
-import type {
-  Difficulty,
-  QuestionMode,
-  TechMode,
-} from './generator';
+import type { Difficulty, QuestionMode, TechMode } from './generator';
 
 export type StudyGoals = {
   dailyQuestionGoal: number;
