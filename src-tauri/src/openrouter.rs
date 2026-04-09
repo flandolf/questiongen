@@ -452,6 +452,57 @@ fn strip_integer_constraints(value: &mut serde_json::Value) {
     }
 }
 
+/// Recursively strip additional schema constraints that Anthropic providers may reject.
+///
+/// Azure-backed Anthropic endpoints can reject schemas that include richer array
+/// constraints (for example `minItems` > 1) and some array-form `type` unions.
+/// We already validate outputs after parsing, so keeping the transport schema more
+/// permissive is safe and avoids provider-side 400 errors.
+fn strip_anthropic_array_constraints(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("type").and_then(|v| v.as_str()) == Some("array") {
+                map.remove("minItems");
+                map.remove("maxItems");
+            }
+
+            // Anthropic compatibility: avoid nullable/type unions encoded as arrays
+            // such as { "type": ["string", "null"] }.
+            if let Some(serde_json::Value::Array(type_variants)) = map.get("type") {
+                if let Some(primary_type) = type_variants
+                    .iter()
+                    .filter_map(|v| v.as_str())
+                    .find(|t| *t != "null")
+                {
+                    map.insert(
+                        "type".to_string(),
+                        serde_json::Value::String(primary_type.to_string()),
+                    );
+                }
+            }
+
+            // Some Anthropic providers also reject large `required` arrays when
+            // strict JSON schema is enabled. We keep only single-field required
+            // constraints and rely on downstream validation for completeness.
+            if let Some(serde_json::Value::Array(required)) = map.get("required") {
+                if required.len() > 1 {
+                    map.remove("required");
+                }
+            }
+
+            for (_, v) in map.iter_mut() {
+                strip_anthropic_array_constraints(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                strip_anthropic_array_constraints(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Build a `response_format` value for a named JSON schema.
 pub fn json_schema_format(name: &'static str, schema: serde_json::Value) -> serde_json::Value {
     serde_json::json!({
@@ -471,6 +522,7 @@ pub fn json_schema_format_anthropic(
     mut schema: serde_json::Value,
 ) -> serde_json::Value {
     strip_integer_constraints(&mut schema);
+    strip_anthropic_array_constraints(&mut schema);
     serde_json::json!({
         "type": "json_schema",
         "json_schema": {

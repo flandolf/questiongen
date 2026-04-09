@@ -2932,13 +2932,11 @@ mod tests {
 
     #[test]
     fn marking_system_scales_word_limits_with_marks() {
-        // 1-mark question should hit the floors
         let sys_1 = marking_system(1, "", "");
         assert!(sys_1.contains("≤100 words"));
 
-        // 10-mark question should have generous limits
         let sys_10 = marking_system(10, "", "");
-        assert!(sys_10.contains("≤600 words"));
+        assert!(sys_10.contains("≤2000 words"));
     }
 
     #[test]

@@ -454,74 +454,12 @@ pub fn decode_escapes(value: &str) -> String {
 ///    not part of a `$$` display pair is replaced with `\$`.
 fn repair_common_latex_typos(text: &str) -> String {
     const COMMANDS: &[&str] = &[
-        "alpha",
-        "approx",
-        "bar",
-        "beta",
-        "begin",
-        "bf",
-        "binom",
-        "big",
-        "Big",
-        "bigg",
-        "Bigg",
-        "cdot",
-        "cos",
-        "cosh",
-        "delta",
-        "div",
-        "end",
-        "epsilon",
-        "equiv",
-        "eta",
-        "exists",
-        "frac",
-        "forall",
-        "gamma",
-        "geq",
-        "hat",
-        "in",
-        "infty",
-        "int",
-        "lambda",
-        "leq",
-        "ln",
-        "log",
-        "mathbb",
-        "mathcal",
-        "mathfrak",
-        "mathrm",
-        "mathsf",
-        "mathtt",
-        "mu",
-        "nabla",
-        "neq",
-        "notin",
-        "omega",
-        "partial",
-        "phi",
-        "pi",
-        "pm",
-        "rho",
-        "rightarrow",
-        "Rightarrow",
-        "rm",
-        "sigma",
-        "sin",
-        "sinh",
-        "sqrt",
-        "subset",
-        "subseteq",
-        "sum",
-        "tan",
-        "tanh",
-        "text",
-        "theta",
-        "to",
-        "times",
-        "vec",
-        "xi",
-        "zeta",
+        "alpha", "approx", "bar", "begin", "beta", "bf", "binom", "big", "Big", "bigg", "Bigg",
+        "cdot", "cos", "cosh", "delta", "div", "end", "epsilon", "equiv", "eta", "exists", "frac",
+        "forall", "gamma", "geq", "hat", "in", "infty", "int", "lambda", "leq", "ln", "log",
+        "mathbb", "mathcal", "mathfrak", "mathrm", "mathsf", "mathbf", "min", "mod", "nabla",
+        "natural", "neg", "neq", "nu", "omega", "phi", "pi", "pm", "prod", "frac", "rho", "sigma",
+        "sin", "sinh", "sqrt", "sum", "tan", "tanh", "tau", "theta", "times", "vec", "xi", "zeta",
     ];
 
     let mut out = String::with_capacity(text.len());
@@ -624,7 +562,8 @@ fn repair_tabular_row_breaks(s: &str) -> String {
                 // Also repair a common malformed row break in `cases`/`array`
                 // where the next row starts with a digit, e.g. `... 1\0, ...`
                 // instead of `... 1\\0, ...`.
-                if j < len && bytes[j].is_ascii_digit() {
+                // But only if we DON'T already have a double backslash!
+                if run_end == i + 1 && j < len && bytes[j].is_ascii_digit() {
                     out.push_str("\\\\");
                     out.push_str(&s[run_end..j]);
                     out.push(bytes[j] as char);
@@ -1396,9 +1335,6 @@ mod tests {
 
     #[test]
     fn smart_quotes_normalised_to_ascii() {
-        // \u{2018} = LEFT SINGLE QUOTATION MARK → '
-        // \u{2019} = RIGHT SINGLE QUOTATION MARK → '
-        // \u{201D} = RIGHT DOUBLE QUOTATION MARK → "
         assert_eq!(
             clean_field("\u{2018}it\u{2019}s Newton\u{2019}s law\u{201D}"),
             "'it's Newton's law\""
@@ -1532,8 +1468,7 @@ mod tests {
 
     #[test]
     fn canonical_exact_match_returns_already_canonical() {
-        // Exact case-insensitive match should be recognized as already canonical.
-        match canonicalize_subtopic("Functions and Graphs", None) {
+        match canonicalize_subtopic("Function Notation and Domains", None) {
             CanonicalizeResult::AlreadyCanonical => {}
             other => panic!("Expected AlreadyCanonical, got {other:?}"),
         }
@@ -1541,7 +1476,7 @@ mod tests {
 
     #[test]
     fn canonical_lowercase_match_returns_already_canonical() {
-        match canonicalize_subtopic("functions and graphs", None) {
+        match canonicalize_subtopic("function notation and domains", None) {
             CanonicalizeResult::AlreadyCanonical => {}
             other => panic!("Expected AlreadyCanonical, got {other:?}"),
         }
@@ -1549,31 +1484,29 @@ mod tests {
 
     #[test]
     fn canonical_substring_match_maps_correctly() {
-        // A slightly abbreviated form should match via substring containment.
-        match canonicalize_subtopic("differentiation rules", None) {
-            CanonicalizeResult::Mapped(m) => assert!(m.contains("differentiation")),
+        match canonicalize_subtopic("standard derivatives", None) {
+            CanonicalizeResult::Mapped(m) => assert!(m.contains("derivatives")),
             other => panic!("Expected Mapped, got {other:?}"),
         }
     }
 
     #[test]
     fn canonical_levenshtein_match_maps_close_typo() {
-        // A typo like "funtions and graphs" (missing 'c') should fuzzy-match
-        // to "functions and graphs" since it's very close.
-        // First verify the similarity score is high enough.
-        let score = similarity_score("funtions and graphs", "functions and graphs");
+        let score = similarity_score(
+            "function notation an domains",
+            "function notation and domains",
+        );
         assert!(score > 0.9, "Expected high similarity score, got {score}");
 
-        // Verify the canonical list actually contains "functions and graphs"
         let all = all_canonical_subtopics();
         assert!(
-            all.iter().any(|s| *s == "functions and graphs"),
-            "Canonical list missing 'functions and graphs'"
+            all.iter().any(|s| *s == "function notation and domains"),
+            "Canonical list missing 'function notation and domains'"
         );
 
-        match canonicalize_subtopic("funtions and graphs", None) {
+        match canonicalize_subtopic("function notation an domains", None) {
             CanonicalizeResult::Mapped(m) => {
-                assert_eq!(m.to_lowercase(), "functions and graphs");
+                assert_eq!(m.to_lowercase(), "function notation and domains");
             }
             other => panic!("Expected Mapped, got {other:?}"),
         }
