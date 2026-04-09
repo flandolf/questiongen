@@ -30,7 +30,10 @@ export function strokesToSvgString(
   const paths = (strokes || [])
     .map((s) => {
       const d = pointsToSvgPath(s.points || []);
-      const stroke = s.tool === 'eraser' ? '#ffffff' : s.color;
+      // Use black for eraser strokes when rasterizing so they can be
+      // composited with `destination-out` on export. White made eraser
+      // appear as an opaque white pen when drawn over the raster canvas.
+      const stroke = s.tool === 'eraser' ? '#000000' : s.color;
       const strokeWidth = Math.max(0.5, s.size || 1);
       const opacity = s.opacity ?? 1;
       const metadata = includeMetadata
