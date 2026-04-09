@@ -9,4 +9,3 @@ export * from './questions';
 export * from './spaced-repetition';
 export * from './study';
 export * from './telemetry';
-export * from './timer';

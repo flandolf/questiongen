@@ -88,8 +88,8 @@ export interface ImportExportState {
   streakData: StreakData;
   generationHistory: GenerationRecord[];
   presets: Preset[];
-  writtenTimerState: PersistedAppState['writtenTimerState'];
-  mcTimerState: PersistedAppState['mcTimerState'];
+  writtenTimer: PersistedAppState['writtenTimer'];
+  mcTimer: PersistedAppState['mcTimer'];
   diversityStrictness: DiversityStrictness;
   strictLatexValidation: boolean;
   strictSubtopicCoverage: boolean;
@@ -422,8 +422,8 @@ export function mergeImportedState(
   merged.streakData = imported.streakData ?? current.streakData;
 
   // Active sessions + timer states: overwrite
-  merged.writtenTimerState = imported.writtenTimerState ?? null;
-  merged.mcTimerState = imported.mcTimerState ?? null;
+  merged.writtenTimer = imported.writtenTimer ?? null;
+  merged.mcTimer = imported.mcTimer ?? null;
 
   return merged;
 }
@@ -518,8 +518,8 @@ function buildExportSnapshot(
       generationTelemetry: s.mcGenerationTelemetry,
       savedSetId: s.activeMcSavedSetId,
     },
-    writtenTimerState: s.writtenTimerState,
-    mcTimerState: s.mcTimerState,
+    writtenTimer: s.writtenTimer,
+    mcTimer: s.mcTimer,
     questionHistory: s.questionHistory.map((entry) =>
       entry.uploadedAnswerImage
         ? {

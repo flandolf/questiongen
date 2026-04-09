@@ -65,6 +65,7 @@ type SketchpadProps = {
   onClose?: () => void;
   onSave: (dataUrl: string) => void;
   embedded?: boolean;
+  sessionKey?: string; // For persisting canvas per session/question
 };
 
 export type SketchpadHandle = {
@@ -157,6 +158,7 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
 
 const STORAGE_KEY = 'sketchpad-tool-settings';
 const PEN_ONLY_STORAGE_KEY = 'sketchpad-pen-only-mode';
+const CANVAS_STORAGE_KEY_PREFIX = 'sketchpad-canvas';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 const KEYBOARD_ZOOM_STEP = 0.25;
@@ -422,7 +424,13 @@ function paintBackground(
 
 export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
   function Sketchpad(
-    { open = true, onClose, onSave, embedded = false }: SketchpadProps,
+    {
+      open = true,
+      onClose,
+      onSave,
+      embedded = false,
+      sessionKey,
+    }: SketchpadProps,
     ref
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -548,6 +556,85 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
     const resetViewportRef = useRef<() => void>(() => {});
 
+    // ─── Persistence helpers ───────────────────────────────────────────────────
+    const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+    const getCanvasStorageKey = useCallback(
+      (key?: string): string =>
+        key ? `${CANVAS_STORAGE_KEY_PREFIX}-${key}` : '',
+      []
+    );
+
+    const saveCanvasToStorage = useCallback(
+      (key?: string) => {
+        if (!key) return;
+        try {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+
+          const dataUrl = canvas.toDataURL('image/webp', 0.85);
+          localStorage.setItem(getCanvasStorageKey(key), dataUrl);
+        } catch (err) {
+          console.warn('Failed to save canvas to localStorage:', err);
+        }
+      },
+      [getCanvasStorageKey]
+    );
+
+    const restoreCanvasFromStorage = useCallback(
+      (key?: string) => {
+        if (!key) return;
+        try {
+          const storedDataUrl = localStorage.getItem(getCanvasStorageKey(key));
+          if (!storedDataUrl) return;
+
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+
+          const img = new Image();
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+          };
+          img.onerror = () => {
+            console.warn('Failed to load saved canvas image');
+          };
+          img.src = storedDataUrl;
+        } catch (err) {
+          console.warn('Failed to restore canvas from localStorage:', err);
+        }
+      },
+      [getCanvasStorageKey]
+    );
+
+    const clearCanvasFromStorage = useCallback(
+      (key?: string) => {
+        if (!key) return;
+        try {
+          localStorage.removeItem(getCanvasStorageKey(key));
+        } catch (err) {
+          console.warn('Failed to clear canvas from localStorage:', err);
+        }
+      },
+      [getCanvasStorageKey]
+    );
+
+    const scheduleAutoSave = useCallback(
+      (key?: string) => {
+        if (!key) return;
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+        }
+        autoSaveTimeoutRef.current = setTimeout(() => {
+          saveCanvasToStorage(key);
+        }, 1000); // Save 1s after last drawing action
+      },
+      [saveCanvasToStorage]
+    );
+
     const bgRef2 = useRef<BgType>(bg);
 
     const clampZoom = useCallback(
@@ -654,6 +741,34 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         /* ignore */
       }
     }, [penOnlyMode]);
+
+    // Restore canvas from storage on mount
+    useEffect(() => {
+      if (sessionKey && canvasRef.current) {
+        restoreCanvasFromStorage(sessionKey);
+      }
+    }, [sessionKey, restoreCanvasFromStorage]);
+
+    // Auto-save canvas after drawing completes
+    useEffect(() => {
+      if (!isDrawing && hasExplicitlySaved.current === false && sessionKey) {
+        scheduleAutoSave(sessionKey);
+      }
+    }, [isDrawing, sessionKey, scheduleAutoSave]);
+
+    // Save canvas immediately when sessionKey changes (user switched questions)
+    useEffect(() => {
+      return () => {
+        // On unmount or cleanup: flush any pending auto-save
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+          // Immediately save if not explicitly saved yet
+          if (!hasExplicitlySaved.current && sessionKey) {
+            saveCanvasToStorage(sessionKey);
+          }
+        }
+      };
+    }, [sessionKey, saveCanvasToStorage]);
 
     function addRecentColor(newColor: string) {
       if (newColor === '#ffffff') return;
@@ -1888,9 +2003,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           const dataUrl = await saveAsDataUrl();
           onSave(dataUrl);
           hasExplicitlySaved.current = true;
+          // Clear persisted canvas after explicit save
+          clearCanvasFromStorage(sessionKey);
         },
       }),
-      [onSave, saveAsDataUrl]
+      [onSave, saveAsDataUrl, sessionKey, clearCanvasFromStorage]
     );
 
     const topNavigationBar = (
@@ -2095,6 +2212,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 try {
                   const dataUrl = await saveAsDataUrl();
                   onSave(dataUrl);
+                  hasExplicitlySaved.current = true;
+                  clearCanvasFromStorage(sessionKey);
                 } catch (err) {
                   console.error('Save failed', err);
                 }

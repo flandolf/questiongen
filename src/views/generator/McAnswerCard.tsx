@@ -43,12 +43,14 @@ type McAnswerCardProps = {
 };
 
 type McSketchpadPanelProps = {
+  questionId?: string;
   image?: StudentAnswerImage;
   onImageDrop: (files: File[]) => void;
   onImageRemove: () => void;
 };
 
 export const McSketchpadPanel = memo(function McSketchpadPanel({
+  questionId,
   image,
   onImageDrop,
   onImageRemove,
@@ -76,6 +78,7 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
       </div>
       <Sketchpad
         embedded
+        sessionKey={questionId}
         onSave={(dataUrl) => void handleSketchSave(dataUrl)}
       />
       {image && (

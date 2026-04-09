@@ -1,30 +1,37 @@
-export type PerQuestionTiming = {
-  timeLimitSeconds: number;
-  originalTimeLimitSeconds: number;
-  startedAt: number | null;
+export interface QuestionTiming {
+  marks: number;
+  elapsedSeconds: number;
+  runningSinceMs: number | null;
   answeredAt: number | null;
-  timeUsedSeconds: number;
-  isExpired: boolean;
-  finishedEarly: boolean;
-  pausedDurationMsAtPresentation: number;
-};
+  lastUpdatedAt: number;
+  isWarning: boolean;
+}
 
-export type QuestionTimerState = {
-  byQuestionId: Record<string, PerQuestionTiming>;
-  totalTimeLimitSeconds: number;
+export interface TimerState {
+  questions: Record<string, QuestionTiming>;
+  activeQuestionId: string | null;
+  isPaused: boolean;
   sessionStartedAt: number | null;
   sessionFinishedAt: number | null;
-  isPaused: boolean;
-  pausedDurationMs: number;
-  activeQuestionIndex: number;
-};
+}
 
-export type PersistedTimerState = {
-  byQuestionId: Record<string, PerQuestionTiming>;
-  totalTimeLimitSeconds: number;
-  sessionStartedAt: number | null;
-  sessionFinishedAt: number | null;
-  isPaused: boolean;
-  pausedDurationMs: number;
-  activeQuestionIndex: number;
-};
+export function createEmptyTimer(): TimerState {
+  return {
+    questions: {},
+    activeQuestionId: null,
+    isPaused: false,
+    sessionStartedAt: null,
+    sessionFinishedAt: null,
+  };
+}
+
+export function createQuestionTiming(marks: number): QuestionTiming {
+  return {
+    marks,
+    elapsedSeconds: 0,
+    runningSinceMs: null,
+    answeredAt: null,
+    lastUpdatedAt: Date.now(),
+    isWarning: false,
+  };
+}

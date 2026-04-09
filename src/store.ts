@@ -41,7 +41,6 @@ import type {
   PersistedAppState,
   PersistedGeneratorPreferences,
   PersistedMcSession,
-  PersistedTimerState,
   PersistedWrittenSession,
   PhysicalEducationSubtopic,
   Preset,
@@ -57,6 +56,7 @@ import type {
   TechMode,
   Topic,
 } from './types';
+import type { TimerState } from './types/timer';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -177,9 +177,9 @@ export interface AppState {
   // ─── Generator Parameter Presets (Firebase-synced) ─────────────
   presets: Preset[];
 
-  // ── Timer state (survives navigation) ──────────────────────────
-  writtenTimerState: PersistedTimerState | null;
-  mcTimerState: PersistedTimerState | null;
+  // ── Timer v2 ───────────────────────────────────────────────────
+  writtenTimer: TimerState | null;
+  mcTimer: TimerState | null;
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -344,9 +344,9 @@ export interface AppActions {
 
   addGenerationRecord: (record: GenerationRecord) => void;
 
-  // Timer state
-  setWrittenTimerState: (state: PersistedTimerState | null) => void;
-  setMcTimerState: (state: PersistedTimerState | null) => void;
+  // Timer v2
+  setWrittenTimer: (state: TimerState | null) => void;
+  setMcTimer: (state: TimerState | null) => void;
 
   // Import / Export
   importState: (imported: PersistedAppState) => void;
@@ -454,8 +454,8 @@ const defaultState: AppState = {
   },
   generationHistory: [],
   presets: [],
-  writtenTimerState: null,
-  mcTimerState: null,
+  writtenTimer: null,
+  mcTimer: null,
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -490,8 +490,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({
       generationHistory: [record, ...s.generationHistory].slice(0, 1000),
     })),
-  setWrittenTimerState: (writtenTimerState) => set({ writtenTimerState }),
-  setMcTimerState: (mcTimerState) => set({ mcTimerState }),
+  setWrittenTimer: (writtenTimer) => set({ writtenTimer: writtenTimer }),
+  setMcTimer: (mcTimer) => set({ mcTimer: mcTimer }),
   setApiKey: (key) => {
     set({ apiKey: key });
     void updateApiKey(key);
@@ -1031,8 +1031,8 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       generationTelemetry: s.mcGenerationTelemetry,
       savedSetId: s.activeMcSavedSetId,
     },
-    writtenTimerState: s.writtenTimerState,
-    mcTimerState: s.mcTimerState,
+    writtenTimer: s.writtenTimer,
+    mcTimer: s.mcTimer,
     questionHistory: s.questionHistory,
     mcHistory: s.mcHistory,
     savedSets: s.savedSets,
@@ -1121,8 +1121,8 @@ function mapSessions(s: PersistedAppState): Partial<AppState> {
     mcRawModelOutput: s.mcSession.rawModelOutput,
     mcGenerationTelemetry: s.mcSession.generationTelemetry ?? null,
     activeMcSavedSetId: mcSavedSetId,
-    writtenTimerState: s.writtenTimerState ?? null,
-    mcTimerState: s.mcTimerState ?? null,
+    writtenTimer: s.writtenTimer ?? null,
+    mcTimer: s.mcTimer ?? null,
   };
 }
 

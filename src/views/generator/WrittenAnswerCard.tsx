@@ -207,6 +207,7 @@ export function WrittenAnswerCard({
           <Sketchpad
             ref={sketchpadRef}
             embedded
+            sessionKey={questionId}
             onSave={(dataUrl) => void handleSketchSave(dataUrl)}
           />
 

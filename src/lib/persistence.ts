@@ -9,12 +9,10 @@ import type {
   McHistoryEntry,
   McOption,
   McQuestion,
-  PerQuestionTiming,
   PersistedAppState,
   PersistedGeneratorPreferences,
   PersistedMcSession,
   PersistedSettings,
-  PersistedTimerState,
   PersistedWrittenSession,
   Preset,
   QuestionHistoryEntry,
@@ -38,6 +36,7 @@ import {
   SPECIALIST_MATH_SUBTOPICS,
   TOPICS,
 } from '../types';
+import type { QuestionTiming, TimerState } from '../types/timer';
 import { clampWholeNumber, normalizeMarkResponse } from './app-utils';
 
 const DEFAULT_SETTINGS: PersistedSettings = {
@@ -175,8 +174,8 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     streakData: normalizeStreakData(data.streakData),
     generationHistory: normalizeGenerationHistory(data.generationHistory),
     presets: normalizePresets(data.presets),
-    writtenTimerState: normalizeTimerState(data.writtenTimerState),
-    mcTimerState: normalizeTimerState(data.mcTimerState),
+    writtenTimer: normalizeTimerState(data.writtenTimer),
+    mcTimer: normalizeTimerState(data.mcTimer),
   };
 }
 
@@ -415,7 +414,6 @@ function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
     savedSetId: normalizeNullableString(data.savedSetId),
-    timerState: normalizeTimerState(data.timerState) ?? undefined,
   };
 }
 
@@ -433,7 +431,6 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
     rawModelOutput: asString(data.rawModelOutput),
     generationTelemetry: normalizeGenerationTelemetry(data.generationTelemetry),
     savedSetId: normalizeNullableString(data.savedSetId),
-    timerState: normalizeTimerState(data.timerState) ?? undefined,
   };
 }
 
@@ -1125,37 +1122,38 @@ function normalizePreset(raw: unknown): Preset | null {
   };
 }
 
-function normalizeTimerState(raw: unknown): PersistedTimerState | null {
+function normalizeTimerState(raw: unknown): TimerState | null {
   const data = isRecord(raw) ? raw : null;
   if (!data) return null;
-  if (data.sessionStartedAt === null || data.sessionStartedAt === undefined)
-    return null;
 
-  const byQuestionIdRaw = isRecord(data.byQuestionId) ? data.byQuestionId : {};
-  const byQuestionId: Record<string, PerQuestionTiming> = {};
-  for (const [key, val] of Object.entries(byQuestionIdRaw)) {
+  const questionsRaw = isRecord(data.questions) ? data.questions : {};
+  const questions: Record<string, QuestionTiming> = {};
+
+  for (const [key, val] of Object.entries(questionsRaw)) {
     if (!isRecord(val)) continue;
-    byQuestionId[key] = {
-      timeLimitSeconds: asFiniteNumber(val.timeLimitSeconds) ?? 0,
-      originalTimeLimitSeconds:
-        asFiniteNumber(val.originalTimeLimitSeconds) ?? 0,
-      startedAt: asFiniteNumber(val.startedAt) ?? null,
+    const now = Date.now();
+    const lastUpdated = asFiniteNumber(val.lastUpdatedAt) ?? now;
+    if (now - lastUpdated > 24 * 60 * 60 * 1000) continue;
+
+    questions[key] = {
+      marks: asFiniteNumber(val.marks) ?? 1,
+      elapsedSeconds: asFiniteNumber(val.elapsedSeconds) ?? 0,
+      runningSinceMs:
+        asFiniteNumber(val.runningSinceMs) ??
+        asFiniteNumber(val.startedAt) ??
+        null,
       answeredAt: asFiniteNumber(val.answeredAt) ?? null,
-      timeUsedSeconds: asFiniteNumber(val.timeUsedSeconds) ?? 0,
-      isExpired: Boolean(val.isExpired),
-      finishedEarly: Boolean(val.finishedEarly),
-      pausedDurationMsAtPresentation:
-        asFiniteNumber(val.pausedDurationMsAtPresentation) ?? 0,
+      lastUpdatedAt: lastUpdated,
+      isWarning: Boolean(val.isWarning),
     };
   }
 
   return {
-    byQuestionId,
-    totalTimeLimitSeconds: asFiniteNumber(data.totalTimeLimitSeconds) ?? 0,
+    questions,
+    activeQuestionId:
+      typeof data.activeQuestionId === 'string' ? data.activeQuestionId : null,
+    isPaused: Boolean(data.isPaused),
     sessionStartedAt: asFiniteNumber(data.sessionStartedAt) ?? null,
     sessionFinishedAt: asFiniteNumber(data.sessionFinishedAt) ?? null,
-    isPaused: Boolean(data.isPaused),
-    pausedDurationMs: asFiniteNumber(data.pausedDurationMs) ?? 0,
-    activeQuestionIndex: clampWholeNumber(data.activeQuestionIndex, 0, 0, 999),
   };
 }
