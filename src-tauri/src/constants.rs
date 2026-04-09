@@ -63,7 +63,7 @@ pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 // ─── Global style rules (truly constant, not curriculum-dependent) ────────────
 
 /// Injected into every system prompt.
-pub const LATEX_RULES: &str = " LaTeX: Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\]. Put all math symbols, notation, and Chemistry species ($\\text{H}_2\\text{O}$) inside delimiters. ASCII ONLY: Use LaTeX for all Greek letters and symbols. No unicode/smart-quotes. No fancy characters like ™, ®, ℓ, Ω. Use plain ASCII text, math mode, or standard LaTeX.";
+pub const LATEX_RULES: &str = " LaTeX: Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\]. Put all math symbols, notation, and Chemistry species ($\\text{H}_2\\text{O}$) inside delimiters. Use LaTeX only when mathematically necessary; do NOT inject decorative/random commands. Every command must be valid and complete (for example, never output empty fractions like \\frac{}{}). Do not place LaTeX commands outside math delimiters. ASCII ONLY: Use LaTeX for all Greek letters and symbols. No unicode/smart-quotes. No fancy characters like ™, ®, ℓ, Ω. Use plain ASCII text, math mode, or standard LaTeX.";
 
 pub const QUESTION_STYLE_RULES: &str = "
 VCAA STYLE RULES:

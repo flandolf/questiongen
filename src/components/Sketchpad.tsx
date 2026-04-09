@@ -586,14 +586,32 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       (key?: string) => {
         if (!key) return;
         try {
-          const storedDataUrl = localStorage.getItem(getCanvasStorageKey(key));
-          if (!storedDataUrl) return;
-
           const canvas = canvasRef.current;
           if (!canvas) return;
 
           const ctx = canvas.getContext('2d');
           if (!ctx) return;
+
+          // Always clear first so drawings from a previous question never bleed into this one.
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          const overlayCanvas = overlayRef.current;
+          if (overlayCanvas) {
+            const overlayCtx = overlayCanvas.getContext('2d');
+            overlayCtx?.clearRect(
+              0,
+              0,
+              overlayCanvas.width,
+              overlayCanvas.height
+            );
+          }
+          undoStack.current = [];
+          redoStack.current = [];
+          hasMoved.current = false;
+          lastPointReal.current = null;
+          forceUpdate((n) => n + 1);
+
+          const storedDataUrl = localStorage.getItem(getCanvasStorageKey(key));
+          if (!storedDataUrl) return;
 
           const img = new Image();
           img.onload = () => {
@@ -742,7 +760,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     }, [penOnlyMode]);
 
-    // Restore canvas from storage on mount
+    // Restore canvas from storage on mount/session changes.
     useEffect(() => {
       if (sessionKey && canvasRef.current) {
         restoreCanvasFromStorage(sessionKey);
