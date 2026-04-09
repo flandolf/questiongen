@@ -1785,8 +1785,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const ctx = getCtx();
       if (!canvas || !ctx) return;
       pushUndo(true);
+      ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
+      clearOverlay();
+      lastMove.current = [];
+      lastPointReal.current = null;
+      shapeStart.current = null;
+      activeDrawingPointerId.current = null;
+      setIsDrawing(false);
+      isDrawingRef.current = false;
+      hasMoved.current = false;
       forceUpdate((n) => n + 1);
-    }, [pushUndo]);
+    }, [clearOverlay, pushUndo]);
 
     useEffect(() => {
       undoActionRef.current = undo;
