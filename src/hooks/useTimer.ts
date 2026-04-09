@@ -21,6 +21,7 @@ export interface UseTimerReturn {
   reset: () => void;
   togglePause: () => void;
   removeQuestion: (questionId: string) => void;
+  resetCurrentQuestion: () => void;
 
   getQuestionTiming: (
     questionId: string
@@ -177,7 +178,7 @@ export function useTimer(
           (id) => nextQuestions[id] === prev.questions[id]
         ) &&
         Object.keys(prev.questions).length ===
-          Object.keys(nextQuestions).length;
+        Object.keys(nextQuestions).length;
       if (sameActive && sameQuestions) return prev;
 
       return {
@@ -383,6 +384,33 @@ export function useTimer(
       .sort((a, b) => a.marks - b.marks);
   }, [timerState.questions, nowMs]);
 
+  const resetCurrentQuestion = useCallback(() => {
+    const now = Date.now();
+    setTimerState((prev) => {
+      if (!prev.sessionStartedAt || prev.sessionFinishedAt) return prev;
+      const activeId = prev.activeQuestionId;
+      if (!activeId) return prev;
+      const q = prev.questions[activeId];
+      if (!q) return prev;
+
+      return {
+        ...prev,
+        questions: {
+          ...prev.questions,
+          [activeId]: {
+            ...q,
+            elapsedSeconds: 0,
+            runningSinceMs: prev.isPaused ? null : now,
+            answeredAt: null,
+            lastUpdatedAt: now,
+            isWarning: false,
+          },
+        },
+      };
+    });
+    setNowMs(Date.now());
+  }, []);
+
   const currentQuestionId =
     questions[activeQuestionIndex]?.id ?? timerState.activeQuestionId;
   const currentQ = currentQuestionId
@@ -420,6 +448,7 @@ export function useTimer(
     reset,
     togglePause,
     removeQuestion,
+    resetCurrentQuestion,
 
     getQuestionTiming,
     getAllTimings,

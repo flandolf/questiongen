@@ -157,7 +157,7 @@ const ListEntryCard = memo(function ListEntryCard({
                 {entry.question.topic}
               </Badge>
               {entry.question.subtopic && (
-                <span className="text-[10px] text-muted-foreground/50 truncate max-w-[8rem]">
+                <span className="text-[10px] text-muted-foreground/50 truncate max-w-32">
                   {entry.question.subtopic}
                 </span>
               )}
@@ -172,13 +172,12 @@ const ListEntryCard = memo(function ListEntryCard({
           <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
             {srCard && (
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
-                  daysUntilReview(srCard) < 0
-                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
-                    : daysUntilReview(srCard) === 0
-                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
-                      : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
-                }`}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${daysUntilReview(srCard) < 0
+                  ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
+                  : daysUntilReview(srCard) === 0
+                    ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                    : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
+                  }`}
               >
                 {daysUntilReview(srCard) < 0
                   ? `${Math.abs(daysUntilReview(srCard))}d overdue`
@@ -344,7 +343,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
             Your answer
           </p>
-          <div className="rounded-sm border border-border/40 bg-muted/20 px-3.5 py-3 text-sm whitespace-pre-line leading-relaxed h-full min-h-[5rem]">
+          <div className="rounded-sm border border-border/40 bg-muted/20 px-3.5 py-3 text-sm whitespace-pre-line leading-relaxed h-full min-h-20">
             {entry.uploadedAnswer?.trim() || (
               <span className="italic text-muted-foreground/50">
                 No text answer
@@ -356,7 +355,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
             Worked solution
           </p>
-          <div className="rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none h-full min-h-[5rem]">
+          <div className="rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none h-full min-h-20">
             <MarkdownMath
               content={
                 entry.workedSolutionMarkdown || 'No worked solution available.'
@@ -523,6 +522,23 @@ function ReattemptView({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
+  const toggleQuestionPause = useCallback(() => {
+    if (!questionPauseStartedAtRef.current) {
+      questionPauseStartedAtRef.current = Date.now();
+    } else {
+      questionPausedDurationMsRef.current +=
+        Date.now() - questionPauseStartedAtRef.current;
+      questionPauseStartedAtRef.current = null;
+    }
+  }, []);
+
+  const resetQuestionTimer = useCallback(() => {
+    setQuestionStartedAt(Date.now());
+    questionPausedDurationMsRef.current = 0;
+    questionPauseStartedAtRef.current = null;
+    setQuestionElapsed(0);
+  }, []);
+
   const entry = questions[idx];
   const isWritten = entry.kind === 'written';
   const writtenEntry = isWritten ? entry : null;
@@ -575,24 +591,24 @@ function ReattemptView({
     const state: QuestionState =
       currentEntry.kind === 'written'
         ? {
-            writtenAnswer,
-            image,
-            feedback,
-            markingScheme,
-            appealText,
-            overrideInput,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          }
+          writtenAnswer,
+          image,
+          feedback,
+          markingScheme,
+          appealText,
+          overrideInput,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        }
         : {
-            selectedAnswer,
-            awardedMarks,
-            mcAppealText,
-            mcOverrideInput,
-            mcSketchpadActive,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          };
+          selectedAnswer,
+          awardedMarks,
+          mcAppealText,
+          mcOverrideInput,
+          mcSketchpadActive,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        };
     setSavedStates((prev) => ({ ...prev, [currentEntry.id]: state }));
   }, [
     idx,
@@ -832,6 +848,10 @@ function ReattemptView({
           generationStartedAt={startedAt}
           telemetry={null}
           questionTimeSeconds={questionElapsed}
+          isPaused={Boolean(questionPauseStartedAtRef.current)}
+          onTogglePause={toggleQuestionPause}
+          onResetTimer={resetQuestionTimer}
+          questionMarks={isWritten ? entry.question.maxMarks : undefined}
           onPrev={handlePrev}
           onNext={() => handleNext(null)}
           onExit={handleExit}
@@ -855,6 +875,10 @@ function ReattemptView({
           generationStartedAt={startedAt}
           telemetry={null}
           questionTimeSeconds={questionElapsed}
+          isPaused={Boolean(questionPauseStartedAtRef.current)}
+          onTogglePause={toggleQuestionPause}
+          onResetTimer={resetQuestionTimer}
+          questionMarks={1}
           onPrev={handlePrev}
           onNext={() => handleNext(null)}
           onExit={handleExit}
@@ -883,7 +907,7 @@ function ReattemptView({
                   isMarking={isMarking}
                   onAppealChange={setAppealText}
                   onOverrideInputChange={setOverrideInput}
-                  onArgueForMark={() => {}}
+                  onArgueForMark={() => { }}
                   onApplyOverride={handleApplyOverride}
                   onCriterionChange={handleCriterionChange}
                 />
@@ -940,7 +964,7 @@ function ReattemptView({
                         onSelectAnswer={handleSelectAnswer}
                         onAppealChange={setMcAppealText}
                         onOverrideInputChange={setMcOverrideInput}
-                        onArgueForMark={() => {}}
+                        onArgueForMark={() => { }}
                         onApplyOverride={handleApplyMcOverride}
                         isSketchpadOpen={mcSketchpadActive}
                         onToggleSketchpad={() =>
@@ -982,7 +1006,7 @@ function ReattemptView({
                     onSelectAnswer={handleSelectAnswer}
                     onAppealChange={setMcAppealText}
                     onOverrideInputChange={setMcOverrideInput}
-                    onArgueForMark={() => {}}
+                    onArgueForMark={() => { }}
                     onApplyOverride={handleApplyMcOverride}
                     isSketchpadOpen={mcSketchpadActive}
                     onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
@@ -1362,9 +1386,9 @@ export default function WrongQuestionView() {
             e.id !== entry.id
               ? e
               : {
-                  ...e,
-                  markResponse: { ...e.markResponse, verdict: 'correct' },
-                }
+                ...e,
+                markResponse: { ...e.markResponse, verdict: 'correct' },
+              }
           )
         );
         // Record SR with quality 4 (correct)
@@ -1577,13 +1601,12 @@ export default function WrongQuestionView() {
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${
-                            isOverdue
-                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                              : days === 0
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                          }`}
+                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${isOverdue
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                            : days === 0
+                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                            }`}
                         >
                           {isOverdue
                             ? `${Math.abs(days)}d overdue`
