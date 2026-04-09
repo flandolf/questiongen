@@ -472,9 +472,19 @@ fn repair_common_latex_typos(text: &str) -> String {
             .iter()
             .find(|command| after_b.starts_with(**command))
         {
-            out.push('\\');
-            out.push_str(command);
-            rest = &after_b[command.len()..];
+            let b_prefixed_is_valid = COMMANDS
+                .iter()
+                .any(|candidate| *candidate == format!("b{command}"));
+            // Only strip the extra 'b' for malformed forms like \bmathbb,
+            // not for valid \b... commands such as \beta or \begin.
+            if command.starts_with('b') || b_prefixed_is_valid {
+                out.push_str(r"\b");
+                rest = after_b;
+            } else {
+                out.push('\\');
+                out.push_str(command);
+                rest = &after_b[command.len()..];
+            }
         } else {
             out.push_str(r"\b");
             rest = after_b;
@@ -519,61 +529,72 @@ fn repair_tabular_row_breaks(s: &str) -> String {
         "bottomrule",
     ];
 
-    let bytes = s.as_bytes();
-    let len = bytes.len();
-    let mut out = String::with_capacity(len + 8);
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut out = String::with_capacity(s.len() + 8);
     let mut i = 0usize;
 
     while i < len {
-        if bytes[i] == b'\\' {
+        if chars[i] == '\\' {
             // Count consecutive backslashes starting at i.
             let mut run_end = i + 1;
-            while run_end < len && bytes[run_end] == b'\\' {
+            while run_end < len && chars[run_end] == '\\' {
                 run_end += 1;
             }
 
-            // Only repair single-backslash run; `\\` is already valid.
-            if run_end == i + 1 {
-                let mut j = run_end;
-                while j < len && bytes[j].is_ascii_whitespace() {
-                    j += 1;
+            // Preserve existing valid row breaks (\\, \\\, ...)
+            if run_end > i + 1 {
+                for _ in i..run_end {
+                    out.push('\\');
+                }
+                i = run_end;
+                continue;
+            }
+
+            // Single backslash run: check if it should be repaired.
+            let mut j = run_end;
+            while j < len && chars[j].is_whitespace() {
+                j += 1;
+            }
+
+            // Repair `\ \hline`-style malformed row break before rule commands.
+            if j + 1 < len && chars[j] == '\\' {
+                let cmd_start = j + 1;
+                let mut cmd_end = cmd_start;
+                while cmd_end < len && chars[cmd_end].is_ascii_alphabetic() {
+                    cmd_end += 1;
                 }
 
-                // Look for `\<rule-command>` after optional whitespace.
-                if j + 1 < len && bytes[j] == b'\\' {
-                    let cmd_start = j + 1;
-                    let mut cmd_end = cmd_start;
-                    while cmd_end < len && bytes[cmd_end].is_ascii_alphabetic() {
-                        cmd_end += 1;
-                    }
-
-                    if cmd_end > cmd_start {
-                        let cmd = &s[cmd_start..cmd_end];
-                        if RULE_COMMANDS.iter().any(|candidate| candidate == &cmd) {
-                            out.push_str("\\\\");
-                            out.push_str(&s[run_end..j]);
-                            out.push_str(&s[j..cmd_end]);
-                            i = cmd_end;
-                            continue;
+                if cmd_end > cmd_start {
+                    let cmd: String = chars[cmd_start..cmd_end].iter().collect();
+                    if RULE_COMMANDS.iter().any(|candidate| candidate == &cmd) {
+                        out.push_str("\\\\");
+                        for &ch in &chars[run_end..j] {
+                            out.push(ch);
                         }
+                        out.push('\\');
+                        for &ch in &chars[cmd_start..cmd_end] {
+                            out.push(ch);
+                        }
+                        i = cmd_end;
+                        continue;
                     }
                 }
+            }
 
-                // Also repair a common malformed row break in `cases`/`array`
-                // where the next row starts with a digit, e.g. `... 1\0, ...`
-                // instead of `... 1\\0, ...`.
-                // But only if we DON'T already have a double backslash!
-                if run_end == i + 1 && j < len && bytes[j].is_ascii_digit() {
-                    out.push_str("\\\\");
-                    out.push_str(&s[run_end..j]);
-                    out.push(bytes[j] as char);
-                    i = j + 1;
-                    continue;
+            // Repair malformed row break before digit, e.g. `... 1\0, ...`.
+            if j < len && chars[j].is_ascii_digit() {
+                out.push_str("\\\\");
+                for &ch in &chars[run_end..j] {
+                    out.push(ch);
                 }
+                out.push(chars[j]);
+                i = j + 1;
+                continue;
             }
         }
 
-        out.push(bytes[i] as char);
+        out.push(chars[i]);
         i += 1;
     }
 

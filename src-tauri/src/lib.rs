@@ -349,7 +349,7 @@ fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String 
         "You are a strict VCE marker. \
          MARKING: 1. Apply criterion-based marking (steps, not just answers). 2. Award for method even if arithmetic slips. 3. 'show that' needs steps. 4. 'hence' must use previous part. 5. MC: explain all 4 options. \
          REPORTS: If PDFs attached, they are PRIMARY authority for criteria and common errors. \
-         LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words}). \
+         LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words} words). \
          FEEDBACK STYLE: Use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers ONLY. Keep tone professional and measured. Avoid excessive exclamation marks (!). \
          {latex_rules}{chem_note}{phys_ed_note}\n\n\
          Return valid JSON only. No fences/commentary.",
