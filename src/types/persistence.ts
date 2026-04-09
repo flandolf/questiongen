@@ -26,7 +26,7 @@ import type {
 import type { SpacedRepetitionCard } from './spaced-repetition';
 import type { Preset, StreakData, StudyGoals } from './study';
 import type { GenerationTelemetry } from './telemetry';
-import type { PersistedTimerState } from './timer';
+import type { TimerState } from './timer';
 
 export type PersistedSettings = {
   apiKey: string;
@@ -78,7 +78,6 @@ export type PersistedWrittenSession = {
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;
   savedSetId?: string | null;
-  timerState?: PersistedTimerState;
 };
 
 export type PersistedMcSession = {
@@ -89,7 +88,6 @@ export type PersistedMcSession = {
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;
   savedSetId?: string | null;
-  timerState?: PersistedTimerState;
 };
 
 export type SavedQuestionSet = {
@@ -118,8 +116,8 @@ export type PersistedAppState = {
   streakData?: StreakData;
   generationHistory?: GenerationRecord[];
   presets?: Preset[];
-  writtenTimerState?: PersistedTimerState | null;
-  mcTimerState?: PersistedTimerState | null;
+  writtenTimer?: TimerState | null;
+  mcTimer?: TimerState | null;
   deletionTombstones?: Record<string, Record<string, number>>;
 };
 

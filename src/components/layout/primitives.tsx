@@ -1,6 +1,9 @@
+import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
+
+const SPRING = { type: 'spring' as const, stiffness: 300, damping: 20 };
 
 interface PageHeaderProps {
   title: string;
@@ -16,15 +19,43 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn('flex items-start justify-between gap-4', className)}>
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={SPRING}
+      className={cn('flex items-start justify-between gap-4', className)}
+    >
       <div className="space-y-1">
-        <h1 className="text-3xl font-black tracking-tight">{title}</h1>
+        <motion.h1
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ ...SPRING, delay: 0.1 }}
+          className="text-3xl font-black tracking-tight"
+        >
+          {title}
+        </motion.h1>
         {description && (
-          <p className="text-sm text-muted-foreground mb-2">{description}</p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="text-sm text-muted-foreground mb-2"
+          >
+            {description}
+          </motion.p>
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </div>
+      {actions && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ ...SPRING, delay: 0.1 }}
+          className="flex items-center gap-2"
+        >
+          {actions}
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
 
@@ -172,9 +203,12 @@ interface FilterButtonProps {
 
 export function FilterButton({ children, active, onClick }: FilterButtonProps) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={SPRING}
       className={cn(
         'px-3 py-1.5 text-xs rounded-sm font-medium transition-colors flex items-center gap-1.5',
         active
@@ -183,7 +217,7 @@ export function FilterButton({ children, active, onClick }: FilterButtonProps) {
       )}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 

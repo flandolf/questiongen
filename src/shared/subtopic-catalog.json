@@ -8,7 +8,7 @@
         "2025-MathematicalMethods1-report.pdf",
         "2025-MathematicalMethods2-report.pdf"
       ],
-      "examGuidance": "Use formal mathematical notation and VCE command verbs. For tech-free: require exact arithmetic and manual algebraic manipulation (no technology). For tech-active: allow CAS for complex numerical work, rounded as specified. Confine questions to the VCE Units 3 and 4 Study Design. State domains for functions and give exact coordinates for key graphical features; include constants of integration where required.",
+      "examGuidance": "Use formal mathematical notation and VCE command verbs. For tech-free: require exact arithmetic and manual algebraic manipulation (no technology). For tech-active: allow CAS for complex numerical work, rounded as specified. Confine questions to the VCE Units 3 and 4 Study Design. State domains for functions and give exact coordinates for key graphical features; include constants of integration where required. Avoid explicitly stating certain techniques, such as the 'product rule' — instead, design questions that require them to choose and apply appropriate methods themselves.",
       "subtopics": [
         {
           "name": "Function Notation and Domains",
@@ -50,7 +50,7 @@
           "instruction": "Create questions involving piecewise (hybrid) functions where students must: state the rule and domain for each piece, determine whether the function is continuous at boundary points (using left/right limit comparison), sketch the complete function, and determine the overall domain and range. Include modelling contexts where a hybrid function arises naturally.",
           "group": "unit3-functions",
           "keyKnowledge": "Students must be able to evaluate a hybrid function at any point by selecting the correct rule, and test continuity at boundary points by verifying that the left-hand limit, right-hand limit, and function value all agree. Hybrid functions may combine polynomial, exponential, logarithmic, and circular rules. The overall domain is the union of the domains of each piece.",
-          "techniqueNotes": "Display each piece of a hybrid function with its corresponding domain clearly separated. For continuity checks at $x = a$, write $\\lim_{x \\to a^-} f(x)$, $\\lim_{x \\to a^+} f(x)$, and $f(a)$ explicitly. Use open/closed dots on sketches to indicate whether endpoints are included."
+          "techniqueNotes": "**Always use the LaTeX `\\begin{cases}...\\end{cases}` environment for piecewise functions.** The format is: `$f(x) = \\begin{cases} \\text{rule 1} & \\text{if condition 1} \\\\ \\text{rule 2} & \\text{if condition 2} \\\\ \\vdots \\end{cases}$`. Example: `$f(x) = \\begin{cases} -1 & \\text{if } x \\leq -1 \\\\ x & \\text{if } x \\in [-1, 1] \\\\ 1 & \\text{if } x \\geq 1 \\end{cases}$`. For continuity checks at $x = a$, write $\\lim_{x \\to a^-} f(x)$, $\\lim_{x \\to a^+} f(x)$, and $f(a)$ explicitly. Use open/closed dots on sketches to indicate whether endpoints are included."
         },
         {
           "name": "Dilations",

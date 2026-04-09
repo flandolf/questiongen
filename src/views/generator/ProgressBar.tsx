@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { memo } from 'react';
 
 type ProgressBarProps = {
@@ -60,20 +61,24 @@ export const ProgressBar = memo(function ProgressBar({
       {/* Track */}
       <div className="relative w-full h-2 bg-muted/40 rounded-full overflow-hidden">
         {/* Completed (green, underneath) */}
-        <div
-          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${completedPercent}%` }}
+          transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+          className="absolute inset-y-0 left-0 rounded-full"
           style={{
-            width: `${completedPercent}%`,
             background: isComplete
               ? 'linear-gradient(90deg, #10b981, #34d399)'
               : 'rgba(74, 222, 128, 0.55)',
           }}
         />
         {/* Current position indicator */}
-        <div
-          className="absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out"
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
+          className="absolute inset-y-0 left-0 rounded-full"
           style={{
-            width: `${percent}%`,
             background: 'hsl(var(--primary) / 0.75)',
           }}
         />

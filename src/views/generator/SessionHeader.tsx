@@ -37,6 +37,8 @@ type SessionHeaderProps = {
   telemetry: GenerationTelemetry | null;
   questionTimeSeconds?: number;
   isPaused?: boolean;
+  isQuestionWarning?: boolean;
+  questionMarks?: number;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
   onPrev: () => void;
   onNext: () => void;
@@ -60,6 +62,8 @@ export function SessionHeader({
   telemetry,
   questionTimeSeconds,
   isPaused,
+  isQuestionWarning,
+  questionMarks,
   getDifficultyBadgeClasses,
   onPrev,
   onNext,
@@ -71,8 +75,6 @@ export function SessionHeader({
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
 
-  // Live ticking timer display — increments locally between parent re-renders
-  // and freezes when the session is paused
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (questionTimeSeconds === undefined) {
@@ -115,9 +117,25 @@ export function SessionHeader({
             <span className="text-muted-foreground">of {totalQuestions}</span>
           </div>
           {questionTimeSeconds !== undefined && (
-            <span className="flex items-center gap-1 text-xs font-mono tabular-nums text-muted-foreground">
-              <Clock className="w-3 h-3" />
+            <span
+              className={`flex items-center gap-1 text-xs font-mono tabular-nums ${isQuestionWarning ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}
+            >
+              <Clock
+                className={`w-3 h-3 ${isQuestionWarning ? 'animate-pulse' : ''}`}
+              />
               {timerDisplay}
+              {questionMarks !== undefined && (
+                <span
+                  className={`text-[10px] ml-0.5 ${isQuestionWarning ? 'text-amber-500' : 'text-muted-foreground/70'}`}
+                >
+                  ({questionMarks}mk)
+                </span>
+              )}
+              {isQuestionWarning && (
+                <span className="text-amber-500 text-[10px] font-bold animate-pulse">
+                  !
+                </span>
+              )}
             </span>
           )}
           {completedCount > 0 && completedCount < totalQuestions && (

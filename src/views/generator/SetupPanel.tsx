@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   BookOpen,
@@ -56,6 +57,8 @@ import {
 } from './GenerationTimeline';
 import { PresetSection } from './PresetSection';
 import { SectionLabel } from './SetupUI';
+
+const SPRING = { type: 'spring' as const, stiffness: 300, damping: 20 };
 
 export * from './AdvancedOptions';
 export * from './PresetSection';
@@ -352,10 +355,13 @@ function SetupPanelImpl({
               {TOPICS.map((topic) => {
                 const isSelected = selectedTopics.includes(topic);
                 return (
-                  <button
+                  <motion.button
                     key={topic}
                     type="button"
                     onClick={() => onToggleTopic(topic)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={SPRING}
                     className={[
                       'flex items-center gap-2.5 px-3 py-3 rounded-md border text-sm font-medium text-left transition-all duration-150 cursor-pointer select-none',
                       isSelected
@@ -368,9 +374,15 @@ function SetupPanelImpl({
                     </span>
                     <span className="flex-1 leading-tight">{topic}</span>
                     {isSelected && (
-                      <CheckCheck className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                      <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={SPRING}
+                      >
+                        <CheckCheck className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                      </motion.span>
                     )}
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>

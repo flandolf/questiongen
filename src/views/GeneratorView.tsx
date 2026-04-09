@@ -14,7 +14,7 @@ import {
 } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { useQuestionTimer } from '@/hooks/useQuestionTimer';
+import { useTimer } from '@/hooks/useTimer';
 import {
   fileToDataUrl,
   formatDurationMs,
@@ -266,8 +266,6 @@ export function GeneratorView() {
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
   const deleteSavedSet = useAppStore((s) => s.deleteSavedSet);
-  const setWrittenTimerState = useAppStore((s) => s.setWrittenTimerState);
-  const setMcTimerState = useAppStore((s) => s.setMcTimerState);
 
   const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -282,13 +280,8 @@ export function GeneratorView() {
     useState<GenerationTelemetry | null>(null);
 
   // --- Timer hooks ---
-  const writtenTimer = useQuestionTimer(
-    0,
-    questions,
-    activeQuestionIndex,
-    'written'
-  );
-  const mcTimer = useQuestionTimer(0, mcQuestions, activeMcQuestionIndex, 'mc');
+  const writtenTimer = useTimer(questions, activeQuestionIndex, 'written');
+  const mcTimer = useTimer(mcQuestions, activeMcQuestionIndex, 'mc');
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -521,7 +514,7 @@ export function GeneratorView() {
     });
   }, [mcQuestions, mcAnswersByQuestionId, getMcAwardedMarks]);
 
-  // Active timer hook based on current question mode
+  // Active timer hook
   const activeTimer = questionMode === 'written' ? writtenTimer : mcTimer;
 
   // Use formattedSessionTime from the timer hook
@@ -682,36 +675,49 @@ export function GeneratorView() {
     [activeMcQuestion, setMcMarkOverrideInputByQuestionId]
   );
 
-  // ── Timer actions ─────────────────────────────────────────────────────────────
+  // ── Timer actions v2 ───────────────────────────────────────────────────────────
   function startStopwatch() {
-    if (questionMode === 'written') writtenTimer.reset();
-    else if (questionMode === 'multiple-choice') mcTimer.reset();
+    writtenTimer.reset();
+    mcTimer.reset();
   }
 
   // Start timer only after questions or mcQuestions are populated
   // The hook handles resumption from Zustand internally — this just starts new sessions
   useEffect(() => {
     if (questionMode === 'written' && questions.length > 0) {
-      writtenTimer.startTiming(questions);
+      writtenTimer.start(questions);
     } else if (questionMode === 'multiple-choice' && mcQuestions.length > 0) {
-      mcTimer.startTiming(mcQuestions);
+      mcTimer.start(mcQuestions);
     }
   }, [questionMode, questions, mcQuestions, writtenTimer, mcTimer]);
 
   // Pause timers while marking
   useEffect(() => {
     if (questionMode === 'written') {
-      writtenTimer.setPaused(isMarking);
+      if (writtenTimer.isPaused !== isMarking) {
+        writtenTimer.togglePause();
+      }
     } else if (questionMode === 'multiple-choice') {
-      mcTimer.setPaused(isMarking);
+      if (mcTimer.isPaused !== isMarking) {
+        mcTimer.togglePause();
+      }
     }
-  }, [isMarking, questionMode, writtenTimer, mcTimer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isMarking,
+    questionMode,
+    writtenTimer.isPaused,
+    writtenTimer.togglePause,
+    mcTimer.isPaused,
+    mcTimer.togglePause,
+  ]);
 
   const resetStopwatch = useCallback(() => {
     setGenerationStartedAt(null);
-    if (questionMode === 'written') writtenTimer.reset();
-    else if (questionMode === 'multiple-choice') mcTimer.reset();
-  }, [questionMode, writtenTimer, mcTimer, setGenerationStartedAt]);
+    writtenTimer.reset();
+    mcTimer.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writtenTimer.reset, mcTimer.reset, setGenerationStartedAt]);
 
   function togglePause() {
     if (questionMode === 'written') writtenTimer.togglePause();
@@ -779,7 +785,7 @@ export function GeneratorView() {
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
     if (isAtLastWrittenQuestion) {
-      writtenTimer.finishSession();
+      writtenTimer.complete();
       setShowCompletionScreen(true);
       return;
     }
@@ -798,7 +804,7 @@ export function GeneratorView() {
   const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
     if (isAtLastMcQuestion) {
-      mcTimer.finishSession();
+      mcTimer.complete();
       setShowCompletionScreen(true);
       return;
     }
@@ -1107,7 +1113,7 @@ export function GeneratorView() {
         answerCharacterCount: 0,
         answerWordCount: 0,
         usedImageUpload: false,
-        responseLatencyMs: timing ? timing.timeUsedSeconds * 1000 : undefined,
+        responseLatencyMs: timing ? timing.elapsedSeconds * 1000 : undefined,
         finalAnswerChangedAtMs: responseAt,
       },
     };
@@ -1224,7 +1230,7 @@ export function GeneratorView() {
         answerCharacterCount: uploadedAnswer.length,
         answerWordCount: countWords(uploadedAnswer),
         usedImageUpload: Boolean(imagesByQuestionId[question.id]),
-        responseLatencyMs: timing ? timing.timeUsedSeconds * 1000 : undefined,
+        responseLatencyMs: timing ? timing.elapsedSeconds * 1000 : undefined,
         markingLatencyMs: options?.markingLatencyMs,
       },
     };
@@ -1593,7 +1599,6 @@ export function GeneratorView() {
       }
 
       setQuestions(cleanedQuestions);
-      setWrittenTimerState(null);
       setWrittenRawModelOutput('');
       setWrittenGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -1935,7 +1940,6 @@ export function GeneratorView() {
       const preprocessedQuestions = preprocessMcQuestions(finalQuestions);
 
       setMcQuestions(preprocessedQuestions);
-      setMcTimerState(null);
       setMcRawModelOutput('');
       setMcGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -2019,7 +2023,7 @@ export function GeneratorView() {
         markingLatencyMs,
         responseEnteredAtMs,
       });
-      writtenTimer.onQuestionAnswered(activeQuestion.id);
+      writtenTimer.markAnswered(activeQuestion.id);
       useAppStore.getState().recordCompletion('written');
       toast.success(
         `Answer marked: ${response.achievedMarks}/${response.maxMarks} marks`
@@ -2210,7 +2214,7 @@ export function GeneratorView() {
         'initial',
         responseEnteredAtMs
       );
-      mcTimer.onQuestionAnswered(activeMcQuestion.id);
+      mcTimer.markAnswered(activeMcQuestion.id);
       useAppStore.getState().recordCompletion('multiple-choice');
     }
   }
@@ -2371,8 +2375,6 @@ export function GeneratorView() {
     setMcMarkAppealByQuestionId({});
     setMcMarkOverrideInputByQuestionId({});
     setMcAwardedMarksByQuestionId({});
-    setWrittenTimerState(null);
-    setMcTimerState(null);
   }, [
     questionMode,
     questions.length,
@@ -2393,12 +2395,10 @@ export function GeneratorView() {
     setMcQuestionPresentedAtById,
     setMcQuestions,
     setMcRawModelOutput,
-    setMcTimerState,
     setQuestions,
     setWrittenGenerationTelemetry,
     setWrittenQuestionPresentedAtById,
     setWrittenRawModelOutput,
-    setWrittenTimerState,
     setWrittenResponseEnteredAtById,
     setMarkAppealByQuestionId,
     setMarkOverrideInputByQuestionId,
@@ -2518,9 +2518,9 @@ export function GeneratorView() {
                   return t
                     ? {
                         questionId: q.id,
-                        timeUsedSeconds: t.timeUsedSeconds,
-                        timeLimitSeconds: t.timeLimitSeconds,
-                        finishedEarly: t.finishedEarly,
+                        timeUsedSeconds: t.elapsedSeconds,
+                        timeLimitSeconds: 0,
+                        finishedEarly: false,
                       }
                     : {
                         questionId: q.id,
@@ -2534,9 +2534,9 @@ export function GeneratorView() {
                   return t
                     ? {
                         questionId: q.id,
-                        timeUsedSeconds: t.timeUsedSeconds,
-                        timeLimitSeconds: t.timeLimitSeconds,
-                        finishedEarly: t.finishedEarly,
+                        timeUsedSeconds: t.elapsedSeconds,
+                        timeLimitSeconds: 0,
+                        finishedEarly: false,
                       }
                     : {
                         questionId: q.id,
@@ -2566,8 +2566,10 @@ export function GeneratorView() {
             canAdvance={canAdvanceWritten}
             generationStartedAt={generationStartedAt}
             telemetry={writtenGenerationTelemetry}
-            questionTimeSeconds={writtenTimer.currentQuestionTimeUsed}
+            questionTimeSeconds={writtenTimer.currentQuestionElapsed}
             isPaused={writtenTimer.isPaused}
+            isQuestionWarning={writtenTimer.isCurrentQuestionWarning}
+            questionMarks={writtenTimer.currentQuestionMarks}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() =>
               setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
@@ -2669,8 +2671,10 @@ export function GeneratorView() {
             canAdvance={canAdvanceMc}
             generationStartedAt={generationStartedAt}
             telemetry={mcGenerationTelemetry}
-            questionTimeSeconds={mcTimer.currentQuestionTimeUsed}
+            questionTimeSeconds={mcTimer.currentQuestionElapsed}
             isPaused={mcTimer.isPaused}
+            isQuestionWarning={mcTimer.isCurrentQuestionWarning}
+            questionMarks={mcTimer.currentQuestionMarks}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
             onPrev={() =>
               setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))
@@ -2742,6 +2746,7 @@ export function GeneratorView() {
                     mcSketchpadActive ? (
                       <div className="min-w-0 space-y-4">
                         <McSketchpadPanel
+                          questionId={activeMcQuestion?.id}
                           image={mcImagesByQuestionId[activeMcQuestion.id]}
                           onImageDrop={handleMcImageDrop}
                           onImageRemove={handleMcImageRemove}
