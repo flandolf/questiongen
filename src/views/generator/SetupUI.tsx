@@ -182,7 +182,7 @@ export function GroupedSubtopicSelector({
                 type="button"
                 onClick={() => toggleUnit(unit)}
                 className={cn(
-                  'relative flex-1 min-w-[120px] flex flex-col items-start gap-1.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden',
+                  'relative flex-1 min-w-30 flex flex-col items-start gap-1.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden',
                   isActive
                     ? 'bg-background shadow-sm border border-border/60 text-foreground ring-1 ring-primary/10'
                     : 'bg-transparent border border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground'

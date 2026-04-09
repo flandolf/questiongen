@@ -25,7 +25,9 @@ import { Input } from '../../../components/ui/input';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
@@ -38,6 +40,13 @@ import {
   type Topic,
   TOPICS,
 } from '../../../types';
+import {
+  CHEMISTRY_SUBTOPIC_GROUPS,
+  MATH_METHODS_SUBTOPIC_GROUPS,
+  PE_SUBTOPIC_GROUPS,
+  SPECIALIST_MATH_SUBTOPIC_GROUPS,
+  type TopicSubtopicGroup,
+} from '../../../types/catalog';
 import { PRESET_MODELS } from '../constants';
 import {
   Card,
@@ -257,11 +266,13 @@ function ManualFixPanel({
   canonicalOptions,
   mappingKind,
   onApply,
+  subtopicGroups,
 }: {
   unknownItems: string[];
   canonicalOptions: string[];
   mappingKind: 'topic' | 'subtopic';
   onApply: (mapping: Record<string, string>) => number;
+  subtopicGroups?: readonly TopicSubtopicGroup[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [selections, setSelections] = useState<Record<string, string>>({});
@@ -480,7 +491,7 @@ function ManualFixPanel({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search unknown ${mappingKind}s or canonical matches…`}
-              className="h-7 text-xs font-mono flex-1 min-w-[180px]"
+              className="h-7 text-xs font-mono flex-1 min-w-45"
               autoFocus
             />
             <Button
@@ -566,7 +577,7 @@ function ManualFixPanel({
               </Button>
               <div className="flex-1" />
               <Select value={bulkValue} onValueChange={setBulkValue}>
-                <SelectTrigger className="h-6 text-xs w-[200px]">
+                <SelectTrigger className="h-6 text-xs w-50">
                   <SelectValue placeholder="Map all selected to…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -672,23 +683,52 @@ function ManualFixPanel({
                           <SelectValue placeholder="Choose canonical…" />
                         </SelectTrigger>
                         <SelectContent>
-                          {canonicalOptions.map((opt) => {
-                            const matchScore =
-                              best && opt === best.match ? best.score : null;
-                            return (
-                              <SelectItem
-                                key={opt}
-                                value={opt}
-                                className="text-xs"
-                              >
-                                {opt}
-                                {matchScore !== null &&
-                                  matchScore >= CONFIDENCE_THRESHOLD
-                                  ? ` (${Math.round(matchScore * 100)}%)`
-                                  : ''}
-                              </SelectItem>
-                            );
-                          })}
+                          {subtopicGroups && subtopicGroups.length > 0
+                            ? subtopicGroups.map((group) => (
+                              <SelectGroup key={group.groupId}>
+                                <SelectLabel className="font-semibold text-[10px] uppercase tracking-wider px-2 py-1 bg-muted/50 sticky top-0">
+                                  {group.label}
+                                </SelectLabel>
+                                {group.subtopics.map((opt) => {
+                                  const matchScore =
+                                    best && opt === best.match
+                                      ? best.score
+                                      : null;
+                                  return (
+                                    <SelectItem
+                                      key={opt}
+                                      value={opt}
+                                      className="text-xs"
+                                    >
+                                      {opt}
+                                      {matchScore !== null &&
+                                        matchScore >= CONFIDENCE_THRESHOLD
+                                        ? ` (${Math.round(matchScore * 100)}%)`
+                                        : ''}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectGroup>
+                            ))
+                            : canonicalOptions.map((opt) => {
+                              const matchScore =
+                                best && opt === best.match
+                                  ? best.score
+                                  : null;
+                              return (
+                                <SelectItem
+                                  key={opt}
+                                  value={opt}
+                                  className="text-xs"
+                                >
+                                  {opt}
+                                  {matchScore !== null &&
+                                    matchScore >= CONFIDENCE_THRESHOLD
+                                    ? ` (${Math.round(matchScore * 100)}%)`
+                                    : ''}
+                                </SelectItem>
+                              );
+                            })}
                           <SelectItem
                             value="__custom__"
                             className="text-xs text-muted-foreground"
@@ -1066,6 +1106,21 @@ export function CleanupSection() {
               canonicalOptions={CANONICAL_TOPICS}
               mappingKind="topic"
               onApply={applyTopicMapping}
+            />
+          )}
+
+          {hasUnknownSubtopics && !subtopicResult && (
+            <ManualFixPanel
+              unknownItems={scan.unknownSubtopics}
+              canonicalOptions={CANONICAL_SUBTOPICS}
+              mappingKind="subtopic"
+              onApply={applySubtopicMapping}
+              subtopicGroups={[
+                ...MATH_METHODS_SUBTOPIC_GROUPS,
+                ...SPECIALIST_MATH_SUBTOPIC_GROUPS,
+                ...CHEMISTRY_SUBTOPIC_GROUPS,
+                ...PE_SUBTOPIC_GROUPS,
+              ]}
             />
           )}
 
