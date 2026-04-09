@@ -43,6 +43,7 @@ function getFooterNote(isExamMode: boolean | undefined): string {
   return 'Your answer is marked immediately using the configured marking model.';
 }
 
+// eslint-disable-next-line complexity
 export function WrittenAnswerCard({
   questionId,
   answer,
@@ -59,6 +60,7 @@ export function WrittenAnswerCard({
   const [activeTab, setActiveTab] = useState<
     'response' | 'upload' | 'sketchpad'
   >('response');
+  const [confirmSketchSubmit, setConfirmSketchSubmit] = useState(false);
   const sketchpadRef = useRef<SketchpadHandle | null>(null);
   const words = wordCount(answer);
   const hasContent = answer.trim().length > 0 || Boolean(image);
@@ -67,11 +69,25 @@ export function WrittenAnswerCard({
 
   useEffect(() => {
     setActiveTab('response');
+    setConfirmSketchSubmit(false);
   }, [questionId]);
 
   useEffect(() => {
     onSketchpadActiveChange?.(activeTab === 'sketchpad');
+    if (activeTab !== 'sketchpad') {
+      setConfirmSketchSubmit(false);
+    }
   }, [activeTab, onSketchpadActiveChange]);
+
+  useEffect(() => {
+    if (activeTab !== 'sketchpad' || !confirmSketchSubmit) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setConfirmSketchSubmit(false);
+    }, 4500);
+    return () => window.clearTimeout(timeout);
+  }, [activeTab, confirmSketchSubmit]);
 
   async function handleSketchSave(dataUrl: string) {
     try {
@@ -102,6 +118,14 @@ export function WrittenAnswerCard({
       }
     }
     await onSubmit();
+  }
+
+  async function handleSubmitClick() {
+    if (activeTab === 'sketchpad' && !confirmSketchSubmit) {
+      setConfirmSketchSubmit(true);
+      return;
+    }
+    await handleSubmit();
   }
 
   return (
@@ -153,7 +177,7 @@ export function WrittenAnswerCard({
             onChange={(e) => onAnswerChange(e.target.value)}
             disabled={isMarking}
             placeholder="Draft your solution here..."
-            className="min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+            className="min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
           />
         ) : (
           <></>
@@ -235,26 +259,38 @@ export function WrittenAnswerCard({
 
       {/* Submit */}
       {!isExamMode && (
-        <Button
-          size="lg"
-          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
-            hasContent && !isMarking
-              ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
-              : ''
-          }`}
-          onClick={() => void handleSubmit()}
-          disabled={!canSubmitFromSketchpad || isMarking}
-        >
-          {isMarking ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Evaluating…
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="w-4 h-4" /> Submit for Marking
-            </>
+        <>
+          <Button
+            size="lg"
+            className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
+              hasContent && !isMarking
+                ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
+                : ''
+            }`}
+            onClick={() => void handleSubmitClick()}
+            disabled={!canSubmitFromSketchpad || isMarking}
+          >
+            {isMarking ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Evaluating…
+              </>
+            ) : activeTab === 'sketchpad' && confirmSketchSubmit ? (
+              <>
+                <CheckCircle2 className="w-4 h-4" /> Tap again to confirm sketch
+                submission
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" /> Submit for Marking
+              </>
+            )}
+          </Button>
+          {activeTab === 'sketchpad' && confirmSketchSubmit && !isMarking && (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Confirmation expires in a few seconds.
+            </p>
           )}
-        </Button>
+        </>
       )}
     </UnifiedWrittenResponseCard>
   );
