@@ -68,16 +68,16 @@ export function UnifiedQuestionPromptCard({
         multiStepDepth !== undefined ||
         verbDiversityCount !== undefined ||
         scaffoldPattern) && (
-        <div className="px-5 sm:px-6">
-          <QuestionQualityBadges
-            distinctness={distinctness}
-            multiStepDepth={multiStepDepth}
-            verbDiversityCount={verbDiversityCount}
-            scaffoldPattern={scaffoldPattern}
-            compact={false}
-          />
-        </div>
-      )}
+          <div className="px-5 sm:px-6">
+            <QuestionQualityBadges
+              distinctness={distinctness}
+              multiStepDepth={multiStepDepth}
+              verbDiversityCount={verbDiversityCount}
+              scaffoldPattern={scaffoldPattern}
+              compact={false}
+            />
+          </div>
+        )}
 
       <div className="relative overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6">
         <div className="absolute inset-y-0 right-0 w-28 pointer-events-none" />
@@ -140,16 +140,16 @@ export function UnifiedMcqOptionsGrid({
           | 'faded'
           | 'idle'
           | 'selectable' = !isAnswered
-          ? 'idle'
-          : revealCorrectness && isCorrect
-            ? 'correct'
-            : isChosen
-              ? revealCorrectness
-                ? 'wrong'
-                : 'chosen'
-              : isExamStyle
-                ? 'selectable'
-                : 'faded';
+            ? 'idle'
+            : revealCorrectness && isCorrect
+              ? 'correct'
+              : isChosen
+                ? revealCorrectness
+                  ? 'wrong'
+                  : 'chosen'
+                : isExamStyle
+                  ? 'selectable'
+                  : 'faded';
 
         const containerClasses = {
           idle: 'border border-border/10 bg-card/35 hover:bg-card/55 hover:border-border/20 cursor-pointer transition-all duration-150',
@@ -209,7 +209,7 @@ export function UnifiedMcqOptionsGrid({
 
               {/* Content */}
               <div
-                className="flex-1 leading-[1.7] min-w-0 pt-[3px]"
+                className="flex-1 leading-[1.7] min-w-0 pt-0.75"
                 style={{ fontSize: 'var(--response-text-size)' }}
               >
                 <MarkdownMath content={opt.text} />
@@ -277,7 +277,7 @@ export function UnifiedWrittenResponseCard({
           onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-h-[160px] sm:min-h-[200px] text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+          className="min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
         />
       )}
 
