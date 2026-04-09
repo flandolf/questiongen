@@ -789,12 +789,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => { });
-    const redoActionRef = useRef<() => void>(() => { });
-    const clearActionRef = useRef<() => void>(() => { });
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
-    const resetViewportRef = useRef<() => void>(() => { });
-    const updateCursorPreviewRef = useRef<() => void>(() => { });
+    const undoActionRef = useRef<() => void>(() => {});
+    const redoActionRef = useRef<() => void>(() => {});
+    const clearActionRef = useRef<() => void>(() => {});
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
+    const resetViewportRef = useRef<() => void>(() => {});
+    const updateCursorPreviewRef = useRef<() => void>(() => {});
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -977,12 +977,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   const strokeSvg =
                     strokesRef.current.length > 0
                       ? strokesToSvgString(
-                        strokesRef.current,
-                        INTERNAL_RES_WIDTH,
-                        INTERNAL_RES_HEIGHT,
-                        bgRef2.current,
-                        true
-                      )
+                          strokesRef.current,
+                          INTERNAL_RES_WIDTH,
+                          INTERNAL_RES_HEIGHT,
+                          bgRef2.current,
+                          true
+                        )
                       : '';
                   const payload: SketchpadStoragePayload = {
                     version: 2,
@@ -1054,7 +1054,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
           if (storedValue.trim().startsWith('{')) {
             try {
-              const payload = JSON.parse(storedValue) as Partial<SketchpadStoragePayload>;
+              const payload = JSON.parse(
+                storedValue
+              ) as Partial<SketchpadStoragePayload>;
               if (typeof payload.rasterDataUrl === 'string') {
                 rasterDataUrl = payload.rasterDataUrl;
               }
@@ -1439,7 +1441,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => { });
+        .catch(() => {});
       return () => {
         if (unlisten) unlisten();
       };
@@ -1873,7 +1875,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             });
           }
           // Trigger a state update with a shallow copy to re-render the SVG path
-          setCurrentStroke({ ...currentStrokeRef.current, points: pts.slice() });
+          setCurrentStroke({
+            ...currentStrokeRef.current,
+            points: pts.slice(),
+          });
         }
       } catch {
         // Non-fatal; continue
@@ -2507,7 +2512,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       // Finalize vector stroke (if any)
       try {
         if (currentStrokeRef.current) {
-          strokesRef.current = [...strokesRef.current, currentStrokeRef.current];
+          strokesRef.current = [
+            ...strokesRef.current,
+            currentStrokeRef.current,
+          ];
           setStrokes(strokesRef.current.slice());
           currentStrokeRef.current = null;
           setCurrentStroke(null);
@@ -2526,7 +2534,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (!canvas || !container) return;
 
       const handlePointerEnter = (e: PointerEvent) => {
-        if (e.target === canvas && (e.pointerType === 'pen' || e.pointerType === 'mouse')) {
+        if (
+          e.target === canvas &&
+          (e.pointerType === 'pen' || e.pointerType === 'mouse')
+        ) {
           isHoveringRef.current = true;
           setIsHovering(true);
           updateCursorPreview();
@@ -2663,15 +2674,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const vectorRaster =
         strokesRef.current.length > 0
           ? await rasterizeSvgString(
-            strokesToSvgString(
-              strokesRef.current,
+              strokesToSvgString(
+                strokesRef.current,
+                INTERNAL_RES_WIDTH,
+                INTERNAL_RES_HEIGHT,
+                bg
+              ),
               INTERNAL_RES_WIDTH,
-              INTERNAL_RES_HEIGHT,
-              bg
-            ),
-            INTERNAL_RES_WIDTH,
-            INTERNAL_RES_HEIGHT
-          )
+              INTERNAL_RES_HEIGHT
+            )
           : null;
 
       return new Promise((resolve, reject) => {
@@ -2885,7 +2896,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             <path
               key={currentStroke.id}
               d={pointsToSvgPath(currentStroke.points)}
-              stroke={currentStroke.tool === 'eraser' ? '#ffffff' : currentStroke.color}
+              stroke={
+                currentStroke.tool === 'eraser'
+                  ? '#ffffff'
+                  : currentStroke.color
+              }
               strokeWidth={Math.max(0.5, currentStroke.size)}
               strokeLinecap="round"
               strokeLinejoin="round"
