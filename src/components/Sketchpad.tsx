@@ -101,6 +101,7 @@ type ToolSettings = {
 };
 
 type ToolSettingsMap = Record<ToolType, ToolSettings>;
+type CanvasSnapshot = ImageBitmap;
 
 const A4_ASPECT = 210 / 297;
 const INTERNAL_RES_WIDTH = 1240; // Logical canvas width in CSS pixels (≈150 DPI for A4)
@@ -181,6 +182,8 @@ const CANVAS_STORAGE_KEY_PREFIX = 'sketchpad-canvas';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 const KEYBOARD_ZOOM_STEP = 0.25;
+const MAX_UNDO_SNAPSHOTS = 40;
+const MAX_PENDING_MOVE_POINTS = 240;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -650,8 +653,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const currentSize = toolSettingsMap[activeTool].size;
     const currentSmoothing = toolSettingsMap[activeTool].smoothing;
 
-    const undoStack = useRef<string[]>([]);
-    const redoStack = useRef<string[]>([]);
+    const undoStack = useRef<CanvasSnapshot[]>([]);
+    const redoStack = useRef<CanvasSnapshot[]>([]);
+    const historyGenerationRef = useRef(0);
+    const snapshotQueueRef = useRef<Promise<void>>(Promise.resolve());
+    const lastUndoPushTime = useRef<number>(0);
     const activePointers = useRef<Map<number, ActivePointerMeta>>(new Map());
     const activeDrawingPointerId = useRef<number | null>(null);
     const shapeStart = useRef<{ x: number; y: number } | null>(null);
@@ -670,6 +676,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const isHoveringRef = useRef(false);
 
     const moveRaf = useRef<number | null>(null);
+    const graphPreviewRaf = useRef<number | null>(null);
+    const graphPreviewPointRef = useRef<{ x: number; y: number } | null>(null);
     const lastMove = useRef<
       Array<{
         x: number;
@@ -723,6 +731,125 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
       null
     );
+    const hasDirtyCanvasRef = useRef(false);
+    const pendingStorageSaveKeyRef = useRef<string | null>(null);
+    const isStorageSaveInFlightRef = useRef(false);
+    const storageSaveSeqRef = useRef(0);
+
+    const canvasBlobToDataUrl = useCallback(async (blob: Blob) => {
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read sketch blob'));
+        reader.readAsDataURL(blob);
+      });
+    }, []);
+
+    const markCanvasDirty = useCallback(() => {
+      hasDirtyCanvasRef.current = true;
+      hasExplicitlySaved.current = false;
+    }, []);
+    const disposeSnapshot = useCallback((snapshot: CanvasSnapshot) => {
+      snapshot.close();
+    }, []);
+
+    const clearSnapshotStack = useCallback(
+      (stack: CanvasSnapshot[]) => {
+        for (const snapshot of stack) {
+          disposeSnapshot(snapshot);
+        }
+      },
+      [disposeSnapshot]
+    );
+
+    const clearHistoryStacks = useCallback(() => {
+      historyGenerationRef.current += 1;
+      clearSnapshotStack(undoStack.current);
+      clearSnapshotStack(redoStack.current);
+      undoStack.current = [];
+      redoStack.current = [];
+      forceUpdate((n) => n + 1);
+    }, [clearSnapshotStack]);
+
+    const captureCanvasSnapshot = useCallback(
+      async (canvas: HTMLCanvasElement): Promise<CanvasSnapshot> => {
+        const bitmap = await createImageBitmap(canvas);
+        if (typeof OffscreenCanvas === 'undefined') {
+          return bitmap;
+        }
+
+        const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
+        const offscreenCtx = offscreen.getContext('2d');
+        if (!offscreenCtx) {
+          return bitmap;
+        }
+
+        offscreenCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+        offscreenCtx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+
+        return offscreen.transferToImageBitmap();
+      },
+      []
+    );
+
+    const applySnapshotToCanvas = useCallback(
+      (
+        snapshot: CanvasSnapshot,
+        canvas: HTMLCanvasElement,
+        ctx: CanvasRenderingContext2D
+      ) => {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.drawImage(snapshot, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      },
+      []
+    );
+
+    const queueSnapshotCapture = useCallback(
+      (target: 'undo' | 'redo') => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const generationAtQueue = historyGenerationRef.current;
+        const task = async () => {
+          try {
+            const snapshot = await captureCanvasSnapshot(canvas);
+            if (historyGenerationRef.current !== generationAtQueue) {
+              snapshot.close();
+              return;
+            }
+
+            const stack =
+              target === 'undo' ? undoStack.current : redoStack.current;
+            stack.push(snapshot);
+            if (stack.length > MAX_UNDO_SNAPSHOTS) {
+              const dropped = stack.shift();
+              if (dropped) {
+                dropped.close();
+              }
+            }
+            forceUpdate((n) => n + 1);
+          } catch (err) {
+            console.warn('Failed to capture canvas snapshot for history:', err);
+          }
+        };
+
+        snapshotQueueRef.current = snapshotQueueRef.current.then(task, task);
+      },
+      [captureCanvasSnapshot]
+    );
+
+    const flushSnapshotQueue = useCallback(async () => {
+      await snapshotQueueRef.current;
+    }, []);
+
     const getCanvasStorageKey = useCallback(
       (key?: string): string =>
         key ? `${CANVAS_STORAGE_KEY_PREFIX}-${key}` : '',
@@ -732,17 +859,53 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const saveCanvasToStorage = useCallback(
       (key?: string) => {
         if (!key) return;
-        try {
-          const canvas = canvasRef.current;
-          if (!canvas) return;
+        pendingStorageSaveKeyRef.current = key;
+        if (isStorageSaveInFlightRef.current) return;
 
-          const dataUrl = canvas.toDataURL('image/webp', 0.85);
-          localStorage.setItem(getCanvasStorageKey(key), dataUrl);
-        } catch (err) {
-          console.warn('Failed to save canvas to localStorage:', err);
-        }
+        const runSave = () => {
+          const nextKey = pendingStorageSaveKeyRef.current;
+          if (!nextKey) {
+            isStorageSaveInFlightRef.current = false;
+            return;
+          }
+
+          pendingStorageSaveKeyRef.current = null;
+          const canvas = canvasRef.current;
+          if (!canvas) {
+            isStorageSaveInFlightRef.current = false;
+            return;
+          }
+
+          isStorageSaveInFlightRef.current = true;
+          const seq = ++storageSaveSeqRef.current;
+          canvas.toBlob(
+            (blob) => {
+              void (async () => {
+                try {
+                  if (!blob) return;
+                  const dataUrl = await canvasBlobToDataUrl(blob);
+                  if (seq !== storageSaveSeqRef.current) return;
+                  localStorage.setItem(getCanvasStorageKey(nextKey), dataUrl);
+                  hasDirtyCanvasRef.current = false;
+                } catch (err) {
+                  console.warn('Failed to save canvas to localStorage:', err);
+                } finally {
+                  if (pendingStorageSaveKeyRef.current) {
+                    runSave();
+                  } else {
+                    isStorageSaveInFlightRef.current = false;
+                  }
+                }
+              })();
+            },
+            'image/webp',
+            0.85
+          );
+        };
+
+        runSave();
       },
-      [getCanvasStorageKey]
+      [canvasBlobToDataUrl, getCanvasStorageKey]
     );
 
     const restoreCanvasFromStorage = useCallback(
@@ -767,11 +930,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               INTERNAL_RES_HEIGHT
             );
           }
-          undoStack.current = [];
-          redoStack.current = [];
+          clearHistoryStacks();
           hasMoved.current = false;
           lastPointReal.current = null;
-          forceUpdate((n) => n + 1);
+          hasDirtyCanvasRef.current = false;
 
           const storedDataUrl = localStorage.getItem(getCanvasStorageKey(key));
           if (!storedDataUrl) return;
@@ -793,7 +955,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           console.warn('Failed to restore canvas from localStorage:', err);
         }
       },
-      [getCanvasStorageKey]
+      [clearHistoryStacks, getCanvasStorageKey]
     );
 
     const clearCanvasFromStorage = useCallback(
@@ -811,6 +973,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const scheduleAutoSave = useCallback(
       (key?: string) => {
         if (!key) return;
+        if (!hasDirtyCanvasRef.current) return;
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current);
         }
@@ -993,7 +1156,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     // Auto-save canvas after drawing completes
     useEffect(() => {
-      if (!isDrawing && hasExplicitlySaved.current === false && sessionKey) {
+      if (
+        !isDrawing &&
+        hasExplicitlySaved.current === false &&
+        hasDirtyCanvasRef.current &&
+        sessionKey
+      ) {
         scheduleAutoSave(sessionKey);
       }
     }, [isDrawing, sessionKey, scheduleAutoSave]);
@@ -1005,7 +1173,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current);
           // Immediately save if not explicitly saved yet
-          if (!hasExplicitlySaved.current && sessionKey) {
+          if (
+            !hasExplicitlySaved.current &&
+            hasDirtyCanvasRef.current &&
+            sessionKey
+          ) {
             saveCanvasToStorage(sessionKey);
           }
         }
@@ -1123,13 +1295,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       // Only resize if needed (prevents unnecessary clear)
       if (canvas.width === newW && canvas.height === newH) return;
 
-      let snapshot: string | null = null;
+      let snapshotPromise: Promise<CanvasSnapshot | null> | null = null;
       if (canvas.width > 0 && canvas.height > 0) {
-        try {
-          snapshot = canvas.toDataURL('image/png');
-        } catch {
-          /* ignore */
-        }
+        snapshotPromise = captureCanvasSnapshot(canvas).catch(() => null);
       }
 
       for (const c of [canvas, overlay]) {
@@ -1159,16 +1327,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         bgRef2.current
       );
 
-      if (snapshot) {
-        const ctx = canvas.getContext('2d')!;
-        const img = new Image();
-        img.onload = () => {
+      if (snapshotPromise) {
+        void snapshotPromise.then((snapshot) => {
+          if (!snapshot) return;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            snapshot.close();
+            return;
+          }
           ctx.save();
           ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.drawImage(img, 0, 0, newW, newH);
+          ctx.drawImage(snapshot, 0, 0, newW, newH);
           ctx.restore();
-        };
-        img.src = snapshot;
+          snapshot.close();
+        });
       }
 
       // Initial zoom to fit
@@ -1185,7 +1357,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         },
         fitZoom
       );
-    }, [setViewport]);
+    }, [captureCanvasSnapshot, setViewport]);
 
     useEffect(() => {
       if (!embedded && !open) return;
@@ -1465,18 +1637,23 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const isShapeTool =
         tool === 'line' || tool === 'rect' || tool === 'ellipse';
       const overlayCtx = isShapeTool ? getOverlayCtx() : null;
+
+      if (isShapeTool && shapeStart.current && overlayCtx) {
+        const latest = moves[moves.length - 1];
+        const latestPoint = { x: latest.x, y: latest.y };
+        clearOverlay();
+        applyToolStyle(overlayCtx, latest.pressure, 0);
+        drawShape(overlayCtx, tool, shapeStart.current, latestPoint);
+        lastMove.current = [];
+        return;
+      }
+
       let lastPoint = lastPointReal.current;
+      let lastAppliedPressure = -1; // sentinel — forces style apply on first segment
 
       for (const m of moves) {
         const pt = { x: m.x, y: m.y };
         const pressure = m.pressure;
-
-        if (isShapeTool && shapeStart.current && overlayCtx) {
-          clearOverlay();
-          applyToolStyle(overlayCtx, pressure, 0);
-          drawShape(overlayCtx, tool, shapeStart.current, pt);
-          continue;
-        }
 
         if (tool === 'text') continue;
         if (!lastPoint) {
@@ -1494,7 +1671,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
 
-        applyToolStyle(ctx, pressure, velocityRef.current);
+        // Only re-apply tool style when pressure changes meaningfully (saves ctx state writes)
+        if (Math.abs(pressure - lastAppliedPressure) > 0.02) {
+          applyToolStyle(ctx, pressure, velocityRef.current);
+          lastAppliedPressure = pressure;
+        }
 
         // Midpoint logic for smoothing
         const midX = (lastPoint.x + pt.x) / 2;
@@ -1512,80 +1693,100 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastMove.current = [];
     }
 
-    function pushUndo() {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      hasExplicitlySaved.current = false;
-      try {
-        undoStack.current.push(canvas.toDataURL('image/png'));
-        if (undoStack.current.length > 40) {
-          undoStack.current.shift();
+    const pushUndo = useCallback(
+      (force = false) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        markCanvasDirty();
+        const now = performance.now();
+        // Throttle: skip expensive snapshots for rapid successive strokes.
+        // 400ms gap means undo still captures each "burst" as a single step.
+        if (!force && now - lastUndoPushTime.current < 400) return;
+        lastUndoPushTime.current = now;
+
+        if (redoStack.current.length) {
+          clearSnapshotStack(redoStack.current);
+          redoStack.current = [];
         }
-        redoStack.current = [];
-        forceUpdate((n) => n + 1);
-      } catch {
-        throw new Error('Failed to capture canvas snapshot for undo');
+
+        queueSnapshotCapture('undo');
+      },
+      [clearSnapshotStack, markCanvasDirty, queueSnapshotCapture]
+    );
+
+    const runUndo = useCallback(async () => {
+      const canvas = canvasRef.current;
+      const ctx = getCtx();
+      if (!canvas || !ctx) return;
+
+      await flushSnapshotQueue();
+      if (!undoStack.current.length) return;
+
+      try {
+        const currentSnapshot = await captureCanvasSnapshot(canvas);
+        redoStack.current.push(currentSnapshot);
+        if (redoStack.current.length > MAX_UNDO_SNAPSHOTS) {
+          const dropped = redoStack.current.shift();
+          if (dropped) {
+            dropped.close();
+          }
+        }
+
+        const previousSnapshot = undoStack.current.pop();
+        if (!previousSnapshot) return;
+        applySnapshotToCanvas(previousSnapshot, canvas, ctx);
+        previousSnapshot.close();
+      } catch (err) {
+        console.warn('Failed to run undo:', err);
       }
-    }
+
+      forceUpdate((n) => n + 1);
+    }, [applySnapshotToCanvas, captureCanvasSnapshot, flushSnapshotQueue]);
+
+    const runRedo = useCallback(async () => {
+      const canvas = canvasRef.current;
+      const ctx = getCtx();
+      if (!canvas || !ctx) return;
+
+      await flushSnapshotQueue();
+      if (!redoStack.current.length) return;
+
+      try {
+        const currentSnapshot = await captureCanvasSnapshot(canvas);
+        undoStack.current.push(currentSnapshot);
+        if (undoStack.current.length > MAX_UNDO_SNAPSHOTS) {
+          const dropped = undoStack.current.shift();
+          if (dropped) {
+            dropped.close();
+          }
+        }
+
+        const nextSnapshot = redoStack.current.pop();
+        if (!nextSnapshot) return;
+        applySnapshotToCanvas(nextSnapshot, canvas, ctx);
+        nextSnapshot.close();
+      } catch (err) {
+        console.warn('Failed to run redo:', err);
+      }
+
+      forceUpdate((n) => n + 1);
+    }, [applySnapshotToCanvas, captureCanvasSnapshot, flushSnapshotQueue]);
 
     const undo = useCallback(() => {
-      const canvas = canvasRef.current;
-      if (!canvas || !undoStack.current.length) return;
-      redoStack.current.push(canvas.toDataURL('image/png'));
-      const last = undoStack.current.pop();
-      if (last) {
-        const ctx = getCtx();
-        if (!canvas || !ctx) return;
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const img = new Image();
-        img.onload = () => {
-          ctx.save();
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.globalAlpha = 1;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.restore();
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        };
-        img.src = last;
-      }
-      forceUpdate((n) => n + 1);
-    }, []);
+      void runUndo();
+    }, [runUndo]);
 
     const redo = useCallback(() => {
-      const canvas = canvasRef.current;
-      if (!canvas || !redoStack.current.length) return;
-      undoStack.current.push(canvas.toDataURL('image/png'));
-      const next = redoStack.current.pop();
-      if (next) {
-        const ctx = getCtx();
-        if (!canvas || !ctx) return;
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const img = new Image();
-        img.onload = () => {
-          ctx.save();
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.globalAlpha = 1;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.restore();
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        };
-        img.src = next;
-      }
-      forceUpdate((n) => n + 1);
-    }, []);
+      void runRedo();
+    }, [runRedo]);
 
     const clearCanvas = useCallback(() => {
       const canvas = canvasRef.current;
       const ctx = getCtx();
       if (!canvas || !ctx) return;
-      pushUndo();
-      ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
+      pushUndo(true);
       forceUpdate((n) => n + 1);
-    }, []);
+    }, [pushUndo]);
 
     useEffect(() => {
       undoActionRef.current = undo;
@@ -1686,8 +1887,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       time: number
     ) {
       pushUndo();
-      setIsDrawing(true);
-      isDrawingRef.current = true;
+      if (!isDrawingRef.current) {
+        setIsDrawing(true);
+        isDrawingRef.current = true;
+      }
       lastPointReal.current = { ...pt, pressure, time };
       velocityRef.current = 0;
       activeDrawingPointerId.current = pointerId;
@@ -1700,6 +1903,35 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const canvas = canvasRef.current;
       const ctx = getCtx();
       if (!canvas || !ctx) return;
+
+      // Only handle drawing events that originate from the drawing surface,
+      // not from UI controls (buttons, sliders, etc.) overlaid on the container.
+      const target = e.target as HTMLElement;
+      const container = containerRef.current;
+      if (target !== container && target !== canvas) {
+        // Allow if no interactive ancestor between target and container
+        let el: HTMLElement | null = target;
+        let isUiControl = false;
+        while (el && el !== container) {
+          const tag = el.tagName;
+          const role = el.getAttribute('role');
+          if (
+            tag === 'BUTTON' ||
+            tag === 'INPUT' ||
+            tag === 'SELECT' ||
+            tag === 'A' ||
+            role === 'button' ||
+            role === 'slider' ||
+            role === 'combobox'
+          ) {
+            isUiControl = true;
+            break;
+          }
+          el = el.parentElement;
+        }
+        if (isUiControl) return;
+      }
+
       const currentTool = activeToolRef.current;
       const penOnly = penOnlyModeRef.current;
 
@@ -1758,7 +1990,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       if (currentTool === 'graph') {
-        pushUndo();
+        pushUndo(true);
         const settings = toolSettingsMapRef.current['graph'];
         drawGraphAxes(ctx, pt.x, pt.y, settings.color, settings.size);
         canvasBoundsRef.current = null;
@@ -1790,7 +2022,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const pressure = e.pressure > 0 ? e.pressure : 1;
 
       if (currentTool === 'fill') {
-        pushUndo();
+        pushUndo(true);
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const color = toolSettingsMapRef.current[currentTool].color;
         floodFill(
@@ -1806,7 +2038,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       if (['line', 'rect', 'ellipse'].includes(currentTool)) {
-        pushUndo();
+        pushUndo(true);
         shapeStart.current = pt;
         setIsDrawing(true);
         isDrawingRef.current = true;
@@ -1866,15 +2098,29 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       // Ghost preview for graph tool — show faint axes at cursor position
       if (currentTool === 'graph') {
-        const octx = getOverlayCtx();
-        if (octx) {
-          const pt = getCanvasPoint(e, canvasBoundsRef.current);
-          clearOverlay();
-          const settings = toolSettingsMapRef.current['graph'];
-          octx.save();
-          octx.globalAlpha = 0.35;
-          drawGraphAxes(octx, pt.x, pt.y, settings.color, settings.size);
-          octx.restore();
+        graphPreviewPointRef.current = getCanvasPoint(
+          e,
+          canvasBoundsRef.current
+        );
+        if (!graphPreviewRaf.current) {
+          graphPreviewRaf.current = requestAnimationFrame(() => {
+            graphPreviewRaf.current = null;
+            const point = graphPreviewPointRef.current;
+            const octx = getOverlayCtx();
+            if (!octx || !point) return;
+            clearOverlay();
+            const settings = toolSettingsMapRef.current.graph;
+            octx.save();
+            octx.globalAlpha = 0.35;
+            drawGraphAxes(
+              octx,
+              point.x,
+              point.y,
+              settings.color,
+              settings.size
+            );
+            octx.restore();
+          });
         }
         return;
       }
@@ -1914,6 +2160,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (events.length === 0) events.push(e);
 
       for (const ce of events) {
+        if (lastMove.current.length >= MAX_PENDING_MOVE_POINTS) {
+          lastMove.current.shift();
+        }
         const pt = getCanvasPoint(ce, canvasBoundsRef.current);
         const pressure = ce.pressure > 0 ? ce.pressure : 1;
         lastMove.current.push({
@@ -1946,6 +2195,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         updateCursorPreview();
         return;
       }
+
+      if (graphPreviewRaf.current) {
+        cancelAnimationFrame(graphPreviewRaf.current);
+        graphPreviewRaf.current = null;
+      }
+      graphPreviewPointRef.current = null;
 
       const pointerMeta = activePointers.current.get(e.pointerId);
       if (!pointerMeta) return;
@@ -2034,6 +2289,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         isHoveringRef.current = false;
         setIsHovering(false);
         updateCursorPreview();
+        if (graphPreviewRaf.current) {
+          cancelAnimationFrame(graphPreviewRaf.current);
+          graphPreviewRaf.current = null;
+        }
+        graphPreviewPointRef.current = null;
         // Clear graph ghost preview when cursor leaves canvas
         if (activeToolRef.current === 'graph') {
           clearOverlay();
@@ -2042,6 +2302,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       const handlePointerCancel = (e: PointerEvent) => {
         clearOverlay();
+        if (graphPreviewRaf.current) {
+          cancelAnimationFrame(graphPreviewRaf.current);
+          graphPreviewRaf.current = null;
+        }
+        graphPreviewPointRef.current = null;
         activePointers.current.delete(e.pointerId);
         if (activeDrawingPointerId.current === e.pointerId) {
           if (moveRaf.current) {
@@ -2080,11 +2345,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     useEffect(() => {
       return () => {
+        clearHistoryStacks();
         if (moveRaf.current) cancelAnimationFrame(moveRaf.current);
+        if (graphPreviewRaf.current)
+          cancelAnimationFrame(graphPreviewRaf.current);
         if (cursorRaf.current) cancelAnimationFrame(cursorRaf.current);
         if (viewportRaf.current) cancelAnimationFrame(viewportRaf.current);
+        if (autoSaveTimeoutRef.current)
+          clearTimeout(autoSaveTimeoutRef.current);
       };
-    }, []);
+    }, [clearHistoryStacks]);
 
     useEffect(() => {
       updateCursorPreview();
@@ -2194,7 +2464,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             : 'none';
 
     const canvasTransform: React.CSSProperties = {
-      transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
       transformOrigin: '0 0',
     };
 
@@ -2226,7 +2496,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               if (e.key === 'Enter' && textInput.value) {
                 const ctx = getCtx();
                 if (ctx) {
-                  pushUndo();
+                  pushUndo(true);
                   ctx.font = `${currentSize * 5}px sans-serif`;
                   ctx.fillStyle = currentColor;
                   ctx.globalAlpha = 1;
@@ -2242,7 +2512,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               if (textInput.value) {
                 const ctx = getCtx();
                 if (ctx) {
-                  pushUndo();
+                  pushUndo(true);
                   ctx.font = `${currentSize * 5}px sans-serif`;
                   ctx.fillStyle = currentColor;
                   ctx.globalAlpha = 1;
@@ -2376,6 +2646,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           const dataUrl = await saveAsDataUrl();
           onSave(dataUrl);
           hasExplicitlySaved.current = true;
+          hasDirtyCanvasRef.current = false;
           // Clear persisted canvas after explicit save
           clearCanvasFromStorage(sessionKey);
         },
@@ -2586,6 +2857,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   const dataUrl = await saveAsDataUrl();
                   onSave(dataUrl);
                   hasExplicitlySaved.current = true;
+                  hasDirtyCanvasRef.current = false;
                   clearCanvasFromStorage(sessionKey);
                 } catch (err) {
                   console.error('Save failed', err);
