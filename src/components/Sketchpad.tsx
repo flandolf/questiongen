@@ -48,19 +48,21 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import {
+  parseStrokesFromSvgString,
+  pointsToSvgPath,
+  rasterizeSvgString,
+  strokesToSvgString,
+} from '../lib/sketchpad-renderer';
+import type {
+  BgType,
+  PressureCurve,
+  Stroke,
+  ToolType,
+} from '../types/sketchpad';
 
-type ToolType =
-  | 'pen'
-  | 'eraser'
-  | 'fill'
-  | 'line'
-  | 'rect'
-  | 'ellipse'
-  | 'text'
-  | 'graph';
-type BgType = 'white-grid' | 'black-grid' | 'lined' | 'dot-grid';
-type PressureCurve = 'linear' | 'exponential' | 'smooth' | 'heavy-ink';
+// NOTE: ToolType, BgType and PressureCurve are defined in src/types/sketchpad.ts
+// and imported above to centralize the sketchpad-related types.
 
 type SketchpadProps = {
   open?: boolean;
@@ -101,7 +103,16 @@ type ToolSettings = {
 };
 
 type ToolSettingsMap = Record<ToolType, ToolSettings>;
-type CanvasSnapshot = ImageBitmap;
+type CanvasSnapshot = {
+  bitmap: ImageBitmap;
+  strokes: Stroke[];
+};
+
+type SketchpadStoragePayload = {
+  version: 2;
+  rasterDataUrl?: string;
+  strokeSvg?: string;
+};
 
 const A4_ASPECT = 210 / 297;
 const INTERNAL_RES_WIDTH = 1240; // Logical canvas width in CSS pixels (≈150 DPI for A4)
@@ -362,6 +373,61 @@ function getCropBoundingBox(canvas: HTMLCanvasElement, padding: number = 20) {
   };
 }
 
+function getStrokeBoundingBox(strokes: Stroke[], padding: number = 20) {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let found = false;
+
+  for (const stroke of strokes) {
+    const halfSize = Math.max(1, stroke.size) / 2;
+    for (const point of stroke.points) {
+      found = true;
+      minX = Math.min(minX, point.x - halfSize);
+      minY = Math.min(minY, point.y - halfSize);
+      maxX = Math.max(maxX, point.x + halfSize);
+      maxY = Math.max(maxY, point.y + halfSize);
+    }
+  }
+
+  if (!found) return null;
+
+  return {
+    x: Math.max(0, minX - padding),
+    y: Math.max(0, minY - padding),
+    width: Math.max(1, maxX - minX + padding * 2),
+    height: Math.max(1, maxY - minY + padding * 2),
+  };
+}
+
+function mergeBoundingBoxes(
+  a: { x: number; y: number; width: number; height: number } | null,
+  b: { x: number; y: number; width: number; height: number } | null
+) {
+  if (!a) return b;
+  if (!b) return a;
+
+  const minX = Math.min(a.x, b.x);
+  const minY = Math.min(a.y, b.y);
+  const maxX = Math.max(a.x + a.width, b.x + b.width);
+  const maxY = Math.max(a.y + a.height, b.y + b.height);
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+function cloneStrokes(strokeList: Stroke[]): Stroke[] {
+  return strokeList.map((stroke) => ({
+    ...stroke,
+    points: stroke.points.map((point) => ({ ...point })),
+  }));
+}
+
 // ─── Draw shape preview ───────────────────────────────────────────────────────
 
 function drawShape(
@@ -594,6 +660,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const overlayRef = useRef<HTMLCanvasElement | null>(null);
+    const svgRef = useRef<SVGSVGElement | null>(null);
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const bgRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -646,6 +713,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const [, forceUpdate] = useState(0);
     const hasExplicitlySaved = useRef(false);
     const recentColorsRef = useRef(recentColors);
+
+    // Vector stroke state (for SVG-based rendering)
+    const [strokes, setStrokes] = useState<Stroke[]>([]);
+    const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
+    const strokesRef = useRef<Stroke[]>([]);
+    const currentStrokeRef = useRef<Stroke | null>(null);
 
     const toolSettingsMapRef = useRef(toolSettingsMap);
     const activeToolRef = useRef(activeTool);
@@ -716,12 +789,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => {});
-    const redoActionRef = useRef<() => void>(() => {});
-    const clearActionRef = useRef<() => void>(() => {});
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
-    const resetViewportRef = useRef<() => void>(() => {});
-    const updateCursorPreviewRef = useRef<() => void>(() => {});
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
+    const updateCursorPreviewRef = useRef<() => void>(() => { });
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -750,7 +823,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       hasExplicitlySaved.current = false;
     }, []);
     const disposeSnapshot = useCallback((snapshot: CanvasSnapshot) => {
-      snapshot.close();
+      snapshot.bitmap.close();
     }, []);
 
     const clearSnapshotStack = useCallback(
@@ -774,21 +847,31 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const captureCanvasSnapshot = useCallback(
       async (canvas: HTMLCanvasElement): Promise<CanvasSnapshot> => {
         const bitmap = await createImageBitmap(canvas);
+        const strokeSnapshot = cloneStrokes(strokesRef.current);
         if (typeof OffscreenCanvas === 'undefined') {
-          return bitmap;
+          return {
+            bitmap,
+            strokes: strokeSnapshot,
+          };
         }
 
         const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
         const offscreenCtx = offscreen.getContext('2d');
         if (!offscreenCtx) {
-          return bitmap;
+          return {
+            bitmap,
+            strokes: strokeSnapshot,
+          };
         }
 
         offscreenCtx.clearRect(0, 0, offscreen.width, offscreen.height);
         offscreenCtx.drawImage(bitmap, 0, 0);
         bitmap.close();
 
-        return offscreen.transferToImageBitmap();
+        return {
+          bitmap: offscreen.transferToImageBitmap(),
+          strokes: strokeSnapshot,
+        };
       },
       []
     );
@@ -805,9 +888,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
-        ctx.drawImage(snapshot, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(snapshot.bitmap, 0, 0, canvas.width, canvas.height);
         ctx.restore();
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const restoredStrokes = cloneStrokes(snapshot.strokes);
+        strokesRef.current = restoredStrokes;
+        setStrokes(restoredStrokes);
+        currentStrokeRef.current = null;
+        setCurrentStroke(null);
       },
       []
     );
@@ -822,7 +911,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           try {
             const snapshot = await captureCanvasSnapshot(canvas);
             if (historyGenerationRef.current !== generationAtQueue) {
-              snapshot.close();
+              disposeSnapshot(snapshot);
               return;
             }
 
@@ -832,7 +921,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             if (stack.length > MAX_UNDO_SNAPSHOTS) {
               const dropped = stack.shift();
               if (dropped) {
-                dropped.close();
+                disposeSnapshot(dropped);
               }
             }
             forceUpdate((n) => n + 1);
@@ -843,7 +932,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         snapshotQueueRef.current = snapshotQueueRef.current.then(task, task);
       },
-      [captureCanvasSnapshot]
+      [captureCanvasSnapshot, disposeSnapshot]
     );
 
     const flushSnapshotQueue = useCallback(async () => {
@@ -879,13 +968,31 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           isStorageSaveInFlightRef.current = true;
           const seq = ++storageSaveSeqRef.current;
           canvas.toBlob(
-            (blob) => {
+            (blob: Blob | null) => {
               void (async () => {
                 try {
                   if (!blob) return;
-                  const dataUrl = await canvasBlobToDataUrl(blob);
+                  const rasterDataUrl = await canvasBlobToDataUrl(blob);
                   if (seq !== storageSaveSeqRef.current) return;
-                  localStorage.setItem(getCanvasStorageKey(nextKey), dataUrl);
+                  const strokeSvg =
+                    strokesRef.current.length > 0
+                      ? strokesToSvgString(
+                        strokesRef.current,
+                        INTERNAL_RES_WIDTH,
+                        INTERNAL_RES_HEIGHT,
+                        bgRef2.current,
+                        true
+                      )
+                      : '';
+                  const payload: SketchpadStoragePayload = {
+                    version: 2,
+                    rasterDataUrl,
+                    strokeSvg: strokeSvg || undefined,
+                  };
+                  localStorage.setItem(
+                    getCanvasStorageKey(nextKey),
+                    JSON.stringify(payload)
+                  );
                   hasDirtyCanvasRef.current = false;
                 } catch (err) {
                   console.warn('Failed to save canvas to localStorage:', err);
@@ -934,9 +1041,30 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           hasMoved.current = false;
           lastPointReal.current = null;
           hasDirtyCanvasRef.current = false;
+          currentStrokeRef.current = null;
+          setCurrentStroke(null);
+          strokesRef.current = [];
+          setStrokes([]);
 
-          const storedDataUrl = localStorage.getItem(getCanvasStorageKey(key));
-          if (!storedDataUrl) return;
+          const storedValue = localStorage.getItem(getCanvasStorageKey(key));
+          if (!storedValue) return;
+
+          let rasterDataUrl = storedValue;
+          let restoredStrokes: Stroke[] = [];
+
+          if (storedValue.trim().startsWith('{')) {
+            try {
+              const payload = JSON.parse(storedValue) as Partial<SketchpadStoragePayload>;
+              if (typeof payload.rasterDataUrl === 'string') {
+                rasterDataUrl = payload.rasterDataUrl;
+              }
+              if (typeof payload.strokeSvg === 'string' && payload.strokeSvg) {
+                restoredStrokes = parseStrokesFromSvgString(payload.strokeSvg);
+              }
+            } catch (parseErr) {
+              console.warn('Failed to parse saved sketch payload:', parseErr);
+            }
+          }
 
           const img = new Image();
           img.onload = () => {
@@ -950,7 +1078,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           img.onerror = () => {
             console.warn('Failed to load saved canvas image');
           };
-          img.src = storedDataUrl;
+          img.src = rasterDataUrl;
+
+          if (restoredStrokes.length > 0) {
+            strokesRef.current = restoredStrokes;
+            setStrokes(restoredStrokes);
+          }
         } catch (err) {
           console.warn('Failed to restore canvas from localStorage:', err);
         }
@@ -1015,6 +1148,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       setPan(panRef.current);
     }, []);
 
+    const commitViewportState = useCallback(() => {
+      setZoom(zoomRef.current);
+      setPan(panRef.current);
+    }, []);
+
     const queueViewportState = useCallback(() => {
       if (viewportRaf.current !== null) return;
       viewportRaf.current = requestAnimationFrame(flushViewportState);
@@ -1030,6 +1168,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         queueViewportState();
       },
       [clampZoom, queueViewportState]
+    );
+
+    const setViewportImmediate = useCallback(
+      (
+        nextPan: { x: number; y: number },
+        nextZoom: number = zoomRef.current
+      ) => {
+        zoomRef.current = clampZoom(nextZoom);
+        panRef.current = nextPan;
+        commitViewportState();
+      },
+      [clampZoom, commitViewportState]
     );
 
     const zoomAroundClientPoint = useCallback(
@@ -1063,25 +1213,55 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     );
 
     const zoomAroundCenter = useCallback(
-      (nextZoom: number) => {
+      (nextZoom: number, immediate = false) => {
         const container = containerRef.current;
         if (!container) {
-          setViewport(panRef.current, nextZoom);
+          if (immediate) {
+            setViewportImmediate(panRef.current, nextZoom);
+          } else {
+            setViewport(panRef.current, nextZoom);
+          }
           return;
         }
         const rect = container.getBoundingClientRect();
+        if (immediate) {
+          const localX = rect.width / 2;
+          const localY = rect.height / 2;
+          const currentZoom = zoomRef.current;
+          const currentPan = panRef.current;
+          const safeCurrentZoom = Math.max(currentZoom, 0.0001);
+          const targetZoom = clampZoom(nextZoom);
+
+          if (Math.abs(targetZoom - currentZoom) < 0.0001) return;
+
+          const contentX = (localX - currentPan.x) / safeCurrentZoom;
+          const contentY = (localY - currentPan.y) / safeCurrentZoom;
+
+          setViewportImmediate(
+            {
+              x: localX - contentX * targetZoom,
+              y: localY - contentY * targetZoom,
+            },
+            targetZoom
+          );
+          return;
+        }
+
         zoomAroundClientPoint(
           rect.left + rect.width / 2,
           rect.top + rect.height / 2,
           nextZoom
         );
       },
-      [setViewport, zoomAroundClientPoint]
+      [clampZoom, setViewport, setViewportImmediate, zoomAroundClientPoint]
     );
 
     const zoomByKeyboardStep = useCallback(
       (direction: 1 | -1) => {
-        zoomAroundCenter(zoomRef.current + direction * KEYBOARD_ZOOM_STEP);
+        zoomAroundCenter(
+          zoomRef.current + direction * KEYBOARD_ZOOM_STEP,
+          true
+        );
       },
       [zoomAroundCenter]
     );
@@ -1090,38 +1270,22 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const container = containerRef.current;
       const nextZoom = 1;
       if (!container) {
-        setViewport({ x: 0, y: 0 }, nextZoom);
+        setViewportImmediate({ x: 0, y: 0 }, nextZoom);
         return;
       }
 
-      setViewport(
+      setViewportImmediate(
         {
           x: (container.clientWidth - INTERNAL_RES_WIDTH * nextZoom) / 2,
           y: (container.clientHeight - INTERNAL_RES_HEIGHT * nextZoom) / 2,
         },
         nextZoom
       );
-    }, [setViewport]);
+    }, [setViewportImmediate]);
 
     useEffect(() => {
       bgRef2.current = bg;
     }, [bg]);
-
-    useEffect(() => {
-      zoomRef.current = zoom;
-    }, [zoom]);
-
-    useEffect(() => {
-      panRef.current = pan;
-    }, [pan]);
-
-    useEffect(() => {
-      isDrawingRef.current = isDrawing;
-    }, [isDrawing]);
-
-    useEffect(() => {
-      isPanningRef.current = isPanning;
-    }, [isPanning]);
 
     useEffect(() => {
       penOnlyModeRef.current = penOnlyMode;
@@ -1275,7 +1439,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -1332,14 +1496,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           if (!snapshot) return;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
-            snapshot.close();
+            disposeSnapshot(snapshot);
             return;
           }
           ctx.save();
           ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.drawImage(snapshot, 0, 0, newW, newH);
+          ctx.drawImage(snapshot.bitmap, 0, 0, newW, newH);
           ctx.restore();
-          snapshot.close();
+          disposeSnapshot(snapshot);
         });
       }
 
@@ -1357,7 +1521,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         },
         fitZoom
       );
-    }, [captureCanvasSnapshot, setViewport]);
+    }, [captureCanvasSnapshot, disposeSnapshot, setViewport]);
 
     useEffect(() => {
       if (!embedded && !open) return;
@@ -1595,6 +1759,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (!cursor) return;
 
       const point = lastCursor.current;
+      const container = containerRef.current;
+      const containerRect = container?.getBoundingClientRect();
       const tool = activeToolRef.current;
       const shouldShow =
         !!point &&
@@ -1609,11 +1775,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       const settings = toolSettingsMapRef.current[tool];
+      const previewDiameter = Math.max(1, settings.size * zoomRef.current);
       cursor.style.display = 'block';
-      cursor.style.left = `${point.x}px`;
-      cursor.style.top = `${point.y}px`;
-      cursor.style.width = `${settings.size * zoomRef.current}px`;
-      cursor.style.height = `${settings.size * zoomRef.current}px`;
+      cursor.style.left = `${point.x - (containerRect?.left ?? 0)}px`;
+      cursor.style.top = `${point.y - (containerRect?.top ?? 0)}px`;
+      cursor.style.boxSizing = 'border-box';
+      cursor.style.width = `${previewDiameter}px`;
+      cursor.style.height = `${previewDiameter}px`;
       cursor.style.opacity =
         isHoveringRef.current && !spaceDown.current ? '0.7' : '1';
       cursor.style.border =
@@ -1690,6 +1858,27 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         lastPointReal.current = lastPoint;
       }
 
+      // Also append these sampled points to the in-progress vector stroke
+      try {
+        if (currentStrokeRef.current) {
+          const pts = currentStrokeRef.current.points;
+          for (const m of moves) {
+            pts.push({
+              x: m.x,
+              y: m.y,
+              pressure: m.pressure,
+              time: m.time,
+              tiltX: m.tiltX,
+              tiltY: m.tiltY,
+            });
+          }
+          // Trigger a state update with a shallow copy to re-render the SVG path
+          setCurrentStroke({ ...currentStrokeRef.current, points: pts.slice() });
+        }
+      } catch {
+        // Non-fatal; continue
+      }
+
       lastMove.current = [];
     }
 
@@ -1728,20 +1917,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (redoStack.current.length > MAX_UNDO_SNAPSHOTS) {
           const dropped = redoStack.current.shift();
           if (dropped) {
-            dropped.close();
+            disposeSnapshot(dropped);
           }
         }
 
         const previousSnapshot = undoStack.current.pop();
         if (!previousSnapshot) return;
         applySnapshotToCanvas(previousSnapshot, canvas, ctx);
-        previousSnapshot.close();
+        disposeSnapshot(previousSnapshot);
       } catch (err) {
         console.warn('Failed to run undo:', err);
       }
 
       forceUpdate((n) => n + 1);
-    }, [applySnapshotToCanvas, captureCanvasSnapshot, flushSnapshotQueue]);
+    }, [
+      applySnapshotToCanvas,
+      captureCanvasSnapshot,
+      disposeSnapshot,
+      flushSnapshotQueue,
+    ]);
 
     const runRedo = useCallback(async () => {
       const canvas = canvasRef.current;
@@ -1757,20 +1951,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (undoStack.current.length > MAX_UNDO_SNAPSHOTS) {
           const dropped = undoStack.current.shift();
           if (dropped) {
-            dropped.close();
+            disposeSnapshot(dropped);
           }
         }
 
         const nextSnapshot = redoStack.current.pop();
         if (!nextSnapshot) return;
         applySnapshotToCanvas(nextSnapshot, canvas, ctx);
-        nextSnapshot.close();
+        disposeSnapshot(nextSnapshot);
       } catch (err) {
         console.warn('Failed to run redo:', err);
       }
 
       forceUpdate((n) => n + 1);
-    }, [applySnapshotToCanvas, captureCanvasSnapshot, flushSnapshotQueue]);
+    }, [
+      applySnapshotToCanvas,
+      captureCanvasSnapshot,
+      disposeSnapshot,
+      flushSnapshotQueue,
+    ]);
 
     const undo = useCallback(() => {
       void runUndo();
@@ -1791,6 +1990,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastPointReal.current = null;
       shapeStart.current = null;
       activeDrawingPointerId.current = null;
+      strokesRef.current = [];
+      setStrokes([]);
+      currentStrokeRef.current = null;
+      setCurrentStroke(null);
       setIsDrawing(false);
       isDrawingRef.current = false;
       hasMoved.current = false;
@@ -1903,6 +2106,26 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastPointReal.current = { ...pt, pressure, time };
       velocityRef.current = 0;
       activeDrawingPointerId.current = pointerId;
+      // Create an in-memory vector stroke for SVG rendering
+      try {
+        const tool = activeToolRef.current;
+        const settings = toolSettingsMapRef.current[tool];
+        const newStroke: Stroke = {
+          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+          tool,
+          color: settings.color,
+          size: settings.size,
+          smoothing: settings.smoothing,
+          pressureCurve: settings.pressureCurve,
+          points: [{ x: pt.x, y: pt.y, pressure, time }],
+          opacity: settings.opacity,
+        };
+        currentStrokeRef.current = newStroke;
+        setCurrentStroke(newStroke);
+      } catch {
+        // non-fatal — continue drawing raster fallback
+      }
+
       ctx.beginPath();
       applyToolStyle(ctx, pressure, 0);
       ctx.moveTo(pt.x, pt.y);
@@ -1917,29 +2140,27 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       // not from UI controls (buttons, sliders, etc.) overlaid on the container.
       const target = e.target as HTMLElement;
       const container = containerRef.current;
-      if (target !== container && target !== canvas) {
-        // Allow if no interactive ancestor between target and container
-        let el: HTMLElement | null = target;
-        let isUiControl = false;
-        while (el && el !== container) {
-          const tag = el.tagName;
-          const role = el.getAttribute('role');
-          if (
-            tag === 'BUTTON' ||
-            tag === 'INPUT' ||
-            tag === 'SELECT' ||
-            tag === 'A' ||
-            role === 'button' ||
-            role === 'slider' ||
-            role === 'combobox'
-          ) {
-            isUiControl = true;
-            break;
-          }
-          el = el.parentElement;
+      // Walk up to see if the click hit a UI control before reaching the container
+      let el: HTMLElement | null = target;
+      let isUiControl = false;
+      while (el && el !== container) {
+        const tag = el.tagName;
+        const role = el.getAttribute('role');
+        if (
+          tag === 'BUTTON' ||
+          tag === 'INPUT' ||
+          tag === 'SELECT' ||
+          tag === 'A' ||
+          role === 'button' ||
+          role === 'slider' ||
+          role === 'combobox'
+        ) {
+          isUiControl = true;
+          break;
         }
-        if (isUiControl) return;
+        el = el.parentElement;
       }
+      if (isUiControl) return;
 
       const currentTool = activeToolRef.current;
       const penOnly = penOnlyModeRef.current;
@@ -1987,6 +2208,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         canvasBoundsRef.current = null;
         return;
       }
+
+      // For drawing operations the pointer must be over the canvas itself
+      if (e.target !== canvas) return;
 
       canvasBoundsRef.current = readCanvasBounds();
 
@@ -2090,15 +2314,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         panStart.current &&
         (panPointerId.current === null || panPointerId.current === e.pointerId)
       ) {
-        setViewport({
+        // Update pan synchronously via refs and commit immediately — avoids
+        // the extra RAF latency that setViewport (queue-based) would introduce.
+        panRef.current = {
           x: panStart.current.px + (e.clientX - panStart.current.mx),
           y: panStart.current.py + (e.clientY - panStart.current.my),
-        });
+        };
+        // Batch the React state update into the next animation frame
+        if (viewportRaf.current === null) {
+          viewportRaf.current = requestAnimationFrame(flushViewportState);
+        }
         return;
       }
 
       const pointerMeta = activePointers.current.get(e.pointerId);
       if (!pointerMeta || pointerMeta.rejected) return;
+
+      // Only process drawing if the pointer is over the canvas (or we're
+      // already mid-stroke — then we continue regardless of position)
+      if (!isDrawingRef.current && e.target !== canvas) return;
 
       pointerMeta.tiltX = e.tiltX;
       pointerMeta.tiltY = e.tiltY;
@@ -2270,16 +2504,29 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastPointReal.current = null;
       lastMove.current = [];
       activeDrawingPointerId.current = null;
+      // Finalize vector stroke (if any)
+      try {
+        if (currentStrokeRef.current) {
+          strokesRef.current = [...strokesRef.current, currentStrokeRef.current];
+          setStrokes(strokesRef.current.slice());
+          currentStrokeRef.current = null;
+          setCurrentStroke(null);
+        }
+      } catch {
+        // ignore
+      }
+
       canvasBoundsRef.current = null;
       ctx.closePath();
     }
 
     useEffect(() => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
 
       const handlePointerEnter = (e: PointerEvent) => {
-        if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
+        if (e.target === canvas && (e.pointerType === 'pen' || e.pointerType === 'mouse')) {
           isHoveringRef.current = true;
           setIsHovering(true);
           updateCursorPreview();
@@ -2287,14 +2534,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
 
       const handlePointerOver = (e: PointerEvent) => {
-        if (e.pointerType === 'pen') {
+        if (e.target === canvas && e.pointerType === 'pen') {
           isHoveringRef.current = true;
           setIsHovering(true);
           updateCursorPreview();
         }
       };
 
-      const handlePointerLeave = () => {
+      const handlePointerLeave = (e: PointerEvent) => {
+        // Only clear hover state when leaving the canvas itself
+        if (e.target !== canvas) return;
         isHoveringRef.current = false;
         setIsHovering(false);
         updateCursorPreview();
@@ -2333,21 +2582,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         canvasBoundsRef.current = null;
       };
 
-      canvas.addEventListener('pointerdown', handlePointerDown);
-      canvas.addEventListener('pointermove', handlePointerMove);
+      // Attach pointerdown to container so space+drag and middle-click pan
+      // works anywhere in the viewport, not just over the canvas element.
+      container.addEventListener('pointerdown', handlePointerDown);
+      // pointermove and pointerup go on window so panning continues even if the
+      // pointer leaves the container bounds.
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
       canvas.addEventListener('pointercancel', handlePointerCancel);
       canvas.addEventListener('pointerenter', handlePointerEnter);
       canvas.addEventListener('pointerover', handlePointerOver);
       canvas.addEventListener('pointerleave', handlePointerLeave);
-      window.addEventListener('pointerup', handlePointerUp);
       return () => {
-        canvas.removeEventListener('pointerdown', handlePointerDown);
-        canvas.removeEventListener('pointermove', handlePointerMove);
+        container.removeEventListener('pointerdown', handlePointerDown);
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
         canvas.removeEventListener('pointercancel', handlePointerCancel);
         canvas.removeEventListener('pointerenter', handlePointerEnter);
         canvas.removeEventListener('pointerover', handlePointerOver);
         canvas.removeEventListener('pointerleave', handlePointerLeave);
-        window.removeEventListener('pointerup', handlePointerUp);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -2400,12 +2653,26 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const saveAsDataUrl = useCallback(async (): Promise<string> => {
       const canvas = canvasRef.current;
       if (!canvas) throw new Error('Canvas missing');
-
-      const bounds = getCropBoundingBox(canvas, 40);
+      const strokeBounds = getStrokeBoundingBox(strokesRef.current, 40);
+      const rasterBounds = getCropBoundingBox(canvas, 40);
+      const bounds = mergeBoundingBoxes(rasterBounds, strokeBounds);
       const exportW = bounds ? bounds.width : canvas.width;
       const exportH = bounds ? bounds.height : canvas.height;
       const startX = bounds ? bounds.x : 0;
       const startY = bounds ? bounds.y : 0;
+      const vectorRaster =
+        strokesRef.current.length > 0
+          ? await rasterizeSvgString(
+            strokesToSvgString(
+              strokesRef.current,
+              INTERNAL_RES_WIDTH,
+              INTERNAL_RES_HEIGHT,
+              bg
+            ),
+            INTERNAL_RES_WIDTH,
+            INTERNAL_RES_HEIGHT
+          )
+          : null;
 
       return new Promise((resolve, reject) => {
         const tmp = document.createElement('canvas');
@@ -2445,8 +2712,22 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           exportH
         );
 
+        if (vectorRaster) {
+          tctx.drawImage(
+            vectorRaster,
+            startX,
+            startY,
+            exportW,
+            exportH,
+            0,
+            0,
+            exportW,
+            exportH
+          );
+        }
+
         tmp.toBlob(
-          (blob) => {
+          (blob: Blob | null) => {
             if (!blob) return reject(new Error('Unable to export'));
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
@@ -2472,9 +2753,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             ? 'crosshair'
             : 'none';
 
+    // At zoom ≥ 1 the canvas buffer is upscaled by the browser transform. Use
+    // 'pixelated' to prevent blurry bicubic interpolation — the canvas is
+    // already crisp (DPR-scaled in initCanvas). When zoomed out, 'auto' gives
+    // smooth downscaling.
+    const canvasImageRendering: React.CSSProperties['imageRendering'] =
+      zoom >= 1 ? 'pixelated' : 'auto';
+
     const canvasTransform: React.CSSProperties = {
       transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
       transformOrigin: '0 0',
+      imageRendering: canvasImageRendering,
     };
 
     const canvasArea = (
@@ -2484,7 +2773,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       >
         <div
           ref={cursorPreviewRef}
-          className="pointer-events-none fixed z-50 rounded-full hidden"
+          className="pointer-events-none absolute z-50 rounded-full hidden"
           style={{
             transform: 'translate(-50%, -50%)',
             background: 'transparent',
@@ -2567,6 +2856,44 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           className="absolute top-0 left-0 pointer-events-none"
           style={canvasTransform}
         />
+
+        <svg
+          ref={svgRef}
+          className="absolute top-0 left-0 pointer-events-none"
+          style={canvasTransform}
+          width={INTERNAL_RES_WIDTH}
+          height={INTERNAL_RES_HEIGHT}
+          viewBox={`0 0 ${INTERNAL_RES_WIDTH} ${INTERNAL_RES_HEIGHT}`}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Render committed strokes */}
+          {strokes.map((s) => (
+            <path
+              key={s.id}
+              d={pointsToSvgPath(s.points)}
+              stroke={s.tool === 'eraser' ? '#ffffff' : s.color}
+              strokeWidth={Math.max(0.5, s.size)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+              opacity={s.opacity ?? 1}
+            />
+          ))}
+
+          {/* In-progress stroke */}
+          {currentStroke && (
+            <path
+              key={currentStroke.id}
+              d={pointsToSvgPath(currentStroke.points)}
+              stroke={currentStroke.tool === 'eraser' ? '#ffffff' : currentStroke.color}
+              strokeWidth={Math.max(0.5, currentStroke.size)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+              opacity={currentStroke.opacity ?? 1}
+            />
+          )}
+        </svg>
 
         {/* Subtle Paper Texture Overlay */}
         <div
@@ -2820,6 +3147,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         <Button
           variant="ghost"
           size="icon-sm"
+          type="button"
           onClick={() => zoomByKeyboardStep(-1)}
           className="rounded-xl"
         >
@@ -2834,6 +3162,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         <Button
           variant="ghost"
           size="icon-sm"
+          type="button"
           onClick={() => zoomByKeyboardStep(1)}
           className="rounded-xl"
         >
@@ -2854,7 +3183,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         </div>
       );
     }
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center font-sans overflow-hidden">
         <div
