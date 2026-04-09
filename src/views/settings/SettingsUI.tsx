@@ -160,13 +160,13 @@ export function ModelSelectRow({
   const extraEntry =
     !isKnown && value && value !== 'custom'
       ? [
-        {
-          id: value,
-          name: value.includes('/')
-            ? value.split('/').slice(1).join('/')
-            : value,
-        },
-      ]
+          {
+            id: value,
+            name: value.includes('/')
+              ? value.split('/').slice(1).join('/')
+              : value,
+          },
+        ]
       : [];
   const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
 

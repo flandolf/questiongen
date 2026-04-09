@@ -685,50 +685,50 @@ function ManualFixPanel({
                         <SelectContent>
                           {subtopicGroups && subtopicGroups.length > 0
                             ? subtopicGroups.map((group) => (
-                              <SelectGroup key={group.groupId}>
-                                <SelectLabel className="font-semibold text-[10px] uppercase tracking-wider px-2 py-1 bg-muted/50 sticky top-0">
-                                  {group.label}
-                                </SelectLabel>
-                                {group.subtopics.map((opt) => {
-                                  const matchScore =
-                                    best && opt === best.match
-                                      ? best.score
-                                      : null;
-                                  return (
-                                    <SelectItem
-                                      key={opt}
-                                      value={opt}
-                                      className="text-xs"
-                                    >
-                                      {opt}
-                                      {matchScore !== null &&
+                                <SelectGroup key={group.groupId}>
+                                  <SelectLabel className="font-semibold text-[10px] uppercase tracking-wider px-2 py-1 bg-muted/50 sticky top-0">
+                                    {group.label}
+                                  </SelectLabel>
+                                  {group.subtopics.map((opt) => {
+                                    const matchScore =
+                                      best && opt === best.match
+                                        ? best.score
+                                        : null;
+                                    return (
+                                      <SelectItem
+                                        key={opt}
+                                        value={opt}
+                                        className="text-xs"
+                                      >
+                                        {opt}
+                                        {matchScore !== null &&
                                         matchScore >= CONFIDENCE_THRESHOLD
-                                        ? ` (${Math.round(matchScore * 100)}%)`
-                                        : ''}
-                                    </SelectItem>
-                                  );
-                                })}
-                              </SelectGroup>
-                            ))
+                                          ? ` (${Math.round(matchScore * 100)}%)`
+                                          : ''}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectGroup>
+                              ))
                             : canonicalOptions.map((opt) => {
-                              const matchScore =
-                                best && opt === best.match
-                                  ? best.score
-                                  : null;
-                              return (
-                                <SelectItem
-                                  key={opt}
-                                  value={opt}
-                                  className="text-xs"
-                                >
-                                  {opt}
-                                  {matchScore !== null &&
+                                const matchScore =
+                                  best && opt === best.match
+                                    ? best.score
+                                    : null;
+                                return (
+                                  <SelectItem
+                                    key={opt}
+                                    value={opt}
+                                    className="text-xs"
+                                  >
+                                    {opt}
+                                    {matchScore !== null &&
                                     matchScore >= CONFIDENCE_THRESHOLD
-                                    ? ` (${Math.round(matchScore * 100)}%)`
-                                    : ''}
-                                </SelectItem>
-                              );
-                            })}
+                                      ? ` (${Math.round(matchScore * 100)}%)`
+                                      : ''}
+                                  </SelectItem>
+                                );
+                              })}
                           <SelectItem
                             value="__custom__"
                             className="text-xs text-muted-foreground"

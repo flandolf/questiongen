@@ -1,5 +1,12 @@
 import { ModeToggle } from '@/components/mode-toggle';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { useAppStore } from '@/store';
 import { getDesignThemeLabel, themes } from '@/themes/designThemes';
@@ -50,7 +57,10 @@ export function AppearanceSection() {
             <SelectContent>
               <SelectGroup>
                 {themes.map((designTheme) => (
-                  <SelectItem key={designTheme.name} value={String(designTheme.name)}>
+                  <SelectItem
+                    key={designTheme.name}
+                    value={String(designTheme.name)}
+                  >
                     {getDesignThemeLabel(designTheme)}
                   </SelectItem>
                 ))}

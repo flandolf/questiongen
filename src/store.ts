@@ -278,15 +278,15 @@ export interface AppActions {
     images:
       | Record<string, StudentAnswerImage | undefined>
       | ((
-        prev: Record<string, StudentAnswerImage | undefined>
-      ) => Record<string, StudentAnswerImage | undefined>)
+          prev: Record<string, StudentAnswerImage | undefined>
+        ) => Record<string, StudentAnswerImage | undefined>)
   ) => void;
   setFeedbackByQuestionId: (
     feedback:
       | Record<string, MarkAnswerResponse>
       | ((
-        prev: Record<string, MarkAnswerResponse>
-      ) => Record<string, MarkAnswerResponse>)
+          prev: Record<string, MarkAnswerResponse>
+        ) => Record<string, MarkAnswerResponse>)
   ) => void;
   setQuestionHistory: (
     history:
@@ -797,41 +797,41 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: entry.questionMode,
         ...(entry.questionMode === 'written'
           ? {
-            questions: entry.writtenSession!.questions,
-            activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
-            writtenQuestionPresentedAtById:
-              entry.writtenSession!.presentedAtByQuestionId,
-            answersByQuestionId: entry.writtenSession!.answersByQuestionId,
-            imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
-            feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
-            writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
-            writtenGenerationTelemetry:
-              entry.writtenSession!.generationTelemetry ?? null,
-            activeWrittenSavedSetId: id,
-            mcQuestions: [],
-            activeMcQuestionIndex: 0,
-            mcQuestionPresentedAtById: {},
-            mcAnswersByQuestionId: {},
-            activeMcSavedSetId: null,
-          }
+              questions: entry.writtenSession!.questions,
+              activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
+              writtenQuestionPresentedAtById:
+                entry.writtenSession!.presentedAtByQuestionId,
+              answersByQuestionId: entry.writtenSession!.answersByQuestionId,
+              imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
+              feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
+              writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
+              writtenGenerationTelemetry:
+                entry.writtenSession!.generationTelemetry ?? null,
+              activeWrittenSavedSetId: id,
+              mcQuestions: [],
+              activeMcQuestionIndex: 0,
+              mcQuestionPresentedAtById: {},
+              mcAnswersByQuestionId: {},
+              activeMcSavedSetId: null,
+            }
           : {
-            mcQuestions: entry.mcSession!.questions,
-            activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
-            mcQuestionPresentedAtById:
-              entry.mcSession!.presentedAtByQuestionId,
-            mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
-            mcRawModelOutput: entry.mcSession!.rawModelOutput,
-            mcGenerationTelemetry:
-              entry.mcSession!.generationTelemetry ?? null,
-            activeMcSavedSetId: id,
-            questions: [],
-            activeQuestionIndex: 0,
-            writtenQuestionPresentedAtById: {},
-            answersByQuestionId: {},
-            imagesByQuestionId: {},
-            feedbackByQuestionId: {},
-            activeWrittenSavedSetId: null,
-          }),
+              mcQuestions: entry.mcSession!.questions,
+              activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
+              mcQuestionPresentedAtById:
+                entry.mcSession!.presentedAtByQuestionId,
+              mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
+              mcRawModelOutput: entry.mcSession!.rawModelOutput,
+              mcGenerationTelemetry:
+                entry.mcSession!.generationTelemetry ?? null,
+              activeMcSavedSetId: id,
+              questions: [],
+              activeQuestionIndex: 0,
+              writtenQuestionPresentedAtById: {},
+              answersByQuestionId: {},
+              imagesByQuestionId: {},
+              feedbackByQuestionId: {},
+              activeWrittenSavedSetId: null,
+            }),
       });
     });
   },
@@ -1111,7 +1111,7 @@ function mapSessions(s: PersistedAppState): Partial<AppState> {
   const activeSavedSetIds = new Set(s.savedSets.map((entry) => entry.id));
   const writtenSavedSetId =
     s.writtenSession.savedSetId &&
-      activeSavedSetIds.has(s.writtenSession.savedSetId)
+    activeSavedSetIds.has(s.writtenSession.savedSetId)
       ? s.writtenSession.savedSetId
       : null;
   const mcSavedSetId =
