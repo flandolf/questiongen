@@ -60,6 +60,30 @@ import type {
   Stroke,
   ToolType,
 } from '../types/sketchpad';
+import {
+  applyPressureCurve,
+  CANVAS_STORAGE_KEY_PREFIX,
+  cloneStrokes,
+  DEFAULT_TOOL_SETTINGS,
+  drawGraphAxes,
+  drawShape,
+  floodFill,
+  getCropBoundingBox,
+  getStrokeBoundingBox,
+  INTERNAL_RES_HEIGHT,
+  INTERNAL_RES_WIDTH,
+  KEYBOARD_ZOOM_STEP,
+  MAX_PENDING_MOVE_POINTS,
+  MAX_UNDO_SNAPSHOTS,
+  MAX_ZOOM,
+  mergeBoundingBoxes,
+  MIN_ZOOM,
+  paintBackground,
+  PALETTE,
+  PALM_REJECTION,
+  PEN_ONLY_STORAGE_KEY,
+  STORAGE_KEY,
+} from './sketchpadUtils';
 
 // NOTE: ToolType, BgType and PressureCurve are defined in src/types/sketchpad.ts
 // and imported above to centralize the sketchpad-related types.
@@ -114,98 +138,6 @@ type SketchpadStoragePayload = {
   strokeSvg?: string;
 };
 
-const A4_ASPECT = 210 / 297;
-const INTERNAL_RES_WIDTH = 1240; // Logical canvas width in CSS pixels (≈150 DPI for A4)
-const INTERNAL_RES_HEIGHT = Math.round(INTERNAL_RES_WIDTH / A4_ASPECT);
-// The actual canvas buffer is scaled by devicePixelRatio for crisp HiDPI rendering.
-// All drawing coordinates use logical pixels; the DPR scale is applied once in initCanvas.
-
-const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
-  pen: {
-    size: 3,
-    opacity: 1,
-    smoothing: 0.5,
-    pressureCurve: 'smooth',
-    disablePressure: false,
-    color: '#111827',
-  },
-  eraser: {
-    size: 40,
-    opacity: 1,
-    smoothing: 0.3,
-    pressureCurve: 'linear',
-    disablePressure: false,
-    color: '#ffffff',
-  },
-  fill: {
-    size: 10,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#007AFF',
-  },
-  line: {
-    size: 4,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#111827',
-  },
-  rect: {
-    size: 4,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#111827',
-  },
-  ellipse: {
-    size: 4,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#111827',
-  },
-  text: {
-    size: 24,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#111827',
-  },
-  graph: {
-    size: 2,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#111827',
-  },
-};
-
-const STORAGE_KEY = 'sketchpad-tool-settings';
-const PEN_ONLY_STORAGE_KEY = 'sketchpad-pen-only-mode';
-const CANVAS_STORAGE_KEY_PREFIX = 'sketchpad-canvas';
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 10;
-const KEYBOARD_ZOOM_STEP = 0.25;
-const MAX_UNDO_SNAPSHOTS = 40;
-const MAX_PENDING_MOVE_POINTS = 240;
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const PALETTE = [
-  '#2D3436', // Obsidian
-  '#D63031', // Crimson
-  '#0984E3', // Royal Blue
-  '#00B894', // Mint
-  '#F1C40F', // Sunflower
-  '#6C5CE7', // Lavender
-];
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
@@ -239,412 +171,6 @@ const TOOL_LABELS: Record<ToolType, string> = {
   text: 'Text',
   graph: 'Graph Axes (G)',
 };
-
-const PALM_REJECTION = {
-  WIDTH_THRESHOLD: 25,
-  HEIGHT_THRESHOLD: 25,
-  MIN_PRESSURE: 0.02,
-  MIN_TOUCH_DURATION: 30, // ms
-  EDGE_MARGIN: 10,
-};
-
-// ─── Pressure Curve ──────────────────────────────────────────────────────────
-
-function applyPressureCurve(pressure: number, curve: PressureCurve): number {
-  const p = Math.max(0, Math.min(1, pressure));
-  switch (curve) {
-    case 'exponential':
-      return Math.pow(p, 0.5);
-    case 'smooth':
-      return p * p * (3 - 2 * p);
-    case 'heavy-ink':
-      return Math.pow(p, 0.3);
-    case 'linear':
-    default:
-      return p;
-  }
-}
-
-// ─── Flood Fill ───────────────────────────────────────────────────────────────
-
-function hexToRgba(
-  hex: string,
-  alpha: number
-): [number, number, number, number] {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return [r, g, b, Math.round(alpha * 255)];
-}
-
-function floodFill(
-  ctx: CanvasRenderingContext2D,
-  startX: number,
-  startY: number,
-  fillColor: string,
-  alpha: number,
-  tolerance: number = 32
-) {
-  const canvas = ctx.canvas;
-  const w = canvas.width;
-  const h = canvas.height;
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data = imageData.data;
-
-  const idx = (x: number, y: number) => (y * w + x) * 4;
-  const si = idx(startX, startY);
-  const targetR = data[si],
-    targetG = data[si + 1],
-    targetB = data[si + 2],
-    targetA = data[si + 3];
-  const [fr, fg, fb, fa] = hexToRgba(fillColor, alpha);
-
-  const colorMatch = (i: number) =>
-    Math.abs(data[i] - targetR) <= tolerance &&
-    Math.abs(data[i + 1] - targetG) <= tolerance &&
-    Math.abs(data[i + 2] - targetB) <= tolerance &&
-    Math.abs(data[i + 3] - targetA) <= tolerance;
-
-  if (colorMatch(si)) return;
-
-  const queue: number[] = [startX + startY * w];
-  const visited = new Uint8Array(w * h);
-  const pixelCount = w * h;
-  let head = 0;
-
-  while (head < queue.length) {
-    const flat = queue[head++];
-    if (flat >= pixelCount) continue;
-    const x = flat % w;
-    const y = Math.floor(flat / w);
-    if (visited[flat]) continue;
-    if (!colorMatch(flat * 4)) continue;
-    visited[flat] = 1;
-    const i = flat * 4;
-    data[i] = fr;
-    data[i + 1] = fg;
-    data[i + 2] = fb;
-    data[i + 3] = fa;
-    if (x + 1 < w) queue.push(flat + 1);
-    if (x > 0) queue.push(flat - 1);
-    if (y + 1 < h) queue.push(flat + w);
-    if (y > 0) queue.push(flat - w);
-  }
-  ctx.putImageData(imageData, 0, 0);
-}
-
-// ─── Cropping ─────────────────────────────────────────────────────────────────
-
-function getCropBoundingBox(canvas: HTMLCanvasElement, padding: number = 20) {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-
-  const w = canvas.width;
-  const h = canvas.height;
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data = imageData.data;
-
-  let minX = w,
-    minY = h,
-    maxX = 0,
-    maxY = 0;
-  let found = false;
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const alpha = data[(y * w + x) * 4 + 3];
-      if (alpha > 0) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        found = true;
-      }
-    }
-  }
-
-  if (!found) return null;
-
-  return {
-    x: Math.max(0, minX - padding),
-    y: Math.max(0, minY - padding),
-    width: Math.min(w, maxX - minX + padding * 2),
-    height: Math.min(h, maxY - minY + padding * 2),
-  };
-}
-
-function getStrokeBoundingBox(strokes: Stroke[], padding: number = 20) {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  let found = false;
-
-  for (const stroke of strokes) {
-    const halfSize = Math.max(1, stroke.size) / 2;
-    for (const point of stroke.points) {
-      found = true;
-      minX = Math.min(minX, point.x - halfSize);
-      minY = Math.min(minY, point.y - halfSize);
-      maxX = Math.max(maxX, point.x + halfSize);
-      maxY = Math.max(maxY, point.y + halfSize);
-    }
-  }
-
-  if (!found) return null;
-
-  return {
-    x: Math.max(0, minX - padding),
-    y: Math.max(0, minY - padding),
-    width: Math.max(1, maxX - minX + padding * 2),
-    height: Math.max(1, maxY - minY + padding * 2),
-  };
-}
-
-function mergeBoundingBoxes(
-  a: { x: number; y: number; width: number; height: number } | null,
-  b: { x: number; y: number; width: number; height: number } | null
-) {
-  if (!a) return b;
-  if (!b) return a;
-
-  const minX = Math.min(a.x, b.x);
-  const minY = Math.min(a.y, b.y);
-  const maxX = Math.max(a.x + a.width, b.x + b.width);
-  const maxY = Math.max(a.y + a.height, b.y + b.height);
-
-  return {
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
-  };
-}
-
-function cloneStrokes(strokeList: Stroke[]): Stroke[] {
-  return strokeList.map((stroke) => ({
-    ...stroke,
-    points: stroke.points.map((point) => ({ ...point })),
-  }));
-}
-
-// ─── Draw shape preview ───────────────────────────────────────────────────────
-
-function drawShape(
-  ctx: CanvasRenderingContext2D,
-  tool: ToolType,
-  start: { x: number; y: number },
-  end: { x: number; y: number }
-) {
-  ctx.beginPath();
-  if (tool === 'line') {
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
-    ctx.stroke();
-  } else if (tool === 'rect') {
-    ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-  } else if (tool === 'ellipse') {
-    const rx = Math.abs(end.x - start.x) / 2;
-    const ry = Math.abs(end.y - start.y) / 2;
-    const cx = (start.x + end.x) / 2;
-    const cy = (start.y + end.y) / 2;
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-}
-
-// ─── Graph Axes ───────────────────────────────────────────────────────────────
-
-/**
- * Stamps coordinate axes centred at (cx, cy) onto the canvas.
- * Suitable for VCE Math Methods — arrow endpoints, tick marks, faint grid.
- */
-function drawGraphAxes(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  color: string,
-  strokeWidth: number = 2
-) {
-  const halfW = 320;
-  const halfH = 240;
-  const tickSpacing = 40;
-  const tickLen = 8;
-  const arrowSize = 14;
-
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = strokeWidth;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // Faint grid lines
-  ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.lineWidth = 1;
-  for (let tx = tickSpacing; tx < halfW; tx += tickSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(cx + tx, cy - halfH);
-    ctx.lineTo(cx + tx, cy + halfH);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - tx, cy - halfH);
-    ctx.lineTo(cx - tx, cy + halfH);
-    ctx.stroke();
-  }
-  for (let ty = tickSpacing; ty < halfH; ty += tickSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(cx - halfW, cy + ty);
-    ctx.lineTo(cx + halfW, cy + ty);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - halfW, cy - ty);
-    ctx.lineTo(cx + halfW, cy - ty);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // X axis
-  ctx.beginPath();
-  ctx.moveTo(cx - halfW, cy);
-  ctx.lineTo(cx + halfW, cy);
-  ctx.stroke();
-  // Y axis
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - halfH);
-  ctx.lineTo(cx, cy + halfH);
-  ctx.stroke();
-
-  // Arrowhead helper
-  function arrowhead(tipX: number, tipY: number, dx: number, dy: number) {
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const ux = dx / len;
-    const uy = dy / len;
-    const px = -uy;
-    const py = ux;
-    const base = arrowSize * 0.4;
-    ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(
-      tipX - ux * arrowSize + px * base,
-      tipY - uy * arrowSize + py * base
-    );
-    ctx.lineTo(
-      tipX - ux * arrowSize - px * base,
-      tipY - uy * arrowSize - py * base
-    );
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  arrowhead(cx + halfW, cy, 1, 0);
-  arrowhead(cx - halfW, cy, -1, 0);
-  arrowhead(cx, cy - halfH, 0, -1);
-  arrowhead(cx, cy + halfH, 0, 1);
-
-  // Tick marks
-  ctx.lineWidth = strokeWidth * 0.8;
-  for (let tx = tickSpacing; tx < halfW - arrowSize; tx += tickSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(cx + tx, cy - tickLen);
-    ctx.lineTo(cx + tx, cy + tickLen);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - tx, cy - tickLen);
-    ctx.lineTo(cx - tx, cy + tickLen);
-    ctx.stroke();
-  }
-  for (let ty = tickSpacing; ty < halfH - arrowSize; ty += tickSpacing) {
-    ctx.beginPath();
-    ctx.moveTo(cx - tickLen, cy - ty);
-    ctx.lineTo(cx + tickLen, cy - ty);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx - tickLen, cy + ty);
-    ctx.lineTo(cx + tickLen, cy + ty);
-    ctx.stroke();
-  }
-
-  // Axis labels
-  const fontSize = Math.round(tickSpacing * 0.5);
-  ctx.font = `italic ${fontSize}px serif`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText('x', cx + halfW + 6, cy - fontSize * 0.6);
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText('y', cx + fontSize * 0.5, cy - halfH - 4);
-
-  // Origin
-  ctx.font = `${fontSize * 0.85}px sans-serif`;
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.fillText('O', cx - 5, cy + 5);
-
-  ctx.restore();
-}
-
-function paintBackground(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  bg: BgType
-) {
-  const isDark = bg === 'black-grid';
-
-  const darkBg = 'oklch(27.4% 0.006 286.033)';
-  const lightBg = 'oklch(98.5% 0 0)';
-  const darkStroke = 'oklch(20% 0.1 0)';
-  const lightStroke = 'oklch(87% 0 0)';
-
-  if (isDark) {
-    ctx.fillStyle = darkBg;
-    ctx.fillRect(0, 0, width, height);
-  } else {
-    ctx.fillStyle = lightBg;
-    ctx.fillRect(0, 0, width, height);
-  }
-
-  ctx.lineWidth = 1;
-
-  if (bg === 'lined') {
-    ctx.strokeStyle = isDark ? lightBg : darkBg;
-    const lineSpacing = 30;
-    ctx.beginPath();
-    for (let y = lineSpacing; y < height; y += lineSpacing) {
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(width, y + 0.5);
-    }
-    ctx.stroke();
-  } else if (bg === 'dot-grid') {
-    ctx.fillStyle = isDark ? lightStroke : darkStroke;
-    const dotSpacing = 20;
-    const dotRadius = 1.5;
-    for (let x = dotSpacing; x < width; x += dotSpacing) {
-      for (let y = dotSpacing; y < height; y += dotSpacing) {
-        ctx.beginPath();
-        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  } else {
-    ctx.strokeStyle = isDark ? lightStroke : darkStroke;
-    ctx.beginPath();
-    for (let x = 0.5; x < width; x += 20) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-    }
-    for (let y = 0.5; y < height; y += 20) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-    }
-    ctx.stroke();
-  }
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
@@ -789,12 +315,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => {});
-    const redoActionRef = useRef<() => void>(() => {});
-    const clearActionRef = useRef<() => void>(() => {});
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
-    const resetViewportRef = useRef<() => void>(() => {});
-    const updateCursorPreviewRef = useRef<() => void>(() => {});
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
+    const updateCursorPreviewRef = useRef<() => void>(() => { });
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -977,12 +503,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   const strokeSvg =
                     strokesRef.current.length > 0
                       ? strokesToSvgString(
-                          strokesRef.current,
-                          INTERNAL_RES_WIDTH,
-                          INTERNAL_RES_HEIGHT,
-                          bgRef2.current,
-                          true
-                        )
+                        strokesRef.current,
+                        INTERNAL_RES_WIDTH,
+                        INTERNAL_RES_HEIGHT,
+                        bgRef2.current,
+                        true
+                      )
                       : '';
                   const payload: SketchpadStoragePayload = {
                     version: 2,
@@ -1441,13 +967,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
     }, [isAndroid, switchTool, activeTool]);
 
-    const initCanvas = useCallback(() => {
+    const initCanvas = useCallback((fitViewport: boolean = false) => {
       const canvas = canvasRef.current;
       const overlay = overlayRef.current;
       const bgCanvas = bgRef.current;
@@ -1509,25 +1035,30 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         });
       }
 
-      // Initial zoom to fit
-      const containerW = container.clientWidth;
-      const containerH = container.clientHeight;
-      const fitZoom = Math.min(
-        (containerW - 80) / INTERNAL_RES_WIDTH,
-        (containerH - 80) / INTERNAL_RES_HEIGHT
-      );
-      setViewport(
-        {
-          x: (containerW - INTERNAL_RES_WIDTH * fitZoom) / 2,
-          y: (containerH - INTERNAL_RES_HEIGHT * fitZoom) / 2,
-        },
-        fitZoom
-      );
+      // Optionally perform an initial zoom-to-fit. When called from the
+      // ResizeObserver during layout animations we intentionally avoid
+      // changing the current viewport so a user's zoom is preserved.
+      if (fitViewport) {
+        const containerW = container.clientWidth;
+        const containerH = container.clientHeight;
+        const fitZoom = Math.min(
+          (containerW - 80) / INTERNAL_RES_WIDTH,
+          (containerH - 80) / INTERNAL_RES_HEIGHT
+        );
+        setViewport(
+          {
+            x: (containerW - INTERNAL_RES_WIDTH * fitZoom) / 2,
+            y: (containerH - INTERNAL_RES_HEIGHT * fitZoom) / 2,
+          },
+          fitZoom
+        );
+      }
     }, [captureCanvasSnapshot, disposeSnapshot, setViewport]);
 
     useEffect(() => {
       if (!embedded && !open) return;
-      initCanvas();
+      // On mount/open we should fit the canvas to the container.
+      initCanvas(true);
     }, [embedded, open, initCanvas]);
 
     useEffect(() => {
@@ -1542,7 +1073,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     useEffect(() => {
       const container = containerRef.current;
       if (!container) return;
-      const handler = () => requestAnimationFrame(() => initCanvas());
+      // When the container resizes during user-driven layout animations we
+      // want to resize internal canvas buffers etc but avoid changing the
+      // user's current zoom/pan. Pass `false` to `initCanvas` to skip the
+      // zoom-to-fit behavior on resize.
+      const handler = () => requestAnimationFrame(() => initCanvas(false));
       const ro = new ResizeObserver(handler);
       ro.observe(container);
       return () => ro.disconnect();
@@ -2664,26 +2199,71 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const saveAsDataUrl = useCallback(async (): Promise<string> => {
       const canvas = canvasRef.current;
       if (!canvas) throw new Error('Canvas missing');
-      const strokeBounds = getStrokeBoundingBox(strokesRef.current, 40);
-      const rasterBounds = getCropBoundingBox(canvas, 40);
+
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const PAD_LOGICAL = 40;
+
+      // Stroke bounds are in logical pixels (internal coords) — scale them
+      // to device pixels so they line up with the canvas buffer.
+      const strokeBoundsLogical = getStrokeBoundingBox(
+        strokesRef.current,
+        PAD_LOGICAL
+      );
+      const strokeBounds = strokeBoundsLogical
+        ? {
+          x: Math.max(0, Math.round(strokeBoundsLogical.x * dpr)),
+          y: Math.max(0, Math.round(strokeBoundsLogical.y * dpr)),
+          width: Math.max(1, Math.round(strokeBoundsLogical.width * dpr)),
+          height: Math.max(1, Math.round(strokeBoundsLogical.height * dpr)),
+        }
+        : null;
+
+      // Raster bounds operate on the canvas buffer (device pixels)
+      const rasterBounds = getCropBoundingBox(canvas, Math.round(PAD_LOGICAL * dpr));
+
+      // Use union of stroke and raster bounds (both now device-pixel space)
       const bounds = mergeBoundingBoxes(rasterBounds, strokeBounds);
       const exportW = bounds ? bounds.width : canvas.width;
       const exportH = bounds ? bounds.height : canvas.height;
       const startX = bounds ? bounds.x : 0;
       const startY = bounds ? bounds.y : 0;
-      const vectorRaster =
-        strokesRef.current.length > 0
-          ? await rasterizeSvgString(
-              strokesToSvgString(
-                strokesRef.current,
-                INTERNAL_RES_WIDTH,
-                INTERNAL_RES_HEIGHT,
-                bg
-              ),
-              INTERNAL_RES_WIDTH,
-              INTERNAL_RES_HEIGHT
-            )
-          : null;
+
+      // Rasterize vector strokes separately for pen and eraser so we can
+      // composite them correctly on export. Rasterize at DPR resolution so
+      // the resulting canvases align with the main canvas buffer.
+      let penRaster: HTMLCanvasElement | null = null;
+      let eraserRaster: HTMLCanvasElement | null = null;
+      const allStrokes = strokesRef.current || [];
+      if (allStrokes.length > 0) {
+        const penStrokes = allStrokes.filter((s) => s.tool !== 'eraser');
+        const eraserStrokes = allStrokes.filter((s) => s.tool === 'eraser');
+
+        if (penStrokes.length > 0) {
+          const penSvg = strokesToSvgString(
+            penStrokes,
+            INTERNAL_RES_WIDTH,
+            INTERNAL_RES_HEIGHT
+          );
+          penRaster = await rasterizeSvgString(
+            penSvg,
+            INTERNAL_RES_WIDTH * dpr,
+            INTERNAL_RES_HEIGHT * dpr
+          );
+        }
+
+        if (eraserStrokes.length > 0) {
+          const eraserSvg = strokesToSvgString(
+            eraserStrokes,
+            INTERNAL_RES_WIDTH,
+            INTERNAL_RES_HEIGHT
+          );
+          eraserRaster = await rasterizeSvgString(
+            eraserSvg,
+            INTERNAL_RES_WIDTH * dpr,
+            INTERNAL_RES_HEIGHT * dpr
+          );
+        }
+      }
 
       return new Promise((resolve, reject) => {
         const tmp = document.createElement('canvas');
@@ -2710,7 +2290,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           paintBackground(tctx, exportW, exportH, bg);
         }
 
-        // Draw ink cropped
+        // Draw ink cropped from the main canvas (device-pixel aligned)
         tctx.drawImage(
           canvas,
           startX,
@@ -2723,9 +2303,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           exportH
         );
 
-        if (vectorRaster) {
+        // If both the raster canvas and vector stroke bounds are present
+        // then the canvas already contains the ink — avoid drawing the
+        // vector rasters again which would double-up (this happens when
+        // restoring a saved raster + stroke payload). Only draw the
+        // rasterized vectors if the canvas did not already provide ink.
+        const shouldDrawVectorRasters = !(rasterBounds && strokeBounds);
+
+        if (penRaster && shouldDrawVectorRasters) {
           tctx.drawImage(
-            vectorRaster,
+            penRaster,
             startX,
             startY,
             exportW,
@@ -2735,6 +2322,23 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             exportW,
             exportH
           );
+        }
+
+        if (eraserRaster && shouldDrawVectorRasters) {
+          tctx.save();
+          tctx.globalCompositeOperation = 'destination-out';
+          tctx.drawImage(
+            eraserRaster,
+            startX,
+            startY,
+            exportW,
+            exportH,
+            0,
+            0,
+            exportW,
+            exportH
+          );
+          tctx.restore();
         }
 
         tmp.toBlob(
@@ -2877,30 +2481,29 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           viewBox={`0 0 ${INTERNAL_RES_WIDTH} ${INTERNAL_RES_HEIGHT}`}
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Render committed strokes */}
-          {strokes.map((s) => (
-            <path
-              key={s.id}
-              d={pointsToSvgPath(s.points)}
-              stroke={s.tool === 'eraser' ? '#ffffff' : s.color}
-              strokeWidth={Math.max(0.5, s.size)}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-              opacity={s.opacity ?? 1}
-            />
-          ))}
+          {/* Render committed strokes (hide eraser strokes in the SVG overlay)
+              — the raster canvas already applies the eraser via compositing. */}
+          {strokes
+            .filter((s) => s.tool !== 'eraser')
+            .map((s) => (
+              <path
+                key={s.id}
+                d={pointsToSvgPath(s.points)}
+                stroke={s.color}
+                strokeWidth={Math.max(0.5, s.size)}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+                opacity={s.opacity ?? 1}
+              />
+            ))}
 
-          {/* In-progress stroke */}
-          {currentStroke && (
+          {/* In-progress stroke (hide eraser preview in SVG overlay) */}
+          {currentStroke && currentStroke.tool !== 'eraser' && (
             <path
               key={currentStroke.id}
               d={pointsToSvgPath(currentStroke.points)}
-              stroke={
-                currentStroke.tool === 'eraser'
-                  ? '#ffffff'
-                  : currentStroke.color
-              }
+              stroke={currentStroke.color}
               strokeWidth={Math.max(0.5, currentStroke.size)}
               strokeLinecap="round"
               strokeLinejoin="round"
