@@ -31,6 +31,7 @@ import {
   countWords,
   generateEntryId,
   getDifficultyBadgeClasses,
+  hashStringForSeed,
   isMathTopic,
   rekeyMc,
   rekeyWritten,
@@ -80,6 +81,26 @@ import { WrittenAnswerCard } from './generator/WrittenAnswerCard';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const MC_MAX_EXPLANATION_WORDS = 180;
+
+function buildSketchpadSessionKey(
+  mode: 'written' | 'multiple-choice',
+  question:
+    | Pick<GeneratedQuestion, 'id' | 'topic' | 'subtopic' | 'promptMarkdown'>
+    | Pick<
+        McQuestion,
+        'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
+      >
+): string {
+  const signature = [
+    mode,
+    question.topic,
+    question.subtopic ?? '',
+    question.promptMarkdown,
+    'explanationMarkdown' in question ? question.explanationMarkdown : '',
+  ].join('|');
+  const hash = hashStringForSeed(signature).toString(36);
+  return `sketch-${mode}-${question.id}-${hash}`;
+}
 
 function syncTimerPauseDuringMarking(
   timer: { isPaused: boolean; togglePause: () => void },
@@ -353,6 +374,16 @@ export function GeneratorView() {
     ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ??
       (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ''))
     : '';
+
+  const activeWrittenSketchSessionKey = useMemo(() => {
+    if (!activeQuestion) return undefined;
+    return buildSketchpadSessionKey('written', activeQuestion);
+  }, [activeQuestion]);
+
+  const activeMcSketchSessionKey = useMemo(() => {
+    if (!activeMcQuestion) return undefined;
+    return buildSketchpadSessionKey('multiple-choice', activeMcQuestion);
+  }, [activeMcQuestion]);
 
   useEffect(() => {
     setMcSketchpadActive(false);
@@ -2691,6 +2722,7 @@ export function GeneratorView() {
                     rightSlot={
                       <WrittenAnswerCard
                         questionId={activeQuestion.id}
+                        sketchSessionKey={activeWrittenSketchSessionKey}
                         answer={activeQuestionAnswer}
                         image={activeQuestionImage}
                         isMarking={isMarking}
@@ -2805,6 +2837,7 @@ export function GeneratorView() {
                       <div className="min-w-0 space-y-4">
                         <McSketchpadPanel
                           questionId={activeMcQuestion?.id}
+                          sketchSessionKey={activeMcSketchSessionKey}
                           image={mcImagesByQuestionId[activeMcQuestion.id]}
                           onImageDrop={handleMcImageDrop}
                           onImageRemove={handleMcImageRemove}

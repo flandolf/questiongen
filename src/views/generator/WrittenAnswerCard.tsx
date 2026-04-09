@@ -18,6 +18,7 @@ import type { StudentAnswerImage } from '@/types';
 
 type WrittenAnswerCardProps = {
   questionId: string;
+  sketchSessionKey?: string;
   answer: string;
   image: StudentAnswerImage | undefined;
   isMarking: boolean;
@@ -46,6 +47,7 @@ function getFooterNote(isExamMode: boolean | undefined): string {
 // eslint-disable-next-line complexity
 export function WrittenAnswerCard({
   questionId,
+  sketchSessionKey,
   answer,
   image,
   isMarking,
@@ -231,7 +233,7 @@ export function WrittenAnswerCard({
           <Sketchpad
             ref={sketchpadRef}
             embedded
-            sessionKey={questionId}
+            sessionKey={sketchSessionKey ?? questionId}
             onSave={(dataUrl) => void handleSketchSave(dataUrl)}
           />
 
