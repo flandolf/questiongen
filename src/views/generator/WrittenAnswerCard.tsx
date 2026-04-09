@@ -262,10 +262,11 @@ export function WrittenAnswerCard({
         <>
           <Button
             size="lg"
-            className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${hasContent && !isMarking
+            className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
+              hasContent && !isMarking
                 ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
                 : ''
-              }`}
+            }`}
             onClick={() => void handleSubmitClick()}
             disabled={!canSubmitFromSketchpad || isMarking}
           >

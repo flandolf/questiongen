@@ -410,30 +410,56 @@ function drawGraphAxes(
   ctx.globalAlpha = 0.08;
   ctx.lineWidth = 1;
   for (let tx = tickSpacing; tx < halfW; tx += tickSpacing) {
-    ctx.beginPath(); ctx.moveTo(cx + tx, cy - halfH); ctx.lineTo(cx + tx, cy + halfH); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - tx, cy - halfH); ctx.lineTo(cx - tx, cy + halfH); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + tx, cy - halfH);
+    ctx.lineTo(cx + tx, cy + halfH);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - tx, cy - halfH);
+    ctx.lineTo(cx - tx, cy + halfH);
+    ctx.stroke();
   }
   for (let ty = tickSpacing; ty < halfH; ty += tickSpacing) {
-    ctx.beginPath(); ctx.moveTo(cx - halfW, cy + ty); ctx.lineTo(cx + halfW, cy + ty); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - halfW, cy - ty); ctx.lineTo(cx + halfW, cy - ty); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - halfW, cy + ty);
+    ctx.lineTo(cx + halfW, cy + ty);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - halfW, cy - ty);
+    ctx.lineTo(cx + halfW, cy - ty);
+    ctx.stroke();
   }
   ctx.restore();
 
   // X axis
-  ctx.beginPath(); ctx.moveTo(cx - halfW, cy); ctx.lineTo(cx + halfW, cy); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - halfW, cy);
+  ctx.lineTo(cx + halfW, cy);
+  ctx.stroke();
   // Y axis
-  ctx.beginPath(); ctx.moveTo(cx, cy - halfH); ctx.lineTo(cx, cy + halfH); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - halfH);
+  ctx.lineTo(cx, cy + halfH);
+  ctx.stroke();
 
   // Arrowhead helper
   function arrowhead(tipX: number, tipY: number, dx: number, dy: number) {
     const len = Math.sqrt(dx * dx + dy * dy);
-    const ux = dx / len; const uy = dy / len;
-    const px = -uy; const py = ux;
+    const ux = dx / len;
+    const uy = dy / len;
+    const px = -uy;
+    const py = ux;
     const base = arrowSize * 0.4;
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(tipX - ux * arrowSize + px * base, tipY - uy * arrowSize + py * base);
-    ctx.lineTo(tipX - ux * arrowSize - px * base, tipY - uy * arrowSize - py * base);
+    ctx.lineTo(
+      tipX - ux * arrowSize + px * base,
+      tipY - uy * arrowSize + py * base
+    );
+    ctx.lineTo(
+      tipX - ux * arrowSize - px * base,
+      tipY - uy * arrowSize - py * base
+    );
     ctx.closePath();
     ctx.fill();
   }
@@ -446,25 +472,40 @@ function drawGraphAxes(
   // Tick marks
   ctx.lineWidth = strokeWidth * 0.8;
   for (let tx = tickSpacing; tx < halfW - arrowSize; tx += tickSpacing) {
-    ctx.beginPath(); ctx.moveTo(cx + tx, cy - tickLen); ctx.lineTo(cx + tx, cy + tickLen); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - tx, cy - tickLen); ctx.lineTo(cx - tx, cy + tickLen); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + tx, cy - tickLen);
+    ctx.lineTo(cx + tx, cy + tickLen);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - tx, cy - tickLen);
+    ctx.lineTo(cx - tx, cy + tickLen);
+    ctx.stroke();
   }
   for (let ty = tickSpacing; ty < halfH - arrowSize; ty += tickSpacing) {
-    ctx.beginPath(); ctx.moveTo(cx - tickLen, cy - ty); ctx.lineTo(cx + tickLen, cy - ty); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - tickLen, cy + ty); ctx.lineTo(cx + tickLen, cy + ty); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - tickLen, cy - ty);
+    ctx.lineTo(cx + tickLen, cy - ty);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - tickLen, cy + ty);
+    ctx.lineTo(cx + tickLen, cy + ty);
+    ctx.stroke();
   }
 
   // Axis labels
   const fontSize = Math.round(tickSpacing * 0.5);
   ctx.font = `italic ${fontSize}px serif`;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
   ctx.fillText('x', cx + halfW + 6, cy - fontSize * 0.6);
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
   ctx.fillText('y', cx + fontSize * 0.5, cy - halfH - 4);
 
   // Origin
   ctx.font = `${fontSize * 0.85}px sans-serif`;
-  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
   ctx.fillText('O', cx - 5, cy + 5);
 
   ctx.restore();
@@ -660,12 +701,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => { });
-    const redoActionRef = useRef<() => void>(() => { });
-    const clearActionRef = useRef<() => void>(() => { });
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
-    const resetViewportRef = useRef<() => void>(() => { });
-    const updateCursorPreviewRef = useRef<() => void>(() => { });
+    const undoActionRef = useRef<() => void>(() => {});
+    const redoActionRef = useRef<() => void>(() => {});
+    const clearActionRef = useRef<() => void>(() => {});
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
+    const resetViewportRef = useRef<() => void>(() => {});
+    const updateCursorPreviewRef = useRef<() => void>(() => {});
 
     // ─── Persistence helpers ───────────────────────────────────────────────────
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -708,7 +749,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           const overlayCanvas = overlayRef.current;
           if (overlayCanvas) {
             const overlayCtx = overlayCanvas.getContext('2d');
-            overlayCtx?.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
+            overlayCtx?.clearRect(
+              0,
+              0,
+              INTERNAL_RES_WIDTH,
+              INTERNAL_RES_HEIGHT
+            );
           }
           undoStack.current = [];
           redoStack.current = [];
@@ -783,7 +829,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [flushViewportState]);
 
     const setViewport = useCallback(
-      (nextPan: { x: number; y: number }, nextZoom: number = zoomRef.current) => {
+      (
+        nextPan: { x: number; y: number },
+        nextZoom: number = zoomRef.current
+      ) => {
         zoomRef.current = clampZoom(nextZoom);
         panRef.current = nextPan;
         queueViewportState();
@@ -810,10 +859,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const contentX = (localX - currentPan.x) / safeCurrentZoom;
         const contentY = (localY - currentPan.y) / safeCurrentZoom;
 
-        setViewport({
-          x: localX - contentX * targetZoom,
-          y: localY - contentY * targetZoom,
-        }, targetZoom);
+        setViewport(
+          {
+            x: localX - contentX * targetZoom,
+            y: localY - contentY * targetZoom,
+          },
+          targetZoom
+        );
       },
       [clampZoom, setViewport]
     );
@@ -850,10 +902,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         return;
       }
 
-      setViewport({
-        x: (container.clientWidth - INTERNAL_RES_WIDTH * nextZoom) / 2,
-        y: (container.clientHeight - INTERNAL_RES_HEIGHT * nextZoom) / 2,
-      }, nextZoom);
+      setViewport(
+        {
+          x: (container.clientWidth - INTERNAL_RES_WIDTH * nextZoom) / 2,
+          y: (container.clientHeight - INTERNAL_RES_HEIGHT * nextZoom) / 2,
+        },
+        nextZoom
+      );
     }, [setViewport]);
 
     useEffect(() => {
@@ -1019,7 +1074,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => { });
+        .catch(() => {});
       return () => {
         if (unlisten) unlisten();
       };
@@ -1065,7 +1120,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       bgCanvas.style.height = `${INTERNAL_RES_HEIGHT}px`;
       const bgCtx = bgCanvas.getContext('2d')!;
       bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paintBackground(bgCtx, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT, bgRef2.current);
+      paintBackground(
+        bgCtx,
+        INTERNAL_RES_WIDTH,
+        INTERNAL_RES_HEIGHT,
+        bgRef2.current
+      );
 
       if (snapshot) {
         const ctx = canvas.getContext('2d')!;
@@ -1086,10 +1146,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         (containerW - 80) / INTERNAL_RES_WIDTH,
         (containerH - 80) / INTERNAL_RES_HEIGHT
       );
-      setViewport({
-        x: (containerW - INTERNAL_RES_WIDTH * fitZoom) / 2,
-        y: (containerH - INTERNAL_RES_HEIGHT * fitZoom) / 2,
-      }, fitZoom);
+      setViewport(
+        {
+          x: (containerW - INTERNAL_RES_WIDTH * fitZoom) / 2,
+          y: (containerH - INTERNAL_RES_HEIGHT * fitZoom) / 2,
+        },
+        fitZoom
+      );
     }, [setViewport]);
 
     useEffect(() => {
@@ -1348,7 +1411,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       cursor.style.top = `${point.y}px`;
       cursor.style.width = `${settings.size * zoomRef.current}px`;
       cursor.style.height = `${settings.size * zoomRef.current}px`;
-      cursor.style.opacity = isHoveringRef.current && !spaceDown.current ? '0.7' : '1';
+      cursor.style.opacity =
+        isHoveringRef.current && !spaceDown.current ? '0.7' : '1';
       cursor.style.border =
         tool === 'eraser'
           ? '1px solid rgba(0,0,0,0.5)'
@@ -1693,7 +1757,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         pushUndo();
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const color = toolSettingsMapRef.current[currentTool].color;
-        floodFill(ctx, Math.round(pt.x * dpr), Math.round(pt.y * dpr), color, 1, 32);
+        floodFill(
+          ctx,
+          Math.round(pt.x * dpr),
+          Math.round(pt.y * dpr),
+          color,
+          1,
+          32
+        );
         return;
       }
 
@@ -1974,7 +2045,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     useEffect(() => {
       updateCursorPreview();
-    }, [activeTool, currentSize, currentColor, zoom, isHovering, updateCursorPreview]);
+    }, [
+      activeTool,
+      currentSize,
+      currentColor,
+      zoom,
+      isHovering,
+      updateCursorPreview,
+    ]);
 
     useEffect(() => {
       const canvas = canvasRef.current;

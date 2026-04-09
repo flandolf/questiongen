@@ -33,8 +33,11 @@ export interface UseTimerReturn {
 }
 
 function getMarks(q: GeneratedQuestion | McQuestion): number {
+  if ('maxMarks' in q && typeof q.maxMarks === 'number') {
+    return Math.max(1, Math.floor(q.maxMarks));
+  }
   if ('marks' in q && typeof q.marks === 'number') {
-    return q.marks;
+    return Math.max(1, Math.floor(q.marks));
   }
   return 1;
 }
@@ -189,6 +192,36 @@ export function useTimer(
     timerState.sessionStartedAt,
     timerState.sessionFinishedAt,
   ]);
+
+  useEffect(() => {
+    if (questions.length === 0) return;
+    setTimerState((prev) => {
+      if (Object.keys(prev.questions).length === 0) return prev;
+
+      let changed = false;
+      const nextQuestions = { ...prev.questions };
+
+      for (const q of questions) {
+        const existing = nextQuestions[q.id];
+        if (!existing) continue;
+
+        const expectedMarks = getMarks(q);
+        if (existing.marks !== expectedMarks) {
+          changed = true;
+          nextQuestions[q.id] = {
+            ...existing,
+            marks: expectedMarks,
+          };
+        }
+      }
+
+      if (!changed) return prev;
+      return {
+        ...prev,
+        questions: nextQuestions,
+      };
+    });
+  }, [questions]);
 
   const start = useCallback(
     (qs: GeneratedQuestion[] | McQuestion[]) => {

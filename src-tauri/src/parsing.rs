@@ -383,6 +383,29 @@ pub fn normalise_envelope(value: serde_json::Value) -> Result<serde_json::Value,
 ///   - The sequence backslash-n written literally inside a string value (rare)
 ///     appears as two chars `\` `n`.
 pub fn decode_escapes(value: &str) -> String {
+    fn starts_with_latex_command(chars: &[char], start: usize, commands: &[&str]) -> bool {
+        commands.iter().any(|command| {
+            let mut idx = start;
+            for expected in command.chars() {
+                if chars.get(idx) != Some(&expected) {
+                    return false;
+                }
+                idx += 1;
+            }
+            // Treat as a command only when the matched token is complete.
+            // A following ASCII letter means this is a longer unknown word
+            // and should be treated as normal escaped text.
+            chars
+                .get(idx)
+                .is_none_or(|next| !next.is_ascii_alphabetic())
+        })
+    }
+
+    const N_COMMANDS: &[&str] = &[
+        "nabla", "natural", "ne", "neq", "nearrow", "not", "notin", "nu",
+    ];
+    const R_COMMANDS: &[&str] = &["rho", "right", "rightarrow", "Rightarrow", "rm", "Re"];
+
     let chars: Vec<char> = value.chars().collect();
     let mut out = String::with_capacity(value.len());
     let mut i = 0;
@@ -401,7 +424,7 @@ pub fn decode_escapes(value: &str) -> String {
             // \r literal → newline, but only if not followed by a letter that
             // would form a LaTeX command (e.g. \rho, \rightarrow, \Re).
             if chars[i + 1] == 'r' {
-                if chars.get(i + 2).is_some_and(|c| c.is_ascii_alphabetic()) {
+                if starts_with_latex_command(&chars, i + 1, R_COMMANDS) {
                     out.push('\\');
                     out.push('r');
                 } else {
@@ -410,18 +433,11 @@ pub fn decode_escapes(value: &str) -> String {
                 i += 2;
                 continue;
             }
-            // \n literal → newline, but only if not followed by a character that
-            // would form a valid LaTeX command name (e.g. \nabla, \nu, \not).
-            // Valid LaTeX commands starting with \n have second char in: a, e, o, t, u
-            // (e.g. \nabla, \natural, \ne, \neq, \nearrow, \not, \notin, \nu).
-            // \nwhere (with 'w') is not a valid LaTeX command, so treat as newline.
+            // \n literal → newline unless it starts a known LaTeX command.
+            // This keeps commands like \nabla and \notin intact while decoding
+            // non-LaTeX text like \nand into a newline + "and".
             if chars[i + 1] == 'n' {
-                let next_char = chars.get(i + 2);
-                let is_latex_command = next_char.is_some_and(|c| {
-                    // Only these second characters can start valid LaTeX \n... commands
-                    matches!(c, 'a' | 'e' | 'o' | 't' | 'u')
-                });
-                if is_latex_command {
+                if starts_with_latex_command(&chars, i + 1, N_COMMANDS) {
                     // Looks like a LaTeX command — keep the backslash.
                     out.push('\\');
                     out.push('n');
@@ -1447,10 +1463,20 @@ mod tests {
     }
 
     #[test]
+    fn decode_escapes_literal_backslash_n_and_to_newline() {
+        assert_eq!(decode_escapes(r"line1\nand line2"), "line1\nand line2");
+    }
+
+    #[test]
     fn decode_escapes_preserves_valid_nabla_command() {
         // \nabla IS a valid LaTeX command (second char 'a' is in allowed set),
         // so the backslash should be preserved.
         assert_eq!(decode_escapes(r"\nabla"), r"\nabla");
+    }
+
+    #[test]
+    fn decode_escapes_literal_backslash_r_and_to_newline() {
+        assert_eq!(decode_escapes(r"line1\rand line2"), "line1\nand line2");
     }
 
     #[test]
