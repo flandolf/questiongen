@@ -1,5 +1,8 @@
 import { ModeToggle } from '@/components/mode-toggle';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { useAppStore } from '@/store';
+import { getDesignThemeLabel, themes } from '@/themes/designThemes';
 
 import { useAppSettings } from '../../../AppContext';
 import { Card, FieldGroup, SectionHeader } from '../SettingsUI';
@@ -11,6 +14,8 @@ export function AppearanceSection() {
     responseTextSize,
     setResponseTextSize,
   } = useAppSettings();
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
 
   return (
     <div className="space-y-6">
@@ -26,6 +31,33 @@ export function AppearanceSection() {
           </p>
         </div>
         <ModeToggle />
+      </Card>
+      <Card className="flex items-center justify-between p-4">
+        <div>
+          <p className="text-sm font-medium">Design theme</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Choose a design theme for the interface.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Select
+            value={theme ? String(theme) : undefined}
+            onValueChange={(value: string) => setTheme(value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a theme" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {themes.map((designTheme) => (
+                  <SelectItem key={designTheme.name} value={String(designTheme.name)}>
+                    {getDesignThemeLabel(designTheme)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       </Card>
       <FieldGroup
         label="Question text size"

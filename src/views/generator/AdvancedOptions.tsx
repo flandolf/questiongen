@@ -78,7 +78,7 @@ export function ToggleRow({
           >
             {label}
           </Label>
-          <p className="text-[11px] text-muted-foreground/80 mt-[2px] leading-relaxed">
+          <p className="text-[11px] text-muted-foreground/80 mt-0.5 leading-relaxed">
             {description}
           </p>
         </div>
@@ -156,12 +156,12 @@ export function AdvancedOptionsGroup({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <SectionLabel>Session Size</SectionLabel>
-          <div className="bg-card rounded-lg border p-4 space-y-4">
+          <div className="">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold flex items-center gap-2">
                 <Hash className="w-4 h-4 text-primary" /> Questions
               </Label>
-              <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm">
+              <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm">
                 {questionCount}
               </div>
             </div>
@@ -180,45 +180,32 @@ export function AdvancedOptionsGroup({
           </div>
         </div>
 
-        {questionMode === 'written' ? (
-          <div className="space-y-2">
-            <SectionLabel>Target marks</SectionLabel>
-            <div className="bg-card rounded-lg border p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-primary" /> Target marks
-                </Label>
-                <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-[2.5rem] text-center tabular-nums text-sm">
-                  {averageMarksPerQuestion}
-                </div>
-              </div>
-              <Slider
-                min={1}
-                max={15}
-                step={1}
-                value={[averageMarksPerQuestion]}
-                onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
-                className="py-2"
-              />
-              <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>1</span>
-                <span>15</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <SectionLabel>Avg marks per question</SectionLabel>
-            <div className="flex items-center justify-between px-4 py-3.5 rounded-lg bg-card border">
-              <Label className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" /> Avg marks per question
+        <div className="space-y-2">
+          <SectionLabel>Target marks</SectionLabel>
+          <div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" /> Target marks
               </Label>
-              <div className="text-xs font-bold px-2 py-1 rounded bg-muted/20 text-muted-foreground/60">
-                1 (Fixed)
+              <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm">
+                {averageMarksPerQuestion}
               </div>
             </div>
+            <Slider
+              min={1}
+              max={15}
+              step={1}
+              value={[averageMarksPerQuestion]}
+              onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
+              className="py-2"
+              disabled={questionMode === 'multiple-choice'}
+            />
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>1</span>
+              <span>15</span>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="space-y-2 pt-3">
@@ -236,7 +223,7 @@ export function AdvancedOptionsGroup({
           )}
         </div>
         <div>
-          <div className="bg-card border p-4 rounded-xl space-y-2 min-h-[90px]">
+          <div className="rounded-xl space-y-2">
             <Label className="text-sm font-semibold flex items-center gap-2">
               <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary">
                 <Crosshair className="w-3 h-3" />
@@ -265,7 +252,7 @@ export function AdvancedOptionsGroup({
       </div>
 
       {hasSubtopicSection && (
-        <div className="space-y-3 pt-6">
+        <div className="space-y-3 pt-2">
           <SectionLabel>
             Subtopics{' '}
             <span className="ml-1 normal-case font-medium tracking-normal text-muted-foreground/50">
