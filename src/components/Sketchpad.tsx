@@ -84,6 +84,13 @@ type ActivePointerMeta = {
   tiltY?: number;
 };
 
+type CanvasBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 type ToolSettings = {
   size: number;
   opacity: number;
@@ -648,7 +655,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const activePointers = useRef<Map<number, ActivePointerMeta>>(new Map());
     const activeDrawingPointerId = useRef<number | null>(null);
     const shapeStart = useRef<{ x: number; y: number } | null>(null);
-    const shapeSnapshot = useRef<string | null>(null);
     const previousNonEraserRef = useRef<ToolType>('pen');
     const hasMoved = useRef(false);
     const lastPointReal = useRef<{
@@ -672,6 +678,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         pointerId: number;
         tiltX?: number;
         tiltY?: number;
+        time: number;
       }>
     >([]);
     const cursorRaf = useRef<number | null>(null);
@@ -701,12 +708,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => {});
-    const redoActionRef = useRef<() => void>(() => {});
-    const clearActionRef = useRef<() => void>(() => {});
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
-    const resetViewportRef = useRef<() => void>(() => {});
-    const updateCursorPreviewRef = useRef<() => void>(() => {});
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
+    const updateCursorPreviewRef = useRef<() => void>(() => { });
+    const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const canvasBoundsRef = useRef<CanvasBounds | null>(null);
 
     // ─── Persistence helpers ───────────────────────────────────────────────────
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -809,6 +820,24 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       },
       [saveCanvasToStorage]
     );
+
+    function readCanvasBounds(): CanvasBounds | null {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      return {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      };
+    }
+
+    function getEventTimeStamp(e: Pick<PointerEvent, 'timeStamp'>) {
+      return Number.isFinite(e.timeStamp) && e.timeStamp > 0
+        ? e.timeStamp
+        : performance.now();
+    }
 
     const bgRef2 = useRef<BgType>(bg);
 
@@ -1074,7 +1103,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -1110,6 +1139,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         c.style.width = `${INTERNAL_RES_WIDTH}px`;
         c.style.height = `${INTERNAL_RES_HEIGHT}px`;
         const ctx = c.getContext('2d')!;
+        if (c === canvas) mainCtxRef.current = ctx;
+        if (c === overlay) overlayCtxRef.current = ctx;
         // Scale all drawing by DPR so coordinates remain in logical pixels
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
@@ -1119,6 +1150,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       bgCanvas.style.width = `${INTERNAL_RES_WIDTH}px`;
       bgCanvas.style.height = `${INTERNAL_RES_HEIGHT}px`;
       const bgCtx = bgCanvas.getContext('2d')!;
+      bgCtxRef.current = bgCtx;
       bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       paintBackground(
         bgCtx,
@@ -1295,7 +1327,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           lastPointReal.current = null;
           hasMoved.current = false;
           shapeStart.current = null;
-          shapeSnapshot.current = null;
 
           const overlay = overlayRef.current;
           const overlayCtx = overlay?.getContext('2d');
@@ -1375,10 +1406,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [setViewport, zoomAroundClientPoint]);
 
     function getCtx() {
-      return canvasRef.current?.getContext('2d') ?? null;
+      return mainCtxRef.current;
     }
     function getOverlayCtx() {
-      return overlayRef.current?.getContext('2d') ?? null;
+      return overlayCtxRef.current;
     }
     const clearOverlay = useCallback(() => {
       const canvas = overlayRef.current;
@@ -1425,43 +1456,40 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     function processPendingMove() {
       moveRaf.current = null;
-      const canvas = canvasRef.current;
       const ctx = getCtx();
-      if (!canvas || !ctx) return;
+      if (!ctx) return;
       const moves = lastMove.current;
       if (moves.length === 0) return;
 
       const tool = activeToolRef.current;
+      const isShapeTool =
+        tool === 'line' || tool === 'rect' || tool === 'ellipse';
+      const overlayCtx = isShapeTool ? getOverlayCtx() : null;
+      let lastPoint = lastPointReal.current;
 
       for (const m of moves) {
         const pt = { x: m.x, y: m.y };
         const pressure = m.pressure;
-        const now = performance.now();
 
-        if (
-          ['line', 'rect', 'ellipse'].includes(tool) &&
-          shapeStart.current &&
-          shapeSnapshot.current
-        ) {
-          const octx = getOverlayCtx();
-          if (!octx) continue;
+        if (isShapeTool && shapeStart.current && overlayCtx) {
           clearOverlay();
-          applyToolStyle(octx, pressure, 0);
-          drawShape(octx, tool, shapeStart.current, pt);
+          applyToolStyle(overlayCtx, pressure, 0);
+          drawShape(overlayCtx, tool, shapeStart.current, pt);
           continue;
         }
 
         if (tool === 'text') continue;
-        if (!lastPointReal.current) {
-          lastPointReal.current = { ...pt, pressure, time: now };
+        if (!lastPoint) {
+          lastPoint = { ...pt, pressure, time: m.time };
+          lastPointReal.current = lastPoint;
           continue;
         }
 
         // Calculate velocity for dynamic stroke width
-        const dx = pt.x - lastPointReal.current.x;
-        const dy = pt.y - lastPointReal.current.y;
+        const dx = pt.x - lastPoint.x;
+        const dy = pt.y - lastPoint.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const dt = Math.max(1, now - lastPointReal.current.time);
+        const dt = Math.max(1, m.time - lastPoint.time);
         const velocity = dist / dt;
 
         velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
@@ -1469,12 +1497,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         applyToolStyle(ctx, pressure, velocityRef.current);
 
         // Midpoint logic for smoothing
-        const midX = (lastPointReal.current.x + pt.x) / 2;
-        const midY = (lastPointReal.current.y + pt.y) / 2;
+        const midX = (lastPoint.x + pt.x) / 2;
+        const midY = (lastPoint.y + pt.y) / 2;
 
         ctx.quadraticCurveTo(
-          lastPointReal.current.x,
-          lastPointReal.current.y,
+          lastPoint.x,
+          lastPoint.y,
           midX,
           midY
         );
@@ -1482,7 +1510,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ctx.beginPath();
         ctx.moveTo(midX, midY);
 
-        lastPointReal.current = { x: pt.x, y: pt.y, pressure, time: now };
+        lastPoint = { x: pt.x, y: pt.y, pressure, time: m.time };
+        lastPointReal.current = lastPoint;
       }
 
       lastMove.current = [];
@@ -1571,9 +1600,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       resetViewportRef.current = resetViewport;
     }, [undo, redo, clearCanvas, zoomByKeyboardStep, resetViewport]);
 
-    function getCanvasPoint(e: PointerEvent) {
-      const canvas = canvasRef.current!;
-      const rect = canvas.getBoundingClientRect();
+    function getCanvasPoint(e: PointerEvent, bounds?: CanvasBounds | null) {
+      const rect = bounds ?? readCanvasBounds();
+      if (!rect) {
+        return { x: 0, y: 0 };
+      }
       // rect dimensions are in CSS logical pixels; canvas.width is physical pixels.
       // We want logical canvas coordinates (matching the DPR-scaled drawing context),
       // so we divide by the CSS width, not the physical width.
@@ -1656,12 +1687,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       pointerId: number,
       pt: { x: number; y: number },
       ctx: CanvasRenderingContext2D,
-      pressure: number
+      pressure: number,
+      time: number
     ) {
       pushUndo();
       setIsDrawing(true);
       isDrawingRef.current = true;
-      lastPointReal.current = { ...pt, pressure, time: performance.now() };
+      lastPointReal.current = { ...pt, pressure, time };
       velocityRef.current = 0;
       activeDrawingPointerId.current = pointerId;
       ctx.beginPath();
@@ -1681,10 +1713,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         touchGesture.current &&
         touchGesture.current.active
       ) {
+        canvasBoundsRef.current = null;
         return;
       }
 
-      if (multiTouchActive.current && e.pointerType === 'touch') return;
+      if (multiTouchActive.current && e.pointerType === 'touch') {
+        canvasBoundsRef.current = null;
+        return;
+      }
 
       if (spaceDown.current || e.button === 1) {
         if (e.button === 1) middleDown.current = true;
@@ -1712,12 +1748,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           py: panRef.current.y,
         };
         e.preventDefault();
+        canvasBoundsRef.current = null;
         return;
       }
 
-      const pt = getCanvasPoint(e);
+      canvasBoundsRef.current = readCanvasBounds();
+
+      const pt = getCanvasPoint(e, canvasBoundsRef.current);
 
       if (currentTool === 'text') {
+        canvasBoundsRef.current = null;
         setTextInput({ id: Date.now(), x: pt.x, y: pt.y, value: '' });
         return;
       }
@@ -1726,6 +1766,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         pushUndo();
         const settings = toolSettingsMapRef.current['graph'];
         drawGraphAxes(ctx, pt.x, pt.y, settings.color, settings.size);
+        canvasBoundsRef.current = null;
         return;
       }
 
@@ -1765,13 +1806,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           1,
           32
         );
+        canvasBoundsRef.current = null;
         return;
       }
 
       if (['line', 'rect', 'ellipse'].includes(currentTool)) {
         pushUndo();
         shapeStart.current = pt;
-        shapeSnapshot.current = canvas.toDataURL('image/png');
         setIsDrawing(true);
         isDrawingRef.current = true;
         activeDrawingPointerId.current = e.pointerId;
@@ -1788,7 +1829,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       hasMoved.current = false;
-      startStroke(e.pointerId, pt, ctx, pressure);
+      startStroke(e.pointerId, pt, ctx, pressure, getEventTimeStamp(e));
       pointerMeta.strokeStarted = true;
     }
 
@@ -1832,7 +1873,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (currentTool === 'graph') {
         const octx = getOverlayCtx();
         if (octx) {
-          const pt = getCanvasPoint(e);
+          const pt = getCanvasPoint(e, canvasBoundsRef.current);
           clearOverlay();
           const settings = toolSettingsMapRef.current['graph'];
           octx.save();
@@ -1852,9 +1893,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (elapsed < PALM_REJECTION.MIN_TOUCH_DURATION) {
           return;
         }
-        const pt = getCanvasPoint(e);
+        const pt = getCanvasPoint(e, canvasBoundsRef.current);
         const pressureForStart = e.pressure > 0 ? e.pressure : 1;
-        startStroke(e.pointerId, pt, ctx, pressureForStart);
+        startStroke(
+          e.pointerId,
+          pt,
+          ctx,
+          pressureForStart,
+          getEventTimeStamp(e)
+        );
         pointerMeta.strokeStarted = true;
         return;
       }
@@ -1872,7 +1919,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (events.length === 0) events.push(e);
 
       for (const ce of events) {
-        const pt = getCanvasPoint(ce);
+        const pt = getCanvasPoint(ce, canvasBoundsRef.current);
         const pressure = ce.pressure > 0 ? ce.pressure : 1;
         lastMove.current.push({
           x: pt.x,
@@ -1881,6 +1928,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           pointerId: ce.pointerId,
           tiltX: ce.tiltX,
           tiltY: ce.tiltY,
+          time: getEventTimeStamp(ce),
         });
       }
 
@@ -1939,7 +1987,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         processPendingMove();
       }
 
-      const pt = getCanvasPoint(e);
+      const pt = getCanvasPoint(e, canvasBoundsRef.current);
       const pressure = e.pressure > 0 ? e.pressure : 1;
 
       if (
@@ -1950,7 +1998,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         applyToolStyle(ctx, pressure);
         drawShape(ctx, currentTool, shapeStart.current, pt);
         shapeStart.current = null;
-        shapeSnapshot.current = null;
       } else if (!hasMoved.current && ['pen', 'eraser'].includes(currentTool)) {
         applyToolStyle(ctx, pressure);
         const size = toolSettingsMapRef.current[currentTool].size;
@@ -1964,6 +2011,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastPointReal.current = null;
       lastMove.current = [];
       activeDrawingPointerId.current = null;
+      canvasBoundsRef.current = null;
       ctx.closePath();
     }
 
@@ -2008,12 +2056,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           lastMove.current = [];
           lastPointReal.current = null;
           shapeStart.current = null;
-          shapeSnapshot.current = null;
           activeDrawingPointerId.current = null;
           hasMoved.current = false;
           setIsDrawing(false);
           isDrawingRef.current = false;
         }
+        canvasBoundsRef.current = null;
       };
 
       canvas.addEventListener('pointerdown', handlePointerDown);
