@@ -683,7 +683,7 @@ function ManualFixPanel({
                               >
                                 {opt}
                                 {matchScore !== null &&
-                                matchScore >= CONFIDENCE_THRESHOLD
+                                  matchScore >= CONFIDENCE_THRESHOLD
                                   ? ` (${Math.round(matchScore * 100)}%)`
                                   : ''}
                               </SelectItem>
@@ -750,9 +750,9 @@ export function CleanupSection() {
   const {
     apiKey,
     questionHistory,
-    setQuestionHistory,
+    updateQuestionHistoryEntry,
     mcHistory,
-    setMcHistory,
+    updateMcHistoryEntry,
   } = useAppContext();
 
   const [selectedModel, setSelectedModel] = useState(PRESET_MODELS[0].id);
@@ -797,62 +797,84 @@ export function CleanupSection() {
     (topicMapping: Record<string, string>): number => {
       let count = 0;
 
-      const newWritten = questionHistory.map((entry) => {
-        const q = { ...entry.question };
-        if (q.topic && topicMapping[q.topic]) {
-          q.topic = topicMapping[q.topic] as Topic;
-          count++;
-          return { ...entry, question: q, lastModified: Date.now() };
-        }
-        return entry;
-      });
+      for (const entry of questionHistory) {
+        const mappedTopic = entry.question.topic
+          ? topicMapping[entry.question.topic]
+          : undefined;
+        if (!mappedTopic) continue;
 
-      const newMc = mcHistory.map((entry) => {
-        const q = { ...entry.question };
-        if (q.topic && topicMapping[q.topic]) {
-          q.topic = topicMapping[q.topic] as Topic;
-          count++;
-          return { ...entry, question: q, lastModified: Date.now() };
-        }
-        return entry;
-      });
+        count++;
+        updateQuestionHistoryEntry({
+          ...entry,
+          question: { ...entry.question, topic: mappedTopic as Topic },
+          lastModified: Date.now(),
+        });
+      }
 
-      setQuestionHistory(newWritten);
-      setMcHistory(newMc);
+      for (const entry of mcHistory) {
+        const mappedTopic = entry.question.topic
+          ? topicMapping[entry.question.topic]
+          : undefined;
+        if (!mappedTopic) continue;
+
+        count++;
+        updateMcHistoryEntry({
+          ...entry,
+          question: { ...entry.question, topic: mappedTopic as Topic },
+          lastModified: Date.now(),
+        });
+      }
+
       return count;
     },
-    [questionHistory, mcHistory, setQuestionHistory, setMcHistory]
+    [
+      questionHistory,
+      mcHistory,
+      updateQuestionHistoryEntry,
+      updateMcHistoryEntry,
+    ]
   );
 
   const applySubtopicMapping = useCallback(
     (subtopicMapping: Record<string, string>): number => {
       let count = 0;
 
-      const newWritten = questionHistory.map((entry) => {
-        const q = { ...entry.question };
-        if (q.subtopic && subtopicMapping[q.subtopic]) {
-          q.subtopic = subtopicMapping[q.subtopic];
-          count++;
-          return { ...entry, question: q, lastModified: Date.now() };
-        }
-        return entry;
-      });
+      for (const entry of questionHistory) {
+        const mappedSubtopic = entry.question.subtopic
+          ? subtopicMapping[entry.question.subtopic]
+          : undefined;
+        if (!mappedSubtopic) continue;
 
-      const newMc = mcHistory.map((entry) => {
-        const q = { ...entry.question };
-        if (q.subtopic && subtopicMapping[q.subtopic]) {
-          q.subtopic = subtopicMapping[q.subtopic];
-          count++;
-          return { ...entry, question: q, lastModified: Date.now() };
-        }
-        return entry;
-      });
+        count++;
+        updateQuestionHistoryEntry({
+          ...entry,
+          question: { ...entry.question, subtopic: mappedSubtopic },
+          lastModified: Date.now(),
+        });
+      }
 
-      setQuestionHistory(newWritten);
-      setMcHistory(newMc);
+      for (const entry of mcHistory) {
+        const mappedSubtopic = entry.question.subtopic
+          ? subtopicMapping[entry.question.subtopic]
+          : undefined;
+        if (!mappedSubtopic) continue;
+
+        count++;
+        updateMcHistoryEntry({
+          ...entry,
+          question: { ...entry.question, subtopic: mappedSubtopic },
+          lastModified: Date.now(),
+        });
+      }
+
       return count;
     },
-    [questionHistory, mcHistory, setQuestionHistory, setMcHistory]
+    [
+      questionHistory,
+      mcHistory,
+      updateQuestionHistoryEntry,
+      updateMcHistoryEntry,
+    ]
   );
 
   const handleCleanupTopics = useCallback(async () => {

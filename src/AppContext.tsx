@@ -120,6 +120,7 @@ export function useAppContext() {
       setFeedbackByQuestionId: s.setFeedbackByQuestionId,
       questionHistory: s.questionHistory,
       setQuestionHistory: s.setQuestionHistory,
+      updateQuestionHistoryEntry: s.updateQuestionHistoryEntry,
       mcQuestions: s.mcQuestions,
       setMcQuestions: s.setMcQuestions,
       activeMcQuestionIndex: s.activeMcQuestionIndex,
@@ -130,6 +131,7 @@ export function useAppContext() {
       setMcAnswersByQuestionId: s.setMcAnswersByQuestionId,
       mcHistory: s.mcHistory,
       setMcHistory: s.setMcHistory,
+      updateMcHistoryEntry: s.updateMcHistoryEntry,
       writtenRawModelOutput: s.writtenRawModelOutput,
       setWrittenRawModelOutput: s.setWrittenRawModelOutput,
       mcRawModelOutput: s.mcRawModelOutput,
@@ -158,6 +160,8 @@ export function useAppContext() {
       errorMessage: s.errorMessage,
       setErrorMessage: s.setErrorMessage,
       clearApiKey: s.clearApiKey,
+      theme: s.theme,
+      setTheme: s.setTheme,
     }))
   );
 }
@@ -251,6 +255,8 @@ export function useAppSettings() {
       setAutoSyncIntervalMinutes: s.setAutoSyncIntervalMinutes,
       syncApiKey: s.syncApiKey,
       setSyncApiKey: s.setSyncApiKey,
+      theme: String(s.theme),
+      setTheme: s.setTheme,
     }))
   );
 }

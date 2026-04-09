@@ -45,6 +45,8 @@ export type PersistedSettings = {
   localBackupFolderPath?: string;
   /** Minutes between automatic exports; 0 disables. */
   localBackupIntervalMinutes?: number;
+  /** Theme preference (design theme name from src/themes/designThemes.ts). */
+  theme?: string;
 };
 
 export type PersistedGeneratorPreferences = {

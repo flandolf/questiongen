@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ThemeProvider } from './components/theme-provider';
 
+document.documentElement.setAttribute('data-design-theme', 'claude');
+
 if (/Android/i.test(window.navigator.userAgent)) {
   document.documentElement.classList.add('platform-android');
 
