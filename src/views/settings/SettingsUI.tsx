@@ -1,19 +1,18 @@
 import { AlertCircle, CheckCircle2, Search } from 'lucide-react';
 import React from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
-
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select';
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 export function SectionHeader({
   title,
@@ -161,13 +160,13 @@ export function ModelSelectRow({
   const extraEntry =
     !isKnown && value && value !== 'custom'
       ? [
-          {
-            id: value,
-            name: value.includes('/')
-              ? value.split('/').slice(1).join('/')
-              : value,
-          },
-        ]
+        {
+          id: value,
+          name: value.includes('/')
+            ? value.split('/').slice(1).join('/')
+            : value,
+        },
+      ]
       : [];
   const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
 
