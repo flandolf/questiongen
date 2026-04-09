@@ -6,6 +6,7 @@ import {
   Circle,
   Droplet,
   Eraser,
+  LineChart,
   Minus,
   Pencil,
   Redo2,
@@ -56,7 +57,8 @@ type ToolType =
   | 'line'
   | 'rect'
   | 'ellipse'
-  | 'text';
+  | 'text'
+  | 'graph';
 type BgType = 'white-grid' | 'black-grid' | 'lined' | 'dot-grid';
 type PressureCurve = 'linear' | 'exponential' | 'smooth' | 'heavy-ink';
 
@@ -94,8 +96,10 @@ type ToolSettings = {
 type ToolSettingsMap = Record<ToolType, ToolSettings>;
 
 const A4_ASPECT = 210 / 297;
-const INTERNAL_RES_WIDTH = 1240; // Approx 150 DPI for A4
+const INTERNAL_RES_WIDTH = 1240; // Logical canvas width in CSS pixels (≈150 DPI for A4)
 const INTERNAL_RES_HEIGHT = Math.round(INTERNAL_RES_WIDTH / A4_ASPECT);
+// The actual canvas buffer is scaled by devicePixelRatio for crisp HiDPI rendering.
+// All drawing coordinates use logical pixels; the DPR scale is applied once in initCanvas.
 
 const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
   pen: {
@@ -154,6 +158,14 @@ const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     disablePressure: true,
     color: '#111827',
   },
+  graph: {
+    size: 2,
+    opacity: 1,
+    smoothing: 0,
+    pressureCurve: 'linear',
+    disablePressure: true,
+    color: '#111827',
+  },
 };
 
 const STORAGE_KEY = 'sketchpad-tool-settings';
@@ -182,6 +194,7 @@ const TOOL_KEYS: Record<string, ToolType> = {
   r: 'rect',
   c: 'ellipse',
   t: 'text',
+  g: 'graph',
 };
 
 const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
@@ -192,6 +205,7 @@ const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
   rect: <Square className="w-5 h-5" />,
   ellipse: <Circle className="w-5 h-5" />,
   text: <Type className="w-5 h-5" />,
+  graph: <LineChart className="w-5 h-5" />,
 };
 
 const TOOL_LABELS: Record<ToolType, string> = {
@@ -202,6 +216,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   rect: 'Rectangle',
   ellipse: 'Ellipse',
   text: 'Text',
+  graph: 'Graph Axes (G)',
 };
 
 const PALM_REJECTION = {
@@ -362,6 +377,99 @@ function drawShape(
   }
 }
 
+// ─── Graph Axes ───────────────────────────────────────────────────────────────
+
+/**
+ * Stamps coordinate axes centred at (cx, cy) onto the canvas.
+ * Suitable for VCE Math Methods — arrow endpoints, tick marks, faint grid.
+ */
+function drawGraphAxes(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  color: string,
+  strokeWidth: number = 2
+) {
+  const halfW = 320;
+  const halfH = 240;
+  const tickSpacing = 40;
+  const tickLen = 8;
+  const arrowSize = 14;
+
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = strokeWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Faint grid lines
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.lineWidth = 1;
+  for (let tx = tickSpacing; tx < halfW; tx += tickSpacing) {
+    ctx.beginPath(); ctx.moveTo(cx + tx, cy - halfH); ctx.lineTo(cx + tx, cy + halfH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - tx, cy - halfH); ctx.lineTo(cx - tx, cy + halfH); ctx.stroke();
+  }
+  for (let ty = tickSpacing; ty < halfH; ty += tickSpacing) {
+    ctx.beginPath(); ctx.moveTo(cx - halfW, cy + ty); ctx.lineTo(cx + halfW, cy + ty); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - halfW, cy - ty); ctx.lineTo(cx + halfW, cy - ty); ctx.stroke();
+  }
+  ctx.restore();
+
+  // X axis
+  ctx.beginPath(); ctx.moveTo(cx - halfW, cy); ctx.lineTo(cx + halfW, cy); ctx.stroke();
+  // Y axis
+  ctx.beginPath(); ctx.moveTo(cx, cy - halfH); ctx.lineTo(cx, cy + halfH); ctx.stroke();
+
+  // Arrowhead helper
+  function arrowhead(tipX: number, tipY: number, dx: number, dy: number) {
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const ux = dx / len; const uy = dy / len;
+    const px = -uy; const py = ux;
+    const base = arrowSize * 0.4;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX - ux * arrowSize + px * base, tipY - uy * arrowSize + py * base);
+    ctx.lineTo(tipX - ux * arrowSize - px * base, tipY - uy * arrowSize - py * base);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  arrowhead(cx + halfW, cy, 1, 0);
+  arrowhead(cx - halfW, cy, -1, 0);
+  arrowhead(cx, cy - halfH, 0, -1);
+  arrowhead(cx, cy + halfH, 0, 1);
+
+  // Tick marks
+  ctx.lineWidth = strokeWidth * 0.8;
+  for (let tx = tickSpacing; tx < halfW - arrowSize; tx += tickSpacing) {
+    ctx.beginPath(); ctx.moveTo(cx + tx, cy - tickLen); ctx.lineTo(cx + tx, cy + tickLen); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - tx, cy - tickLen); ctx.lineTo(cx - tx, cy + tickLen); ctx.stroke();
+  }
+  for (let ty = tickSpacing; ty < halfH - arrowSize; ty += tickSpacing) {
+    ctx.beginPath(); ctx.moveTo(cx - tickLen, cy - ty); ctx.lineTo(cx + tickLen, cy - ty); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - tickLen, cy + ty); ctx.lineTo(cx + tickLen, cy + ty); ctx.stroke();
+  }
+
+  // Axis labels
+  const fontSize = Math.round(tickSpacing * 0.5);
+  ctx.font = `italic ${fontSize}px serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('x', cx + halfW + 6, cy - fontSize * 0.6);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+  ctx.fillText('y', cx + fontSize * 0.5, cy - halfH - 4);
+
+  // Origin
+  ctx.font = `${fontSize * 0.85}px sans-serif`;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  ctx.fillText('O', cx - 5, cy + 5);
+
+  ctx.restore();
+}
+
 function paintBackground(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -438,6 +546,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const bgRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const cursorPreviewRef = useRef<HTMLDivElement | null>(null);
 
     const [isDrawing, setIsDrawing] = useState(false);
     const [activeTool, setActiveTool] = useState<ToolType>('pen');
@@ -460,9 +569,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         return true;
       }
     });
-    const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
-      null
-    );
     const [isHovering, setIsHovering] = useState(false);
     const [recentColors, setRecentColors] = useState<string[]>([
       '#111827',
@@ -529,6 +635,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     >([]);
     const cursorRaf = useRef<number | null>(null);
     const lastCursor = useRef<{ x: number; y: number } | null>(null);
+    const viewportRaf = useRef<number | null>(null);
     const spaceDown = useRef(false);
     const middleDown = useRef(false);
     const panStart = useRef<{
@@ -540,6 +647,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const panPointerId = useRef<number | null>(null);
     const zoomRef = useRef(zoom);
     const panRef = useRef(pan);
+    const isDrawingRef = useRef(isDrawing);
+    const isPanningRef = useRef(isPanning);
+    const penOnlyModeRef = useRef(penOnlyMode);
     const touchGesture = useRef<{
       active: boolean;
       initialDistance: number;
@@ -550,11 +660,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => {});
-    const redoActionRef = useRef<() => void>(() => {});
-    const clearActionRef = useRef<() => void>(() => {});
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
-    const resetViewportRef = useRef<() => void>(() => {});
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
+    const updateCursorPreviewRef = useRef<() => void>(() => { });
 
     // ─── Persistence helpers ───────────────────────────────────────────────────
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -593,16 +704,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           if (!ctx) return;
 
           // Always clear first so drawings from a previous question never bleed into this one.
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
           const overlayCanvas = overlayRef.current;
           if (overlayCanvas) {
             const overlayCtx = overlayCanvas.getContext('2d');
-            overlayCtx?.clearRect(
-              0,
-              0,
-              overlayCanvas.width,
-              overlayCanvas.height
-            );
+            overlayCtx?.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
           }
           undoStack.current = [];
           redoStack.current = [];
@@ -615,7 +721,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
           const img = new Image();
           img.onload = () => {
-            ctx.drawImage(img, 0, 0);
+            const dpr = Math.max(1, window.devicePixelRatio || 1);
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           };
           img.onerror = () => {
             console.warn('Failed to load saved canvas image');
@@ -660,6 +771,26 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       []
     );
 
+    const flushViewportState = useCallback(() => {
+      viewportRaf.current = null;
+      setZoom(zoomRef.current);
+      setPan(panRef.current);
+    }, []);
+
+    const queueViewportState = useCallback(() => {
+      if (viewportRaf.current !== null) return;
+      viewportRaf.current = requestAnimationFrame(flushViewportState);
+    }, [flushViewportState]);
+
+    const setViewport = useCallback(
+      (nextPan: { x: number; y: number }, nextZoom: number = zoomRef.current) => {
+        zoomRef.current = clampZoom(nextZoom);
+        panRef.current = nextPan;
+        queueViewportState();
+      },
+      [clampZoom, queueViewportState]
+    );
+
     const zoomAroundClientPoint = useCallback(
       (clientX: number, clientY: number, nextZoom: number) => {
         const container = containerRef.current;
@@ -679,20 +810,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const contentX = (localX - currentPan.x) / safeCurrentZoom;
         const contentY = (localY - currentPan.y) / safeCurrentZoom;
 
-        setZoom(targetZoom);
-        setPan({
+        setViewport({
           x: localX - contentX * targetZoom,
           y: localY - contentY * targetZoom,
-        });
+        }, targetZoom);
       },
-      [clampZoom]
+      [clampZoom, setViewport]
     );
 
     const zoomAroundCenter = useCallback(
       (nextZoom: number) => {
         const container = containerRef.current;
         if (!container) {
-          setZoom(clampZoom(nextZoom));
+          setViewport(panRef.current, nextZoom);
           return;
         }
         const rect = container.getBoundingClientRect();
@@ -702,7 +832,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           nextZoom
         );
       },
-      [clampZoom, zoomAroundClientPoint]
+      [setViewport, zoomAroundClientPoint]
     );
 
     const zoomByKeyboardStep = useCallback(
@@ -716,17 +846,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const container = containerRef.current;
       const nextZoom = 1;
       if (!container) {
-        setZoom(nextZoom);
-        setPan({ x: 0, y: 0 });
+        setViewport({ x: 0, y: 0 }, nextZoom);
         return;
       }
 
-      setZoom(nextZoom);
-      setPan({
+      setViewport({
         x: (container.clientWidth - INTERNAL_RES_WIDTH * nextZoom) / 2,
         y: (container.clientHeight - INTERNAL_RES_HEIGHT * nextZoom) / 2,
-      });
-    }, []);
+      }, nextZoom);
+    }, [setViewport]);
 
     useEffect(() => {
       bgRef2.current = bg;
@@ -739,6 +867,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     useEffect(() => {
       panRef.current = pan;
     }, [pan]);
+
+    useEffect(() => {
+      isDrawingRef.current = isDrawing;
+    }, [isDrawing]);
+
+    useEffect(() => {
+      isPanningRef.current = isPanning;
+    }, [isPanning]);
+
+    useEffect(() => {
+      penOnlyModeRef.current = penOnlyMode;
+    }, [penOnlyMode]);
 
     useEffect(() => {
       toolSettingsMapRef.current = toolSettingsMap;
@@ -879,7 +1019,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -892,8 +1032,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const container = containerRef.current;
       if (!canvas || !overlay || !bgCanvas || !container) return;
 
-      const newW = INTERNAL_RES_WIDTH;
-      const newH = INTERNAL_RES_HEIGHT;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const newW = INTERNAL_RES_WIDTH * dpr;
+      const newH = INTERNAL_RES_HEIGHT * dpr;
 
       // Only resize if needed (prevents unnecessary clear)
       if (canvas.width === newW && canvas.height === newH) return;
@@ -910,21 +1051,30 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       for (const c of [canvas, overlay]) {
         c.width = newW;
         c.height = newH;
+        // Set CSS size to logical pixels so zoom transform works correctly
+        c.style.width = `${INTERNAL_RES_WIDTH}px`;
+        c.style.height = `${INTERNAL_RES_HEIGHT}px`;
         const ctx = c.getContext('2d')!;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        // Scale all drawing by DPR so coordinates remain in logical pixels
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
 
       bgCanvas.width = newW;
       bgCanvas.height = newH;
+      bgCanvas.style.width = `${INTERNAL_RES_WIDTH}px`;
+      bgCanvas.style.height = `${INTERNAL_RES_HEIGHT}px`;
       const bgCtx = bgCanvas.getContext('2d')!;
-      bgCtx.setTransform(1, 0, 0, 1, 0, 0);
-      paintBackground(bgCtx, newW, newH, bgRef2.current);
+      bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paintBackground(bgCtx, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT, bgRef2.current);
 
       if (snapshot) {
         const ctx = canvas.getContext('2d')!;
         const img = new Image();
         img.onload = () => {
-          ctx.drawImage(img, 0, 0);
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.drawImage(img, 0, 0, newW, newH);
+          ctx.restore();
         };
         img.src = snapshot;
       }
@@ -933,15 +1083,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const containerW = container.clientWidth;
       const containerH = container.clientHeight;
       const fitZoom = Math.min(
-        (containerW - 80) / newW,
-        (containerH - 80) / newH
+        (containerW - 80) / INTERNAL_RES_WIDTH,
+        (containerH - 80) / INTERNAL_RES_HEIGHT
       );
-      setZoom(fitZoom);
-      setPan({
-        x: (containerW - newW * fitZoom) / 2,
-        y: (containerH - newH * fitZoom) / 2,
-      });
-    }, []);
+      setViewport({
+        x: (containerW - INTERNAL_RES_WIDTH * fitZoom) / 2,
+        y: (containerH - INTERNAL_RES_HEIGHT * fitZoom) / 2,
+      }, fitZoom);
+    }, [setViewport]);
 
     useEffect(() => {
       if (!embedded && !open) return;
@@ -951,15 +1100,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     useEffect(() => {
       const bgCanvas = bgRef.current;
       if (!bgCanvas || bgCanvas.width === 0 || bgCanvas.height === 0) return;
-      const ratio = window.devicePixelRatio || 1;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
       const bgCtx = bgCanvas.getContext('2d')!;
-      bgCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      paintBackground(
-        bgCtx,
-        bgCanvas.width / ratio,
-        bgCanvas.height / ratio,
-        bg
-      );
+      bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paintBackground(bgCtx, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT, bg);
     }, [bg]);
 
     useEffect(() => {
@@ -991,6 +1135,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         if (e.code === 'Space') {
           spaceDown.current = true;
+          updateCursorPreviewRef.current();
           e.preventDefault();
           return;
         }
@@ -1030,7 +1175,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (tool) switchTool(tool);
       };
       const up = (e: KeyboardEvent) => {
-        if (e.code === 'Space') spaceDown.current = false;
+        if (e.code === 'Space') {
+          spaceDown.current = false;
+          updateCursorPreviewRef.current();
+        }
       };
       window.addEventListener('keydown', down);
       window.addEventListener('keyup', up);
@@ -1046,7 +1194,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const onWheel = (e: WheelEvent) => {
         e.preventDefault();
         if (!e.ctrlKey && !e.metaKey) {
-          setPan((prev) => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+          const currentPan = panRef.current;
+          setViewport({
+            x: currentPan.x - e.deltaX,
+            y: currentPan.y - e.deltaY,
+          });
           return;
         }
 
@@ -1075,6 +1227,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           };
 
           setIsDrawing(false);
+          isDrawingRef.current = false;
           activeDrawingPointerId.current = null;
           lastPointReal.current = null;
           hasMoved.current = false;
@@ -1084,7 +1237,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           const overlay = overlayRef.current;
           const overlayCtx = overlay?.getContext('2d');
           if (overlay && overlayCtx) {
-            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+            overlayCtx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
           }
           multiTouchActive.current = true;
         } else if (e.touches.length < 2) {
@@ -1131,8 +1284,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             nextPanY = localY - contentY * newZoom;
           }
 
-          setZoom(newZoom);
-          setPan({ x: nextPanX, y: nextPanY });
+          setViewport({ x: nextPanX, y: nextPanY }, newZoom);
 
           touchGesture.current.lastDistance = currentDist;
           touchGesture.current.lastCenter = center;
@@ -1157,7 +1309,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         el.removeEventListener('touchend', endGesture);
         el.removeEventListener('touchcancel', endGesture);
       };
-    }, [zoomAroundClientPoint]);
+    }, [setViewport, zoomAroundClientPoint]);
 
     function getCtx() {
       return canvasRef.current?.getContext('2d') ?? null;
@@ -1169,8 +1321,43 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const canvas = overlayRef.current;
       const ctx = getOverlayCtx();
       if (!canvas || !ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
     }, []);
+
+    const updateCursorPreview = useCallback(() => {
+      const cursor = cursorPreviewRef.current;
+      if (!cursor) return;
+
+      const point = lastCursor.current;
+      const tool = activeToolRef.current;
+      const shouldShow =
+        !!point &&
+        tool !== 'fill' &&
+        tool !== 'text' &&
+        tool !== 'graph' &&
+        (isHoveringRef.current || !spaceDown.current);
+
+      if (!shouldShow || !point) {
+        cursor.style.display = 'none';
+        return;
+      }
+
+      const settings = toolSettingsMapRef.current[tool];
+      cursor.style.display = 'block';
+      cursor.style.left = `${point.x}px`;
+      cursor.style.top = `${point.y}px`;
+      cursor.style.width = `${settings.size * zoomRef.current}px`;
+      cursor.style.height = `${settings.size * zoomRef.current}px`;
+      cursor.style.opacity = isHoveringRef.current && !spaceDown.current ? '0.7' : '1';
+      cursor.style.border =
+        tool === 'eraser'
+          ? '1px solid rgba(0,0,0,0.5)'
+          : `1px solid ${settings.color}`;
+    }, []);
+
+    useEffect(() => {
+      updateCursorPreviewRef.current = updateCursorPreview;
+    }, [updateCursorPreview]);
 
     function processPendingMove() {
       moveRaf.current = null;
@@ -1261,13 +1448,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (last) {
         const ctx = getCtx();
         if (!canvas || !ctx) return;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
         const img = new Image();
         img.onload = () => {
+          ctx.save();
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         };
         img.src = last;
       }
@@ -1282,13 +1473,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (next) {
         const ctx = getCtx();
         if (!canvas || !ctx) return;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
         const img = new Image();
         img.onload = () => {
+          ctx.save();
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         };
         img.src = next;
       }
@@ -1300,7 +1495,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const ctx = getCtx();
       if (!canvas || !ctx) return;
       pushUndo();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
       forceUpdate((n) => n + 1);
     }, []);
 
@@ -1315,11 +1510,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     function getCanvasPoint(e: PointerEvent) {
       const canvas = canvasRef.current!;
       const rect = canvas.getBoundingClientRect();
-      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
-      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+      // rect dimensions are in CSS logical pixels; canvas.width is physical pixels.
+      // We want logical canvas coordinates (matching the DPR-scaled drawing context),
+      // so we divide by the CSS width, not the physical width.
       return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY,
+        x: ((e.clientX - rect.left) / rect.width) * INTERNAL_RES_WIDTH,
+        y: ((e.clientY - rect.top) / rect.height) * INTERNAL_RES_HEIGHT,
       };
     }
 
@@ -1400,6 +1596,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     ) {
       pushUndo();
       setIsDrawing(true);
+      isDrawingRef.current = true;
       lastPointReal.current = { ...pt, pressure, time: performance.now() };
       velocityRef.current = 0;
       activeDrawingPointerId.current = pointerId;
@@ -1412,6 +1609,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const canvas = canvasRef.current;
       const ctx = getCtx();
       if (!canvas || !ctx) return;
+      const currentTool = activeToolRef.current;
+      const penOnly = penOnlyModeRef.current;
 
       if (
         e.pointerType === 'touch' &&
@@ -1426,25 +1625,27 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (spaceDown.current || e.button === 1) {
         if (e.button === 1) middleDown.current = true;
         setIsPanning(true);
+        isPanningRef.current = true;
         panPointerId.current = e.pointerId;
         panStart.current = {
           mx: e.clientX,
           my: e.clientY,
-          px: pan.x,
-          py: pan.y,
+          px: panRef.current.x,
+          py: panRef.current.y,
         };
         e.preventDefault();
         return;
       }
 
-      if (penOnlyMode && e.pointerType === 'touch') {
+      if (penOnly && e.pointerType === 'touch') {
         setIsPanning(true);
+        isPanningRef.current = true;
         panPointerId.current = e.pointerId;
         panStart.current = {
           mx: e.clientX,
           my: e.clientY,
-          px: pan.x,
-          py: pan.y,
+          px: panRef.current.x,
+          py: panRef.current.y,
         };
         e.preventDefault();
         return;
@@ -1452,13 +1653,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       const pt = getCanvasPoint(e);
 
-      if (activeTool === 'text') {
+      if (currentTool === 'text') {
         setTextInput({ id: Date.now(), x: pt.x, y: pt.y, value: '' });
         return;
       }
 
+      if (currentTool === 'graph') {
+        pushUndo();
+        const settings = toolSettingsMapRef.current['graph'];
+        drawGraphAxes(ctx, pt.x, pt.y, settings.color, settings.size);
+        return;
+      }
+
       if (e.pointerType === 'touch' && hasActivePenPointer()) return;
-      if (penOnlyMode && e.pointerType !== 'pen' && e.pointerType !== 'mouse') {
+      if (penOnly && e.pointerType !== 'pen' && e.pointerType !== 'mouse') {
         return;
       }
       try {
@@ -1481,17 +1689,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       const pressure = e.pressure > 0 ? e.pressure : 1;
 
-      if (activeTool === 'fill') {
+      if (currentTool === 'fill') {
         pushUndo();
-        floodFill(ctx, Math.round(pt.x), Math.round(pt.y), currentColor, 1, 32);
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const color = toolSettingsMapRef.current[currentTool].color;
+        floodFill(ctx, Math.round(pt.x * dpr), Math.round(pt.y * dpr), color, 1, 32);
         return;
       }
 
-      if (['line', 'rect', 'ellipse'].includes(activeTool)) {
+      if (['line', 'rect', 'ellipse'].includes(currentTool)) {
         pushUndo();
         shapeStart.current = pt;
         shapeSnapshot.current = canvas.toDataURL('image/png');
         setIsDrawing(true);
+        isDrawingRef.current = true;
         activeDrawingPointerId.current = e.pointerId;
         pointerMeta.strokeStarted = true;
         return;
@@ -1500,7 +1711,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (
         e.pointerType === 'touch' &&
         PALM_REJECTION.MIN_TOUCH_DURATION > 0 &&
-        ['pen', 'eraser'].includes(activeTool)
+        ['pen', 'eraser'].includes(currentTool)
       ) {
         return;
       }
@@ -1514,6 +1725,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const canvas = canvasRef.current;
       const ctx = getCtx();
       if (!canvas || !ctx) return;
+      const currentTool = activeToolRef.current;
 
       if (multiTouchActive.current && e.pointerType === 'touch') return;
 
@@ -1521,17 +1733,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (!cursorRaf.current) {
         cursorRaf.current = requestAnimationFrame(() => {
           cursorRaf.current = null;
-          const c = lastCursor.current;
-          if (c) setCursorPos({ x: c.x, y: c.y });
+          updateCursorPreview();
         });
       }
 
       if (
-        isPanning &&
+        isPanningRef.current &&
         panStart.current &&
         (panPointerId.current === null || panPointerId.current === e.pointerId)
       ) {
-        setPan({
+        setViewport({
           x: panStart.current.px + (e.clientX - panStart.current.mx),
           y: panStart.current.py + (e.clientY - panStart.current.my),
         });
@@ -1544,9 +1755,24 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       pointerMeta.tiltX = e.tiltX;
       pointerMeta.tiltY = e.tiltY;
 
-      if (activeTool === 'text' || activeTool === 'fill') return;
+      if (currentTool === 'text' || currentTool === 'fill') return;
 
-      const isFreehandTool = ['pen', 'eraser'].includes(activeTool);
+      // Ghost preview for graph tool — show faint axes at cursor position
+      if (currentTool === 'graph') {
+        const octx = getOverlayCtx();
+        if (octx) {
+          const pt = getCanvasPoint(e);
+          clearOverlay();
+          const settings = toolSettingsMapRef.current['graph'];
+          octx.save();
+          octx.globalAlpha = 0.35;
+          drawGraphAxes(octx, pt.x, pt.y, settings.color, settings.size);
+          octx.restore();
+        }
+        return;
+      }
+
+      const isFreehandTool = ['pen', 'eraser'].includes(currentTool);
 
       if (pointerMeta.type === 'touch' && !pointerMeta.strokeStarted) {
         if (!isFreehandTool) return;
@@ -1562,7 +1788,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         return;
       }
 
-      if (!isDrawing) return;
+      if (!isDrawingRef.current) return;
       if (activeDrawingPointerId.current !== e.pointerId) return;
 
       hasMoved.current = true;
@@ -1595,12 +1821,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const canvas = canvasRef.current;
       const ctx = getCtx();
       if (!canvas || !ctx) return;
+      const currentTool = activeToolRef.current;
 
-      if (isPanning && panPointerId.current === e.pointerId) {
+      if (isPanningRef.current && panPointerId.current === e.pointerId) {
         if (e.button === 1) middleDown.current = false;
         setIsPanning(false);
+        isPanningRef.current = false;
         panPointerId.current = null;
         panStart.current = null;
+        updateCursorPreview();
         return;
       }
 
@@ -1643,22 +1872,24 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const pressure = e.pressure > 0 ? e.pressure : 1;
 
       if (
-        ['line', 'rect', 'ellipse'].includes(activeTool) &&
+        ['line', 'rect', 'ellipse'].includes(currentTool) &&
         shapeStart.current
       ) {
         clearOverlay();
         applyToolStyle(ctx, pressure);
-        drawShape(ctx, activeTool, shapeStart.current, pt);
+        drawShape(ctx, currentTool, shapeStart.current, pt);
         shapeStart.current = null;
         shapeSnapshot.current = null;
-      } else if (!hasMoved.current && ['pen', 'eraser'].includes(activeTool)) {
+      } else if (!hasMoved.current && ['pen', 'eraser'].includes(currentTool)) {
         applyToolStyle(ctx, pressure);
+        const size = toolSettingsMapRef.current[currentTool].size;
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, Math.max(1, currentSize / 2), 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, Math.max(1, size / 2), 0, Math.PI * 2);
         ctx.fill();
       }
 
       setIsDrawing(false);
+      isDrawingRef.current = false;
       lastPointReal.current = null;
       lastMove.current = [];
       activeDrawingPointerId.current = null;
@@ -1673,6 +1904,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
           isHoveringRef.current = true;
           setIsHovering(true);
+          updateCursorPreview();
         }
       };
 
@@ -1680,12 +1912,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (e.pointerType === 'pen') {
           isHoveringRef.current = true;
           setIsHovering(true);
+          updateCursorPreview();
         }
       };
 
       const handlePointerLeave = () => {
         isHoveringRef.current = false;
         setIsHovering(false);
+        updateCursorPreview();
+        // Clear graph ghost preview when cursor leaves canvas
+        if (activeToolRef.current === 'graph') {
+          clearOverlay();
+        }
       };
 
       const handlePointerCancel = (e: PointerEvent) => {
@@ -1703,6 +1941,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           activeDrawingPointerId.current = null;
           hasMoved.current = false;
           setIsDrawing(false);
+          isDrawingRef.current = false;
         }
       };
 
@@ -1723,14 +1962,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         window.removeEventListener('pointerup', handlePointerUp);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDrawing, isPanning, activeTool, zoom, pan, penOnlyMode]);
+    }, []);
 
     useEffect(() => {
       return () => {
         if (moveRaf.current) cancelAnimationFrame(moveRaf.current);
         if (cursorRaf.current) cancelAnimationFrame(cursorRaf.current);
+        if (viewportRaf.current) cancelAnimationFrame(viewportRaf.current);
       };
     }, []);
+
+    useEffect(() => {
+      updateCursorPreview();
+    }, [activeTool, currentSize, currentColor, zoom, isHovering, updateCursorPreview]);
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -1740,6 +1984,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       for (const c of [canvas, overlay, bgCanvas]) {
         c.style.touchAction = 'none';
         c.style.willChange = 'transform';
+        // With DPR-scaled canvas buffers, the browser's default bicubic resampling
+        // is ideal: smooth when zoomed out, crisp when near 1:1 or zoomed in.
+        c.style.imageRendering = 'auto';
       }
       for (const c of [canvas, overlay, bgCanvas]) {
         const ctx = c.getContext('2d');
@@ -1821,7 +2068,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ? 'cell'
         : activeTool === 'text'
           ? 'text'
-          : activeTool === 'fill'
+          : activeTool === 'fill' || activeTool === 'graph'
             ? 'crosshair'
             : 'none';
 
@@ -1835,28 +2082,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ref={containerRef}
         className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none"
       >
-        {cursorPos &&
-          activeTool !== 'fill' &&
-          activeTool !== 'text' &&
-          (isHovering || !spaceDown.current) && (
-            <div
-              className="pointer-events-none fixed z-50 rounded-full"
-              style={{
-                left: cursorPos.x,
-                top: cursorPos.y,
-                width: currentSize * zoom,
-                height: currentSize * zoom,
-                transform: 'translate(-50%, -50%)',
-                border:
-                  activeTool === 'eraser'
-                    ? '1px solid rgba(0,0,0,0.5)'
-                    : `1px solid ${currentColor}`,
-                background: 'transparent',
-                transition: 'width 0.1s, height 0.1s',
-                opacity: isHovering && !spaceDown.current ? 0.7 : 1,
-              }}
-            />
-          )}
+        <div
+          ref={cursorPreviewRef}
+          className="pointer-events-none fixed z-50 rounded-full hidden"
+          style={{
+            transform: 'translate(-50%, -50%)',
+            background: 'transparent',
+            transition: 'width 0.1s, height 0.1s',
+          }}
+        />
 
         {textInput && (
           <input
