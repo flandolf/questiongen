@@ -178,7 +178,7 @@ export function useTimer(
           (id) => nextQuestions[id] === prev.questions[id]
         ) &&
         Object.keys(prev.questions).length ===
-        Object.keys(nextQuestions).length;
+          Object.keys(nextQuestions).length;
       if (sameActive && sameQuestions) return prev;
 
       return {

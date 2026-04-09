@@ -68,16 +68,16 @@ export function UnifiedQuestionPromptCard({
         multiStepDepth !== undefined ||
         verbDiversityCount !== undefined ||
         scaffoldPattern) && (
-          <div className="px-5 sm:px-6">
-            <QuestionQualityBadges
-              distinctness={distinctness}
-              multiStepDepth={multiStepDepth}
-              verbDiversityCount={verbDiversityCount}
-              scaffoldPattern={scaffoldPattern}
-              compact={false}
-            />
-          </div>
-        )}
+        <div className="px-5 sm:px-6">
+          <QuestionQualityBadges
+            distinctness={distinctness}
+            multiStepDepth={multiStepDepth}
+            verbDiversityCount={verbDiversityCount}
+            scaffoldPattern={scaffoldPattern}
+            compact={false}
+          />
+        </div>
+      )}
 
       <div className="relative overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6">
         <div className="absolute inset-y-0 right-0 w-28 pointer-events-none" />
@@ -140,16 +140,16 @@ export function UnifiedMcqOptionsGrid({
           | 'faded'
           | 'idle'
           | 'selectable' = !isAnswered
-            ? 'idle'
-            : revealCorrectness && isCorrect
-              ? 'correct'
-              : isChosen
-                ? revealCorrectness
-                  ? 'wrong'
-                  : 'chosen'
-                : isExamStyle
-                  ? 'selectable'
-                  : 'faded';
+          ? 'idle'
+          : revealCorrectness && isCorrect
+            ? 'correct'
+            : isChosen
+              ? revealCorrectness
+                ? 'wrong'
+                : 'chosen'
+              : isExamStyle
+                ? 'selectable'
+                : 'faded';
 
         const containerClasses = {
           idle: 'border border-border/10 bg-card/35 hover:bg-card/55 hover:border-border/20 cursor-pointer transition-all duration-150',

@@ -98,8 +98,12 @@ export function SessionHeader({
   const wholeSeconds = Math.max(0, Math.floor(displaySeconds));
   const timerDisplay = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
 
-  const recommendedSeconds = questionMarks !== undefined ? Math.round(questionMarks * 1.2 * 60) : undefined;
-  const formatSeconds = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const recommendedSeconds =
+    questionMarks !== undefined
+      ? Math.round(questionMarks * 1.2 * 60)
+      : undefined;
+  const formatSeconds = (s: number) =>
+    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
     <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md">
@@ -134,7 +138,12 @@ export function SessionHeader({
               <Clock
                 className={`w-3 h-3 ${isQuestionWarning ? 'animate-pulse' : ''}`}
               />
-              <span>{timerDisplay} / {recommendedSeconds !== undefined ? formatSeconds(recommendedSeconds) : '0:00'}</span>
+              <span>
+                {timerDisplay} /{' '}
+                {recommendedSeconds !== undefined
+                  ? formatSeconds(recommendedSeconds)
+                  : '0:00'}
+              </span>
 
               {onTogglePause && (
                 <Button
@@ -144,7 +153,11 @@ export function SessionHeader({
                   title={isPaused ? 'Resume timer' : 'Pause timer'}
                   className="h-6 w-6 p-0 rounded-full ml-1"
                 >
-                  {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                  {isPaused ? (
+                    <Play className="w-3 h-3" />
+                  ) : (
+                    <Pause className="w-3 h-3" />
+                  )}
                 </Button>
               )}
 
