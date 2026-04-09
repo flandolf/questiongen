@@ -32,7 +32,7 @@ function GoalProgressBar({
   const pct = Math.min(100, (current / goal) * 100);
   const complete = current >= goal;
   return (
-    <div className="space-y-1.5 flex-1 min-w-[80px]">
+    <div className="space-y-1.5 flex-1 min-w-20">
       <div className="flex items-center justify-between px-0.5">
         <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider">
           {label}
@@ -182,7 +182,7 @@ export function Header() {
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={SPRING}
-      className={`flex items-center justify-between h-14 px-4 border-b border-border/50 bg-background/80 backdrop-blur-md w-full ${isAndroid ? 'mt-8' : ''}`}
+      className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md w-full ${isAndroid ? 'mt-8' : ''} mb-1`}
     >
       {/* Left: Navigation */}
       <nav className="flex items-center gap-1 no-scrollbar">

@@ -4,6 +4,8 @@ import {
   Clock,
   Flag,
   Info,
+  Pause,
+  Play,
   RefreshCw,
   Trash2,
 } from 'lucide-react';
@@ -45,7 +47,11 @@ type SessionHeaderProps = {
   onDelete: () => void;
   onExit: () => void;
   onRegenerate?: () => void;
+  onTogglePause?: () => void;
+  onResetTimer?: () => void;
 };
+
+// eslint-disable-next-line complexity
 export function SessionHeader({
   type,
   questionIndex,
@@ -70,6 +76,8 @@ export function SessionHeader({
   onDelete,
   onExit,
   onRegenerate,
+  onTogglePause,
+  onResetTimer,
 }: SessionHeaderProps) {
   const progressPct =
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
@@ -89,6 +97,9 @@ export function SessionHeader({
   const displaySeconds = questionTimeSeconds !== undefined ? tick : 0;
   const wholeSeconds = Math.max(0, Math.floor(displaySeconds));
   const timerDisplay = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
+
+  const recommendedSeconds = questionMarks !== undefined ? Math.round(questionMarks * 1.2 * 60) : undefined;
+  const formatSeconds = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
     <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md">
@@ -123,14 +134,32 @@ export function SessionHeader({
               <Clock
                 className={`w-3 h-3 ${isQuestionWarning ? 'animate-pulse' : ''}`}
               />
-              {timerDisplay}
-              {questionMarks !== undefined && (
-                <span
-                  className={`text-[10px] ml-0.5 ${isQuestionWarning ? 'text-amber-500' : 'text-muted-foreground/70'}`}
+              <span>{timerDisplay} / {recommendedSeconds !== undefined ? formatSeconds(recommendedSeconds) : '0:00'}</span>
+
+              {onTogglePause && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onTogglePause}
+                  title={isPaused ? 'Resume timer' : 'Pause timer'}
+                  className="h-6 w-6 p-0 rounded-full ml-1"
                 >
-                  ({questionMarks}mk)
-                </span>
+                  {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+                </Button>
               )}
+
+              {onResetTimer && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onResetTimer}
+                  title="Reset timer"
+                  className="h-6 w-6 p-0 rounded-full"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </Button>
+              )}
+
               {isQuestionWarning && (
                 <span className="text-amber-500 text-[10px] font-bold animate-pulse">
                   !
