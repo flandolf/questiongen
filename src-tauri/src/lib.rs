@@ -157,7 +157,7 @@ fn written_format(model: &str) -> serde_json::Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["id","topic","subtopic","promptMarkdown","maxMarks","techAllowed"],
+                    "required": ["id","topic","subtopic","promptMarkdown","maxMarks"],
                     "properties": {
                         "id": { "type": "string" },
                         "topic": { "type": "string" },
@@ -189,7 +189,7 @@ fn mc_format(model: &str) -> serde_json::Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown","techAllowed"],
+                    "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown"],
                     "properties": {
                         "id":                  { "type": "string" },
                         "topic":               { "type": "string" },
@@ -397,20 +397,20 @@ fn tech_note(mode: &str, topics: &[String]) -> String {
 
     match mode {
         "tech-free" => {
-            let mut s = " All questions tech-free; set techAllowed:false.".to_string();
+            let mut s = " All questions must be tech-free.".to_string();
             if is_math {
                 s.push_str(" For math, focus on direct application of skills.");
             }
             s
         }
         "tech-active" => {
-            let mut s = " All questions tech-active; set techAllowed:true.".to_string();
+            let mut s = " All questions must be tech-active.".to_string();
             if is_math {
                 s.push_str(" For math, focus on application in realistic scenarios/contexts.");
             }
             s
         }
-        _ => " Mix tech-free and tech-active; set techAllowed per question.".to_string(),
+        _ => " All questions must be tech-free.".to_string(),
     }
 }
 
@@ -1079,12 +1079,18 @@ fn parse_questions_payload<T: serde::de::DeserializeOwned>(raw: &str) -> Command
         .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))
 }
 
-fn apply_tech_override<T: TechAllowed>(questions: &mut [T], mode: &str) {
+fn resolve_tech_mode(mode: Option<&str>) -> &'static str {
     match mode {
-        "tech-free" => questions.iter_mut().for_each(|q| q.set_tech_allowed(false)),
-        "tech-active" => questions.iter_mut().for_each(|q| q.set_tech_allowed(true)),
-        _ => {}
+        Some("tech-active") => "tech-active",
+        _ => "tech-free",
     }
+}
+
+fn apply_tech_override<T: TechAllowed>(questions: &mut [T], mode: &str) {
+    let tech_allowed = mode == "tech-active";
+    questions
+        .iter_mut()
+        .for_each(|q| q.set_tech_allowed(tech_allowed));
 }
 
 trait TechAllowed {
@@ -1125,7 +1131,7 @@ async fn generate_questions(
 
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
-    let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+    let tech_mode = resolve_tech_mode(request.tech_mode.as_deref());
     let include_exam_context = request.include_exam_context.unwrap_or(false);
     let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
     let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
@@ -1638,7 +1644,7 @@ async fn generate_mc_questions(
 
     let started = Instant::now();
     let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
-    let tech_mode = request.tech_mode.as_deref().unwrap_or("mix");
+    let tech_mode = resolve_tech_mode(request.tech_mode.as_deref());
     let include_exam_context = request.include_exam_context.unwrap_or(false);
     let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
     let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
@@ -3007,8 +3013,8 @@ mod tests {
         let note = math_methods_exam1_tech_free_note(&topics, "tech-free");
         assert!(note.contains("EXAM 1 STYLE"));
 
-        let mix_note = math_methods_exam1_tech_free_note(&topics, "mix");
-        assert!(mix_note.is_empty());
+        let non_free_note = math_methods_exam1_tech_free_note(&topics, "tech-active");
+        assert!(non_free_note.is_empty());
 
         let other_topics = vec!["Chemistry".to_string()];
         let other_note = math_methods_exam1_tech_free_note(&other_topics, "tech-free");
