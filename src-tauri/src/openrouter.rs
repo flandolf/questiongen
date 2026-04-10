@@ -435,10 +435,14 @@ pub async fn call_openrouter_streaming_with_plugins(
 
 /// Check if a model is an Anthropic model.
 pub fn is_anthropic_model(model: &str) -> bool {
-    let model_lower = model.to_lowercase();
-    model_lower.contains("anthropic") || model_lower.starts_with("claude")
+    let model = model.trim().to_ascii_lowercase();
+    model.starts_with("anthropic/")
+        || model.starts_with("claude")
+        || model
+            .split('/')
+            .nth(1)
+            .is_some_and(|id| id.starts_with("claude"))
 }
-
 /// Recursively strip minimum/maximum constraints from integer types in a JSON schema.
 /// This is needed for Anthropic models which don't support these constraints.
 fn strip_integer_constraints(value: &mut serde_json::Value) {
