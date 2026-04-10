@@ -3,21 +3,24 @@
     {
       "name": "Mathematical Methods",
       "icon": "FunctionSquare",
-      "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+      "examPdfs": [
+        "2025-MathMethods1.pdf",
+        "2025-MathMethods2.pdf"
+      ],
       "reportPdfs": [
         "2025-MathematicalMethods1-report.pdf",
         "2025-MathematicalMethods2-report.pdf"
       ],
-      "examGuidance": "Use formal mathematical notation and VCE command verbs. For tech-free: require exact arithmetic and manual algebraic manipulation (no technology). For tech-active: allow CAS for complex numerical work, rounded as specified. Confine questions to the VCE Units 3 and 4 Study Design. State domains for functions and give exact coordinates for key graphical features; include constants of integration where required. Avoid explicitly stating certain techniques, such as the 'product rule' \u2014 instead, design questions that require them to choose and apply appropriate methods themselves.",
+      "examGuidance": "Use formal mathematical notation and VCE command verbs. For tech-free: require exact arithmetic and manual algebraic manipulation (no technology). For tech-active: allow CAS for complex numerical work, rounded as specified. Confine questions to the VCE Units 3 and 4 Study Design. State domains for functions and give exact coordinates for key graphical features; include constants of integration where required. Avoid explicitly stating certain techniques, such as the 'product rule'   instead, design questions that require them to choose and apply appropriate methods themselves.",
       "subtopics": [
         {
           "name": "Function Notation and Domains",
-          "technique_notes": "Create questions requiring students to define functions in the form $f: \\text{dom} \\to \\mathbb{R}, f(x) = \\dots$, identify maximal, implied, and natural domains, and apply domain restrictions. Require explicit domain statements for every rule. Include tasks where students determine whether a given value lies in the domain and justify using inequality or set notation. Write all functions as $f: \\text{domain} \\to \\mathbb{R}, f(x) = \\dots$ \u2014 never omit the domain specification. Express domains using interval notation (e.g. $[a,b)$, $(-\\infty, a)$) or set notation (e.g. $\\{x \\in \\mathbb{R} : x > 0\\}$). For tech-free items ensure domain conditions are algebraically resolvable by hand.",
+          "technique_notes": "Create questions requiring students to define functions in the form $f: \\text{dom} \\to \\mathbb{R}, f(x) = \\dots$, identify maximal, implied, and natural domains, and apply domain restrictions. Require explicit domain statements for every rule. Include tasks where students determine whether a given value lies in the domain and justify using inequality or set notation. Write all functions as $f: \\text{domain} \\to \\mathbb{R}, f(x) = \\dots$   never omit the domain specification. Express domains using interval notation (e.g. $[a,b)$, $(-\\infty, a)$) or set notation (e.g. $\\{x \\in \\mathbb{R} : x > 0\\}$). For tech-free items ensure domain conditions are algebraically resolvable by hand.",
           "group": "unit3-functions"
         },
         {
           "name": "Key Graph Features",
-          "technique_notes": "Design questions where students identify and calculate exact coordinates of x- and y-intercepts, stationary points, and equations of horizontal, vertical, and oblique asymptotes for polynomial, rational, exponential, logarithmic, and circular functions. Require algebraic justification for all features, not graphical reading. Require exact coordinates (fractions, surds, $\\pi$, $\\log_e$ expressions) \u2014 no decimal approximations for tech-free items. For asymptotes, state equations in the form $x = a$ or $y = b$. Always verify stationary points using a gradient table or second derivative test.",
+          "technique_notes": "Design questions where students identify and calculate exact coordinates of x- and y-intercepts, stationary points, and equations of horizontal, vertical, and oblique asymptotes for polynomial, rational, exponential, logarithmic, and circular functions. Require algebraic justification for all features, not graphical reading. Require exact coordinates (fractions, surds, $\\pi$, $\\log_e$ expressions)   no decimal approximations for tech-free items. For asymptotes, state equations in the form $x = a$ or $y = b$. Always verify stationary points using a gradient table or second derivative test.",
           "group": "unit3-functions"
         },
         {
@@ -27,12 +30,12 @@
         },
         {
           "name": "Composite Functions",
-          "technique_notes": "Construct questions requiring students to form $(f \\circ g)(x)$, verify that $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$ before proceeding, and determine the domain and range of the composition. Include cases where the composition is not defined and students must identify why. Progress from straightforward compositions to cases requiring domain restriction of $g$. Always verify $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$ explicitly before forming the composition \u2014 show this step. State the domain of $f \\circ g$ as $\\{x \\in \\mathrm{dom}(g) : g(x) \\in \\mathrm{dom}(f)\\}$. For tech-free items, keep the algebra of substitution manageable by hand.",
+          "technique_notes": "Construct questions requiring students to form $(f \\circ g)(x)$, verify that $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$ before proceeding, and determine the domain and range of the composition. Include cases where the composition is not defined and students must identify why. Progress from straightforward compositions to cases requiring domain restriction of $g$. Always verify $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$ explicitly before forming the composition   show this step. State the domain of $f \\circ g$ as $\\{x \\in \\mathrm{dom}(g) : g(x) \\in \\mathrm{dom}(f)\\}$. For tech-free items, keep the algebra of substitution manageable by hand.",
           "group": "unit3-functions"
         },
         {
           "name": "Inverse Functions",
-          "technique_notes": "Develop questions where students determine whether a function has an inverse (one-to-one condition), find $f^{-1}$ algebraically by swapping $x$ and $y$ and solving, state the domain and range of $f^{-1}$, and sketch both $f$ and $f^{-1}$ on the same axes showing reflection in $y = x$. Include cases requiring domain restriction to make $f$ one-to-one. State inverse functions in the form $f^{-1}: \\mathrm{dom}(f^{-1}) \\to \\mathbb{R}, f^{-1}(x) = \\dots$ \u2014 always include the domain. Verify using $f(f^{-1}(x)) = x$ and $f^{-1}(f(x)) = x$ where appropriate. On sketches, draw $y = x$ as a dashed reference line.",
+          "technique_notes": "Develop questions where students determine whether a function has an inverse (one-to-one condition), find $f^{-1}$ algebraically by swapping $x$ and $y$ and solving, state the domain and range of $f^{-1}$, and sketch both $f$ and $f^{-1}$ on the same axes showing reflection in $y = x$. Include cases requiring domain restriction to make $f$ one-to-one. State inverse functions in the form $f^{-1}: \\mathrm{dom}(f^{-1}) \\to \\mathbb{R}, f^{-1}(x) = \\dots$   always include the domain. Verify using $f(f^{-1}(x)) = x$ and $f^{-1}(f(x)) = x$ where appropriate. On sketches, draw $y = x$ as a dashed reference line.",
           "group": "unit3-functions"
         },
         {
@@ -57,22 +60,22 @@
         },
         {
           "name": "Coordinate Mapping",
-          "technique_notes": "Develop questions where students systematically track how specific points or features are transformed through a sequence of operations, using the general mapping $(x, y) \\to (x/b + h,\\, ay + k)$. Include multi-step sequences and require students to verify that the image coordinates lie on the transformed curve. Test reverse mapping \u2014 finding the original point given the image. Set up coordinate mapping as a table: original point $(x, y)$, mapping rule, image point $(x', y')$. Require at least 3 key points to be tracked per transformation sequence. For reverse problems, solve the mapping equations algebraically and verify by substituting back.",
+          "technique_notes": "Develop questions where students systematically track how specific points or features are transformed through a sequence of operations, using the general mapping $(x, y) \\to (x/b + h,\\, ay + k)$. Include multi-step sequences and require students to verify that the image coordinates lie on the transformed curve. Test reverse mapping   finding the original point given the image. Set up coordinate mapping as a table: original point $(x, y)$, mapping rule, image point $(x', y')$. Require at least 3 key points to be tracked per transformation sequence. For reverse problems, solve the mapping equations algebraically and verify by substituting back.",
           "group": "unit3-functions"
         },
         {
           "name": "Families of Transformed Functions",
-          "technique_notes": "Create questions where a single parameter (e.g. $a$, $b$, or $k$) varies continuously and students describe the resulting family of curves \u2014 how key features (intercepts, asymptotes, turning points, range) change with the parameter. Include tasks requiring students to find the value of the parameter satisfying a given condition (e.g. the graph passes through a specific point or the range equals a specific interval). For family questions, express the answer as a condition on the parameter (e.g. '$a > 0$' or '$k < -3$') rather than a single value when the question asks for a set of values. For 'find the parameter' questions, substitute the given constraint and solve algebraically.",
+          "technique_notes": "Create questions where a single parameter (e.g. $a$, $b$, or $k$) varies continuously and students describe the resulting family of curves   how key features (intercepts, asymptotes, turning points, range) change with the parameter. Include tasks requiring students to find the value of the parameter satisfying a given condition (e.g. the graph passes through a specific point or the range equals a specific interval). For family questions, express the answer as a condition on the parameter (e.g. '$a > 0$' or '$k < -3$') rather than a single value when the question asks for a set of values. For 'find the parameter' questions, substitute the given constraint and solve algebraically.",
           "group": "unit3-functions"
         },
         {
           "name": "Solving Polynomial Equations",
-          "technique_notes": "Construct questions requiring students to solve polynomial equations of degree $n$, understanding that up to $n$ real solutions may exist. Include factorisation over the rationals, identification of repeated roots, and use of the null factor law. Require students to verify solutions and state all roots with multiplicity. Include both exact (tech-free) and numerical problem types. For tech-free items, restrict to polynomials that factorise over the rationals with integer or simple fractional roots. Always write solutions using the null factor law explicitly: 'if $(x-a)(x-b) = 0$ then $x = a$ or $x = b$'. State repeated roots with their multiplicity.",
+          "technique_notes": "Construct questions requiring students to solve polynomial equations of degree $n$, understanding that up to $n$ real solutions may exist. Include factorisation over the rationals, identification of repeated roots, and use of the null factor law. Require students to verify solutions and state all roots. Include both exact (tech-free) and numerical problem types. For tech-free items, restrict to polynomials that factorise over the rationals with integer or simple fractional roots. Always write solutions using the null factor law explicitly: 'if $(x-a)(x-b) = 0$ then $x = a$ or $x = b$'.",
           "group": "unit3-algebra"
         },
         {
           "name": "Inverse and Exponential/Log Equations",
-          "technique_notes": "Design problems where students solve complex equations by applying inverse operations \u2014 using $\\log_e$ to solve exponential equations and applying $e^x$ to solve logarithmic equations. Extend to power equations solved with fractional exponents and circular equations solved using $\\sin^{-1}$, $\\cos^{-1}$, $\\tan^{-1}$ with appropriate domain restrictions. Require verification of solutions against domain constraints. Show each inverse operation step explicitly. For exponential equations, take $\\log_e$ of both sides; for logarithmic equations, exponentiate both sides. Always verify that solutions satisfy all domain constraints \u2014 particularly $f(x) > 0$ for logarithmic arguments. State the final answer in exact form using $\\log_e$ notation.",
+          "technique_notes": "Design problems where students solve complex equations by applying inverse operations using $\\log_e$ to solve exponential equations and applying $e^x$ to solve logarithmic equations. Extend to power equations solved with fractional exponents and circular equations solved using $\\sin^{-1}$, $\\cos^{-1}$, $\\tan^{-1}$ with appropriate domain restrictions. Require verification of solutions against domain constraints. Show each inverse operation step explicitly. For exponential equations, take $\\log_e$ of both sides; for logarithmic equations, exponentiate both sides. Always verify that solutions satisfy all domain constraints   particularly $f(x) > 0$ for logarithmic arguments. State the final answer in exact form using $\\log_e$ notation.",
           "group": "unit3-algebra"
         },
         {
@@ -87,7 +90,7 @@
         },
         {
           "name": "Domain Constraints in Composition and Inverse Contexts",
-          "technique_notes": "Construct targeted questions requiring rigorous domain specification whenever functions are composed or inverted. Students must state the restricted domain of a function needed to guarantee its inverse exists, verify that a composition is defined by checking range-domain compatibility, and express the domain of the result using correct notation. Include multi-function chains requiring step-by-step domain analysis. State domain constraints at every step \u2014 never carry an undefined expression forward. For composite chains $f \\circ g \\circ h$, work from the inside out: determine $\\mathrm{ran}(h)$, check it is a subset of $\\mathrm{dom}(g)$, determine $\\mathrm{ran}(g|_{\\text{restricted}})$, then check against $\\mathrm{dom}(f)$. Use interval notation throughout.",
+          "technique_notes": "Construct targeted questions requiring rigorous domain specification whenever functions are composed or inverted. Students must state the restricted domain of a function needed to guarantee its inverse exists, verify that a composition is defined by checking range-domain compatibility, and express the domain of the result using correct notation. Include multi-function chains requiring step-by-step domain analysis. State domain constraints at every step   never carry an undefined expression forward. For composite chains $f \\circ g \\circ h$, work from the inside out: determine $\\mathrm{ran}(h)$, check it is a subset of $\\mathrm{dom}(g)$, determine $\\mathrm{ran}(g|_{\\text{restricted}})$, then check against $\\mathrm{dom}(f)$. Use interval notation throughout.",
           "group": "unit3-algebra"
         },
         {
@@ -127,7 +130,7 @@
         },
         {
           "name": "Solving Logarithmic Equations",
-          "technique_notes": "Design problems where students solve logarithmic equations by applying $e^{(\\cdot)}$ to both sides and using laws to simplify, working entirely in $\\log_e$ notation. Require mandatory verification that all solutions satisfy the domain constraint (argument $> 0$). Include equations with logarithms on both sides, and equations requiring combination of logs before solving. Always combine logarithmic terms before exponentiating \u2014 never exponentiate term-by-term. After solving, substitute back into the original equation and verify each argument is strictly positive. Clearly state 'check: $[\\text{argument}] > 0$ \u2713' for each logarithm at the solution. Reject extraneous solutions with a written justification.",
+          "technique_notes": "Design problems where students solve logarithmic equations by applying $e^{(\\cdot)}$ to both sides and using laws to simplify, working entirely in $\\log_e$ notation. Require mandatory verification that all solutions satisfy the domain constraint (argument $> 0$). Include equations with logarithms on both sides, and equations requiring combination of logs before solving. Always combine logarithmic terms before exponentiating   never exponentiate term-by-term. After solving, substitute back into the original equation and verify each argument is strictly positive. Clearly state 'check: $[\\text{argument}] > 0$ \u2713' for each logarithm at the solution. Reject extraneous solutions with a written justification.",
           "group": "unit3-functions"
         },
         {
@@ -152,12 +155,12 @@
         },
         {
           "name": "Stationary Points and Classification",
-          "technique_notes": "Design multi-part calculus problems where students: differentiate to find $f'(x)$, solve $f'(x) = 0$ for stationary points, construct a gradient table showing the sign of $f'(x)$ on intervals either side of each stationary point, and classify each point as a local maximum, local minimum, or stationary point of inflection. Require exact coordinates. The gradient table must show: a value of $x$ to the left of each stationary point, the stationary point itself, and a value to the right \u2014 with the corresponding sign of $f'(x)$ and an arrow indicating increasing ($\\nearrow$) or decreasing ($\\searrow$). State the classification explicitly in a conclusion sentence. Find $y$-coordinates by substituting $x$ back into $f(x)$, not $f'(x)$.",
+          "technique_notes": "Design multi-part calculus problems where students: differentiate to find $f'(x)$, solve $f'(x) = 0$ for stationary points, construct a gradient table showing the sign of $f'(x)$ on intervals either side of each stationary point, and classify each point as a local maximum, local minimum, or stationary point of inflection. Require exact coordinates. The gradient table must show: a value of $x$ to the left of each stationary point, the stationary point itself, and a value to the right   with the corresponding sign of $f'(x)$ and an arrow indicating increasing ($\\nearrow$) or decreasing ($\\searrow$). State the classification explicitly in a conclusion sentence. Find $y$-coordinates by substituting $x$ back into $f(x)$, not $f'(x)$.",
           "group": "unit3-calculus"
         },
         {
           "name": "Tangent and Normal Lines",
-          "technique_notes": "Create questions where students find equations of tangent and normal lines to curves at specified points. Require: evaluation of $f'(a)$ for the gradient of the tangent, use of $m_n = -1/f'(a)$ for the normal gradient, and expression of the line equation in the form $y - f(a) = m(x - a)$ or $y = mx + c$. Include cases where the tangent is horizontal or vertical, and reverse tasks finding the point given a tangent property. Compute $f(a)$ and $f'(a)$ before writing the line equation \u2014 show both values. Express the final equation in the form required by the question ($y = mx + c$ or general form). For reverse tasks (e.g. 'find $a$ such that the tangent has gradient $k$'), set $f'(a) = k$ and solve. Keep all values exact.",
+          "technique_notes": "Create questions where students find equations of tangent and normal lines to curves at specified points. Require: evaluation of $f'(a)$ for the gradient of the tangent, use of $m_n = -1/f'(a)$ for the normal gradient, and expression of the line equation in the form $y - f(a) = m(x - a)$ or $y = mx + c$. Include cases where the tangent is horizontal or vertical, and reverse tasks finding the point given a tangent property. Compute $f(a)$ and $f'(a)$ before writing the line equation   show both values. Express the final equation in the form required by the question ($y = mx + c$ or general form). For reverse tasks (e.g. 'find $a$ such that the tangent has gradient $k$'), set $f'(a) = k$ and solve. Keep all values exact.",
           "group": "unit3-calculus"
         },
         {
@@ -167,22 +170,22 @@
         },
         {
           "name": "Reading Derivative Graphs",
-          "technique_notes": "Present students with the graph of $f(x)$ and require them to sketch $f'(x)$, or vice versa \u2014 given the graph of $f'(x)$, sketch a possible graph of $f(x)$. Include questions identifying intervals of increase/decrease, locations of stationary points, and points of inflection from derivative graphs. Also include questions asking whether a given derivative graph is consistent with stated properties of $f$. When sketching $f'$ from $f$: identify where $f$ has stationary points (these become x-intercepts of $f'$), where $f$ is steepest (peaks/troughs of $f'$), and where $f$ changes concavity (stationary points of $f'$). When sketching $f$ from $f'$: identify sign changes of $f'$ (local extrema of $f$), then integrate qualitatively. Clearly mark all key $x$-values on both sketches.",
+          "technique_notes": "Present students with the graph of $f(x)$ and require them to sketch $f'(x)$, or vice versa   given the graph of $f'(x)$, sketch a possible graph of $f(x)$. Include questions identifying intervals of increase/decrease, locations of stationary points, and points of inflection from derivative graphs. Also include questions asking whether a given derivative graph is consistent with stated properties of $f$. When sketching $f'$ from $f$: identify where $f$ has stationary points (these become x-intercepts of $f'$), where $f$ is steepest (peaks/troughs of $f'$), and where $f$ changes concavity (stationary points of $f'$). When sketching $f$ from $f'$: identify sign changes of $f'$ (local extrema of $f$), then integrate qualitatively. Clearly mark all key $x$-values on both sketches.",
           "group": "unit3-calculus"
         },
         {
           "name": "Antiderivatives and Indefinite Integrals",
-          "technique_notes": "Construct questions requiring students to find indefinite integrals of polynomial, exponential, reciprocal, circular, and power functions, always including the constant of integration $+c$. Include functions requiring algebraic manipulation before integration (e.g. expanding, splitting fractions). Require notation $\\int f(x)\\,dx = F(x) + c$ with the $dx$ term included. Always include $dx$ in the integral notation and $+c$ in the result. For sums and differences, integrate term by term. Simplify integrands algebraically before integrating \u2014 do not attempt to integrate an unexpanded product or unsimplified fraction. Express results in exact form.",
+          "technique_notes": "Construct questions requiring students to find indefinite integrals of polynomial, exponential, reciprocal, circular, and power functions, always including the constant of integration $+c$. Include functions requiring algebraic manipulation before integration (e.g. expanding, splitting fractions). Require notation $\\int f(x)\\,dx = F(x) + c$ with the $dx$ term included. Always include $dx$ in the integral notation and $+c$ in the result. For sums and differences, integrate term by term. Simplify integrands algebraically before integrating   do not attempt to integrate an unexpanded product or unsimplified fraction. Express results in exact form.",
           "group": "unit3-calculus"
         },
         {
           "name": "Antiderivatives of Composite Functions",
-          "technique_notes": "Create integration questions requiring the reverse chain rule to integrate composite functions of the form $f(ax + b)$. Cover exponential ($e^{ax+b}$), reciprocal ($1/(ax+b)$), circular ($\\sin(ax+b)$, $\\cos(ax+b)$), and power ($(ax+b)^n$) types. Include verification by differentiating the result. Identify the inner linear function $ax + b$ and the outer function type before integrating. Always divide by the coefficient $a$ of $x$. Verify by differentiating the result using the chain rule \u2014 the original integrand should be recovered exactly. For non-linear inner functions, a substitution method is needed (beyond this scope for tech-free).",
+          "technique_notes": "Create integration questions requiring the reverse chain rule to integrate composite functions of the form $f(ax + b)$. Cover exponential ($e^{ax+b}$), reciprocal ($1/(ax+b)$), circular ($\\sin(ax+b)$, $\\cos(ax+b)$), and power ($(ax+b)^n$) types. Include verification by differentiating the result. Identify the inner linear function $ax + b$ and the outer function type before integrating. Always divide by the coefficient $a$ of $x$. Verify by differentiating the result using the chain rule   the original integrand should be recovered exactly. For non-linear inner functions, a substitution method is needed (beyond this scope for tech-free).",
           "group": "unit3-calculus"
         },
         {
           "name": "Definite Integrals and the Fundamental Theorem of Calculus",
-          "technique_notes": "Design questions where students evaluate definite integrals $\\int_a^b f(x)\\,dx$ using the Fundamental Theorem of Calculus, showing bracket notation $[F(x)]_a^b = F(b) - F(a)$. Include functions requiring antidifferentiation of composite forms, and questions using properties of definite integrals (linearity, reversing limits, splitting at a point). Write $[F(x)]_a^b$ immediately after finding the antiderivative \u2014 never skip this notation. Substitute $b$ then $a$ separately and subtract: write $F(b) - F(a)$ explicitly. For exact results involving $\\log_e$, leave in the form $\\log_e(c)$ or $a\\log_e(b) - c$. Do not add $+c$ to definite integrals.",
+          "technique_notes": "Design questions where students evaluate definite integrals $\\int_a^b f(x)\\,dx$ using the Fundamental Theorem of Calculus, showing bracket notation $[F(x)]_a^b = F(b) - F(a)$. Include functions requiring antidifferentiation of composite forms, and questions using properties of definite integrals (linearity, reversing limits, splitting at a point). Write $[F(x)]_a^b$ immediately after finding the antiderivative   never skip this notation. Substitute $b$ then $a$ separately and subtract: write $F(b) - F(a)$ explicitly. For exact results involving $\\log_e$, leave in the form $\\log_e(c)$ or $a\\log_e(b) - c$. Do not add $+c$ to definite integrals.",
           "group": "unit3-calculus"
         },
         {
@@ -202,7 +205,7 @@
         },
         {
           "name": "Numerical Approximation: Trapezium Rule",
-          "technique_notes": "Construct questions where students apply the trapezium rule to approximate $\\int_a^b f(x)\\,dx$ using $n$ strips: $\\frac{h}{2}[f(x_0) + 2f(x_1) + \\cdots + 2f(x_{n-1}) + f(x_n)]$ where $h = (b-a)/n$. Include tasks to determine whether the approximation is an overestimate or underestimate by linking to the concavity of $f$ on the interval. Require comparison with the exact value where computable. Compute $h$ and all $y_i$ values first in a table. Apply the formula carefully \u2014 middle values are doubled but endpoints are not. State whether the result is an over- or underestimate with a concavity justification: 'since $f''(x) > 0$ on $[a,b]$, the curve is concave up and the trapezium rule overestimates'. Express the approximation to the specified number of decimal places.",
+          "technique_notes": "Construct questions where students apply the trapezium rule to approximate $\\int_a^b f(x)\\,dx$ using $n$ strips: $\\frac{h}{2}[f(x_0) + 2f(x_1) + \\cdots + 2f(x_{n-1}) + f(x_n)]$ where $h = (b-a)/n$. Include tasks to determine whether the approximation is an overestimate or underestimate by linking to the concavity of $f$ on the interval. Require comparison with the exact value where computable. Compute $h$ and all $y_i$ values first in a table. Apply the formula carefully   middle values are doubled but endpoints are not. State whether the result is an over- or underestimate with a concavity justification: 'since $f''(x) > 0$ on $[a,b]$, the curve is concave up and the trapezium rule overestimates'. Express the approximation to the specified number of decimal places.",
           "group": "unit3-calculus"
         },
         {
@@ -212,7 +215,7 @@
         },
         {
           "name": "Probability Trees and Bayes' Theorem",
-          "technique_notes": "Create multi-stage probability problems solved using tree diagrams. Require students to label all branches with conditional probabilities, multiply along branches for joint probabilities, and add across branches for marginal probabilities. Include problems requiring Bayes' Theorem: $\\Pr(A|B) = \\Pr(B|A)\\Pr(A)/\\Pr(B)$, where $\\Pr(B)$ is found via the law of total probability. Draw the tree with stages as columns and all branches clearly labelled with probabilities (not counts). Verify that branches at each node sum to 1. For Bayes' Theorem, compute $\\Pr(B)$ using the law of total probability from the tree before dividing. Show all arithmetic explicitly \u2014 do not collapse steps.",
+          "technique_notes": "Create multi-stage probability problems solved using tree diagrams. Require students to label all branches with conditional probabilities, multiply along branches for joint probabilities, and add across branches for marginal probabilities. Include problems requiring Bayes' Theorem: $\\Pr(A|B) = \\Pr(B|A)\\Pr(A)/\\Pr(B)$, where $\\Pr(B)$ is found via the law of total probability. Draw the tree with stages as columns and all branches clearly labelled with probabilities (not counts). Verify that branches at each node sum to 1. For Bayes' Theorem, compute $\\Pr(B)$ using the law of total probability from the tree before dividing. Show all arithmetic explicitly   do not collapse steps.",
           "group": "unit4-probability"
         },
         {
@@ -222,7 +225,7 @@
         },
         {
           "name": "Confidence Intervals",
-          "technique_notes": "Create questions where students construct a 95% confidence interval for a population proportion $p$ using the formula $\\hat{p} \\pm 1.96\\sqrt{\\hat{p}(1-\\hat{p})/n}$, interpret the interval in context, and identify the effect of changing $n$ or the confidence level on the interval width. Include questions asking students to determine whether a hypothesised value of $p$ is plausible given an interval. Compute the margin of error $E = 1.96\\sqrt{\\hat{p}(1-\\hat{p})/n}$ as a separate step before stating the interval $[\\hat{p}-E, \\hat{p}+E]$. Round endpoints appropriately and state the interval clearly. For interpretation, use the phrase 'we are 95% confident that the true proportion lies between...' \u2014 never say 'there is a 95% probability that $p$ lies in this interval' (frequentist distinction).",
+          "technique_notes": "Create questions where students construct a 95% confidence interval for a population proportion $p$ using the formula $\\hat{p} \\pm 1.96\\sqrt{\\hat{p}(1-\\hat{p})/n}$, interpret the interval in context, and identify the effect of changing $n$ or the confidence level on the interval width. Include questions asking students to determine whether a hypothesised value of $p$ is plausible given an interval. Compute the margin of error $E = 1.96\\sqrt{\\hat{p}(1-\\hat{p})/n}$ as a separate step before stating the interval $[\\hat{p}-E, \\hat{p}+E]$. Round endpoints appropriately and state the interval clearly. For interpretation, use the phrase 'we are 95% confident that the true proportion lies between...'   never say 'there is a 95% probability that $p$ lies in this interval' (frequentist distinction).",
           "group": "unit4-probability"
         },
         {
@@ -232,7 +235,7 @@
         },
         {
           "name": "Probability Mass Functions",
-          "technique_notes": "Create tabular discrete probability distribution questions where students must: use the axiomatic property $\\sum p(x) = 1$ to solve for an unknown probability constant $k$ (often requiring solution of a linear or simple quadratic equation in $k$), verify $p(x) \\geq 0$ for all values after solving, and calculate specified probabilities by summing entries from the table. Set up the equation $\\sum p(x) = 1$ explicitly by writing out each term. Solve for the unknown constant algebraically. Check $p(x) \\geq 0$ for every value of $x$ in the table after substituting the solved constant \u2014 if any probability is negative, the value must be rejected. Present the distribution in a clearly labelled two-row table ($x$ and $p(x)$).",
+          "technique_notes": "Create tabular discrete probability distribution questions where students must: use the axiomatic property $\\sum p(x) = 1$ to solve for an unknown probability constant $k$ (often requiring solution of a linear or simple quadratic equation in $k$), verify $p(x) \\geq 0$ for all values after solving, and calculate specified probabilities by summing entries from the table. Set up the equation $\\sum p(x) = 1$ explicitly by writing out each term. Solve for the unknown constant algebraically. Check $p(x) \\geq 0$ for every value of $x$ in the table after substituting the solved constant   if any probability is negative, the value must be rejected. Present the distribution in a clearly labelled two-row table ($x$ and $p(x)$).",
           "group": "unit4-probability"
         },
         {
@@ -242,17 +245,17 @@
         },
         {
           "name": "Binomial Distribution",
-          "technique_notes": "Create questions involving $X \\sim \\text{Bi}(n, p)$ where students: verify that Bernoulli trial conditions are met, calculate exact probabilities using $\\Pr(X = x) = \\binom{n}{x}p^x(1-p)^{n-x}$ for small $n$ (\u2264 8), compute $E(X) = np$ and $\\text{Var}(X) = np(1-p)$, and calculate cumulative probabilities by summing individual terms. Include tasks on how changing $n$ or $p$ affects the shape of the distribution. Define the variable clearly: 'Let $X$ be the number of successes in $n$ independent trials each with probability $p$ of success. Then $X \\sim \\text{Bi}(n,p)$.' Compute $\\binom{n}{x}$ using the formula $n!/(x!(n-x)!)$ \u2014 show the evaluation step. For cumulative probabilities, list and sum individual terms explicitly. Keep $n \\leq 8$ for tech-free items to maintain computational feasibility.",
+          "technique_notes": "Create questions involving $X \\sim \\text{Bi}(n, p)$ where students: verify that Bernoulli trial conditions are met, calculate exact probabilities using $\\Pr(X = x) = \\binom{n}{x}p^x(1-p)^{n-x}$ for small $n$ (\u2264 8), compute $E(X) = np$ and $\\text{Var}(X) = np(1-p)$, and calculate cumulative probabilities by summing individual terms. Include tasks on how changing $n$ or $p$ affects the shape of the distribution. Define the variable clearly: 'Let $X$ be the number of successes in $n$ independent trials each with probability $p$ of success. Then $X \\sim \\text{Bi}(n,p)$.' Compute $\\binom{n}{x}$ using the formula $n!/(x!(n-x)!)$   show the evaluation step. For cumulative probabilities, list and sum individual terms explicitly. Keep $n \\leq 8$ for tech-free items to maintain computational feasibility.",
           "group": "unit4-probability"
         },
         {
           "name": "Conditional Probability in Discrete Contexts",
-          "technique_notes": "Create questions requiring conditional probability calculations within discrete distributions \u2014 both tabular and binomial. Include problems of the form 'given that $X > a$, find $\\Pr(X = k)$' requiring calculation of $\\Pr(X = k \\cap X > a)/\\Pr(X > a)$ and problems where the condition restricts the sample space to a subset of outcomes. Identify $A \\cap B$ explicitly before computing probabilities. For conditions like '$X > a$', compute $\\Pr(X > a) = 1 - \\Pr(X \\leq a)$ or sum directly from the table. Express the conditional probability as a fraction in exact form. Verify the result is in $[0,1]$ and that the event $B$ has non-zero probability before proceeding.",
+          "technique_notes": "Create questions requiring conditional probability calculations within discrete distributions   both tabular and binomial. Include problems of the form 'given that $X > a$, find $\\Pr(X = k)$' requiring calculation of $\\Pr(X = k \\cap X > a)/\\Pr(X > a)$ and problems where the condition restricts the sample space to a subset of outcomes. Identify $A \\cap B$ explicitly before computing probabilities. For conditions like '$X > a$', compute $\\Pr(X > a) = 1 - \\Pr(X \\leq a)$ or sum directly from the table. Express the conditional probability as a fraction in exact form. Verify the result is in $[0,1]$ and that the event $B$ has non-zero probability before proceeding.",
           "group": "unit4-probability"
         },
         {
           "name": "Constructing Valid PDFs",
-          "technique_notes": "Develop questions where students determine unknown constants in piecewise-defined PDFs by applying $\\int_{-\\infty}^{\\infty} f(x)\\,dx = 1$ and $f(x) \\geq 0$. Require explicit statement of the support and $f(x) = 0$ elsewhere. Include cases requiring solution of linear and simple quadratic equations in the unknown constant. Verify the non-negativity condition after solving. Write the PDF piecewise: $f(x) = \\{[\\text{expression}], a \\leq x \\leq b; 0, \\text{ otherwise}\\}$. Set up $\\int_a^b [\\text{expression}]\\,dx = 1$ and solve for $k$ algebraically. After solving, verify $f(x) \\geq 0$ on $[a,b]$ by checking the expression is non-negative \u2014 if $k$ is negative or makes $f$ negative somewhere, reconsider the problem setup. State the final PDF in piecewise form.",
+          "technique_notes": "Develop questions where students determine unknown constants in piecewise-defined PDFs by applying $\\int_{-\\infty}^{\\infty} f(x)\\,dx = 1$ and $f(x) \\geq 0$. Require explicit statement of the support and $f(x) = 0$ elsewhere. Include cases requiring solution of linear and simple quadratic equations in the unknown constant. Verify the non-negativity condition after solving. Write the PDF piecewise: $f(x) = \\{[\\text{expression}], a \\leq x \\leq b; 0, \\text{ otherwise}\\}$. Set up $\\int_a^b [\\text{expression}]\\,dx = 1$ and solve for $k$ algebraically. After solving, verify $f(x) \\geq 0$ on $[a,b]$ by checking the expression is non-negative   if $k$ is negative or makes $f$ negative somewhere, reconsider the problem setup. State the final PDF in piecewise form.",
           "group": "unit4-probability"
         },
         {
@@ -280,7 +283,10 @@
     {
       "name": "Specialist Mathematics",
       "icon": "SigmaSquare",
-      "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+      "examPdfs": [
+        "2025-SpecialistMaths1.pdf",
+        "2025-SpecialistMaths2.pdf"
+      ],
       "reportPdfs": [
         "2025-SpecialistMaths1-report.pdf",
         "2025-SpecialistMaths2-report.pdf"
@@ -347,8 +353,12 @@
     {
       "name": "Chemistry",
       "icon": "FlaskConical",
-      "examPdfs": ["2025-Chemistry.pdf"],
-      "reportPdfs": ["2025-Chemistry-report.pdf"],
+      "examPdfs": [
+        "2025-Chemistry.pdf"
+      ],
+      "reportPdfs": [
+        "2025-Chemistry-report.pdf"
+      ],
       "examGuidance": " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ",
       "subtopics": [
         {
@@ -471,8 +481,12 @@
     {
       "name": "Physical Education",
       "icon": "Dumbbell",
-      "examPdfs": ["2025-PhysicalEducation.pdf"],
-      "reportPdfs": ["2025-PhysEd-report.pdf"],
+      "examPdfs": [
+        "2025-PhysicalEducation.pdf"
+      ],
+      "reportPdfs": [
+        "2025-PhysEd-report.pdf"
+      ],
       "examGuidance": "\nVCAA PHYSICAL EDUCATION EXAM QUESTION GENERATION - COMPREHENSIVE INSTRUCTIONS\nWRITING STYLE FOR PHYSICAL EDUCATION:\n- Do NOT use mathematical equations, derivations, or formula-heavy solutions.\n- Write all worked solutions and exemplar responses in prose - paragraphs and bullet points.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', '$\text{VO}_2$ max', '1RM', 'F = ma') - mention by name and explain application in words. Do NOT rearrange, derive, or chain equations.\n- Focus on qualitative analysis, evaluation, and justification rather than calculation.\n\nPE EXAM QUESTION TYPES & COGNITIVE DEMANDS:\n\nSHORT-ANSWER QUESTIONS (1-2 marks) - RECALL/COMPREHENSION\n|- Verbs: Define, identify, list, state, describe (basic), explain (simple)\n|- Example: \"Define the term 'discrete motor skill'.\"\n`- Expected response: 1-2 sentences with accurate definition\n\nEXTENDED-RESPONSE QUESTIONS (2-6 marks) - APPLICATION/ANALYSIS\n|- Verbs: Explain (with evidence), apply, demonstrate, analyze, evaluate, justify\n|- Example: \"Explain how the ATP-CP system is particularly suited to high-intensity, short-duration activities. Refer to its rate of ATP regeneration and the role of phosphocreatine in your response.\"\n`- Expected response: 3-4 detailed sentences or structured paragraphs\n\nAPPLICATION/SCENARIO QUESTIONS (3-8 marks) - SYNTHESIS/INTEGRATION\n|- Verbs: Design, evaluate, critique, create, analyze (multi-component), justify (complex)\n|- Example: \"A netball player is training to improve her vertical jump for shooting. Design a 4-week periodized training program that includes appropriate training methods and progression. Justify your choice of methods with reference to the physiological demands of jumping, energy systems used, and skill acquisition principles.\"\n`- Expected response: Structured program with detailed scientific justification\n\nDATA INTERPRETATION QUESTIONS (2-5 marks) - OBSERVATION/INFERENCE/APPLICATION\n|- Verbs: Interpret, analyze, identify (trends), explain (what data shows)\n|- Example: \"The graph shows a swimmer's lactate levels during a 400 m freestyle race. (a) Identify the point(s) where the anaerobic threshold was exceeded. (b) Explain what this suggests about energy system contribution. (c) Recommend a training method to improve lactate tolerance.\"\n`- Expected response: Observation -> explanation -> application progression\n\nCOMPARISON QUESTIONS (2-6 marks) - DIFFERENTIATION/CONTRAST\n|- Verbs: Compare (similarities AND differences), contrast, distinguish, evaluate (relative merit)\n|- Example: \"Compare the relative contribution of the aerobic and anaerobic glycolysis systems during (a) a 100 m sprint and (b) a 1500 m run. In your answer, consider rate of ATP yield, duration, and total ATP production.\"\n`- Expected response: Structured comparison with specific references to both similarities and differences\n\nAUTHENTICITY & CONTEXT REQUIREMENTS:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nVCAA questions must be grounded in REALISTIC sports and training contexts.\n\nCOMMON AUSTRALIAN SPORTS:\nAFL, cricket, rugby league, rugby union, netball, basketball, tennis, swimming, athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\nREALISTIC SCENARIOS:\n- Pre-season training and conditioning phases\n- Return-to-play after injury / rehabilitation\n- Peaking for competition (tapering strategies)\n- Performance plateau problems and solutions\n- Adapting training for different athlete levels (beginner, intermediate, elite)\n- Managing recovery and fatigue in multi-competition seasons\n- Technique refinement under fatigue\n\nATHLETE PERSPECTIVES:\n- Scenarios should relate to experiences of VCE PE students (school athletes, club athletes, potential elite pathway athletes)\n- Acknowledge recreational participation, competitive club level, and elite development\n- Consider both individual sports (tennis, gymnastics, swimming) and team sports (netball, AFL, basketball, soccer)\n\nQUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n\n[OK] Aligned with Unit 3 or 4 key knowledge/skills from Study Design?\n[OK] Requires higher-order thinking (application, analysis, synthesis)?\n[OK] Context is realistic and relevant to VCE PE students?\n[OK] Mark allocation matches cognitive demand appropriately?\n[OK] Question is unambiguous and free of jargon confusion?\n[OK] A clear, defensible marking rubric exists?\n[OK] Question integrates multiple concepts where appropriate?\n[OK] All terms are defined or contextually clear?\n[OK] Question avoids leading or telegraphing the expected answer?\n[OK] Expected response length is reasonable for marks allocated?\n[OK] Question reflects the style and rigor of actual VCAA examinations?\n",
       "subtopics": [
         {

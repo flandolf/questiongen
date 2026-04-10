@@ -545,6 +545,10 @@ function ReattemptView({
   const writtenEntry = isWritten ? entry : null;
   const isLast = idx === questions.length - 1;
   const completedCount = results.filter((r) => r.correct).length;
+  const sketchSessionKey = useMemo(() => {
+    const mode = entry.kind === 'written' ? 'written' : 'multiple-choice';
+    return `wrong-${mode}-${entry.id}`;
+  }, [entry]);
 
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
 
@@ -923,6 +927,7 @@ function ReattemptView({
                 rightSlot={
                   <WrittenAnswerCard
                     questionId={entry.id}
+                    sketchSessionKey={sketchSessionKey}
                     answer={writtenAnswer}
                     image={image}
                     isMarking={isMarking}
@@ -986,6 +991,8 @@ function ReattemptView({
               rightSlot={
                 mcSketchpadActive ? (
                   <McSketchpadPanel
+                    questionId={entry.id}
+                    sketchSessionKey={sketchSessionKey}
                     onImageDrop={(files) => {
                       void fileToDataUrl(files[0]).then((dataUrl) =>
                         setImage({ name: files[0].name, dataUrl })
