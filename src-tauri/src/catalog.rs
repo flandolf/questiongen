@@ -25,7 +25,7 @@ struct RawTopic {
 struct RawSubtopic {
     name: String,
     #[serde(default)]
-    key_knowledge: String,
+    technique_notes: String,
 }
 
 // ─── Public structs ───────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ pub struct TopicEntry {
 #[allow(dead_code)]
 pub struct SubtopicEntry {
     pub name: String,
-    pub key_knowledge: String,
+    pub technique_notes: String,
 }
 
 // ─── Compile-time loaded catalog ──────────────────────────────────────────────
@@ -68,7 +68,7 @@ static CATALOG: Lazy<Vec<TopicEntry>> = Lazy::new(|| {
                 .into_iter()
                 .map(|s| SubtopicEntry {
                     name: s.name,
-                    key_knowledge: s.key_knowledge,
+                    technique_notes: s.technique_notes,
                 })
                 .collect(),
         })

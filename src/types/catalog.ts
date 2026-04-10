@@ -2,7 +2,7 @@ import SUBTOPIC_CATALOG from '../shared/subtopic-catalog.json';
 
 type CatalogSubtopicEntry = {
   name: string;
-  instruction: string | null;
+  technique_notes?: string;
   group?: string;
 };
 

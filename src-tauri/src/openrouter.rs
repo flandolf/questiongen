@@ -157,10 +157,15 @@ pub async fn call_openrouter(
 pub async fn call_openrouter_with_plugins(
     config: OpenRouterRequestConfig,
 ) -> CommandResult<OpenRouterResult> {
+    let mut system_prompt = config.system_prompt.clone();
+    if is_anthropic_model(&config.model) {
+        system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
+    }
+
     let mut body = serde_json::json!({
         "model": config.model,
         "messages": [
-            { "role": "system", "content": config.system_prompt },
+            { "role": "system", "content": system_prompt },
             { "role": "user",   "content": config.user_content  },
         ],
         "temperature": config.temperature,
@@ -249,10 +254,15 @@ struct SseUsage {
 pub async fn call_openrouter_streaming_with_plugins(
     config: OpenRouterRequestConfig,
 ) -> CommandResult<OpenRouterResult> {
+    let mut system_prompt = config.system_prompt.clone();
+    if is_anthropic_model(&config.model) {
+        system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
+    }
+
     let mut body = serde_json::json!({
         "model": config.model,
         "messages": [
-            { "role": "system", "content": config.system_prompt },
+            { "role": "system", "content": system_prompt },
             { "role": "user",   "content": config.user_content  },
         ],
         "temperature": config.temperature,
@@ -425,7 +435,8 @@ pub async fn call_openrouter_streaming_with_plugins(
 
 /// Check if a model is an Anthropic model.
 pub fn is_anthropic_model(model: &str) -> bool {
-    model.starts_with("anthropic/")
+    let model_lower = model.to_lowercase();
+    model_lower.contains("anthropic") || model_lower.starts_with("claude")
 }
 
 /// Recursively strip minimum/maximum constraints from integer types in a JSON schema.

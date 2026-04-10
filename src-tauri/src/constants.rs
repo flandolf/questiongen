@@ -62,25 +62,35 @@ pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 
 // ─── Global style rules (truly constant, not curriculum-dependent) ────────────
 
-/// Injected into every system prompt.
-pub const LATEX_RULES: &str = " LaTeX: Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\]. Put all math symbols, notation, and Chemistry species ($\\text{H}_2\\text{O}$) inside delimiters. Use LaTeX only when mathematically necessary; do NOT inject decorative/random commands. Every command must be valid and complete (for example, never output empty fractions like \\frac{}{}). Do not place LaTeX commands outside math delimiters. ASCII ONLY: Use LaTeX for all Greek letters and symbols. No unicode/smart-quotes. No fancy characters like ™, ®, ℓ, Ω. Use plain ASCII text, math mode, or standard LaTeX.";
+pub const GLOBAL_HYGIENE_RULES: &str = "
+HYGIENE:
+- Output VALID JSON ONLY.
+- NO preamble, NO commentary, NO markdown fences (e.g. no ```json).
+- ASCII ONLY: No unicode, smart-quotes, or fancy characters (™, ®, ℓ, Ω).
+- PROFESSIONALISM: Standard punctuation only. No excessive exclamation marks (!).";
 
-pub const QUESTION_STYLE_RULES: &str = "
-VCAA STYLE RULES:
-1. STRUCTURE: Match marks/demand. 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
-2. SCAFFOLDING: Earlier parts must produce results reused in later parts for items ≥4 marks. Cognitive demand must increase: recall -> method -> synthesis.
-3. MARKING: 1 mark = recall/direct sub. 2 marks = method + execution. 3+ marks = multi-step/justification.
-4. DIFFICULTY: Easy (direct), Medium (method choice), Hard (non-routine/no signposting).
-5. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No two questions testing same skill in one batch.
-6. HYGIENE: Valid JSON only. No fences/commentary. ASCII text only—no unicode, smart-quotes, or fancy punctuation. Avoid excessive exclamation marks (!). Use proper punctuation sparingly and professionally.";
+/// Injected into every system prompt.
+pub const LATEX_RULES: &str = "
+LATEX:
+- Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\].
+- Use LaTeX for ALL math symbols, Greek letters, and Chemistry species ($\\text{H}_2\\text{O}$).
+- Do not place LaTeX commands outside math delimiters.
+- NO empty fractions (\\frac{}{}) or incomplete commands.
+- Use LaTeX only when mathematically necessary.";
+
+pub const WRITTEN_STYLE_RULES: &str = "
+VCAA WRITTEN STYLE:
+1. STRUCTURE: Match marks. 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
+2. SCAFFOLDING: For items ≥4 marks, earlier parts MUST produce results reused in later parts.
+3. COGNITION: Demand must increase: recall -> method -> synthesis/justification.
+4. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No duplicate skills in one batch.";
 
 /// Injected into MC question-generation prompts for distractor quality.
-pub const MC_DISTRACTOR_RULES: &str = "
-MC RULES:
-1. OPTIONS: 4 options (A-D), parallel style, standalone text (no fragments). NO labels in promptMarkdown.
+pub const MC_STYLE_RULES: &str = "
+VCAA MC STYLE:
+1. OPTIONS: 4 options (A-D), parallel style, standalone text. NO labels (A, B, C, D) inside the text field.
 2. DISTRACTORS: Must target specific misconceptions. No 'all/none of the above'.
-3. EXPLANATION: Justify correct option and name misconceptions for each wrong option. Keep explanation professional and measured.
-4. HYGIENE: Valid JSON only. No fences/commentary. ASCII text only—no unicode or fancy characters. Avoid excessive exclamation marks (!). Punctuation must be standard and professional.";
+3. EXPLANATION: Justify correct option and name misconceptions for each wrong option. Keep measured and professional.";
 
 /// Chemistry-specific LaTeX guidance.
 pub const CHEMISTRY_LATEX_GUIDANCE: &str =
@@ -106,8 +116,6 @@ struct SharedTopicEntry {
 struct SharedSubtopicEntry {
     name: String,
     #[serde(default)]
-    instruction: Option<String>,
-    #[serde(default)]
     technique_notes: String,
 }
 
@@ -120,15 +128,7 @@ static SHARED_SUBTOPIC_EXAM_NOTES: Lazy<HashMap<String, String>> = Lazy::new(|| 
     let mut notes = HashMap::new();
     for topic in catalog.topics {
         for subtopic in topic.subtopics {
-            // Favor technique_notes as they usually contain more specific exam-style guidance.
-            // Only use instruction if technique_notes is missing.
-            let note = if !subtopic.technique_notes.trim().is_empty() {
-                subtopic.technique_notes.clone()
-            } else if let Some(ref instr) = subtopic.instruction {
-                instr.clone()
-            } else {
-                String::new()
-            };
+            let note = subtopic.technique_notes.clone();
 
             if !note.trim().is_empty() {
                 notes.insert(subtopic.name.trim().to_ascii_lowercase(), note);
