@@ -30,6 +30,8 @@ export type Stroke = {
   pressureCurve: PressureCurve;
   points: Point[];
   opacity?: number;
+  text?: string;
+  smoothedPoints?: Point[]; // Cache for performance
 };
 
 export type StrokeList = Stroke[];
