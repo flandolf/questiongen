@@ -217,7 +217,14 @@ export function renderStrokesToCanvas(
       const canvasX = Math.round((p.x * zoom + pan.x) * dpr);
       const canvasY = Math.round((p.y * zoom + pan.y) * dpr);
 
-      floodFill(ctx, canvasX, canvasY, stroke.color, stroke.opacity ?? 1, tolerance);
+      floodFill(
+        ctx,
+        canvasX,
+        canvasY,
+        stroke.color,
+        stroke.opacity ?? 1,
+        tolerance
+      );
       ctx.restore();
       continue;
     }
