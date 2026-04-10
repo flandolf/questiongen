@@ -50,8 +50,7 @@ import { cn } from '@/lib/utils';
 
 import {
   parseStrokesFromSvgString,
-  pointsToSvgPath,
-  rasterizeSvgString,
+  renderStrokesToCanvas,
   strokesToSvgString,
 } from '../lib/sketchpad-renderer';
 import type {
@@ -68,7 +67,6 @@ import {
   drawGraphAxes,
   drawShape,
   floodFill,
-  getCropBoundingBox,
   getStrokeBoundingBox,
   INTERNAL_RES_HEIGHT,
   INTERNAL_RES_WIDTH,
@@ -76,7 +74,6 @@ import {
   MAX_PENDING_MOVE_POINTS,
   MAX_UNDO_SNAPSHOTS,
   MAX_ZOOM,
-  mergeBoundingBoxes,
   MIN_ZOOM,
   paintBackground,
   PALETTE,
@@ -84,9 +81,6 @@ import {
   PEN_ONLY_STORAGE_KEY,
   STORAGE_KEY,
 } from './sketchpadUtils';
-
-// NOTE: ToolType, BgType and PressureCurve are defined in src/types/sketchpad.ts
-// and imported above to centralize the sketchpad-related types.
 
 type SketchpadProps = {
   open?: boolean;
@@ -128,16 +122,13 @@ type ToolSettings = {
 
 type ToolSettingsMap = Record<ToolType, ToolSettings>;
 type CanvasSnapshot = {
-  bitmap: ImageBitmap;
   strokes: Stroke[];
 };
 
 type SketchpadStoragePayload = {
   version: 2;
-  rasterDataUrl?: string;
   strokeSvg?: string;
 };
-
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
@@ -171,6 +162,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
   text: 'Text',
   graph: 'Graph Axes (G)',
 };
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
@@ -186,7 +178,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const overlayRef = useRef<HTMLCanvasElement | null>(null);
-    const svgRef = useRef<SVGSVGElement | null>(null);
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const bgRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -240,9 +231,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const hasExplicitlySaved = useRef(false);
     const recentColorsRef = useRef(recentColors);
 
-    // Vector stroke state (for SVG-based rendering)
+    // Vector stroke state (Source of Truth)
     const [strokes, setStrokes] = useState<Stroke[]>([]);
-    const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
     const strokesRef = useRef<Stroke[]>([]);
     const currentStrokeRef = useRef<Stroke | null>(null);
 
@@ -331,134 +321,56 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       null
     );
     const hasDirtyCanvasRef = useRef(false);
-    const pendingStorageSaveKeyRef = useRef<string | null>(null);
-    const isStorageSaveInFlightRef = useRef(false);
-    const storageSaveSeqRef = useRef(0);
-
-    const canvasBlobToDataUrl = useCallback(async (blob: Blob) => {
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Failed to read sketch blob'));
-        reader.readAsDataURL(blob);
-      });
-    }, []);
 
     const markCanvasDirty = useCallback(() => {
       hasDirtyCanvasRef.current = true;
       hasExplicitlySaved.current = false;
     }, []);
-    const disposeSnapshot = useCallback((snapshot: CanvasSnapshot) => {
-      snapshot.bitmap.close();
-    }, []);
-
-    const clearSnapshotStack = useCallback(
-      (stack: CanvasSnapshot[]) => {
-        for (const snapshot of stack) {
-          disposeSnapshot(snapshot);
-        }
-      },
-      [disposeSnapshot]
-    );
 
     const clearHistoryStacks = useCallback(() => {
       historyGenerationRef.current += 1;
-      clearSnapshotStack(undoStack.current);
-      clearSnapshotStack(redoStack.current);
       undoStack.current = [];
       redoStack.current = [];
       forceUpdate((n) => n + 1);
-    }, [clearSnapshotStack]);
+    }, []);
 
-    const captureCanvasSnapshot = useCallback(
-      async (canvas: HTMLCanvasElement): Promise<CanvasSnapshot> => {
-        const bitmap = await createImageBitmap(canvas);
-        const strokeSnapshot = cloneStrokes(strokesRef.current);
-        if (typeof OffscreenCanvas === 'undefined') {
-          return {
-            bitmap,
-            strokes: strokeSnapshot,
-          };
-        }
-
-        const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
-        const offscreenCtx = offscreen.getContext('2d');
-        if (!offscreenCtx) {
-          return {
-            bitmap,
-            strokes: strokeSnapshot,
-          };
-        }
-
-        offscreenCtx.clearRect(0, 0, offscreen.width, offscreen.height);
-        offscreenCtx.drawImage(bitmap, 0, 0);
-        bitmap.close();
-
-        return {
-          bitmap: offscreen.transferToImageBitmap(),
-          strokes: strokeSnapshot,
-        };
-      },
-      []
-    );
+    const captureCanvasSnapshot = useCallback((): CanvasSnapshot => {
+      return {
+        strokes: cloneStrokes(strokesRef.current),
+      };
+    }, []);
 
     const applySnapshotToCanvas = useCallback(
-      (
-        snapshot: CanvasSnapshot,
-        canvas: HTMLCanvasElement,
-        ctx: CanvasRenderingContext2D
-      ) => {
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1;
-        ctx.drawImage(snapshot.bitmap, 0, 0, canvas.width, canvas.height);
-        ctx.restore();
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
+      (snapshot: CanvasSnapshot) => {
         const restoredStrokes = cloneStrokes(snapshot.strokes);
         strokesRef.current = restoredStrokes;
         setStrokes(restoredStrokes);
         currentStrokeRef.current = null;
-        setCurrentStroke(null);
       },
       []
     );
 
     const queueSnapshotCapture = useCallback(
       (target: 'undo' | 'redo') => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
         const generationAtQueue = historyGenerationRef.current;
-        const task = async () => {
-          try {
-            const snapshot = await captureCanvasSnapshot(canvas);
-            if (historyGenerationRef.current !== generationAtQueue) {
-              disposeSnapshot(snapshot);
-              return;
-            }
-
-            const stack =
-              target === 'undo' ? undoStack.current : redoStack.current;
-            stack.push(snapshot);
-            if (stack.length > MAX_UNDO_SNAPSHOTS) {
-              const dropped = stack.shift();
-              if (dropped) {
-                disposeSnapshot(dropped);
-              }
-            }
-            forceUpdate((n) => n + 1);
-          } catch (err) {
-            console.warn('Failed to capture canvas snapshot for history:', err);
+        const task = () => {
+          const snapshot = captureCanvasSnapshot();
+          if (historyGenerationRef.current !== generationAtQueue) {
+            return;
           }
+
+          const stack =
+            target === 'undo' ? undoStack.current : redoStack.current;
+          stack.push(snapshot);
+          if (stack.length > MAX_UNDO_SNAPSHOTS) {
+            stack.shift();
+          }
+          forceUpdate((n) => n + 1);
         };
 
         snapshotQueueRef.current = snapshotQueueRef.current.then(task, task);
       },
-      [captureCanvasSnapshot, disposeSnapshot]
+      [captureCanvasSnapshot]
     );
 
     const flushSnapshotQueue = useCallback(async () => {
@@ -471,152 +383,127 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       []
     );
 
+    const bgRef2 = useRef<BgType>(bg);
+
     const saveCanvasToStorage = useCallback(
       (key?: string) => {
         if (!key) return;
-        pendingStorageSaveKeyRef.current = key;
-        if (isStorageSaveInFlightRef.current) return;
-
-        const runSave = () => {
-          const nextKey = pendingStorageSaveKeyRef.current;
-          if (!nextKey) {
-            isStorageSaveInFlightRef.current = false;
-            return;
-          }
-
-          pendingStorageSaveKeyRef.current = null;
-          const canvas = canvasRef.current;
-          if (!canvas) {
-            isStorageSaveInFlightRef.current = false;
-            return;
-          }
-
-          isStorageSaveInFlightRef.current = true;
-          const seq = ++storageSaveSeqRef.current;
-          canvas.toBlob(
-            (blob: Blob | null) => {
-              void (async () => {
-                try {
-                  if (!blob) return;
-                  const rasterDataUrl = await canvasBlobToDataUrl(blob);
-                  if (seq !== storageSaveSeqRef.current) return;
-                  const strokeSvg =
-                    strokesRef.current.length > 0
-                      ? strokesToSvgString(
-                        strokesRef.current,
-                        INTERNAL_RES_WIDTH,
-                        INTERNAL_RES_HEIGHT,
-                        bgRef2.current,
-                        true
-                      )
-                      : '';
-                  const payload: SketchpadStoragePayload = {
-                    version: 2,
-                    rasterDataUrl,
-                    strokeSvg: strokeSvg || undefined,
-                  };
-                  localStorage.setItem(
-                    getCanvasStorageKey(nextKey),
-                    JSON.stringify(payload)
-                  );
-                  hasDirtyCanvasRef.current = false;
-                } catch (err) {
-                  console.warn('Failed to save canvas to localStorage:', err);
-                } finally {
-                  if (pendingStorageSaveKeyRef.current) {
-                    runSave();
-                  } else {
-                    isStorageSaveInFlightRef.current = false;
-                  }
-                }
-              })();
-            },
-            'image/webp',
-            0.85
+        try {
+          const payload: SketchpadStoragePayload = {
+            version: 2,
+            strokeSvg: strokesToSvgString(
+              strokesRef.current,
+              INTERNAL_RES_WIDTH,
+              INTERNAL_RES_HEIGHT,
+              bgRef2.current,
+              true
+            ),
+          };
+          localStorage.setItem(
+            getCanvasStorageKey(key),
+            JSON.stringify(payload)
           );
-        };
-
-        runSave();
+          hasDirtyCanvasRef.current = false;
+        } catch (err) {
+          console.warn('Failed to save canvas to localStorage:', err);
+        }
       },
-      [canvasBlobToDataUrl, getCanvasStorageKey]
+      [getCanvasStorageKey]
     );
+
+    const requestRedraw = useRef<number | null>(null);
+
+    const redraw = useCallback(() => {
+      const canvas = canvasRef.current;
+      const bgCanvas = bgRef.current;
+      const container = containerRef.current;
+      const mctx = mainCtxRef.current;
+      const bctx = bgCtxRef.current;
+
+      if (!canvas || !bgCanvas || !container || !mctx || !bctx) return;
+
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+        for (const c of [canvas, bgCanvas, overlayRef.current]) {
+          if (c) {
+            c.width = width * dpr;
+            c.height = height * dpr;
+            c.style.width = `${width}px`;
+            c.style.height = `${height}px`;
+          }
+        }
+      }
+
+      paintBackground(
+        bctx,
+        width * dpr,
+        height * dpr,
+        bgRef2.current,
+        zoomRef.current,
+        panRef.current,
+        dpr
+      );
+
+      renderStrokesToCanvas(mctx, strokesRef.current, {
+        dpr,
+        zoom: zoomRef.current,
+        pan: panRef.current,
+        clear: true,
+        width: width * dpr,
+        height: height * dpr,
+        quality: 'high',
+      });
+    }, []);
+
+    const scheduleRedraw = useCallback(() => {
+      if (requestRedraw.current !== null) return;
+      requestRedraw.current = requestAnimationFrame(() => {
+        requestRedraw.current = null;
+        redraw();
+      });
+    }, [redraw]);
 
     const restoreCanvasFromStorage = useCallback(
       (key?: string) => {
         if (!key) return;
         try {
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-
-          // Always clear first so drawings from a previous question never bleed into this one.
-          ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
-          const overlayCanvas = overlayRef.current;
-          if (overlayCanvas) {
-            const overlayCtx = overlayCanvas.getContext('2d');
-            overlayCtx?.clearRect(
-              0,
-              0,
-              INTERNAL_RES_WIDTH,
-              INTERNAL_RES_HEIGHT
-            );
-          }
           clearHistoryStacks();
           hasMoved.current = false;
           lastPointReal.current = null;
           hasDirtyCanvasRef.current = false;
           currentStrokeRef.current = null;
-          setCurrentStroke(null);
           strokesRef.current = [];
           setStrokes([]);
 
           const storedValue = localStorage.getItem(getCanvasStorageKey(key));
-          if (!storedValue) return;
-
-          let rasterDataUrl = storedValue;
-          let restoredStrokes: Stroke[] = [];
+          if (!storedValue) {
+            scheduleRedraw();
+            return;
+          }
 
           if (storedValue.trim().startsWith('{')) {
             try {
               const payload = JSON.parse(
                 storedValue
               ) as Partial<SketchpadStoragePayload>;
-              if (typeof payload.rasterDataUrl === 'string') {
-                rasterDataUrl = payload.rasterDataUrl;
-              }
               if (typeof payload.strokeSvg === 'string' && payload.strokeSvg) {
-                restoredStrokes = parseStrokesFromSvgString(payload.strokeSvg);
+                const restoredStrokes = parseStrokesFromSvgString(payload.strokeSvg);
+                strokesRef.current = restoredStrokes;
+                setStrokes(restoredStrokes);
               }
             } catch (parseErr) {
               console.warn('Failed to parse saved sketch payload:', parseErr);
             }
           }
-
-          const img = new Image();
-          img.onload = () => {
-            const dpr = Math.max(1, window.devicePixelRatio || 1);
-            ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            ctx.restore();
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          };
-          img.onerror = () => {
-            console.warn('Failed to load saved canvas image');
-          };
-          img.src = rasterDataUrl;
-
-          if (restoredStrokes.length > 0) {
-            strokesRef.current = restoredStrokes;
-            setStrokes(restoredStrokes);
-          }
+          scheduleRedraw();
         } catch (err) {
           console.warn('Failed to restore canvas from localStorage:', err);
         }
       },
-      [clearHistoryStacks, getCanvasStorageKey]
+      [clearHistoryStacks, getCanvasStorageKey, scheduleRedraw]
     );
 
     const clearCanvasFromStorage = useCallback(
@@ -663,8 +550,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         : performance.now();
     }
 
-    const bgRef2 = useRef<BgType>(bg);
-
     const clampZoom = useCallback(
       (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)),
       []
@@ -674,12 +559,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       viewportRaf.current = null;
       setZoom(zoomRef.current);
       setPan(panRef.current);
-    }, []);
+      scheduleRedraw();
+    }, [scheduleRedraw]);
 
     const commitViewportState = useCallback(() => {
       setZoom(zoomRef.current);
       setPan(panRef.current);
-    }, []);
+      scheduleRedraw();
+    }, [scheduleRedraw]);
 
     const queueViewportState = useCallback(() => {
       if (viewportRaf.current !== null) return;
@@ -811,6 +698,45 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       );
     }, [setViewportImmediate]);
 
+    const initCanvas = useCallback((fitViewport: boolean = false) => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      for (const c of [canvasRef.current, overlayRef.current, bgRef.current]) {
+        if (c) {
+          c.width = width * dpr;
+          c.height = height * dpr;
+          c.style.width = `${width}px`;
+          c.style.height = `${height}px`;
+          const ctx = c.getContext('2d')!;
+          if (c === canvasRef.current) mainCtxRef.current = ctx;
+          if (c === overlayRef.current) overlayCtxRef.current = ctx;
+          if (c === bgRef.current) bgCtxRef.current = ctx;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+      }
+
+      if (fitViewport) {
+        const fitZoom = Math.min(
+          (width - 80) / INTERNAL_RES_WIDTH,
+          (height - 80) / INTERNAL_RES_HEIGHT
+        );
+        setViewportImmediate(
+          {
+            x: (width - INTERNAL_RES_WIDTH * fitZoom) / 2,
+            y: (height - INTERNAL_RES_HEIGHT * fitZoom) / 2,
+          },
+          fitZoom
+        );
+      }
+
+      scheduleRedraw();
+    }, [setViewportImmediate, scheduleRedraw]);
+
     useEffect(() => {
       bgRef2.current = bg;
     }, [bg]);
@@ -889,17 +815,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const switchTool = useCallback(
       (newTool: ToolType) => {
         if (newTool === activeTool) return;
-        setToolSettingsMap((prev) => ({
-          ...prev,
-          [activeTool]: {
-            size: prev[activeTool].size,
-            opacity: prev[activeTool].opacity,
-            smoothing: prev[activeTool].smoothing,
-            pressureCurve: prev[activeTool].pressureCurve,
-            disablePressure: prev[activeTool].disablePressure,
-            color: prev[activeTool].color,
-          },
-        }));
         setActiveTool(newTool);
       },
       [activeTool]
@@ -973,88 +888,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
     }, [isAndroid, switchTool, activeTool]);
 
-    const initCanvas = useCallback((fitViewport: boolean = false) => {
-      const canvas = canvasRef.current;
-      const overlay = overlayRef.current;
-      const bgCanvas = bgRef.current;
-      const container = containerRef.current;
-      if (!canvas || !overlay || !bgCanvas || !container) return;
-
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const newW = INTERNAL_RES_WIDTH * dpr;
-      const newH = INTERNAL_RES_HEIGHT * dpr;
-
-      // Only resize if needed (prevents unnecessary clear)
-      if (canvas.width === newW && canvas.height === newH) return;
-
-      let snapshotPromise: Promise<CanvasSnapshot | null> | null = null;
-      if (canvas.width > 0 && canvas.height > 0) {
-        snapshotPromise = captureCanvasSnapshot(canvas).catch(() => null);
-      }
-
-      for (const c of [canvas, overlay]) {
-        c.width = newW;
-        c.height = newH;
-        // Set CSS size to logical pixels so zoom transform works correctly
-        c.style.width = `${INTERNAL_RES_WIDTH}px`;
-        c.style.height = `${INTERNAL_RES_HEIGHT}px`;
-        const ctx = c.getContext('2d')!;
-        if (c === canvas) mainCtxRef.current = ctx;
-        if (c === overlay) overlayCtxRef.current = ctx;
-        // Scale all drawing by DPR so coordinates remain in logical pixels
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      bgCanvas.width = newW;
-      bgCanvas.height = newH;
-      bgCanvas.style.width = `${INTERNAL_RES_WIDTH}px`;
-      bgCanvas.style.height = `${INTERNAL_RES_HEIGHT}px`;
-      const bgCtx = bgCanvas.getContext('2d')!;
-      bgCtxRef.current = bgCtx;
-      bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paintBackground(
-        bgCtx,
-        INTERNAL_RES_WIDTH,
-        INTERNAL_RES_HEIGHT,
-        bgRef2.current
-      );
-
-      if (snapshotPromise) {
-        void snapshotPromise.then((snapshot) => {
-          if (!snapshot) return;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            disposeSnapshot(snapshot);
-            return;
-          }
-          ctx.save();
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.drawImage(snapshot.bitmap, 0, 0, newW, newH);
-          ctx.restore();
-          disposeSnapshot(snapshot);
-        });
-      }
-
-      // Optionally perform an initial zoom-to-fit. When called from the
-      // ResizeObserver during layout animations we intentionally avoid
-      // changing the current viewport so a user's zoom is preserved.
-      if (fitViewport) {
-        const containerW = container.clientWidth;
-        const containerH = container.clientHeight;
-        const fitZoom = Math.min(
-          (containerW - 80) / INTERNAL_RES_WIDTH,
-          (containerH - 80) / INTERNAL_RES_HEIGHT
-        );
-        setViewport(
-          {
-            x: (containerW - INTERNAL_RES_WIDTH * fitZoom) / 2,
-            y: (containerH - INTERNAL_RES_HEIGHT * fitZoom) / 2,
-          },
-          fitZoom
-        );
-      }
-    }, [captureCanvasSnapshot, disposeSnapshot, setViewport]);
-
     useEffect(() => {
       if (!embedded && !open) return;
       // On mount/open we should fit the canvas to the container.
@@ -1062,13 +895,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [embedded, open, initCanvas]);
 
     useEffect(() => {
-      const bgCanvas = bgRef.current;
-      if (!bgCanvas || bgCanvas.width === 0 || bgCanvas.height === 0) return;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const bgCtx = bgCanvas.getContext('2d')!;
-      bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paintBackground(bgCtx, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT, bg);
-    }, [bg]);
+      scheduleRedraw();
+    }, [bg, scheduleRedraw]);
 
     useEffect(() => {
       const container = containerRef.current;
@@ -1204,7 +1032,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           const overlay = overlayRef.current;
           const overlayCtx = overlay?.getContext('2d');
           if (overlay && overlayCtx) {
-            overlayCtx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
+            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
           }
           multiTouchActive.current = true;
         } else if (e.touches.length < 2) {
@@ -1278,9 +1106,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
     }, [setViewport, zoomAroundClientPoint]);
 
-    function getCtx() {
-      return mainCtxRef.current;
-    }
     function getOverlayCtx() {
       return overlayCtxRef.current;
     }
@@ -1288,7 +1113,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const canvas = overlayRef.current;
       const ctx = getOverlayCtx();
       if (!canvas || !ctx) return;
-      ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
     }, []);
 
     const updateCursorPreview = useCallback(() => {
@@ -1331,237 +1159,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       updateCursorPreviewRef.current = updateCursorPreview;
     }, [updateCursorPreview]);
 
-    function processPendingMove() {
-      moveRaf.current = null;
-      const ctx = getCtx();
-      if (!ctx) return;
-      const moves = lastMove.current;
-      if (moves.length === 0) return;
-
-      const tool = activeToolRef.current;
-      const isShapeTool =
-        tool === 'line' || tool === 'rect' || tool === 'ellipse';
-      const overlayCtx = isShapeTool ? getOverlayCtx() : null;
-
-      if (isShapeTool && shapeStart.current && overlayCtx) {
-        const latest = moves[moves.length - 1];
-        const latestPoint = { x: latest.x, y: latest.y };
-        clearOverlay();
-        applyToolStyle(overlayCtx, latest.pressure, 0);
-        drawShape(overlayCtx, tool, shapeStart.current, latestPoint);
-        lastMove.current = [];
-        return;
-      }
-
-      let lastPoint = lastPointReal.current;
-      let lastAppliedPressure = -1; // sentinel — forces style apply on first segment
-
-      for (const m of moves) {
-        const pt = { x: m.x, y: m.y };
-        const pressure = m.pressure;
-
-        if (tool === 'text') continue;
-        if (!lastPoint) {
-          lastPoint = { ...pt, pressure, time: m.time };
-          lastPointReal.current = lastPoint;
-          continue;
-        }
-
-        // Calculate velocity for dynamic stroke width
-        const dx = pt.x - lastPoint.x;
-        const dy = pt.y - lastPoint.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const dt = Math.max(1, m.time - lastPoint.time);
-        const velocity = dist / dt;
-
-        velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
-
-        // Only re-apply tool style when pressure changes meaningfully (saves ctx state writes)
-        if (Math.abs(pressure - lastAppliedPressure) > 0.02) {
-          applyToolStyle(ctx, pressure, velocityRef.current);
-          lastAppliedPressure = pressure;
-        }
-
-        // Midpoint logic for smoothing
-        const midX = (lastPoint.x + pt.x) / 2;
-        const midY = (lastPoint.y + pt.y) / 2;
-
-        ctx.quadraticCurveTo(lastPoint.x, lastPoint.y, midX, midY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(midX, midY);
-
-        lastPoint = { x: pt.x, y: pt.y, pressure, time: m.time };
-        lastPointReal.current = lastPoint;
-      }
-
-      // Also append these sampled points to the in-progress vector stroke
-      try {
-        if (currentStrokeRef.current) {
-          const pts = currentStrokeRef.current.points;
-          for (const m of moves) {
-            pts.push({
-              x: m.x,
-              y: m.y,
-              pressure: m.pressure,
-              time: m.time,
-              tiltX: m.tiltX,
-              tiltY: m.tiltY,
-            });
-          }
-          // Trigger a state update with a shallow copy to re-render the SVG path
-          setCurrentStroke({
-            ...currentStrokeRef.current,
-            points: pts.slice(),
-          });
-        }
-      } catch {
-        // Non-fatal; continue
-      }
-
-      lastMove.current = [];
-    }
-
-    const pushUndo = useCallback(
-      (force = false) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        markCanvasDirty();
-        const now = performance.now();
-        // Throttle: skip expensive snapshots for rapid successive strokes.
-        // 400ms gap means undo still captures each "burst" as a single step.
-        if (!force && now - lastUndoPushTime.current < 400) return;
-        lastUndoPushTime.current = now;
-
-        if (redoStack.current.length) {
-          clearSnapshotStack(redoStack.current);
-          redoStack.current = [];
-        }
-
-        queueSnapshotCapture('undo');
-      },
-      [clearSnapshotStack, markCanvasDirty, queueSnapshotCapture]
-    );
-
-    const runUndo = useCallback(async () => {
-      const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
-
-      await flushSnapshotQueue();
-      if (!undoStack.current.length) return;
-
-      try {
-        const currentSnapshot = await captureCanvasSnapshot(canvas);
-        redoStack.current.push(currentSnapshot);
-        if (redoStack.current.length > MAX_UNDO_SNAPSHOTS) {
-          const dropped = redoStack.current.shift();
-          if (dropped) {
-            disposeSnapshot(dropped);
-          }
-        }
-
-        const previousSnapshot = undoStack.current.pop();
-        if (!previousSnapshot) return;
-        applySnapshotToCanvas(previousSnapshot, canvas, ctx);
-        disposeSnapshot(previousSnapshot);
-      } catch (err) {
-        console.warn('Failed to run undo:', err);
-      }
-
-      forceUpdate((n) => n + 1);
-    }, [
-      applySnapshotToCanvas,
-      captureCanvasSnapshot,
-      disposeSnapshot,
-      flushSnapshotQueue,
-    ]);
-
-    const runRedo = useCallback(async () => {
-      const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
-
-      await flushSnapshotQueue();
-      if (!redoStack.current.length) return;
-
-      try {
-        const currentSnapshot = await captureCanvasSnapshot(canvas);
-        undoStack.current.push(currentSnapshot);
-        if (undoStack.current.length > MAX_UNDO_SNAPSHOTS) {
-          const dropped = undoStack.current.shift();
-          if (dropped) {
-            disposeSnapshot(dropped);
-          }
-        }
-
-        const nextSnapshot = redoStack.current.pop();
-        if (!nextSnapshot) return;
-        applySnapshotToCanvas(nextSnapshot, canvas, ctx);
-        disposeSnapshot(nextSnapshot);
-      } catch (err) {
-        console.warn('Failed to run redo:', err);
-      }
-
-      forceUpdate((n) => n + 1);
-    }, [
-      applySnapshotToCanvas,
-      captureCanvasSnapshot,
-      disposeSnapshot,
-      flushSnapshotQueue,
-    ]);
-
-    const undo = useCallback(() => {
-      void runUndo();
-    }, [runUndo]);
-
-    const redo = useCallback(() => {
-      void runRedo();
-    }, [runRedo]);
-
-    const clearCanvas = useCallback(() => {
-      const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
-      pushUndo(true);
-      ctx.clearRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
-      clearOverlay();
-      lastMove.current = [];
-      lastPointReal.current = null;
-      shapeStart.current = null;
-      activeDrawingPointerId.current = null;
-      strokesRef.current = [];
-      setStrokes([]);
-      currentStrokeRef.current = null;
-      setCurrentStroke(null);
-      setIsDrawing(false);
-      isDrawingRef.current = false;
-      hasMoved.current = false;
-      forceUpdate((n) => n + 1);
-    }, [clearOverlay, pushUndo]);
-
-    useEffect(() => {
-      undoActionRef.current = undo;
-      redoActionRef.current = redo;
-      clearActionRef.current = clearCanvas;
-      keyboardZoomStepRef.current = zoomByKeyboardStep;
-      resetViewportRef.current = resetViewport;
-    }, [undo, redo, clearCanvas, zoomByKeyboardStep, resetViewport]);
-
-    function getCanvasPoint(e: PointerEvent, bounds?: CanvasBounds | null) {
-      const rect = bounds ?? readCanvasBounds();
-      if (!rect) {
-        return { x: 0, y: 0 };
-      }
-      // rect dimensions are in CSS logical pixels; canvas.width is physical pixels.
-      // We want logical canvas coordinates (matching the DPR-scaled drawing context),
-      // so we divide by the CSS width, not the physical width.
-      return {
-        x: ((e.clientX - rect.left) / rect.width) * INTERNAL_RES_WIDTH,
-        y: ((e.clientY - rect.top) / rect.height) * INTERNAL_RES_HEIGHT,
-      };
-    }
-
     function applyToolStyle(
       ctx: CanvasRenderingContext2D,
       pressure: number,
@@ -1578,8 +1175,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       let size = settings.size;
       if (isPressureSensitive) {
-        // Taper based on pressure AND velocity
-        // Lower velocity = thicker, Higher velocity = thinner
         const velocityFactor = Math.max(0.5, 1.5 - velocity * 0.5);
         size = settings.size * adjustedPressure * velocityFactor;
       }
@@ -1598,6 +1193,210 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ctx.strokeStyle = settings.color;
         ctx.fillStyle = settings.color;
       }
+    }
+
+    function processPendingMove() {
+      moveRaf.current = null;
+      const ctx = getOverlayCtx();
+      if (!ctx) return;
+      const moves = lastMove.current;
+      if (moves.length === 0) return;
+
+      const tool = activeToolRef.current;
+      const isShapeTool =
+        tool === 'line' || tool === 'rect' || tool === 'ellipse';
+
+      if (isShapeTool && shapeStart.current) {
+        const latest = moves[moves.length - 1];
+        const latestPoint = { x: latest.x, y: latest.y };
+        clearOverlay();
+
+        ctx.save();
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        ctx.setTransform(
+          zoomRef.current * dpr,
+          0,
+          0,
+          zoomRef.current * dpr,
+          panRef.current.x * dpr,
+          panRef.current.y * dpr
+        );
+
+        applyToolStyle(ctx, latest.pressure, 0);
+        drawShape(ctx, tool, shapeStart.current, latestPoint);
+        ctx.restore();
+
+        lastMove.current = [];
+        return;
+      }
+
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      ctx.save();
+      ctx.setTransform(
+        zoomRef.current * dpr,
+        0,
+        0,
+        zoomRef.current * dpr,
+        panRef.current.x * dpr,
+        panRef.current.y * dpr
+      );
+
+      let lastPoint = lastPointReal.current;
+
+      for (const m of moves) {
+        const pt = { x: m.x, y: m.y };
+        const pressure = m.pressure;
+
+        if (tool === 'text') continue;
+        if (!lastPoint) {
+          lastPoint = { ...pt, pressure, time: m.time };
+          lastPointReal.current = lastPoint;
+          continue;
+        }
+
+        const dx = pt.x - lastPoint.x;
+        const dy = pt.y - lastPoint.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dt = Math.max(1, m.time - lastPoint.time);
+        const velocity = dist / dt;
+
+        velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
+
+        applyToolStyle(ctx, pressure, velocityRef.current);
+
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(pt.x, pt.y);
+        ctx.stroke();
+
+        lastPoint = { x: pt.x, y: pt.y, pressure, time: m.time };
+        lastPointReal.current = lastPoint;
+      }
+      ctx.restore();
+
+      if (currentStrokeRef.current) {
+        const pts = currentStrokeRef.current.points;
+        for (const m of moves) {
+          pts.push({
+            x: m.x,
+            y: m.y,
+            pressure: m.pressure,
+            time: m.time,
+            tiltX: m.tiltX,
+            tiltY: m.tiltY,
+          });
+        }
+      }
+
+      lastMove.current = [];
+    }
+
+    const pushUndo = useCallback(
+      (force = false) => {
+        markCanvasDirty();
+        const now = performance.now();
+        if (!force && now - lastUndoPushTime.current < 400) return;
+        lastUndoPushTime.current = now;
+
+        if (redoStack.current.length) {
+          redoStack.current = [];
+        }
+
+        queueSnapshotCapture('undo');
+      },
+      [markCanvasDirty, queueSnapshotCapture]
+    );
+
+    const runUndo = useCallback(async () => {
+      await flushSnapshotQueue();
+      if (!undoStack.current.length) return;
+
+      try {
+        const currentSnapshot = captureCanvasSnapshot();
+        redoStack.current.push(currentSnapshot);
+        if (redoStack.current.length > MAX_UNDO_SNAPSHOTS) {
+          redoStack.current.shift();
+        }
+
+        const previousSnapshot = undoStack.current.pop();
+        if (!previousSnapshot) return;
+        applySnapshotToCanvas(previousSnapshot);
+      } catch (err) {
+        console.warn('Failed to run undo:', err);
+      }
+
+      forceUpdate((n) => n + 1);
+    }, [applySnapshotToCanvas, captureCanvasSnapshot, flushSnapshotQueue]);
+
+    const runRedo = useCallback(async () => {
+      await flushSnapshotQueue();
+      if (!redoStack.current.length) return;
+
+      try {
+        const currentSnapshot = captureCanvasSnapshot();
+        undoStack.current.push(currentSnapshot);
+        if (undoStack.current.length > MAX_UNDO_SNAPSHOTS) {
+          undoStack.current.shift();
+        }
+
+        const nextSnapshot = redoStack.current.pop();
+        if (!nextSnapshot) return;
+        applySnapshotToCanvas(nextSnapshot);
+      } catch (err) {
+        console.warn('Failed to run redo:', err);
+      }
+
+      forceUpdate((n) => n + 1);
+    }, [applySnapshotToCanvas, captureCanvasSnapshot, flushSnapshotQueue]);
+
+    const undo = useCallback(() => {
+      void runUndo().then(() => scheduleRedraw());
+    }, [runUndo, scheduleRedraw]);
+
+    const redo = useCallback(() => {
+      void runRedo().then(() => scheduleRedraw());
+    }, [runRedo, scheduleRedraw]);
+
+    const clearCanvas = useCallback(() => {
+      pushUndo(true);
+      clearOverlay();
+      lastMove.current = [];
+      lastPointReal.current = null;
+      shapeStart.current = null;
+      activeDrawingPointerId.current = null;
+      strokesRef.current = [];
+      setStrokes([]);
+      currentStrokeRef.current = null;
+      setIsDrawing(false);
+      isDrawingRef.current = false;
+      hasMoved.current = false;
+      scheduleRedraw();
+      forceUpdate((n) => n + 1);
+    }, [clearOverlay, pushUndo, scheduleRedraw]);
+
+    useEffect(() => {
+      undoActionRef.current = undo;
+      redoActionRef.current = redo;
+      clearActionRef.current = clearCanvas;
+      keyboardZoomStepRef.current = zoomByKeyboardStep;
+      resetViewportRef.current = resetViewport;
+    }, [undo, redo, clearCanvas, zoomByKeyboardStep, resetViewport]);
+
+    function getCanvasPoint(e: PointerEvent, bounds?: CanvasBounds | null) {
+      const rect = bounds ?? readCanvasBounds();
+      if (!rect) {
+        return { x: 0, y: 0 };
+      }
+
+      // Convert client coordinates to container-local coordinates
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+
+      // Map container coordinates to logical world coordinates (accounting for zoom and pan)
+      return {
+        x: (localX - panRef.current.x) / zoomRef.current,
+        y: (localY - panRef.current.y) / zoomRef.current,
+      };
     }
 
     function hasActivePenPointer() {
@@ -1646,7 +1445,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastPointReal.current = { ...pt, pressure, time };
       velocityRef.current = 0;
       activeDrawingPointerId.current = pointerId;
-      // Create an in-memory vector stroke for SVG rendering
       try {
         const tool = activeToolRef.current;
         const settings = toolSettingsMapRef.current[tool];
@@ -1661,26 +1459,35 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           opacity: settings.opacity,
         };
         currentStrokeRef.current = newStroke;
-        setCurrentStroke(newStroke);
       } catch {
-        // non-fatal — continue drawing raster fallback
+        // ignore
       }
 
+      ctx.save();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      ctx.setTransform(
+        zoomRef.current * dpr,
+        0,
+        0,
+        zoomRef.current * dpr,
+        panRef.current.x * dpr,
+        panRef.current.y * dpr
+      );
       ctx.beginPath();
       applyToolStyle(ctx, pressure, 0);
       ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x, pt.y + 0.1);
+      ctx.stroke();
+      ctx.restore();
     }
 
     function handlePointerDown(e: PointerEvent) {
       const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
+      const overlayCtx = getOverlayCtx();
+      if (!canvas || !overlayCtx) return;
 
-      // Only handle drawing events that originate from the drawing surface,
-      // not from UI controls (buttons, sliders, etc.) overlaid on the container.
       const target = e.target as HTMLElement;
       const container = containerRef.current;
-      // Walk up to see if the click hit a UI control before reaching the container
       let el: HTMLElement | null = target;
       let isUiControl = false;
       while (el && el !== container) {
@@ -1749,12 +1556,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         return;
       }
 
-      // For drawing operations the pointer must be over the canvas itself
       if (e.target !== canvas) return;
 
       canvasBoundsRef.current = readCanvasBounds();
-
       const pt = getCanvasPoint(e, canvasBoundsRef.current);
+
+      if (e.pointerType === 'touch') {
+        const isPalm =
+          e.pressure > 0.95 ||
+          e.width > 30 ||
+          e.height > 30;
+        if (isPalm) return;
+      }
 
       if (currentTool === 'text') {
         canvasBoundsRef.current = null;
@@ -1765,7 +1578,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (currentTool === 'graph') {
         pushUndo(true);
         const settings = toolSettingsMapRef.current['graph'];
-        drawGraphAxes(ctx, pt.x, pt.y, settings.color, settings.size);
+        const newStroke: Stroke = {
+          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+          tool: 'graph',
+          color: settings.color,
+          size: settings.size,
+          smoothing: 0,
+          pressureCurve: 'linear',
+          points: [{ x: pt.x, y: pt.y, pressure: 1, time: Date.now() }],
+        };
+        strokesRef.current = [...strokesRef.current, newStroke];
+        setStrokes(strokesRef.current.slice());
         canvasBoundsRef.current = null;
         return;
       }
@@ -1796,16 +1619,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       if (currentTool === 'fill') {
         pushUndo(true);
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const color = toolSettingsMapRef.current[currentTool].color;
-        floodFill(
-          ctx,
-          Math.round(pt.x * dpr),
-          Math.round(pt.y * dpr),
-          color,
-          1,
-          32
-        );
+        const mctx = mainCtxRef.current;
+        if (mctx) {
+          const dpr = Math.max(1, window.devicePixelRatio || 1);
+          const color = toolSettingsMapRef.current[currentTool].color;
+          floodFill(
+            mctx,
+            Math.round(pt.x * dpr),
+            Math.round(pt.y * dpr),
+            color,
+            1,
+            32
+          );
+        }
         canvasBoundsRef.current = null;
         return;
       }
@@ -1817,6 +1643,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         isDrawingRef.current = true;
         activeDrawingPointerId.current = e.pointerId;
         pointerMeta.strokeStarted = true;
+        const tool = activeToolRef.current;
+        const settings = toolSettingsMapRef.current[tool];
+        const newStroke: Stroke = {
+          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+          tool,
+          color: settings.color,
+          size: settings.size,
+          smoothing: settings.smoothing,
+          pressureCurve: settings.pressureCurve,
+          points: [{ x: pt.x, y: pt.y, pressure, time: Date.now() }],
+          opacity: settings.opacity,
+        };
+        currentStrokeRef.current = newStroke;
         return;
       }
 
@@ -1829,14 +1668,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       hasMoved.current = false;
-      startStroke(e.pointerId, pt, ctx, pressure, getEventTimeStamp(e));
+      startStroke(e.pointerId, pt, overlayCtx, pressure, getEventTimeStamp(e));
       pointerMeta.strokeStarted = true;
     }
 
     function handlePointerMove(e: PointerEvent) {
       const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
+      if (!canvas) return;
       const currentTool = activeToolRef.current;
 
       if (multiTouchActive.current && e.pointerType === 'touch') return;
@@ -1854,13 +1692,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         panStart.current &&
         (panPointerId.current === null || panPointerId.current === e.pointerId)
       ) {
-        // Update pan synchronously via refs and commit immediately — avoids
-        // the extra RAF latency that setViewport (queue-based) would introduce.
         panRef.current = {
           x: panStart.current.px + (e.clientX - panStart.current.mx),
           y: panStart.current.py + (e.clientY - panStart.current.my),
         };
-        // Batch the React state update into the next animation frame
         if (viewportRaf.current === null) {
           viewportRaf.current = requestAnimationFrame(flushViewportState);
         }
@@ -1870,8 +1705,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const pointerMeta = activePointers.current.get(e.pointerId);
       if (!pointerMeta || pointerMeta.rejected) return;
 
-      // Only process drawing if the pointer is over the canvas (or we're
-      // already mid-stroke — then we continue regardless of position)
       if (!isDrawingRef.current && e.target !== canvas) return;
 
       pointerMeta.tiltX = e.tiltX;
@@ -1879,7 +1712,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       if (currentTool === 'text' || currentTool === 'fill') return;
 
-      // Ghost preview for graph tool — show faint axes at cursor position
       if (currentTool === 'graph') {
         graphPreviewPointRef.current = getCanvasPoint(
           e,
@@ -1894,6 +1726,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             clearOverlay();
             const settings = toolSettingsMapRef.current.graph;
             octx.save();
+            const dpr = Math.max(1, window.devicePixelRatio || 1);
+            octx.setTransform(
+              zoomRef.current * dpr,
+              0,
+              0,
+              zoomRef.current * dpr,
+              panRef.current.x * dpr,
+              panRef.current.y * dpr
+            );
             octx.globalAlpha = 0.35;
             drawGraphAxes(
               octx,
@@ -1919,14 +1760,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         }
         const pt = getCanvasPoint(e, canvasBoundsRef.current);
         const pressureForStart = e.pressure > 0 ? e.pressure : 1;
-        startStroke(
-          e.pointerId,
-          pt,
-          ctx,
-          pressureForStart,
-          getEventTimeStamp(e)
-        );
-        pointerMeta.strokeStarted = true;
+        const octx = getOverlayCtx();
+        if (octx) {
+          startStroke(
+            e.pointerId,
+            pt,
+            octx,
+            pressureForStart,
+            getEventTimeStamp(e)
+          );
+          pointerMeta.strokeStarted = true;
+        }
         return;
       }
 
@@ -1964,11 +1808,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }
 
     function handlePointerUp(e: PointerEvent) {
-      const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
-      const currentTool = activeToolRef.current;
-
       if (isPanningRef.current && panPointerId.current === e.pointerId) {
         if (e.button === 1) middleDown.current = false;
         setIsPanning(false);
@@ -2003,7 +1842,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       try {
         (e.target as Element).releasePointerCapture(e.pointerId);
       } catch {
-        console.error('Failed to release pointer capture');
+        // ignore
       }
       activePointers.current.delete(e.pointerId);
 
@@ -2021,22 +1860,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       const pt = getCanvasPoint(e, canvasBoundsRef.current);
-      const pressure = e.pressure > 0 ? e.pressure : 1;
 
-      if (
-        ['line', 'rect', 'ellipse'].includes(currentTool) &&
-        shapeStart.current
-      ) {
+      if (currentStrokeRef.current) {
+        const stroke = currentStrokeRef.current;
+        if (['line', 'rect', 'ellipse'].includes(activeToolRef.current) && shapeStart.current) {
+          stroke.points = [({ ...shapeStart.current, pressure: 1, time: Date.now() }), ({ ...pt, pressure: 1, time: Date.now() })];
+        }
+        strokesRef.current = [...strokesRef.current, stroke];
+        setStrokes(strokesRef.current.slice());
+        currentStrokeRef.current = null;
         clearOverlay();
-        applyToolStyle(ctx, pressure);
-        drawShape(ctx, currentTool, shapeStart.current, pt);
-        shapeStart.current = null;
-      } else if (!hasMoved.current && ['pen', 'eraser'].includes(currentTool)) {
-        applyToolStyle(ctx, pressure);
-        const size = toolSettingsMapRef.current[currentTool].size;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, Math.max(1, size / 2), 0, Math.PI * 2);
-        ctx.fill();
+        scheduleRedraw();
       }
 
       setIsDrawing(false);
@@ -2044,23 +1878,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastPointReal.current = null;
       lastMove.current = [];
       activeDrawingPointerId.current = null;
-      // Finalize vector stroke (if any)
-      try {
-        if (currentStrokeRef.current) {
-          strokesRef.current = [
-            ...strokesRef.current,
-            currentStrokeRef.current,
-          ];
-          setStrokes(strokesRef.current.slice());
-          currentStrokeRef.current = null;
-          setCurrentStroke(null);
-        }
-      } catch {
-        // ignore
-      }
-
+      shapeStart.current = null;
       canvasBoundsRef.current = null;
-      ctx.closePath();
     }
 
     useEffect(() => {
@@ -2088,7 +1907,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
 
       const handlePointerLeave = (e: PointerEvent) => {
-        // Only clear hover state when leaving the canvas itself
         if (e.target !== canvas) return;
         isHoveringRef.current = false;
         setIsHovering(false);
@@ -2098,7 +1916,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           graphPreviewRaf.current = null;
         }
         graphPreviewPointRef.current = null;
-        // Clear graph ghost preview when cursor leaves canvas
         if (activeToolRef.current === 'graph') {
           clearOverlay();
         }
@@ -2128,11 +1945,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         canvasBoundsRef.current = null;
       };
 
-      // Attach pointerdown to container so space+drag and middle-click pan
-      // works anywhere in the viewport, not just over the canvas element.
       container.addEventListener('pointerdown', handlePointerDown);
-      // pointermove and pointerup go on window so panning continues even if the
-      // pointer leaves the container bounds.
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       canvas.addEventListener('pointercancel', handlePointerCancel);
@@ -2176,6 +1989,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     ]);
 
     useEffect(() => {
+      scheduleRedraw();
+    }, [strokes, scheduleRedraw]);
+
+    useEffect(() => {
       const canvas = canvasRef.current;
       const overlay = overlayRef.current;
       const bgCanvas = bgRef.current;
@@ -2183,8 +2000,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       for (const c of [canvas, overlay, bgCanvas]) {
         c.style.touchAction = 'none';
         c.style.willChange = 'transform';
-        // With DPR-scaled canvas buffers, the browser's default bicubic resampling
-        // is ideal: smooth when zoomed out, crisp when near 1:1 or zoomed in.
         c.style.imageRendering = 'auto';
       }
       for (const c of [canvas, overlay, bgCanvas]) {
@@ -2197,73 +2012,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [isAndroid, antiAlias]);
 
     const saveAsDataUrl = useCallback(async (): Promise<string> => {
-      const canvas = canvasRef.current;
-      if (!canvas) throw new Error('Canvas missing');
-
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
       const PAD_LOGICAL = 40;
+      const exportDpr = 2; // Export at high resolution
 
-      // Stroke bounds are in logical pixels (internal coords) — scale them
-      // to device pixels so they line up with the canvas buffer.
-      const strokeBoundsLogical = getStrokeBoundingBox(
-        strokesRef.current,
-        PAD_LOGICAL
-      );
-      const strokeBounds = strokeBoundsLogical
-        ? {
-          x: Math.max(0, Math.round(strokeBoundsLogical.x * dpr)),
-          y: Math.max(0, Math.round(strokeBoundsLogical.y * dpr)),
-          width: Math.max(1, Math.round(strokeBoundsLogical.width * dpr)),
-          height: Math.max(1, Math.round(strokeBoundsLogical.height * dpr)),
-        }
-        : null;
+      const bounds = getStrokeBoundingBox(strokesRef.current, PAD_LOGICAL) || {
+        x: 0,
+        y: 0,
+        width: INTERNAL_RES_WIDTH,
+        height: INTERNAL_RES_HEIGHT,
+      };
 
-      // Raster bounds operate on the canvas buffer (device pixels)
-      const rasterBounds = getCropBoundingBox(canvas, Math.round(PAD_LOGICAL * dpr));
-
-      // Use union of stroke and raster bounds (both now device-pixel space)
-      const bounds = mergeBoundingBoxes(rasterBounds, strokeBounds);
-      const exportW = bounds ? bounds.width : canvas.width;
-      const exportH = bounds ? bounds.height : canvas.height;
-      const startX = bounds ? bounds.x : 0;
-      const startY = bounds ? bounds.y : 0;
-
-      // Rasterize vector strokes separately for pen and eraser so we can
-      // composite them correctly on export. Rasterize at DPR resolution so
-      // the resulting canvases align with the main canvas buffer.
-      let penRaster: HTMLCanvasElement | null = null;
-      let eraserRaster: HTMLCanvasElement | null = null;
-      const allStrokes = strokesRef.current || [];
-      if (allStrokes.length > 0) {
-        const penStrokes = allStrokes.filter((s) => s.tool !== 'eraser');
-        const eraserStrokes = allStrokes.filter((s) => s.tool === 'eraser');
-
-        if (penStrokes.length > 0) {
-          const penSvg = strokesToSvgString(
-            penStrokes,
-            INTERNAL_RES_WIDTH,
-            INTERNAL_RES_HEIGHT
-          );
-          penRaster = await rasterizeSvgString(
-            penSvg,
-            INTERNAL_RES_WIDTH * dpr,
-            INTERNAL_RES_HEIGHT * dpr
-          );
-        }
-
-        if (eraserStrokes.length > 0) {
-          const eraserSvg = strokesToSvgString(
-            eraserStrokes,
-            INTERNAL_RES_WIDTH,
-            INTERNAL_RES_HEIGHT
-          );
-          eraserRaster = await rasterizeSvgString(
-            eraserSvg,
-            INTERNAL_RES_WIDTH * dpr,
-            INTERNAL_RES_HEIGHT * dpr
-          );
-        }
-      }
+      const exportW = bounds.width * exportDpr;
+      const exportH = bounds.height * exportDpr;
 
       return new Promise((resolve, reject) => {
         const tmp = document.createElement('canvas');
@@ -2272,74 +2032,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const tctx = tmp.getContext('2d');
         if (!tctx) return reject(new Error('Unable to export'));
 
-        // Draw background cropped
-        const bgCanvas = bgRef.current;
-        if (bgCanvas) {
-          tctx.drawImage(
-            bgCanvas,
-            startX,
-            startY,
-            exportW,
-            exportH,
-            0,
-            0,
-            exportW,
-            exportH
-          );
-        } else {
-          paintBackground(tctx, exportW, exportH, bg);
-        }
+        paintBackground(tctx, exportW, exportH, bgRef2.current, 1, { x: -bounds.x, y: -bounds.y }, exportDpr);
 
-        // Draw ink cropped from the main canvas (device-pixel aligned)
-        tctx.drawImage(
-          canvas,
-          startX,
-          startY,
-          exportW,
-          exportH,
-          0,
-          0,
-          exportW,
-          exportH
-        );
-
-        // If both the raster canvas and vector stroke bounds are present
-        // then the canvas already contains the ink — avoid drawing the
-        // vector rasters again which would double-up (this happens when
-        // restoring a saved raster + stroke payload). Only draw the
-        // rasterized vectors if the canvas did not already provide ink.
-        const shouldDrawVectorRasters = !(rasterBounds && strokeBounds);
-
-        if (penRaster && shouldDrawVectorRasters) {
-          tctx.drawImage(
-            penRaster,
-            startX,
-            startY,
-            exportW,
-            exportH,
-            0,
-            0,
-            exportW,
-            exportH
-          );
-        }
-
-        if (eraserRaster && shouldDrawVectorRasters) {
-          tctx.save();
-          tctx.globalCompositeOperation = 'destination-out';
-          tctx.drawImage(
-            eraserRaster,
-            startX,
-            startY,
-            exportW,
-            exportH,
-            0,
-            0,
-            exportW,
-            exportH
-          );
-          tctx.restore();
-        }
+        renderStrokesToCanvas(tctx, strokesRef.current, {
+          dpr: exportDpr,
+          zoom: 1,
+          pan: { x: -bounds.x, y: -bounds.y },
+          clear: false,
+          width: exportW,
+          height: exportH,
+          quality: 'high',
+        });
 
         tmp.toBlob(
           (blob: Blob | null) => {
@@ -2350,10 +2053,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             reader.readAsDataURL(blob);
           },
           'image/webp',
-          0.85
+          0.92
         );
       });
-    }, [bg]);
+    }, []);
 
     const isGrabMode = spaceDown.current || middleDown.current;
     const cursorStyle = isGrabMode
@@ -2367,19 +2070,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           : activeTool === 'fill' || activeTool === 'graph'
             ? 'crosshair'
             : 'none';
-
-    // At zoom ≥ 1 the canvas buffer is upscaled by the browser transform. Use
-    // 'pixelated' to prevent blurry bicubic interpolation — the canvas is
-    // already crisp (DPR-scaled in initCanvas). When zoomed out, 'auto' gives
-    // smooth downscaling.
-    const canvasImageRendering: React.CSSProperties['imageRendering'] =
-      zoom >= 1 ? 'pixelated' : 'auto';
-
-    const canvasTransform: React.CSSProperties = {
-      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-      transformOrigin: '0 0',
-      imageRendering: canvasImageRendering,
-    };
 
     const canvasArea = (
       <div
@@ -2407,32 +2097,30 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             }
             onKeyDown={(e) => {
               if (e.key === 'Enter' && textInput.value) {
-                const ctx = getCtx();
-                if (ctx) {
-                  pushUndo(true);
-                  ctx.font = `${currentSize * 5}px sans-serif`;
-                  ctx.fillStyle = currentColor;
-                  ctx.globalAlpha = 1;
-                  ctx.globalCompositeOperation = 'source-over';
-                  ctx.fillText(textInput.value, textInput.x, textInput.y);
-                  setTextInput(null);
-                }
+                const newStroke: Stroke = {
+                  id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+                  tool: 'text',
+                  color: currentColor,
+                  size: currentSize,
+                  smoothing: 0,
+                  pressureCurve: 'linear',
+                  points: [
+                    {
+                      x: textInput.x,
+                      y: textInput.y,
+                      pressure: 1,
+                      time: Date.now(),
+                    },
+                  ],
+                  text: textInput.value,
+                };
+                pushUndo(true);
+                strokesRef.current = [...strokesRef.current, newStroke];
+                setStrokes(strokesRef.current.slice());
+                scheduleRedraw();
+                setTextInput(null);
               } else if (e.key === 'Escape') {
                 setTextInput(null);
-              }
-            }}
-            onBlur={() => {
-              if (textInput.value) {
-                const ctx = getCtx();
-                if (ctx) {
-                  pushUndo(true);
-                  ctx.font = `${currentSize * 5}px sans-serif`;
-                  ctx.fillStyle = currentColor;
-                  ctx.globalAlpha = 1;
-                  ctx.globalCompositeOperation = 'source-over';
-                  ctx.fillText(textInput.value, textInput.x, textInput.y);
-                  setTextInput(null);
-                }
               }
             }}
             className="absolute z-50 px-2 py-1 text-sm border-2 border-primary rounded-md bg-background/90 shadow-lg outline-none"
@@ -2449,75 +2137,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         <canvas
           ref={bgRef}
           className="absolute top-0 left-0 pointer-events-none"
-          style={{
-            ...canvasTransform,
-            boxShadow: 'var(--shadow-xl)',
-            border: '1px solid var(--border)',
-          }}
         />
 
         <canvas
           ref={canvasRef}
-          className="absolute top-0 left-0"
-          style={{
-            cursor: cursorStyle,
-            touchAction: 'none',
-            ...canvasTransform,
-          }}
+          className="absolute top-0 left-0 pointer-events-none"
         />
 
         <canvas
           ref={overlayRef}
           className="absolute top-0 left-0 pointer-events-none"
-          style={canvasTransform}
+          style={{ cursor: cursorStyle }}
         />
-
-        <svg
-          ref={svgRef}
-          className="absolute top-0 left-0 pointer-events-none"
-          style={canvasTransform}
-          width={INTERNAL_RES_WIDTH}
-          height={INTERNAL_RES_HEIGHT}
-          viewBox={`0 0 ${INTERNAL_RES_WIDTH} ${INTERNAL_RES_HEIGHT}`}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* Render committed strokes (hide eraser strokes in the SVG overlay)
-              — the raster canvas already applies the eraser via compositing. */}
-          {strokes
-            .filter((s) => s.tool !== 'eraser')
-            .map((s) => (
-              <path
-                key={s.id}
-                d={pointsToSvgPath(s.points)}
-                stroke={s.color}
-                strokeWidth={Math.max(0.5, s.size)}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-                opacity={s.opacity ?? 1}
-              />
-            ))}
-
-          {/* In-progress stroke (hide eraser preview in SVG overlay) */}
-          {currentStroke && currentStroke.tool !== 'eraser' && (
-            <path
-              key={currentStroke.id}
-              d={pointsToSvgPath(currentStroke.points)}
-              stroke={currentStroke.color}
-              strokeWidth={Math.max(0.5, currentStroke.size)}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-              opacity={currentStroke.opacity ?? 1}
-            />
-          )}
-        </svg>
 
         {/* Subtle Paper Texture Overlay */}
         <div
           className="absolute top-0 left-0 pointer-events-none opacity-[0.03]"
           style={{
-            ...canvasTransform,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
             width: INTERNAL_RES_WIDTH,
             height: INTERNAL_RES_HEIGHT,
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
@@ -2601,7 +2239,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           onSave(dataUrl);
           hasExplicitlySaved.current = true;
           hasDirtyCanvasRef.current = false;
-          // Clear persisted canvas after explicit save
           clearCanvasFromStorage(sessionKey);
         },
       }),

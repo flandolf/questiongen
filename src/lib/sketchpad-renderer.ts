@@ -1,3 +1,10 @@
+import {
+  applyPressureCurve,
+  drawGraphAxes,
+  getCatmullRomPoints,
+  simplifyPoints,
+} from '@/components/sketchpadUtils';
+
 import type { BgType, Point, Stroke } from '../types/sketchpad';
 
 export function pointsToSvgPath(points: Point[]): string {
@@ -30,9 +37,6 @@ export function strokesToSvgString(
   const paths = (strokes || [])
     .map((s) => {
       const d = pointsToSvgPath(s.points || []);
-      // Use black for eraser strokes when rasterizing so they can be
-      // composited with `destination-out` on export. White made eraser
-      // appear as an opaque white pen when drawn over the raster canvas.
       const stroke = s.tool === 'eraser' ? '#000000' : s.color;
       const strokeWidth = Math.max(0.5, s.size || 1);
       const opacity = s.opacity ?? 1;
@@ -147,6 +151,144 @@ export function parseStrokesFromSvgString(svgString: string): Stroke[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Renders an array of strokes to a canvas context.
+ */
+/* eslint-disable complexity */
+export function renderStrokesToCanvas(
+  ctx: CanvasRenderingContext2D,
+  strokes: Stroke[],
+  options: {
+    dpr?: number;
+    clear?: boolean;
+    width?: number;
+    height?: number;
+    zoom?: number;
+    pan?: { x: number; y: number };
+    quality?: 'low' | 'high';
+  } = {}
+) {
+  const {
+    dpr = 1,
+    clear = true,
+    width,
+    height,
+    zoom = 1,
+    pan = { x: 0, y: 0 },
+    quality = 'high',
+  } = options;
+
+  if (clear) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width ?? ctx.canvas.width, height ?? ctx.canvas.height);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, pan.x * dpr, pan.y * dpr);
+
+  for (const stroke of strokes) {
+    if (!stroke.points || stroke.points.length === 0) continue;
+
+    if (stroke.tool === 'graph') {
+      const p = stroke.points[0];
+      drawGraphAxes(ctx, p.x, p.y, stroke.color, stroke.size);
+      continue;
+    }
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (stroke.tool === 'text' && stroke.text) {
+      ctx.font = `${stroke.size * 5}px sans-serif`;
+      ctx.fillStyle = stroke.color;
+      ctx.globalAlpha = stroke.opacity ?? 1;
+      const p = stroke.points[0];
+      ctx.fillText(stroke.text, p.x, p.y);
+      ctx.restore();
+      continue;
+    }
+
+    if (stroke.tool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = stroke.color;
+      ctx.fillStyle = stroke.color;
+    }
+
+    ctx.globalAlpha = stroke.opacity ?? 1;
+
+    if (
+      stroke.tool === 'line' ||
+      stroke.tool === 'rect' ||
+      stroke.tool === 'ellipse'
+    ) {
+      ctx.lineWidth = stroke.size;
+      ctx.beginPath();
+      const start = stroke.points[0];
+      const end = stroke.points[stroke.points.length - 1];
+
+      if (stroke.tool === 'line') {
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+      } else if (stroke.tool === 'rect') {
+        ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+      } else if (stroke.tool === 'ellipse') {
+        const rx = Math.abs(end.x - start.x) / 2;
+        const ry = Math.abs(end.y - start.y) / 2;
+        const cx = (start.x + end.x) / 2;
+        const cy = (start.y + end.y) / 2;
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      }
+      ctx.stroke();
+    } else if (stroke.tool === 'pen' || stroke.tool === 'eraser') {
+      let points = stroke.points;
+
+      if (quality === 'high' && stroke.smoothing > 0 && points.length > 3) {
+        if (!stroke.smoothedPoints) {
+          const simplified = simplifyPoints(points, 0.3);
+          stroke.smoothedPoints = getCatmullRomPoints(
+            simplified,
+            Math.ceil(stroke.smoothing * 8)
+          );
+        }
+        points = stroke.smoothedPoints;
+      }
+
+      if (points.length === 1) {
+        ctx.beginPath();
+        ctx.arc(points[0].x, points[0].y, stroke.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        for (let i = 1; i < points.length; i++) {
+          const p1 = points[i - 1];
+          const p2 = points[i];
+          const pressure = (p1.pressure + p2.pressure) / 2;
+          const adjustedPressure = applyPressureCurve(
+            pressure,
+            stroke.pressureCurve
+          );
+          ctx.lineWidth = Math.max(0.5, stroke.size * adjustedPressure);
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  ctx.restore();
 }
 
 export async function rasterizeSvgString(
