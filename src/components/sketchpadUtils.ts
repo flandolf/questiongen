@@ -1,4 +1,10 @@
-import type { BgType, PressureCurve, Stroke, ToolType } from '../types/sketchpad';
+import type {
+    BgType,
+    Point,
+    PressureCurve,
+    Stroke,
+    ToolType,
+} from '../types/sketchpad';
 
 export const A4_ASPECT = 210 / 297;
 export const INTERNAL_RES_WIDTH = 1240; // Logical canvas width in CSS pixels (≈150 DPI for A4)
@@ -231,13 +237,41 @@ export function getStrokeBoundingBox(strokes: Stroke[], padding: number = 20) {
     let found = false;
 
     for (const stroke of strokes) {
-        const halfSize = Math.max(1, stroke.size) / 2;
-        for (const point of stroke.points) {
-            found = true;
-            minX = Math.min(minX, point.x - halfSize);
-            minY = Math.min(minY, point.y - halfSize);
-            maxX = Math.max(maxX, point.x + halfSize);
-            maxY = Math.max(maxY, point.y + halfSize);
+        if (stroke.tool === 'graph') {
+            // Graph axes have fixed dimensions: halfW = 320, halfH = 240
+            const p = stroke.points[0];
+            if (p) {
+                found = true;
+                const halfW = 320;
+                const halfH = 240;
+                minX = Math.min(minX, p.x - halfW);
+                minY = Math.min(minY, p.y - halfH);
+                maxX = Math.max(maxX, p.x + halfW);
+                maxY = Math.max(maxY, p.y + halfH);
+            }
+        } else if (stroke.tool === 'text' && stroke.text) {
+            // Estimate text bounds based on font size and text length
+            // Font size is stroke.size (as used in renderer)
+            const p = stroke.points[0];
+            if (p) {
+                found = true;
+                const fontSize = stroke.size;
+                const textWidth = stroke.text.length * fontSize * 0.6; // Approximate width
+                const textHeight = fontSize * 1.2; // Approximate height with descenders
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y - fontSize); // Text is drawn from baseline
+                maxX = Math.max(maxX, p.x + textWidth);
+                maxY = Math.max(maxY, p.y + textHeight * 0.3);
+            }
+        } else {
+            const halfSize = Math.max(1, stroke.size) / 2;
+            for (const point of stroke.points) {
+                found = true;
+                minX = Math.min(minX, point.x - halfSize);
+                minY = Math.min(minY, point.y - halfSize);
+                maxX = Math.max(maxX, point.x + halfSize);
+                maxY = Math.max(maxY, point.y + halfSize);
+            }
         }
     }
 
@@ -276,6 +310,109 @@ export function cloneStrokes(strokeList: Stroke[]): Stroke[] {
         ...stroke,
         points: stroke.points.map((point) => ({ ...point })),
     }));
+}
+
+/**
+ * Simplifies a set of points using the Ramer-Douglas-Peucker algorithm.
+ */
+export function simplifyPoints(points: Point[], tolerance: number = 0.5): Point[] {
+    if (points.length <= 2) return points;
+
+    const sqTolerance = tolerance * tolerance;
+
+    function getSqSegDist(p: Point, p1: Point, p2: Point) {
+        let x = p1.x,
+            y = p1.y,
+            dx = p2.x - x,
+            dy = p2.y - y;
+
+        if (dx !== 0 || dy !== 0) {
+            const t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
+
+            if (t > 1) {
+                x = p2.x;
+                y = p2.y;
+            } else if (t > 0) {
+                x += dx * t;
+                y += dy * t;
+            }
+        }
+
+        dx = p.x - x;
+        dy = p.y - y;
+
+        return dx * dx + dy * dy;
+    }
+
+    function simplifyDPStep(points: Point[], first: number, last: number, sqTolerance: number, simplified: Point[]) {
+        let maxSqDist = sqTolerance,
+            index = -1;
+
+        for (let i = first + 1; i < last; i++) {
+            const sqDist = getSqSegDist(points[i], points[first], points[last]);
+
+            if (sqDist > maxSqDist) {
+                index = i;
+                maxSqDist = sqDist;
+            }
+        }
+
+        if (index !== -1) {
+            if (index - first > 1) simplifyDPStep(points, first, index, sqTolerance, simplified);
+            simplified.push(points[index]);
+            if (last - index > 1) simplifyDPStep(points, index, last, sqTolerance, simplified);
+        }
+    }
+
+    const simplified = [points[0]];
+    simplifyDPStep(points, 0, points.length - 1, sqTolerance, simplified);
+    simplified.push(points[points.length - 1]);
+
+    return simplified;
+}
+
+/**
+ * Generates points for a Catmull-Rom spline.
+ */
+export function getCatmullRomPoints(points: Point[], segments: number = 4): Point[] {
+    if (points.length < 3) return points;
+
+    const result: Point[] = [];
+    result.push(points[0]);
+
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i === 0 ? i : i - 1];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2 >= points.length ? i + 1 : i + 2];
+
+        for (let j = 1; j <= segments; j++) {
+            const t = j / segments;
+            const t2 = t * t;
+            const t3 = t2 * t;
+
+            const x = 0.5 * (
+                (2 * p1.x) +
+                (-p0.x + p2.x) * t +
+                (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+                (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
+            );
+
+            const y = 0.5 * (
+                (2 * p1.y) +
+                (-p0.y + p2.y) * t +
+                (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+                (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
+            );
+
+            const pressure = p1.pressure + (p2.pressure - p1.pressure) * t;
+            const time = p1.time + (p2.time - p1.time) * t;
+
+            result.push({ x, y, pressure, time });
+        }
+    }
+
+    return result;
 }
 
 export function drawShape(
@@ -429,60 +566,97 @@ export function drawGraphAxes(
     ctx.restore();
 }
 
+/* eslint-disable complexity */
 export function paintBackground(
     ctx: CanvasRenderingContext2D,
     width: number,
     height: number,
-    bg: BgType
+    bg: BgType,
+    zoom: number = 1,
+    pan: { x: number; y: number } = { x: 0, y: 0 },
+    dpr: number = 1
 ) {
     const isDark = bg === 'black-grid';
-
     const darkBg = 'oklch(27.4% 0.006 286.033)';
     const lightBg = 'oklch(98.5% 0 0)';
     const darkStroke = 'oklch(20% 0.1 0)';
     const lightStroke = 'oklch(87% 0 0)';
 
-    if (isDark) {
-        ctx.fillStyle = darkBg;
-        ctx.fillRect(0, 0, width, height);
-    } else {
-        ctx.fillStyle = lightBg;
-        ctx.fillRect(0, 0, width, height);
-    }
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = isDark ? 'oklch(20% 0 0)' : 'oklch(95% 0 0)';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
 
-    ctx.lineWidth = 1;
+    ctx.save();
+    ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, pan.x * dpr, pan.y * dpr);
+
+    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+    ctx.shadowBlur = 20 / zoom;
+    ctx.shadowOffsetY = 10 / zoom;
+
+    ctx.fillStyle = isDark ? darkBg : lightBg;
+    ctx.fillRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.lineWidth = 1 / zoom;
 
     if (bg === 'lined') {
-        ctx.strokeStyle = isDark ? lightBg : darkBg;
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
         const lineSpacing = 30;
         ctx.beginPath();
-        for (let y = lineSpacing; y < height; y += lineSpacing) {
-            ctx.moveTo(0, y + 0.5);
-            ctx.lineTo(width, y + 0.5);
+        for (let y = lineSpacing; y < INTERNAL_RES_HEIGHT; y += lineSpacing) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(INTERNAL_RES_WIDTH, y);
         }
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.2)';
+        ctx.lineWidth = 2 / zoom;
+        ctx.beginPath();
+        ctx.moveTo(100, 0);
+        ctx.lineTo(100, INTERNAL_RES_HEIGHT);
         ctx.stroke();
     } else if (bg === 'dot-grid') {
         ctx.fillStyle = isDark ? lightStroke : darkStroke;
         const dotSpacing = 20;
-        const dotRadius = 1.5;
-        for (let x = dotSpacing; x < width; x += dotSpacing) {
-            for (let y = dotSpacing; y < height; y += dotSpacing) {
+        const dotRadius = 1 / zoom;
+        for (let x = dotSpacing; x < INTERNAL_RES_WIDTH; x += dotSpacing) {
+            for (let y = dotSpacing; y < INTERNAL_RES_HEIGHT; y += dotSpacing) {
                 ctx.beginPath();
                 ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
     } else {
-        ctx.strokeStyle = isDark ? lightStroke : darkStroke;
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
         ctx.beginPath();
-        for (let x = 0.5; x < width; x += 20) {
+        for (let x = 0; x <= INTERNAL_RES_WIDTH; x += 40) {
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, height);
+            ctx.lineTo(x, INTERNAL_RES_HEIGHT);
         }
-        for (let y = 0.5; y < height; y += 20) {
+        for (let y = 0; y <= INTERNAL_RES_HEIGHT; y += 40) {
             ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
+            ctx.lineTo(INTERNAL_RES_WIDTH, y);
+        }
+        ctx.stroke();
+
+        ctx.lineWidth = 0.5 / zoom;
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+        ctx.beginPath();
+        for (let x = 20; x < INTERNAL_RES_WIDTH; x += 40) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, INTERNAL_RES_HEIGHT);
+        }
+        for (let y = 20; y < INTERNAL_RES_HEIGHT; y += 40) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(INTERNAL_RES_WIDTH, y);
         }
         ctx.stroke();
     }
+
+    ctx.restore();
 }
