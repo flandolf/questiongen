@@ -300,12 +300,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => {});
-    const redoActionRef = useRef<() => void>(() => {});
-    const clearActionRef = useRef<() => void>(() => {});
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
-    const resetViewportRef = useRef<() => void>(() => {});
-    const updateCursorPreviewRef = useRef<() => void>(() => {});
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
+    const updateCursorPreviewRef = useRef<() => void>(() => { });
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -889,7 +889,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => {});
+        .catch(() => { });
       return () => {
         if (unlisten) unlisten();
       };
@@ -2083,6 +2083,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const tctx = tmp.getContext('2d');
         if (!tctx) return reject(new Error('Unable to export'));
 
+        const strokeLayer = document.createElement('canvas');
+        strokeLayer.width = exportW;
+        strokeLayer.height = exportH;
+        const strokeCtx = strokeLayer.getContext('2d');
+        if (!strokeCtx) return reject(new Error('Unable to export'));
+
         paintBackground(
           tctx,
           exportW,
@@ -2093,15 +2099,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           exportDpr
         );
 
-        renderStrokesToCanvas(tctx, strokesRef.current, {
+        // Render strokes on a transparent layer so eraser only removes ink,
+        // then composite that layer over the painted background.
+        renderStrokesToCanvas(strokeCtx, strokesRef.current, {
           dpr: exportDpr,
           zoom: 1,
           pan: { x: -bounds.x, y: -bounds.y },
-          clear: false,
+          clear: true,
           width: exportW,
           height: exportH,
           quality: 'high',
         });
+
+        tctx.drawImage(strokeLayer, 0, 0);
 
         tmp.toBlob(
           (blob: Blob | null) => {

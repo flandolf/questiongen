@@ -48,27 +48,27 @@ export function SyncSection() {
     ? { label: 'Disconnected', tone: 'muted', hint: 'Sign in to sync devices.' }
     : !isOnline
       ? {
-          label: 'Offline',
-          tone: 'offline',
-          hint: 'Cloud sync requires an internet connection.',
-        }
+        label: 'Offline',
+        tone: 'offline',
+        hint: 'Cloud sync requires an internet connection.',
+      }
       : syncStatus === 'error'
         ? {
-            label: 'Error',
-            tone: 'blocked',
-            hint: syncError || 'An error occurred during synchronization.',
-          }
+          label: 'Error',
+          tone: 'blocked',
+          hint: syncError || 'An error occurred during synchronization.',
+        }
         : syncStatus === 'connecting'
           ? {
-              label: 'Connecting',
-              tone: 'stale',
-              hint: 'Establishing connection to cloud...',
-            }
+            label: 'Connecting',
+            tone: 'stale',
+            hint: 'Establishing connection to cloud...',
+          }
           : {
-              label: 'Healthy',
-              tone: 'healthy',
-              hint: 'Realtime sync is operating normally.',
-            };
+            label: 'Healthy',
+            tone: 'healthy',
+            hint: 'Realtime sync is operating normally.',
+          };
 
   const handleAuth = async () => {
     if (!syncAuthEmail.trim() || !syncAuthPassword) return;
@@ -132,8 +132,8 @@ export function SyncSection() {
               )}
             >
               {syncLoading ||
-              syncIsSubmitting ||
-              syncStatus === 'connecting' ? (
+                syncIsSubmitting ||
+                syncStatus === 'connecting' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               ) : syncStatus === 'syncing' ? (
                 <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
@@ -168,15 +168,15 @@ export function SyncSection() {
                     className={cn(
                       'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
                       syncHealth.tone === 'healthy' &&
-                        'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                      'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
                       syncHealth.tone === 'offline' &&
-                        'bg-slate-500/15 text-slate-700 dark:text-slate-300',
+                      'bg-slate-500/15 text-slate-700 dark:text-slate-300',
                       syncHealth.tone === 'blocked' &&
-                        'bg-destructive/15 text-destructive',
+                      'bg-destructive/15 text-destructive',
                       syncHealth.tone === 'stale' &&
-                        'bg-orange-500/15 text-orange-700 dark:text-orange-400',
+                      'bg-orange-500/15 text-orange-700 dark:text-orange-400',
                       syncHealth.tone === 'muted' &&
-                        'bg-muted text-muted-foreground'
+                      'bg-muted text-muted-foreground'
                     )}
                   >
                     {syncHealth.label}
@@ -368,6 +368,7 @@ export function SyncSection() {
           </ul>
         </Card>
       )}
+
     </div>
   );
 }
