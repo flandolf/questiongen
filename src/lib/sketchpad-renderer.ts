@@ -1,7 +1,6 @@
 import {
   applyPressureCurve,
   drawGraphAxes,
-  floodFill,
   getCatmullRomPoints,
   simplifyPoints,
 } from '@/components/sketchpadUtils';
@@ -9,7 +8,10 @@ import {
 import type { BgType, Point, Stroke } from '../types/sketchpad';
 
 // Cache for smoothed points to avoid mutating Stroke objects
-const smoothedPointsCache = new Map<string, Point[]>();
+const smoothedPointsCache = new Map<
+  string,
+  { pointsLength: number; points: Point[] }
+>();
 
 export function pointsToSvgPath(points: Point[]): string {
   if (!points || points.length === 0) return '';
@@ -67,7 +69,6 @@ function isToolType(value: unknown): value is Stroke['tool'] {
   return (
     value === 'pen' ||
     value === 'eraser' ||
-    value === 'fill' ||
     value === 'line' ||
     value === 'rect' ||
     value === 'ellipse' ||
@@ -204,31 +205,6 @@ export function renderStrokesToCanvas(
       continue;
     }
 
-    if (stroke.tool === 'fill') {
-      // Fill strokes are rendered by applying flood fill to the current canvas state
-      const p = stroke.points[0];
-      const tolerance = stroke.size || 32;
-
-      // Save and restore transform to apply fill at correct coordinates
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-      // Convert logical coordinates to canvas pixel coordinates
-      const canvasX = Math.round((p.x * zoom + pan.x) * dpr);
-      const canvasY = Math.round((p.y * zoom + pan.y) * dpr);
-
-      floodFill(
-        ctx,
-        canvasX,
-        canvasY,
-        stroke.color,
-        stroke.opacity ?? 1,
-        tolerance
-      );
-      ctx.restore();
-      continue;
-    }
-
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -283,14 +259,21 @@ export function renderStrokesToCanvas(
 
       if (quality === 'high' && stroke.smoothing > 0 && points.length > 3) {
         // Use cache instead of mutating the stroke object
-        let cachedPoints = smoothedPointsCache.get(stroke.id);
+        const cached = smoothedPointsCache.get(stroke.id);
+        let cachedPoints =
+          cached && cached.pointsLength === points.length
+            ? cached.points
+            : undefined;
         if (!cachedPoints) {
           const simplified = simplifyPoints(points, 0.3);
           cachedPoints = getCatmullRomPoints(
             simplified,
             Math.ceil(stroke.smoothing * 8)
           );
-          smoothedPointsCache.set(stroke.id, cachedPoints);
+          smoothedPointsCache.set(stroke.id, {
+            pointsLength: points.length,
+            points: cachedPoints,
+          });
         }
         points = cachedPoints;
       }
