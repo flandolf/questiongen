@@ -733,7 +733,11 @@ fn latex_issues_for_text(text: &str) -> Vec<String> {
     while i < chars.len() {
         let ch = chars[i];
         if ch == '\\' {
-            i += 2;
+            if i + 1 < chars.len() {
+                i += 2;
+            } else {
+                i += 1;
+            }
             continue;
         }
         if ch == '$' {
@@ -2977,6 +2981,12 @@ mod tests {
     fn latex_issue_detector_flags_frac_outside_math_delimiters() {
         let issues = latex_issues_for_text("Compute \\frac{1}{2} as a decimal.");
         assert!(issues.iter().any(|i| i.contains("outside math delimiters")));
+    }
+
+    #[test]
+    fn latex_issue_detector_handles_infty_commands() {
+        let issues = latex_issues_for_text("State the domain $(-\\infty, 3]$.");
+        assert!(issues.is_empty(), "unexpected issues: {issues:?}");
     }
 
     #[test]
