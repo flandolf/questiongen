@@ -163,8 +163,7 @@ fn written_format(model: &str) -> serde_json::Value {
                         "topic": { "type": "string" },
                         "subtopic": { "type": ["string","null"] },
                         "promptMarkdown": { "type": "string" },
-                        "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 },
-                        "techAllowed": { "type": "boolean" }
+                        "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 }
                     }
                 }
             }
@@ -208,8 +207,7 @@ fn mc_format(model: &str) -> serde_json::Value {
                             }
                         },
                         "correctAnswer":       { "type": "string", "enum": ["A","B","C","D"] },
-                        "explanationMarkdown": { "type": "string" },
-                        "techAllowed":         { "type": "boolean" }
+                        "explanationMarkdown": { "type": "string" }
                     }
                 }
             }

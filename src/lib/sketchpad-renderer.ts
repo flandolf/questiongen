@@ -1,5 +1,7 @@
 import {
   applyPressureCurve,
+  drawGraphAxes,
+  drawShape,
   getCatmullRomPoints,
   simplifyPoints,
 } from '@/components/sketchpadUtils';
@@ -29,6 +31,150 @@ export function pointsToSvgPath(points: Point[]): string {
   return d;
 }
 
+function escapeXmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function strokeToSvgElement(
+  stroke: Stroke,
+  metadata: string,
+  opacity: number,
+  strokeWidth: number
+): string {
+  if (stroke.tool === 'line' && stroke.points.length >= 2) {
+    const start = stroke.points[0];
+    const end = stroke.points[stroke.points.length - 1];
+    return `<line${metadata} x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" fill="none" stroke="${stroke.color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />\n`;
+  }
+
+  if (stroke.tool === 'rect' && stroke.points.length >= 2) {
+    const start = stroke.points[0];
+    const end = stroke.points[stroke.points.length - 1];
+    const x = Math.min(start.x, end.x);
+    const y = Math.min(start.y, end.y);
+    const w = Math.abs(end.x - start.x);
+    const h = Math.abs(end.y - start.y);
+    return `<rect${metadata} x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${stroke.color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />\n`;
+  }
+
+  if (stroke.tool === 'ellipse' && stroke.points.length >= 2) {
+    const start = stroke.points[0];
+    const end = stroke.points[stroke.points.length - 1];
+    const rx = Math.abs(end.x - start.x) / 2;
+    const ry = Math.abs(end.y - start.y) / 2;
+    const cx = (start.x + end.x) / 2;
+    const cy = (start.y + end.y) / 2;
+    return `<ellipse${metadata} cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${stroke.color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />\n`;
+  }
+
+  if (stroke.tool === 'text') {
+    const anchor = stroke.points[0];
+    if (anchor && stroke.text) {
+      const text = escapeXmlText(stroke.text);
+      return `<text${metadata} x="${anchor.x}" y="${anchor.y}" fill="${stroke.color}" font-size="${Math.max(1, stroke.size)}" text-anchor="start" dominant-baseline="alphabetic" opacity="${opacity}">${text}</text>\n`;
+    }
+    return '';
+  }
+
+  if (stroke.tool === 'graph') {
+    const anchor = stroke.points[0];
+    if (anchor) {
+      return `${graphAxesToSvg(anchor.x, anchor.y, stroke.color, strokeWidth, opacity, metadata)}\n`;
+    }
+    return '';
+  }
+
+  const d = pointsToSvgPath(stroke.points || []);
+  return `<path${metadata} d="${d}" fill="none" stroke="${stroke.color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />\n`;
+}
+
+function graphAxesToSvg(
+  cx: number,
+  cy: number,
+  color: string,
+  strokeWidth: number,
+  opacity: number,
+  metadata: string
+): string {
+  const halfW = 320;
+  const halfH = 240;
+  const tickSpacing = 40;
+  const tickLen = 8;
+  const arrowSize = 14;
+  const base = arrowSize * 0.4;
+  const graphStroke = Math.max(1, strokeWidth);
+  const gridOpacity = Math.max(0, Math.min(1, opacity * 0.08));
+  const tickStroke = Math.max(0.5, graphStroke * 0.8);
+  const axisOpacity = Math.max(0, Math.min(1, opacity));
+  const fontSize = Math.round(tickSpacing * 0.5);
+
+  const gridLines: string[] = [];
+  for (let tx = tickSpacing; tx < halfW; tx += tickSpacing) {
+    gridLines.push(
+      `<line x1="${cx + tx}" y1="${cy - halfH}" x2="${cx + tx}" y2="${cy + halfH}" />`
+    );
+    gridLines.push(
+      `<line x1="${cx - tx}" y1="${cy - halfH}" x2="${cx - tx}" y2="${cy + halfH}" />`
+    );
+  }
+  for (let ty = tickSpacing; ty < halfH; ty += tickSpacing) {
+    gridLines.push(
+      `<line x1="${cx - halfW}" y1="${cy + ty}" x2="${cx + halfW}" y2="${cy + ty}" />`
+    );
+    gridLines.push(
+      `<line x1="${cx - halfW}" y1="${cy - ty}" x2="${cx + halfW}" y2="${cy - ty}" />`
+    );
+  }
+
+  const xArrowRight = `${cx + halfW},${cy} ${cx + halfW - arrowSize},${cy + base} ${cx + halfW - arrowSize},${cy - base}`;
+  const xArrowLeft = `${cx - halfW},${cy} ${cx - halfW + arrowSize},${cy + base} ${cx - halfW + arrowSize},${cy - base}`;
+  const yArrowTop = `${cx},${cy - halfH} ${cx + base},${cy - halfH + arrowSize} ${cx - base},${cy - halfH + arrowSize}`;
+  const yArrowBottom = `${cx},${cy + halfH} ${cx + base},${cy + halfH - arrowSize} ${cx - base},${cy + halfH - arrowSize}`;
+
+  const ticks: string[] = [];
+  for (let tx = tickSpacing; tx < halfW - arrowSize; tx += tickSpacing) {
+    ticks.push(
+      `<line x1="${cx + tx}" y1="${cy - tickLen}" x2="${cx + tx}" y2="${cy + tickLen}" />`
+    );
+    ticks.push(
+      `<line x1="${cx - tx}" y1="${cy - tickLen}" x2="${cx - tx}" y2="${cy + tickLen}" />`
+    );
+  }
+  for (let ty = tickSpacing; ty < halfH - arrowSize; ty += tickSpacing) {
+    ticks.push(
+      `<line x1="${cx - tickLen}" y1="${cy - ty}" x2="${cx + tickLen}" y2="${cy - ty}" />`
+    );
+    ticks.push(
+      `<line x1="${cx - tickLen}" y1="${cy + ty}" x2="${cx + tickLen}" y2="${cy + ty}" />`
+    );
+  }
+
+  return [
+    `<g${metadata} fill="none" stroke="${color}" stroke-linecap="round" stroke-linejoin="round" opacity="${axisOpacity}">`,
+    `  <g stroke-width="1" opacity="${gridOpacity}">${gridLines.join('')}</g>`,
+    `  <g stroke-width="${graphStroke}">`,
+    `    <line x1="${cx - halfW}" y1="${cy}" x2="${cx + halfW}" y2="${cy}" />`,
+    `    <line x1="${cx}" y1="${cy - halfH}" x2="${cx}" y2="${cy + halfH}" />`,
+    `  </g>`,
+    `  <g fill="${color}" stroke="none">`,
+    `    <polygon points="${xArrowRight}" />`,
+    `    <polygon points="${xArrowLeft}" />`,
+    `    <polygon points="${yArrowTop}" />`,
+    `    <polygon points="${yArrowBottom}" />`,
+    `  </g>`,
+    `  <g stroke-width="${tickStroke}">${ticks.join('')}</g>`,
+    `  <g fill="${color}" stroke="none">`,
+    `    <text x="${cx + halfW + 6}" y="${cy - fontSize * 0.6}" font-size="${fontSize}" font-style="italic" text-anchor="start" dominant-baseline="hanging">x</text>`,
+    `    <text x="${cx + fontSize * 0.5}" y="${cy - halfH - 4}" font-size="${fontSize}" font-style="italic" text-anchor="end" dominant-baseline="text-after-edge">y</text>`,
+    `    <text x="${cx - 5}" y="${cy + 5}" font-size="${fontSize * 0.85}" text-anchor="end" dominant-baseline="hanging">O</text>`,
+    `  </g>`,
+    `</g>`,
+  ].join('\n');
+}
+
 export function strokesToSvgString(
   strokes: Stroke[],
   width: number,
@@ -45,13 +191,13 @@ export function strokesToSvgString(
 
   for (const s of strokes || []) {
     const d = pointsToSvgPath(s.points || []);
+    const opacity = s.opacity ?? 1;
+    const strokeWidth = Math.max(0.5, s.size || 1);
     const metadata = includeMetadata
       ? ` data-sketchpad-stroke="${encodeURIComponent(JSON.stringify(s))}"`
       : '';
 
     if (s.tool === 'eraser') {
-      const strokeWidth = Math.max(0.5, s.size || 1);
-
       // When an eraser is encountered, we create a mask to hide parts of previous content
       if (content) {
         maskIndex++;
@@ -65,11 +211,10 @@ export function strokesToSvgString(
       if (includeMetadata) {
         content += `<path${metadata} d="${d}" fill="none" stroke="none" visibility="hidden" />\n`;
       }
-    } else {
-      const strokeWidth = Math.max(0.5, s.size || 1);
-      const opacity = s.opacity ?? 1;
-      content += `<path${metadata} d="${d}" fill="none" stroke="${s.color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />\n`;
+      continue;
     }
+
+    content += strokeToSvgElement(s, metadata, opacity, strokeWidth);
   }
 
   const defsStr = maskDefs ? `<defs>\n${maskDefs}</defs>\n` : '';
@@ -159,13 +304,13 @@ export function parseStrokesFromSvgString(svgString: string): Stroke[] {
 
   try {
     const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
-    const paths = Array.from(
-      doc.querySelectorAll('path[data-sketchpad-stroke]')
+    const elements = Array.from(
+      doc.querySelectorAll('[data-sketchpad-stroke]')
     );
 
-    return paths
-      .map((path) => {
-        const encoded = path.getAttribute('data-sketchpad-stroke');
+    return elements
+      .map((element) => {
+        const encoded = element.getAttribute('data-sketchpad-stroke');
         if (!encoded) return null;
 
         try {
@@ -236,6 +381,47 @@ export function renderStrokesToCanvas(
     }
 
     ctx.globalAlpha = stroke.opacity ?? 1;
+
+    if (stroke.tool === 'text') {
+      const anchor = stroke.points[0];
+      if (stroke.text && anchor) {
+        ctx.font = `${Math.max(1, stroke.size)}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(stroke.text, anchor.x, anchor.y);
+      }
+      ctx.restore();
+      continue;
+    }
+
+    if (stroke.tool === 'graph') {
+      const anchor = stroke.points[0];
+      if (anchor) {
+        drawGraphAxes(
+          ctx,
+          anchor.x,
+          anchor.y,
+          stroke.color,
+          Math.max(1, stroke.size)
+        );
+      }
+      ctx.restore();
+      continue;
+    }
+
+    if (
+      (stroke.tool === 'line' ||
+        stroke.tool === 'rect' ||
+        stroke.tool === 'ellipse') &&
+      stroke.points.length >= 2
+    ) {
+      const start = stroke.points[0];
+      const end = stroke.points[stroke.points.length - 1];
+      ctx.lineWidth = Math.max(0.5, stroke.size);
+      drawShape(ctx, stroke.tool, start, end);
+      ctx.restore();
+      continue;
+    }
 
     let points = stroke.points;
     if (quality === 'high' && stroke.smoothing > 0 && points.length > 3) {

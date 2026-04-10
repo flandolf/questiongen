@@ -506,18 +506,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       [clearHistoryStacks, getCanvasStorageKey, scheduleRedraw]
     );
 
-    const clearCanvasFromStorage = useCallback(
-      (key?: string) => {
-        if (!key) return;
-        try {
-          localStorage.removeItem(getCanvasStorageKey(key));
-        } catch (err) {
-          console.warn('Failed to clear canvas from localStorage:', err);
-        }
-      },
-      [getCanvasStorageKey]
-    );
-
     const scheduleAutoSave = useCallback(
       (key?: string) => {
         if (!key) return;
@@ -797,14 +785,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         // On unmount or cleanup: flush any pending auto-save
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current);
-          // Immediately save if not explicitly saved yet
-          if (
-            !hasExplicitlySaved.current &&
-            hasDirtyCanvasRef.current &&
-            sessionKey
-          ) {
-            saveCanvasToStorage(sessionKey);
-          }
+        }
+        // Persist pending changes even when there is no active timeout
+        // (for example, during fast route transitions).
+        if (
+          !hasExplicitlySaved.current &&
+          hasDirtyCanvasRef.current &&
+          sessionKey
+        ) {
+          saveCanvasToStorage(sessionKey);
         }
       };
     }, [sessionKey, saveCanvasToStorage]);
@@ -2305,10 +2294,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           onSave(dataUrl);
           hasExplicitlySaved.current = true;
           hasDirtyCanvasRef.current = false;
-          clearCanvasFromStorage(sessionKey);
         },
       }),
-      [onSave, saveAsDataUrl, sessionKey, clearCanvasFromStorage]
+      [onSave, saveAsDataUrl]
     );
 
     const topNavigationBar = (
@@ -2516,7 +2504,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   onSave(dataUrl);
                   hasExplicitlySaved.current = true;
                   hasDirtyCanvasRef.current = false;
-                  clearCanvasFromStorage(sessionKey);
                 } catch (err) {
                   console.error('Save failed', err);
                 }
