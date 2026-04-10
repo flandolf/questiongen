@@ -299,37 +299,42 @@ fn topic_field_contract() -> &'static str {
 
 fn written_system() -> String {
     format!(
-        "You are an expert VCE exam writer for written-response questions.\n\
-                 {contract}\n\
-                 {latex_rules}\n\
-                 {question_style_rules}\n\n\
-                 RULES:\n\
-                 - Sum of part marks must equal maxMarks.\n\
-                 - 'show that': explicit steps required.\n\
-                 - 'hence': must use previous result.\n\
-                 - 'explain/justify': reasoning required.\n\n\
-                 {field_contract}\n\n\
-                 'promptMarkdown' contains STEM ONLY. No worked solutions or answers.",
+        "IDENTITY: Expert VCE written-response exam writer.\n\n\
+         {contract}\n\
+         {hygiene}\n\
+         {latex_rules}\n\
+         {style_rules}\n\n\
+         CORE RULES:\n\
+         - 'show that': every step must be explicit.\n\
+         - 'hence': must use previous result.\n\
+         - 'justify': reasoning required.\n\
+         - 'promptMarkdown' contains STEM ONLY. No solutions/answers.\n\n\
+         {field_contract}",
         contract = generation_compliance_contract(),
+        hygiene = constants::GLOBAL_HYGIENE_RULES,
         latex_rules = constants::LATEX_RULES,
-        question_style_rules = constants::QUESTION_STYLE_RULES,
+        style_rules = constants::WRITTEN_STYLE_RULES,
         field_contract = topic_field_contract(),
     )
 }
 
 fn mc_system() -> String {
     format!(
-                "You are an expert VCE exam writer for multiple-choice questions.\n\
-                 Provide only final answers and concise rationale, never chain-of-thought.\n\
-                 {contract}\n\
-                 {latex_rules}\n\
-                 {mc_distractor_rules}\n\n\
-                 {field_contract}\n\n\
-                 'promptMarkdown' contains STEM ONLY. No options (A-D) in stem. Return valid JSON only.",
-                 contract = generation_compliance_contract(),
-                 latex_rules = constants::LATEX_RULES,
-                 mc_distractor_rules = constants::MC_DISTRACTOR_RULES,
-                 field_contract = topic_field_contract(),
+        "IDENTITY: Expert VCE multiple-choice exam writer.\n\n\
+         {contract}\n\
+         {hygiene}\n\
+         {latex_rules}\n\
+         {style_rules}\n\n\
+         CORE RULES:\n\
+         - Provide ONLY final answers and concise rationale.\n\
+         - NO chain-of-thought in output.\n\
+         - 'promptMarkdown' contains STEM ONLY. No options (A-D) in stem.\n\n\
+         {field_contract}",
+        contract = generation_compliance_contract(),
+        hygiene = constants::GLOBAL_HYGIENE_RULES,
+        latex_rules = constants::LATEX_RULES,
+        style_rules = constants::MC_STYLE_RULES,
+        field_contract = topic_field_contract(),
     )
 }
 
@@ -346,20 +351,27 @@ fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String 
     let rationale_words = (max_marks as usize * 30).clamp(100, 400);
 
     format!(
-        "You are a strict VCE marker. \
-         MARKING: 1. Apply criterion-based marking (steps, not just answers). 2. Award for method even if arithmetic slips. 3. 'show that' needs steps. 4. 'hence' must use previous part. 5. MC: explain all 4 options. \
-         REPORTS: If PDFs attached, they are PRIMARY authority for criteria and common errors. \
-         LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words} words). \
-         FEEDBACK STYLE: Use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers ONLY. Keep tone professional and measured. Avoid excessive exclamation marks (!). \
-         {latex_rules}{chem_note}{phys_ed_note}\n\n\
-         Return valid JSON only. No fences/commentary.",
+        "IDENTITY: Strict VCE marker.\n\n\
+         MARKING RULES:\n\
+         1. Criterion-based (steps, not just answers).\n\
+         2. Award for method even if arithmetic slips.\n\
+         3. 'show that' needs full algebraic steps.\n\
+         4. 'hence' must use previous part results.\n\
+         5. MC: justify correct and explain all 3 distractors.\n\n\
+         {hygiene}\n\
+         {latex_rules}\n\
+         {chem_note}{phys_ed_note}\n\n\
+         REPORTS: PDFs are PRIMARY authority for criteria.\n\n\
+         LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words} words).\n\n\
+         FEEDBACK STYLE: Use ONLY ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers.",
          rationale_words = rationale_words,
          comparison_words = comparison_words,
          feedback_words = feedback_words,
          worked_words = worked_words,
+         hygiene = constants::GLOBAL_HYGIENE_RULES,
          latex_rules = constants::LATEX_RULES,
          chem_note = chem_note,
-          phys_ed_note = phys_ed_note
+         phys_ed_note = phys_ed_note
     )
 }
 
@@ -1155,11 +1167,15 @@ async fn generate_questions(
     };
 
     let prompt = format!(
-        "Generate {count} VCE written questions. Topics: {topics}. Difficulty: {difficulty}, {diff_rules}. \
-         Avg marks: {average_marks}. Total marks: {total_marks}. \
-         Complexity must match marks (e.g., 5-6 marks = 2-3 parts). \
-         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble} \
-         Output exactly {count} questions.",
+        "USER REQUEST:\n\
+         Generate {count} VCE written questions.\n\
+         Topics: {topics}\n\
+         Difficulty: {difficulty} ({diff_rules})\n\
+         Average marks: {average_marks} (Total marks: {total_marks})\n\n\
+         CONSTRAINTS:\n\
+         - Complexity must match marks (e.g., 5-6 marks = 2-3 parts).\n\
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+         GOAL: Output exactly {count} high-quality questions following VCAA standards.",
         count                 = request.question_count,
         topics                = sanitize_for_api(&request.topics.join(", ")),
         difficulty            = adjusted_difficulty,
@@ -1661,9 +1677,13 @@ async fn generate_mc_questions(
     };
 
     let prompt = format!(
-        "Generate {count} VCE multiple-choice questions (1 mark each). Topics: {topics}. Difficulty: {difficulty}, {diff_rules}. \
-         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble} \
-         Output exactly {count} questions.",
+        "USER REQUEST:\n\
+         Generate {count} VCE multiple-choice questions (1 mark each).\n\
+         Topics: {topics}\n\
+         Difficulty: {difficulty} ({diff_rules})\n\n\
+         CONSTRAINTS:\n\
+         {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+         GOAL: Output exactly {count} high-quality questions following VCAA standards.",
         count                 = request.question_count,
         topics                = sanitize_for_api(&request.topics.join(", ")),
         difficulty            = adjusted_difficulty,
