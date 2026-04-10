@@ -130,7 +130,7 @@
         },
         {
           "name": "Solving Logarithmic Equations",
-          "technique_notes": "Design problems where students solve logarithmic equations by applying $e^{(\\cdot)}$ to both sides and using laws to simplify, working entirely in $\\log_e$ notation. Require mandatory verification that all solutions satisfy the domain constraint (argument $> 0$). Include equations with logarithms on both sides, and equations requiring combination of logs before solving. Always combine logarithmic terms before exponentiating   never exponentiate term-by-term. After solving, substitute back into the original equation and verify each argument is strictly positive. Clearly state 'check: $[\\text{argument}] > 0$ \u2713' for each logarithm at the solution. Reject extraneous solutions with a written justification.",
+          "technique_notes": "Design problems where students solve logarithmic equations by applying $e^{(\\cdot)}$ to both sides and using laws to simplify, working entirely in $\\log_e$ notation. Require mandatory verification that all solutions satisfy the domain constraint (argument $> 0$). Include equations with logarithms on both sides, and equations requiring combination of logs before solving. Always combine logarithmic terms before exponentiating   never exponentiate term-by-term. After solving, substitute back into the original equation and verify each argument is strictly positive. Clearly state 'check: $[\\text{argument}] > 0$' for each logarithm at the solution. Reject extraneous solutions with a written justification.",
           "group": "unit3-functions"
         },
         {
@@ -245,7 +245,7 @@
         },
         {
           "name": "Binomial Distribution",
-          "technique_notes": "Create questions involving $X \\sim \\text{Bi}(n, p)$ where students: verify that Bernoulli trial conditions are met, calculate exact probabilities using $\\Pr(X = x) = \\binom{n}{x}p^x(1-p)^{n-x}$ for small $n$ (\u2264 8), compute $E(X) = np$ and $\\text{Var}(X) = np(1-p)$, and calculate cumulative probabilities by summing individual terms. Include tasks on how changing $n$ or $p$ affects the shape of the distribution. Define the variable clearly: 'Let $X$ be the number of successes in $n$ independent trials each with probability $p$ of success. Then $X \\sim \\text{Bi}(n,p)$.' Compute $\\binom{n}{x}$ using the formula $n!/(x!(n-x)!)$   show the evaluation step. For cumulative probabilities, list and sum individual terms explicitly. Keep $n \\leq 8$ for tech-free items to maintain computational feasibility.",
+          "technique_notes": "Create questions involving $X \\sim \\text{Bi}(n, p)$ where students: verify that Bernoulli trial conditions are met, calculate exact probabilities using $\\Pr(X = x) = \\binom{n}{x}p^x(1-p)^{n-x}$ for small $n$ (\\leq 8), compute $E(X) = np$ and $\\text{Var}(X) = np(1-p)$, and calculate cumulative probabilities by summing individual terms. Include tasks on how changing $n$ or $p$ affects the shape of the distribution. Define the variable clearly: 'Let $X$ be the number of successes in $n$ independent trials each with probability $p$ of success. Then $X \\sim \\text{Bi}(n,p)$.' Compute $\\binom{n}{x}$ using the formula $n!/(x!(n-x)!)$   show the evaluation step. For cumulative probabilities, list and sum individual terms explicitly. Keep $n \\leq 8$ for tech-free items to maintain computational feasibility.",
           "group": "unit4-probability"
         },
         {
@@ -408,7 +408,7 @@
         },
         {
           "name": "Water Chemistry: Hydrogen Bonding and Unique Physical Properties of Water",
-          "technique_notes": "Construct questions requiring the explanation of water's unique properties - such as high specific heat capacity, surface tension, and the density of ice - based on its extensive hydrogen bonding. Students should calculate energy changes using $q = mc\\Delta T$ and explain the biological and environmental significance of water's ability to act as a universal solvent. Tasks should link the polarity of the water molecule to its interaction with various solutes through ion-dipole or hydrogen-bond forces. EXAM STYLE: - Questions should require explanation of water's unique properties based on hydrogen bonding - Tasks should include calculations of energy changes using q = mc\u0394T - Questions should link water's polarity to its solvent properties and interactions with solutes",
+          "technique_notes": "Construct questions requiring the explanation of water's unique properties - such as high specific heat capacity, surface tension, and the density of ice - based on its extensive hydrogen bonding. Students should calculate energy changes using $q = mc\\Delta T$ and explain the biological and environmental significance of water's ability to act as a universal solvent. Tasks should link the polarity of the water molecule to its interaction with various solutes through ion-dipole or hydrogen-bond forces. EXAM STYLE: - Questions should require explanation of water's unique properties based on hydrogen bonding - Tasks should include calculations of energy changes using $q = mc \\delta T$ - Questions should link water's polarity to its solvent properties and interactions with solutes",
           "group": "unit2-How-do-chemicals-interact-with-water?"
         },
         {
@@ -452,13 +452,13 @@
           "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
         },
         {
-          "name": "Chemical Equilibrium and Le Chatelier\u2019s Principle",
-          "technique_notes": "Formulate questions requiring the calculation of equilibrium constants ($K_c$) and reaction quotients ($Q$). Students must use Le Chatelier\u2019s principle to predict shifts in equilibrium systems in response to changes in temperature, concentration, or pressure. Include tasks that link these shifts to the yield of industrial processes. EXAM STYLE: - Questions should require calculations of equilibrium constants and reaction quotients - Tasks should use Le Chatelier's principle to predict shifts in equilibrium - Include problems linking equilibrium shifts to industrial process yields",
+          "name": "Chemical Equilibrium and Le Chatelier's Principle",
+          "technique_notes": "Formulate questions requiring the calculation of equilibrium constants ($K_c$) and reaction quotients ($Q$). Students must use Le Chatelier's principle to predict shifts in equilibrium systems in response to changes in temperature, concentration, or pressure. Include tasks that link these shifts to the yield of industrial processes. EXAM STYLE: - Questions should require calculations of equilibrium constants and reaction quotients - Tasks should use Le Chatelier's principle to predict shifts in equilibrium - Include problems linking equilibrium shifts to industrial process yields",
           "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
         },
         {
-          "name": "Electrolysis and Faraday\u2019s Laws",
-          "technique_notes": "Construct problems requiring the application of Faraday\u2019s Laws to calculate the mass of product or time required for electrolysis. Questions should involve identifying the products of electrolysis in both molten and aqueous systems using the electrochemical series and evaluating the sustainability of these processes. EXAM STYLE: - Problems should require application of Faraday's Laws to calculate mass of product or time for electrolysis - Questions should involve identifying products of electrolysis in molten and aqueous systems - Include evaluation of the sustainability of electrolysis processes",
+          "name": "Electrolysis and Faraday's Laws",
+          "technique_notes": "Construct problems requiring the application of Faraday's Laws to calculate the mass of product or time required for electrolysis. Questions should involve identifying the products of electrolysis in both molten and aqueous systems using the electrochemical series and evaluating the sustainability of these processes. EXAM STYLE: - Problems should require application of Faraday's Laws to calculate mass of product or time for electrolysis - Questions should involve identifying products of electrolysis in molten and aqueous systems - Include evaluation of the sustainability of electrolysis processes",
           "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
         },
         {
