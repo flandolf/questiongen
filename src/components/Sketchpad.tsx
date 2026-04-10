@@ -339,15 +339,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       };
     }, []);
 
-    const applySnapshotToCanvas = useCallback(
-      (snapshot: CanvasSnapshot) => {
-        const restoredStrokes = cloneStrokes(snapshot.strokes);
-        strokesRef.current = restoredStrokes;
-        setStrokes(restoredStrokes);
-        currentStrokeRef.current = null;
-      },
-      []
-    );
+    const applySnapshotToCanvas = useCallback((snapshot: CanvasSnapshot) => {
+      const restoredStrokes = cloneStrokes(snapshot.strokes);
+      strokesRef.current = restoredStrokes;
+      setStrokes(restoredStrokes);
+      currentStrokeRef.current = null;
+    }, []);
 
     const queueSnapshotCapture = useCallback(
       (target: 'undo' | 'redo') => {
@@ -489,7 +486,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 storedValue
               ) as Partial<SketchpadStoragePayload>;
               if (typeof payload.strokeSvg === 'string' && payload.strokeSvg) {
-                const restoredStrokes = parseStrokesFromSvgString(payload.strokeSvg);
+                const restoredStrokes = parseStrokesFromSvgString(
+                  payload.strokeSvg
+                );
                 strokesRef.current = restoredStrokes;
                 setStrokes(restoredStrokes);
               }
@@ -697,44 +696,51 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       );
     }, [setViewportImmediate]);
 
-    const initCanvas = useCallback((fitViewport: boolean = false) => {
-      const container = containerRef.current;
-      if (!container) return;
+    const initCanvas = useCallback(
+      (fitViewport: boolean = false) => {
+        const container = containerRef.current;
+        if (!container) return;
 
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const width = container.clientWidth;
-      const height = container.clientHeight;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const width = container.clientWidth;
+        const height = container.clientHeight;
 
-      for (const c of [canvasRef.current, overlayRef.current, bgRef.current]) {
-        if (c) {
-          c.width = width * dpr;
-          c.height = height * dpr;
-          c.style.width = `${width}px`;
-          c.style.height = `${height}px`;
-          const ctx = c.getContext('2d')!;
-          if (c === canvasRef.current) mainCtxRef.current = ctx;
-          if (c === overlayRef.current) overlayCtxRef.current = ctx;
-          if (c === bgRef.current) bgCtxRef.current = ctx;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (const c of [
+          canvasRef.current,
+          overlayRef.current,
+          bgRef.current,
+        ]) {
+          if (c) {
+            c.width = width * dpr;
+            c.height = height * dpr;
+            c.style.width = `${width}px`;
+            c.style.height = `${height}px`;
+            const ctx = c.getContext('2d')!;
+            if (c === canvasRef.current) mainCtxRef.current = ctx;
+            if (c === overlayRef.current) overlayCtxRef.current = ctx;
+            if (c === bgRef.current) bgCtxRef.current = ctx;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          }
         }
-      }
 
-      if (fitViewport) {
-        const fitZoom = Math.min(
-          (width - 80) / INTERNAL_RES_WIDTH,
-          (height - 80) / INTERNAL_RES_HEIGHT
-        );
-        setViewportImmediate(
-          {
-            x: (width - INTERNAL_RES_WIDTH * fitZoom) / 2,
-            y: (height - INTERNAL_RES_HEIGHT * fitZoom) / 2,
-          },
-          fitZoom
-        );
-      }
+        if (fitViewport) {
+          const fitZoom = Math.min(
+            (width - 80) / INTERNAL_RES_WIDTH,
+            (height - 80) / INTERNAL_RES_HEIGHT
+          );
+          setViewportImmediate(
+            {
+              x: (width - INTERNAL_RES_WIDTH * fitZoom) / 2,
+              y: (height - INTERNAL_RES_HEIGHT * fitZoom) / 2,
+            },
+            fitZoom
+          );
+        }
 
-      scheduleRedraw();
-    }, [setViewportImmediate, scheduleRedraw]);
+        scheduleRedraw();
+      },
+      [setViewportImmediate, scheduleRedraw]
+    );
 
     useEffect(() => {
       bgRef2.current = bg;
@@ -1559,10 +1565,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const pt = getCanvasPoint(e, canvasBoundsRef.current);
 
       if (e.pointerType === 'touch') {
-        const isPalm =
-          e.pressure > 0.95 ||
-          e.width > 30 ||
-          e.height > 30;
+        const isPalm = e.pressure > 0.95 || e.width > 30 || e.height > 30;
         if (isPalm) return;
       }
 
@@ -1861,8 +1864,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       if (currentStrokeRef.current) {
         const stroke = currentStrokeRef.current;
-        if (['line', 'rect', 'ellipse'].includes(activeToolRef.current) && shapeStart.current) {
-          stroke.points = [({ ...shapeStart.current, pressure: 1, time: Date.now() }), ({ ...pt, pressure: 1, time: Date.now() })];
+        if (
+          ['line', 'rect', 'ellipse'].includes(activeToolRef.current) &&
+          shapeStart.current
+        ) {
+          stroke.points = [
+            { ...shapeStart.current, pressure: 1, time: Date.now() },
+            { ...pt, pressure: 1, time: Date.now() },
+          ];
         }
         strokesRef.current = [...strokesRef.current, stroke];
         setStrokes(strokesRef.current.slice());
@@ -2030,7 +2039,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const tctx = tmp.getContext('2d');
         if (!tctx) return reject(new Error('Unable to export'));
 
-        paintBackground(tctx, exportW, exportH, bgRef2.current, 1, { x: -bounds.x, y: -bounds.y }, exportDpr);
+        paintBackground(
+          tctx,
+          exportW,
+          exportH,
+          bgRef2.current,
+          1,
+          { x: -bounds.x, y: -bounds.y },
+          exportDpr
+        );
 
         renderStrokesToCanvas(tctx, strokesRef.current, {
           dpr: exportDpr,
@@ -2137,10 +2154,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           className="absolute top-0 left-0 pointer-events-none"
         />
 
-        <canvas
-          ref={canvasRef}
-          className="absolute top-0 left-0"
-        />
+        <canvas ref={canvasRef} className="absolute top-0 left-0" />
 
         <canvas
           ref={overlayRef}

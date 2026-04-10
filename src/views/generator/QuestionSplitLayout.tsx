@@ -81,31 +81,33 @@ export function QuestionSplitLayout({
     window.removeEventListener('pointerup', onPointerUp);
   }, [onPointerMove]);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!containerRef.current) return;
-    draggingRef.current = true;
-    setIsDragging(true);
-    try {
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    } catch {
-      // ignore
-    }
-    // start listening at window level
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    // immediate update
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = (e.clientX) - rect.left;
-    setLeftPct(clamp((x / rect.width) * 100));
-    // capture pointer to the target element so we get all events
-    try {
-      (e.target as Element).setPointerCapture?.(e.pointerId);
-    } catch {
-      // ignore
-    }
-
-  }, [onPointerMove, onPointerUp]);
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!containerRef.current) return;
+      draggingRef.current = true;
+      setIsDragging(true);
+      try {
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      } catch {
+        // ignore
+      }
+      // start listening at window level
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      // immediate update
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      setLeftPct(clamp((x / rect.width) * 100));
+      // capture pointer to the target element so we get all events
+      try {
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [onPointerMove, onPointerUp]
+  );
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     let consumed = false;
@@ -147,7 +149,11 @@ export function QuestionSplitLayout({
           className="min-w-0 space-y-5"
           // animate width changes for snappier feel; disable transition while dragging
           animate={{ width: `${leftPct}%` }}
-          transition={isDragging ? { duration: 0 } : { type: 'spring', stiffness: 1200, damping: 70 }}
+          transition={
+            isDragging
+              ? { duration: 0 }
+              : { type: 'spring', stiffness: 1200, damping: 70 }
+          }
         >
           {leftSlot}
         </motion.div>
@@ -182,7 +188,8 @@ export function QuestionSplitLayout({
       </div>
 
       {/* Small screens: stacked layout (original behaviour) */}
-      <div className="grid grid-cols-1 lg:hidden gap-8">{leftSlot}
+      <div className="grid grid-cols-1 lg:hidden gap-8">
+        {leftSlot}
         {rightSlot}
       </div>
     </div>
