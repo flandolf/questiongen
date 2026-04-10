@@ -1,7 +1,6 @@
 export type ToolType =
   | 'pen'
   | 'eraser'
-  | 'fill'
   | 'line'
   | 'rect'
   | 'ellipse'

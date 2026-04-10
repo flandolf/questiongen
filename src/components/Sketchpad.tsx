@@ -4,7 +4,6 @@ import { listen } from '@tauri-apps/api/event';
 import {
   ChevronLeft,
   Circle,
-  Droplet,
   Eraser,
   LineChart,
   Minus,
@@ -132,7 +131,6 @@ type SketchpadStoragePayload = {
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
   e: 'eraser',
-  b: 'fill',
   l: 'line',
   r: 'rect',
   c: 'ellipse',
@@ -143,7 +141,6 @@ const TOOL_KEYS: Record<string, ToolType> = {
 const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
   pen: <Pencil className="w-5 h-5" />,
   eraser: <Eraser className="w-5 h-5" />,
-  fill: <Droplet className="w-5 h-5" />,
   line: <Minus className="w-5 h-5" />,
   rect: <Square className="w-5 h-5" />,
   ellipse: <Circle className="w-5 h-5" />,
@@ -154,7 +151,6 @@ const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
 const TOOL_LABELS: Record<ToolType, string> = {
   pen: 'Pen',
   eraser: 'Eraser',
-  fill: 'Fill',
   line: 'Line',
   rect: 'Rectangle',
   ellipse: 'Ellipse',
@@ -304,12 +300,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => { });
-    const redoActionRef = useRef<() => void>(() => { });
-    const clearActionRef = useRef<() => void>(() => { });
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
-    const resetViewportRef = useRef<() => void>(() => { });
-    const updateCursorPreviewRef = useRef<() => void>(() => { });
+    const undoActionRef = useRef<() => void>(() => {});
+    const redoActionRef = useRef<() => void>(() => {});
+    const clearActionRef = useRef<() => void>(() => {});
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
+    const resetViewportRef = useRef<() => void>(() => {});
+    const updateCursorPreviewRef = useRef<() => void>(() => {});
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -443,7 +439,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         dpr
       );
 
-      renderStrokesToCanvas(mctx, strokesRef.current, {
+      const inProgressStroke = currentStrokeRef.current;
+      const strokesToRender =
+        inProgressStroke && inProgressStroke.tool === 'pen'
+          ? [...strokesRef.current, inProgressStroke]
+          : strokesRef.current;
+
+      renderStrokesToCanvas(mctx, strokesToRender, {
         dpr,
         zoom: zoomRef.current,
         pan: panRef.current,
@@ -887,7 +889,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         .then((u) => {
           unlisten = u;
         })
-        .catch(() => { });
+        .catch(() => {});
       return () => {
         if (unlisten) unlisten();
       };
@@ -1134,7 +1136,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const tool = activeToolRef.current;
       const shouldShow =
         !!point &&
-        tool !== 'fill' &&
         tool !== 'text' &&
         tool !== 'graph' &&
         (isHoveringRef.current || !spaceDown.current);
@@ -1164,11 +1165,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       updateCursorPreviewRef.current = updateCursorPreview;
     }, [updateCursorPreview]);
 
-    function applyToolStyle(
-      ctx: CanvasRenderingContext2D,
-      pressure: number,
-      velocity: number = 0
-    ) {
+    function applyToolStyle(ctx: CanvasRenderingContext2D, pressure: number) {
       const tool = activeToolRef.current;
       const settings = toolSettingsMapRef.current[tool];
       const adjustedPressure = applyPressureCurve(
@@ -1180,8 +1177,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       let size = settings.size;
       if (isPressureSensitive) {
-        const velocityFactor = Math.max(0.5, 1.5 - velocity * 0.5);
-        size = settings.size * adjustedPressure * velocityFactor;
+        size = settings.size * adjustedPressure;
       }
 
       ctx.lineWidth = Math.max(0.5, size);
@@ -1202,8 +1198,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     function processPendingMove() {
       moveRaf.current = null;
-      const ctx = getOverlayCtx();
-      if (!ctx) return;
+      const overlayCtx = getOverlayCtx();
+      if (!overlayCtx) return;
       const moves = lastMove.current;
       if (moves.length === 0) return;
 
@@ -1216,9 +1212,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const latestPoint = { x: latest.x, y: latest.y };
         clearOverlay();
 
-        ctx.save();
+        overlayCtx.save();
         const dpr = Math.max(1, window.devicePixelRatio || 1);
-        ctx.setTransform(
+        overlayCtx.setTransform(
           zoomRef.current * dpr,
           0,
           0,
@@ -1227,17 +1223,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           panRef.current.y * dpr
         );
 
-        applyToolStyle(ctx, latest.pressure, 0);
-        drawShape(ctx, tool, shapeStart.current, latestPoint);
-        ctx.restore();
+        applyToolStyle(overlayCtx, latest.pressure);
+        drawShape(overlayCtx, tool, shapeStart.current, latestPoint);
+        overlayCtx.restore();
 
         lastMove.current = [];
         return;
       }
 
+      const drawCtx =
+        tool === 'eraser' ? (mainCtxRef.current ?? overlayCtx) : overlayCtx;
+
       const dpr = Math.max(1, window.devicePixelRatio || 1);
-      ctx.save();
-      ctx.setTransform(
+      drawCtx.save();
+      drawCtx.setTransform(
         zoomRef.current * dpr,
         0,
         0,
@@ -1263,21 +1262,23 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const dy = pt.y - lastPoint.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const dt = Math.max(1, m.time - lastPoint.time);
-        const velocity = dist / dt;
+        if (tool === 'eraser') {
+          const velocity = dist / dt;
+          velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
 
-        velocityRef.current = velocityRef.current * 0.8 + velocity * 0.2;
+          const segmentPressure = (lastPoint.pressure + pressure) / 2;
+          applyToolStyle(drawCtx, segmentPressure);
 
-        applyToolStyle(ctx, pressure, velocityRef.current);
-
-        ctx.beginPath();
-        ctx.moveTo(lastPoint.x, lastPoint.y);
-        ctx.lineTo(pt.x, pt.y);
-        ctx.stroke();
+          drawCtx.beginPath();
+          drawCtx.moveTo(lastPoint.x, lastPoint.y);
+          drawCtx.lineTo(pt.x, pt.y);
+          drawCtx.stroke();
+        }
 
         lastPoint = { x: pt.x, y: pt.y, pressure, time: m.time };
         lastPointReal.current = lastPoint;
       }
-      ctx.restore();
+      drawCtx.restore();
 
       if (currentStrokeRef.current) {
         const pts = currentStrokeRef.current.points;
@@ -1291,6 +1292,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             tiltY: m.tiltY,
           });
         }
+
+        if (tool === 'pen') scheduleRedraw();
       }
 
       lastMove.current = [];
@@ -1468,6 +1471,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         // ignore
       }
 
+      const stroke = currentStrokeRef.current;
+      const tool = activeToolRef.current;
+      if (stroke && tool === 'pen') {
+        scheduleRedraw();
+        return;
+      }
+
       ctx.save();
       const dpr = Math.max(1, window.devicePixelRatio || 1);
       ctx.setTransform(
@@ -1479,7 +1489,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         panRef.current.y * dpr
       );
       ctx.beginPath();
-      applyToolStyle(ctx, pressure, 0);
+      applyToolStyle(ctx, pressure);
       ctx.moveTo(pt.x, pt.y);
       ctx.lineTo(pt.x, pt.y + 0.1);
       ctx.stroke();
@@ -1516,6 +1526,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       const currentTool = activeToolRef.current;
       const penOnly = penOnlyModeRef.current;
+      const mainCtx = mainCtxRef.current;
 
       if (
         e.pointerType === 'touch' &&
@@ -1615,27 +1626,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const pointerMeta = activePointers.current.get(e.pointerId);
       if (!pointerMeta || pointerMeta.rejected) return;
 
-      const pressure = e.pressure > 0 ? e.pressure : 1;
-
-      if (currentTool === 'fill') {
-        pushUndo(true);
-        const settings = toolSettingsMapRef.current[currentTool];
-        const newStroke: Stroke = {
-          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
-          tool: 'fill',
-          color: settings.color,
-          size: 32, // tolerance
-          smoothing: 0,
-          pressureCurve: 'linear',
-          points: [{ x: pt.x, y: pt.y, pressure: 1, time: Date.now() }],
-          opacity: settings.opacity,
-        };
-        strokesRef.current = [...strokesRef.current, newStroke];
-        setStrokes(strokesRef.current.slice());
-        scheduleRedraw();
-        canvasBoundsRef.current = null;
-        return;
-      }
+      const disablePres =
+        toolSettingsMapRef.current[currentTool].disablePressure;
+      const pressure =
+        e.pointerType === 'mouse' || disablePres
+          ? 1
+          : e.pressure > 0
+            ? e.pressure
+            : 1;
 
       if (['line', 'rect', 'ellipse'].includes(currentTool)) {
         pushUndo(true);
@@ -1669,7 +1667,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       hasMoved.current = false;
-      startStroke(e.pointerId, pt, overlayCtx, pressure, getEventTimeStamp(e));
+      const strokeCtx =
+        currentTool === 'eraser' && mainCtx ? mainCtx : overlayCtx;
+      startStroke(e.pointerId, pt, strokeCtx, pressure, getEventTimeStamp(e));
       pointerMeta.strokeStarted = true;
     }
 
@@ -1711,7 +1711,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       pointerMeta.tiltX = e.tiltX;
       pointerMeta.tiltY = e.tiltY;
 
-      if (currentTool === 'text' || currentTool === 'fill') return;
+      if (currentTool === 'text') return;
 
       if (currentTool === 'graph') {
         graphPreviewPointRef.current = getCanvasPoint(
@@ -1760,7 +1760,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           return;
         }
         const pt = getCanvasPoint(e, canvasBoundsRef.current);
-        const pressureForStart = e.pressure > 0 ? e.pressure : 1;
+        const disablePres =
+          toolSettingsMapRef.current[currentTool].disablePressure;
+        const pressureForStart =
+          e.pointerType === 'mouse' || disablePres
+            ? 1
+            : e.pressure > 0
+              ? e.pressure
+              : 1;
         const octx = getOverlayCtx();
         if (octx) {
           startStroke(
@@ -1792,7 +1799,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           lastMove.current.shift();
         }
         const pt = getCanvasPoint(ce, canvasBoundsRef.current);
-        const pressure = ce.pressure > 0 ? ce.pressure : 1;
+        const disablePres =
+          toolSettingsMapRef.current[currentTool].disablePressure;
+        const pressure =
+          ce.pointerType === 'mouse' || disablePres
+            ? 1
+            : ce.pressure > 0
+              ? ce.pressure
+              : 1;
         lastMove.current.push({
           x: pt.x,
           y: pt.y,
@@ -1861,9 +1875,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
 
       const pt = getCanvasPoint(e, canvasBoundsRef.current);
+      const upTime = getEventTimeStamp(e);
 
       if (currentStrokeRef.current) {
         const stroke = currentStrokeRef.current;
+        const disablePres =
+          toolSettingsMapRef.current[stroke.tool].disablePressure;
         if (
           ['line', 'rect', 'ellipse'].includes(activeToolRef.current) &&
           shapeStart.current
@@ -1873,6 +1890,33 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             { ...pt, pressure: 1, time: Date.now() },
           ];
         }
+
+        if (
+          (stroke.tool === 'pen' || stroke.tool === 'eraser') &&
+          stroke.points.length > 0
+        ) {
+          const lastPoint = stroke.points[stroke.points.length - 1];
+          const dx = pt.x - lastPoint.x;
+          const dy = pt.y - lastPoint.y;
+          const moved = dx * dx + dy * dy > 0.01;
+          if (moved) {
+            // Replace releasePressure with this updated logic:
+            const releasePressure =
+              e.pointerType === 'mouse' || disablePres
+                ? 1
+                : e.pressure > 0
+                  ? e.pressure
+                  : Math.max(0.05, lastPoint.pressure);
+
+            stroke.points.push({
+              x: pt.x,
+              y: pt.y,
+              pressure: releasePressure,
+              time: upTime,
+            });
+          }
+        }
+
         strokesRef.current = [...strokesRef.current, stroke];
         setStrokes(strokesRef.current.slice());
         currentStrokeRef.current = null;
@@ -2082,7 +2126,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ? 'cell'
         : activeTool === 'text'
           ? 'text'
-          : activeTool === 'fill' || activeTool === 'graph'
+          : activeTool === 'graph'
             ? 'crosshair'
             : 'none';
 

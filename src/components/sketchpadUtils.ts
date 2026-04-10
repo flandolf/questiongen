@@ -37,14 +37,6 @@ export const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     disablePressure: false,
     color: '#ffffff',
   },
-  fill: {
-    size: 10,
-    opacity: 1,
-    smoothing: 0,
-    pressureCurve: 'linear',
-    disablePressure: true,
-    color: '#007AFF',
-  },
   line: {
     size: 4,
     opacity: 1,
