@@ -43,7 +43,7 @@ export function strokesToSvgString(
   let maskDefs = '';
   let maskIndex = 0;
 
-  for (const s of (strokes || [])) {
+  for (const s of strokes || []) {
     const d = pointsToSvgPath(s.points || []);
     const metadata = includeMetadata
       ? ` data-sketchpad-stroke="${encodeURIComponent(JSON.stringify(s))}"`
@@ -240,11 +240,20 @@ export function renderStrokesToCanvas(
     let points = stroke.points;
     if (quality === 'high' && stroke.smoothing > 0 && points.length > 3) {
       const cached = smoothedPointsCache.get(stroke.id);
-      let cachedPoints = cached && cached.pointsLength === points.length ? cached.points : undefined;
+      let cachedPoints =
+        cached && cached.pointsLength === points.length
+          ? cached.points
+          : undefined;
       if (!cachedPoints) {
         const simplified = simplifyPoints(points, 0.3);
-        cachedPoints = getCatmullRomPoints(simplified, Math.ceil(stroke.smoothing * 8));
-        smoothedPointsCache.set(stroke.id, { pointsLength: points.length, points: cachedPoints });
+        cachedPoints = getCatmullRomPoints(
+          simplified,
+          Math.ceil(stroke.smoothing * 8)
+        );
+        smoothedPointsCache.set(stroke.id, {
+          pointsLength: points.length,
+          points: cachedPoints,
+        });
       }
       points = cachedPoints;
     }
@@ -258,7 +267,10 @@ export function renderStrokesToCanvas(
         const p1 = points[i - 1];
         const p2 = points[i];
         const pressure = (p1.pressure + p2.pressure) / 2;
-        const adjustedPressure = applyPressureCurve(pressure, stroke.pressureCurve);
+        const adjustedPressure = applyPressureCurve(
+          pressure,
+          stroke.pressureCurve
+        );
         ctx.lineWidth = Math.max(0.5, stroke.size * adjustedPressure);
 
         ctx.beginPath();
@@ -278,7 +290,9 @@ export async function rasterizeSvgString(
   height: number
 ): Promise<HTMLCanvasElement> {
   const img = new Image();
-  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const svgBlob = new Blob([svgString], {
+    type: 'image/svg+xml;charset=utf-8',
+  });
   const url = URL.createObjectURL(svgBlob);
 
   return new Promise((resolve, reject) => {
