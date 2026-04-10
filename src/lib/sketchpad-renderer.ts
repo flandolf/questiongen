@@ -43,9 +43,9 @@ export function strokesToSvgString(
   const paths = (strokes || [])
     .map((s) => {
       const d = pointsToSvgPath(s.points || []);
-      const stroke = s.tool === 'eraser' ? '#000000' : s.color;
+      const stroke = s.tool === 'eraser' ? 'transparent' : s.color;
       const strokeWidth = Math.max(0.5, s.size || 1);
-      const opacity = s.opacity ?? 1;
+      const opacity = s.tool === 'eraser' ? 0 : (s.opacity ?? 1);
       const metadata = includeMetadata
         ? ` data-sketchpad-stroke="${encodeURIComponent(JSON.stringify(s))}"`
         : '';

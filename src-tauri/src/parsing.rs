@@ -469,6 +469,10 @@ pub fn decode_escapes(value: &str) -> String {
 /// 4. Protect currency: a bare `$` immediately before an ASCII digit that is
 ///    not part of a `$$` display pair is replaced with `\$`.
 fn repair_common_latex_typos(text: &str) -> String {
+    // Repair a common truncated command that causes MathJax/Katex failures.
+    // `\fty` is not valid LaTeX and is almost always intended to be `\infty`.
+    let text = text.replace("\\fty", "\\infty");
+
     const COMMANDS: &[&str] = &[
         "alpha", "approx", "bar", "begin", "beta", "bf", "binom", "big", "Big", "bigg", "Bigg",
         "cdot", "cos", "cosh", "delta", "div", "end", "epsilon", "equiv", "eta", "exists", "frac",
@@ -479,7 +483,7 @@ fn repair_common_latex_typos(text: &str) -> String {
     ];
 
     let mut out = String::with_capacity(text.len());
-    let mut rest = text;
+    let mut rest = text.as_str();
 
     while let Some(pos) = rest.find(r"\b") {
         out.push_str(&rest[..pos]);
@@ -1445,6 +1449,14 @@ mod tests {
     #[test]
     fn does_not_change_valid_beta_command() {
         assert_eq!(clean_field(r"\beta"), r"\beta");
+    }
+
+    #[test]
+    fn repair_truncated_infty_command() {
+        assert_eq!(
+            clean_field(r"Domain is $(-\fty, 2]$"),
+            r"Domain is $(-\infty, 2]$"
+        );
     }
 
     #[test]
