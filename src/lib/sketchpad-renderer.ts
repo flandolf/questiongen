@@ -1,6 +1,5 @@
 import {
   applyPressureCurve,
-  drawGraphAxes,
   getCatmullRomPoints,
   simplifyPoints,
 } from '@/components/sketchpadUtils';
@@ -40,20 +39,42 @@ export function strokesToSvgString(
   const bgFill = bg === 'black-grid' ? '#ffffff' : 'transparent';
   const bgRect = `<rect width="100%" height="100%" fill="${bgFill}"/>`;
 
-  const paths = (strokes || [])
-    .map((s) => {
-      const d = pointsToSvgPath(s.points || []);
-      const stroke = s.tool === 'eraser' ? 'transparent' : s.color;
-      const strokeWidth = Math.max(0.5, s.size || 1);
-      const opacity = s.tool === 'eraser' ? 0 : (s.opacity ?? 1);
-      const metadata = includeMetadata
-        ? ` data-sketchpad-stroke="${encodeURIComponent(JSON.stringify(s))}"`
-        : '';
-      return `<path${metadata} d="${d}" fill="none" stroke="${stroke}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />`;
-    })
-    .join('\n');
+  let content = '';
+  let maskDefs = '';
+  let maskIndex = 0;
 
-  return `<?xml version="1.0" encoding="utf-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n${bgRect}\n${paths}\n</svg>`;
+  for (const s of (strokes || [])) {
+    const d = pointsToSvgPath(s.points || []);
+    const metadata = includeMetadata
+      ? ` data-sketchpad-stroke="${encodeURIComponent(JSON.stringify(s))}"`
+      : '';
+
+    if (s.tool === 'eraser') {
+      const strokeWidth = Math.max(0.5, s.size || 1);
+
+      // When an eraser is encountered, we create a mask to hide parts of previous content
+      if (content) {
+        maskIndex++;
+        const maskId = `eraser-mask-${maskIndex}`;
+        // In SVG masks, White = Visible, Black = Transparent
+        maskDefs += `  <mask id="${maskId}">\n    <rect x="0" y="0" width="100%" height="100%" fill="white" />\n    <path d="${d}" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" />\n  </mask>\n`;
+        content = `<g mask="url(#${maskId})">\n${content}</g>\n`;
+      }
+
+      // Keep hidden metadata for the eraser so it can be re-parsed later
+      if (includeMetadata) {
+        content += `<path${metadata} d="${d}" fill="none" stroke="none" visibility="hidden" />\n`;
+      }
+    } else {
+      const strokeWidth = Math.max(0.5, s.size || 1);
+      const opacity = s.opacity ?? 1;
+      content += `<path${metadata} d="${d}" fill="none" stroke="${s.color}" stroke-linecap="round" stroke-linejoin="round" stroke-width="${strokeWidth}" opacity="${opacity}" />\n`;
+    }
+  }
+
+  const defsStr = maskDefs ? `<defs>\n${maskDefs}</defs>\n` : '';
+
+  return `<?xml version="1.0" encoding="utf-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n${defsStr}${bgRect}\n${content}</svg>`;
 }
 
 function isPressureCurve(value: unknown): value is Stroke['pressureCurve'] {
@@ -199,27 +220,12 @@ export function renderStrokesToCanvas(
   for (const stroke of strokes) {
     if (!stroke.points || stroke.points.length === 0) continue;
 
-    if (stroke.tool === 'graph') {
-      const p = stroke.points[0];
-      drawGraphAxes(ctx, p.x, p.y, stroke.color, stroke.size);
-      continue;
-    }
-
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    if (stroke.tool === 'text' && stroke.text) {
-      ctx.font = `${stroke.size}px sans-serif`;
-      ctx.fillStyle = stroke.color;
-      ctx.globalAlpha = stroke.opacity ?? 1;
-      const p = stroke.points[0];
-      ctx.fillText(stroke.text, p.x, p.y);
-      ctx.restore();
-      continue;
-    }
-
     if (stroke.tool === 'eraser') {
+      // Use destination-out to effectively "cut" holes in the canvas
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
       ctx.fillStyle = 'rgba(0,0,0,1)';
@@ -231,79 +237,38 @@ export function renderStrokesToCanvas(
 
     ctx.globalAlpha = stroke.opacity ?? 1;
 
-    if (
-      stroke.tool === 'line' ||
-      stroke.tool === 'rect' ||
-      stroke.tool === 'ellipse'
-    ) {
-      ctx.lineWidth = stroke.size;
-      ctx.beginPath();
-      const start = stroke.points[0];
-      const end = stroke.points[stroke.points.length - 1];
-
-      if (stroke.tool === 'line') {
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(end.x, end.y);
-      } else if (stroke.tool === 'rect') {
-        ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-      } else if (stroke.tool === 'ellipse') {
-        const rx = Math.abs(end.x - start.x) / 2;
-        const ry = Math.abs(end.y - start.y) / 2;
-        const cx = (start.x + end.x) / 2;
-        const cy = (start.y + end.y) / 2;
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    let points = stroke.points;
+    if (quality === 'high' && stroke.smoothing > 0 && points.length > 3) {
+      const cached = smoothedPointsCache.get(stroke.id);
+      let cachedPoints = cached && cached.pointsLength === points.length ? cached.points : undefined;
+      if (!cachedPoints) {
+        const simplified = simplifyPoints(points, 0.3);
+        cachedPoints = getCatmullRomPoints(simplified, Math.ceil(stroke.smoothing * 8));
+        smoothedPointsCache.set(stroke.id, { pointsLength: points.length, points: cachedPoints });
       }
-      ctx.stroke();
-    } else if (stroke.tool === 'pen' || stroke.tool === 'eraser') {
-      let points = stroke.points;
-
-      if (quality === 'high' && stroke.smoothing > 0 && points.length > 3) {
-        // Use cache instead of mutating the stroke object
-        const cached = smoothedPointsCache.get(stroke.id);
-        let cachedPoints =
-          cached && cached.pointsLength === points.length
-            ? cached.points
-            : undefined;
-        if (!cachedPoints) {
-          const simplified = simplifyPoints(points, 0.3);
-          cachedPoints = getCatmullRomPoints(
-            simplified,
-            Math.ceil(stroke.smoothing * 8)
-          );
-          smoothedPointsCache.set(stroke.id, {
-            pointsLength: points.length,
-            points: cachedPoints,
-          });
-        }
-        points = cachedPoints;
-      }
-
-      if (points.length === 1) {
-        ctx.beginPath();
-        ctx.arc(points[0].x, points[0].y, stroke.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        for (let i = 1; i < points.length; i++) {
-          const p1 = points[i - 1];
-          const p2 = points[i];
-          const pressure = (p1.pressure + p2.pressure) / 2;
-          const adjustedPressure = applyPressureCurve(
-            pressure,
-            stroke.pressureCurve
-          );
-          ctx.lineWidth = Math.max(0.5, stroke.size * adjustedPressure);
-
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
-        }
-      }
+      points = cachedPoints;
     }
 
+    if (points.length === 1) {
+      ctx.beginPath();
+      ctx.arc(points[0].x, points[0].y, stroke.size / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      for (let i = 1; i < points.length; i++) {
+        const p1 = points[i - 1];
+        const p2 = points[i];
+        const pressure = (p1.pressure + p2.pressure) / 2;
+        const adjustedPressure = applyPressureCurve(pressure, stroke.pressureCurve);
+        ctx.lineWidth = Math.max(0.5, stroke.size * adjustedPressure);
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+    }
     ctx.restore();
   }
-
   ctx.restore();
 }
 
@@ -313,29 +278,20 @@ export async function rasterizeSvgString(
   height: number
 ): Promise<HTMLCanvasElement> {
   const img = new Image();
-  const svgBlob = new Blob([svgString], {
-    type: 'image/svg+xml;charset=utf-8',
-  });
+  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
 
   return new Promise((resolve, reject) => {
     img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Canvas context unavailable'));
-        ctx.clearRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-        URL.revokeObjectURL(url);
-        resolve(canvas);
-      } catch (err) {
-        URL.revokeObjectURL(url);
-        reject(
-          err instanceof Error ? err : new Error('Failed to rasterize SVG')
-        );
-      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas context unavailable'));
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas);
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
