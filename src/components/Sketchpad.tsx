@@ -66,7 +66,6 @@ import {
   DEFAULT_TOOL_SETTINGS,
   drawGraphAxes,
   drawShape,
-  floodFill,
   getStrokeBoundingBox,
   INTERNAL_RES_HEIGHT,
   INTERNAL_RES_WIDTH,
@@ -1556,8 +1555,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         return;
       }
 
-      if (e.target !== canvas) return;
-
       canvasBoundsRef.current = readCanvasBounds();
       const pt = getCanvasPoint(e, canvasBoundsRef.current);
 
@@ -1619,19 +1616,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       if (currentTool === 'fill') {
         pushUndo(true);
-        const mctx = mainCtxRef.current;
-        if (mctx) {
-          const dpr = Math.max(1, window.devicePixelRatio || 1);
-          const color = toolSettingsMapRef.current[currentTool].color;
-          floodFill(
-            mctx,
-            Math.round(pt.x * dpr),
-            Math.round(pt.y * dpr),
-            color,
-            1,
-            32
-          );
-        }
+        const settings = toolSettingsMapRef.current[currentTool];
+        const newStroke: Stroke = {
+          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+          tool: 'fill',
+          color: settings.color,
+          size: 32, // tolerance
+          smoothing: 0,
+          pressureCurve: 'linear',
+          points: [{ x: pt.x, y: pt.y, pressure: 1, time: Date.now() }],
+          opacity: settings.opacity,
+        };
+        strokesRef.current = [...strokesRef.current, newStroke];
+        setStrokes(strokesRef.current.slice());
+        scheduleRedraw();
         canvasBoundsRef.current = null;
         return;
       }
@@ -2141,7 +2139,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         <canvas
           ref={canvasRef}
-          className="absolute top-0 left-0 pointer-events-none"
+          className="absolute top-0 left-0"
         />
 
         <canvas
