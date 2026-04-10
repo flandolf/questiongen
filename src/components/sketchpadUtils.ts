@@ -237,13 +237,41 @@ export function getStrokeBoundingBox(strokes: Stroke[], padding: number = 20) {
     let found = false;
 
     for (const stroke of strokes) {
-        const halfSize = Math.max(1, stroke.size) / 2;
-        for (const point of stroke.points) {
-            found = true;
-            minX = Math.min(minX, point.x - halfSize);
-            minY = Math.min(minY, point.y - halfSize);
-            maxX = Math.max(maxX, point.x + halfSize);
-            maxY = Math.max(maxY, point.y + halfSize);
+        if (stroke.tool === 'graph') {
+            // Graph axes have fixed dimensions: halfW = 320, halfH = 240
+            const p = stroke.points[0];
+            if (p) {
+                found = true;
+                const halfW = 320;
+                const halfH = 240;
+                minX = Math.min(minX, p.x - halfW);
+                minY = Math.min(minY, p.y - halfH);
+                maxX = Math.max(maxX, p.x + halfW);
+                maxY = Math.max(maxY, p.y + halfH);
+            }
+        } else if (stroke.tool === 'text' && stroke.text) {
+            // Estimate text bounds based on font size and text length
+            // Font size is stroke.size (as used in renderer)
+            const p = stroke.points[0];
+            if (p) {
+                found = true;
+                const fontSize = stroke.size;
+                const textWidth = stroke.text.length * fontSize * 0.6; // Approximate width
+                const textHeight = fontSize * 1.2; // Approximate height with descenders
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y - fontSize); // Text is drawn from baseline
+                maxX = Math.max(maxX, p.x + textWidth);
+                maxY = Math.max(maxY, p.y + textHeight * 0.3);
+            }
+        } else {
+            const halfSize = Math.max(1, stroke.size) / 2;
+            for (const point of stroke.points) {
+                found = true;
+                minX = Math.min(minX, point.x - halfSize);
+                minY = Math.min(minY, point.y - halfSize);
+                maxX = Math.max(maxX, point.x + halfSize);
+                maxY = Math.max(maxY, point.y + halfSize);
+            }
         }
     }
 
