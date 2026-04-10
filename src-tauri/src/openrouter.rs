@@ -435,7 +435,8 @@ pub async fn call_openrouter_streaming_with_plugins(
 
 /// Check if a model is an Anthropic model.
 pub fn is_anthropic_model(model: &str) -> bool {
-    model.contains("anthropic") || model.contains("claude")
+    let model_lower = model.to_lowercase();
+    model_lower.contains("anthropic") || model_lower.starts_with("claude")
 }
 
 /// Recursively strip minimum/maximum constraints from integer types in a JSON schema.
