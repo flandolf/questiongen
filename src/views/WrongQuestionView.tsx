@@ -37,6 +37,7 @@ import {
 } from '@/components/layout/primitives';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
+import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { fileToDataUrl, normalizeMarkResponse } from '@/lib/app-utils';
@@ -1046,6 +1047,13 @@ function ReattemptView({
           )}
         </div>
       </div>
+      <TutorPanel
+        questionId={entry.id}
+        contextPrompt={entry.question.promptMarkdown}
+        studentAnswer={isWritten ? writtenAnswer : selectedAnswer}
+        image={image}
+        sketchSessionKey={sketchSessionKey}
+      />
     </div>
   );
 }

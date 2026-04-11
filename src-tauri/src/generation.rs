@@ -1112,22 +1112,39 @@ impl GenerationService {
         Ok(parsed)
     }
 
-    pub async fn tutor_chat(&self, request: crate::models::TutorChatRequest) -> CommandResult<crate::models::TutorChatResponse> {
+    pub async fn tutor_chat(
+        &self,
+        request: crate::models::TutorChatRequest,
+    ) -> CommandResult<crate::models::TutorChatResponse> {
+        let api_key = request.api_key.clone();
+        let model = request.model.clone();
+
         let config = crate::openrouter::OpenRouterChatConfig {
             api_key: request.api_key,
             model: request.model,
             messages: request.messages,
-            max_tokens: 2000,
+            max_tokens: 50000,
             app: self.app.clone(),
         };
 
         let result = crate::openrouter::call_openrouter_chat_streaming(config).await?;
+
+        let stats_result = get_model_stats(api_key, model).await;
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| {
+            compute_generation_cost(
+                Some(result.prompt_tokens as u64),
+                Some(result.completion_tokens as u64),
+                stats.prompt_price_per_token,
+                stats.completion_price_per_token,
+            )
+        });
 
         Ok(crate::models::TutorChatResponse {
             content: result.content,
             prompt_tokens: result.prompt_tokens,
             completion_tokens: result.completion_tokens,
             total_tokens: result.total_tokens,
+            estimated_cost_usd,
         })
     }
 

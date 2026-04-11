@@ -394,6 +394,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             JSON.stringify(payload)
           );
           hasDirtyCanvasRef.current = false;
+          window.dispatchEvent(
+            new CustomEvent('sketchpad-saved', {
+              detail: {
+                sessionKey: key,
+                hasStrokes: strokesRef.current.length > 0,
+              },
+            })
+          );
         } catch (err) {
           console.warn('Failed to save canvas to localStorage:', err);
         }
@@ -497,6 +505,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             }
           }
           scheduleRedraw();
+          window.dispatchEvent(
+            new CustomEvent('sketchpad-saved', {
+              detail: {
+                sessionKey: key,
+                hasStrokes: strokesRef.current.length > 0,
+              },
+            })
+          );
         } catch (err) {
           console.warn('Failed to restore canvas from localStorage:', err);
         }
@@ -776,6 +792,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         scheduleAutoSave(sessionKey);
       }
     }, [isDrawing, sessionKey, scheduleAutoSave]);
+
+    // Force save when TutorPanel requests it
+    useEffect(() => {
+      const handleForceSave = () => {
+        if (sessionKey && hasDirtyCanvasRef.current) {
+          if (autoSaveTimeoutRef.current) {
+            clearTimeout(autoSaveTimeoutRef.current);
+          }
+          saveCanvasToStorage(sessionKey);
+        }
+      };
+      window.addEventListener('tutor-request-sketch-save', handleForceSave);
+      return () => {
+        window.removeEventListener(
+          'tutor-request-sketch-save',
+          handleForceSave
+        );
+      };
+    }, [sessionKey, saveCanvasToStorage]);
 
     // Save canvas immediately when sessionKey changes (user switched questions)
     useEffect(() => {

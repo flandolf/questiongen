@@ -705,7 +705,7 @@ function ModelSearchPanelView({
 }
 
 export interface ModelSearchPanelProps {
-  target: 'generation' | 'marking' | 'imageMarking';
+  target: 'generation' | 'marking' | 'imageMarking' | 'tutor';
   onClose: () => void;
   onSelect: (id: string) => void;
   apiKey: string;

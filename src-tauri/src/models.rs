@@ -251,7 +251,7 @@ pub struct AnalyzeImageResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TutorMessage {
     pub role: String, // "user" | "assistant" | "system"
-    pub content: String,
+    pub content: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -269,6 +269,8 @@ pub struct TutorChatResponse {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 // ─── Cleanup topics only ─────────────────────────────────────────────────────

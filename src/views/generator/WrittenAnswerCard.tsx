@@ -136,7 +136,6 @@ export function WrittenAnswerCard({
       value={answer}
       onChange={onAnswerChange}
       disabled={isMarking}
-      hideResponseLabel={activeTab === 'sketchpad'}
       topSlot={
         <div className="rounded-xl border border-border/60 bg-muted/20 p-1">
           <div className="grid grid-cols-3 gap-1">
