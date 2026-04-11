@@ -805,13 +805,21 @@ function normalizeImage(raw: unknown): StudentAnswerImage | null {
     return null;
   }
 
-  const name = asString(data.name);
+  const id = asString(data.id) || asString(data.name) || crypto.randomUUID();
   const dataUrl = asString(data.dataUrl);
-  if (!name || !dataUrl) {
+  const timestamp = asString(data.timestamp) || new Date().toISOString();
+
+  if (!dataUrl) {
     return null;
   }
 
-  return { name, dataUrl };
+  return {
+    id,
+    dataUrl,
+    storagePath: normalizeNullableString(data.storagePath) ?? undefined,
+    downloadUrl: normalizeNullableString(data.downloadUrl) ?? undefined,
+    timestamp,
+  };
 }
 
 function normalizeGenerationTelemetry(raw: unknown) {

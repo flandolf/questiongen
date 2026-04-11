@@ -6,6 +6,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
@@ -24,6 +25,7 @@ if (!app) {
 }
 
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 const db = (() => {
   try {
@@ -42,7 +44,14 @@ const db = (() => {
   }
 })();
 
-console.log('Firebase initialized, auth:', !!auth, 'db:', !!db);
+console.log(
+  'Firebase initialized, auth:',
+  !!auth,
+  'db:',
+  !!db,
+  'storage:',
+  !!storage
+);
 
-export { app, auth, db };
+export { app, auth, db, storage };
 export type { User as FirebaseUser } from 'firebase/auth';

@@ -110,8 +110,9 @@ export function WrittenAnswerCard({
         const dataUrl = await sketchpadRef.current.exportDataUrl();
         await onSubmit({
           image: {
-            name: `sketch-${Date.now()}.webp`,
+            id: crypto.randomUUID(),
             dataUrl,
+            timestamp: new Date().toISOString(),
           },
         });
         return;
@@ -205,7 +206,7 @@ export function WrittenAnswerCard({
           {image ? (
             <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
               <img
-                src={image.dataUrl}
+                src={image.downloadUrl || image.dataUrl}
                 alt="Uploaded working"
                 className="w-full h-auto max-h-96 object-contain rounded-lg"
               />
@@ -240,7 +241,7 @@ export function WrittenAnswerCard({
           {image && (
             <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
               <img
-                src={image.dataUrl}
+                src={image.downloadUrl || image.dataUrl}
                 alt="Saved sketch"
                 className="w-full h-auto max-h-64 object-contain rounded-lg"
               />

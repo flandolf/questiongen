@@ -219,7 +219,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                 {image && (
                   <div className="mt-3 rounded-md border border-border/30 bg-muted/10 p-2 shadow-sm">
                     <img
-                      src={image.dataUrl}
+                      src={image.downloadUrl || image.dataUrl}
                       alt="Submitted working"
                       className="w-full h-auto max-h-96 object-contain rounded-md mix-blend-multiply dark:mix-blend-normal"
                     />

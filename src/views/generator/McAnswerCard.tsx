@@ -86,7 +86,7 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
       {image && (
         <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
           <img
-            src={image.dataUrl}
+            src={image.downloadUrl || image.dataUrl}
             alt="Saved sketch"
             className="w-full h-auto max-h-64 object-contain rounded-lg"
           />
@@ -197,7 +197,7 @@ export const McAnswerCard = memo(function McAnswerCard({
           {image && (
             <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
               <img
-                src={image.dataUrl}
+                src={image.downloadUrl || image.dataUrl}
                 alt="Uploaded sketch"
                 className="w-full h-auto max-h-64 object-contain rounded-lg"
               />
