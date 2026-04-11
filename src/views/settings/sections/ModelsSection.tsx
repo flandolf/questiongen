@@ -22,6 +22,25 @@ import {
 } from '../SettingsUI';
 import { StatsTable } from '../StatsTable';
 
+function ErrorBanners({ stats }: { stats: ReturnType<typeof useModelStats> }) {
+  const errors = [
+    stats.generation.error,
+    stats.marking.error,
+    stats.image.error,
+    stats.tutor.error,
+  ].filter(Boolean);
+
+  if (errors.length === 0) return null;
+
+  return (
+    <div className="mb-4 space-y-1.5">
+      {errors.map((error, i) => (
+        <ErrorBanner key={i} message={error!} />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Sub-component to manage the Live Stats table and refresh buttons.
  * This extraction significantly reduces the complexity of the main ModelsSection.
@@ -37,6 +56,7 @@ function LiveStatsSection({
     gen: string;
     mark: string;
     img: string;
+    tutor: string;
     useMark: boolean;
     useImg: boolean;
   };
@@ -44,7 +64,56 @@ function LiveStatsSection({
   const latestUpdate =
     stats.generation.updatedAt ??
     stats.marking.updatedAt ??
-    stats.image.updatedAt;
+    stats.image.updatedAt ??
+    stats.tutor.updatedAt;
+
+  const activeModels = useMemo(
+    () => [
+      { label: 'Generation', state: stats.generation, m: models.gen },
+      ...(models.useMark
+        ? [{ label: 'Marking', state: stats.marking, m: models.mark }]
+        : []),
+      ...(models.useImg
+        ? [{ label: 'Image', state: stats.image, m: models.img }]
+        : []),
+      { label: 'Tutor', state: stats.tutor, m: models.tutor },
+    ],
+    [stats, models]
+  );
+
+  const columns = useMemo(
+    () => [
+      {
+        stats: stats.generation.stats,
+        label: models.gen || 'Generation',
+        loading: stats.generation.loading,
+      },
+      ...(models.useMark
+        ? [
+            {
+              stats: stats.marking.stats,
+              label: models.mark || 'Marking',
+              loading: stats.marking.loading,
+            },
+          ]
+        : []),
+      ...(models.useImg
+        ? [
+            {
+              stats: stats.image.stats,
+              label: models.img || 'Image marking',
+              loading: stats.image.loading,
+            },
+          ]
+        : []),
+      {
+        stats: stats.tutor.stats,
+        label: models.tutor || 'Tutor',
+        loading: stats.tutor.loading,
+      },
+    ],
+    [stats, models]
+  );
 
   if (!apiKey)
     return <EmptyState message="Save your API key to load model stats." />;
@@ -61,15 +130,7 @@ function LiveStatsSection({
           )}
         </div>
         <div className="flex gap-1.5">
-          {[
-            { label: 'Generation', state: stats.generation, m: models.gen },
-            ...(models.useMark
-              ? [{ label: 'Marking', state: stats.marking, m: models.mark }]
-              : []),
-            ...(models.useImg
-              ? [{ label: 'Image', state: stats.image, m: models.img }]
-              : []),
-          ].map(({ label, state, m }) => (
+          {activeModels.map(({ label, state, m }) => (
             <Button
               key={label}
               variant="outline"
@@ -91,43 +152,9 @@ function LiveStatsSection({
         </div>
       </div>
 
-      {(stats.generation.error || stats.marking.error || stats.image.error) && (
-        <div className="mb-4 space-y-1.5">
-          {stats.generation.error && (
-            <ErrorBanner message={stats.generation.error} />
-          )}
-          {stats.marking.error && <ErrorBanner message={stats.marking.error} />}
-          {stats.image.error && <ErrorBanner message={stats.image.error} />}
-        </div>
-      )}
+      <ErrorBanners stats={stats} />
 
-      <StatsTable
-        columns={[
-          {
-            stats: stats.generation.stats,
-            label: models.gen || 'Generation',
-            loading: stats.generation.loading,
-          },
-          ...(models.useMark
-            ? [
-                {
-                  stats: stats.marking.stats,
-                  label: models.mark || 'Marking',
-                  loading: stats.marking.loading,
-                },
-              ]
-            : []),
-          ...(models.useImg
-            ? [
-                {
-                  stats: stats.image.stats,
-                  label: models.img || 'Image marking',
-                  loading: stats.image.loading,
-                },
-              ]
-            : []),
-        ]}
-      />
+      <StatsTable columns={columns} />
     </section>
   );
 }
@@ -143,6 +170,7 @@ export function ModelsSection() {
   const [localImageMarkingModel, setLocalImageMarkingModel] = useState(
     settings.imageMarkingModel
   );
+  const [localTutorModel, setLocalTutorModel] = useState(settings.tutorModel);
   const [localUseSeparateMarkingModel, setLocalUseSeparateMarkingModel] =
     useState(settings.useSeparateMarkingModel);
   const [
@@ -156,13 +184,15 @@ export function ModelsSection() {
   const [showCustom, setShowCustom] = useState(false);
   const [showCustomMarking, setShowCustomMarking] = useState(false);
   const [showCustomImageMarking, setShowCustomImageMarking] = useState(false);
+  const [showCustomTutor, setShowCustomTutor] = useState(false);
   const [customId, setCustomId] = useState('');
   const [customMarkingId, setCustomMarkingId] = useState('');
   const [customImageMarkingId, setCustomImageMarkingId] = useState('');
+  const [customTutorId, setCustomTutorId] = useState('');
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTarget, setSearchTarget] = useState<
-    'generation' | 'marking' | 'imageMarking'
+    'generation' | 'marking' | 'imageMarking' | 'tutor'
   >('generation');
 
   // Sync settings effects
@@ -190,6 +220,12 @@ export function ModelsSection() {
       settings.setImageMarkingModel(localImageMarkingModel);
     }
   }, [localImageMarkingModel, settings]);
+
+  useEffect(() => {
+    if (localTutorModel && localTutorModel !== settings.tutorModel) {
+      settings.setTutorModel(localTutorModel);
+    }
+  }, [localTutorModel, settings]);
 
   useEffect(() => {
     if (
@@ -247,6 +283,13 @@ export function ModelsSection() {
     fetchImg,
   ]);
 
+  const { fetch: fetchTutor } = stats.tutor;
+  useEffect(() => {
+    if (settings.apiKey && localTutorModel) {
+      void fetchTutor(localTutorModel);
+    }
+  }, [settings.apiKey, localTutorModel, fetchTutor]);
+
   const openSearch = useCallback((t: typeof searchTarget) => {
     setSearchTarget(t);
     setSearchOpen(true);
@@ -259,9 +302,12 @@ export function ModelsSection() {
     } else if (searchTarget === 'marking') {
       setLocalMarkingModel(id);
       setShowCustomMarking(false);
-    } else {
+    } else if (searchTarget === 'imageMarking') {
       setLocalImageMarkingModel(id);
       setShowCustomImageMarking(false);
+    } else {
+      setLocalTutorModel(id);
+      setShowCustomTutor(false);
     }
     setSearchOpen(false);
   };
@@ -271,6 +317,7 @@ export function ModelsSection() {
       gen: localModel,
       mark: localMarkingModel,
       img: localImageMarkingModel,
+      tutor: localTutorModel,
       useMark: localUseSeparateMarkingModel,
       useImg: localUseSeparateImageMarkingModel,
     }),
@@ -278,6 +325,7 @@ export function ModelsSection() {
       localModel,
       localMarkingModel,
       localImageMarkingModel,
+      localTutorModel,
       localUseSeparateMarkingModel,
       localUseSeparateImageMarkingModel,
     ]
@@ -418,6 +466,41 @@ export function ModelsSection() {
               />
             )}
           </div>
+        )}
+      </section>
+
+      <Divider />
+
+      <section className="space-y-3">
+        <SectionHeader
+          title="Tutor Model"
+          description="Model used for the AI chat panel."
+        />
+        <FieldGroup label="Tutor model" htmlFor="tutor-model-select">
+          <ModelSelectRow
+            id="tutor-model-select"
+            value={localTutorModel}
+            models={PRESET_MODELS}
+            disabled={!settings.apiKey}
+            onSelect={(v) =>
+              v === 'custom'
+                ? setShowCustomTutor(true)
+                : (setShowCustomTutor(false), setLocalTutorModel(v))
+            }
+            onSearch={() => openSearch('tutor')}
+          />
+        </FieldGroup>
+        {showCustomTutor && (
+          <CustomModelInput
+            id="custom-tutor-model-id"
+            label="Custom Tutor Model ID"
+            value={customTutorId}
+            onChange={setCustomTutorId}
+            onApply={() => {
+              setLocalTutorModel(customTutorId.trim());
+              setShowCustomTutor(false);
+            }}
+          />
         )}
       </section>
 

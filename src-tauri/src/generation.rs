@@ -1112,6 +1112,25 @@ impl GenerationService {
         Ok(parsed)
     }
 
+    pub async fn tutor_chat(&self, request: crate::models::TutorChatRequest) -> CommandResult<crate::models::TutorChatResponse> {
+        let config = crate::openrouter::OpenRouterChatConfig {
+            api_key: request.api_key,
+            model: request.model,
+            messages: request.messages,
+            max_tokens: 2000,
+            app: self.app.clone(),
+        };
+
+        let result = crate::openrouter::call_openrouter_chat_streaming(config).await?;
+
+        Ok(crate::models::TutorChatResponse {
+            content: result.content,
+            prompt_tokens: result.prompt_tokens,
+            completion_tokens: result.completion_tokens,
+            total_tokens: result.total_tokens,
+        })
+    }
+
     pub async fn analyze_image(
         &self,
         request: AnalyzeImageRequest,

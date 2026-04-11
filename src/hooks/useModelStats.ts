@@ -5,7 +5,7 @@ import { readBackendError } from '@/lib/app-utils';
 import { setCachedImageValidation } from '@/views/settings/imageValidationCache';
 import type { ModelStats } from '@/views/settings/types';
 
-type ModelType = 'generation' | 'marking' | 'image';
+type ModelType = 'generation' | 'marking' | 'image' | 'tutor';
 
 function useModelStat(apiKey: string | undefined, modelType: ModelType) {
   const [stats, setStats] = useState<ModelStats | null>(null);
@@ -55,10 +55,12 @@ export function useModelStats(apiKey: string | undefined) {
   const generation = useModelStat(apiKey, 'generation');
   const marking = useModelStat(apiKey, 'marking');
   const image = useModelStat(apiKey, 'image');
+  const tutor = useModelStat(apiKey, 'tutor');
 
   return {
     generation,
     marking,
     image,
+    tutor,
   };
 }

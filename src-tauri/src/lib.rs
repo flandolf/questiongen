@@ -94,6 +94,16 @@ async fn batch_mark_answers(
 }
 
 #[tauri::command]
+async fn tutor_chat(
+    app: tauri::AppHandle,
+    request: TutorChatRequest,
+) -> CommandResult<TutorChatResponse> {
+    generation::GenerationService::new(app)
+        .tutor_chat(request)
+        .await
+}
+
+#[tauri::command]
 async fn analyze_image(
     app: tauri::AppHandle,
     request: AnalyzeImageRequest,
@@ -194,6 +204,7 @@ pub fn run() {
             generate_questions,
             mark_answer,
             batch_mark_answers,
+            tutor_chat,
             analyze_image,
             generate_mc_questions,
             get_model_stats,

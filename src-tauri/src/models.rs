@@ -245,6 +245,32 @@ pub struct AnalyzeImageResponse {
     pub output_text: String,
 }
 
+// ─── Tutor Chat ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TutorMessage {
+    pub role: String, // "user" | "assistant" | "system"
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TutorChatRequest {
+    pub messages: Vec<TutorMessage>,
+    pub model: String,
+    pub api_key: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TutorChatResponse {
+    pub content: String,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
+}
+
 // ─── Cleanup topics only ─────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]

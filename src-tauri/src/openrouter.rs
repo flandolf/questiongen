@@ -331,6 +331,162 @@ async fn call_openrouter_streaming(
     })
 }
 
+pub struct OpenRouterChatConfig {
+    pub api_key: String,
+    pub model: String,
+    pub messages: Vec<crate::models::TutorMessage>,
+    pub max_tokens: u32,
+    pub app: tauri::AppHandle,
+}
+
+pub async fn call_openrouter_chat_streaming(
+    config: OpenRouterChatConfig,
+) -> CommandResult<OpenRouterResult> {
+    let body = serde_json::json!({
+        "model": config.model,
+        "messages": config.messages,
+        "max_tokens": config.max_tokens,
+        "stream": true,
+        "stream_options": { "include_usage": true },
+    });
+
+    let response = http_client()
+        .post(OPENROUTER_CHAT_URL)
+        .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
+        .header(CONTENT_TYPE, "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".into());
+        return Err(AppError::new(
+            "OPENROUTER_ERROR",
+            format!("OpenRouter request failed ({status}): {body}"),
+        ));
+    }
+
+    let mut stream = response.bytes_stream();
+    let mut assembled = String::new();
+    let mut usage: Option<SseUsage> = None;
+    let mut buf = String::new();
+    let mut done = false;
+
+    let app = config.app;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk =
+            chunk.map_err(|e| AppError::new("NETWORK_ERROR", format!("Stream error: {e}")))?;
+        buf.push_str(&String::from_utf8_lossy(&chunk));
+
+        if done {
+            continue;
+        }
+
+        loop {
+            match buf.find('\n') {
+                None => break,
+                Some(pos) => {
+                    let line = buf[..pos].trim_end_matches('\r').to_owned();
+                    buf.drain(..=pos);
+
+                    if line.is_empty() || line == ": OPENROUTER PROCESSING" {
+                        continue;
+                    }
+
+                    let data = if let Some(rest) = line.strip_prefix("data: ") {
+                        rest.trim()
+                    } else {
+                        continue;
+                    };
+
+                    if data == "[DONE]" {
+                        done = true;
+                        break;
+                    }
+
+                    let chunk_val: SseChunk = match serde_json::from_str(data) {
+                        Ok(v) => v,
+                        Err(_) => continue,
+                    };
+
+                    if let Some(u) = chunk_val.usage {
+                        usage = Some(u);
+                    }
+
+                    if let Some(choices) = chunk_val.choices {
+                        for choice in choices {
+                            if let Some(delta) = choice.delta {
+                                if let Some(text) = delta.content {
+                                    if !text.is_empty() {
+                                        assembled.push_str(&text);
+                                        let _ = app.emit(
+                                            "tutor-generation-token",
+                                            serde_json::json!({ "text": text }),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !done && !buf.is_empty() {
+        let trimmed = buf.trim_end_matches('\r').to_owned();
+        if let Some(rest) = trimmed.strip_prefix("data: ") {
+            let data = rest.trim();
+            if data != "[DONE]" {
+                if let Ok(chunk_val) = serde_json::from_str::<SseChunk>(data) {
+                    if let Some(u) = chunk_val.usage {
+                        usage = Some(u);
+                    }
+                    if let Some(choices) = chunk_val.choices {
+                        for choice in choices {
+                            if let Some(delta) = choice.delta {
+                                if let Some(text) = delta.content {
+                                    if !text.is_empty() {
+                                        assembled.push_str(&text);
+                                        let _ = app.emit(
+                                            "tutor-generation-token",
+                                            serde_json::json!({ "text": text }),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if assembled.is_empty() {
+        return Err(AppError::new(
+            "EMPTY_RESULT",
+            "OpenRouter returned no content.",
+        ));
+    }
+
+    let (pt, ct, tt) = usage
+        .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
+        .unwrap_or((0, 0, 0));
+
+    Ok(OpenRouterResult {
+        content: assembled,
+        prompt_tokens: pt,
+        completion_tokens: ct,
+        total_tokens: tt,
+    })
+}
+
 pub fn is_anthropic_model(model: &str) -> bool {
     let model = model.trim().to_ascii_lowercase();
     model.starts_with("anthropic/")

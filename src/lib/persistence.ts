@@ -56,6 +56,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   localBackupFolderPath: '',
   localBackupIntervalMinutes: 0,
   theme: 'claude',
+  tutorPersona: '',
+  tutorModel: 'google/gemini-3.1-flash-lite-preview',
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -268,18 +270,19 @@ async function loadRawPersistedState(): Promise<unknown> {
 
 function normalizeSettings(raw: unknown): PersistedSettings {
   const data = isRecord(raw) ? raw : {};
+  const model = asString(data.model) || DEFAULT_SETTINGS.model;
+  const markingModel =
+    asString(data.markingModel) || model || DEFAULT_SETTINGS.markingModel;
+
   return {
     apiKey: asString(data.apiKey),
-    model: asString(data.model) || DEFAULT_SETTINGS.model,
-    markingModel:
-      asString(data.markingModel) ||
-      asString(data.model) ||
-      DEFAULT_SETTINGS.markingModel,
+    model,
+    markingModel,
     useSeparateMarkingModel: Boolean(data.useSeparateMarkingModel),
     imageMarkingModel:
       asString(data.imageMarkingModel) ||
-      asString(data.markingModel) ||
-      asString(data.model) ||
+      markingModel ||
+      model ||
       DEFAULT_SETTINGS.imageMarkingModel,
     useSeparateImageMarkingModel: Boolean(data.useSeparateImageMarkingModel),
     debugMode: Boolean(data.debugMode),
@@ -299,6 +302,17 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       data.includeExamContext !== undefined
         ? Boolean(data.includeExamContext)
         : DEFAULT_SETTINGS.includeExamContext,
+    ...normalizeSyncSettings(data),
+    theme: asString(data.theme) || DEFAULT_SETTINGS.theme,
+    tutorPersona:
+      asString(data.tutorPersona) || DEFAULT_SETTINGS.tutorPersona || '',
+    tutorModel:
+      asString(data.tutorModel) || model || DEFAULT_SETTINGS.tutorModel,
+  };
+}
+
+function normalizeSyncSettings(data: Record<string, unknown>) {
+  return {
     autoSyncIntervalMinutes:
       typeof data.autoSyncIntervalMinutes === 'number' &&
       data.autoSyncIntervalMinutes >= 0
@@ -311,7 +325,6 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       data.localBackupIntervalMinutes >= 0
         ? data.localBackupIntervalMinutes
         : DEFAULT_SETTINGS.localBackupIntervalMinutes,
-    theme: asString(data.theme) || DEFAULT_SETTINGS.theme,
   };
 }
 
