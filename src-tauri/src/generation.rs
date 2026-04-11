@@ -3,7 +3,7 @@ use tauri::{Emitter, Manager};
 use crate::models::{CommandResult, AppError, GeneratedQuestion, McQuestion, WrittenQuestionsPayload, McQuestionsPayload, GenerationQualityDiagnostics, GenerateQuestionsResponse, GenerateMcQuestionsResponse, GenerateQuestionsRequest, GenerateMcQuestionsRequest, MarkAnswerRequest, MarkAnswerResponse, AnalyzeImageRequest, AnalyzeImageResponse};
 use crate::openrouter::{call_openrouter, OpenRouterRequestConfig, OpenRouterResult};
 use crate::openrouter_info::{get_model_stats, compute_generation_cost};
-use crate::parsing::{protect_latex_in_raw_json, extract_json_object, extract_json_array, normalise_envelope, sanitize_for_api};
+use crate::parsing::{protect_latex_in_raw_json, extract_json_object, extract_json_array, normalise_envelope, sanitize_for_api, clean_field};
 use crate::schemas;
 use crate::prompts;
 use crate::pdf;
@@ -315,6 +315,7 @@ impl GenerationService {
 
         let mut metrics = metrics;
         let mut summary = summary;
+        let mut last_result = result.clone();
         if request.avoid_similar_questions.unwrap_or(false) {
             let mut need_retry = summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold);
             let mut attempts = 0;
@@ -355,6 +356,7 @@ impl GenerationService {
                             let (new_metrics, new_summary) = quality::score_batch(&new_texts);
                             if new_summary.distinctness_avg.unwrap_or(0.0) > summary.distinctness_avg.unwrap_or(0.0) {
                                 payload = new_payload; metrics = new_metrics; summary = new_summary;
+                                last_result = r;
                                 for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
                                     q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
                                     q.verb_diversity_count = Some(metric.verb_diversity); q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
@@ -371,12 +373,12 @@ impl GenerationService {
         let final_latex_issues = self.collect_latex_issues(&payload.questions, false);
         quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, final_latex_issues);
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(result.prompt_tokens as u64), Some(result.completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(last_result.prompt_tokens as u64), Some(last_result.completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
         let duration_ms = started.elapsed().as_millis() as u64;
 
-        self.emit_generation_status(serde_json::json!({ "mode": "written", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": result.total_tokens, "promptTokens": result.prompt_tokens, "completionTokens": result.completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
+        self.emit_generation_status(serde_json::json!({ "mode": "written", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": last_result.total_tokens, "promptTokens": last_result.prompt_tokens, "completionTokens": last_result.completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
-        Ok(GenerateQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: result.prompt_tokens, completion_tokens: result.completion_tokens, total_tokens: result.total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
+        Ok(GenerateQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: last_result.prompt_tokens, completion_tokens: last_result.completion_tokens, total_tokens: last_result.total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
     }
 
     pub async fn generate_mc(&self, request: GenerateMcQuestionsRequest) -> CommandResult<GenerateMcQuestionsResponse> {
@@ -492,6 +494,7 @@ impl GenerationService {
 
         let mut metrics = metrics;
         let mut summary = summary;
+        let mut last_result = result.clone();
         if request.avoid_similar_questions.unwrap_or(false) {
             let mut need_retry = summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold);
             let mut attempts = 0;
@@ -531,6 +534,7 @@ impl GenerationService {
                             let (new_metrics, new_summary) = quality::score_batch(&new_texts);
                             if new_summary.distinctness_avg.unwrap_or(0.0) > summary.distinctness_avg.unwrap_or(0.0) {
                                 payload = new_payload; metrics = new_metrics; summary = new_summary;
+                                last_result = r;
                                 for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
                                     q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
                                 }
@@ -546,12 +550,12 @@ impl GenerationService {
         let final_latex_issues = self.collect_latex_issues(&payload.questions, true);
         quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, final_latex_issues);
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(result.prompt_tokens as u64), Some(result.completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(last_result.prompt_tokens as u64), Some(last_result.completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
         let duration_ms = started.elapsed().as_millis() as u64;
 
-        self.emit_generation_status(serde_json::json!({ "mode": "multiple-choice", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": result.total_tokens, "promptTokens": result.prompt_tokens, "completionTokens": result.completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
+        self.emit_generation_status(serde_json::json!({ "mode": "multiple-choice", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": last_result.total_tokens, "promptTokens": last_result.prompt_tokens, "completionTokens": last_result.completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
-        Ok(GenerateMcQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: result.prompt_tokens, completion_tokens: result.completion_tokens, total_tokens: result.total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
+        Ok(GenerateMcQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: last_result.prompt_tokens, completion_tokens: last_result.completion_tokens, total_tokens: last_result.total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
     }
 
     pub async fn mark_answer(&self, request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
@@ -561,8 +565,12 @@ impl GenerationService {
             return Err(AppError::new("VALIDATION_ERROR", "Provide an answer or image."));
         }
         self.validate_params(&request.api_key, &request.model)?;
+        const MAX_ALLOWED_MARKS: u8 = 50;
         if request.question.max_marks == 0 {
             return Err(AppError::new("VALIDATION_ERROR", "maxMarks must be > 0."));
+        }
+        if request.question.max_marks > MAX_ALLOWED_MARKS {
+            return Err(AppError::new("VALIDATION_ERROR", format!("maxMarks cannot exceed {}.", MAX_ALLOWED_MARKS)));
         }
 
         const MAX_ANSWER_CHARS: usize = 12_000;
@@ -602,7 +610,8 @@ impl GenerationService {
         content_parts.extend(report_parts);
 
         let user_content = serde_json::Value::Array(content_parts);
-        let max_tokens = (max_marks as u32) * 2000 + 4000;
+        const MAX_TOKENS_CAP: u32 = 128_000;
+        let max_tokens = ((max_marks as u32) * 2000 + 4000).min(MAX_TOKENS_CAP);
         let plugins = if has_reports {
             let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
             let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
@@ -663,6 +672,12 @@ impl GenerationService {
             "heif" => Some("image/heif"),
             _ => None,
         }).ok_or_else(|| AppError::new("VALIDATION_ERROR", "Unsupported format. Use png, jpg, webp, gif, heic, or heif."))?;
+
+        const MAX_IMAGE_SIZE: u64 = 50 * 1024 * 1024; // 50 MB
+        let metadata = std::fs::metadata(path).map_err(|e| AppError::new(if e.kind() == std::io::ErrorKind::NotFound { "VALIDATION_ERROR" } else { "IO_ERROR" }, if e.kind() == std::io::ErrorKind::NotFound { "Image file not found.".to_string() } else { format!("Failed to read image metadata: {e}") }))?;
+        if metadata.len() > MAX_IMAGE_SIZE {
+            return Err(AppError::new("VALIDATION_ERROR", "Image file too large."));
+        }
 
         let bytes = std::fs::read(path).map_err(|e| AppError::new(if e.kind() == std::io::ErrorKind::NotFound { "VALIDATION_ERROR" } else { "IO_ERROR" }, if e.kind() == std::io::ErrorKind::NotFound { "Image file not found.".to_string() } else { format!("Failed to read image: {e}") }))?;
 

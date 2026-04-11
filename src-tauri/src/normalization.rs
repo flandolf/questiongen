@@ -170,6 +170,7 @@ pub fn normalise_mc(questions: &mut [McQuestion], selected_topics: &[String], se
             }
         }
         for opt in &mut q.options { opt.label = opt.label.trim().to_uppercase(); opt.text = clean_field(opt.text.trim()); }
+        q.options.sort_by(|a, b| a.label.cmp(&b.label));
     }
 }
 
