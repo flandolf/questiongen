@@ -412,16 +412,11 @@ pub async fn call_openrouter_streaming_with_plugins(
         ));
     }
 
-    // If the provider didn't include usage, fall back to a character-based
-    // approximation (~4 chars per token) so the UI shows *something* plausible
-    // instead of zero. Prompt tokens are unknown without a separate count call,
-    // so we leave them at 0; the UI should show them as "unknown" rather than "$0".
+    // Only use provider-reported usage analytics from OpenRouter.
+    // If usage is absent, keep counts at zero rather than estimating.
     let (pt, ct, tt) = usage
         .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
-        .unwrap_or_else(|| {
-            let ct = (assembled.len() as u32).saturating_div(4);
-            (0, ct, ct)
-        });
+        .unwrap_or((0, 0, 0));
 
     Ok(OpenRouterResult {
         content: assembled,
