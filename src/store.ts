@@ -1215,7 +1215,10 @@ useAppStore.subscribe((state) => {
       return;
     }
 
-    lastSavedSnapshot = finalSnapshot;
-    void savePersistedAppState(finalSnapshot).catch(console.error);
+    void savePersistedAppState(finalSnapshot)
+      .then(() => {
+        lastSavedSnapshot = finalSnapshot;
+      })
+      .catch(console.error);
   }, 500);
 });
