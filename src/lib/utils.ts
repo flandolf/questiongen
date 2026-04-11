@@ -18,3 +18,38 @@ export function getTodayKey(): string {
 export function getDayKey(date: string | number): string {
   return formatDateKey(new Date(date));
 }
+
+/**
+ * Performs a deep equality comparison between two values.
+ * Useful for determining if state changes require persistence.
+ */
+export function isDeepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+
+  if (
+    typeof a !== 'object' ||
+    a === null ||
+    typeof b !== 'object' ||
+    b === null
+  ) {
+    return false;
+  }
+
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+
+  if (keysA.length !== keysB.length) return false;
+
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+    if (!isDeepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}

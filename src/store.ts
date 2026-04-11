@@ -24,7 +24,7 @@ import {
   savePersistedAppState,
 } from '@/lib/persistence';
 import { createCard, isDue, reviewCard } from '@/lib/spaced-repetition';
-import { getTodayKey } from '@/lib/utils';
+import { getTodayKey, isDeepEqual } from '@/lib/utils';
 
 import type {
   ChemistrySubtopic,
@@ -506,6 +506,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   hydrate: async () => {
     try {
       const persisted = await loadPersistedAppState();
+      lastSavedSnapshot = persisted;
       set({
         ...snapshotToState(persisted),
         isHydrated: true,
@@ -1192,12 +1193,29 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSavedSnapshot: PersistedAppState | null = null;
+
 useAppStore.subscribe((state) => {
   if (!state.isHydrated) return;
+
+  const currentSnapshot = buildPersistedSnapshot(state);
+
+  // Skip if nothing meaningful has changed since last save
+  if (lastSavedSnapshot && isDeepEqual(currentSnapshot, lastSavedSnapshot)) {
+    return;
+  }
+
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
-    void savePersistedAppState(
-      buildPersistedSnapshot(useAppStore.getState())
-    ).catch(console.error);
+    // Re-check before saving in case it changed back or another save happened
+    const latestState = useAppStore.getState();
+    const finalSnapshot = buildPersistedSnapshot(latestState);
+
+    if (lastSavedSnapshot && isDeepEqual(finalSnapshot, lastSavedSnapshot)) {
+      return;
+    }
+
+    lastSavedSnapshot = finalSnapshot;
+    void savePersistedAppState(finalSnapshot).catch(console.error);
   }, 500);
 });
