@@ -1,6 +1,4 @@
 /* eslint-disable complexity */
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { listen } from '@tauri-apps/api/event';
 import {
   ChevronLeft,
   Circle,
@@ -300,12 +298,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => {});
-    const redoActionRef = useRef<() => void>(() => {});
-    const clearActionRef = useRef<() => void>(() => {});
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
-    const resetViewportRef = useRef<() => void>(() => {});
-    const updateCursorPreviewRef = useRef<() => void>(() => {});
+    const undoActionRef = useRef<() => void>(() => { });
+    const redoActionRef = useRef<() => void>(() => { });
+    const clearActionRef = useRef<() => void>(() => { });
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
+    const resetViewportRef = useRef<() => void>(() => { });
+    const updateCursorPreviewRef = useRef<() => void>(() => { });
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -863,26 +861,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       });
       return () => cancelAnimationFrame(raf);
     }, [textInput, textInput?.id]);
-
-    useEffect(() => {
-      if (!isAndroid) return;
-      let unlisten: UnlistenFn | null = null;
-      listen('stylus-double-tap', () => {
-        const current = activeTool;
-        const nextTool =
-          current !== 'eraser'
-            ? 'eraser'
-            : (previousNonEraserRef.current ?? 'pen');
-        switchTool(nextTool);
-      })
-        .then((u) => {
-          unlisten = u;
-        })
-        .catch(() => {});
-      return () => {
-        if (unlisten) unlisten();
-      };
-    }, [isAndroid, switchTool, activeTool]);
 
     useEffect(() => {
       if (!embedded && !open) return;
