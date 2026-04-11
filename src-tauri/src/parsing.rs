@@ -1,7 +1,5 @@
-use crate::constants::{
-    DISALLOWED_METHOD_INSTRUCTIONS, DISALLOWED_SELF_TALK, MC_MAX_EXPLANATION_WORDS,
-};
-use crate::models::{default_max_marks, AppError, CommandResult, GeneratedQuestion, McQuestion};
+#[cfg(test)]
+use crate::catalog;
 
 // --- JSON pre-processing: protect LaTeX commands from JSON escape sequences --
 //
@@ -766,9 +764,61 @@ fn normalise_typography(s: &str) -> String {
 /// Compute the Levenshtein edit distance between two strings.
 
 /// Similarity score between 0.0 and 1.0 based on normalized Levenshtein distance.
+#[cfg(test)]
+fn similarity_score(a: &str, b: &str) -> f32 {
+    if a == b {
+        return 1.0;
+    }
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    if a_chars.is_empty() || b_chars.is_empty() {
+        return 0.0;
+    }
+
+    let m = a_chars.len();
+    let n = b_chars.len();
+    let mut dp = vec![vec![0usize; n + 1]; m + 1];
+    for (i, row) in dp.iter_mut().enumerate().take(m + 1) {
+        row[0] = i;
+    }
+    for (j, cell) in dp[0].iter_mut().enumerate().take(n + 1) {
+        *cell = j;
+    }
+
+    for i in 1..=m {
+        for j in 1..=n {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
+            dp[i][j] = (dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1)
+                .min(dp[i - 1][j - 1] + cost);
+        }
+    }
+
+    let dist = dp[m][n] as f32;
+    let max_len = m.max(n) as f32;
+    (1.0 - dist / max_len).max(0.0)
+}
+
+#[cfg(test)]
+fn all_canonical_subtopics() -> Vec<String> {
+    catalog::all_topics()
+        .iter()
+        .flat_map(|topic| topic.subtopics.iter().map(|sub| sub.name.to_lowercase()))
+        .collect()
+}
 
 /// Result of attempting to canonicalize a subtopic value.
+#[cfg(test)]
 #[derive(Debug)]
+enum CanonicalizeResult {
+    AlreadyCanonical,
+    Mapped(String),
+    NoMatch,
+}
 
 /// Attempt to canonicalize a subtopic value using a multi-tier strategy:
 /// 1. Exact case-insensitive match
@@ -777,6 +827,55 @@ fn normalise_typography(s: &str) -> String {
 /// 4. Fallback to the sole user-selected subtopic if only one was specified
 ///
 /// Returns the canonical form if found, or the original value if no match.
+#[cfg(test)]
+fn canonicalize_subtopic(value: &str, sole_selected_subtopic: Option<&str>) -> CanonicalizeResult {
+    let input = value.trim();
+    if input.is_empty() {
+        if let Some(sole) = sole_selected_subtopic
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            return CanonicalizeResult::Mapped(sole.to_string());
+        }
+        return CanonicalizeResult::NoMatch;
+    }
+
+    let input_lower = input.to_lowercase();
+    let all = all_canonical_subtopics();
+
+    if all.iter().any(|s| s == &input_lower) {
+        return CanonicalizeResult::AlreadyCanonical;
+    }
+
+    if let Some(found) = all.iter().find(|candidate| {
+        candidate.contains(&input_lower) || input_lower.contains(candidate.as_str())
+    }) {
+        return CanonicalizeResult::Mapped(found.clone());
+    }
+
+    let mut best: Option<(&String, f32)> = None;
+    for candidate in &all {
+        let score = similarity_score(&input_lower, candidate);
+        if best.is_none_or(|(_, s)| score > s) {
+            best = Some((candidate, score));
+        }
+    }
+
+    if let Some((candidate, score)) = best {
+        if score >= 0.78 {
+            return CanonicalizeResult::Mapped(candidate.clone());
+        }
+    }
+
+    if let Some(sole) = sole_selected_subtopic
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        return CanonicalizeResult::Mapped(sole.to_string());
+    }
+
+    CanonicalizeResult::NoMatch
+}
 
 /// If the `topic` field is not a canonical subject, try to detect whether the LLM
 /// put a subtopic value there instead. If so, move it to `subtopic` and set
@@ -786,11 +885,7 @@ fn normalise_typography(s: &str) -> String {
 
 // --- Normalise + validate written questions ----------------------------------
 
-
-
 // --- Normalise + validate MC questions ----------------------------------------
-
-
 
 // --- Tests -------------------------------------------------------------------
 
@@ -1204,5 +1299,4 @@ mod tests {
             other => panic!("Expected Mapped, got {other:?}"),
         }
     }
-
-    #[test]
+}

@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use crate::catalog;
 use base64::{engine::general_purpose, Engine as _};
 use tauri::Manager;

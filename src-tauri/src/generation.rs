@@ -1,7 +1,7 @@
 use std::time::Instant;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use crate::models::{CommandResult, AppError, GeneratedQuestion, McQuestion, WrittenQuestionsPayload, McQuestionsPayload, GenerationQualityDiagnostics, GenerateQuestionsResponse, GenerateMcQuestionsResponse, GenerateQuestionsRequest, GenerateMcQuestionsRequest, MarkAnswerRequest, MarkAnswerResponse, AnalyzeImageRequest, AnalyzeImageResponse};
-use crate::openrouter::{call_openrouter, OpenRouterRequestConfig, OpenRouterResult};
+use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
 use crate::openrouter_info::{get_model_stats, compute_generation_cost};
 use crate::parsing::{protect_latex_in_raw_json, extract_json_object, extract_json_array, normalise_envelope, sanitize_for_api, clean_field};
 use crate::schemas;
@@ -315,7 +315,9 @@ impl GenerationService {
 
         let mut metrics = metrics;
         let mut summary = summary;
-        let mut last_result = result.clone();
+        let mut final_prompt_tokens = result.prompt_tokens;
+        let mut final_completion_tokens = result.completion_tokens;
+        let mut final_total_tokens = result.total_tokens;
         if request.avoid_similar_questions.unwrap_or(false) {
             let mut need_retry = summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold);
             let mut attempts = 0;
@@ -356,7 +358,9 @@ impl GenerationService {
                             let (new_metrics, new_summary) = quality::score_batch(&new_texts);
                             if new_summary.distinctness_avg.unwrap_or(0.0) > summary.distinctness_avg.unwrap_or(0.0) {
                                 payload = new_payload; metrics = new_metrics; summary = new_summary;
-                                last_result = r;
+                                final_prompt_tokens = r.prompt_tokens;
+                                final_completion_tokens = r.completion_tokens;
+                                final_total_tokens = r.total_tokens;
                                 for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
                                     q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
                                     q.verb_diversity_count = Some(metric.verb_diversity); q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
@@ -373,12 +377,12 @@ impl GenerationService {
         let final_latex_issues = self.collect_latex_issues(&payload.questions, false);
         quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, final_latex_issues);
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(last_result.prompt_tokens as u64), Some(last_result.completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(final_prompt_tokens as u64), Some(final_completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
         let duration_ms = started.elapsed().as_millis() as u64;
 
-        self.emit_generation_status(serde_json::json!({ "mode": "written", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": last_result.total_tokens, "promptTokens": last_result.prompt_tokens, "completionTokens": last_result.completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
+        self.emit_generation_status(serde_json::json!({ "mode": "written", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
-        Ok(GenerateQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: last_result.prompt_tokens, completion_tokens: last_result.completion_tokens, total_tokens: last_result.total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
+        Ok(GenerateQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: final_prompt_tokens, completion_tokens: final_completion_tokens, total_tokens: final_total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
     }
 
     pub async fn generate_mc(&self, request: GenerateMcQuestionsRequest) -> CommandResult<GenerateMcQuestionsResponse> {
@@ -494,7 +498,9 @@ impl GenerationService {
 
         let mut metrics = metrics;
         let mut summary = summary;
-        let mut last_result = result.clone();
+        let mut final_prompt_tokens = result.prompt_tokens;
+        let mut final_completion_tokens = result.completion_tokens;
+        let mut final_total_tokens = result.total_tokens;
         if request.avoid_similar_questions.unwrap_or(false) {
             let mut need_retry = summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold);
             let mut attempts = 0;
@@ -534,7 +540,9 @@ impl GenerationService {
                             let (new_metrics, new_summary) = quality::score_batch(&new_texts);
                             if new_summary.distinctness_avg.unwrap_or(0.0) > summary.distinctness_avg.unwrap_or(0.0) {
                                 payload = new_payload; metrics = new_metrics; summary = new_summary;
-                                last_result = r;
+                                final_prompt_tokens = r.prompt_tokens;
+                                final_completion_tokens = r.completion_tokens;
+                                final_total_tokens = r.total_tokens;
                                 for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
                                     q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
                                 }
@@ -550,12 +558,12 @@ impl GenerationService {
         let final_latex_issues = self.collect_latex_issues(&payload.questions, true);
         quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, final_latex_issues);
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(last_result.prompt_tokens as u64), Some(last_result.completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(final_prompt_tokens as u64), Some(final_completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
         let duration_ms = started.elapsed().as_millis() as u64;
 
-        self.emit_generation_status(serde_json::json!({ "mode": "multiple-choice", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": last_result.total_tokens, "promptTokens": last_result.prompt_tokens, "completionTokens": last_result.completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
+        self.emit_generation_status(serde_json::json!({ "mode": "multiple-choice", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
-        Ok(GenerateMcQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: last_result.prompt_tokens, completion_tokens: last_result.completion_tokens, total_tokens: last_result.total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
+        Ok(GenerateMcQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: final_prompt_tokens, completion_tokens: final_completion_tokens, total_tokens: final_total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
     }
 
     pub async fn mark_answer(&self, request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
@@ -637,16 +645,16 @@ impl GenerationService {
             parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
         } else { parsed.score_out_of_10 = 0; }
 
-        parsed.feedback_markdown = parsing::clean_field(&parsed.feedback_markdown);
-        parsed.worked_solution_markdown = parsing::clean_field(&parsed.worked_solution_markdown);
-        parsed.comparison_to_solution_markdown = parsing::clean_field(&parsed.comparison_to_solution_markdown);
-        parsed.exemplar_response_markdown = parsing::clean_field(&parsed.exemplar_response_markdown);
+        parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);
+        parsed.worked_solution_markdown = clean_field(&parsed.worked_solution_markdown);
+        parsed.comparison_to_solution_markdown = clean_field(&parsed.comparison_to_solution_markdown);
+        parsed.exemplar_response_markdown = clean_field(&parsed.exemplar_response_markdown);
         for c in &mut parsed.vcaa_marking_scheme {
-            c.criterion = parsing::clean_field(&c.criterion);
-            c.rationale = parsing::clean_field(&c.rationale);
+            c.criterion = clean_field(&c.criterion);
+            c.rationale = clean_field(&c.rationale);
         }
         for opt in &mut parsed.mc_option_explanations {
-            opt.explanation = parsing::clean_field(&opt.explanation);
+            opt.explanation = clean_field(&opt.explanation);
         }
 
         parsed.prompt_tokens = result.prompt_tokens;
@@ -713,19 +721,16 @@ pub trait QuestionWithMarkdown {
     fn get_id(&self) -> &str;
     fn get_prompt(&self) -> &str;
     fn get_explanation(&self) -> Option<&str>;
-    fn get_subtopic(&self) -> Option<String>;
 }
 
 impl QuestionWithMarkdown for GeneratedQuestion {
     fn get_id(&self) -> &str { &self.id }
     fn get_prompt(&self) -> &str { &self.prompt_markdown }
     fn get_explanation(&self) -> Option<&str> { None }
-    fn get_subtopic(&self) -> Option<String> { self.subtopic.clone() }
 }
 
 impl QuestionWithMarkdown for McQuestion {
     fn get_id(&self) -> &str { &self.id }
     fn get_prompt(&self) -> &str { &self.prompt_markdown }
     fn get_explanation(&self) -> Option<&str> { Some(&self.explanation_markdown) }
-    fn get_subtopic(&self) -> Option<String> { self.subtopic.clone() }
 }
