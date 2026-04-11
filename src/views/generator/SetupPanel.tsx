@@ -252,8 +252,8 @@ function SetupPanelImpl({
             : []),
           ...(selectedTopics.includes('Physical Education')
             ? physicalEducationSubtopics.map((sub) =>
-                toCanonicalSubtopicName(sub)
-              )
+              toCanonicalSubtopicName(sub)
+            )
             : []),
         ])
       ),
@@ -324,8 +324,8 @@ function SetupPanelImpl({
         {/* ── Header ── */}
         <div className="space-y-4">
           <PageHeader
-            title="Practice Generator"
-            description="Configure your VCE revision session"
+            title="Generator"
+            description="Setup generation parameters here."
             actions={
               <FilterGroup>
                 <FilterButton
@@ -615,7 +615,7 @@ function SetupPanelImpl({
                   )}
                 </span>
                 {estimated.promptCost != null ||
-                estimated.completionCost != null ? (
+                  estimated.completionCost != null ? (
                   <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
                     <DollarSign className="w-3 h-3 text-muted-foreground" />
                     {formatCostUsd(estimated.totalCost)}
