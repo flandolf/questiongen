@@ -99,10 +99,6 @@ pub struct GenerateQuestionsRequest {
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
-    // Model generation parameters
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub seed: Option<u64>,
 }
 
 /// Deserialised directly from the model's JSON output.
@@ -158,10 +154,6 @@ pub struct MarkAnswerRequest {
     pub student_answer_image_data_url: Option<String>,
     pub model: String,
     pub api_key: String,
-    // Model generation parameters
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -245,10 +237,6 @@ pub struct AnalyzeImageRequest {
     pub model: String,
     pub api_key: String,
     pub prompt: Option<String>,
-    // Model generation parameters
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -266,9 +254,6 @@ pub struct CleanupTopicsRequest {
     pub api_key: String,
     pub unknown_topics: Vec<String>,
     pub canonical_topics: Vec<String>,
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -286,9 +271,6 @@ pub struct CleanupSubtopicsRequest {
     pub api_key: String,
     pub unknown_subtopics: Vec<String>,
     pub canonical_subtopics: Vec<String>,
-    pub temperature: Option<f32>,
-    pub top_p: Option<f32>,
-    pub seed: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

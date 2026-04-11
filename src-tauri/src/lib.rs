@@ -133,17 +133,6 @@ fn emit_generation_status(app: &tauri::AppHandle, payload: serde_json::Value) {
     }
 }
 
-/// Map a difficulty label to (temperature, top_p) defaults.
-fn difficulty_to_temperature(difficulty: &str) -> (f32, f32) {
-    match difficulty {
-        "Essential Skills" | "Easy" => (1.1, 0.9),
-        "Medium" => (1.3, 0.9),
-        "Hard" => (1.35, 0.9),
-        "Extreme" => (1.5, 0.9),
-        _ => (1.0, 0.9),
-    }
-}
-
 // ─── Response format schemas ──────────────────────────────────────────────────
 
 fn written_format(model: &str) -> serde_json::Value {
@@ -1242,12 +1231,6 @@ async fn generate_questions(
         serde_json::Value::String(prompt)
     };
 
-    // Determine temperature, top_p, seed (difficulty-aware tuning)
-    let (base_temp, base_top_p) = difficulty_to_temperature(&adjusted_difficulty);
-    let temperature = request.temperature.unwrap_or(base_temp);
-    let top_p = request.top_p.unwrap_or(base_top_p);
-    let seed = request.seed;
-
     let result = call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
         app.clone(),
         &request.api_key,
@@ -1256,9 +1239,6 @@ async fn generate_questions(
         user_content,
         &written_fmt,
         max_tokens,
-        temperature,
-        top_p,
-        seed,
         plugins.clone(),
     ))
     .await?;
@@ -1482,8 +1462,6 @@ async fn generate_questions(
                 serde_json::Value::String(prompt)
             };
 
-            let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
-
             let retry_result =
                 call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
                     app.clone(),
@@ -1493,9 +1471,6 @@ async fn generate_questions(
                     new_user_content,
                     &written_fmt,
                     max_tokens,
-                    retry_temp,
-                    top_p,
-                    None,
                     plugins.clone(),
                 ))
                 .await;
@@ -1751,12 +1726,6 @@ async fn generate_mc_questions(
         serde_json::Value::String(prompt)
     };
 
-    // MC: τ = 0.6, top-p = 0.9 by default, difficulty-aware tuning
-    let (base_temp, base_top_p) = difficulty_to_temperature(&adjusted_difficulty);
-    let temperature = request.temperature.unwrap_or(base_temp);
-    let top_p = request.top_p.unwrap_or(base_top_p);
-    let seed = request.seed;
-
     let result = call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
         app.clone(),
         &request.api_key,
@@ -1765,9 +1734,6 @@ async fn generate_mc_questions(
         user_content,
         &mc_fmt,
         base_mc_tokens,
-        temperature,
-        top_p,
-        seed,
         plugins.clone(),
     ))
     .await?;
@@ -1962,8 +1928,6 @@ async fn generate_mc_questions(
                 serde_json::Value::String(prompt)
             };
 
-            let retry_temp = (temperature + 0.2 * attempts as f32).min(1.0);
-
             let retry_result =
                 call_openrouter_streaming_with_plugins(OpenRouterRequestConfig::with_app(
                     app.clone(),
@@ -1973,9 +1937,6 @@ async fn generate_mc_questions(
                     new_user_content,
                     &mc_fmt,
                     base_mc_tokens,
-                    retry_temp,
-                    top_p,
-                    None,
                     plugins.clone(),
                 ))
                 .await;
@@ -2249,11 +2210,6 @@ mathematical rigour.\n"
     // add ~400 tokens on top of the written-question budget.
     let max_tokens = (max_marks as u32) * 2000 + 4000;
 
-    // Marking: τ = 0.2, top-p = 0.8, seed = fixed (unless overridden)
-    let temperature = request.temperature.unwrap_or(0.2);
-    let top_p = request.top_p.unwrap_or(0.8);
-    let seed = request.seed;
-
     // Use plugins with file-parser when report PDFs are attached.
     let plugins = if has_reports {
         // Determine model file support for plugin configuration.
@@ -2271,9 +2227,6 @@ mathematical rigour.\n"
         user_content,
         &marking_format(&request.model),
         max_tokens,
-        temperature,
-        top_p,
-        seed,
         plugins,
     ))
     .await?;
@@ -2452,9 +2405,6 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         )
     };
 
-    let temperature = request.temperature.unwrap_or(0.2);
-    let top_p = request.top_p.unwrap_or(0.8);
-    let seed = request.seed;
     let result = call_openrouter(
         &request.api_key,
         &request.model,
@@ -2465,9 +2415,6 @@ async fn analyze_image(request: AnalyzeImageRequest) -> CommandResult<AnalyzeIma
         ]),
         &free_text_format,
         4_500,
-        temperature,
-        top_p,
-        seed,
     )
     .await?;
 
@@ -2646,9 +2593,6 @@ async fn batch_cleanup(
     canonical: &[String],
     api_key: &str,
     model: &str,
-    temperature: f32,
-    top_p: f32,
-    seed: Option<u64>,
 ) -> CommandResult<HashMap<String, String>> {
     // Auto-map exact (case-insensitive) matches first
     let (mut mapping, remaining) = auto_map_exact(unknowns, canonical);
@@ -2723,9 +2667,6 @@ async fn batch_cleanup(
             serde_json::Value::String(user_prompt),
             &schema,
             2048,
-            temperature,
-            top_p,
-            seed,
         )
         .await?;
 
@@ -2765,9 +2706,6 @@ async fn cleanup_topics(request: CleanupTopicsRequest) -> CommandResult<CleanupT
         &canonical_topics,
         &request.api_key,
         &request.model,
-        request.temperature.unwrap_or(0.0),
-        request.top_p.unwrap_or(0.9),
-        request.seed,
     )
     .await?;
 
@@ -2804,9 +2742,6 @@ async fn cleanup_subtopics(
         &canonical_subtopics,
         &request.api_key,
         &request.model,
-        request.temperature.unwrap_or(0.0),
-        request.top_p.unwrap_or(0.9),
-        request.seed,
     )
     .await?;
 
