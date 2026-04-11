@@ -25,79 +25,41 @@ pub struct OpenRouterRequestConfig {
     pub response_format: serde_json::Value,
     pub max_tokens: u32,
     pub plugins: serde_json::Value,
+    pub stream: bool,
     pub app: Option<tauri::AppHandle>,
 }
 
 impl OpenRouterRequestConfig {
-    // pub fn new(
-    //     api_key: &str,
-    //     model: &str,
-    //     system_prompt: &str,
-    //     user_content: serde_json::Value,
-    //     response_format: &serde_json::Value,
-    //     max_tokens: u32,
-    //     temperature: f32,
-    //     top_p: f32,
-    //     seed: Option<u64>,
-    // ) -> Self {
-    //     Self {
-    //         api_key: api_key.to_string(),
-    //         model: model.to_string(),
-    //         system_prompt: system_prompt.to_string(),
-    //         user_content,
-    //         response_format: response_format.clone(),
-    //         max_tokens,
-    //         temperature,
-    //         top_p,
-    //         seed,
-    //         plugins: serde_json::json!([{ "id": "response-healing" }]),
-    //         app: None,
-    //     }
-    // }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_plugins(
+    pub fn new(
         api_key: &str,
         model: &str,
         system_prompt: &str,
         user_content: serde_json::Value,
-        response_format: &serde_json::Value,
+        response_format: serde_json::Value,
         max_tokens: u32,
-        plugins: serde_json::Value,
     ) -> Self {
         Self {
             api_key: api_key.to_string(),
             model: model.to_string(),
             system_prompt: system_prompt.to_string(),
             user_content,
-            response_format: response_format.clone(),
+            response_format,
             max_tokens,
-            plugins,
+            plugins: serde_json::json!([{ "id": "response-healing" }]),
+            stream: false,
             app: None,
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_app(
-        app: tauri::AppHandle,
-        api_key: &str,
-        model: &str,
-        system_prompt: &str,
-        user_content: serde_json::Value,
-        response_format: &serde_json::Value,
-        max_tokens: u32,
-        plugins: serde_json::Value,
-    ) -> Self {
-        Self {
-            api_key: api_key.to_string(),
-            model: model.to_string(),
-            system_prompt: system_prompt.to_string(),
-            user_content,
-            response_format: response_format.clone(),
-            max_tokens,
-            plugins,
-            app: Some(app),
-        }
+    pub fn with_plugins(mut self, plugins: serde_json::Value) -> Self {
+        self.plugins = plugins;
+        self
+    }
+
+    pub fn with_stream(mut self, app: tauri::AppHandle) -> Self {
+        self.stream = true;
+        self.app = Some(app);
+        self
     }
 }
 
@@ -109,31 +71,16 @@ pub struct OpenRouterResult {
     pub total_tokens: u32,
 }
 
-// ─── Non-streaming (kept for mark_answer / analyze_image) ────────────────────
-
-#[allow(clippy::too_many_arguments)]
-pub async fn call_openrouter(
-    api_key: &str,
-    model: &str,
-    system_prompt: &str,
-    user_content: serde_json::Value,
-    response_format: &serde_json::Value,
-    max_tokens: u32,
-) -> CommandResult<OpenRouterResult> {
-    call_openrouter_with_plugins(OpenRouterRequestConfig::with_plugins(
-        api_key,
-        model,
-        system_prompt,
-        user_content,
-        response_format,
-        max_tokens,
-        serde_json::json!([{ "id": "response-healing" }]),
-    ))
-    .await
+/// Unified OpenRouter caller.
+pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<OpenRouterResult> {
+    if config.stream {
+        call_openrouter_streaming(config).await
+    } else {
+        call_openrouter_non_streaming(config).await
+    }
 }
 
-/// Make a single non-streaming OpenRouter request with custom plugins.
-pub async fn call_openrouter_with_plugins(
+async fn call_openrouter_non_streaming(
     config: OpenRouterRequestConfig,
 ) -> CommandResult<OpenRouterResult> {
     let mut system_prompt = config.system_prompt.clone();
@@ -197,8 +144,6 @@ pub async fn call_openrouter_with_plugins(
     })
 }
 
-// ─── Streaming ────────────────────────────────────────────────────────────────
-
 /// SSE chunk payload — only the fields we care about.
 #[derive(serde::Deserialize, Debug)]
 struct SseChoice {
@@ -224,10 +169,7 @@ struct SseUsage {
     total_tokens: u32,
 }
 
-/// Streaming OpenRouter request with custom plugins.
-pub async fn call_openrouter_streaming_with_plugins(
-    config: OpenRouterRequestConfig,
-) -> CommandResult<OpenRouterResult> {
+async fn call_openrouter_streaming(config: OpenRouterRequestConfig) -> CommandResult<OpenRouterResult> {
     let mut system_prompt = config.system_prompt.clone();
     if is_anthropic_model(&config.model) {
         system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
@@ -243,7 +185,6 @@ pub async fn call_openrouter_streaming_with_plugins(
         "response_format": config.response_format,
         "plugins": config.plugins,
         "stream": true,
-        // Request usage in the final stream chunk (supported by most providers).
         "stream_options": { "include_usage": true },
     });
 
@@ -271,7 +212,6 @@ pub async fn call_openrouter_streaming_with_plugins(
     let mut stream = response.bytes_stream();
     let mut assembled = String::new();
     let mut usage: Option<SseUsage> = None;
-    // Rolling incomplete-line buffer (SSE lines can be split across chunks).
     let mut buf = String::new();
     let mut done = false;
 
@@ -286,7 +226,6 @@ pub async fn call_openrouter_streaming_with_plugins(
             continue;
         }
 
-        // Process every complete line we've accumulated.
         loop {
             match buf.find('\n') {
                 None => break,
@@ -311,15 +250,13 @@ pub async fn call_openrouter_streaming_with_plugins(
 
                     let chunk_val: SseChunk = match serde_json::from_str(data) {
                         Ok(v) => v,
-                        Err(_) => continue, // ignore malformed lines
+                        Err(_) => continue,
                     };
 
-                    // Capture usage if the provider includes it.
                     if let Some(u) = chunk_val.usage {
                         usage = Some(u);
                     }
 
-                    // Accumulate and emit content deltas.
                     if let Some(choices) = chunk_val.choices {
                         for choice in choices {
                             if let Some(delta) = choice.delta {
@@ -342,7 +279,6 @@ pub async fn call_openrouter_streaming_with_plugins(
         }
     }
 
-    // Process any remaining buffered content that wasn't terminated by a newline
     if !done && !buf.is_empty() {
         let trimmed = buf.trim_end_matches('\r').to_owned();
         if let Some(rest) = trimmed.strip_prefix("data: ") {
@@ -381,8 +317,6 @@ pub async fn call_openrouter_streaming_with_plugins(
         ));
     }
 
-    // Only use provider-reported usage analytics from OpenRouter.
-    // If usage is absent, keep counts at zero rather than estimating.
     let (pt, ct, tt) = usage
         .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
         .unwrap_or((0, 0, 0));
@@ -395,9 +329,6 @@ pub async fn call_openrouter_streaming_with_plugins(
     })
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-/// Check if a model is an Anthropic model.
 pub fn is_anthropic_model(model: &str) -> bool {
     let model = model.trim().to_ascii_lowercase();
     model.starts_with("anthropic/")
@@ -407,17 +338,14 @@ pub fn is_anthropic_model(model: &str) -> bool {
             .nth(1)
             .is_some_and(|id| id.starts_with("claude"))
 }
-/// Recursively strip minimum/maximum constraints from integer types in a JSON schema.
-/// This is needed for Anthropic models which don't support these constraints.
+
 fn strip_integer_constraints(value: &mut serde_json::Value) {
     match value {
         serde_json::Value::Object(map) => {
-            // Remove minimum and maximum for integer types
             if map.get("type").and_then(|v| v.as_str()) == Some("integer") {
                 map.remove("minimum");
                 map.remove("maximum");
             }
-            // Recursively process nested objects and arrays
             for (_, v) in map.iter_mut() {
                 strip_integer_constraints(v);
             }
@@ -431,12 +359,6 @@ fn strip_integer_constraints(value: &mut serde_json::Value) {
     }
 }
 
-/// Recursively strip additional schema constraints that Anthropic providers may reject.
-///
-/// Azure-backed Anthropic endpoints can reject schemas that include richer array
-/// constraints (for example `minItems` > 1) and some array-form `type` unions.
-/// We already validate outputs after parsing, so keeping the transport schema more
-/// permissive is safe and avoids provider-side 400 errors.
 fn strip_anthropic_array_constraints(value: &mut serde_json::Value) {
     match value {
         serde_json::Value::Object(map) => {
@@ -444,9 +366,6 @@ fn strip_anthropic_array_constraints(value: &mut serde_json::Value) {
                 map.remove("minItems");
                 map.remove("maxItems");
             }
-
-            // Anthropic compatibility: avoid nullable/type unions encoded as arrays
-            // such as { "type": ["string", "null"] }.
             if let Some(serde_json::Value::Array(type_variants)) = map.get("type") {
                 if let Some(primary_type) = type_variants
                     .iter()
@@ -459,16 +378,11 @@ fn strip_anthropic_array_constraints(value: &mut serde_json::Value) {
                     );
                 }
             }
-
-            // Some Anthropic providers also reject large `required` arrays when
-            // strict JSON schema is enabled. We keep only single-field required
-            // constraints and rely on downstream validation for completeness.
             if let Some(serde_json::Value::Array(required)) = map.get("required") {
                 if required.len() > 1 {
                     map.remove("required");
                 }
             }
-
             for (_, v) in map.iter_mut() {
                 strip_anthropic_array_constraints(v);
             }
@@ -482,7 +396,6 @@ fn strip_anthropic_array_constraints(value: &mut serde_json::Value) {
     }
 }
 
-/// Build a `response_format` value for a named JSON schema.
 pub fn json_schema_format(name: &'static str, schema: serde_json::Value) -> serde_json::Value {
     serde_json::json!({
         "type": "json_schema",
@@ -494,8 +407,6 @@ pub fn json_schema_format(name: &'static str, schema: serde_json::Value) -> serd
     })
 }
 
-/// Build a `response_format` value for a named JSON schema, stripped for Anthropic compatibility.
-/// Removes minimum/maximum constraints that Anthropic models don't support.
 pub fn json_schema_format_anthropic(
     name: &'static str,
     mut schema: serde_json::Value,

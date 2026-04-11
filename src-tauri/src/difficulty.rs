@@ -7,3 +7,39 @@ pub fn difficulty_guidance(level: &str) -> &'static str {
         _ => "Medium: Multi-step reasoning, method selection, some interpretation.",
     }
 }
+
+pub fn adjust_difficulty(
+    base_difficulty: &str,
+    scaling_enabled: bool,
+    recent_average_score: Option<f64>,
+    recent_difficulty: Option<&str>,
+) -> String {
+    if !scaling_enabled {
+        return base_difficulty.to_string();
+    }
+    let Some(score) = recent_average_score else {
+        return base_difficulty.to_string();
+    };
+    let levels = ["Essential Skills", "Easy", "Medium", "Hard", "Extreme"];
+    let mut current_index = levels
+        .iter()
+        .position(|&r| r == base_difficulty)
+        .unwrap_or(2); // default Medium
+
+    // If recent difficulty was different, adjust baseline
+    if let Some(recent_diff) = recent_difficulty {
+        if let Some(recent_idx) = levels.iter().position(|&r| r == recent_diff) {
+            current_index = recent_idx;
+        }
+    }
+
+    let new_index = if score > 85.0 {
+        (current_index + 1).min(4)
+    } else if score < 70.0 {
+        current_index.saturating_sub(1)
+    } else {
+        current_index
+    };
+
+    levels[new_index].to_string()
+}
