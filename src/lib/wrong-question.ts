@@ -1,3 +1,4 @@
+import { shuffleWithSeed } from '@/lib/randomization';
 import type { McHistoryEntry, QuestionHistoryEntry } from '@/types';
 
 export type WrittenWrongEntry = QuestionHistoryEntry & { kind: 'written' };
@@ -10,14 +11,7 @@ export type ReattemptResult = {
   timeSeconds: number;
 };
 
-export function shuffleArray<T>(array: T[]): T[] {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
+export { shuffleWithSeed as shuffleArray };
 
 export function scoreBg(pct: number) {
   if (pct >= 0.75)

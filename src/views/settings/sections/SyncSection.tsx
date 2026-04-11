@@ -13,7 +13,6 @@ import { useAppSettings } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
-import { signOutFirebase } from '../../../context/modules/firebase-auth';
 import { Card, FieldGroup, SectionHeader, ToggleRow } from '../SettingsUI';
 
 // eslint-disable-next-line complexity
@@ -31,14 +30,11 @@ export function SyncSection() {
   const {
     user,
     isLoading: syncLoading,
-    isSyncing,
     isSyncEnabled,
     isOnline,
     syncStatus,
-    syncError,
     enableSync,
     disableSync,
-    toggleSync,
   } = firebaseSync;
 
   const syncEnabled = isSyncEnabled;
@@ -56,7 +52,7 @@ export function SyncSection() {
         ? {
             label: 'Error',
             tone: 'blocked',
-            hint: syncError || 'An error occurred during synchronization.',
+            hint: 'An error occurred during synchronization.',
           }
         : syncStatus === 'connecting'
           ? {
@@ -86,7 +82,7 @@ export function SyncSection() {
 
   const handleSignOut = async () => {
     try {
-      await signOutFirebase();
+      await disableSync();
     } catch (error) {
       console.error('Sign out failed:', error);
     }
@@ -105,15 +101,6 @@ export function SyncSection() {
           <div>
             <span className="font-semibold">You are offline.</span> Cloud sync
             requires an internet connection.
-          </div>
-        </div>
-      )}
-
-      {syncError && (
-        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold">Error:</span> {syncError}
           </div>
         </div>
       )}
@@ -199,32 +186,6 @@ export function SyncSection() {
                 }}
               >
                 Disable sync
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  void handleSignOut();
-                }}
-              >
-                Sign out
-              </Button>
-            </div>
-          )}
-          {isSignedIn && !syncEnabled && (
-            <div className="flex flex-wrap gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => {
-                  toggleSync();
-                }}
-                disabled={isSyncing || !isOnline}
-              >
-                <Cloud className="h-3.5 w-3.5" />
-                {isSyncing ? 'Enabling...' : 'Enable Sync'}
               </Button>
               <Button
                 variant="outline"

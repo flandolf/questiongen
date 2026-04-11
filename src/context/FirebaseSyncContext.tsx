@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
 
 import { useSyncV3, type UseSyncV3Return } from './modules/sync-v3/useSyncV3';
 
@@ -19,16 +19,16 @@ export function FirebaseSyncProvider({
 }
 
 export function useFirebaseSyncContext(): UseSyncV3Return {
-  const fallbackValue = useSyncV3();
   const value = useContext(FirebaseSyncContext);
 
-  useEffect(() => {
-    if (!value && import.meta.env.DEV) {
-      console.warn(
-        'useFirebaseSyncContext used outside FirebaseSyncProvider; falling back to a standalone sync instance.'
-      );
+  if (!value) {
+    if (import.meta.env.DEV) {
+      console.warn('useFirebaseSyncContext used outside FirebaseSyncProvider.');
     }
-  }, [value]);
+    throw new Error(
+      'useFirebaseSyncContext must be used within FirebaseSyncProvider.'
+    );
+  }
 
-  return value ?? fallbackValue;
+  return value;
 }
