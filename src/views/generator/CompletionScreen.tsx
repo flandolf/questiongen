@@ -631,10 +631,11 @@ export function CompletionScreen({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`relative px-3 py-3 text-xs font-semibold transition-colors ${activeTab === tab.id
+              className={`relative px-3 py-3 text-xs font-semibold transition-colors ${
+                activeTab === tab.id
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
-                }`}
+              }`}
             >
               {tab.label}
               {activeTab === tab.id && (
