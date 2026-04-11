@@ -87,9 +87,9 @@ function buildSketchpadSessionKey(
   question:
     | Pick<GeneratedQuestion, 'id' | 'topic' | 'subtopic' | 'promptMarkdown'>
     | Pick<
-        McQuestion,
-        'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
-      >
+      McQuestion,
+      'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
+    >
 ): string {
   const signature = [
     mode,
@@ -195,6 +195,10 @@ export function GeneratorView() {
     Record<string, string>
   >({});
   const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] =
+    useState<Record<string, string>>({});
+  const [writtenHistoryEntryIdByQuestionId, setWrittenHistoryEntryIdByQuestionId] =
+    useState<Record<string, string>>({});
+  const [mcHistoryEntryIdByQuestionId, setMcHistoryEntryIdByQuestionId] =
     useState<Record<string, string>>({});
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<
     Record<string, number>
@@ -824,7 +828,7 @@ export function GeneratorView() {
           unlisten = fn;
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -858,7 +862,7 @@ export function GeneratorView() {
           unlisten = fn;
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       cancelled = true;
@@ -914,8 +918,8 @@ export function GeneratorView() {
       /* noop */
     }
   }
-  const startOverRef = useRef<() => void>(() => {});
-  const submitRef = useRef<() => void | Promise<void>>(() => {});
+  const startOverRef = useRef<() => void>(() => { });
+  const submitRef = useRef<() => void | Promise<void>>(() => { });
   useEffect(() => {
     if (!isInSession) return;
     // eslint-disable-next-line complexity
@@ -1012,9 +1016,13 @@ export function GeneratorView() {
       setFeedbackByQuestionId((p) => removeKey(p, id));
       setMarkAppealByQuestionId((p) => removeKey(p, id));
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+      setWrittenHistoryEntryIdByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
       // Remove from history if it was already answered
-      deleteQuestionHistoryEntry(id);
+      const writtenHistoryEntryId = writtenHistoryEntryIdByQuestionId[id];
+      if (writtenHistoryEntryId) {
+        deleteQuestionHistoryEntry(writtenHistoryEntryId);
+      }
       // Subtract question time from session timer
       writtenTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -1032,10 +1040,14 @@ export function GeneratorView() {
       setMcAnswersByQuestionId((p) => removeKey(p, id));
       setMcMarkAppealByQuestionId((p) => removeKey(p, id));
       setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+      setMcHistoryEntryIdByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
       setMcImagesByQuestionId((p) => removeKey(p, id));
       // Remove from history if it was already answered
-      deleteMcHistoryEntry(id);
+      const mcHistoryEntryId = mcHistoryEntryIdByQuestionId[id];
+      if (mcHistoryEntryId) {
+        deleteMcHistoryEntry(mcHistoryEntryId);
+      }
       // Subtract question time from session timer
       mcTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -1061,7 +1073,9 @@ export function GeneratorView() {
     setFeedbackByQuestionId,
     setMarkAppealByQuestionId,
     setMarkOverrideInputByQuestionId,
+    setWrittenHistoryEntryIdByQuestionId,
     setWrittenResponseEnteredAtById,
+    writtenHistoryEntryIdByQuestionId,
     deleteQuestionHistoryEntry,
     writtenTimer,
     setMcQuestions,
@@ -1071,7 +1085,9 @@ export function GeneratorView() {
     setMcAnswersByQuestionId,
     setMcMarkAppealByQuestionId,
     setMcMarkOverrideInputByQuestionId,
+    setMcHistoryEntryIdByQuestionId,
     setMcAwardedMarksByQuestionId,
+    mcHistoryEntryIdByQuestionId,
     deleteMcHistoryEntry,
     mcTimer,
     setErrorMessage,
@@ -1203,6 +1219,10 @@ export function GeneratorView() {
       },
     };
     addMcHistoryEntry(entry);
+    setMcHistoryEntryIdByQuestionId((prev) => ({
+      ...prev,
+      [question.id]: entry.id,
+    }));
   }
 
   function updateLatestMcHistoryEntry(
@@ -1213,11 +1233,15 @@ export function GeneratorView() {
   ) {
     const now = Date.now();
     const responseAt = responseEnteredAtMs ?? now;
-    const entry = mcHistory.find(
-      (e: McHistoryEntry) =>
-        e.question.id === questionId &&
-        (e.analytics?.attemptKind ?? 'initial') === 'initial'
-    );
+    const latestMcHistory = useAppStore.getState().mcHistory;
+    const trackedEntryId = mcHistoryEntryIdByQuestionId[questionId];
+    const entry = trackedEntryId
+      ? latestMcHistory.find((e: McHistoryEntry) => e.id === trackedEntryId)
+      : latestMcHistory.find(
+        (e: McHistoryEntry) =>
+          e.question.id === questionId &&
+          (e.analytics?.attemptKind ?? 'initial') === 'initial'
+      );
     if (!entry) return;
     const updatedEntry = {
       ...entry,
@@ -1236,6 +1260,10 @@ export function GeneratorView() {
       },
     };
     updateMcHistoryEntry(updatedEntry);
+    setMcHistoryEntryIdByQuestionId((prev) => ({
+      ...prev,
+      [questionId]: entry.id,
+    }));
   }
 
   function updateLatestMcHistoryEntryMark(
@@ -1243,9 +1271,11 @@ export function GeneratorView() {
     awardedMarks: number
   ) {
     const now = Date.now();
-    const entry = mcHistory.find(
-      (e: McHistoryEntry) => e.question.id === questionId
-    );
+    const latestMcHistory = useAppStore.getState().mcHistory;
+    const trackedEntryId = mcHistoryEntryIdByQuestionId[questionId];
+    const entry = trackedEntryId
+      ? latestMcHistory.find((e: McHistoryEntry) => e.id === trackedEntryId)
+      : latestMcHistory.find((e: McHistoryEntry) => e.question.id === questionId);
     if (!entry) return;
     const updatedEntry = {
       ...entry,
@@ -1254,6 +1284,10 @@ export function GeneratorView() {
       lastModified: now,
     };
     updateMcHistoryEntry(updatedEntry);
+    setMcHistoryEntryIdByQuestionId((prev) => ({
+      ...prev,
+      [questionId]: entry.id,
+    }));
   }
 
   function updateLatestWrittenHistoryEntry(
@@ -1261,9 +1295,15 @@ export function GeneratorView() {
     response: ReturnType<typeof normalizeMarkResponse>
   ) {
     const now = Date.now();
-    const entry = questionHistory.find(
-      (e: QuestionHistoryEntry) => e.question.id === questionId
-    );
+    const latestQuestionHistory = useAppStore.getState().questionHistory;
+    const trackedEntryId = writtenHistoryEntryIdByQuestionId[questionId];
+    const entry = trackedEntryId
+      ? latestQuestionHistory.find(
+        (e: QuestionHistoryEntry) => e.id === trackedEntryId
+      )
+      : latestQuestionHistory.find(
+        (e: QuestionHistoryEntry) => e.question.id === questionId
+      );
     if (!entry) return;
     const updatedEntry = {
       ...entry,
@@ -1281,6 +1321,10 @@ export function GeneratorView() {
       },
     };
     updateQuestionHistoryEntry(updatedEntry);
+    setWrittenHistoryEntryIdByQuestionId((prev) => ({
+      ...prev,
+      [questionId]: entry.id,
+    }));
   }
 
   function appendWrittenHistoryEntry(
@@ -1320,6 +1364,10 @@ export function GeneratorView() {
       },
     };
     addQuestionHistoryEntry(entry);
+    setWrittenHistoryEntryIdByQuestionId((prev) => ({
+      ...prev,
+      [question.id]: entry.id,
+    }));
   }
 
   // ── Batch progress helpers ───────────────────────────────────────────────────
@@ -1691,6 +1739,7 @@ export function GeneratorView() {
       setActiveWrittenSavedSetId(null);
       setWrittenQuestionPresentedAtById({});
       setWrittenResponseEnteredAtById({});
+      setWrittenHistoryEntryIdByQuestionId({});
       setAnswersByQuestionId({});
       setImagesByQuestionId({});
       setFeedbackByQuestionId({});
@@ -2034,6 +2083,7 @@ export function GeneratorView() {
       setMcAnswersByQuestionId({});
       setMcMarkAppealByQuestionId({});
       setMcMarkOverrideInputByQuestionId({});
+      setMcHistoryEntryIdByQuestionId({});
       setMcAwardedMarksByQuestionId({});
       toast.success(`${preprocessedQuestions.length} MC questions generated`);
     } catch (error) {
@@ -2448,6 +2498,7 @@ export function GeneratorView() {
     setImagesByQuestionId({});
     setFeedbackByQuestionId({});
     setWrittenResponseEnteredAtById({});
+    setWrittenHistoryEntryIdByQuestionId({});
     setMarkAppealByQuestionId({});
     setMarkOverrideInputByQuestionId({});
     setMcQuestions([]);
@@ -2459,6 +2510,7 @@ export function GeneratorView() {
     setMcAnswersByQuestionId({});
     setMcMarkAppealByQuestionId({});
     setMcMarkOverrideInputByQuestionId({});
+    setMcHistoryEntryIdByQuestionId({});
     setMcAwardedMarksByQuestionId({});
   }, [
     questionMode,
@@ -2582,303 +2634,303 @@ export function GeneratorView() {
           generationSubCallProgress={generationSubCallProgress}
         />
       ) : /* ── Completion ── */
-      showCompletionScreen && isSetComplete ? (
-        <CompletionScreen
-          questionMode={questionMode}
-          difficulty={difficulty}
-          accuracyPercent={completionAccuracyPercent ?? 0}
-          formattedElapsedTime={completionFormattedElapsedTime}
-          completedCount={
-            questionMode === 'written' ? completedCount : mcCompletedCount
-          }
-          totalCount={
-            questionMode === 'written' ? questions.length : mcQuestions.length
-          }
-          onReview={() => setShowCompletionScreen(false)}
-          onStartOver={handleStartOver}
-          perQuestionTiming={
-            questionMode === 'written'
-              ? questions.map((q) => {
+        showCompletionScreen && isSetComplete ? (
+          <CompletionScreen
+            questionMode={questionMode}
+            difficulty={difficulty}
+            accuracyPercent={completionAccuracyPercent ?? 0}
+            formattedElapsedTime={completionFormattedElapsedTime}
+            completedCount={
+              questionMode === 'written' ? completedCount : mcCompletedCount
+            }
+            totalCount={
+              questionMode === 'written' ? questions.length : mcQuestions.length
+            }
+            onReview={() => setShowCompletionScreen(false)}
+            onStartOver={handleStartOver}
+            perQuestionTiming={
+              questionMode === 'written'
+                ? questions.map((q) => {
                   const t = writtenTimer.getQuestionTiming(q.id);
                   return t
                     ? {
-                        questionId: q.id,
-                        timeUsedSeconds: t.elapsedSeconds,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      }
+                      questionId: q.id,
+                      timeUsedSeconds: t.elapsedSeconds,
+                      timeLimitSeconds: 0,
+                      finishedEarly: false,
+                    }
                     : {
-                        questionId: q.id,
-                        timeUsedSeconds: 0,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      };
+                      questionId: q.id,
+                      timeUsedSeconds: 0,
+                      timeLimitSeconds: 0,
+                      finishedEarly: false,
+                    };
                 })
-              : mcQuestions.map((q) => {
+                : mcQuestions.map((q) => {
                   const t = mcTimer.getQuestionTiming(q.id);
                   return t
                     ? {
-                        questionId: q.id,
-                        timeUsedSeconds: t.elapsedSeconds,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      }
+                      questionId: q.id,
+                      timeUsedSeconds: t.elapsedSeconds,
+                      timeLimitSeconds: 0,
+                      finishedEarly: false,
+                    }
                     : {
-                        questionId: q.id,
-                        timeUsedSeconds: 0,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      };
+                      questionId: q.id,
+                      timeUsedSeconds: 0,
+                      timeLimitSeconds: 0,
+                      finishedEarly: false,
+                    };
                 })
-          }
-          sessionWrittenResults={sessionWrittenResults}
-          sessionMcResults={sessionMcResults}
-        />
-      ) : /* ── Written Question View ── */
-      questionMode === 'written' ? (
-        <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
-          <SessionHeader
-            type="written"
-            questionIndex={activeQuestionIndex}
-            totalQuestions={questions.length}
-            completedCount={completedCount}
-            topic={activeQuestion?.topic}
-            difficulty={difficulty}
-            maxMarks={activeQuestion?.maxMarks}
-            techAllowed={activeQuestion?.techAllowed}
-            isMathTopic={isMathTopic(activeQuestion?.topic)}
-            isAtLast={isAtLastWrittenQuestion}
-            canAdvance={canAdvanceWritten}
-            generationStartedAt={generationStartedAt}
-            telemetry={writtenGenerationTelemetry}
-            questionTimeSeconds={writtenTimer.currentQuestionElapsed}
-            isPaused={writtenTimer.isPaused}
-            isQuestionWarning={writtenTimer.isCurrentQuestionWarning}
-            questionMarks={writtenTimer.currentQuestionMarks}
-            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-            onPrev={() =>
-              setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
             }
-            onNext={handleNextWrittenQuestion}
-            onDelete={handleCancelWrittenQuestion}
-            onExit={handleStartOver}
-            onTogglePause={togglePause}
-            onResetTimer={resetCurrentQuestionTimer}
+            sessionWrittenResults={sessionWrittenResults}
+            sessionMcResults={sessionMcResults}
           />
-          {showKeyboardHint && (
-            <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
-              <span>
-                Tip: Use{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  ←
-                </kbd>{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  →
-                </kbd>{' '}
-                to navigate,{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
-                  Ctrl+Enter
-                </kbd>{' '}
-                to submit
-              </span>
-              <button
-                onClick={dismissKeyboardHint}
-                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {activeQuestion && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                {activeFeedback ? (
-                  <div className="min-w-0 pb-10">
-                    <WrittenFeedbackPanel
-                      questionId={activeQuestion.id}
-                      promptMarkdown={activeQuestion.promptMarkdown}
-                      answer={activeQuestionAnswer}
-                      image={activeQuestionImage}
-                      feedback={activeFeedback}
-                      appealText={activeMarkAppeal}
-                      overrideInput={activeOverrideInput}
-                      isMarking={isMarking}
-                      distinctness={activeQuestion.distinctnessScore}
-                      multiStepDepth={activeQuestion.multiStepDepth}
-                      onAppealChange={handleAppealChange}
-                      onOverrideInputChange={handleOverrideInputChange}
-                      onArgueForMark={() => void handleArgueForMark()}
-                      onApplyOverride={handleOverrideMark}
-                      onCriterionChange={handleOverrideCriterion}
-                    />
-                  </div>
-                ) : (
-                  <QuestionSplitLayout
-                    mode="written"
-                    sketchpadActive={writtenSketchpadActive}
-                    leftSlot={
-                      <MarkdownMath content={activeQuestion.promptMarkdown} />
-                    }
-                    rightSlot={
-                      <WrittenAnswerCard
-                        questionId={activeQuestion.id}
-                        sketchSessionKey={activeWrittenSketchSessionKey}
-                        answer={activeQuestionAnswer}
-                        image={activeQuestionImage}
-                        isMarking={isMarking}
-                        canSubmit={canSubmitAnswer}
-                        onAnswerChange={handleWrittenAnswerChange}
-                        onImageDrop={handleWrittenImageDrop}
-                        onImageRemove={handleWrittenImageRemove}
-                        onSubmit={(payload?: { image?: StudentAnswerImage }) =>
-                          void handleSubmitForMarking(payload)
-                        }
-                        onSketchpadActiveChange={setWrittenSketchpadActive}
-                      />
-                    }
-                  />
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ── MC Question View ── */
-        <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
-          <SessionHeader
-            type="mc"
-            questionIndex={activeMcQuestionIndex}
-            totalQuestions={mcQuestions.length}
-            completedCount={mcCompletedCount}
-            topic={activeMcQuestion?.topic}
-            difficulty={difficulty}
-            maxMarks={1}
-            techAllowed={Boolean(activeMcQuestion?.techAllowed)}
-            isMathTopic={isMathTopic(activeMcQuestion?.topic)}
-            isAtLast={isAtLastMcQuestion}
-            canAdvance={canAdvanceMc}
-            generationStartedAt={generationStartedAt}
-            telemetry={mcGenerationTelemetry}
-            questionTimeSeconds={mcTimer.currentQuestionElapsed}
-            isPaused={mcTimer.isPaused}
-            isQuestionWarning={mcTimer.isCurrentQuestionWarning}
-            questionMarks={mcTimer.currentQuestionMarks}
-            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-            onPrev={() =>
-              setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))
-            }
-            onNext={handleNextMcQuestion}
-            onDelete={handleCancelMcQuestion}
-            onExit={handleStartOver}
-            onTogglePause={togglePause}
-            onResetTimer={resetCurrentQuestionTimer}
-          />
-          {activeMcQuestion && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
-                <QuestionSplitLayout
-                  mode="mc"
-                  sketchpadActive={mcSketchpadActive}
-                  leftSlot={
-                    <div className="space-y-5">
-                      <div className="p-6 bg-muted/20 rounded-md space-y-2">
-                        <h1 className="text-xl font-bold">
-                          Question {activeMcQuestionIndex + 1}
-                        </h1>
-                        <MarkdownMath
-                          content={activeMcQuestion.promptMarkdown}
-                        />
-                      </div>
-                      {countWords(activeMcQuestion.explanationMarkdown) >
-                        MC_MAX_EXPLANATION_WORDS && (
-                        <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
-                          <strong className="font-semibold">Warning:</strong>{' '}
-                          Explanation is{' '}
-                          {countWords(activeMcQuestion.explanationMarkdown)}
-                          words (max {MC_MAX_EXPLANATION_WORDS}). This may be
-                          rejected by the backend.
-                        </div>
-                      )}
-
-                      {mcSketchpadActive && (
-                        <div className="min-w-0">
-                          <McAnswerCard
-                            options={activeMcQuestion.options}
-                            correctAnswer={activeMcQuestion.correctAnswer}
-                            explanationMarkdown={
-                              activeMcQuestion.explanationMarkdown
-                            }
-                            selectedAnswer={activeMcAnswer}
-                            awardedMarks={activeMcAwardedMarks}
-                            appealText={activeMcMarkAppeal}
-                            overrideInput={activeMcOverrideInput}
-                            isMarking={isMarking}
-                            image={mcImagesByQuestionId[activeMcQuestion.id]}
-                            hideCorrectAnswer={false}
-                            onSelectAnswer={handleMcAnswer}
-                            onAppealChange={handleMcAppealChange}
-                            onOverrideInputChange={handleMcOverrideInputChange}
-                            onArgueForMark={() => void handleArgueForMcMark()}
-                            onApplyOverride={handleOverrideMcMark}
-                            isSketchpadOpen={mcSketchpadActive}
-                            onToggleSketchpad={() =>
-                              setMcSketchpadActive((prev) => !prev)
-                            }
-                            onImageDrop={handleMcImageDrop}
-                            onImageRemove={handleMcImageRemove}
-                            renderSketchpadInline={false}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  }
-                  rightSlot={
-                    mcSketchpadActive ? (
-                      <div className="min-w-0 space-y-4">
-                        <McSketchpadPanel
-                          questionId={activeMcQuestion?.id}
-                          sketchSessionKey={activeMcSketchSessionKey}
-                          image={mcImagesByQuestionId[activeMcQuestion.id]}
-                          onImageDrop={handleMcImageDrop}
-                          onImageRemove={handleMcImageRemove}
+        ) : /* ── Written Question View ── */
+          questionMode === 'written' ? (
+            <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
+              <SessionHeader
+                type="written"
+                questionIndex={activeQuestionIndex}
+                totalQuestions={questions.length}
+                completedCount={completedCount}
+                topic={activeQuestion?.topic}
+                difficulty={difficulty}
+                maxMarks={activeQuestion?.maxMarks}
+                techAllowed={activeQuestion?.techAllowed}
+                isMathTopic={isMathTopic(activeQuestion?.topic)}
+                isAtLast={isAtLastWrittenQuestion}
+                canAdvance={canAdvanceWritten}
+                generationStartedAt={generationStartedAt}
+                telemetry={writtenGenerationTelemetry}
+                questionTimeSeconds={writtenTimer.currentQuestionElapsed}
+                isPaused={writtenTimer.isPaused}
+                isQuestionWarning={writtenTimer.isCurrentQuestionWarning}
+                questionMarks={writtenTimer.currentQuestionMarks}
+                getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+                onPrev={() =>
+                  setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
+                }
+                onNext={handleNextWrittenQuestion}
+                onDelete={handleCancelWrittenQuestion}
+                onExit={handleStartOver}
+                onTogglePause={togglePause}
+                onResetTimer={resetCurrentQuestionTimer}
+              />
+              {showKeyboardHint && (
+                <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+                  <span>
+                    Tip: Use{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      ←
+                    </kbd>{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      →
+                    </kbd>{' '}
+                    to navigate,{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                      Ctrl+Enter
+                    </kbd>{' '}
+                    to submit
+                  </span>
+                  <button
+                    onClick={dismissKeyboardHint}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+              {activeQuestion && (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                    {activeFeedback ? (
+                      <div className="min-w-0 pb-10">
+                        <WrittenFeedbackPanel
+                          questionId={activeQuestion.id}
+                          promptMarkdown={activeQuestion.promptMarkdown}
+                          answer={activeQuestionAnswer}
+                          image={activeQuestionImage}
+                          feedback={activeFeedback}
+                          appealText={activeMarkAppeal}
+                          overrideInput={activeOverrideInput}
+                          isMarking={isMarking}
+                          distinctness={activeQuestion.distinctnessScore}
+                          multiStepDepth={activeQuestion.multiStepDepth}
+                          onAppealChange={handleAppealChange}
+                          onOverrideInputChange={handleOverrideInputChange}
+                          onArgueForMark={() => void handleArgueForMark()}
+                          onApplyOverride={handleOverrideMark}
+                          onCriterionChange={handleOverrideCriterion}
                         />
                       </div>
                     ) : (
-                      <div className="min-w-0 space-y-4">
-                        <McAnswerCard
-                          options={activeMcQuestion.options}
-                          correctAnswer={activeMcQuestion.correctAnswer}
-                          explanationMarkdown={
-                            activeMcQuestion.explanationMarkdown
-                          }
-                          selectedAnswer={activeMcAnswer}
-                          awardedMarks={activeMcAwardedMarks}
-                          appealText={activeMcMarkAppeal}
-                          overrideInput={activeMcOverrideInput}
-                          isMarking={isMarking}
-                          image={mcImagesByQuestionId[activeMcQuestion.id]}
-                          hideCorrectAnswer={false}
-                          onSelectAnswer={handleMcAnswer}
-                          onAppealChange={handleMcAppealChange}
-                          onOverrideInputChange={handleMcOverrideInputChange}
-                          onArgueForMark={() => void handleArgueForMcMark()}
-                          onApplyOverride={handleOverrideMcMark}
-                          isSketchpadOpen={mcSketchpadActive}
-                          onToggleSketchpad={() =>
-                            setMcSketchpadActive((prev) => !prev)
-                          }
-                          onImageDrop={handleMcImageDrop}
-                          onImageRemove={handleMcImageRemove}
-                        />
-                      </div>
-                    )
-                  }
-                />
-              </div>
+                      <QuestionSplitLayout
+                        mode="written"
+                        sketchpadActive={writtenSketchpadActive}
+                        leftSlot={
+                          <MarkdownMath content={activeQuestion.promptMarkdown} />
+                        }
+                        rightSlot={
+                          <WrittenAnswerCard
+                            questionId={activeQuestion.id}
+                            sketchSessionKey={activeWrittenSketchSessionKey}
+                            answer={activeQuestionAnswer}
+                            image={activeQuestionImage}
+                            isMarking={isMarking}
+                            canSubmit={canSubmitAnswer}
+                            onAnswerChange={handleWrittenAnswerChange}
+                            onImageDrop={handleWrittenImageDrop}
+                            onImageRemove={handleWrittenImageRemove}
+                            onSubmit={(payload?: { image?: StudentAnswerImage }) =>
+                              void handleSubmitForMarking(payload)
+                            }
+                            onSketchpadActiveChange={setWrittenSketchpadActive}
+                          />
+                        }
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── MC Question View ── */
+            <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
+              <SessionHeader
+                type="mc"
+                questionIndex={activeMcQuestionIndex}
+                totalQuestions={mcQuestions.length}
+                completedCount={mcCompletedCount}
+                topic={activeMcQuestion?.topic}
+                difficulty={difficulty}
+                maxMarks={1}
+                techAllowed={Boolean(activeMcQuestion?.techAllowed)}
+                isMathTopic={isMathTopic(activeMcQuestion?.topic)}
+                isAtLast={isAtLastMcQuestion}
+                canAdvance={canAdvanceMc}
+                generationStartedAt={generationStartedAt}
+                telemetry={mcGenerationTelemetry}
+                questionTimeSeconds={mcTimer.currentQuestionElapsed}
+                isPaused={mcTimer.isPaused}
+                isQuestionWarning={mcTimer.isCurrentQuestionWarning}
+                questionMarks={mcTimer.currentQuestionMarks}
+                getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+                onPrev={() =>
+                  setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1))
+                }
+                onNext={handleNextMcQuestion}
+                onDelete={handleCancelMcQuestion}
+                onExit={handleStartOver}
+                onTogglePause={togglePause}
+                onResetTimer={resetCurrentQuestionTimer}
+              />
+              {activeMcQuestion && (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+                    <QuestionSplitLayout
+                      mode="mc"
+                      sketchpadActive={mcSketchpadActive}
+                      leftSlot={
+                        <div className="space-y-5">
+                          <div className="p-6 bg-muted/20 rounded-md space-y-2">
+                            <h1 className="text-xl font-bold">
+                              Question {activeMcQuestionIndex + 1}
+                            </h1>
+                            <MarkdownMath
+                              content={activeMcQuestion.promptMarkdown}
+                            />
+                          </div>
+                          {countWords(activeMcQuestion.explanationMarkdown) >
+                            MC_MAX_EXPLANATION_WORDS && (
+                              <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
+                                <strong className="font-semibold">Warning:</strong>{' '}
+                                Explanation is{' '}
+                                {countWords(activeMcQuestion.explanationMarkdown)}
+                                words (max {MC_MAX_EXPLANATION_WORDS}). This may be
+                                rejected by the backend.
+                              </div>
+                            )}
+
+                          {mcSketchpadActive && (
+                            <div className="min-w-0">
+                              <McAnswerCard
+                                options={activeMcQuestion.options}
+                                correctAnswer={activeMcQuestion.correctAnswer}
+                                explanationMarkdown={
+                                  activeMcQuestion.explanationMarkdown
+                                }
+                                selectedAnswer={activeMcAnswer}
+                                awardedMarks={activeMcAwardedMarks}
+                                appealText={activeMcMarkAppeal}
+                                overrideInput={activeMcOverrideInput}
+                                isMarking={isMarking}
+                                image={mcImagesByQuestionId[activeMcQuestion.id]}
+                                hideCorrectAnswer={false}
+                                onSelectAnswer={handleMcAnswer}
+                                onAppealChange={handleMcAppealChange}
+                                onOverrideInputChange={handleMcOverrideInputChange}
+                                onArgueForMark={() => void handleArgueForMcMark()}
+                                onApplyOverride={handleOverrideMcMark}
+                                isSketchpadOpen={mcSketchpadActive}
+                                onToggleSketchpad={() =>
+                                  setMcSketchpadActive((prev) => !prev)
+                                }
+                                onImageDrop={handleMcImageDrop}
+                                onImageRemove={handleMcImageRemove}
+                                renderSketchpadInline={false}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      }
+                      rightSlot={
+                        mcSketchpadActive ? (
+                          <div className="min-w-0 space-y-4">
+                            <McSketchpadPanel
+                              questionId={activeMcQuestion?.id}
+                              sketchSessionKey={activeMcSketchSessionKey}
+                              image={mcImagesByQuestionId[activeMcQuestion.id]}
+                              onImageDrop={handleMcImageDrop}
+                              onImageRemove={handleMcImageRemove}
+                            />
+                          </div>
+                        ) : (
+                          <div className="min-w-0 space-y-4">
+                            <McAnswerCard
+                              options={activeMcQuestion.options}
+                              correctAnswer={activeMcQuestion.correctAnswer}
+                              explanationMarkdown={
+                                activeMcQuestion.explanationMarkdown
+                              }
+                              selectedAnswer={activeMcAnswer}
+                              awardedMarks={activeMcAwardedMarks}
+                              appealText={activeMcMarkAppeal}
+                              overrideInput={activeMcOverrideInput}
+                              isMarking={isMarking}
+                              image={mcImagesByQuestionId[activeMcQuestion.id]}
+                              hideCorrectAnswer={false}
+                              onSelectAnswer={handleMcAnswer}
+                              onAppealChange={handleMcAppealChange}
+                              onOverrideInputChange={handleMcOverrideInputChange}
+                              onArgueForMark={() => void handleArgueForMcMark()}
+                              onApplyOverride={handleOverrideMcMark}
+                              isSketchpadOpen={mcSketchpadActive}
+                              onToggleSketchpad={() =>
+                                setMcSketchpadActive((prev) => !prev)
+                              }
+                              onImageDrop={handleMcImageDrop}
+                              onImageRemove={handleMcImageRemove}
+                            />
+                          </div>
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
       {/* ── Keyboard shortcut hint ── */}
       {isInSession && showKeyboardHint && (

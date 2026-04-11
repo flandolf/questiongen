@@ -54,6 +54,7 @@ import type {
   StudentAnswerImage,
   StudyGoals,
   TechMode,
+  TimeAllocationConfig,
   Topic,
 } from './types';
 import type { TimerState } from './types/timer';
@@ -181,6 +182,9 @@ export interface AppState {
   // ── Study goals & streaks ─────────────────────────────────────────────────
   studyGoals: StudyGoals;
   streakData: StreakData;
+
+  // ── Time allocations ───────────────────────────────────────────────────────
+  timeAllocations: TimeAllocationConfig;
 
   generationHistory: GenerationRecord[];
 
@@ -350,6 +354,9 @@ export interface AppActions {
   recordCompletion: (mode: QuestionMode) => void;
   getTodayCompletions: () => { total: number; written: number; mc: number };
 
+  // Time allocations
+  setTimeAllocations: (allocations: TimeAllocationConfig) => void;
+
   // Persistence
   hydrate: () => Promise<void>;
 
@@ -464,6 +471,17 @@ const defaultState: AppState = {
     lastActiveDate: '',
     dailyCompletions: {},
   },
+  timeAllocations: [
+    {
+      difficulty: 'Essential Skills',
+      minutesPerQuestion: 2,
+      marksPerQuestion: 5,
+    },
+    { difficulty: 'Easy', minutesPerQuestion: 3, marksPerQuestion: 8 },
+    { difficulty: 'Medium', minutesPerQuestion: 5, marksPerQuestion: 10 },
+    { difficulty: 'Hard', minutesPerQuestion: 7, marksPerQuestion: 12 },
+    { difficulty: 'Extreme', minutesPerQuestion: 10, marksPerQuestion: 15 },
+  ],
   generationHistory: [],
   presets: [],
   writtenTimer: null,
@@ -795,6 +813,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
           entry.preferences.physicalEducationSubtopics,
         questionCount: entry.preferences.questionCount,
         questionMode: entry.questionMode,
+        writtenTimer: null,
+        mcTimer: null,
         ...(entry.questionMode === 'written'
           ? {
               questions: entry.writtenSession!.questions,
@@ -977,6 +997,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       mc: 0,
     },
 
+  setTimeAllocations: (allocations) => set({ timeAllocations: allocations }),
+
   importState: (imported) => {
     const s = get();
     const merged = mergeImportedState(s, imported);
@@ -1055,6 +1077,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
     streakData: s.streakData,
     generationHistory: s.generationHistory,
     presets: s.presets,
+    timeAllocations: s.timeAllocations,
   };
 }
 
@@ -1155,6 +1178,7 @@ function mapHistory(s: PersistedAppState): Partial<AppState> {
     streakData: s.streakData ?? defaultState.streakData,
     generationHistory: s.generationHistory ?? [],
     presets: s.presets ?? [],
+    timeAllocations: s.timeAllocations ?? defaultState.timeAllocations,
   };
 }
 

@@ -21,6 +21,7 @@ import type {
   StreakData,
   StudentAnswerImage,
   StudyGoals,
+  TimeAllocationConfig,
   WrittenAnswerAnalytics,
 } from '../types';
 import {
@@ -114,6 +115,18 @@ const DEFAULT_STREAK_DATA: StreakData = {
   dailyCompletions: {},
 };
 
+const DEFAULT_TIME_ALLOCATIONS: TimeAllocationConfig = [
+  {
+    difficulty: 'Essential Skills',
+    minutesPerQuestion: 2,
+    marksPerQuestion: 5,
+  },
+  { difficulty: 'Easy', minutesPerQuestion: 3, marksPerQuestion: 8 },
+  { difficulty: 'Medium', minutesPerQuestion: 5, marksPerQuestion: 10 },
+  { difficulty: 'Hard', minutesPerQuestion: 7, marksPerQuestion: 12 },
+  { difficulty: 'Extreme', minutesPerQuestion: 10, marksPerQuestion: 15 },
+];
+
 export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   version: PERSISTED_APP_STATE_VERSION,
   settings: DEFAULT_SETTINGS,
@@ -127,6 +140,7 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   streakData: DEFAULT_STREAK_DATA,
   generationHistory: [],
   presets: [], // Generator parameter presets (Firebase-synced)
+  timeAllocations: DEFAULT_TIME_ALLOCATIONS,
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
@@ -177,6 +191,7 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     presets: normalizePresets(data.presets),
     writtenTimer: normalizeTimerState(data.writtenTimer),
     mcTimer: normalizeTimerState(data.mcTimer),
+    timeAllocations: normalizeTimeAllocations(data.timeAllocations),
   };
 }
 
@@ -1158,4 +1173,76 @@ function normalizeTimerState(raw: unknown): TimerState | null {
     sessionStartedAt: asFiniteNumber(data.sessionStartedAt) ?? null,
     sessionFinishedAt: asFiniteNumber(data.sessionFinishedAt) ?? null,
   };
+}
+
+function normalizeTimeAllocations(raw: unknown): TimeAllocationConfig {
+  if (!Array.isArray(raw)) {
+    return DEFAULT_TIME_ALLOCATIONS;
+  }
+
+  const result: Array<{
+    difficulty: string;
+    questionMode?: string;
+    minutesPerQuestion: number;
+    marksPerQuestion: number;
+  }> = [];
+  const validDifficulties = new Set([
+    'Essential Skills',
+    'Easy',
+    'Medium',
+    'Hard',
+    'Extreme',
+  ]);
+
+  for (const item of raw) {
+    if (!isRecord(item)) {
+      continue;
+    }
+
+    const difficulty = asString(item.difficulty);
+    const minutesPerQuestion = asFiniteNumber(item.minutesPerQuestion);
+    const marksPerQuestion = asFiniteNumber(item.marksPerQuestion);
+
+    // Check for required fields
+    if (
+      !difficulty ||
+      minutesPerQuestion === null ||
+      minutesPerQuestion === undefined ||
+      marksPerQuestion === null ||
+      marksPerQuestion === undefined
+    ) {
+      continue;
+    }
+
+    // Validate that difficulty is one of the valid options
+    if (!validDifficulties.has(difficulty)) {
+      continue;
+    }
+
+    if (!isDifficulty(difficulty)) {
+      continue;
+    }
+
+    const allocationObj: {
+      difficulty: typeof difficulty;
+      minutesPerQuestion: number;
+      marksPerQuestion: number;
+      questionMode?: QuestionMode;
+    } = {
+      difficulty,
+      minutesPerQuestion,
+      marksPerQuestion,
+    };
+
+    const questionMode = asString(item.questionMode);
+    if (isQuestionMode(questionMode)) {
+      allocationObj.questionMode = questionMode;
+    }
+
+    result.push(allocationObj);
+  }
+
+  return (
+    result.length > 0 ? result : DEFAULT_TIME_ALLOCATIONS
+  ) as TimeAllocationConfig;
 }

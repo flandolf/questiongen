@@ -45,6 +45,7 @@ export type Section =
   | 'appearance'
   | 'goals'
   | 'generation'
+  | 'time-allocation'
   | 'debug'
   | 'sync'
   | 'cleanup'
@@ -63,4 +64,4 @@ export interface StatsColumn {
   loading: boolean;
 }
 
-export const APP_VERSION = '3.2.15';
+export const APP_VERSION = '3.2.16';

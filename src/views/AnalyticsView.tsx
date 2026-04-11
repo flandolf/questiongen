@@ -122,7 +122,7 @@ function Card({
 }) {
   return (
     <div
-      className={`rounded-sm border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}
+      className={`rounded-sm border border-border/40 bg-muted/30 text-card-foreground ${className}`}
     >
       {children}
     </div>
@@ -488,7 +488,7 @@ export function AnalyticsView() {
           title="Performance Trends"
           description="Accuracy progression over recent attempts."
         />
-        <div className="h-[350px] mt-4">
+        <div className="h-87.5 mt-4">
           <ChartContainer config={trendChartConfig} className="h-full w-full">
             <LineChart
               data={trendData}
@@ -626,7 +626,7 @@ export function AnalyticsView() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">
                   Score Distribution
                 </h3>
-                <div className="h-[200px]">
+                <div className="h-50">
                   <ChartContainer
                     config={marksChartConfig}
                     className="w-full h-full"
@@ -666,7 +666,7 @@ export function AnalyticsView() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">
                   Effort vs Score
                 </h3>
-                <div className="h-[200px]">
+                <div className="h-50">
                   <ChartContainer
                     config={effortChartConfig}
                     className="w-full h-full"
@@ -710,7 +710,7 @@ export function AnalyticsView() {
               title="Format Distribution"
               description="Multiple Choice versus Written attempts."
             />
-            <div className="h-[250px] mt-4">
+            <div className="h-62.5 mt-4">
               <ChartContainer config={chartConfig} className="w-full h-full">
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent />} />
@@ -783,7 +783,7 @@ export function AnalyticsView() {
               title="Subject Spread"
               description="Question distribution across subjects."
             />
-            <div className="h-[300px] mt-4">
+            <div className="h-75 mt-4">
               {subjectSpreadData.length === 0 ? (
                 <ChartEmpty message="No attempts to display." />
               ) : (
@@ -833,7 +833,7 @@ export function AnalyticsView() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">
                   Overall Topic Accuracy
                 </h3>
-                <div className="h-[200px]">
+                <div className="h-50">
                   <ChartContainer
                     config={topicChartConfig}
                     className="w-full h-full"
@@ -873,7 +873,7 @@ export function AnalyticsView() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">
                   MC Accuracy by Topic
                 </h3>
-                <div className="h-[200px]">
+                <div className="h-50">
                   <ChartContainer
                     config={topicChartConfig}
                     className="w-full h-full"
@@ -913,7 +913,7 @@ export function AnalyticsView() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">
                   Written Accuracy by Topic
                 </h3>
-                <div className="h-[200px]">
+                <div className="h-50">
                   <ChartContainer
                     config={topicChartConfig}
                     className="w-full h-full"
@@ -959,7 +959,7 @@ export function AnalyticsView() {
             <h3 className="text-sm font-medium text-muted-foreground">
               Multiple Choice Response Time
             </h3>
-            <div className="h-[250px]">
+            <div className="h-62.5">
               {mcResponseLatency.length === 0 ? (
                 <ChartEmpty message="No response time data yet." />
               ) : (
@@ -1007,7 +1007,7 @@ export function AnalyticsView() {
               <h3 className="text-sm font-medium text-muted-foreground">
                 Written Response Time
               </h3>
-              <div className="h-[250px]">
+              <div className="h-62.5">
                 {writtenResponseLatency.length === 0 ? (
                   <ChartEmpty message="No response time data yet." />
                 ) : (
@@ -1115,7 +1115,7 @@ export function AnalyticsView() {
               })}
             </div>
 
-            <div className="h-[250px]">
+            <div className="h-62.5">
               {focusAreaData.length === 0 ? (
                 <ChartEmpty message="No attempts to display." />
               ) : (

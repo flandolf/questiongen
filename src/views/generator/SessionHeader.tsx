@@ -22,6 +22,7 @@ import {
 import type { Difficulty, GenerationTelemetry } from '@/types';
 
 import { formatDurationMs } from '../../lib/app-utils';
+import { useAppStore } from '../../store';
 
 type SessionHeaderProps = {
   type: 'written' | 'mc';
@@ -79,6 +80,10 @@ export function SessionHeader({
   onTogglePause,
   onResetTimer,
 }: SessionHeaderProps) {
+  const timeAllocations = useAppStore((s) => s.timeAllocations);
+  const difficultyAllocation = timeAllocations.find(
+    (a) => a.difficulty === difficulty
+  );
   const progressPct =
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
@@ -98,9 +103,16 @@ export function SessionHeader({
   const wholeSeconds = Math.max(0, Math.floor(displaySeconds));
   const timerDisplay = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
 
+  const marksPerMinute =
+    difficultyAllocation && difficultyAllocation.minutesPerQuestion > 0
+      ? difficultyAllocation.marksPerQuestion /
+        difficultyAllocation.minutesPerQuestion
+      : undefined;
   const recommendedSeconds =
-    questionMarks !== undefined
-      ? Math.round(questionMarks * 1.2 * 60)
+    questionMarks !== undefined &&
+    marksPerMinute !== undefined &&
+    marksPerMinute > 0
+      ? Math.round((questionMarks / marksPerMinute) * 60)
       : undefined;
   const formatSeconds = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

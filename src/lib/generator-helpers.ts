@@ -46,11 +46,28 @@ export function generateEntryId(): string {
 }
 
 export function rekeyWritten(qs: GeneratedQuestion[]): GeneratedQuestion[] {
-  return qs.map((q, i) => ({ ...q, id: `q${i + 1}` }));
+  const seen = new Map<string, number>();
+  return qs.map((q) => {
+    const signature = [q.topic, q.subtopic ?? '', q.promptMarkdown, String(q.maxMarks ?? '')].join('|');
+    const hash = hashStringForSeed(signature).toString(36);
+    const count = (seen.get(hash) ?? 0) + 1;
+    seen.set(hash, count);
+    const id = count === 1 ? `q-${hash}` : `q-${hash}-${count}`;
+    return { ...q, id };
+  });
 }
 
 export function rekeyMc(qs: McQuestion[]): McQuestion[] {
-  return qs.map((q, i) => ({ ...q, id: `mc${i + 1}` }));
+  const seen = new Map<string, number>();
+  return qs.map((q) => {
+    const options = q.options ? q.options.map((o) => `${o.label}:${o.text}`).join('|') : '';
+    const signature = [q.topic, q.subtopic ?? '', q.promptMarkdown, options, q.correctAnswer, q.explanationMarkdown].join('|');
+    const hash = hashStringForSeed(signature).toString(36);
+    const count = (seen.get(hash) ?? 0) + 1;
+    seen.set(hash, count);
+    const id = count === 1 ? `mc-${hash}` : `mc-${hash}-${count}`;
+    return { ...q, id };
+  });
 }
 
 export function hashStringForSeed(str: string): number {
