@@ -31,9 +31,14 @@ import {
   type SpecialistMathSubtopic,
   type TechMode,
   type Topic,
+  toScopedSubtopicGroups,
 } from '@/types';
 
 import { GroupedSubtopicSelector, SectionLabel } from './SetupUI';
+
+const MATH_METHODS_SCOPED_SUBTOPIC_GROUPS = toScopedSubtopicGroups(
+  MATH_METHODS_SUBTOPIC_GROUPS
+);
 
 export function ToggleRow({
   id,
@@ -263,7 +268,7 @@ export function AdvancedOptionsGroup({
             {selectedTopics.includes('Mathematical Methods') && (
               <GroupedSubtopicSelector
                 label="Mathematical Methods"
-                groups={MATH_METHODS_SUBTOPIC_GROUPS}
+                groups={MATH_METHODS_SCOPED_SUBTOPIC_GROUPS}
                 selected={mathMethodsSubtopics}
                 onToggle={onToggleMathMethodsSubtopic as (s: string) => void}
               />

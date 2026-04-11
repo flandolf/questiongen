@@ -45,6 +45,7 @@ import {
   type QuestionMode,
   type SpecialistMathSubtopic,
   type TechMode,
+  toCanonicalSubtopicName,
   type Topic,
   TOPICS,
 } from '@/types';
@@ -241,14 +242,18 @@ function SetupPanelImpl({
       Array.from(
         new Set([
           ...(selectedTopics.includes('Mathematical Methods')
-            ? mathMethodsSubtopics
+            ? mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub))
             : []),
           ...(selectedTopics.includes('Specialist Mathematics')
-            ? specialistMathSubtopics
+            ? specialistMathSubtopics.map((sub) => toCanonicalSubtopicName(sub))
             : []),
-          ...(selectedTopics.includes('Chemistry') ? chemistrySubtopics : []),
+          ...(selectedTopics.includes('Chemistry')
+            ? chemistrySubtopics.map((sub) => toCanonicalSubtopicName(sub))
+            : []),
           ...(selectedTopics.includes('Physical Education')
-            ? physicalEducationSubtopics
+            ? physicalEducationSubtopics.map((sub) =>
+                toCanonicalSubtopicName(sub)
+              )
             : []),
         ])
       ),
