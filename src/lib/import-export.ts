@@ -94,6 +94,7 @@ export interface ImportExportState {
   strictLatexValidation: boolean;
   strictSubtopicCoverage: boolean;
   minSubtopicCoverageRatio: number;
+  timeAllocations: PersistedAppState['timeAllocations'];
 }
 
 export interface ExportEnvelope {
@@ -424,6 +425,7 @@ export function mergeImportedState(
   // Active sessions + timer states: overwrite
   merged.writtenTimer = imported.writtenTimer ?? null;
   merged.mcTimer = imported.mcTimer ?? null;
+  merged.timeAllocations = imported.timeAllocations;
 
   return merged;
 }
@@ -538,6 +540,7 @@ function buildExportSnapshot(
     streakData: s.streakData,
     generationHistory: s.generationHistory,
     presets: s.presets,
+    timeAllocations: s.timeAllocations,
   };
 }
 

@@ -1,6 +1,7 @@
 import {
   Bug,
   ChevronRight,
+  Clock,
   Cloud,
   Cpu,
   CreditCard,
@@ -24,6 +25,7 @@ import { GoalsSection } from './settings/sections/GoalsSection';
 import { ImportExportSection } from './settings/sections/ImportExportSection';
 import { ModelsSection } from './settings/sections/ModelsSection';
 import { SyncSection } from './settings/sections/SyncSection';
+import { TimeAllocationSection } from './settings/sections/TimeAllocationSection';
 import { APP_VERSION, type Section } from './settings/types';
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
@@ -44,6 +46,11 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
     id: 'generation',
     label: 'Generation',
     icon: <Wand2 className="h-4 w-4" />,
+  },
+  {
+    id: 'time-allocation',
+    label: 'Time & Marks',
+    icon: <Clock className="h-4 w-4" />,
   },
   { id: 'debug', label: 'Debug', icon: <Bug className="h-4 w-4" /> },
   { id: 'sync', label: 'Cloud Sync', icon: <Cloud className="h-4 w-4" /> },
@@ -69,6 +76,8 @@ function renderSection(activeSection: Section) {
       return <GoalsSection />;
     case 'generation':
       return <GenerationSettingsSection />;
+    case 'time-allocation':
+      return <TimeAllocationSection />;
     case 'debug':
       return <DebugSection />;
     case 'sync':

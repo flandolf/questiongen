@@ -26,6 +26,7 @@ import type {
 import type { SpacedRepetitionCard } from './spaced-repetition';
 import type { Preset, StreakData, StudyGoals } from './study';
 import type { GenerationTelemetry } from './telemetry';
+import type { TimeAllocationConfig } from './time-allocation';
 import type { TimerState } from './timer';
 
 export type PersistedSettings = {
@@ -120,6 +121,7 @@ export type PersistedAppState = {
   presets?: Preset[];
   writtenTimer?: TimerState | null;
   mcTimer?: TimerState | null;
+  timeAllocations: TimeAllocationConfig;
   deletionTombstones?: Record<string, Record<string, number>>;
 };
 

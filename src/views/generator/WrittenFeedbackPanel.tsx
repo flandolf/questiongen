@@ -211,7 +211,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                     <MarkdownMath content={answer} />
                   </div>
                 ) : (
-                  <div className="rounded-md border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center min-h-[80px]">
+                  <div className="rounded-md border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center min-h-20">
                     No typed answer was submitted.
                   </div>
                 )}
@@ -394,7 +394,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               <div className="flex flex-col gap-2">
                 <Textarea
                   placeholder="Justify why this submission deserves a different mark..."
-                  className="min-h-[80px] text-sm resize-none bg-background shadow-sm border-border/60 focus:border-primary"
+                  className="min-h-20 text-sm resize-none bg-background shadow-sm border-border/60 focus:border-primary"
                   value={appealText}
                   onChange={(e) => onAppealChange(e.target.value)}
                   disabled={isMarking}

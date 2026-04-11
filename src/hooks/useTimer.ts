@@ -106,6 +106,10 @@ export function useTimer(
   activeQuestionIndex: number,
   sessionKey: 'written' | 'mc'
 ): UseTimerReturn {
+  const persistedTimer = useAppStore((s) =>
+    sessionKey === 'written' ? s.writtenTimer : s.mcTimer
+  );
+
   const [timerState, setTimerState] = useState<TimerState>(() => {
     const store = useAppStore.getState() as TimerStoreSlice;
     const persisted =
@@ -132,6 +136,26 @@ export function useTimer(
   useEffect(() => {
     syncToStore(timerState);
   }, [timerState, syncToStore]);
+
+  useEffect(() => {
+    // Only react to explicit store clears (e.g. when loading a saved set).
+    // Mirroring every persisted update back into local state creates a sync loop.
+    if (persistedTimer !== null) return;
+
+    setTimerState((prev) => {
+      if (
+        prev.sessionStartedAt === null &&
+        prev.sessionFinishedAt === null &&
+        prev.activeQuestionId === null &&
+        !prev.isPaused &&
+        Object.keys(prev.questions).length === 0
+      ) {
+        return prev;
+      }
+      return createEmptyState();
+    });
+    setNowMs(Date.now());
+  }, [persistedTimer]);
 
   useEffect(() => {
     const activeQuestionId = timerState.activeQuestionId;
