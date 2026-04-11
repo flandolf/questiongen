@@ -205,7 +205,7 @@ function TopicRow({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.05 * index, duration: 0.35, ease: 'easeOut' }}
     >
-      <span className="w-[160px] shrink-0 truncate text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">
+      <span className="w-40 shrink-0 truncate text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">
         {topic}
       </span>
       <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden">
@@ -631,11 +631,10 @@ export function CompletionScreen({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`relative px-3 py-3 text-xs font-semibold transition-colors ${
-                activeTab === tab.id
+              className={`relative px-3 py-3 text-xs font-semibold transition-colors ${activeTab === tab.id
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+                }`}
             >
               {tab.label}
               {activeTab === tab.id && (

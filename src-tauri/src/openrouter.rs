@@ -24,9 +24,6 @@ pub struct OpenRouterRequestConfig {
     pub user_content: serde_json::Value,
     pub response_format: serde_json::Value,
     pub max_tokens: u32,
-    pub temperature: f32,
-    pub top_p: f32,
-    pub seed: Option<u64>,
     pub plugins: serde_json::Value,
     pub app: Option<tauri::AppHandle>,
 }
@@ -66,9 +63,6 @@ impl OpenRouterRequestConfig {
         user_content: serde_json::Value,
         response_format: &serde_json::Value,
         max_tokens: u32,
-        temperature: f32,
-        top_p: f32,
-        seed: Option<u64>,
         plugins: serde_json::Value,
     ) -> Self {
         Self {
@@ -78,9 +72,6 @@ impl OpenRouterRequestConfig {
             user_content,
             response_format: response_format.clone(),
             max_tokens,
-            temperature,
-            top_p,
-            seed,
             plugins,
             app: None,
         }
@@ -95,9 +86,6 @@ impl OpenRouterRequestConfig {
         user_content: serde_json::Value,
         response_format: &serde_json::Value,
         max_tokens: u32,
-        temperature: f32,
-        top_p: f32,
-        seed: Option<u64>,
         plugins: serde_json::Value,
     ) -> Self {
         Self {
@@ -107,9 +95,6 @@ impl OpenRouterRequestConfig {
             user_content,
             response_format: response_format.clone(),
             max_tokens,
-            temperature,
-            top_p,
-            seed,
             plugins,
             app: Some(app),
         }
@@ -134,9 +119,6 @@ pub async fn call_openrouter(
     user_content: serde_json::Value,
     response_format: &serde_json::Value,
     max_tokens: u32,
-    temperature: f32,
-    top_p: f32,
-    seed: Option<u64>,
 ) -> CommandResult<OpenRouterResult> {
     call_openrouter_with_plugins(OpenRouterRequestConfig::with_plugins(
         api_key,
@@ -145,9 +127,6 @@ pub async fn call_openrouter(
         user_content,
         response_format,
         max_tokens,
-        temperature,
-        top_p,
-        seed,
         serde_json::json!([{ "id": "response-healing" }]),
     ))
     .await
@@ -162,21 +141,16 @@ pub async fn call_openrouter_with_plugins(
         system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
     }
 
-    let mut body = serde_json::json!({
+    let body = serde_json::json!({
         "model": config.model,
         "messages": [
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": config.user_content  },
         ],
-        "temperature": config.temperature,
-        "top_p": config.top_p,
         "max_tokens": config.max_tokens,
         "response_format": config.response_format,
         "plugins": config.plugins,
     });
-    if let Some(seed) = config.seed {
-        body["seed"] = serde_json::json!(seed);
-    }
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)
@@ -259,14 +233,12 @@ pub async fn call_openrouter_streaming_with_plugins(
         system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
     }
 
-    let mut body = serde_json::json!({
+    let body = serde_json::json!({
         "model": config.model,
         "messages": [
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": config.user_content  },
         ],
-        "temperature": config.temperature,
-        "top_p": config.top_p,
         "max_tokens": config.max_tokens,
         "response_format": config.response_format,
         "plugins": config.plugins,
@@ -274,9 +246,6 @@ pub async fn call_openrouter_streaming_with_plugins(
         // Request usage in the final stream chunk (supported by most providers).
         "stream_options": { "include_usage": true },
     });
-    if let Some(seed) = config.seed {
-        body["seed"] = serde_json::json!(seed);
-    }
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)
