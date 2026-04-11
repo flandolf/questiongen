@@ -175,7 +175,7 @@ export function Sidebar() {
           )
         }
       >
-        <div className="flex items-center justify-center min-w-[24px]">
+        <div className="flex items-center justify-center min-w-6">
           <link.icon className="h-5 w-5 shrink-0 transition-transform duration-150 group-hover:scale-105" />
           {link.showSessionDot && hasActiveSession && (
             <span className="absolute top-2.5 left-7 w-2 h-2 rounded-full bg-emerald-500 border-2 border-background" />
