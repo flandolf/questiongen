@@ -48,6 +48,10 @@ export type PersistedSettings = {
   localBackupIntervalMinutes?: number;
   /** Theme preference (design theme name from src/themes/designThemes.ts). */
   theme?: string;
+  /** Custom persona prompt for the AI Tutor */
+  tutorPersona?: string;
+  /** Model ID for the AI Tutor */
+  tutorModel?: string;
 };
 
 export type PersistedGeneratorPreferences = {

@@ -120,6 +120,8 @@ export interface AppState {
   localBackupFolderPath: string;
   localBackupIntervalMinutes: number;
   theme: string;
+  tutorPersona: string;
+  tutorModel: string;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -222,6 +224,8 @@ export interface AppActions {
   setLocalBackupFolderPath: (path: string) => void;
   setLocalBackupIntervalMinutes: (minutes: number) => void;
   setTheme: (theme: string) => void;
+  setTutorPersona: (persona: string) => void;
+  setTutorModel: (model: string) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
@@ -399,6 +403,10 @@ const defaultState: AppState = {
   localBackupIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
   theme: normalizeThemeName(EMPTY_PERSISTED_APP_STATE.settings.theme),
+  tutorPersona: EMPTY_PERSISTED_APP_STATE.settings.tutorPersona ?? '',
+  tutorModel:
+    EMPTY_PERSISTED_APP_STATE.settings.tutorModel ??
+    EMPTY_PERSISTED_APP_STATE.settings.model,
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
   difficulty: EMPTY_PERSISTED_APP_STATE.preferences.difficulty,
   techMode: EMPTY_PERSISTED_APP_STATE.preferences.techMode,
@@ -547,6 +555,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
     set({ localBackupIntervalMinutes }),
   setTheme: (theme) => set({ theme }),
+  setTutorPersona: (tutorPersona) => set({ tutorPersona }),
+  setTutorModel: (tutorModel) => set({ tutorModel }),
   clearApiKey: () => set({ apiKey: '' }),
 
   setPresets: (presets) => set({ presets }),
@@ -1027,6 +1037,8 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       localBackupFolderPath: s.localBackupFolderPath,
       localBackupIntervalMinutes: s.localBackupIntervalMinutes,
       theme: s.theme,
+      tutorPersona: s.tutorPersona,
+      tutorModel: s.tutorModel,
     },
     preferences: {
       selectedTopics: s.selectedTopics,
@@ -1101,6 +1113,8 @@ function mapSettings(s: PersistedAppState): Partial<AppState> {
     localBackupFolderPath: s.settings.localBackupFolderPath ?? '',
     localBackupIntervalMinutes: s.settings.localBackupIntervalMinutes ?? 0,
     theme: normalizeThemeName(s.settings.theme),
+    tutorPersona: s.settings.tutorPersona ?? '',
+    tutorModel: s.settings.tutorModel ?? s.settings.model,
   };
 }
 

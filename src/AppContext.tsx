@@ -257,6 +257,10 @@ export function useAppSettings() {
       setSyncApiKey: s.setSyncApiKey,
       theme: String(s.theme),
       setTheme: s.setTheme,
+      tutorPersona: s.tutorPersona,
+      setTutorPersona: s.setTutorPersona,
+      tutorModel: s.tutorModel,
+      setTutorModel: s.setTutorModel,
     }))
   );
 }

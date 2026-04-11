@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Clock,
   Flag,
+  GraduationCap,
   Info,
   Pause,
   Play,
@@ -19,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useTutorStore } from '@/store/tutor';
 import type { Difficulty, GenerationTelemetry } from '@/types';
 
 import { formatDurationMs } from '../../lib/app-utils';
@@ -209,6 +211,33 @@ export function SessionHeader({
             techAllowed={techAllowed}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
           />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={useTutorStore((s) => s.isOpen) ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => useTutorStore.getState().toggleOpen()}
+                  className={
+                    useTutorStore((s) => s.isOpen)
+                      ? 'h-9 rounded-full shadow-sm gap-1.5'
+                      : 'h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-foreground'
+                  }
+                  aria-label="Toggle AI Tutor"
+                >
+                  <GraduationCap
+                    className={
+                      useTutorStore((s) => s.isOpen) ? 'w-4 h-4' : 'w-4 h-4'
+                    }
+                  />
+                  {useTutorStore((s) => s.isOpen) && <span>Tutor</span>}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Toggle AI Tutor</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

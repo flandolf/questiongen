@@ -5,6 +5,7 @@ import {
   Cloud,
   Cpu,
   CreditCard,
+  GraduationCap,
   HardDriveDownload,
   Key,
   Palette,
@@ -26,6 +27,7 @@ import { ImportExportSection } from './settings/sections/ImportExportSection';
 import { ModelsSection } from './settings/sections/ModelsSection';
 import { SyncSection } from './settings/sections/SyncSection';
 import { TimeAllocationSection } from './settings/sections/TimeAllocationSection';
+import { TutorSection } from './settings/sections/TutorSection';
 import { APP_VERSION, type Section } from './settings/types';
 
 const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
@@ -46,6 +48,11 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
     id: 'generation',
     label: 'Generation',
     icon: <Wand2 className="h-4 w-4" />,
+  },
+  {
+    id: 'tutor',
+    label: 'AI Tutor',
+    icon: <GraduationCap className="h-4 w-4" />,
   },
   {
     id: 'time-allocation',
@@ -76,6 +83,8 @@ function renderSection(activeSection: Section) {
       return <GoalsSection />;
     case 'generation':
       return <GenerationSettingsSection />;
+    case 'tutor':
+      return <TutorSection />;
     case 'time-allocation':
       return <TimeAllocationSection />;
     case 'debug':

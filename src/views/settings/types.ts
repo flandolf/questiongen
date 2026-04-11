@@ -45,6 +45,7 @@ export type Section =
   | 'appearance'
   | 'goals'
   | 'generation'
+  | 'tutor'
   | 'time-allocation'
   | 'debug'
   | 'sync'
