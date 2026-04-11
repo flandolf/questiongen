@@ -234,7 +234,6 @@ export function UnifiedWrittenResponseCard({
   showReveal = false,
   inputSlot,
   topSlot,
-  hideResponseLabel = false,
   children,
   className,
 }: {
@@ -250,19 +249,16 @@ export function UnifiedWrittenResponseCard({
   footerNote?: string;
   inputSlot?: ReactNode;
   topSlot?: ReactNode;
-  hideResponseLabel?: boolean;
   children?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center gap-3 text-sm">
-        {!hideResponseLabel && (
-          <div className="flex items-center gap-2 text-muted-foreground/70">
-            <PenLine className="w-4 h-4" />
-            <span className="text-xs uppercase tracking-wide">Response</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-muted-foreground/70">
+          <PenLine className="w-4 h-4" />
+          <span className="text-xs uppercase tracking-wide">Response</span>
+        </div>
         {typeof maxMarks === 'number' && maxMarks > 0 && (
           <span className="text-muted-foreground/50 text-xs">
             ({maxMarks} marks)

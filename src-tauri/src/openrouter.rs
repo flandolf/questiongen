@@ -224,10 +224,6 @@ async fn call_openrouter_streaming(
             chunk.map_err(|e| AppError::new("NETWORK_ERROR", format!("Stream error: {e}")))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
 
-        if done {
-            continue;
-        }
-
         loop {
             match buf.find('\n') {
                 None => break,
@@ -247,7 +243,7 @@ async fn call_openrouter_streaming(
 
                     if data == "[DONE]" {
                         done = true;
-                        break;
+                        continue;
                     }
 
                     let chunk_val: SseChunk = match serde_json::from_str(data) {
@@ -259,17 +255,19 @@ async fn call_openrouter_streaming(
                         usage = Some(u);
                     }
 
-                    if let Some(choices) = chunk_val.choices {
-                        for choice in choices {
-                            if let Some(delta) = choice.delta {
-                                if let Some(text) = delta.content {
-                                    if !text.is_empty() {
-                                        assembled.push_str(&text);
-                                        if let Some(ref app) = app {
-                                            let _ = app.emit(
-                                                "generation-token",
-                                                serde_json::json!({ "text": text }),
-                                            );
+                    if !done {
+                        if let Some(choices) = chunk_val.choices {
+                            for choice in choices {
+                                if let Some(delta) = choice.delta {
+                                    if let Some(text) = delta.content {
+                                        if !text.is_empty() {
+                                            assembled.push_str(&text);
+                                            if let Some(ref app) = app {
+                                                let _ = app.emit(
+                                                    "generation-token",
+                                                    serde_json::json!({ "text": text }),
+                                                );
+                                            }
                                         }
                                     }
                                 }
@@ -384,10 +382,6 @@ pub async fn call_openrouter_chat_streaming(
             chunk.map_err(|e| AppError::new("NETWORK_ERROR", format!("Stream error: {e}")))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
 
-        if done {
-            continue;
-        }
-
         loop {
             match buf.find('\n') {
                 None => break,
@@ -407,7 +401,7 @@ pub async fn call_openrouter_chat_streaming(
 
                     if data == "[DONE]" {
                         done = true;
-                        break;
+                        continue;
                     }
 
                     let chunk_val: SseChunk = match serde_json::from_str(data) {
@@ -419,16 +413,18 @@ pub async fn call_openrouter_chat_streaming(
                         usage = Some(u);
                     }
 
-                    if let Some(choices) = chunk_val.choices {
-                        for choice in choices {
-                            if let Some(delta) = choice.delta {
-                                if let Some(text) = delta.content {
-                                    if !text.is_empty() {
-                                        assembled.push_str(&text);
-                                        let _ = app.emit(
-                                            "tutor-generation-token",
-                                            serde_json::json!({ "text": text }),
-                                        );
+                    if !done {
+                        if let Some(choices) = chunk_val.choices {
+                            for choice in choices {
+                                if let Some(delta) = choice.delta {
+                                    if let Some(text) = delta.content {
+                                        if !text.is_empty() {
+                                            assembled.push_str(&text);
+                                            let _ = app.emit(
+                                                "tutor-generation-token",
+                                                serde_json::json!({ "text": text }),
+                                            );
+                                        }
                                     }
                                 }
                             }
