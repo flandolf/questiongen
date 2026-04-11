@@ -309,7 +309,11 @@ export function GeneratorView() {
     if (hasChanged) {
       setMathMethodsSubtopics(next);
     }
-  }, [mathMethodsSubtopics, scopedMathMethodsByCanonical, setMathMethodsSubtopics]);
+  }, [
+    mathMethodsSubtopics,
+    scopedMathMethodsByCanonical,
+    setMathMethodsSubtopics,
+  ]);
 
   const {
     questions,
@@ -1195,10 +1199,14 @@ export function GeneratorView() {
     switch (topic) {
       case 'Mathematical Methods':
         return Array.from(
-          new Set(mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub)))
+          new Set(
+            mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub))
+          )
         );
       case 'Specialist Mathematics':
-        return specialistMathSubtopics.map((sub) => toCanonicalSubtopicName(sub));
+        return specialistMathSubtopics.map((sub) =>
+          toCanonicalSubtopicName(sub)
+        );
       case 'Chemistry':
         return chemistrySubtopics.map((sub) => toCanonicalSubtopicName(sub));
       case 'Physical Education':

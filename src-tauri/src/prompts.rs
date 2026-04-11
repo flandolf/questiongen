@@ -1,7 +1,7 @@
-use crate::constants;
 use crate::catalog;
-use crate::parsing::sanitize_for_api;
+use crate::constants;
 use crate::difficulty::difficulty_guidance;
+use crate::parsing::sanitize_for_api;
 
 pub fn generation_compliance_contract() -> &'static str {
     "CONTRACT: 1. Only assessable Study Design content. 2. Focus constraints override style PDFs. 3. PDFs are style-only; do NOT copy scenarios/content. 4. Valid JSON only."
@@ -178,7 +178,10 @@ pub fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option
     )
 }
 
-pub fn pdf_reanchor_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
+pub fn pdf_reanchor_note(
+    selected: Option<&Vec<String>>,
+    custom_focus_area: Option<&str>,
+) -> String {
     let mut lines = vec![
         "── PDF STYLE REFERENCE ENDS HERE ──".to_string(),
         "Return to the focus constraints specified earlier:".to_string(),
@@ -380,7 +383,9 @@ impl UserPromptBuilder {
     pub fn build_written(&self) -> String {
         let average_marks = self.average_marks.unwrap_or(10);
         let total_marks = average_marks as usize * self.count;
-        let custom_note = self.custom_focus_area.as_deref()
+        let custom_note = self
+            .custom_focus_area
+            .as_deref()
             .map(str::trim)
             .filter(|v| !v.is_empty())
             .map_or(String::new(), |v| {
@@ -430,7 +435,9 @@ impl UserPromptBuilder {
     }
 
     pub fn build_mc(&self) -> String {
-        let custom_note = self.custom_focus_area.as_deref()
+        let custom_note = self
+            .custom_focus_area
+            .as_deref()
             .map(str::trim)
             .filter(|v| !v.is_empty())
             .map_or(String::new(), |v| {
