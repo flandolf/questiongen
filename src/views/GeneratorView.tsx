@@ -63,10 +63,13 @@ import type {
 } from '@/types';
 import {
   CHEMISTRY_SUBTOPICS,
+  MATH_METHODS_SUBTOPIC_GROUPS,
   MATH_METHODS_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
   SPECIALIST_MATH_SUBTOPICS,
+  toCanonicalSubtopicName,
   TOPICS,
+  toScopedSubtopicGroups,
 } from '@/types';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
 import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
@@ -218,6 +221,7 @@ export function GeneratorView() {
   });
 
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
+
   const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
   const [mcImagesByQuestionId, setMcImagesByQuestionId] = useState<
     Record<string, StudentAnswerImage>
@@ -265,6 +269,47 @@ export function GeneratorView() {
     aiDifficultyScalingEnabled,
     generationStrategy,
   } = useAppPreferences();
+
+  const scopedMathMethodsGroups = useMemo(
+    () => toScopedSubtopicGroups(MATH_METHODS_SUBTOPIC_GROUPS),
+    []
+  );
+  const scopedMathMethodsByCanonical = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const group of scopedMathMethodsGroups) {
+      for (const subtopic of group.subtopics) {
+        const canonical = toCanonicalSubtopicName(subtopic);
+        map.set(canonical, [...(map.get(canonical) ?? []), subtopic]);
+      }
+    }
+    return map;
+  }, [scopedMathMethodsGroups]);
+
+  useEffect(() => {
+    if (!mathMethodsSubtopics.some((subtopic) => !subtopic.includes('@@'))) {
+      return;
+    }
+    const usedScoped = new Set<string>();
+    const next = mathMethodsSubtopics.map((subtopic) => {
+      if (subtopic.includes('@@')) {
+        usedScoped.add(subtopic);
+        return subtopic;
+      }
+      const candidates = scopedMathMethodsByCanonical.get(subtopic) ?? [];
+      const available = candidates.find(
+        (candidate) => !usedScoped.has(candidate)
+      );
+      const mapped = available ?? candidates[0] ?? subtopic;
+      usedScoped.add(mapped);
+      return mapped;
+    });
+    const hasChanged =
+      next.length !== mathMethodsSubtopics.length ||
+      next.some((value, index) => value !== mathMethodsSubtopics[index]);
+    if (hasChanged) {
+      setMathMethodsSubtopics(next);
+    }
+  }, [mathMethodsSubtopics, scopedMathMethodsByCanonical, setMathMethodsSubtopics]);
 
   const {
     questions,
@@ -1107,9 +1152,13 @@ export function GeneratorView() {
 
   const toggleMathMethodsSubtopic = useCallback(
     (sub: MathMethodsSubtopic) => {
-      setMathMethodsSubtopics((p) =>
-        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]
-      );
+      setMathMethodsSubtopics((p) => {
+        if (p.includes(sub)) {
+          return p.filter((s) => s !== sub);
+        }
+        const canonical = toCanonicalSubtopicName(sub);
+        return [...p.filter((s) => s !== canonical), sub];
+      });
     },
     [setMathMethodsSubtopics]
   );
@@ -1145,13 +1194,17 @@ export function GeneratorView() {
   function getSubtopicsForTopic(topic: Topic): string[] {
     switch (topic) {
       case 'Mathematical Methods':
-        return mathMethodsSubtopics;
+        return Array.from(
+          new Set(mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub)))
+        );
       case 'Specialist Mathematics':
-        return specialistMathSubtopics;
+        return specialistMathSubtopics.map((sub) => toCanonicalSubtopicName(sub));
       case 'Chemistry':
-        return chemistrySubtopics;
+        return chemistrySubtopics.map((sub) => toCanonicalSubtopicName(sub));
       case 'Physical Education':
-        return physicalEducationSubtopics;
+        return physicalEducationSubtopics.map((sub) =>
+          toCanonicalSubtopicName(sub)
+        );
       default:
         return [];
     }

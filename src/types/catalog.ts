@@ -88,6 +88,33 @@ export type TopicSubtopicGroup = {
   subtopics: readonly string[];
 };
 
+const SCOPED_SUBTOPIC_SEPARATOR = '@@';
+
+export function toScopedSubtopicId(
+  subtopicName: string,
+  groupId: string,
+  indexInGroup: number
+): string {
+  return `${subtopicName}${SCOPED_SUBTOPIC_SEPARATOR}${groupId}#${indexInGroup}`;
+}
+
+export function toCanonicalSubtopicName(subtopicIdOrName: string): string {
+  const separatorIndex = subtopicIdOrName.indexOf(SCOPED_SUBTOPIC_SEPARATOR);
+  if (separatorIndex < 0) return subtopicIdOrName;
+  return subtopicIdOrName.slice(0, separatorIndex);
+}
+
+export function toScopedSubtopicGroups(
+  groups: readonly TopicSubtopicGroup[]
+): readonly TopicSubtopicGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    subtopics: group.subtopics.map((subtopic, index) =>
+      toScopedSubtopicId(subtopic, group.groupId, index)
+    ),
+  }));
+}
+
 function parseUnitSortValue(unit: string): number {
   const match = unit.match(/^Unit\s+(\d+)$/i);
   return match ? Number(match[1]) : Number.POSITIVE_INFINITY;

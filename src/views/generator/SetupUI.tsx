@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { TopicSubtopicGroup } from '@/types';
+import { toCanonicalSubtopicName, type TopicSubtopicGroup } from '@/types';
 
 export function ResizableAccordionContent({
   children,
@@ -289,7 +289,7 @@ export function GroupedSubtopicSelector({
                             : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:bg-muted/30 hover:text-foreground'
                         )}
                       >
-                        {subtopic}
+                        {toCanonicalSubtopicName(subtopic)}
                       </button>
                     );
                   })}

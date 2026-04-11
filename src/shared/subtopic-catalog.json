@@ -3,7 +3,10 @@
     {
       "name": "Mathematical Methods",
       "icon": "FunctionSquare",
-      "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+      "examPdfs": [
+        "2025-MathMethods1.pdf",
+        "2025-MathMethods2.pdf"
+      ],
       "reportPdfs": [
         "2025-MathematicalMethods1-report.pdf",
         "2025-MathematicalMethods2-report.pdf"
@@ -11,9 +14,119 @@
       "examGuidance": "Use formal mathematical notation and VCE command verbs. For tech-free: require exact arithmetic and manual algebraic manipulation (no technology). For tech-active: allow CAS for complex numerical work, rounded as specified. Confine questions to the VCE Units 3 and 4 Study Design. State domains for functions and give exact coordinates for key graphical features; include constants of integration where required. Avoid explicitly stating certain techniques, such as the 'product rule'   instead, design questions that require them to choose and apply appropriate methods themselves.",
       "subtopics": [
         {
-          "name": "Function Notation and Domains",
-          "technique_notes": "Create questions requiring students to define functions in the form $f: \\text{dom} \\to \\mathbb{R}, f(x) = \\dots$, identify maximal, implied, and natural domains, and apply domain restrictions. Require explicit domain statements for every rule. Include tasks where students determine whether a given value lies in the domain and justify using inequality or set notation. Write all functions as $f: \\text{domain} \\to \\mathbb{R}, f(x) = \\dots$   never omit the domain specification. Express domains using interval notation (e.g. $[a,b)$, $(-\\infty, a)$) or set notation (e.g. $\\{x \\in \\mathbb{R} : x > 0\\}$). For tech-free items ensure domain conditions are algebraically resolvable by hand.",
-          "group": "unit3-functions"
+          "name": "Functions and Function Notation",
+          "technique_notes": "Create questions where students define a function, use function notation, and distinguish functions from relations. Include tasks to specify the rule, domain (maximal/natural/implied), co-domain and range, and to determine whether a given relation is a function. For tech-free items, use simple polynomial or power rules. Always require explicit domain and range notation and use $f: D \\to \\mathbb{R}$, $f(x) = \\ldots$ notation throughout.",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Power Functions and Transformations",
+          "technique_notes": "Design questions where students identify and sketch power functions $y = x^n$ for $n \\in \\{-2, -1, \\frac{1}{2}, 1, 2, 3\\}$ and their transformations to the form $y = a(x+b)^n + c$. Include tasks to describe the effect of each parameter (dilation, reflection, translation) on the graph. For tech-free items, restrict to integer or simple rational values of $a$, $b$, $c$. Always require identification of any vertical or horizontal asymptotes and explicit statements of domain and range.",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Graphs of Polynomial Functions of Low Degree",
+          "technique_notes": "Create questions where students sketch and interpret graphs of linear, quadratic, cubic and (factored) quartic polynomial functions by hand. Include tasks to identify x-intercepts (including touch points and stationary points of inflection), y-intercepts, approximate location of turning points and end behaviour. For tech-free items, restrict to polynomials factorisable over the rationals with integer coefficients. Always require labelling of all key features and an explicit statement of domain and range.",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Qualitative Interpretation of Graphs",
+          "technique_notes": "Design questions where students interpret features of graphs of functions — including those representing real data with no explicit rule — describing approximate intercepts, stationary points, points of inflection, and intervals of increase/decrease. Include tasks that link graph shape to context (e.g., motion, temperature). For tech-free items, provide sketch graphs and ask for qualitative descriptions. Always require the use of correct mathematical terminology (e.g., 'stationary point', 'point of inflection').",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Inverse Functions",
+          "technique_notes": "Construct questions where students find the rule and graph of the inverse of a one-to-one function, verify the inverse relationship $f(f^{-1}(x)) = x$, and describe the reflection in the line $y = x$. Include tasks to restrict the domain of a non-one-to-one function to make it invertible. For tech-free items, restrict to linear, simple quadratic and power functions with manageable algebra. Always require explicit specification of domain and range for both $f$ and $f^{-1}$.",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Algebraic Manipulation of Polynomial and Power Expressions",
+          "technique_notes": "Create questions where students expand, factorise and simplify algebraic expressions involving polynomial and power functions, applying distributive and exponent laws. Include tasks to move between equivalent forms (e.g., expanded, factored, completed-square). For tech-free items, restrict to integer coefficients and expressions manageable by hand. Always require students to show full working and justify equivalence of forms.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Quadratic Functions: Forms, Features and the Discriminant",
+          "technique_notes": "Design questions where students work with the general form $f(x) = ax^2 + bx + c$, vertex form $f(x) = a(x-h)^2 + k$, and factored form. Include tasks to complete the square, apply the quadratic formula, use the discriminant to determine the number and nature of roots, and identify vertex, axis of symmetry and intercepts. For tech-free items, restrict to integer $a$, $b$, $c$ and discriminants that yield rational or simple surd roots. Always require exact coordinates.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Polynomial Theorems and Factorisation",
+          "technique_notes": "Create questions where students apply the remainder theorem, factor theorem and rational root theorem to factorise and solve polynomial equations of low degree. Include tasks to express a cubic $p(x)$ in the form $(x-a)q(x) + r$ by hand, identify all rational roots, and connect roots to horizontal axis intercepts. For tech-free items, restrict to polynomials with integer coefficients that factorise over the rationals. Always require students to state all roots with multiplicity.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Transformations of the Plane",
+          "technique_notes": "Design questions where students describe and apply transformations — dilations (parallel to or from an axis), reflections in an axis, and translations — to graphs of functions and relations. Include tasks to determine the image of a function after a sequence of transformations and to determine the transformation(s) mapping one graph to another. For tech-free items, restrict to simple polynomial and power functions. Matrix representation may be included but is not required. Always require students to describe transformations in words using correct terminology.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Simultaneous Equations and Solution of Polynomial Equations",
+          "technique_notes": "Construct questions where students solve systems of simultaneous linear equations (up to four unknowns, by hand for two equations in two unknowns) and polynomial equations of low degree numerically, graphically and algebraically. Include tasks using the bisection method algorithm to approximate roots of simple polynomial functions over a specified interval. For tech-free items, restrict to linear systems with unique solutions and quadratics/cubics with rational roots. Always require exact solutions where possible and clearly stated intervals for numerical approximations.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Circular Functions: Unit Circle, Radians and Exact Values",
+          "technique_notes": "Create questions where students convert between degrees and radians, define sine, cosine and tangent as functions of a real variable using the unit circle, and evaluate these functions at exact values ($0, \\frac{\\pi}{6}, \\frac{\\pi}{4}, \\frac{\\pi}{3}, \\frac{\\pi}{2}$ and related angles). Include tasks on arc length and the small-angle approximations. For tech-free items, restrict to angles that are multiples of the standard exact-value angles. Always require exact answers expressed in surd or fractional form.",
+          "group": "unit2-functions-relations-graphs"
+        },
+        {
+          "name": "Symmetry, Complementary Relations and Periodicity of Circular Functions",
+          "technique_notes": "Design questions where students apply symmetry properties (e.g., $\\sin(\\pi - x) = \\sin x$), complementary relations (e.g., $\\sin(\\frac{\\pi}{2} - x) = \\cos x$), and periodicity to simplify expressions and evaluate circular functions at non-standard angles. Include tasks to determine all solutions of simple circular equations on a given domain. For tech-free items, restrict to equations solvable using exact values and symmetry alone. Always require students to list all solutions within the specified domain.",
+          "group": "unit2-functions-relations-graphs"
+        },
+        {
+          "name": "Graphs of Circular Functions and Their Transformations",
+          "technique_notes": "Create questions where students sketch and analyse graphs of $f(x) = a\\sin(b(x-h))+k$, $f(x) = a\\cos(b(x-h))+k$ and $f(x) = a\\tan(b(x-h))+k$, identifying amplitude, period, phase shift, vertical translation, axis intercepts and asymptotes. Include tasks to determine the equation of a circular function from its graph. For tech-free items, restrict to integer or simple fractional values of parameters and periods that are rational multiples of $\\pi$. Always require exact coordinates for key features and explicit statements of domain and range.",
+          "group": "unit2-functions-relations-graphs"
+        },
+        {
+          "name": "Exponential Functions and Their Graphs",
+          "technique_notes": "Design questions where students identify and sketch exponential functions of the form $f(x) = Aa^{bx+c}+d$ (with $a > 0$, $a \\neq 1$), determine key features (horizontal asymptote, intercepts, domain, range), and model practical contexts (growth, decay, half-life, doubling time). Include tasks to interpret parameters $A$, $a$, $b$ and $d$ in context. For tech-free items, restrict to bases $e$ and small integers with manageable arithmetic. Always require exact coordinates for intercepts and an explicit equation of the asymptote.",
+          "group": "unit2-functions-relations-graphs"
+        },
+        {
+          "name": "Logarithmic Functions and Their Graphs",
+          "technique_notes": "Create questions where students identify and sketch logarithmic functions of the form $f(x) = a\\log_b(cx+d)+k$, determine key features (vertical asymptote, intercepts, domain, range), and use the inverse relationship between $y = a^x$ and $y = \\log_a x$ including the identities $\\log_a(a^x) = x$ and $a^{\\log_a x} = x$. Include tasks to convert between exponential and logarithmic forms and apply logarithm laws. For tech-free items, restrict to bases $e$ and 10. Always require exact coordinates for intercepts and an explicit equation of the vertical asymptote.",
+          "group": "unit2-functions-relations-graphs"
+        },
+        {
+          "name": "Exponent and Logarithm Laws",
+          "technique_notes": "Create questions where students apply exponent laws and logarithm laws (including change of base) to simplify expressions and solve simple exponential equations exactly. Include tasks such as solving $a^{f(x)} = b$ by taking logarithms and expressing solutions in exact form. For tech-free items, restrict to bases $e$ and 10 and equations with rational or simple surd solutions. Always require exact solutions and full algebraic working.",
+          "group": "unit2-algebra-number-structure"
+        },
+        {
+          "name": "Solving Equations Involving Circular, Exponential and Logarithmic Functions",
+          "technique_notes": "Design questions where students use inverse functions and transformations to solve equations of the form $f(g(x)) = k$, where $f$ is sine, cosine, tangent or an exponential/logarithmic function, on a given domain. Include tasks requiring students to find all solutions in exact form. For tech-free items, restrict to domains and equations solvable using standard exact values and logarithm laws. Always require students to list all solutions within the stated domain and verify solutions.",
+          "group": "unit2-algebra-number-structure"
+        },
+        {
+          "name": "Newton's Method for Approximating Roots",
+          "technique_notes": "Create questions where students apply Newton's method algorithm to approximate roots of cubic polynomial functions, performing successive iterations by hand or with technology. Include tasks to describe the algorithm, carry out two or three iterations from a given starting point, and assess convergence. For tech-free items, restrict to functions with manageable derivatives and starting points close to the root. Always require students to state the iteration formula used and round to a specified number of decimal places.",
+          "group": "unit2-algebra-number-structure"
+        },
+        {
+          "name": "The Derivative: Limit Definition and Gradient Function",
+          "technique_notes": "Create questions where students use the limit definition $f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}$ to find derivatives of simple polynomial functions from first principles, and use the central difference approximation $f'(x) \\approx \\frac{f(x+h)-f(x-h)}{2h}$ numerically. Include tasks to interpret the derivative as both a gradient and a rate of change. For tech-free items, restrict to polynomials of degree two or three. Always require students to show the limit process and interpret the result geometrically.",
+          "group": "unit2-calculus"
+        },
+        {
+          "name": "Differentiation of Polynomial Functions by Rule",
+          "technique_notes": "Design questions where students differentiate polynomial functions by the power rule, using both $f'(x)$ and $\\frac{dy}{dx}$ notation. Include tasks to find the gradient at a specific point, determine the equation of a tangent or normal to a curve, and identify where the gradient equals a given value. For tech-free items, restrict to polynomials with integer coefficients. Always require exact expressions for derivatives and clearly stated final answers.",
+          "group": "unit2-calculus"
+        },
+        {
+          "name": "Applications of Differentiation: Stationary Points, Maxima and Minima",
+          "technique_notes": "Create questions where students use differentiation to locate and classify stationary points (local maxima, local minima, stationary points of inflection), analyse the shape of a graph, and solve optimisation problems on a modelling domain. Include tasks to determine global maxima/minima on a closed interval. For tech-free items, restrict to polynomial functions of degree three or four. Always require a nature table or sign diagram for classification of stationary points and explicit consideration of endpoints for global extrema.",
+          "group": "unit2-calculus"
+        },
+        {
+          "name": "Anti-differentiation of Polynomial Functions",
+          "technique_notes": "Design questions where students anti-differentiate polynomial functions by reversing the power rule, identify families of curves with the same gradient function, and use a boundary condition to determine a specific anti-derivative. Include tasks to find $F(x)$ such that $F'(x) = f(x)$ and $F(a) = k$. For tech-free items, restrict to polynomial functions with integer or simple fractional coefficients. Always require students to include the constant of integration $+c$ and show how the boundary condition determines $c$.",
+          "group": "unit2-calculus"
+        },
+        {
+          "name": "Kinematics and Rates of Change Applications",
+          "technique_notes": "Create questions where students apply differentiation and anti-differentiation to motion problems (position, velocity, acceleration) and other rates-of-change contexts. Include tasks to interpret the sign of velocity and acceleration, find when an object is at rest, and determine displacement from a velocity function. For tech-free items, restrict to polynomial velocity/acceleration functions. Always require explicit definition of variables and units, and interpretation of results in plain language within the context of the problem.",
+          "group": "unit2-calculus"
         },
         {
           "name": "Key Graph Features",
@@ -280,7 +393,10 @@
     {
       "name": "Specialist Mathematics",
       "icon": "SigmaSquare",
-      "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+      "examPdfs": [
+        "2025-SpecialistMaths1.pdf",
+        "2025-SpecialistMaths2.pdf"
+      ],
       "reportPdfs": [
         "2025-SpecialistMaths1-report.pdf",
         "2025-SpecialistMaths2-report.pdf"
@@ -347,8 +463,12 @@
     {
       "name": "Chemistry",
       "icon": "FlaskConical",
-      "examPdfs": ["2025-Chemistry.pdf"],
-      "reportPdfs": ["2025-Chemistry-report.pdf"],
+      "examPdfs": [
+        "2025-Chemistry.pdf"
+      ],
+      "reportPdfs": [
+        "2025-Chemistry-report.pdf"
+      ],
       "examGuidance": " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ",
       "subtopics": [
         {
@@ -471,8 +591,12 @@
     {
       "name": "Physical Education",
       "icon": "Dumbbell",
-      "examPdfs": ["2025-PhysicalEducation.pdf"],
-      "reportPdfs": ["2025-PhysEd-report.pdf"],
+      "examPdfs": [
+        "2025-PhysicalEducation.pdf"
+      ],
+      "reportPdfs": [
+        "2025-PhysEd-report.pdf"
+      ],
       "examGuidance": "\nVCAA PHYSICAL EDUCATION EXAM QUESTION GENERATION - COMPREHENSIVE INSTRUCTIONS\nWRITING STYLE FOR PHYSICAL EDUCATION:\n- Do NOT use mathematical equations, derivations, or formula-heavy solutions.\n- Write all worked solutions and exemplar responses in prose - paragraphs and bullet points.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', '$\text{VO}_2$ max', '1RM', 'F = ma') - mention by name and explain application in words. Do NOT rearrange, derive, or chain equations.\n- Focus on qualitative analysis, evaluation, and justification rather than calculation.\n\nPE EXAM QUESTION TYPES & COGNITIVE DEMANDS:\n\nSHORT-ANSWER QUESTIONS (1-2 marks) - RECALL/COMPREHENSION\n|- Verbs: Define, identify, list, state, describe (basic), explain (simple)\n|- Example: \"Define the term 'discrete motor skill'.\"\n`- Expected response: 1-2 sentences with accurate definition\n\nEXTENDED-RESPONSE QUESTIONS (2-6 marks) - APPLICATION/ANALYSIS\n|- Verbs: Explain (with evidence), apply, demonstrate, analyze, evaluate, justify\n|- Example: \"Explain how the ATP-CP system is particularly suited to high-intensity, short-duration activities. Refer to its rate of ATP regeneration and the role of phosphocreatine in your response.\"\n`- Expected response: 3-4 detailed sentences or structured paragraphs\n\nAPPLICATION/SCENARIO QUESTIONS (3-8 marks) - SYNTHESIS/INTEGRATION\n|- Verbs: Design, evaluate, critique, create, analyze (multi-component), justify (complex)\n|- Example: \"A netball player is training to improve her vertical jump for shooting. Design a 4-week periodized training program that includes appropriate training methods and progression. Justify your choice of methods with reference to the physiological demands of jumping, energy systems used, and skill acquisition principles.\"\n`- Expected response: Structured program with detailed scientific justification\n\nDATA INTERPRETATION QUESTIONS (2-5 marks) - OBSERVATION/INFERENCE/APPLICATION\n|- Verbs: Interpret, analyze, identify (trends), explain (what data shows)\n|- Example: \"The graph shows a swimmer's lactate levels during a 400 m freestyle race. (a) Identify the point(s) where the anaerobic threshold was exceeded. (b) Explain what this suggests about energy system contribution. (c) Recommend a training method to improve lactate tolerance.\"\n`- Expected response: Observation -> explanation -> application progression\n\nCOMPARISON QUESTIONS (2-6 marks) - DIFFERENTIATION/CONTRAST\n|- Verbs: Compare (similarities AND differences), contrast, distinguish, evaluate (relative merit)\n|- Example: \"Compare the relative contribution of the aerobic and anaerobic glycolysis systems during (a) a 100 m sprint and (b) a 1500 m run. In your answer, consider rate of ATP yield, duration, and total ATP production.\"\n`- Expected response: Structured comparison with specific references to both similarities and differences\n\nAUTHENTICITY & CONTEXT REQUIREMENTS:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nVCAA questions must be grounded in REALISTIC sports and training contexts.\n\nCOMMON AUSTRALIAN SPORTS:\nAFL, cricket, rugby league, rugby union, netball, basketball, tennis, swimming, athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\nREALISTIC SCENARIOS:\n- Pre-season training and conditioning phases\n- Return-to-play after injury / rehabilitation\n- Peaking for competition (tapering strategies)\n- Performance plateau problems and solutions\n- Adapting training for different athlete levels (beginner, intermediate, elite)\n- Managing recovery and fatigue in multi-competition seasons\n- Technique refinement under fatigue\n\nATHLETE PERSPECTIVES:\n- Scenarios should relate to experiences of VCE PE students (school athletes, club athletes, potential elite pathway athletes)\n- Acknowledge recreational participation, competitive club level, and elite development\n- Consider both individual sports (tennis, gymnastics, swimming) and team sports (netball, AFL, basketball, soccer)\n\nQUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n\n[OK] Aligned with Unit 3 or 4 key knowledge/skills from Study Design?\n[OK] Requires higher-order thinking (application, analysis, synthesis)?\n[OK] Context is realistic and relevant to VCE PE students?\n[OK] Mark allocation matches cognitive demand appropriately?\n[OK] Question is unambiguous and free of jargon confusion?\n[OK] A clear, defensible marking rubric exists?\n[OK] Question integrates multiple concepts where appropriate?\n[OK] All terms are defined or contextually clear?\n[OK] Question avoids leading or telegraphing the expected answer?\n[OK] Expected response length is reasonable for marks allocated?\n[OK] Question reflects the style and rigor of actual VCAA examinations?\n",
       "subtopics": [
         {
