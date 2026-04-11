@@ -17,8 +17,6 @@ mod schemas;
 
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
-#[cfg(target_os = "android")]
-use tauri::Emitter;
 
 static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
