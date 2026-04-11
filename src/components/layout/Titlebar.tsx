@@ -31,21 +31,24 @@ export default function Titlebar() {
         <div className="flex gap-1">
           <button
             aria-label="Minimize"
-            className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs"
+            className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs pointer-events-auto"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => void appWindow.minimize()}
           >
             <Minus className="w-3 h-3" />
           </button>
           <button
             aria-label="Maximize"
-            className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs"
+            className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs pointer-events-auto"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => void appWindow.toggleMaximize()}
           >
             <Maximize className="w-3 h-3" />
           </button>
           <button
             aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center hover:bg-red-500/80 hover:text-white rounded-xs"
+            className="w-8 h-8 flex items-center justify-center hover:bg-red-500/80 hover:text-white rounded-xs pointer-events-auto"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={() => void appWindow.close()}
           >
             <X className="w-3 h-3" />
