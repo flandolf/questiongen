@@ -28,6 +28,7 @@ export type AttemptRow = {
   attemptKind?: string;
   answerWordCount?: number;
   answerCharacterCount?: number;
+  hasImage?: boolean;
   generationDurationMs?: number;
   difficulty?: string;
 };
@@ -256,6 +257,11 @@ export function useAnalyticsData() {
   const writtenAttempts = useMemo<AttemptRow[]>(() => {
     return questionHistory.map((entry: QuestionHistoryEntry) => {
       const attemptKind = entry.analytics?.attemptKind;
+      const uploadedAnswer = entry.uploadedAnswer || '';
+      const fallbackWordCount = uploadedAnswer.trim()
+        ? uploadedAnswer.trim().split(/\s+/).length
+        : 0;
+
       return {
         id: entry.id,
         mode: 'written' as const,
@@ -271,8 +277,11 @@ export function useAnalyticsData() {
         responseLatencyMs: entry.analytics?.responseLatencyMs,
         markingLatencyMs: entry.analytics?.markingLatencyMs,
         attemptKind,
-        answerWordCount: entry.analytics?.answerWordCount,
-        answerCharacterCount: entry.analytics?.answerCharacterCount,
+        answerWordCount: entry.analytics?.answerWordCount ?? fallbackWordCount,
+        answerCharacterCount:
+          entry.analytics?.answerCharacterCount ?? uploadedAnswer.length,
+        hasImage:
+          entry.analytics?.usedImageUpload ?? !!entry.uploadedAnswerImage,
         generationDurationMs: entry.generationTelemetry?.durationMs,
       };
     });
@@ -284,6 +293,9 @@ export function useAnalyticsData() {
       const achievedMarks =
         entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
       const attemptKind = entry.analytics?.attemptKind;
+      const fallbackWordCount = entry.selectedAnswer?.trim()
+        ? entry.selectedAnswer.trim().split(/\s+/).length
+        : 0;
 
       return {
         id: entry.id,
@@ -296,8 +308,11 @@ export function useAnalyticsData() {
         scorePercent: percent(achievedMarks, maxMarks),
         responseLatencyMs: entry.analytics?.responseLatencyMs,
         attemptKind,
-        answerWordCount: entry.analytics?.answerWordCount,
-        answerCharacterCount: entry.analytics?.answerCharacterCount,
+        answerWordCount: entry.analytics?.answerWordCount ?? fallbackWordCount,
+        answerCharacterCount:
+          entry.analytics?.answerCharacterCount ??
+          (entry.selectedAnswer?.length || 0),
+        hasImage: entry.analytics?.usedImageUpload ?? false,
         generationDurationMs: entry.generationTelemetry?.durationMs,
       };
     });

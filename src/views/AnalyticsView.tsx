@@ -1,4 +1,10 @@
-import { BarChartIcon, Clock3, PlusCircle, Type } from 'lucide-react';
+import {
+  BarChartIcon,
+  Clock3,
+  ImageIcon,
+  PlusCircle,
+  Type,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { PieSectorShapeProps } from 'recharts';
@@ -761,10 +767,16 @@ export function AnalyticsView() {
                           </span>
                         </div>
                         <div className="flex gap-4 text-xs text-muted-foreground/70">
-                          <span className="flex items-center gap-1.5">
-                            <Type className="h-3.5 w-3.5" />{' '}
-                            {attempt.answerWordCount ?? 0} words
-                          </span>
+                          {attempt.hasImage ? (
+                            <span className="flex items-center gap-1.5">
+                              <ImageIcon className="h-3.5 w-3.5" /> Image
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5">
+                              <Type className="h-3.5 w-3.5" />{' '}
+                              {attempt.answerWordCount ?? 0} words
+                            </span>
+                          )}
                           <span className="flex items-center gap-1.5">
                             <Clock3 className="h-3.5 w-3.5" />{' '}
                             {formatDurationMs(attempt.markingLatencyMs)}
