@@ -28,6 +28,9 @@ export type McQuestion = {
 };
 
 export type StudentAnswerImage = {
-  name: string;
+  id: string;
   dataUrl: string;
+  storagePath?: string;
+  downloadUrl?: string;
+  timestamp: string;
 };

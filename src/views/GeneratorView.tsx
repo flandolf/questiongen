@@ -12,6 +12,7 @@ import {
   useMultipleChoiceSession,
   useWrittenSession,
 } from '@/AppContext';
+import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useTimer } from '@/hooks/useTimer';
@@ -38,6 +39,7 @@ import {
   removeKey,
 } from '@/lib/generator-helpers';
 import { applyBatchQualityChecks } from '@/lib/question-cache';
+import { uploadImage, deleteImage } from '@/lib/firebase-storage';
 import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
@@ -177,6 +179,8 @@ export function GeneratorView() {
     // Only run on mount or when location.search changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
+  const { user } = useFirebaseSyncContext();
+
   // ── Local UI state ──────────────────────────────────────────────────────────
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
@@ -722,13 +726,17 @@ export function GeneratorView() {
       const file = files[0];
       if (!file) return;
       const questionId = activeQuestion.id;
+      const imageId = crypto.randomUUID();
+      const timestamp = new Date().toISOString();
+
       void fileToDataUrl(file)
-        .then((dataUrl) => {
+        .then(async (dataUrl) => {
           setImagesByQuestionId((prev) => ({
             ...prev,
             [questionId]: {
-              name: file.name,
+              id: imageId,
               dataUrl,
+              timestamp,
             },
           }));
           setWrittenResponseEnteredAtById((prev) =>
@@ -736,6 +744,29 @@ export function GeneratorView() {
               ? prev
               : { ...prev, [questionId]: Date.now() }
           );
+
+          if (user) {
+            try {
+              const { storagePath, downloadUrl } = await uploadImageDataUrl(
+                dataUrl,
+                questionId,
+                imageId
+              );
+              setImagesByQuestionId((prev) => ({
+                ...prev,
+                [questionId]: {
+                  id: imageId,
+                  dataUrl,
+                  storagePath,
+                  downloadUrl,
+                  timestamp,
+                },
+              }));
+            } catch (error) {
+              console.error('Firebase upload failed:', error);
+              toast.error('Failed to upload image to cloud storage.');
+            }
+          }
         })
         .catch(() => {
           setErrorMessage('Unable to read the selected image file.');
@@ -746,13 +777,18 @@ export function GeneratorView() {
       setErrorMessage,
       setImagesByQuestionId,
       setWrittenResponseEnteredAtById,
+      user,
     ]
   );
 
   const handleWrittenImageRemove = useCallback(() => {
     if (!activeQuestion) return;
+    const currentImage = imagesByQuestionId[activeQuestion.id];
+    if (currentImage?.storagePath) {
+      void deleteImage(currentImage.storagePath).catch(console.error);
+    }
     setImagesByQuestionId((prev) => removeKey(prev, activeQuestion.id));
-  }, [activeQuestion, setImagesByQuestionId]);
+  }, [activeQuestion, imagesByQuestionId, setImagesByQuestionId]);
 
   const handleAppealChange = useCallback(
     (value: string) => {
@@ -1397,6 +1433,7 @@ export function GeneratorView() {
     response: ReturnType<typeof normalizeMarkResponse>,
     options?: {
       uploadedAnswerOverride?: string;
+      uploadedAnswerImageOverride?: StudentAnswerImage;
       attemptKind?: WrittenAttemptKind;
       markingLatencyMs?: number;
       responseEnteredAtMs?: number;
@@ -1405,6 +1442,8 @@ export function GeneratorView() {
     if (!question) return;
     const uploadedAnswer =
       options?.uploadedAnswerOverride ?? answersByQuestionId[question.id] ?? '';
+    const uploadedAnswerImage =
+      options?.uploadedAnswerImageOverride ?? imagesByQuestionId[question.id];
     const timing = writtenTimer.getQuestionTiming(question.id);
     const now = Date.now();
     const entry: QuestionHistoryEntry = {
@@ -1413,7 +1452,7 @@ export function GeneratorView() {
       lastModified: now,
       question,
       uploadedAnswer,
-      uploadedAnswerImage: imagesByQuestionId[question.id],
+      uploadedAnswerImage,
       workedSolutionMarkdown: response.workedSolutionMarkdown,
       markResponse: response,
       generationTelemetry: writtenGenerationTelemetry ?? undefined,
@@ -2186,11 +2225,35 @@ export function GeneratorView() {
     setIsMarking(true);
     setLastFailedAction(null);
     try {
+      let finalImage = effectiveImage;
       if (payload?.image) {
+        finalImage = payload.image;
         setImagesByQuestionId((prev) => ({
           ...prev,
-          [activeQuestion.id]: payload.image as StudentAnswerImage,
+          [activeQuestion.id]: finalImage,
         }));
+
+        if (user) {
+          try {
+            const { storagePath, downloadUrl } = await uploadImageDataUrl(
+              finalImage.dataUrl,
+              activeQuestion.id,
+              finalImage.id
+            );
+            finalImage = {
+              ...finalImage,
+              storagePath,
+              downloadUrl,
+            };
+            setImagesByQuestionId((prev) => ({
+              ...prev,
+              [activeQuestion.id]: finalImage,
+            }));
+          } catch (error) {
+            console.error('Firebase upload failed:', error);
+            // Non-blocking
+          }
+        }
       }
       const responseEnteredAtMs =
         writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
@@ -2199,7 +2262,7 @@ export function GeneratorView() {
         request: {
           question: activeQuestion,
           studentAnswer: activeQuestionAnswer,
-          studentAnswerImageDataUrl: effectiveImage?.dataUrl,
+          studentAnswerImageDataUrl: finalImage?.dataUrl,
           model: markModel,
           apiKey,
         },
@@ -2219,6 +2282,7 @@ export function GeneratorView() {
       }));
       appendWrittenHistoryEntry(activeQuestion, response, {
         uploadedAnswerOverride: activeQuestionAnswer,
+        uploadedAnswerImageOverride: finalImage,
         attemptKind: 'initial',
         markingLatencyMs,
         responseEnteredAtMs,
@@ -2420,29 +2484,64 @@ export function GeneratorView() {
   }
 
   // ── MC sketchpad handlers ───────────────────────────────────────────────────
-  function handleMcImageDrop(files: File[]) {
-    if (!activeMcQuestion) return;
-    const file = files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setMcImagesByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: { name: file.name, dataUrl },
-      }));
-    };
-    reader.readAsDataURL(file);
-  }
+  const handleMcImageDrop = useCallback(
+    (files: File[]) => {
+      if (!activeMcQuestion) return;
+      const file = files[0];
+      if (!file) return;
+      const questionId = activeMcQuestion.id;
+      const imageId = crypto.randomUUID();
+      const timestamp = new Date().toISOString();
 
-  function handleMcImageRemove() {
+      void fileToDataUrl(file)
+        .then(async (dataUrl) => {
+          setMcImagesByQuestionId((prev) => ({
+            ...prev,
+            [questionId]: { id: imageId, dataUrl, timestamp },
+          }));
+
+          if (user) {
+            try {
+              const { storagePath, downloadUrl } = await uploadImageDataUrl(
+                dataUrl,
+                questionId,
+                imageId
+              );
+              setMcImagesByQuestionId((prev) => ({
+                ...prev,
+                [questionId]: {
+                  id: imageId,
+                  dataUrl,
+                  storagePath,
+                  downloadUrl,
+                  timestamp,
+                },
+              }));
+            } catch (error) {
+              console.error('Firebase upload failed:', error);
+              toast.error('Failed to upload image to cloud storage.');
+            }
+          }
+        })
+        .catch(() => {
+          setErrorMessage('Unable to read the selected image file.');
+        });
+    },
+    [activeMcQuestion, setErrorMessage, user]
+  );
+
+  const handleMcImageRemove = useCallback(() => {
     if (!activeMcQuestion) return;
+    const currentImage = mcImagesByQuestionId[activeMcQuestion.id];
+    if (currentImage?.storagePath) {
+      void deleteImage(currentImage.storagePath).catch(console.error);
+    }
     setMcImagesByQuestionId((prev) => {
       const next = { ...prev };
       delete next[activeMcQuestion.id];
       return next;
     });
-  }
+  }, [activeMcQuestion, mcImagesByQuestionId]);
 
   function buildMcMarkingPrompt(question: typeof activeMcQuestion) {
     if (!question) return '';

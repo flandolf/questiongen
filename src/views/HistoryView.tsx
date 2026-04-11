@@ -580,7 +580,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                 <SectionLabel>Your Answer</SectionLabel>
                 {item.uploadedAnswerImage ? (
                   <img
-                    src={item.uploadedAnswerImage.dataUrl}
+                    src={
+                      item.uploadedAnswerImage.downloadUrl ||
+                      item.uploadedAnswerImage.dataUrl
+                    }
                     alt="Uploaded Answer"
                     loading="lazy"
                     decoding="async"
