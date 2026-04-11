@@ -193,16 +193,36 @@ pub fn latex_issues_for_text(text: &str) -> Vec<String> {
         issues.push("unclosed display math delimiter ($$)".to_string());
     }
 
-    if text.contains("\\$") && text.contains("$") && (text.matches('$').count() % 2 != 0) {
-        issues.push("mixed currency/math dollar usage".to_string());
+    if text.contains("\\$") && text.contains("$") {
+        let mut unescaped_dollar_count = 0;
+        let mut i = 0;
+        let bytes = text.as_bytes();
+        while i < bytes.len() {
+            if bytes[i] == b'$' {
+                let mut backslash_count = 0;
+                let mut j = i;
+                while j > 0 && bytes[j - 1] == b'\\' {
+                    backslash_count += 1;
+                    j -= 1;
+                }
+                if backslash_count % 2 == 0 {
+                    unescaped_dollar_count += 1;
+                }
+            }
+            i += 1;
+        }
+        if unescaped_dollar_count % 2 != 0 {
+            issues.push("mixed currency/math dollar usage".to_string());
+        }
     }
 
     let mut index = 0usize;
     while let Some(pos) = text[index..].find("\\frac") {
         let absolute_pos = index + pos;
+        let char_idx = text[..absolute_pos].chars().count();
         let inside_math = math_ranges
             .iter()
-            .any(|(start, end)| absolute_pos >= *start && absolute_pos < *end);
+            .any(|(start, end)| char_idx >= *start && char_idx < *end);
         if !inside_math {
             issues.push("\\frac found outside math delimiters".to_string());
             break;

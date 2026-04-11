@@ -21,15 +21,15 @@ pub fn adjust_difficulty(
         return base_difficulty.to_string();
     };
     let levels = ["Essential Skills", "Easy", "Medium", "Hard", "Extreme"];
-    let mut current_index = levels
-        .iter()
-        .position(|&r| r == base_difficulty)
-        .unwrap_or(2); // default Medium
+    let base_pos = levels.iter().position(|&r| r == base_difficulty);
+    let mut current_index = base_pos.unwrap_or(2); // default Medium
 
-    // If recent difficulty was different, adjust baseline
-    if let Some(recent_diff) = recent_difficulty {
-        if let Some(recent_idx) = levels.iter().position(|&r| r == recent_diff) {
-            current_index = recent_idx;
+    // If base_difficulty was not found/explicit, override with recent difficulty
+    if base_pos.is_none() {
+        if let Some(recent_diff) = recent_difficulty {
+            if let Some(recent_idx) = levels.iter().position(|&r| r == recent_diff) {
+                current_index = recent_idx;
+            }
         }
     }
 
