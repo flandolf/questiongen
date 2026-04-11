@@ -228,7 +228,7 @@ fn marking_format(model: &str) -> serde_json::Value {
         "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
                      "vcaaMarkingScheme","comparisonToSolutionMarkdown",
                      "feedbackMarkdown","workedSolutionMarkdown",
-                     "exemplarResponseMarkdown","mcOptionExplanations","promptTokens","completionTokens","totalTokens"],
+                     "exemplarResponseMarkdown","mcOptionExplanations"],
         "properties": {
             "verdict":       { "type": "string" },
             "achievedMarks": { "type": "integer", "minimum": 0 },
@@ -265,10 +265,7 @@ fn marking_format(model: &str) -> serde_json::Value {
                         "explanation": { "type": "string" }
                     }
                 }
-            },
-            "promptTokens": { "type": "integer", "minimum": 0 },
-            "completionTokens": { "type": "integer", "minimum": 0 },
-            "totalTokens": { "type": "integer", "minimum": 0 }
+            }
         }
     });
 

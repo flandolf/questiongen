@@ -48,7 +48,12 @@ export function generateEntryId(): string {
 export function rekeyWritten(qs: GeneratedQuestion[]): GeneratedQuestion[] {
   const seen = new Map<string, number>();
   return qs.map((q) => {
-    const signature = [q.topic, q.subtopic ?? '', q.promptMarkdown, String(q.maxMarks ?? '')].join('|');
+    const signature = [
+      q.topic,
+      q.subtopic ?? '',
+      q.promptMarkdown,
+      String(q.maxMarks ?? ''),
+    ].join('|');
     const hash = hashStringForSeed(signature).toString(36);
     const count = (seen.get(hash) ?? 0) + 1;
     seen.set(hash, count);
@@ -60,8 +65,17 @@ export function rekeyWritten(qs: GeneratedQuestion[]): GeneratedQuestion[] {
 export function rekeyMc(qs: McQuestion[]): McQuestion[] {
   const seen = new Map<string, number>();
   return qs.map((q) => {
-    const options = q.options ? q.options.map((o) => `${o.label}:${o.text}`).join('|') : '';
-    const signature = [q.topic, q.subtopic ?? '', q.promptMarkdown, options, q.correctAnswer, q.explanationMarkdown].join('|');
+    const options = q.options
+      ? q.options.map((o) => `${o.label}:${o.text}`).join('|')
+      : '';
+    const signature = [
+      q.topic,
+      q.subtopic ?? '',
+      q.promptMarkdown,
+      options,
+      q.correctAnswer,
+      q.explanationMarkdown,
+    ].join('|');
     const hash = hashStringForSeed(signature).toString(36);
     const count = (seen.get(hash) ?? 0) + 1;
     seen.set(hash, count);

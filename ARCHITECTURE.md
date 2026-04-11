@@ -137,26 +137,26 @@ The Rust backend exposes named JSON schema response formats used when calling LL
 
 ```json
 {
-   "type": "object",
-   "additionalProperties": false,
-   "required": ["questions"],
-   "properties": {
-      "questions": {
-         "type": "array",
-         "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id","topic","subtopic","promptMarkdown","maxMarks"],
-            "properties": {
-               "id": { "type": "string" },
-               "topic": { "type": "string" },
-               "subtopic": { "type": ["string","null"] },
-               "promptMarkdown": { "type": "string" },
-               "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 }
-            }
-         }
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["questions"],
+  "properties": {
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "topic", "subtopic", "promptMarkdown", "maxMarks"],
+        "properties": {
+          "id": { "type": "string" },
+          "topic": { "type": "string" },
+          "subtopic": { "type": ["string", "null"] },
+          "promptMarkdown": { "type": "string" },
+          "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 }
+        }
       }
-   }
+    }
+  }
 }
 ```
 
@@ -164,39 +164,49 @@ The Rust backend exposes named JSON schema response formats used when calling LL
 
 ```json
 {
-   "type": "object",
-   "additionalProperties": false,
-   "required": ["questions"],
-   "properties": {
-      "questions": {
-         "type": "array",
-         "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown"],
-            "properties": {
-               "id": { "type": "string" },
-               "topic": { "type": "string" },
-               "subtopic": { "type": ["string","null"] },
-               "promptMarkdown": { "type": "string" },
-               "options": {
-                  "type": "array", "minItems": 4, "maxItems": 4,
-                  "items": {
-                     "type": "object",
-                     "additionalProperties": false,
-                     "required": ["label","text"],
-                     "properties": {
-                        "label": { "type": "string" },
-                        "text": { "type": "string" }
-                     }
-                  }
-               },
-               "correctAnswer": { "type": "string", "enum": ["A","B","C","D"] },
-               "explanationMarkdown": { "type": "string" }
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["questions"],
+  "properties": {
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "topic",
+          "subtopic",
+          "promptMarkdown",
+          "options",
+          "correctAnswer",
+          "explanationMarkdown"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "topic": { "type": "string" },
+          "subtopic": { "type": ["string", "null"] },
+          "promptMarkdown": { "type": "string" },
+          "options": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "text"],
+              "properties": {
+                "label": { "type": "string" },
+                "text": { "type": "string" }
+              }
             }
-         }
+          },
+          "correctAnswer": { "type": "string", "enum": ["A", "B", "C", "D"] },
+          "explanationMarkdown": { "type": "string" }
+        }
       }
-   }
+    }
+  }
 }
 ```
 
@@ -204,56 +214,66 @@ The Rust backend exposes named JSON schema response formats used when calling LL
 
 ```json
 {
-   "type": "object",
-   "additionalProperties": false,
-   "required": [
-      "verdict","achievedMarks","maxMarks","scoreOutOf10",
-      "vcaaMarkingScheme","comparisonToSolutionMarkdown",
-      "feedbackMarkdown","workedSolutionMarkdown",
-      "exemplarResponseMarkdown","mcOptionExplanations","promptTokens","completionTokens","totalTokens"
-   ],
-   "properties": {
-      "verdict": { "type": "string" },
-      "achievedMarks": { "type": "integer", "minimum": 0 },
-      "maxMarks": { "type": "integer", "minimum": 1 },
-      "scoreOutOf10": { "type": "integer", "minimum": 0, "maximum": 10 },
-      "vcaaMarkingScheme": {
-         "type": "array",
-         "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["criterion","achievedMarks","maxMarks","rationale"],
-            "properties": {
-               "criterion": { "type": "string" },
-               "achievedMarks": { "type": "integer", "minimum": 0 },
-               "maxMarks": { "type": "integer", "minimum": 0 },
-               "rationale": { "type": "string" }
-            }
-         }
-      },
-      "comparisonToSolutionMarkdown": { "type": "string" },
-      "feedbackMarkdown": { "type": "string" },
-      "workedSolutionMarkdown": { "type": "string" },
-      "exemplarResponseMarkdown": { "type": "string" },
-      "mcOptionExplanations": {
-         "type": "array",
-         "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["option","isCorrect","explanation"],
-            "properties": {
-               "option": { "type": "string" },
-               "isCorrect": { "type": "boolean" },
-               "explanation": { "type": "string" }
-            }
-         }
-      },
-      "promptTokens": { "type": "integer", "minimum": 0 },
-      "completionTokens": { "type": "integer", "minimum": 0 },
-      "totalTokens": { "type": "integer", "minimum": 0 }
-   }
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "achievedMarks",
+    "maxMarks",
+    "scoreOutOf10",
+    "vcaaMarkingScheme",
+    "comparisonToSolutionMarkdown",
+    "feedbackMarkdown",
+    "workedSolutionMarkdown",
+    "exemplarResponseMarkdown",
+    "mcOptionExplanations",
+    "promptTokens",
+    "completionTokens",
+    "totalTokens"
+  ],
+  "properties": {
+    "verdict": { "type": "string" },
+    "achievedMarks": { "type": "integer", "minimum": 0 },
+    "maxMarks": { "type": "integer", "minimum": 1 },
+    "scoreOutOf10": { "type": "integer", "minimum": 0, "maximum": 10 },
+    "vcaaMarkingScheme": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "achievedMarks", "maxMarks", "rationale"],
+        "properties": {
+          "criterion": { "type": "string" },
+          "achievedMarks": { "type": "integer", "minimum": 0 },
+          "maxMarks": { "type": "integer", "minimum": 0 },
+          "rationale": { "type": "string" }
+        }
+      }
+    },
+    "comparisonToSolutionMarkdown": { "type": "string" },
+    "feedbackMarkdown": { "type": "string" },
+    "workedSolutionMarkdown": { "type": "string" },
+    "exemplarResponseMarkdown": { "type": "string" },
+    "mcOptionExplanations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["option", "isCorrect", "explanation"],
+        "properties": {
+          "option": { "type": "string" },
+          "isCorrect": { "type": "boolean" },
+          "explanation": { "type": "string" }
+        }
+      }
+    },
+    "promptTokens": { "type": "integer", "minimum": 0 },
+    "completionTokens": { "type": "integer", "minimum": 0 },
+    "totalTokens": { "type": "integer", "minimum": 0 }
+  }
 }
 ```
 
 Notes:
+
 - The Rust code wraps these schemas with `json_schema_format` or `json_schema_format_anthropic` (see [src-tauri/src/openrouter.rs](src-tauri/src/openrouter.rs#L522)), which adjusts constraints for Anthropic model compatibility.
