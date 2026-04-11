@@ -5,6 +5,8 @@ import { useRef } from 'react';
 export default function Titlebar() {
   const barRef = useRef<HTMLDivElement>(null);
 
+  const appWindow = getCurrentWindow();
+
   // Manual drag and double-click maximize per Tauri v2 docs
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -30,21 +32,21 @@ export default function Titlebar() {
           <button
             aria-label="Minimize"
             className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs"
-            onClick={() => void getCurrentWindow().minimize()}
+            onClick={() => void appWindow.minimize()}
           >
             <Minus className="w-3 h-3" />
           </button>
           <button
             aria-label="Maximize"
             className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs"
-            onClick={() => void getCurrentWindow().toggleMaximize()}
+            onClick={() => void appWindow.toggleMaximize()}
           >
             <Maximize className="w-3 h-3" />
           </button>
           <button
             aria-label="Close"
             className="w-8 h-8 flex items-center justify-center hover:bg-red-500/80 hover:text-white rounded-xs"
-            onClick={() => void getCurrentWindow().close()}
+            onClick={() => void appWindow.close()}
           >
             <X className="w-3 h-3" />
           </button>
