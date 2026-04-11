@@ -206,11 +206,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-#[cfg(target_os = "android")]
-#[no_mangle]
-pub extern "C" fn stylus_double_tap() {
-    if let Some(handle) = APP_HANDLE.get() {
-        let _ = handle.emit("stylus-double-tap", ());
-    }
-}
