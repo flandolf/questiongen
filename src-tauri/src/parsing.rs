@@ -113,19 +113,85 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
                             // actually a JSON escape for whitespace/control, or
                             // is the model trying to write a LaTeX command?
                             //
-                            // Heuristic: if the character after the escape letter
-                            // is an ASCII letter (a-z, A-Z) then treat the whole
-                            // thing as a LaTeX command that got mis-escaped — emit
-                            // \\X so the JSON parser yields \X.
-                            //
-                            // Previously \n / \r were excluded, but LaTeX commands
-                            // like \nabla, \nu, \notin, \right, \rho, \rm are
-                            // common in math output and get corrupted by JSON
-                            // parsing. We now protect all three: \f, \t, \b, \n, \r.
-                            if matches!(next, b'f' | b't' | b'b' | b'n' | b'r')
-                                && i + 2 < len
-                                && bytes[i + 2].is_ascii_alphabetic()
-                            {
+                            let mut is_latex = false;
+                            if matches!(next, b'f' | b't' | b'b' | b'n' | b'r') {
+                                let commands: &[&[u8]] = match next {
+                                    b'n' => &[
+                                        b"nabla", b"natural", b"ne", b"neq", b"nearrow", b"not",
+                                        b"notin", b"nu",
+                                    ],
+                                    b'r' => &[
+                                        b"rho",
+                                        b"right",
+                                        b"rightarrow",
+                                        b"Rightarrow",
+                                        b"rm",
+                                        b"Re",
+                                        b"rangle",
+                                        b"rceil",
+                                        b"rfloor",
+                                        b"rvert",
+                                        b"rVert",
+                                    ],
+                                    b't' => &[
+                                        b"tan",
+                                        b"tanh",
+                                        b"tau",
+                                        b"text",
+                                        b"textbf",
+                                        b"textit",
+                                        b"textrm",
+                                        b"textsf",
+                                        b"texttt",
+                                        b"textup",
+                                        b"theta",
+                                        b"times",
+                                        b"to",
+                                        b"top",
+                                        b"triangle",
+                                        b"triangleright",
+                                        b"therefore",
+                                        b"tilde",
+                                        b"tfrac",
+                                    ],
+                                    b'f' => {
+                                        &[b"frac", b"forall", b"frown", b"flat", b"fbox", b"fty"]
+                                    }
+                                    b'b' => &[
+                                        b"beta",
+                                        b"bar",
+                                        b"bf",
+                                        b"begin",
+                                        b"binom",
+                                        b"big",
+                                        b"Big",
+                                        b"bigg",
+                                        b"Bigg",
+                                        b"bot",
+                                        b"bullet",
+                                        b"bmod",
+                                        b"bowtie",
+                                        b"backslash",
+                                        b"bmatrix",
+                                        b"bmathbb",
+                                    ],
+                                    _ => &[],
+                                };
+
+                                let start = i + 1;
+                                for &cmd in commands {
+                                    if bytes[start..].starts_with(cmd) {
+                                        let next_idx = start + cmd.len();
+                                        if next_idx >= len || !bytes[next_idx].is_ascii_alphabetic()
+                                        {
+                                            is_latex = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if is_latex {
                                 // Emit \\X: a JSON-escaped backslash + the letter.
                                 out.extend_from_slice(b"\\\\");
                                 out.push(next);
@@ -362,338 +428,35 @@ pub fn normalise_envelope(value: serde_json::Value) -> Result<serde_json::Value,
 // --- Text post-processing pipeline -------------------------------------------
 //
 // Every markdown field from the model goes through:
-//   decode_escapes -> sanitise_latex -> normalise_typography
+//   sanitise_latex -> normalise_typography
 //
 // At this stage the raw JSON has already been through protect_latex_in_raw_json,
 // so \frac, \text etc. are preserved as real backslash-sequences in the Rust
 // string. The remaining work is:
 //
-//   decode_escapes        — convert literal \n / \r\n artefacts to real newlines
 //   sanitise_latex        — normalise delimiters, protect currency $
 //   normalise_typography  — smart quotes, dashes, ellipsis → ASCII
 
-/// Convert literal `\n` / `\r\n` sequences (two actual chars: backslash + n)
-/// to real newlines. Preserves LaTeX commands like `\nabla` by checking the
-/// character after `\n` is not a continuation of a LaTeX command name.
+// --- Full pipeline convenience -----------------------------------------------
+
+/// Run the full sanitise → typography pipeline on a single string
+/// field that has already been deserialized from JSON.
 ///
-/// After `protect_latex_in_raw_json` + serde_json deserialization:
-///   - Real newlines embedded by the model are already `\n` (U+000A).
-///   - The sequence backslash-n written literally inside a string value (rare)
-///     appears as two chars `\` `n`.
-pub fn decode_escapes(value: &str) -> String {
-    fn starts_with_latex_command(chars: &[char], start: usize, commands: &[&str]) -> bool {
-        commands.iter().any(|command| {
-            let mut idx = start;
-            for expected in command.chars() {
-                if chars.get(idx) != Some(&expected) {
-                    return false;
-                }
-                idx += 1;
-            }
-            // Treat as a command only when the matched token is complete.
-            // A following ASCII letter means this is a longer unknown word
-            // and should be treated as normal escaped text.
-            chars
-                .get(idx)
-                .is_none_or(|next| !next.is_ascii_alphabetic())
-        })
-    }
-
-    const N_COMMANDS: &[&str] = &[
-        "nabla", "natural", "ne", "neq", "nearrow", "not", "notin", "nu",
-    ];
-    const R_COMMANDS: &[&str] = &["rho", "right", "rightarrow", "Rightarrow", "rm", "Re"];
-
-    let chars: Vec<char> = value.chars().collect();
-    let mut out = String::with_capacity(value.len());
-    let mut i = 0;
-    while i < chars.len() {
-        if chars[i] == '\\' && i + 1 < chars.len() {
-            // \r\n literal sequence → single newline
-            if i + 3 < chars.len()
-                && chars[i + 1] == 'r'
-                && chars[i + 2] == '\\'
-                && chars[i + 3] == 'n'
-            {
-                out.push('\n');
-                i += 4;
-                continue;
-            }
-            // \r literal → newline, but only if not followed by a letter that
-            // would form a LaTeX command (e.g. \rho, \rightarrow, \Re).
-            if chars[i + 1] == 'r' {
-                if starts_with_latex_command(&chars, i + 1, R_COMMANDS) {
-                    out.push('\\');
-                    out.push('r');
-                } else {
-                    out.push('\n');
-                }
-                i += 2;
-                continue;
-            }
-            // \n literal → newline unless it starts a known LaTeX command.
-            // This keeps commands like \nabla and \notin intact while decoding
-            // non-LaTeX text like \nand into a newline + "and".
-            if chars[i + 1] == 'n' {
-                if starts_with_latex_command(&chars, i + 1, N_COMMANDS) {
-                    // Looks like a LaTeX command — keep the backslash.
-                    out.push('\\');
-                    out.push('n');
-                } else {
-                    out.push('\n');
-                }
-                i += 2;
-                continue;
-            }
-        }
-        out.push(chars[i]);
-        i += 1;
-    }
-    out
-}
-
-/// Normalise LaTeX delimiters and protect currency dollar signs.
-///
-/// Applied to every markdown field after `decode_escapes`. Steps in order:
-///
-/// 1. Repair common typo'd LaTeX commands that appear with an extra leading
-///    `b` after the backslash, e.g. `\bmathbb` -> `\mathbb`.
-/// 2. Un-double escaped delimiter chars that lenient JSON parsers leave as-is:
-///    `\\(` → `\(`  etc.
-///
-/// 3. Convert `\(...\)` → `$...$`  and  `\[...\]` → `$$...$$`.
-///    MathJax is configured with only `$`/`$$` as delimiters.
-///
-/// 4. Protect currency: a bare `$` immediately before an ASCII digit that is
-///    not part of a `$$` display pair is replaced with `\$`.
-fn repair_common_latex_typos(text: &str) -> String {
-    // Repair a common truncated command that causes MathJax/Katex failures.
-    // `\fty` is not valid LaTeX and is almost always intended to be `\infty`.
-    let text = text.replace("\\fty", "\\infty");
-
-    const COMMANDS: &[&str] = &[
-        "alpha", "approx", "bar", "begin", "beta", "bf", "binom", "big", "Big", "bigg", "Bigg",
-        "cdot", "cos", "cosh", "delta", "div", "end", "epsilon", "equiv", "eta", "exists", "frac",
-        "forall", "gamma", "geq", "hat", "in", "infty", "int", "lambda", "leq", "ln", "log",
-        "mathbb", "mathcal", "mathfrak", "mathrm", "mathsf", "mathbf", "min", "mod", "nabla",
-        "natural", "neg", "neq", "nu", "omega", "phi", "pi", "pm", "prod", "frac", "rho", "sigma",
-        "sin", "sinh", "sqrt", "sum", "tan", "tanh", "tau", "theta", "times", "vec", "xi", "zeta",
-    ];
-
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text.as_str();
-
-    while let Some(pos) = rest.find(r"\b") {
-        out.push_str(&rest[..pos]);
-        let after_b = &rest[pos + 2..];
-        if let Some(command) = COMMANDS
-            .iter()
-            .find(|command| after_b.starts_with(**command))
-        {
-            let b_prefixed_is_valid = COMMANDS
-                .iter()
-                .any(|candidate| *candidate == format!("b{command}"));
-            // Only strip the extra 'b' for malformed forms like \bmathbb,
-            // not for valid \b... commands such as \beta or \begin.
-            if command.starts_with('b') || b_prefixed_is_valid {
-                out.push_str(r"\b");
-                rest = after_b;
-            } else {
-                out.push('\\');
-                out.push_str(command);
-                rest = &after_b[command.len()..];
-            }
-        } else {
-            out.push_str(r"\b");
-            rest = after_b;
-        }
-    }
-
-    out.push_str(rest);
-    out
-}
-
-pub fn sanitise_latex(text: &str) -> String {
-    // Step 1: undo double-escaping of delimiter chars
-    let s = text
+/// Call order matters:
+///   1. sanitise_latex      — normalise delimiters, protect currency $
+///   2. normalise_typography — smart quotes, dashes, ellipsis → ASCII
+pub fn clean_field(s: &str) -> String {
+    // Undo double-escaping of delimiter chars that some lenient JSON parsers leave as-is
+    let s = s
         .replace("\\\\(", "\\(")
         .replace("\\\\)", "\\)")
         .replace("\\\\[", "\\[")
         .replace("\\\\]", "\\]");
 
-    // Step 2: convert paren/bracket delimiters to $ delimiters
-    let s = convert_paren_delimiters(&s);
-
-    // Step 3: repair malformed table row breaks like `\ \hline` where the
-    // first row terminator slash is missing (should be `\\ \hline`).
-    let s = repair_tabular_row_breaks(&s);
-
-    // Step 4: protect bare currency dollars
-    protect_currency_dollars(&s)
-}
-
-/// Repair malformed row-break + rule sequences in LaTeX tables.
-///
-/// Some model outputs use `\ \hline` (single slash + space + `\hline`),
-/// which triggers "Misplaced \\noalign" / "misplaced \hline" errors.
-/// This normalizes those cases to `\\ \hline`.
-fn repair_tabular_row_breaks(s: &str) -> String {
-    const RULE_COMMANDS: [&str; 6] = [
-        "hline",
-        "cline",
-        "cmidrule",
-        "toprule",
-        "midrule",
-        "bottomrule",
-    ];
-
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len();
-    let mut out = String::with_capacity(s.len() + 8);
-    let mut i = 0usize;
-
-    while i < len {
-        if chars[i] == '\\' {
-            // Count consecutive backslashes starting at i.
-            let mut run_end = i + 1;
-            while run_end < len && chars[run_end] == '\\' {
-                run_end += 1;
-            }
-
-            // Preserve existing valid row breaks (\\, \\\, ...)
-            if run_end > i + 1 {
-                for _ in i..run_end {
-                    out.push('\\');
-                }
-                i = run_end;
-                continue;
-            }
-
-            // Single backslash run: check if it should be repaired.
-            let mut j = run_end;
-            while j < len && chars[j].is_whitespace() {
-                j += 1;
-            }
-
-            // Repair `\ \hline`-style malformed row break before rule commands.
-            if j + 1 < len && chars[j] == '\\' {
-                let cmd_start = j + 1;
-                let mut cmd_end = cmd_start;
-                while cmd_end < len && chars[cmd_end].is_ascii_alphabetic() {
-                    cmd_end += 1;
-                }
-
-                if cmd_end > cmd_start {
-                    let cmd: String = chars[cmd_start..cmd_end].iter().collect();
-                    if RULE_COMMANDS.iter().any(|candidate| candidate == &cmd) {
-                        out.push_str("\\\\");
-                        for &ch in &chars[run_end..j] {
-                            out.push(ch);
-                        }
-                        out.push('\\');
-                        for &ch in &chars[cmd_start..cmd_end] {
-                            out.push(ch);
-                        }
-                        i = cmd_end;
-                        continue;
-                    }
-                }
-            }
-
-            // Repair malformed row break before digit, e.g. `... 1\0, ...`.
-            if j < len && chars[j].is_ascii_digit() {
-                out.push_str("\\\\");
-                for &ch in &chars[run_end..j] {
-                    out.push(ch);
-                }
-                out.push(chars[j]);
-                i = j + 1;
-                continue;
-            }
-        }
-
-        out.push(chars[i]);
-        i += 1;
-    }
-
-    out
-}
-
-/// Replace `\(...\)` with `$...$` and `\[...\]` with `$$...$$`.
-fn convert_paren_delimiters(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut rest = s;
-    while !rest.is_empty() {
-        match rest.find('\\') {
-            None => {
-                out.push_str(rest);
-                break;
-            }
-            Some(bs) => {
-                out.push_str(&rest[..bs]);
-                let after = &rest[bs + 1..];
-                if after.starts_with('(') {
-                    let inner_start = bs + 2;
-                    if let Some(close) = rest[inner_start..].find("\\)") {
-                        let inner = &rest[inner_start..inner_start + close];
-                        out.push('$');
-                        out.push_str(inner);
-                        out.push('$');
-                        rest = &rest[inner_start + close + 2..];
-                        continue;
-                    }
-                } else if after.starts_with('[') {
-                    let inner_start = bs + 2;
-                    if let Some(close) = rest[inner_start..].find("\\]") {
-                        let inner = &rest[inner_start..inner_start + close];
-                        out.push_str("$$");
-                        out.push_str(inner);
-                        out.push_str("$$");
-                        rest = &rest[inner_start + close + 2..];
-                        continue;
-                    }
-                }
-                // Not a recognised delimiter — emit the backslash and advance.
-                out.push('\\');
-                rest = after;
-            }
-        }
-    }
-    out
-}
-
-/// Replace bare `$` immediately before a digit (not part of `$$`) with `\$`.
-fn protect_currency_dollars(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    let mut out = String::with_capacity(s.len() + 8);
-    for (i, &ch) in chars.iter().enumerate() {
-        if ch == '$' {
-            let prev_dollar = i > 0 && chars[i - 1] == '$';
-            let next_dollar = chars.get(i + 1) == Some(&'$');
-            let next_digit = chars.get(i + 1).is_some_and(|c| c.is_ascii_digit());
-            if !prev_dollar && !next_dollar && next_digit {
-                out.push_str("\\$");
-                continue;
-            }
-        }
-        out.push(ch);
-    }
-    out
-}
-
-// --- Full pipeline convenience -----------------------------------------------
-
-/// Run the full decode → sanitise → typography pipeline on a single string
-/// field that has already been deserialized from JSON.
-///
-/// Call order matters:
-///   1. decode_escapes      — resolve any remaining literal \n artefacts
-///   2. sanitise_latex      — normalise delimiters, protect currency $
-///   3. normalise_typography — smart quotes, dashes, ellipsis → ASCII
-pub fn clean_field(s: &str) -> String {
-    normalise_typography(&sanitise_latex(&repair_common_latex_typos(
-        &decode_escapes(s),
-    )))
+    let nodes = crate::latex::lex(&s);
+    let healed = crate::latex::heal_latex(nodes);
+    let rendered = crate::latex::render_latex(&healed);
+    normalise_typography(&rendered)
 }
 
 /// Strip characters that cause OpenRouter (or any JSON-based API) to reject
@@ -1006,47 +769,47 @@ mod tests {
         assert_eq!(v["q"].as_str().unwrap(), "Pound £ sign");
     }
 
-    // --- sanitise_latex (existing, unchanged) ---
+    // --- clean_field ---
 
     #[test]
     fn converts_paren_inline() {
-        assert_eq!(sanitise_latex("Value is \\(x^2\\)."), "Value is $x^2$.");
+        assert_eq!(clean_field("Value is \\(x^2\\)."), "Value is $x^2$.");
     }
 
     #[test]
     fn converts_bracket_display() {
-        assert_eq!(sanitise_latex("\\[E = mc^2\\]"), "$$E = mc^2$$");
+        assert_eq!(clean_field("\\[E = mc^2\\]"), "$$E = mc^2$$");
     }
 
     #[test]
     fn protects_currency_dollar() {
-        assert_eq!(sanitise_latex("costs $50 today"), "costs \\$50 today");
+        assert_eq!(clean_field("costs $50 today"), "costs \\$50 today");
     }
 
     #[test]
     fn does_not_mangle_math_dollar() {
-        assert_eq!(sanitise_latex("solve $x^2 = 4$"), "solve $x^2 = 4$");
+        assert_eq!(clean_field("solve $x^2 = 4$"), "solve $x^2 = 4$");
     }
 
     #[test]
     fn does_not_mangle_display_math() {
-        assert_eq!(sanitise_latex("$$E = mc^2$$"), "$$E = mc^2$$");
+        assert_eq!(clean_field("$$E = mc^2$$"), "$$E = mc^2$$");
     }
 
     #[test]
     fn double_escaped_paren_normalised() {
-        assert_eq!(sanitise_latex("\\\\(x\\\\)"), "$x$");
+        assert_eq!(clean_field("\\\\(x\\\\)"), "$x$");
     }
 
     #[test]
     fn currency_followed_by_display_math_not_mangled() {
-        assert_eq!(sanitise_latex("$$x = 1$$"), "$$x = 1$$");
+        assert_eq!(clean_field("$$x = 1$$"), "$$x = 1$$");
     }
 
     #[test]
     fn repairs_single_slash_before_hline() {
         let input = r"\begin{array}{c|ccc} x & 0 & 1 & 2 \ \hline P(X=x) & \dfrac{5}{14} & \dfrac{15}{28} & k \end{array}";
-        let output = sanitise_latex(input);
+        let output = clean_field(input);
         assert!(
             output.contains(r"2 \\ \hline"),
             "row break before hline not repaired: {output}"
@@ -1055,14 +818,14 @@ mod tests {
 
     #[test]
     fn does_not_change_valid_double_slash_before_hline() {
-        let input = r"\begin{array}{c|cc} X & 0 & 1 \\ \hline P(X=x) & 0.5 & 0.5 \end{array}";
-        assert_eq!(sanitise_latex(input), input);
+        let input = r"$\begin{array}{c|cc} X & 0 & 1 \\ \hline P(X=x) & 0.5 & 0.5 \end{array}$";
+        assert_eq!(clean_field(input), input);
     }
 
     #[test]
     fn repairs_single_slash_before_digit_in_cases() {
-        let input = r"f(x)=\begin{cases}2x, & 0\le x\le 1\0, & \text{otherwise}\end{cases}";
-        let output = sanitise_latex(input);
+        let input = r"$f(x)=\begin{cases}2x, & 0\le x\le 1\0, & \text{otherwise}\end{cases}$";
+        let output = clean_field(input);
         assert!(
             output.contains(r"1\\0"),
             "single slash before digit row start not repaired: {output}"
@@ -1071,8 +834,8 @@ mod tests {
 
     #[test]
     fn does_not_change_valid_double_slash_before_digit_in_cases() {
-        let input = r"f(x)=\begin{cases}2x, & 0\le x\le 1\\0, & \text{otherwise}\end{cases}";
-        assert_eq!(sanitise_latex(input), input);
+        let input = r"$f(x)=\begin{cases}2x, & 0\le x\le 1\\0, & \text{otherwise}\end{cases}$";
+        assert_eq!(clean_field(input), input);
     }
 
     // --- clean_field / normalise_typography ---
@@ -1137,11 +900,6 @@ mod tests {
     }
 
     #[test]
-    fn decode_escapes_preserves_rho_command() {
-        assert_eq!(clean_field(r"\rho"), r"\rho");
-    }
-
-    #[test]
     fn repair_extra_b_before_common_commands() {
         assert_eq!(
             clean_field(r"$h: [1, \binfty) \to \bmathbb{R}$"),
@@ -1160,38 +918,6 @@ mod tests {
             clean_field(r"Domain is $(-\fty, 2]$"),
             r"Domain is $(-\infty, 2]$"
         );
-    }
-
-    #[test]
-    fn decode_escapes_literal_backslash_r_plus_space_to_newline() {
-        assert_eq!(decode_escapes(r"line1\r line2"), "line1\n line2");
-    }
-
-    #[test]
-    fn decode_escapes_literal_backslash_n_where_to_newline() {
-        // \nwhere (with 'w' as second char) is not a valid LaTeX command,
-        // so it should be treated as a newline followed by "where".
-        assert_eq!(
-            decode_escapes(r"condition\nwhere applies"),
-            "condition\nwhere applies"
-        );
-    }
-
-    #[test]
-    fn decode_escapes_literal_backslash_n_and_to_newline() {
-        assert_eq!(decode_escapes(r"line1\nand line2"), "line1\nand line2");
-    }
-
-    #[test]
-    fn decode_escapes_preserves_valid_nabla_command() {
-        // \nabla IS a valid LaTeX command (second char 'a' is in allowed set),
-        // so the backslash should be preserved.
-        assert_eq!(decode_escapes(r"\nabla"), r"\nabla");
-    }
-
-    #[test]
-    fn decode_escapes_literal_backslash_r_and_to_newline() {
-        assert_eq!(decode_escapes(r"line1\rand line2"), "line1\nand line2");
     }
 
     #[test]

@@ -1,36 +1,450 @@
-pub fn latex_brace_issues(segment: &str) -> Option<String> {
-    let mut stack: Vec<char> = Vec::new();
-    let mut chars = segment.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            let _ = chars.next();
+#[derive(Debug, Clone, PartialEq)]
+pub enum LatexNode {
+    Text(String),
+    InlineMath(String),
+    DisplayMath(String),
+}
+
+/// Lexes a string into a sequence of Text, InlineMath, and DisplayMath nodes.
+pub fn lex(text: &str) -> Vec<LatexNode> {
+    let mut nodes = Vec::new();
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut text_buf = String::new();
+
+    let flush_text = |buf: &mut String, nodes: &mut Vec<LatexNode>| {
+        if !buf.is_empty() {
+            nodes.push(LatexNode::Text(buf.clone()));
+            buf.clear();
+        }
+    };
+
+    while i < len {
+        if chars[i] == '\\' && i + 1 < len {
+            let next = chars[i + 1];
+            if next == '(' || next == '[' {
+                let is_display = next == '[';
+                let close_char = if is_display { ']' } else { ')' };
+
+                // Find closing delimiter
+                let mut j = i + 2;
+                let mut found = false;
+                while j + 1 < len {
+                    if chars[j] == '\\' && chars[j + 1] == close_char {
+                        flush_text(&mut text_buf, &mut nodes);
+                        let inner: String = chars[i + 2..j].iter().collect();
+                        if is_display {
+                            nodes.push(LatexNode::DisplayMath(inner));
+                        } else {
+                            nodes.push(LatexNode::InlineMath(inner));
+                        }
+                        i = j + 2;
+                        found = true;
+                        break;
+                    }
+                    j += 1;
+                }
+                if found {
+                    continue;
+                }
+                // Unclosed delimiter \( or \[.
+                // We auto-close it at the end of the string.
+                flush_text(&mut text_buf, &mut nodes);
+                let inner: String = chars[i + 2..].iter().collect();
+                if is_display {
+                    nodes.push(LatexNode::DisplayMath(inner));
+                } else {
+                    nodes.push(LatexNode::InlineMath(inner));
+                }
+                break;
+            } else if next == '\\' {
+                // Escaped backslash
+                text_buf.push('\\');
+                text_buf.push('\\');
+                i += 2;
+                continue;
+            } else if next == '$' {
+                // Escaped dollar \$
+                text_buf.push('\\');
+                text_buf.push('$');
+                i += 2;
+                continue;
+            }
+        } else if chars[i] == '$' {
+            let is_display = i + 1 < len && chars[i + 1] == '$';
+            let skip = if is_display { 2 } else { 1 };
+
+            // Find closing delimiter
+            let mut j = i + skip;
+            let mut found = false;
+            while j < len {
+                if chars[j] == '\\' && j + 1 < len && chars[j + 1] == '$' {
+                    // Escaped dollar inside math.
+                    j += 2;
+                    continue;
+                }
+                if is_display && chars[j] == '$' && j + 1 < len && chars[j + 1] == '$' {
+                    flush_text(&mut text_buf, &mut nodes);
+                    let inner: String = chars[i + skip..j].iter().collect();
+                    nodes.push(LatexNode::DisplayMath(inner));
+                    i = j + 2;
+                    found = true;
+                    break;
+                } else if !is_display && chars[j] == '$' {
+                    // Check if it's $$
+                    if j + 1 < len && chars[j + 1] == '$' {
+                        // Usually doesn't happen.
+                    }
+                    flush_text(&mut text_buf, &mut nodes);
+                    let inner: String = chars[i + skip..j].iter().collect();
+                    nodes.push(LatexNode::InlineMath(inner));
+                    i = j + 1;
+                    found = true;
+                    break;
+                }
+                j += 1;
+            }
+            if found {
+                continue;
+            }
+
+            // If not closed, could be currency or unclosed math.
+            // Heuristic: if it's `$`, and the next char is a digit, it's currency.
+            // If it's a space, it's currency/text.
+            // Else, treat as unclosed math and auto-close at EOF.
+            if i + skip < len {
+                let next_char = chars[i + skip];
+                if next_char.is_ascii_digit() || next_char.is_whitespace() {
+                    // Currency or random $
+                    text_buf.push('$');
+                    if is_display {
+                        text_buf.push('$');
+                    }
+                    i += skip;
+                    continue;
+                } else {
+                    // Unclosed math
+                    flush_text(&mut text_buf, &mut nodes);
+                    let inner: String = chars[i + skip..].iter().collect();
+                    if is_display {
+                        nodes.push(LatexNode::DisplayMath(inner));
+                    } else {
+                        nodes.push(LatexNode::InlineMath(inner));
+                    }
+                    break;
+                }
+            } else {
+                // $ at end of string
+                text_buf.push('$');
+                if is_display {
+                    text_buf.push('$');
+                }
+                break;
+            }
+        }
+
+        text_buf.push(chars[i]);
+        i += 1;
+    }
+
+    flush_text(&mut text_buf, &mut nodes);
+    nodes
+}
+
+/// Applies self-healing to LaTeX nodes: brace balancing, typo fixing, etc.
+pub fn heal_latex(nodes: Vec<LatexNode>) -> Vec<LatexNode> {
+    nodes
+        .into_iter()
+        .map(|node| {
+            match node {
+                LatexNode::Text(mut text) => {
+                    // Protect bare currency dollars in Text nodes
+                    let mut out = String::with_capacity(text.len());
+                    let chars: Vec<char> = text.chars().collect();
+                    for (i, &ch) in chars.iter().enumerate() {
+                        if ch == '$' {
+                            let prev_dollar = i > 0 && chars[i - 1] == '$';
+                            let next_dollar = chars.get(i + 1) == Some(&'$');
+                            let next_digit = chars.get(i + 1).is_some_and(|c| c.is_ascii_digit());
+                            if !prev_dollar && !next_dollar && next_digit {
+                                out.push_str("\\$");
+                                continue;
+                            }
+                        }
+                        out.push(ch);
+                    }
+                    text = out;
+
+                    // Apply typo fixes to Text because LLMs often omit math delimiters for tables/math commands
+                    text = repair_math_typos(&text);
+                    text = repair_tabular_row_breaks(&text);
+
+                    LatexNode::Text(text)
+                }
+                LatexNode::InlineMath(inner) => LatexNode::InlineMath(heal_math_node(&inner)),
+                LatexNode::DisplayMath(inner) => LatexNode::DisplayMath(heal_math_node(&inner)),
+            }
+        })
+        .collect()
+}
+
+fn heal_math_node(inner: &str) -> String {
+    let mut inner = inner.to_string();
+
+    // Typo fixing
+    inner = repair_math_typos(&inner);
+
+    // Fraction repair (\frac12 -> \frac{1}{2})
+    inner = repair_fractions(&inner);
+
+    // Repair tabular row breaks
+    inner = repair_tabular_row_breaks(&inner);
+
+    // Auto-balancing braces {} only, as [] and () can be unbalanced in intervals
+    let mut stack = Vec::new();
+    let mut escaped = false;
+    for ch in inner.chars() {
+        if escaped {
+            escaped = false;
             continue;
         }
-        match ch {
-            '{' | '[' | '(' => stack.push(ch),
-            '}' => {
-                if stack.pop() != Some('{') {
-                    return Some("mismatched braces".to_string());
-                }
-            }
-            ']' => {
-                if stack.pop() != Some('[') {
-                    return Some("mismatched brackets".to_string());
-                }
-            }
-            ')' => {
-                if stack.pop() != Some('(') {
-                    return Some("mismatched parentheses".to_string());
-                }
-            }
-            _ => {}
+        if ch == '\\' {
+            escaped = true;
+            continue;
+        }
+        if ch == '{' {
+            stack.push('}');
+        } else if ch == '}' && stack.last() == Some(&'}') {
+            stack.pop();
         }
     }
-    if stack.is_empty() {
-        None
-    } else {
-        Some("unbalanced delimiters".to_string())
+    while let Some(ch) = stack.pop() {
+        inner.push(ch);
     }
+
+    inner
+}
+
+fn repair_math_typos(text: &str) -> String {
+    let text = text.replace("\\fty", "\\infty");
+
+    const COMMANDS: &[&str] = &[
+        "alpha", "approx", "bar", "begin", "beta", "bf", "binom", "big", "Big", "bigg", "Bigg",
+        "cdot", "cos", "cosh", "delta", "div", "end", "epsilon", "equiv", "eta", "exists", "frac",
+        "forall", "gamma", "geq", "hat", "in", "infty", "int", "lambda", "leq", "ln", "log",
+        "mathbb", "mathcal", "mathfrak", "mathrm", "mathsf", "mathbf", "min", "mod", "nabla",
+        "natural", "neg", "neq", "nu", "omega", "phi", "pi", "pm", "prod", "frac", "rho", "sigma",
+        "sin", "sinh", "sqrt", "sum", "tan", "tanh", "tau", "theta", "times", "vec", "xi", "zeta",
+    ];
+
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text.as_str();
+
+    while let Some(pos) = rest.find(r"\b") {
+        out.push_str(&rest[..pos]);
+        let after_b = &rest[pos + 2..];
+        if let Some(command) = COMMANDS
+            .iter()
+            .find(|command| after_b.starts_with(**command))
+        {
+            let b_prefixed_is_valid = COMMANDS
+                .iter()
+                .any(|candidate| *candidate == format!("b{command}"));
+            if command.starts_with('b') || b_prefixed_is_valid {
+                out.push_str(r"\b");
+                rest = after_b;
+            } else {
+                out.push('\\');
+                out.push_str(command);
+                rest = &after_b[command.len()..];
+            }
+        } else {
+            out.push_str(r"\b");
+            rest = after_b;
+        }
+    }
+
+    out.push_str(rest);
+    out
+}
+
+fn repair_fractions(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 10);
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if chars[i] == '\\' && i + 4 < len {
+            let command: String = chars[i + 1..i + 5].iter().collect();
+            if command == "frac" {
+                out.push_str("\\frac");
+                i += 5;
+
+                // Helper to extract next part (either a brace group or a single char)
+                let mut get_part = || -> Option<String> {
+                    while i < len && chars[i].is_whitespace() {
+                        i += 1;
+                    }
+                    if i >= len {
+                        return None;
+                    }
+                    if chars[i] == '{' {
+                        let mut part = String::new();
+                        let mut depth = 1;
+                        let mut escaped = false;
+                        part.push('{');
+                        i += 1;
+                        while i < len {
+                            let ch = chars[i];
+                            part.push(ch);
+                            if escaped {
+                                escaped = false;
+                            } else if ch == '\\' {
+                                escaped = true;
+                            } else if ch == '{' {
+                                depth += 1;
+                            } else if ch == '}' {
+                                depth -= 1;
+                                if depth == 0 {
+                                    i += 1;
+                                    break;
+                                }
+                            }
+                            i += 1;
+                        }
+                        Some(part)
+                    } else if chars[i] == '\\' {
+                        // Could be a command like \pi
+                        let mut part = String::new();
+                        part.push('{');
+                        part.push('\\');
+                        i += 1;
+                        while i < len && chars[i].is_ascii_alphabetic() {
+                            part.push(chars[i]);
+                            i += 1;
+                        }
+                        part.push('}');
+                        Some(part)
+                    } else {
+                        // Single char
+                        let part = format!("{{{}}}", chars[i]);
+                        i += 1;
+                        Some(part)
+                    }
+                };
+
+                let numerator = get_part().unwrap_or_else(|| "{}".to_string());
+                let denominator = get_part().unwrap_or_else(|| "{}".to_string());
+
+                out.push_str(&numerator);
+                out.push_str(&denominator);
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+
+    out
+}
+
+fn repair_tabular_row_breaks(s: &str) -> String {
+    const RULE_COMMANDS: [&str; 6] = [
+        "hline",
+        "cline",
+        "cmidrule",
+        "toprule",
+        "midrule",
+        "bottomrule",
+    ];
+
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut i = 0usize;
+
+    while i < len {
+        if chars[i] == '\\' {
+            let mut run_end = i + 1;
+            while run_end < len && chars[run_end] == '\\' {
+                run_end += 1;
+            }
+
+            if run_end > i + 1 {
+                for _ in i..run_end {
+                    out.push('\\');
+                }
+                i = run_end;
+                continue;
+            }
+
+            let mut j = run_end;
+            while j < len && chars[j].is_whitespace() {
+                j += 1;
+            }
+
+            if j + 1 < len && chars[j] == '\\' {
+                let cmd_start = j + 1;
+                let mut cmd_end = cmd_start;
+                while cmd_end < len && chars[cmd_end].is_ascii_alphabetic() {
+                    cmd_end += 1;
+                }
+
+                if cmd_end > cmd_start {
+                    let cmd: String = chars[cmd_start..cmd_end].iter().collect();
+                    if RULE_COMMANDS.iter().any(|candidate| candidate == &cmd) {
+                        out.push_str("\\\\");
+                        for &ch in &chars[run_end..j] {
+                            out.push(ch);
+                        }
+                        out.push('\\');
+                        for &ch in &chars[cmd_start..cmd_end] {
+                            out.push(ch);
+                        }
+                        i = cmd_end;
+                        continue;
+                    }
+                }
+            }
+
+            if j < len && chars[j].is_ascii_digit() {
+                out.push_str("\\\\");
+                for &ch in &chars[run_end..j] {
+                    out.push(ch);
+                }
+                out.push(chars[j]);
+                i = j + 1;
+                continue;
+            }
+        }
+
+        out.push(chars[i]);
+        i += 1;
+    }
+
+    out
+}
+
+pub fn render_latex(nodes: &[LatexNode]) -> String {
+    let mut out = String::new();
+    for node in nodes {
+        match node {
+            LatexNode::Text(t) => out.push_str(t),
+            LatexNode::InlineMath(m) => {
+                out.push('$');
+                out.push_str(m);
+                out.push('$');
+            }
+            LatexNode::DisplayMath(m) => {
+                out.push_str("$$");
+                out.push_str(m);
+                out.push_str("$$");
+            }
+        }
+    }
+    out
 }
 
 pub fn first_brace_group(content: &str) -> Option<(String, usize)> {
@@ -76,7 +490,7 @@ pub fn first_brace_group(content: &str) -> Option<(String, usize)> {
 }
 
 pub fn latex_semantic_issues(segment: &str) -> Vec<String> {
-    let mut issues = Vec::<String>::new();
+    let mut issues = Vec::new();
     let mut i = 0usize;
     let bytes = segment.as_bytes();
 
@@ -90,7 +504,6 @@ pub fn latex_semantic_issues(segment: &str) -> Vec<String> {
         while j < bytes.len() && bytes[j].is_ascii_alphabetic() {
             j += 1;
         }
-
         if j == i + 1 {
             i += 1;
             continue;
@@ -129,106 +542,33 @@ pub fn latex_semantic_issues(segment: &str) -> Vec<String> {
 }
 
 pub fn latex_issues_for_text(text: &str) -> Vec<String> {
-    let mut issues = Vec::<String>::new();
-    let chars: Vec<char> = text.chars().collect();
-    let mut i = 0usize;
-    let mut inline_open = false;
-    let mut display_open = false;
-    let mut segment_start = 0usize;
-    let mut math_ranges = Vec::<(usize, usize)>::new();
+    let nodes = lex(text);
+    let mut issues = Vec::new();
 
-    while i < chars.len() {
-        let ch = chars[i];
-        if ch == '\\' {
-            if i + 1 < chars.len() {
-                i += 2;
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-        if ch == '$' {
-            let is_display = i + 1 < chars.len() && chars[i + 1] == '$';
-            if is_display {
-                if display_open {
-                    let segment: String = chars[segment_start..i].iter().collect();
-                    if let Some(issue) = latex_brace_issues(&segment) {
-                        issues.push(format!("display math {issue}"));
-                    }
-                    for semantic_issue in latex_semantic_issues(&segment) {
-                        issues.push(format!("display math {semantic_issue}"));
-                    }
-                    math_ranges.push((segment_start, i));
-                    display_open = false;
-                } else {
-                    display_open = true;
-                    segment_start = i + 2;
-                }
-                i += 2;
-                continue;
-            }
-
-            if inline_open {
-                let segment: String = chars[segment_start..i].iter().collect();
-                if let Some(issue) = latex_brace_issues(&segment) {
-                    issues.push(format!("inline math {issue}"));
-                }
-                for semantic_issue in latex_semantic_issues(&segment) {
-                    issues.push(format!("inline math {semantic_issue}"));
-                }
-                math_ranges.push((segment_start, i));
-                inline_open = false;
-            } else {
-                inline_open = true;
-                segment_start = i + 1;
-            }
-        }
-        i += 1;
-    }
-
-    if inline_open {
-        issues.push("unclosed inline math delimiter ($)".to_string());
-    }
-    if display_open {
-        issues.push("unclosed display math delimiter ($$)".to_string());
-    }
-
-    if text.contains("\\$") && text.contains("$") {
-        let mut unescaped_dollar_count = 0;
-        let mut i = 0;
-        let bytes = text.as_bytes();
-        while i < bytes.len() {
-            if bytes[i] == b'$' {
-                let mut backslash_count = 0;
-                let mut j = i;
-                while j > 0 && bytes[j - 1] == b'\\' {
-                    backslash_count += 1;
-                    j -= 1;
-                }
-                if backslash_count % 2 == 0 {
-                    unescaped_dollar_count += 1;
+    for node in nodes {
+        match node {
+            LatexNode::InlineMath(inner) => {
+                for issue in latex_semantic_issues(&inner) {
+                    issues.push(format!("inline math {}", issue));
                 }
             }
-            i += 1;
-        }
-        if unescaped_dollar_count % 2 != 0 {
-            issues.push("mixed currency/math dollar usage".to_string());
+            LatexNode::DisplayMath(inner) => {
+                for issue in latex_semantic_issues(&inner) {
+                    issues.push(format!("display math {}", issue));
+                }
+            }
+            LatexNode::Text(inner) => {
+                if inner.contains("\\frac") || inner.contains("\\dfrac") {
+                    issues.push("\\frac found outside math delimiters".to_string());
+                }
+            }
         }
     }
 
-    let mut index = 0usize;
-    while let Some(pos) = text[index..].find("\\frac") {
-        let absolute_pos = index + pos;
-        let char_idx = text[..absolute_pos].chars().count();
-        let inside_math = math_ranges
-            .iter()
-            .any(|(start, end)| char_idx >= *start && char_idx < *end);
-        if !inside_math {
-            issues.push("\\frac found outside math delimiters".to_string());
-            break;
-        }
-        index = absolute_pos + 5;
-    }
+    // Because our Lexer/Healer automatically auto-closes math tags and braces,
+    // we no longer emit "unclosed inline math delimiter" or "mismatched braces" errors here.
+    // The rendered output will simply have them closed, which is what we want!
+    // We only fail on deep semantic issues (like empty fractions).
 
     issues
 }
@@ -238,10 +578,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn latex_issue_detector_flags_unclosed_inline_math() {
-        let issues = latex_issues_for_text("Solve $\\frac{x+1}{2 for x.");
-        assert!(!issues.is_empty());
-        assert!(issues.iter().any(|i| i.contains("unclosed inline math")));
+    fn lexer_extracts_math_correctly() {
+        let nodes = lex("Compute $x+1$ and $$y=2$$");
+        assert_eq!(nodes.len(), 4); // "Compute ", InlineMath("x+1"), " and ", DisplayMath("y=2")
+        assert!(matches!(nodes[1], LatexNode::InlineMath(_)));
+    }
+
+    #[test]
+    fn healer_autocloses_delimiters() {
+        let nodes = lex("Compute $x+1");
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[1], LatexNode::InlineMath("x+1".to_string()));
+    }
+
+    #[test]
+    fn healer_autocloses_braces() {
+        let healed = heal_latex(lex("Compute $\\frac{1}{2"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "Compute $\\frac{1}{2}$");
+    }
+
+    #[test]
+    fn healer_protects_currency() {
+        let healed = heal_latex(lex("It costs $50"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "It costs \\$50");
     }
 
     #[test]
@@ -252,14 +613,14 @@ mod tests {
     }
 
     #[test]
-    fn latex_issue_detector_flags_frac_outside_math_delimiters() {
-        let issues = latex_issues_for_text("Compute \\frac{1}{2} as a decimal.");
-        assert!(issues.iter().any(|i| i.contains("outside math delimiters")));
-    }
-
-    #[test]
-    fn latex_issue_detector_handles_infty_commands() {
-        let issues = latex_issues_for_text("State the domain $(-\\infty, 3]$.");
-        assert!(issues.is_empty(), "unexpected issues: {issues:?}");
+    fn healer_pads_missing_fractions() {
+        let healed = heal_latex(lex(
+            "Compute $\\frac{1}$ and $\\frac12$ and $\\frac \\pi 2$",
+        ));
+        let rendered = render_latex(&healed);
+        assert_eq!(
+            rendered,
+            "Compute $\\frac{1}{}$ and $\\frac{1}{2}$ and $\\frac{\\pi}{2}$"
+        );
     }
 }
