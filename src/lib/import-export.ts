@@ -10,6 +10,7 @@ import type {
   SavedQuestionSet,
   SpacedRepetitionCard,
   StreakData,
+  StudentAnswerImage,
   StudyGoals,
 } from '../types';
 import { APP_VERSION } from '../views/settings/types';
@@ -65,10 +66,7 @@ export interface ImportExportState {
   activeQuestionIndex: number;
   writtenQuestionPresentedAtById: Record<string, number>;
   answersByQuestionId: Record<string, string>;
-  imagesByQuestionId: Record<
-    string,
-    { name: string; dataUrl: string } | undefined
-  >;
+  imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
   feedbackByQuestionId: Record<string, unknown>;
   writtenRawModelOutput: string;
   writtenGenerationTelemetry: PersistedAppState['writtenSession']['generationTelemetry'];
@@ -453,14 +451,11 @@ function buildExportSnapshot(
 ): PersistedAppState {
   const preserveImages = options?.preserveImages ?? false;
 
-  const strippedImages: Record<
-    string,
-    { name: string; dataUrl: string } | undefined
-  > = {};
+  const strippedImages: Record<string, StudentAnswerImage | undefined> = {};
   for (const [key, img] of Object.entries(s.imagesByQuestionId)) {
     if (img) {
       strippedImages[key] = {
-        name: img.name,
+        ...img,
         dataUrl: preserveImages ? img.dataUrl : '',
       };
     }
@@ -527,7 +522,7 @@ function buildExportSnapshot(
         ? {
             ...entry,
             uploadedAnswerImage: {
-              name: entry.uploadedAnswerImage.name,
+              ...entry.uploadedAnswerImage,
               dataUrl: preserveImages ? entry.uploadedAnswerImage.dataUrl : '',
             },
           }

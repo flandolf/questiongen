@@ -49,6 +49,7 @@ import type {
   McHistoryEntry,
   QuestionHistoryEntry,
   SpacedRepetitionCard,
+  StudentAnswerImage,
 } from '@/types';
 import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
 import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
@@ -435,7 +436,7 @@ function McExpandedBody({ entry }: { entry: McWrongEntry }) {
 
 interface WrittenQuestionState {
   writtenAnswer: string;
-  image: { name: string; dataUrl: string } | undefined;
+  image: StudentAnswerImage | undefined;
   feedback: MarkAnswerResponse | null;
   markingScheme: MarkAnswerResponse['vcaaMarkingScheme'] | null;
   appealText: string;
@@ -557,9 +558,7 @@ function ReattemptView({
 
   // --- Written state ---
   const [writtenAnswer, setWrittenAnswer] = useState<string>('');
-  const [image, setImage] = useState<
-    { name: string; dataUrl: string } | undefined
-  >(undefined);
+  const [image, setImage] = useState<StudentAnswerImage | undefined>(undefined);
   const [isMarking, setIsMarking] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<MarkAnswerResponse | null>(null);
   const [markingScheme, setMarkingScheme] = useState<
@@ -935,7 +934,11 @@ function ReattemptView({
                     onAnswerChange={setWrittenAnswer}
                     onImageDrop={(files) => {
                       void fileToDataUrl(files[0]).then((dataUrl) =>
-                        setImage({ name: files[0].name, dataUrl })
+                        setImage({
+                          id: crypto.randomUUID(),
+                          timestamp: new Date().toISOString(),
+                          dataUrl,
+                        })
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}
@@ -978,7 +981,11 @@ function ReattemptView({
                         }
                         onImageDrop={(files) => {
                           void fileToDataUrl(files[0]).then((dataUrl) =>
-                            setImage({ name: files[0].name, dataUrl })
+                            setImage({
+                              id: crypto.randomUUID(),
+                              timestamp: new Date().toISOString(),
+                              dataUrl,
+                            })
                           );
                         }}
                         onImageRemove={() => setImage(undefined)}
@@ -995,7 +1002,11 @@ function ReattemptView({
                     sketchSessionKey={sketchSessionKey}
                     onImageDrop={(files) => {
                       void fileToDataUrl(files[0]).then((dataUrl) =>
-                        setImage({ name: files[0].name, dataUrl })
+                        setImage({
+                          id: crypto.randomUUID(),
+                          timestamp: new Date().toISOString(),
+                          dataUrl,
+                        })
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}
@@ -1020,7 +1031,11 @@ function ReattemptView({
                     onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
                     onImageDrop={(files) => {
                       void fileToDataUrl(files[0]).then((dataUrl) =>
-                        setImage({ name: files[0].name, dataUrl })
+                        setImage({
+                          id: crypto.randomUUID(),
+                          timestamp: new Date().toISOString(),
+                          dataUrl,
+                        })
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}

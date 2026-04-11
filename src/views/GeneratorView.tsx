@@ -12,9 +12,9 @@ import {
   useMultipleChoiceSession,
   useWrittenSession,
 } from '@/AppContext';
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
 import {
   fileToDataUrl,
@@ -22,6 +22,7 @@ import {
   normalizeMarkResponse,
   readBackendError,
 } from '@/lib/app-utils';
+import { deleteImage, uploadImageDataUrl } from '@/lib/firebase-storage';
 import {
   buildSubtopicCalls,
   distributeQuestions,
@@ -39,7 +40,6 @@ import {
   removeKey,
 } from '@/lib/generator-helpers';
 import { applyBatchQualityChecks } from '@/lib/question-cache';
-import { uploadImage, deleteImage } from '@/lib/firebase-storage';
 import { useAppStore } from '@/store';
 import type {
   ChemistrySubtopic,
