@@ -1,17 +1,25 @@
+use crate::constants;
+use crate::difficulty;
+use crate::latex;
+use crate::models::{
+    AnalyzeImageRequest, AnalyzeImageResponse, AppError, CommandResult, GenerateMcQuestionsRequest,
+    GenerateMcQuestionsResponse, GenerateQuestionsRequest, GenerateQuestionsResponse,
+    GeneratedQuestion, GenerationQualityDiagnostics, MarkAnswerRequest, MarkAnswerResponse,
+    McQuestion, McQuestionsPayload, WrittenQuestionsPayload,
+};
+use crate::normalization;
+use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
+use crate::openrouter_info::{compute_generation_cost, get_model_stats};
+use crate::parsing::{
+    clean_field, extract_json_array, extract_json_object, normalise_envelope,
+    protect_latex_in_raw_json, sanitize_for_api,
+};
+use crate::pdf;
+use crate::prompts;
+use crate::quality;
+use crate::schemas;
 use std::time::Instant;
 use tauri::Emitter;
-use crate::models::{CommandResult, AppError, GeneratedQuestion, McQuestion, WrittenQuestionsPayload, McQuestionsPayload, GenerationQualityDiagnostics, GenerateQuestionsResponse, GenerateMcQuestionsResponse, GenerateQuestionsRequest, GenerateMcQuestionsRequest, MarkAnswerRequest, MarkAnswerResponse, AnalyzeImageRequest, AnalyzeImageResponse};
-use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
-use crate::openrouter_info::{get_model_stats, compute_generation_cost};
-use crate::parsing::{protect_latex_in_raw_json, extract_json_object, extract_json_array, normalise_envelope, sanitize_for_api, clean_field};
-use crate::schemas;
-use crate::prompts;
-use crate::pdf;
-use crate::latex;
-use crate::quality;
-use crate::difficulty;
-use crate::normalization;
-use crate::constants;
 
 pub struct GenerationService {
     app: tauri::AppHandle,
@@ -21,7 +29,6 @@ impl GenerationService {
     pub fn new(app: tauri::AppHandle) -> Self {
         Self { app }
     }
-
 
     pub fn calculate_optimal_max_tokens(
         &self,
@@ -48,7 +55,8 @@ impl GenerationService {
         };
 
         let pdf_overhead = if include_exam_context { 1000 } else { 0 };
-        let total = (question_count as u32 * (base_per_question as f32 * difficulty_multiplier) as u32)
+        let total = (question_count as u32
+            * (base_per_question as f32 * difficulty_multiplier) as u32)
             + pdf_overhead
             + 2000;
 
@@ -96,29 +104,49 @@ impl GenerationService {
         let mut covered: Vec<String> = Vec::new();
         let mut out_of_scope: Vec<String> = Vec::new();
         for sub in produced.into_iter().flatten() {
-            if let Some(found) = selected_unique.iter().find(|s| s.eq_ignore_ascii_case(sub.trim())) {
+            if let Some(found) = selected_unique
+                .iter()
+                .find(|s| s.eq_ignore_ascii_case(sub.trim()))
+            {
                 if !covered.iter().any(|s| s.eq_ignore_ascii_case(found)) {
                     covered.push(found.clone());
                 }
-            } else if !out_of_scope.iter().any(|s| s.eq_ignore_ascii_case(sub.trim())) {
+            } else if !out_of_scope
+                .iter()
+                .any(|s| s.eq_ignore_ascii_case(sub.trim()))
+            {
                 out_of_scope.push(sub.trim().to_string());
             }
         }
 
-        let uncovered: Vec<String> = selected_unique.iter()
+        let uncovered: Vec<String> = selected_unique
+            .iter()
             .filter(|sel| !covered.iter().any(|c| c.eq_ignore_ascii_case(sel)))
-            .cloned().collect();
+            .cloned()
+            .collect();
 
         let min_ratio = {
-            if selected_unique.is_empty() { 1.0 }
-            else {
-                let feasible = (question_count as f32 / selected_unique.len() as f32).clamp(0.0, 1.0);
-                let base = requested_ratio.unwrap_or(if strict { 1.0 } else { 0.7 }).clamp(0.0, 1.0);
-                if strict { feasible } else { base.min(feasible) }
+            if selected_unique.is_empty() {
+                1.0
+            } else {
+                let feasible =
+                    (question_count as f32 / selected_unique.len() as f32).clamp(0.0, 1.0);
+                let base = requested_ratio
+                    .unwrap_or(if strict { 1.0 } else { 0.7 })
+                    .clamp(0.0, 1.0);
+                if strict {
+                    feasible
+                } else {
+                    base.min(feasible)
+                }
             }
         };
 
-        let ratio = if selected_unique.is_empty() { 1.0 } else { covered.len() as f32 / selected_unique.len() as f32 };
+        let ratio = if selected_unique.is_empty() {
+            1.0
+        } else {
+            covered.len() as f32 / selected_unique.len() as f32
+        };
 
         Some(GenerationQualityDiagnostics {
             selected_subtopics: selected_unique,
@@ -132,17 +160,28 @@ impl GenerationService {
         })
     }
 
-    pub fn collect_latex_issues(&self, questions: &[impl QuestionWithMarkdown], _is_mc: bool) -> Vec<String> {
+    pub fn collect_latex_issues(
+        &self,
+        questions: &[impl QuestionWithMarkdown],
+        _is_mc: bool,
+    ) -> Vec<String> {
         let mut examples = Vec::new();
         for q in questions {
-            for issue in latex::latex_issues_for_text(q.get_prompt()).into_iter().take(2) {
+            for issue in latex::latex_issues_for_text(q.get_prompt())
+                .into_iter()
+                .take(2)
+            {
                 examples.push(format!("{}: {}", q.get_id(), issue));
-                if examples.len() >= 6 { return examples; }
+                if examples.len() >= 6 {
+                    return examples;
+                }
             }
             if let Some(expl) = q.get_explanation() {
-                 for issue in latex::latex_issues_for_text(expl).into_iter().take(1) {
+                for issue in latex::latex_issues_for_text(expl).into_iter().take(1) {
                     examples.push(format!("{} explanation: {}", q.get_id(), issue));
-                    if examples.len() >= 6 { return examples; }
+                    if examples.len() >= 6 {
+                        return examples;
+                    }
                 }
             }
         }
@@ -181,12 +220,24 @@ impl GenerationService {
         Ok(())
     }
 
-    pub async fn generate_written(&self, request: GenerateQuestionsRequest) -> CommandResult<GenerateQuestionsResponse> {
+    pub async fn generate_written(
+        &self,
+        request: GenerateQuestionsRequest,
+    ) -> CommandResult<GenerateQuestionsResponse> {
         if request.topics.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                "Select at least one topic.",
+            ));
         }
         if request.question_count == 0 || request.question_count > constants::MAX_QUESTION_COUNT {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Question count must be 1–{}.", constants::MAX_QUESTION_COUNT)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!(
+                    "Question count must be 1–{}.",
+                    constants::MAX_QUESTION_COUNT
+                ),
+            ));
         }
         self.validate_params(&request.api_key, &request.model)?;
 
@@ -196,7 +247,8 @@ impl GenerationService {
         let include_exam_context = request.include_exam_context.unwrap_or(false);
         let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
         let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
-        let (distinctness_threshold, per_question_distinctness_threshold) = self.diversity_thresholds(request.diversity_strictness.as_deref());
+        let (distinctness_threshold, per_question_distinctness_threshold) =
+            self.diversity_thresholds(request.diversity_strictness.as_deref());
 
         let adjusted_difficulty = difficulty::adjust_difficulty(
             &request.difficulty,
@@ -235,7 +287,12 @@ impl GenerationService {
 
         let written_sys = prompts::written_system();
         let written_fmt = schemas::written_format(&request.model);
-        let max_tokens = self.calculate_optimal_max_tokens(request.question_count, average_marks, &adjusted_difficulty, include_exam_context);
+        let max_tokens = self.calculate_optimal_max_tokens(
+            request.question_count,
+            average_marks,
+            &adjusted_difficulty,
+            include_exam_context,
+        );
 
         let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
         let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
@@ -245,14 +302,29 @@ impl GenerationService {
             let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
             parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
             parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
-            let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref()));
+            let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
+                selected_subs,
+                request.custom_focus_area.as_deref(),
+            ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
             serde_json::Value::Array(parts)
         } else {
             serde_json::Value::String(prompt)
         };
 
-        let result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, &written_sys, user_content, written_fmt, max_tokens).with_plugins(plugins.clone()).with_stream(self.app.clone())).await?;
+        let result = call_openrouter(
+            OpenRouterRequestConfig::new(
+                &request.api_key,
+                &request.model,
+                &written_sys,
+                user_content,
+                written_fmt,
+                max_tokens,
+            )
+            .with_plugins(plugins.clone())
+            .with_stream(self.app.clone()),
+        )
+        .await?;
 
         self.emit_generation_status(serde_json::json!({
             "mode": "written", "stage": "parsing",
@@ -266,7 +338,18 @@ impl GenerationService {
         self.apply_tech_override(&mut payload.questions, tech_mode);
 
         let latex_issue_examples = self.collect_latex_issues(&payload.questions, false);
-        let mut quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, latex_issue_examples.clone());
+        let mut quality_diagnostics = self.build_subtopic_diagnostics(
+            selected_subs,
+            payload
+                .questions
+                .iter()
+                .map(|q| q.subtopic.clone())
+                .collect(),
+            strict_subtopic_coverage,
+            request.min_subtopic_coverage_ratio,
+            request.question_count,
+            latex_issue_examples.clone(),
+        );
 
         if strict_latex_validation && !latex_issue_examples.is_empty() {
             return Err(AppError::new("VALIDATION_ERROR", format!("Generated output failed strict LaTeX validation ({} issue(s)); first issue: {}", latex_issue_examples.len(), latex_issue_examples[0])));
@@ -278,7 +361,13 @@ impl GenerationService {
                     return Err(AppError::new("VALIDATION_ERROR", format!("Generated output did not meet subtopic coverage target ({:.0}% < {:.0}%). Missing: {}", diag.subtopic_coverage_ratio * 100.0, diag.min_subtopic_coverage_ratio * 100.0, diag.uncovered_subtopics.join(", "))));
                 }
                 if !diag.out_of_scope_subtopics.is_empty() {
-                    return Err(AppError::new("VALIDATION_ERROR", format!("Generated output used out-of-scope subtopics: {}", diag.out_of_scope_subtopics.join(", "))));
+                    return Err(AppError::new(
+                        "VALIDATION_ERROR",
+                        format!(
+                            "Generated output used out-of-scope subtopics: {}",
+                            diag.out_of_scope_subtopics.join(", ")
+                        ),
+                    ));
                 }
             }
         }
@@ -291,20 +380,36 @@ impl GenerationService {
                 let base_adj = diff / q_count as i64;
                 let remainder = diff.abs() % q_count as i64;
                 let mut indices: Vec<usize> = (0..q_count).collect();
-                if diff > 0 { indices.sort_by_key(|&i| payload.questions[i].max_marks); }
-                else { indices.sort_by_key(|&i| std::cmp::Reverse(payload.questions[i].max_marks)); }
+                if diff > 0 {
+                    indices.sort_by_key(|&i| payload.questions[i].max_marks);
+                } else {
+                    indices.sort_by_key(|&i| std::cmp::Reverse(payload.questions[i].max_marks));
+                }
                 for (pos, &i) in indices.iter().enumerate() {
-                    let adj = base_adj + if (pos as i64) < remainder { diff.signum() } else { 0 };
-                    let new_marks = (payload.questions[i].max_marks as i64 + adj).clamp(constants::MIN_MARKS_PER_QUESTION as i64, constants::MAX_MARKS_PER_QUESTION as i64);
+                    let adj = base_adj
+                        + if (pos as i64) < remainder {
+                            diff.signum()
+                        } else {
+                            0
+                        };
+                    let new_marks = (payload.questions[i].max_marks as i64 + adj).clamp(
+                        constants::MIN_MARKS_PER_QUESTION as i64,
+                        constants::MAX_MARKS_PER_QUESTION as i64,
+                    );
                     payload.questions[i].max_marks = new_marks as u8;
                 }
             }
         }
 
-        let texts: Vec<String> = payload.questions.iter().map(|q| q.prompt_markdown.clone()).collect();
+        let texts: Vec<String> = payload
+            .questions
+            .iter()
+            .map(|q| q.prompt_markdown.clone())
+            .collect();
         let (metrics, mut summary) = quality::score_batch(&texts);
         let mark_values: Vec<u8> = payload.questions.iter().map(|q| q.max_marks).collect();
-        summary.mark_allocation_variance = Some(quality::compute_mark_allocation_variance(&mark_values));
+        summary.mark_allocation_variance =
+            Some(quality::compute_mark_allocation_variance(&mark_values));
 
         for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
             q.distinctness_score = Some(metric.distinctness);
@@ -314,12 +419,16 @@ impl GenerationService {
         }
 
         let mut metrics = metrics;
-        let mut summary = summary;
         let mut final_prompt_tokens = result.prompt_tokens;
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
         if request.avoid_similar_questions.unwrap_or(false) {
-            let mut need_retry = summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold);
+            let mut need_retry = summary
+                .distinctness_avg
+                .is_some_and(|v| v < distinctness_threshold)
+                || metrics
+                    .iter()
+                    .any(|m| m.distinctness < per_question_distinctness_threshold);
             let mut attempts = 0;
             while need_retry && attempts < 2 {
                 attempts += 1;
@@ -329,68 +438,176 @@ impl GenerationService {
                 let regen_intro = format!("Regenerate {count} written-response questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count, topics = sanitize_for_api(&request.topics.join(", ")), difficulty = adjusted_difficulty);
 
                 let new_user_content = if include_exam_context {
-                    let mut parts = vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
+                    let mut parts =
+                        vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
                     parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
                     parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
                     parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref())) }));
-                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(selected_subs, request.question_count));
-                    if !synth.is_empty() { parts.push(serde_json::json!({ "type": "text", "text": synth })); }
-                    let methods_note = prompts::math_methods_exam1_tech_free_note(&request.topics, tech_mode);
-                    if !methods_note.is_empty() { parts.push(serde_json::json!({ "type": "text", "text": methods_note })); }
+                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
+                        selected_subs,
+                        request.question_count,
+                    ));
+                    if !synth.is_empty() {
+                        parts.push(serde_json::json!({ "type": "text", "text": synth }));
+                    }
+                    let methods_note =
+                        prompts::math_methods_exam1_tech_free_note(&request.topics, tech_mode);
+                    if !methods_note.is_empty() {
+                        parts.push(serde_json::json!({ "type": "text", "text": methods_note }));
+                    }
                     parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
-                    if !adaptive_note.is_empty() { parts.push(serde_json::json!({ "type": "text", "text": adaptive_note })); }
+                    if !adaptive_note.is_empty() {
+                        parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
+                    }
                     serde_json::Value::Array(parts)
                 } else {
-                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(selected_subs, request.question_count));
-                    let mut p = format!("{}\n\n{}\n\n{}\n\n{}", regen_intro, sanitize_for_api(&prompts::subtopics_note(selected_subs)), synth, diversity_note);
-                    if !adaptive_note.is_empty() { p.push_str(&adaptive_note); }
-                    let methods_note = prompts::math_methods_exam1_tech_free_note(&request.topics, tech_mode);
-                    if !methods_note.is_empty() { p.push_str("\n\n"); p.push_str(methods_note); }
+                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
+                        selected_subs,
+                        request.question_count,
+                    ));
+                    let mut p = format!(
+                        "{}\n\n{}\n\n{}\n\n{}",
+                        regen_intro,
+                        sanitize_for_api(&prompts::subtopics_note(selected_subs)),
+                        synth,
+                        diversity_note
+                    );
+                    if !adaptive_note.is_empty() {
+                        p.push_str(&adaptive_note);
+                    }
+                    let methods_note =
+                        prompts::math_methods_exam1_tech_free_note(&request.topics, tech_mode);
+                    if !methods_note.is_empty() {
+                        p.push_str("\n\n");
+                        p.push_str(methods_note);
+                    }
                     serde_json::Value::String(p)
                 };
 
-                let retry_result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, &written_sys, new_user_content, schemas::written_format(&request.model), max_tokens).with_plugins(plugins.clone()).with_stream(self.app.clone())).await;
+                let retry_result = call_openrouter(
+                    OpenRouterRequestConfig::new(
+                        &request.api_key,
+                        &request.model,
+                        &written_sys,
+                        new_user_content,
+                        schemas::written_format(&request.model),
+                        max_tokens,
+                    )
+                    .with_plugins(plugins.clone())
+                    .with_stream(self.app.clone()),
+                )
+                .await;
                 if let Ok(r) = retry_result {
-                    if let Ok(mut new_payload) = self.parse_payload::<WrittenQuestionsPayload>(&r.content) {
-                        normalization::normalise_written(&mut new_payload.questions, &request.topics, selected_subs);
-                        if normalization::validate_written(&new_payload.questions, request.question_count).is_ok() {
-                            let new_texts: Vec<String> = new_payload.questions.iter().map(|q| q.prompt_markdown.clone()).collect();
+                    if let Ok(mut new_payload) =
+                        self.parse_payload::<WrittenQuestionsPayload>(&r.content)
+                    {
+                        normalization::normalise_written(
+                            &mut new_payload.questions,
+                            &request.topics,
+                            selected_subs,
+                        );
+                        if normalization::validate_written(
+                            &new_payload.questions,
+                            request.question_count,
+                        )
+                        .is_ok()
+                        {
+                            let new_texts: Vec<String> = new_payload
+                                .questions
+                                .iter()
+                                .map(|q| q.prompt_markdown.clone())
+                                .collect();
                             let (new_metrics, new_summary) = quality::score_batch(&new_texts);
-                            if new_summary.distinctness_avg.unwrap_or(0.0) > summary.distinctness_avg.unwrap_or(0.0) {
-                                payload = new_payload; metrics = new_metrics; summary = new_summary;
+                            if new_summary.distinctness_avg.unwrap_or(0.0)
+                                > summary.distinctness_avg.unwrap_or(0.0)
+                            {
+                                payload = new_payload;
+                                metrics = new_metrics;
+                                summary = new_summary;
                                 final_prompt_tokens = r.prompt_tokens;
                                 final_completion_tokens = r.completion_tokens;
                                 final_total_tokens = r.total_tokens;
-                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
-                                    q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
-                                    q.verb_diversity_count = Some(metric.verb_diversity); q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
+                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter())
+                                {
+                                    q.distinctness_score = Some(metric.distinctness);
+                                    q.multi_step_depth = Some(metric.depth);
+                                    q.verb_diversity_count = Some(metric.verb_diversity);
+                                    q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
                                 }
                                 break;
                             }
                         }
                     }
                 }
-                need_retry = attempts < 2 && (summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold));
+                need_retry = attempts < 2
+                    && (summary
+                        .distinctness_avg
+                        .is_some_and(|v| v < distinctness_threshold)
+                        || metrics
+                            .iter()
+                            .any(|m| m.distinctness < per_question_distinctness_threshold));
             }
         }
 
         let final_latex_issues = self.collect_latex_issues(&payload.questions, false);
-        quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, final_latex_issues);
+        quality_diagnostics = self.build_subtopic_diagnostics(
+            selected_subs,
+            payload
+                .questions
+                .iter()
+                .map(|q| q.subtopic.clone())
+                .collect(),
+            strict_subtopic_coverage,
+            request.min_subtopic_coverage_ratio,
+            request.question_count,
+            final_latex_issues,
+        );
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(final_prompt_tokens as u64), Some(final_completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| {
+            compute_generation_cost(
+                Some(final_prompt_tokens as u64),
+                Some(final_completion_tokens as u64),
+                stats.prompt_price_per_token,
+                stats.completion_price_per_token,
+            )
+        });
         let duration_ms = started.elapsed().as_millis() as u64;
 
         self.emit_generation_status(serde_json::json!({ "mode": "written", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
-        Ok(GenerateQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: final_prompt_tokens, completion_tokens: final_completion_tokens, total_tokens: final_total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
+        Ok(GenerateQuestionsResponse {
+            questions: payload.questions,
+            duration_ms,
+            prompt_tokens: final_prompt_tokens,
+            completion_tokens: final_completion_tokens,
+            total_tokens: final_total_tokens,
+            estimated_cost_usd,
+            distinctness_avg: summary.distinctness_avg,
+            multi_step_depth_avg: summary.multi_step_depth_avg,
+            command_verb_diversity: summary.command_verb_diversity,
+            mark_allocation_variance: summary.mark_allocation_variance,
+            quality_diagnostics,
+        })
     }
 
-    pub async fn generate_mc(&self, request: GenerateMcQuestionsRequest) -> CommandResult<GenerateMcQuestionsResponse> {
+    pub async fn generate_mc(
+        &self,
+        request: GenerateMcQuestionsRequest,
+    ) -> CommandResult<GenerateMcQuestionsResponse> {
         if request.topics.is_empty() {
-            return Err(AppError::new("VALIDATION_ERROR", "Select at least one topic."));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                "Select at least one topic.",
+            ));
         }
         if request.question_count == 0 || request.question_count > constants::MAX_QUESTION_COUNT {
-            return Err(AppError::new("VALIDATION_ERROR", format!("Question count must be 1–{}.", constants::MAX_QUESTION_COUNT)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!(
+                    "Question count must be 1–{}.",
+                    constants::MAX_QUESTION_COUNT
+                ),
+            ));
         }
         self.validate_params(&request.api_key, &request.model)?;
 
@@ -400,7 +617,8 @@ impl GenerationService {
         let include_exam_context = request.include_exam_context.unwrap_or(false);
         let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
         let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
-        let (distinctness_threshold, per_question_distinctness_threshold) = self.diversity_thresholds(request.diversity_strictness.as_deref());
+        let (distinctness_threshold, per_question_distinctness_threshold) =
+            self.diversity_thresholds(request.diversity_strictness.as_deref());
 
         let adjusted_difficulty = difficulty::adjust_difficulty(
             &request.difficulty,
@@ -436,7 +654,15 @@ impl GenerationService {
 
         let mc_sys = prompts::mc_system();
         let mc_fmt = schemas::mc_format(&request.model);
-        let base_mc_tokens = self.calculate_optimal_max_tokens(request.question_count, 3, &adjusted_difficulty, include_exam_context).saturating_mul(3) / 4;
+        let base_mc_tokens = self
+            .calculate_optimal_max_tokens(
+                request.question_count,
+                3,
+                &adjusted_difficulty,
+                include_exam_context,
+            )
+            .saturating_mul(3)
+            / 4;
 
         let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
         let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
@@ -446,14 +672,29 @@ impl GenerationService {
             let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
             parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
             parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
-            let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref()));
+            let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
+                selected_subs,
+                request.custom_focus_area.as_deref(),
+            ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
             serde_json::Value::Array(parts)
         } else {
             serde_json::Value::String(prompt)
         };
 
-        let result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, &mc_sys, user_content, mc_fmt.clone(), base_mc_tokens).with_plugins(plugins.clone()).with_stream(self.app.clone())).await?;
+        let result = call_openrouter(
+            OpenRouterRequestConfig::new(
+                &request.api_key,
+                &request.model,
+                &mc_sys,
+                user_content,
+                mc_fmt.clone(),
+                base_mc_tokens,
+            )
+            .with_plugins(plugins.clone())
+            .with_stream(self.app.clone()),
+        )
+        .await?;
 
         self.emit_generation_status(serde_json::json!({
             "mode": "multiple-choice", "stage": "parsing",
@@ -467,7 +708,18 @@ impl GenerationService {
         self.apply_tech_override(&mut payload.questions, tech_mode);
 
         let latex_issue_examples = self.collect_latex_issues(&payload.questions, true);
-        let mut quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, latex_issue_examples.clone());
+        let mut quality_diagnostics = self.build_subtopic_diagnostics(
+            selected_subs,
+            payload
+                .questions
+                .iter()
+                .map(|q| q.subtopic.clone())
+                .collect(),
+            strict_subtopic_coverage,
+            request.min_subtopic_coverage_ratio,
+            request.question_count,
+            latex_issue_examples.clone(),
+        );
 
         if strict_latex_validation && !latex_issue_examples.is_empty() {
             return Err(AppError::new("VALIDATION_ERROR", format!("Generated output failed strict LaTeX validation ({} issue(s)); first issue: {}", latex_issue_examples.len(), latex_issue_examples[0])));
@@ -479,30 +731,51 @@ impl GenerationService {
                     return Err(AppError::new("VALIDATION_ERROR", format!("Generated output did not meet subtopic coverage target ({:.0}% < {:.0}%). Missing: {}", diag.subtopic_coverage_ratio * 100.0, diag.min_subtopic_coverage_ratio * 100.0, diag.uncovered_subtopics.join(", "))));
                 }
                 if !diag.out_of_scope_subtopics.is_empty() {
-                    return Err(AppError::new("VALIDATION_ERROR", format!("Generated output used out-of-scope subtopics: {}", diag.out_of_scope_subtopics.join(", "))));
+                    return Err(AppError::new(
+                        "VALIDATION_ERROR",
+                        format!(
+                            "Generated output used out-of-scope subtopics: {}",
+                            diag.out_of_scope_subtopics.join(", ")
+                        ),
+                    ));
                 }
             }
         }
 
-        let texts: Vec<String> = payload.questions.iter().map(|q| {
-            let opts = q.options.iter().map(|o| format!("{}: {}", o.label, o.text)).collect::<Vec<_>>().join(" ");
-            format!("{} {opts}", q.prompt_markdown)
-        }).collect();
+        let texts: Vec<String> = payload
+            .questions
+            .iter()
+            .map(|q| {
+                let opts = q
+                    .options
+                    .iter()
+                    .map(|o| format!("{}: {}", o.label, o.text))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                format!("{} {opts}", q.prompt_markdown)
+            })
+            .collect();
         let (metrics, mut summary) = quality::score_batch(&texts);
         summary.mark_allocation_variance = Some(0.0);
 
         for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
-            q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
-            q.verb_diversity_count = Some(metric.verb_diversity); q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
+            q.distinctness_score = Some(metric.distinctness);
+            q.multi_step_depth = Some(metric.depth);
+            q.verb_diversity_count = Some(metric.verb_diversity);
+            q.scaffold_pattern = Some(metric.scaffold_pattern.clone());
         }
 
         let mut metrics = metrics;
-        let mut summary = summary;
         let mut final_prompt_tokens = result.prompt_tokens;
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
         if request.avoid_similar_questions.unwrap_or(false) {
-            let mut need_retry = summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold);
+            let mut need_retry = summary
+                .distinctness_avg
+                .is_some_and(|v| v < distinctness_threshold)
+                || metrics
+                    .iter()
+                    .any(|m| m.distinctness < per_question_distinctness_threshold);
             let mut attempts = 0;
             while need_retry && attempts < 2 {
                 attempts += 1;
@@ -512,65 +785,167 @@ impl GenerationService {
                 let regen_intro = format!("Regenerate {count} multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count, topics = sanitize_for_api(&request.topics.join(", ")), difficulty = adjusted_difficulty);
 
                 let new_user_content = if include_exam_context {
-                    let mut parts = vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
+                    let mut parts =
+                        vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
                     parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
                     parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
                     parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref())) }));
-                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(selected_subs, request.question_count));
-                    if !synth.is_empty() { parts.push(serde_json::json!({ "type": "text", "text": synth })); }
+                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
+                        selected_subs,
+                        request.question_count,
+                    ));
+                    if !synth.is_empty() {
+                        parts.push(serde_json::json!({ "type": "text", "text": synth }));
+                    }
                     parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
-                    if !adaptive_note.is_empty() { parts.push(serde_json::json!({ "type": "text", "text": adaptive_note })); }
+                    if !adaptive_note.is_empty() {
+                        parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
+                    }
                     serde_json::Value::Array(parts)
                 } else {
-                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(selected_subs, request.question_count));
-                    let mut p = format!("{}\n\n{}\n\n{}\n\n{}", regen_intro, sanitize_for_api(&prompts::subtopics_note(selected_subs)), synth, diversity_note);
-                    if !adaptive_note.is_empty() { p.push_str(&adaptive_note); }
+                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
+                        selected_subs,
+                        request.question_count,
+                    ));
+                    let mut p = format!(
+                        "{}\n\n{}\n\n{}\n\n{}",
+                        regen_intro,
+                        sanitize_for_api(&prompts::subtopics_note(selected_subs)),
+                        synth,
+                        diversity_note
+                    );
+                    if !adaptive_note.is_empty() {
+                        p.push_str(&adaptive_note);
+                    }
                     serde_json::Value::String(p)
                 };
 
-                let retry_result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, &mc_sys, new_user_content, mc_fmt.clone(), base_mc_tokens).with_plugins(plugins.clone()).with_stream(self.app.clone())).await;
+                let retry_result = call_openrouter(
+                    OpenRouterRequestConfig::new(
+                        &request.api_key,
+                        &request.model,
+                        &mc_sys,
+                        new_user_content,
+                        mc_fmt.clone(),
+                        base_mc_tokens,
+                    )
+                    .with_plugins(plugins.clone())
+                    .with_stream(self.app.clone()),
+                )
+                .await;
                 if let Ok(r) = retry_result {
-                    if let Ok(mut new_payload) = self.parse_payload::<McQuestionsPayload>(&r.content) {
-                        normalization::normalise_mc(&mut new_payload.questions, &request.topics, selected_subs);
-                        if normalization::validate_mc(&new_payload.questions, request.question_count).is_ok() {
-                            let new_texts: Vec<String> = new_payload.questions.iter().map(|q| {
-                                let opts = q.options.iter().map(|o| format!("{}: {}", o.label, o.text)).collect::<Vec<_>>().join(" ");
-                                format!("{} {opts}", q.prompt_markdown)
-                            }).collect();
+                    if let Ok(mut new_payload) =
+                        self.parse_payload::<McQuestionsPayload>(&r.content)
+                    {
+                        normalization::normalise_mc(
+                            &mut new_payload.questions,
+                            &request.topics,
+                            selected_subs,
+                        );
+                        if normalization::validate_mc(
+                            &new_payload.questions,
+                            request.question_count,
+                        )
+                        .is_ok()
+                        {
+                            let new_texts: Vec<String> = new_payload
+                                .questions
+                                .iter()
+                                .map(|q| {
+                                    let opts = q
+                                        .options
+                                        .iter()
+                                        .map(|o| format!("{}: {}", o.label, o.text))
+                                        .collect::<Vec<_>>()
+                                        .join(" ");
+                                    format!("{} {opts}", q.prompt_markdown)
+                                })
+                                .collect();
                             let (new_metrics, new_summary) = quality::score_batch(&new_texts);
-                            if new_summary.distinctness_avg.unwrap_or(0.0) > summary.distinctness_avg.unwrap_or(0.0) {
-                                payload = new_payload; metrics = new_metrics; summary = new_summary;
+                            if new_summary.distinctness_avg.unwrap_or(0.0)
+                                > summary.distinctness_avg.unwrap_or(0.0)
+                            {
+                                payload = new_payload;
+                                metrics = new_metrics;
+                                summary = new_summary;
                                 final_prompt_tokens = r.prompt_tokens;
                                 final_completion_tokens = r.completion_tokens;
                                 final_total_tokens = r.total_tokens;
-                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
-                                    q.distinctness_score = Some(metric.distinctness); q.multi_step_depth = Some(metric.depth);
+                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter())
+                                {
+                                    q.distinctness_score = Some(metric.distinctness);
+                                    q.multi_step_depth = Some(metric.depth);
                                 }
                                 break;
                             }
                         }
                     }
                 }
-                need_retry = attempts < 2 && (summary.distinctness_avg.is_some_and(|v| v < distinctness_threshold) || metrics.iter().any(|m| m.distinctness < per_question_distinctness_threshold));
+                need_retry = attempts < 2
+                    && (summary
+                        .distinctness_avg
+                        .is_some_and(|v| v < distinctness_threshold)
+                        || metrics
+                            .iter()
+                            .any(|m| m.distinctness < per_question_distinctness_threshold));
             }
         }
 
         let final_latex_issues = self.collect_latex_issues(&payload.questions, true);
-        quality_diagnostics = self.build_subtopic_diagnostics(selected_subs, payload.questions.iter().map(|q| q.subtopic.clone()).collect(), strict_subtopic_coverage, request.min_subtopic_coverage_ratio, request.question_count, final_latex_issues);
+        quality_diagnostics = self.build_subtopic_diagnostics(
+            selected_subs,
+            payload
+                .questions
+                .iter()
+                .map(|q| q.subtopic.clone())
+                .collect(),
+            strict_subtopic_coverage,
+            request.min_subtopic_coverage_ratio,
+            request.question_count,
+            final_latex_issues,
+        );
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| compute_generation_cost(Some(final_prompt_tokens as u64), Some(final_completion_tokens as u64), stats.prompt_price_per_token, stats.completion_price_per_token));
+        let estimated_cost_usd = stats_result.ok().and_then(|stats| {
+            compute_generation_cost(
+                Some(final_prompt_tokens as u64),
+                Some(final_completion_tokens as u64),
+                stats.prompt_price_per_token,
+                stats.completion_price_per_token,
+            )
+        });
         let duration_ms = started.elapsed().as_millis() as u64;
 
         self.emit_generation_status(serde_json::json!({ "mode": "multiple-choice", "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
-        Ok(GenerateMcQuestionsResponse { questions: payload.questions, duration_ms, prompt_tokens: final_prompt_tokens, completion_tokens: final_completion_tokens, total_tokens: final_total_tokens, estimated_cost_usd, distinctness_avg: summary.distinctness_avg, multi_step_depth_avg: summary.multi_step_depth_avg, command_verb_diversity: summary.command_verb_diversity, mark_allocation_variance: summary.mark_allocation_variance, quality_diagnostics })
+        Ok(GenerateMcQuestionsResponse {
+            questions: payload.questions,
+            duration_ms,
+            prompt_tokens: final_prompt_tokens,
+            completion_tokens: final_completion_tokens,
+            total_tokens: final_total_tokens,
+            estimated_cost_usd,
+            distinctness_avg: summary.distinctness_avg,
+            multi_step_depth_avg: summary.multi_step_depth_avg,
+            command_verb_diversity: summary.command_verb_diversity,
+            mark_allocation_variance: summary.mark_allocation_variance,
+            quality_diagnostics,
+        })
     }
 
-    pub async fn mark_answer(&self, request: MarkAnswerRequest) -> CommandResult<MarkAnswerResponse> {
+    pub async fn mark_answer(
+        &self,
+        request: MarkAnswerRequest,
+    ) -> CommandResult<MarkAnswerResponse> {
         let has_text = !request.student_answer.trim().is_empty();
-        let has_image = request.student_answer_image_data_url.as_ref().is_some_and(|v| !v.trim().is_empty());
+        let has_image = request
+            .student_answer_image_data_url
+            .as_ref()
+            .is_some_and(|v| !v.trim().is_empty());
         if !has_text && !has_image {
-            return Err(AppError::new("VALIDATION_ERROR", "Provide an answer or image."));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                "Provide an answer or image.",
+            ));
         }
         self.validate_params(&request.api_key, &request.model)?;
         const MAX_ALLOWED_MARKS: u8 = 50;
@@ -578,42 +953,80 @@ impl GenerationService {
             return Err(AppError::new("VALIDATION_ERROR", "maxMarks must be > 0."));
         }
         if request.question.max_marks > MAX_ALLOWED_MARKS {
-            return Err(AppError::new("VALIDATION_ERROR", format!("maxMarks cannot exceed {}.", MAX_ALLOWED_MARKS)));
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!("maxMarks cannot exceed {}.", MAX_ALLOWED_MARKS),
+            ));
         }
 
         const MAX_ANSWER_CHARS: usize = 12_000;
-        let mut answer = sanitize_for_api(request.student_answer.replace("\r\n", "\n").lines().map(str::trim_end).collect::<Vec<_>>().join("\n").trim());
+        let mut answer = sanitize_for_api(
+            request
+                .student_answer
+                .replace("\r\n", "\n")
+                .lines()
+                .map(str::trim_end)
+                .collect::<Vec<_>>()
+                .join("\n")
+                .trim(),
+        );
         if answer.chars().count() > MAX_ANSWER_CHARS {
             answer = answer.chars().take(MAX_ANSWER_CHARS).collect();
             answer.push_str("\n\n[Truncated: answer exceeded length limit.]");
         }
 
         let question_topic = sanitize_for_api(request.question.topic.trim());
-        let question_subtopic = sanitize_for_api(request.question.subtopic.as_deref().unwrap_or("—").trim());
+        let question_subtopic =
+            sanitize_for_api(request.question.subtopic.as_deref().unwrap_or("—").trim());
         let question_prompt = sanitize_for_api(&request.question.prompt_markdown);
 
-        let chem_note = if question_topic.eq_ignore_ascii_case(constants::CHEMISTRY_TOPIC) { constants::CHEMISTRY_LATEX_GUIDANCE } else { "" };
+        let chem_note = if question_topic.eq_ignore_ascii_case(constants::CHEMISTRY_TOPIC) {
+            constants::CHEMISTRY_LATEX_GUIDANCE
+        } else {
+            ""
+        };
         let pe_note = if question_topic.eq_ignore_ascii_case(constants::PHYSICAL_EDUCATION_TOPIC) {
             "\nPHYSICAL EDUCATION MARKING STYLE:\n- DO NOT use mathematical equations, derivations, or formula-based solutions in your exemplarResponseMarkdown, feedbackMarkdown, comparisonToSolutionMarkdown, or workedSolutionMarkdown.\n- VCE PE does not require formal mathematical working. Write all responses in clear prose — paragraphs, bullet points, and short explanations.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', 'F = ma', 'VO₂max', '1RM') — but do NOT derive, rearrange, or chain equations. Mention the formula by name, then explain its application in words.\n- Award marks for quality of analysis, evaluation, and justification — not for mathematical rigour.\n"
-        } else { "" };
+        } else {
+            ""
+        };
 
         let max_marks = request.question.max_marks;
-        let report_parts = pdf::build_report_file_parts(&self.app, std::slice::from_ref(&question_topic));
+        let report_parts =
+            pdf::build_report_file_parts(&self.app, std::slice::from_ref(&question_topic));
         let has_reports = !report_parts.is_empty();
 
         let report_preamble = if has_reports {
             "\n\nVCAA EXAMINERS' REPORT ATTACHED — USE AS MARKING AUTHORITY:\nThe attached PDF(s) are official VCAA examiners' reports containing marking schemes, common student errors, and expected solutions. Use them as the PRIMARY authority for criterion-based marking. Align your marking criteria, expected working, and common error feedback with the patterns described in these reports."
-        } else { "" };
+        } else {
+            ""
+        };
 
         let prompt = format!("Topic: {topic}\nSubtopic: {subtopic}\nQuestion ({max} marks):\n{question}\n\nStudent answer:\n{answer}\n\nMARKING INSTRUCTIONS:\n- Apply VCAA criterion-based marking strictly.\n- Do not award marks for correct answers without correct supporting working or reasoning (except for questions that are purely answer-only).\n- Do not credit vague restatements of the question as explanation.\n- For 'hence' sub-parts: the student must use the result from the immediately preceding part.\n- For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n- For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n- Produce one criterion per mark (or group closely related marks where natural).\n- The workedSolution must show every step a student would need to write to receive full marks.{report_preamble}", topic = question_topic, subtopic = question_subtopic, question = question_prompt, max = max_marks, answer = answer, report_preamble = report_preamble);
 
         let mut content_parts: Vec<serde_json::Value> = Vec::new();
         content_parts.push(serde_json::json!({ "type": "text", "text": prompt }));
-        if let Some(url) = request.student_answer_image_data_url.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
-            if !url.starts_with("data:image/") { return Err(AppError::new("VALIDATION_ERROR", "Image must be a valid data URL.")); }
+        if let Some(url) = request
+            .student_answer_image_data_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+        {
+            if !url.starts_with("data:image/") {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    "Image must be a valid data URL.",
+                ));
+            }
             const MAX_IMAGE_DATA_URL_LEN: usize = 20 * 1024 * 1024;
-            if url.len() > MAX_IMAGE_DATA_URL_LEN { return Err(AppError::new("VALIDATION_ERROR", "Image is too large. Please use a smaller image.")); }
-            content_parts.push(serde_json::json!({ "type": "image_url", "image_url": { "url": url } }));
+            if url.len() > MAX_IMAGE_DATA_URL_LEN {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    "Image is too large. Please use a smaller image.",
+                ));
+            }
+            content_parts
+                .push(serde_json::json!({ "type": "image_url", "image_url": { "url": url } }));
         }
         content_parts.extend(report_parts);
 
@@ -621,33 +1034,68 @@ impl GenerationService {
         const MAX_TOKENS_CAP: u32 = 128_000;
         let max_tokens = ((max_marks as u32) * 2000 + 4000).min(MAX_TOKENS_CAP);
         let plugins = if has_reports {
-            let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
+            let stats_result =
+                get_model_stats(request.api_key.clone(), request.model.clone()).await;
             let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
             pdf::plugins_for_model(supports_files)
-        } else { serde_json::json!([{ "id": "response-healing" }]) };
+        } else {
+            serde_json::json!([{ "id": "response-healing" }])
+        };
 
-        let result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, &prompts::marking_system(max_marks, chem_note, pe_note), user_content, schemas::marking_format(&request.model), max_tokens).with_plugins(plugins)).await?;
+        let result = call_openrouter(
+            OpenRouterRequestConfig::new(
+                &request.api_key,
+                &request.model,
+                &prompts::marking_system(max_marks, chem_note, pe_note),
+                user_content,
+                schemas::marking_format(&request.model),
+                max_tokens,
+            )
+            .with_plugins(plugins),
+        )
+        .await?;
 
         let protected_marking = protect_latex_in_raw_json(&result.content);
-        let json_str = extract_json_object(&protected_marking).ok_or_else(|| AppError::new("MODEL_PARSE_ERROR", format!("No JSON in marking response. Raw:\n{}", &result.content.chars().take(800).collect::<String>())))?;
+        let json_str = extract_json_object(&protected_marking).ok_or_else(|| {
+            AppError::new(
+                "MODEL_PARSE_ERROR",
+                format!(
+                    "No JSON in marking response. Raw:\n{}",
+                    &result.content.chars().take(800).collect::<String>()
+                ),
+            )
+        })?;
 
-        let mut parsed: MarkAnswerResponse = serde_json::from_str(&json_str).map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Marking schema mismatch: {e}")))?;
+        let mut parsed: MarkAnswerResponse = serde_json::from_str(&json_str).map_err(|e| {
+            AppError::new("MODEL_PARSE_ERROR", format!("Marking schema mismatch: {e}"))
+        })?;
         parsed.max_marks = if max_marks > 0 { max_marks } else { 10 };
         parsed.achieved_marks = parsed.achieved_marks.min(parsed.max_marks);
 
         if !parsed.vcaa_marking_scheme.is_empty() {
-            let scheme_total = parsed.vcaa_marking_scheme.iter().map(|c| c.achieved_marks as u16).sum::<u16>().min(parsed.max_marks as u16) as u8;
-            if scheme_total != parsed.achieved_marks { parsed.achieved_marks = scheme_total; }
+            let scheme_total = parsed
+                .vcaa_marking_scheme
+                .iter()
+                .map(|c| c.achieved_marks as u16)
+                .sum::<u16>()
+                .min(parsed.max_marks as u16) as u8;
+            if scheme_total != parsed.achieved_marks {
+                parsed.achieved_marks = scheme_total;
+            }
         }
 
         if parsed.max_marks > 0 {
-            parsed.score_out_of_10 = ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
+            parsed.score_out_of_10 =
+                ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
             parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
-        } else { parsed.score_out_of_10 = 0; }
+        } else {
+            parsed.score_out_of_10 = 0;
+        }
 
         parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);
         parsed.worked_solution_markdown = clean_field(&parsed.worked_solution_markdown);
-        parsed.comparison_to_solution_markdown = clean_field(&parsed.comparison_to_solution_markdown);
+        parsed.comparison_to_solution_markdown =
+            clean_field(&parsed.comparison_to_solution_markdown);
         parsed.exemplar_response_markdown = clean_field(&parsed.exemplar_response_markdown);
         for c in &mut parsed.vcaa_marking_scheme {
             c.criterion = clean_field(&c.criterion);
@@ -664,40 +1112,88 @@ impl GenerationService {
         Ok(parsed)
     }
 
-    pub async fn analyze_image(&self, request: AnalyzeImageRequest) -> CommandResult<AnalyzeImageResponse> {
+    pub async fn analyze_image(
+        &self,
+        request: AnalyzeImageRequest,
+    ) -> CommandResult<AnalyzeImageResponse> {
         self.validate_params(&request.api_key, &request.model)?;
         if request.image_path.trim().is_empty() {
             return Err(AppError::new("VALIDATION_ERROR", "Image path required."));
         }
 
         let path = std::path::Path::new(&request.image_path);
-        let mime = path.extension().and_then(|e| e.to_str()).and_then(|e| match e.to_ascii_lowercase().as_str() {
-            "jpg" | "jpeg" => Some("image/jpeg"),
-            "png" => Some("image/png"),
-            "webp" => Some("image/webp"),
-            "gif" => Some("image/gif"),
-            "heic" => Some("image/heic"),
-            "heif" => Some("image/heif"),
-            _ => None,
-        }).ok_or_else(|| AppError::new("VALIDATION_ERROR", "Unsupported format. Use png, jpg, webp, gif, heic, or heif."))?;
+        let mime = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .and_then(|e| match e.to_ascii_lowercase().as_str() {
+                "jpg" | "jpeg" => Some("image/jpeg"),
+                "png" => Some("image/png"),
+                "webp" => Some("image/webp"),
+                "gif" => Some("image/gif"),
+                "heic" => Some("image/heic"),
+                "heif" => Some("image/heif"),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                AppError::new(
+                    "VALIDATION_ERROR",
+                    "Unsupported format. Use png, jpg, webp, gif, heic, or heif.",
+                )
+            })?;
 
         const MAX_IMAGE_SIZE: u64 = 50 * 1024 * 1024; // 50 MB
-        let metadata = std::fs::metadata(path).map_err(|e| AppError::new(if e.kind() == std::io::ErrorKind::NotFound { "VALIDATION_ERROR" } else { "IO_ERROR" }, if e.kind() == std::io::ErrorKind::NotFound { "Image file not found.".to_string() } else { format!("Failed to read image metadata: {e}") }))?;
+        let metadata = std::fs::metadata(path).map_err(|e| {
+            AppError::new(
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    "VALIDATION_ERROR"
+                } else {
+                    "IO_ERROR"
+                },
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    "Image file not found.".to_string()
+                } else {
+                    format!("Failed to read image metadata: {e}")
+                },
+            )
+        })?;
         if metadata.len() > MAX_IMAGE_SIZE {
             return Err(AppError::new("VALIDATION_ERROR", "Image file too large."));
         }
 
-        let bytes = std::fs::read(path).map_err(|e| AppError::new(if e.kind() == std::io::ErrorKind::NotFound { "VALIDATION_ERROR" } else { "IO_ERROR" }, if e.kind() == std::io::ErrorKind::NotFound { "Image file not found.".to_string() } else { format!("Failed to read image: {e}") }))?;
+        let bytes = std::fs::read(path).map_err(|e| {
+            AppError::new(
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    "VALIDATION_ERROR"
+                } else {
+                    "IO_ERROR"
+                },
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    "Image file not found.".to_string()
+                } else {
+                    format!("Failed to read image: {e}")
+                },
+            )
+        })?;
 
         use base64::{engine::general_purpose, Engine as _};
-        let data_url = format!("data:{mime};base64,{}", general_purpose::STANDARD.encode(bytes));
-        let prompt = request.prompt.as_deref().filter(|v| !v.trim().is_empty()).unwrap_or("What's in this image?");
+        let data_url = format!(
+            "data:{mime};base64,{}",
+            general_purpose::STANDARD.encode(bytes)
+        );
+        let prompt = request
+            .prompt
+            .as_deref()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or("What's in this image?");
 
         let free_text_format = schemas::text_response_format(&request.model);
 
         let result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, "You are a helpful visual reasoning assistant.", serde_json::json!([ { "type": "text", "text": prompt }, { "type": "image_url", "image_url": { "url": data_url } } ]), free_text_format, 4_500)).await?;
 
-        let output_text = serde_json::from_str::<serde_json::Value>(&result.content).ok().and_then(|v| v.get("text").and_then(|t| t.as_str()).map(str::to_string)).unwrap_or(result.content);
+        let output_text = serde_json::from_str::<serde_json::Value>(&result.content)
+            .ok()
+            .and_then(|v| v.get("text").and_then(|t| t.as_str()).map(str::to_string))
+            .unwrap_or(result.content);
 
         Ok(AnalyzeImageResponse { output_text })
     }
@@ -724,13 +1220,25 @@ pub trait QuestionWithMarkdown {
 }
 
 impl QuestionWithMarkdown for GeneratedQuestion {
-    fn get_id(&self) -> &str { &self.id }
-    fn get_prompt(&self) -> &str { &self.prompt_markdown }
-    fn get_explanation(&self) -> Option<&str> { None }
+    fn get_id(&self) -> &str {
+        &self.id
+    }
+    fn get_prompt(&self) -> &str {
+        &self.prompt_markdown
+    }
+    fn get_explanation(&self) -> Option<&str> {
+        None
+    }
 }
 
 impl QuestionWithMarkdown for McQuestion {
-    fn get_id(&self) -> &str { &self.id }
-    fn get_prompt(&self) -> &str { &self.prompt_markdown }
-    fn get_explanation(&self) -> Option<&str> { Some(&self.explanation_markdown) }
+    fn get_id(&self) -> &str {
+        &self.id
+    }
+    fn get_prompt(&self) -> &str {
+        &self.prompt_markdown
+    }
+    fn get_explanation(&self) -> Option<&str> {
+        Some(&self.explanation_markdown)
+    }
 }

@@ -1,7 +1,7 @@
-use std::collections::HashSet;
-use std::path::PathBuf;
 use crate::catalog;
 use base64::{engine::general_purpose, Engine as _};
+use std::collections::HashSet;
+use std::path::PathBuf;
 use tauri::Manager;
 
 pub fn exam_pdf_names_for_topics(topics: &[String]) -> Vec<&str> {
@@ -87,7 +87,10 @@ pub fn build_exam_file_parts(app: &tauri::AppHandle, topics: &[String]) -> Vec<s
     build_pdf_file_parts(app, "exams", &filenames)
 }
 
-pub fn build_report_file_parts(app: &tauri::AppHandle, topics: &[String]) -> Vec<serde_json::Value> {
+pub fn build_report_file_parts(
+    app: &tauri::AppHandle,
+    topics: &[String],
+) -> Vec<serde_json::Value> {
     let filenames = report_pdf_names_for_topics(topics);
     build_pdf_file_parts(app, "reports", &filenames)
 }
