@@ -97,11 +97,6 @@ export function useSyncV3(): UseSyncV3Return {
     state.mcHistory
       .filter((e) => !e.isUploaded)
       .forEach((e) => void saveMcHistoryEntry(e));
-
-    // For saved sets, we don't have an isUploaded flag, but we can push them all
-    // and Firestore's offline cache/merge will handle it.
-    // However, to keep it simple, we just rely on mutations when they are created.
-    // If the user has discrepancies in history, the filters above will catch them.
   }, []);
 
   const setupListeners = useCallback(
@@ -115,6 +110,9 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/questionHistory`),
           { includeMetadataChanges: true },
           (snapshot) => {
+            console.log(
+              `[FirebaseSync] Received snapshot for ${snapshot.size} question history entries.`,
+            );
             const history = normalizeQuestionHistory(
               snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
@@ -142,6 +140,9 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/mcHistory`),
           { includeMetadataChanges: true },
           (snapshot) => {
+            console.log(
+              `[FirebaseSync] Received snapshot for ${snapshot.size} MC history entries.`,
+            );
             const history = normalizeMcHistory(
               snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
@@ -166,6 +167,9 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/savedSets`),
           { includeMetadataChanges: true },
           (snapshot) => {
+            console.log(
+              `[FirebaseSync] Received snapshot for ${snapshot.size} saved sets.`,
+            );
             const sets = snapshot.docs
               .map((d) => normalizeSavedSet({ id: d.id, ...d.data() }))
               .filter((s): s is NonNullable<typeof s> => s !== null);
@@ -182,6 +186,7 @@ export function useSyncV3(): UseSyncV3Return {
         const settingsMainUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'main'),
           (snapshot) => {
+            console.log('[FirebaseSync] Received main settings snapshot.');
             if (snapshot.exists()) {
               const data = snapshot.data() as { apiKey?: string };
               if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
@@ -274,6 +279,13 @@ export function useSyncV3(): UseSyncV3Return {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log(
+        `[FirebaseSync] Auth state changed: ${
+          firebaseUser
+            ? 'User logged in (' + firebaseUser.uid + ')'
+            : 'User logged out'
+        }`,
+      );
       setUser(firebaseUser);
       setIsLoading(false);
       activeUidRef.current = firebaseUser?.uid ?? null;

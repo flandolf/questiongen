@@ -34,6 +34,7 @@ import type {
   GenerationStatusEvent,
   GenerationStrategy,
   GenerationTelemetry,
+  LogEntry,
   MarkAnswerResponse,
   MathMethodsSubtopic,
   McHistoryEntry,
@@ -197,6 +198,9 @@ export interface AppState {
   // ── Timer v2 ───────────────────────────────────────────────────
   writtenTimer: TimerState | null;
   mcTimer: TimerState | null;
+
+  // ── Logs ──────────────────────────────────────────────────────
+  logs: LogEntry[];
 }
 
 // ─── Actions shape ────────────────────────────────────────────────────────────
@@ -372,6 +376,10 @@ export interface AppActions {
   setWrittenTimer: (state: TimerState | null) => void;
   setMcTimer: (state: TimerState | null) => void;
 
+  // Logs
+  addLog: (entry: Omit<LogEntry, 'id' | 'timestamp'>) => void;
+  clearLogs: () => void;
+
   // Import / Export
   importState: (imported: PersistedAppState) => void;
 }
@@ -497,6 +505,7 @@ const defaultState: AppState = {
   presets: [],
   writtenTimer: null,
   mcTimer: null,
+  logs: [],
 };
 
 // ─── Functional updater resolution ───────────────────────────────────────────
@@ -534,6 +543,20 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     })),
   setWrittenTimer: (writtenTimer) => set({ writtenTimer: writtenTimer }),
   setMcTimer: (mcTimer) => set({ mcTimer: mcTimer }),
+
+  addLog: (entry) =>
+    set((s) => ({
+      logs: [
+        {
+          ...entry,
+          id: Math.random().toString(36).substring(7),
+          timestamp: Date.now(),
+        },
+        ...s.logs,
+      ].slice(0, 1000),
+    })),
+  clearLogs: () => set({ logs: [] }),
+
   setApiKey: (key) => {
     set({ apiKey: key });
     void updateApiKey(key);
