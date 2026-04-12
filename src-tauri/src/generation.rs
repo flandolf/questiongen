@@ -255,6 +255,16 @@ impl GenerationService {
         &self,
         request: GenerateQuestionsRequest,
     ) -> CommandResult<GenerateQuestionsResponse> {
+        self.rust_log(
+            "info",
+            "Starting written question generation",
+            Some(serde_json::json!({
+                "topics": request.topics,
+                "count": request.question_count,
+                "difficulty": request.difficulty,
+                "model": request.model
+            })),
+        );
         if request.topics.is_empty() {
             return Err(AppError::new(
                 "VALIDATION_ERROR",
@@ -630,6 +640,16 @@ impl GenerationService {
         &self,
         request: GenerateMcQuestionsRequest,
     ) -> CommandResult<GenerateMcQuestionsResponse> {
+        self.rust_log(
+            "info",
+            "Starting multiple-choice question generation",
+            Some(serde_json::json!({
+                "topics": request.topics,
+                "count": request.question_count,
+                "difficulty": request.difficulty,
+                "model": request.model
+            })),
+        );
         if request.topics.is_empty() {
             return Err(AppError::new(
                 "VALIDATION_ERROR",
@@ -977,6 +997,15 @@ impl GenerationService {
         &self,
         request: MarkAnswerRequest,
     ) -> CommandResult<MarkAnswerResponse> {
+        self.rust_log(
+            "info",
+            "Starting marking for question",
+            Some(serde_json::json!({
+                "question_id": request.question.id,
+                "topic": request.question.topic,
+                "model": request.model
+            })),
+        );
         let has_text = !request.student_answer.trim().is_empty();
         let has_image = request
             .student_answer_image_data_url

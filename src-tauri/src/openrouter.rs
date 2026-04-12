@@ -108,8 +108,8 @@ async fn call_openrouter_non_streaming(
         .await
         .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
 
-    if !response.status().is_success() {
-        let status = response.status();
+    let status = response.status();
+    if !status.is_success() {
         let body = response
             .text()
             .await

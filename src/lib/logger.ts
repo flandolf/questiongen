@@ -23,24 +23,32 @@ function wrapLog(
     if (isLogging) return;
     isLogging = true;
     try {
-      const message = args
-        .map((arg) => {
-          if (arg instanceof Error) {
-            return `${arg.name}: ${arg.message}\n${arg.stack ?? ''}`;
-          }
-          if (typeof arg === 'object' && arg !== null) {
+      let data: unknown = undefined;
+      const messageParts: string[] = [];
+
+      args.forEach((arg) => {
+        if (arg instanceof Error) {
+          messageParts.push(`${arg.name}: ${arg.message}\n${arg.stack ?? ''}`);
+        } else if (typeof arg === 'object' && arg !== null) {
+          if (data === undefined) {
+            data = arg;
+          } else {
+            // If we already have a data object, just stringify this one into the message
             try {
-              return JSON.stringify(arg, null, 2);
+              messageParts.push(JSON.stringify(arg, null, 2));
             } catch {
-              return '[Unserializable Object]';
+              messageParts.push('[Unserializable Object]');
             }
           }
-          return String(arg);
-        })
-        .join(' ');
+        } else {
+          messageParts.push(String(arg));
+        }
+      });
+
+      const message = messageParts.join(' ');
 
       // Use the store to add the log
-      useAppStore.getState().addLog({ level, message });
+      useAppStore.getState().addLog({ level, message, data });
     } catch {
       // Ignore errors in logger to avoid infinite loops
     } finally {

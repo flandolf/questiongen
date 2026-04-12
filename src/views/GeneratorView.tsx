@@ -1640,16 +1640,16 @@ export function GeneratorView() {
               });
             }
 
-            console.log('[Generator] Calling generate_questions with:', {
-              topic,
-              difficulty,
-              count,
-              model,
-              techMode,
-              includeExamContext,
-              subtopics: topicSubtopics,
-              shuffleSubtopics,
-            });
+            console.info(
+              `[Generator] Generating ${count} written questions for ${topic}`,
+              {
+                difficulty,
+                model,
+                techMode,
+                includeExamContext,
+                subtopics: topicSubtopics,
+              },
+            );
 
             const response = await invoke<GenerateQuestionsResponse>(
               'generate_questions',
@@ -1670,12 +1670,14 @@ export function GeneratorView() {
               },
             );
 
-            console.log('[Generator] Received response:', {
-              questionCount: response.questions.length,
-              durationMs: response.durationMs,
-              totalTokens: response.totalTokens,
-              cost: response.estimatedCostUsd,
-            });
+            console.info(
+              `[Generator] Received ${response.questions.length} written questions for ${topic}`,
+              {
+                durationMs: response.durationMs,
+                totalTokens: response.totalTokens,
+                cost: response.estimatedCostUsd,
+              },
+            );
 
             allQuestions = allQuestions.concat(response.questions);
             totalTelemetry.durationMs += response.durationMs || 0;
@@ -1994,18 +1996,16 @@ export function GeneratorView() {
               });
             }
 
-            console.log('[Generator] Calling generate_mc_questions with:', {
-              topic,
-              difficulty,
-              count,
-              model,
-              techMode,
-              includeExamContext,
-              subtopics: topicSubtopics,
-              shuffleSubtopics,
-              avoidSimilarQuestions,
-              aiDifficultyScalingEnabled,
-            });
+            console.info(
+              `[Generator] Generating ${count} MC questions for ${topic}`,
+              {
+                difficulty,
+                model,
+                techMode,
+                includeExamContext,
+                subtopics: topicSubtopics,
+              },
+            );
 
             const response = await invoke<GenerateMcQuestionsResponse>(
               'generate_mc_questions',
@@ -2036,11 +2036,13 @@ export function GeneratorView() {
               },
             );
 
-            console.log('[Generator] Received MC response:', {
-              questionCount: response.questions.length,
-              durationMs: response.durationMs,
-              totalTokens: response.totalTokens,
-            });
+            console.info(
+              `[Generator] Received ${response.questions.length} MC questions for ${topic}`,
+              {
+                durationMs: response.durationMs,
+                totalTokens: response.totalTokens,
+              },
+            );
 
             allQuestions = allQuestions.concat(response.questions);
             totalTelemetry.durationMs += response.durationMs || 0;
@@ -2338,11 +2340,14 @@ export function GeneratorView() {
       const responseEnteredAtMs =
         writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
       const markStartedAt = Date.now();
-      console.log('[Marking] Calling mark_answer:', {
-        questionId: activeQuestion.id,
-        model: markModel,
-        hasImage: Boolean(finalImage),
-      });
+      console.info(
+        `[Marking] Submitting answer for question: ${activeQuestion.id}`,
+        {
+          topic: activeQuestion.topic,
+          model: markingModel,
+        },
+      );
+
       const rawResponse = await invoke<unknown>('mark_answer', {
         request: {
           question: activeQuestion,
@@ -2352,11 +2357,17 @@ export function GeneratorView() {
           apiKey,
         },
       });
-      console.log('[Marking] Received response for:', activeQuestion.id);
       const markingLatencyMs = Date.now() - markStartedAt;
       const response = normalizeMarkResponse(
         rawResponse,
         activeQuestion.maxMarks,
+      );
+      console.info(
+        `[Marking] Received response for question: ${activeQuestion.id}`,
+        {
+          durationMs: markingLatencyMs,
+          totalTokens: response.totalTokens,
+        },
       );
       setFeedbackByQuestionId((prev) => ({
         ...prev,

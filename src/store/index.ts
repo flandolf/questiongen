@@ -173,6 +173,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   ...defaultState,
 
   hydrate: async () => {
+    console.info('Hydrating app store from persistent storage...');
     try {
       const persisted = await loadPersistedAppState();
       setLastSavedSnapshot(persisted);
@@ -180,8 +181,13 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         ...snapshotToState(persisted, defaultState),
         isHydrated: true,
       });
-    } catch {
-      console.error('Hydration failed');
+      console.info('Hydration successful', {
+        version: persisted.version,
+        savedSetsCount: persisted.savedSets.length,
+        historyCount: persisted.questionHistory.length,
+      });
+    } catch (err) {
+      console.error('Hydration failed', err);
       set({ errorMessage: 'Could not load saved app data.', isHydrated: true });
     }
   },
@@ -347,15 +353,25 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   saveCurrentSet: () => {
     const s = get();
+    console.info(`Saving current ${s.questionMode} session...`, {
+      topics: s.selectedTopics,
+      questionCount: s.questions.length || s.mcQuestions.length,
+    });
     const now = new Date().toISOString();
     const nowMs = Date.now();
     if (s.questionMode === 'written') {
-      if (s.questions.length === 0) return null;
+      if (s.questions.length === 0) {
+        console.warn('Cannot save empty written session');
+        return null;
+      }
       const isComplete = isWrittenSessionComplete(
         s.questions,
         s.feedbackByQuestionId,
       );
       if (isComplete) {
+        console.log(
+          'Written session is complete, skipping save or deleting if it was already saved',
+        );
         if (s.activeWrittenSavedSetId) {
           const completedSavedSetId = s.activeWrittenSavedSetId;
           set((state) => ({
@@ -416,14 +432,21 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       ];
       set({ savedSets: nextSavedSets, activeWrittenSavedSetId: savedSetId });
       void v3SaveSavedSet(nextEntry);
+      console.info('Written session saved', { id: savedSetId });
       return savedSetId;
     }
-    if (s.mcQuestions.length === 0) return null;
+    if (s.mcQuestions.length === 0) {
+      console.warn('Cannot save empty MC session');
+      return null;
+    }
     const isComplete = isMcSessionComplete(
       s.mcQuestions,
       s.mcAnswersByQuestionId,
     );
     if (isComplete) {
+      console.log(
+        'MC session is complete, skipping save or deleting if it was already saved',
+      );
       if (s.activeMcSavedSetId) {
         const completedSavedSetId = s.activeMcSavedSetId;
         set((state) => ({
@@ -481,12 +504,20 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     ];
     set({ savedSets: nextSavedSets, activeMcSavedSetId: savedSetId });
     void v3SaveSavedSet(nextEntry);
+    console.info('MC session saved', { id: savedSetId });
     return savedSetId;
   },
 
   loadSavedSet: (id) => {
     const entry = get().savedSets.find((e) => e.id === id);
-    if (!entry) return;
+    if (!entry) {
+      console.warn(`Could not find saved set with id: ${id}`);
+      return;
+    }
+    console.info(`Loading saved set: ${entry.title}`, {
+      id,
+      mode: entry.questionMode,
+    });
     startTransition(() => {
       set({
         selectedTopics: entry.preferences.selectedTopics,
