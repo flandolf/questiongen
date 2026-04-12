@@ -15,6 +15,10 @@ const MIN_EASINESS_FACTOR = 1.3;
  * Create a new spaced repetition card for a question.
  */
 export function createCard(nextReviewDate?: string): SpacedRepetitionCard {
+  /**
+   * Create a fresh spaced-repetition card object with sensible defaults.
+   * @param nextReviewDate - Optional ISO string for the initial next review
+   */
   const now = new Date();
   return {
     easinessFactor: DEFAULT_EASINESS_FACTOR,
@@ -43,6 +47,10 @@ export function reviewCard(
   card: SpacedRepetitionCard,
   quality: ReviewQuality,
 ): SpacedRepetitionCard {
+  /**
+   * Apply SM-2 update rules to a card given a `quality` rating (0-5).
+   * Returns an updated card with recalculated interval and easiness.
+   */
   const now = new Date();
   const nowIso = now.toISOString();
 
@@ -96,6 +104,9 @@ export function reviewCard(
  * Check if a card is due for review.
  */
 export function isDue(card: SpacedRepetitionCard): boolean {
+  /**
+   * Return true when the card's nextReviewDate is now or in the past.
+   */
   return new Date(card.nextReviewDate).getTime() <= Date.now();
 }
 
@@ -104,6 +115,9 @@ export function isDue(card: SpacedRepetitionCard): boolean {
  * Returns 0 if already due, negative if overdue.
  */
 export function daysUntilReview(card: SpacedRepetitionCard): number {
+  /**
+   * Number of whole days until the card's `nextReviewDate` (0 if due).
+   */
   const diffMs = new Date(card.nextReviewDate).getTime() - Date.now();
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }

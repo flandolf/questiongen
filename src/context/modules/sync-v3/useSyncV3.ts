@@ -30,6 +30,10 @@ function mergeById<T extends { id: string; lastModified?: number }>(
     preserveLocalOnly?: (entry: T) => boolean;
   },
 ): T[] {
+  /**
+   * Merge remote and local arrays by `id`. Optionally preserve local-only
+   * entries based on a predicate.
+   */
   const result = [...remote];
   const remoteMap = new Map(remote.map((e) => [e.id, e]));
 
@@ -120,6 +124,20 @@ export function useSyncV3(): UseSyncV3Return {
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
             }));
             const local = useAppStore.getState().questionHistory;
+            /**
+             * Custom hook that manages Firebase-based sync for app state.
+             *
+             * Responsibilities:
+             * - Observe Firebase auth state and set up Firestore listeners for the
+             *   current user (question history, MC history, saved sets, settings).
+             * - Merge remote and local data using `mergeById` and the app store.
+             * - Provide helpers to enable/disable sync (sign-in / sign-up and sign-out).
+             *
+             * The hook returns the current Firebase user, connection/sync status flags,
+             * and `enableSync`/`disableSync` functions for UI-driven authentication.
+             *
+             * @returns {UseSyncV3Return} sync state and control functions.
+             */
             useAppStore.setState({
               questionHistory: mergeById(local, history, {
                 preserveLocalOnly: (entry) => entry.isUploaded === false,
@@ -137,6 +155,11 @@ export function useSyncV3(): UseSyncV3Return {
 
         // 2. MC History
         const mchUnsub = onSnapshot(
+          /**
+           * Push local, not-yet-uploaded history entries to Firestore.
+           * Relies on `saveQuestionHistoryEntry` and `saveMcHistoryEntry` which
+           * themselves handle network/offline behavior via Firestore SDK.
+           */
           collection(db, `users/${uid}/mcHistory`),
           { includeMetadataChanges: true },
           (snapshot) => {
@@ -155,6 +178,10 @@ export function useSyncV3(): UseSyncV3Return {
                 preserveLocalOnly: (entry) => entry.isUploaded === false,
               }),
             });
+            /**
+             * Attach Firestore snapshot listeners for the given user id.
+             * Incoming snapshots are normalized and merged with local app state.
+             */
           },
           (error) => {
             console.error('[FirebaseSync] MC history listener error:', error);

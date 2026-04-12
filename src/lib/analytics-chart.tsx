@@ -17,6 +17,10 @@ export const FOCUS_AREA_COLORS: readonly string[] = [
 ] as const;
 
 export function CustomPieShape(props: PieSectorShapeProps) {
+  /**
+   * Custom pie sector component that provides a default color palette.
+   * Used with `recharts` to render pie slices with consistent focus-area colors.
+   */
   return (
     <Sector
       {...props}
@@ -35,6 +39,9 @@ export function Card({
   children: React.ReactNode;
   className?: string;
 }) {
+  /**
+   * Simple presentational card wrapper used by analytics components.
+   */
   return (
     <div
       className={`rounded-sm border border-border/40 bg-muted/30 text-card-foreground shadow-sm ${className}`}
@@ -51,6 +58,9 @@ export function SectionHeading({
   title: string;
   description?: string;
 }) {
+  /**
+   * Section heading used in analytics panels with optional description.
+   */
   return (
     <div className='mb-4'>
       <h2 className='text-lg font-medium tracking-tight text-foreground'>
@@ -64,6 +74,9 @@ export function SectionHeading({
 }
 
 export function ChartEmpty({ message }: { message: string }) {
+  /**
+   * Empty state placeholder for charts.
+   */
   return (
     <div className='flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 '>
       {message}
@@ -72,6 +85,9 @@ export function ChartEmpty({ message }: { message: string }) {
 }
 
 export function accuracyColor(pct: number | undefined): string {
+  /**
+   * Map an accuracy percentage (0-100) to a utility color class.
+   */
   if (pct === undefined) return 'text-muted-foreground';
   if (pct >= 80) return 'text-emerald-600 dark:text-emerald-400';
   if (pct >= 60) return 'text-amber-600 dark:text-amber-400';

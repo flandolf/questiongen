@@ -8,8 +8,10 @@ import {
 } from '@/lib/import-export';
 import { useAppStore } from '@/store';
 
-/**
- * Periodically exports app data as JSON into the user-chosen backup folder (desktop only).
+/*
+ * Periodically trigger local JSON backups to a desktop folder when running
+ * inside the Tauri desktop app and when the user has configured a folder
+ * and interval in settings.
  */
 export function useLocalBackupExport(): void {
   const isHydrated = useAppStore((s) => s.isHydrated);

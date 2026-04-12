@@ -15,6 +15,10 @@ const smoothedPointsCache = new Map<
 >();
 
 export function pointsToSvgPath(points: Point[]): string {
+  /**
+   * Convert an array of points into an SVG path string using quadratic
+   * segments between midpoints to create a smooth stroke.
+   */
   if (!points || points.length === 0) return '';
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
 
@@ -32,6 +36,9 @@ export function pointsToSvgPath(points: Point[]): string {
 }
 
 function escapeXmlText(value: string): string {
+  /**
+   * Escape text for safe inclusion inside XML/SVG text nodes.
+   */
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -44,6 +51,9 @@ function strokeToSvgElement(
   opacity: number,
   strokeWidth: number,
 ): string {
+  /**
+   * Serialize a `Stroke` object into an SVG element string snippet.
+   */
   if (stroke.tool === 'line' && stroke.points.length >= 2) {
     const start = stroke.points[0];
     const end = stroke.points[stroke.points.length - 1];
@@ -99,6 +109,9 @@ function graphAxesToSvg(
   opacity: number,
   metadata: string,
 ): string {
+  /**
+   * Render graph axes and gridlines as an SVG group string centered at (cx,cy).
+   */
   const halfW = 320;
   const halfH = 240;
   const tickSpacing = 40;
@@ -182,6 +195,11 @@ export function strokesToSvgString(
   bg?: BgType,
   includeMetadata: boolean = false,
 ): string {
+  /**
+   * Serialize an array of strokes into a full SVG document string.
+   * If `includeMetadata` is true, per-stroke JSON is embedded as a data
+   * attribute to allow precise round-tripping.
+   */
   const bgFill = bg === 'black-grid' ? '#ffffff' : 'transparent';
   const bgRect = `<rect width="100%" height="100%" fill="${bgFill}"/>`;
 
@@ -266,6 +284,9 @@ function normalizePoint(value: unknown): Point | null {
 }
 
 function normalizeStroke(value: unknown): Stroke | null {
+  /**
+   * Validate and normalize an arbitrary object into a `Stroke` or null.
+   */
   if (!value || typeof value !== 'object') return null;
   const stroke = value as Partial<Stroke>;
   if (
@@ -300,6 +321,10 @@ function normalizeStroke(value: unknown): Stroke | null {
 }
 
 export function parseStrokesFromSvgString(svgString: string): Stroke[] {
+  /**
+   * Parse strokes previously embedded into an SVG string via
+   * `data-sketchpad-stroke` attributes and return normalized strokes.
+   */
   if (typeof DOMParser === 'undefined') return [];
 
   try {
@@ -342,6 +367,10 @@ export function renderStrokesToCanvas(
     quality?: 'low' | 'high';
   } = {},
 ) {
+  /**
+   * Render strokes to a 2D canvas context. Supports smoothing, pressure
+   * curves, eraser masks, basic shapes and text rendering.
+   */
   const {
     dpr = 1,
     clear = true,

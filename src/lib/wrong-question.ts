@@ -14,6 +14,9 @@ export type ReattemptResult = {
 export { shuffleWithSeed as shuffleArray };
 
 export function scoreBg(pct: number) {
+  /**
+   * Return a background utility class for a score percentage.
+   */
   if (pct >= 0.75)
     return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400';
   if (pct >= 0.5)
@@ -22,6 +25,9 @@ export function scoreBg(pct: number) {
 }
 
 export function criterionScoreClass(pct: number) {
+  /**
+   * Return a utility class for criterion scoring badges.
+   */
   if (pct >= 1)
     return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300';
   if (pct >= 0.5)
@@ -32,6 +38,10 @@ export function criterionScoreClass(pct: number) {
 export function getScoreInfo(
   entry: WrongEntry,
 ): { scoreLabel: string; pct: number } | null {
+  /**
+   * Extract scored info from a wrong-answer history entry when available.
+   * Returns `null` for MC entries.
+   */
   if (entry.kind !== 'written') return null;
   const pct =
     entry.markResponse.maxMarks > 0

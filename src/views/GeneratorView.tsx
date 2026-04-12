@@ -99,6 +99,16 @@ function buildSketchpadSessionKey(
         'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
       >,
 ): string {
+  /**
+   * Build a stable session key for a sketchpad associated with a question.
+   *
+   * The key encodes the session `mode`, question identity and a short hash of
+   * the question contents so that different edits produce different keys.
+   *
+   * @param mode - Sketchpad mode: 'written' or 'multiple-choice'
+   * @param question - Minimal question object used to derive the signature
+   * @returns A stable string key suitable for use as a storage identifier
+   */
   const signature = [
     mode,
     question.topic,
@@ -116,6 +126,18 @@ function syncTimerPauseDuringMarking(
   wasMarking: boolean,
   wasPausedBeforeMarking: boolean,
 ) {
+  /**
+   * Pause or resume a timer while an async marking process is active.
+   *
+   * Ensures the provided timer is paused when `isMarking` is true and
+   * restores the previous pause state once marking finishes.
+   *
+   * @param timer - Object exposing `isPaused` and `togglePause()` for the timer
+   * @param isMarking - Whether marking is currently active
+   * @param wasMarking - Whether marking was active on the previous render
+   * @param wasPausedBeforeMarking - The timer pause state before marking began
+   * @returns Updated `wasPausedBeforeMarking` value for callers to persist
+   */
   if (isMarking) {
     if (!wasMarking) {
       const nextWasPausedBeforeMarking = timer.isPaused;
@@ -143,6 +165,12 @@ function syncTimerPauseDuringMarking(
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * Main generator view component.
+ *
+ * Handles question generation UI state, timers, navigation and interaction
+ * handlers for both written and multiple-choice sessions.
+ */
 // eslint-disable-next-line complexity
 export function GeneratorView() {
   // Read query params for pre-selection

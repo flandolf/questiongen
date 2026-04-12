@@ -25,6 +25,9 @@ async function invokeTauri<T>(
   cmd: string,
   args: Record<string, unknown>,
 ): Promise<T> {
+  /**
+   * Helper wrapper around `invoke` that formats Tauri invocation errors.
+   */
   try {
     return await invoke<T>(cmd, args);
   } catch (e) {
@@ -115,6 +118,10 @@ export interface ImportCounts {
 // ─── Export ────────────────────────────────────────────────────────────────
 
 export function exportAppState(s: ImportExportState): PersistedAppState {
+  /**
+   * Build a sanitized `PersistedAppState` snapshot from the lighter
+   * `ImportExportState` for exporting or backup.
+   */
   const preserveImages = true;
   const snapshot = buildExportSnapshot(s, { preserveImages });
 
@@ -137,6 +144,9 @@ export function exportAppState(s: ImportExportState): PersistedAppState {
 }
 
 export function createExportEnvelope(state: PersistedAppState): ExportEnvelope {
+  /**
+   * Wrap state with metadata for export files.
+   */
   return {
     _exportVersion: 1,
     _exportedAt: new Date().toISOString(),
@@ -146,6 +156,9 @@ export function createExportEnvelope(state: PersistedAppState): ExportEnvelope {
 }
 
 export function isTauriApp(): boolean {
+  /**
+   * Check whether the running environment is the Tauri desktop app.
+   */
   return isTauriRuntime();
 }
 

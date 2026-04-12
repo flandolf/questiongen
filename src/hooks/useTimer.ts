@@ -34,6 +34,12 @@ export interface UseTimerReturn {
 }
 
 function getMarks(q: GeneratedQuestion | McQuestion): number {
+  /**
+   * Determine the marks assigned to a question object.
+   * Supports both written (`maxMarks`) and MC (`marks`) shapes.
+   * @param q - Question object
+   * @returns Integer number of marks (minimum 1)
+   */
   if ('maxMarks' in q && typeof q.maxMarks === 'number') {
     return Math.max(1, Math.floor(q.maxMarks));
   }
@@ -44,6 +50,10 @@ function getMarks(q: GeneratedQuestion | McQuestion): number {
 }
 
 function formatTime(seconds: number): string {
+  /**
+   * Format a seconds count as M:SS.
+   * Handles invalid inputs safely.
+   */
   if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0)
     return '0:00';
   const total = Math.floor(seconds);
@@ -51,11 +61,18 @@ function formatTime(seconds: number): string {
 }
 
 function computeShouldWarn(elapsedSeconds: number, marks: number): boolean {
+  /**
+   * Heuristic to determine whether a question has exceeded expected time
+   * and should be highlighted as a warning. Uses `warningSecondsPerMark`.
+   */
   const warningSecondsPerMark = 72;
   return marks > 0 && elapsedSeconds > marks * warningSecondsPerMark;
 }
 
 function createEmptyState(): TimerState {
+  /**
+   * Return an empty `TimerState` object representing a cleared timer.
+   */
   return {
     questions: {},
     activeQuestionId: null,
@@ -76,6 +93,10 @@ function getElapsedSeconds(
   q: QuestionTiming | undefined,
   nowMs: number,
 ): number {
+  /**
+   * Compute elapsed seconds for a question timing record, taking into
+   * account whether the timer is actively running (`runningSinceMs`).
+   */
   if (!q) return 0;
   if (q.runningSinceMs === null) return q.elapsedSeconds;
   const deltaSec = Math.max(0, Math.floor((nowMs - q.runningSinceMs) / 1000));
@@ -83,6 +104,11 @@ function getElapsedSeconds(
 }
 
 function stopQuestion(q: QuestionTiming, nowMs: number): QuestionTiming {
+  /**
+   * Stop a running question timer and return an updated `QuestionTiming` with
+   * `runningSinceMs` cleared and `elapsedSeconds` updated to include the
+   * time since it started.
+   */
   if (q.runningSinceMs === null) return q;
   return {
     ...q,
@@ -93,6 +119,10 @@ function stopQuestion(q: QuestionTiming, nowMs: number): QuestionTiming {
 }
 
 function startQuestion(q: QuestionTiming, nowMs: number): QuestionTiming {
+  /**
+   * Start a question timer if it isn't already running and hasn't been
+   * marked answered. Returns the updated timing record.
+   */
   if (q.runningSinceMs !== null || q.answeredAt !== null) return q;
   return {
     ...q,
@@ -106,6 +136,17 @@ export function useTimer(
   activeQuestionIndex: number,
   sessionKey: 'written' | 'mc',
 ): UseTimerReturn {
+  /**
+   * Hook managing per-session timers for questions.
+   *
+   * Tracks per-question elapsed time, session elapsed time, pause state,
+   * and exposes controls for starting, marking answered, completing and
+   * pausing the session. Persists intermediate state to the global store.
+   *
+   * @param questions - Array of current session questions
+   * @param activeQuestionIndex - Index of the active question in the array
+   * @param sessionKey - Either 'written' or 'mc' to select persisted slice
+   */
   const persistedTimer = useAppStore((s) =>
     sessionKey === 'written' ? s.writtenTimer : s.mcTimer,
   );

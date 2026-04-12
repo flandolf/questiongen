@@ -6,6 +6,9 @@
 import type { GeneratedQuestion, McQuestion } from '@/types';
 
 function getQuestionStem(question: GeneratedQuestion | McQuestion): string {
+  /**
+   * Extract a normalized stem for similarity checks from a question.
+   */
   if (typeof question.promptMarkdown === 'string') {
     return question.promptMarkdown.toLowerCase().trim();
   }
@@ -48,6 +51,9 @@ class GenerationResultCache {
     mode: 'written' | 'multiple-choice',
     questions: GeneratedQuestion[] | McQuestion[],
   ): void {
+    /**
+     * Store a generation result in the cache keyed by topics/difficulty/mode.
+     */
     const key = this.generateKey(topics, difficulty, mode);
 
     // Remove oldest entry if cache is full
@@ -73,6 +79,9 @@ class GenerationResultCache {
     difficulty: string,
     mode: 'written' | 'multiple-choice',
   ): GeneratedQuestion[] | McQuestion[] | null {
+    /**
+     * Retrieve a cached generation result if not expired (1 hour).
+     */
     const key = this.generateKey(topics, difficulty, mode);
     const entry = this.cache.get(key);
 
@@ -92,6 +101,9 @@ class GenerationResultCache {
    * Clear the cache.
    */
   clear(): void {
+    /**
+     * Clear the in-memory generation cache.
+     */
     this.cache.clear();
   }
 }
@@ -105,6 +117,10 @@ export const generationCache = new GenerationResultCache();
 export function identifyDuplicateQuestions(
   questions: GeneratedQuestion[] | McQuestion[],
 ): { isDuplicate: boolean; duplicateIndices: number[] }[] {
+  /**
+   * Identify duplicated or near-duplicate questions in a batch.
+   * Returns an array of match info per input index.
+   */
   const results: { isDuplicate: boolean; duplicateIndices: number[] }[] = [];
 
   for (let i = 0; i < questions.length; i++) {

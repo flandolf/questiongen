@@ -32,6 +32,11 @@ const isTauriRuntime =
   typeof window !== 'undefined' &&
   ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
 
+/**
+ * Firebase initialization helper: configures app, auth, firestore and
+ * storage. Uses a memory-backed Firestore cache when running inside Tauri.
+ */
+
 if (isTauriRuntime) {
   try {
     for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
