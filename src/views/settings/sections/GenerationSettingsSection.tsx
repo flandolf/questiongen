@@ -52,6 +52,8 @@ export function GenerationSettingsSection() {
   );
   const generationStrategy = useAppStore((s) => s.generationStrategy);
   const setGenerationStrategy = useAppStore((s) => s.setGenerationStrategy);
+  const shuffleSubtopics = useAppStore((s) => s.shuffleSubtopics);
+  const setShuffleSubtopics = useAppStore((s) => s.setShuffleSubtopics);
 
   return (
     <div className="space-y-6">
@@ -239,6 +241,21 @@ export function GenerationSettingsSection() {
             <Switch
               checked={strictLatexValidation}
               onCheckedChange={setStrictLatexValidation}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Randomise Subtopics</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {shuffleSubtopics
+                  ? 'Subtopic order is randomised.'
+                  : 'Subtopic order follows curriculum.'}
+              </p>
+            </div>
+            <Switch
+              checked={shuffleSubtopics}
+              onCheckedChange={setShuffleSubtopics}
             />
           </div>
 

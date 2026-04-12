@@ -275,6 +275,7 @@ impl GenerationService {
             tech_mode: tech_mode.to_string(),
             include_exam_context,
             avoid_similar_questions: request.avoid_similar_questions.unwrap_or(false),
+            shuffle_subtopics: request.shuffle_subtopics.unwrap_or(false),
             prior_question_prompts: request.prior_question_prompts.clone(),
         };
         let prompt = prompt_builder.build_written();
@@ -305,6 +306,7 @@ impl GenerationService {
             let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
                 selected_subs,
                 request.custom_focus_area.as_deref(),
+                request.shuffle_subtopics.unwrap_or(false),
             ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
             serde_json::Value::Array(parts)
@@ -442,7 +444,7 @@ impl GenerationService {
                         vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
                     parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
                     parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
-                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref())) }));
+                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref(), request.shuffle_subtopics.unwrap_or(false))) }));
                     let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
                         selected_subs,
                         request.question_count,
@@ -468,7 +470,10 @@ impl GenerationService {
                     let mut p = format!(
                         "{}\n\n{}\n\n{}\n\n{}",
                         regen_intro,
-                        sanitize_for_api(&prompts::subtopics_note(selected_subs)),
+                        sanitize_for_api(&prompts::subtopics_note(
+                            selected_subs,
+                            request.shuffle_subtopics.unwrap_or(false)
+                        )),
                         synth,
                         diversity_note
                     );
@@ -642,6 +647,7 @@ impl GenerationService {
             tech_mode: tech_mode.to_string(),
             include_exam_context,
             avoid_similar_questions: request.avoid_similar_questions.unwrap_or(false),
+            shuffle_subtopics: request.shuffle_subtopics.unwrap_or(false),
             prior_question_prompts: request.prior_question_prompts.clone(),
         };
         let prompt = prompt_builder.build_mc();
@@ -675,6 +681,7 @@ impl GenerationService {
             let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
                 selected_subs,
                 request.custom_focus_area.as_deref(),
+                request.shuffle_subtopics.unwrap_or(false),
             ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
             serde_json::Value::Array(parts)
@@ -789,7 +796,7 @@ impl GenerationService {
                         vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
                     parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
                     parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
-                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref())) }));
+                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref(), request.shuffle_subtopics.unwrap_or(false))) }));
                     let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
                         selected_subs,
                         request.question_count,
@@ -810,7 +817,10 @@ impl GenerationService {
                     let mut p = format!(
                         "{}\n\n{}\n\n{}\n\n{}",
                         regen_intro,
-                        sanitize_for_api(&prompts::subtopics_note(selected_subs)),
+                        sanitize_for_api(&prompts::subtopics_note(
+                            selected_subs,
+                            request.shuffle_subtopics.unwrap_or(false)
+                        )),
                         synth,
                         diversity_note
                     );

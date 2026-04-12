@@ -452,12 +452,19 @@ fn table_rule_row_break_issues(segment: &str) -> Vec<String> {
             if cmd_end > i + 1 {
                 let command: String = chars[i + 1..cmd_end].iter().collect();
                 if RULE_COMMANDS.iter().any(|candidate| candidate == &command) {
-                    let mut back = i;
-                    while back > 0 && chars[back - 1].is_whitespace() {
-                        back -= 1;
+                    let mut ws_start = i;
+                    while ws_start > 0 && chars[ws_start - 1].is_whitespace() {
+                        ws_start -= 1;
                     }
 
-                    if back > 0 && chars[back - 1] == '\\' && (back < 2 || chars[back - 2] != '\\')
+                    // If there's a single backslash immediately before the whitespace
+                    // preceding the rule command (e.g. "\ \hline"), that's a
+                    // misplaced single-\ that should be flagged. We detect a single
+                    // backslash just before `ws_start` whose predecessor is not another
+                    // backslash.
+                    if ws_start > 0
+                        && chars[ws_start - 1] == '\\'
+                        && (ws_start < 2 || chars[ws_start - 2] != '\\')
                     {
                         issues.push(format!(
                             "table rule \\{} needs a row break of \\\\ before it; single \\ causes Misplaced \\hline",
@@ -611,6 +618,9 @@ pub fn latex_issues_for_text(text: &str) -> Vec<String> {
                 }
             }
             LatexNode::Text(inner) => {
+                for issue in table_rule_row_break_issues(&inner) {
+                    issues.push(format!("text {}", issue));
+                }
                 if inner.contains("\\frac") || inner.contains("\\dfrac") {
                     issues.push("\\frac found outside math delimiters".to_string());
                 }

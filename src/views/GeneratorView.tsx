@@ -248,6 +248,7 @@ export function GeneratorView() {
     imageMarkingModel,
     useSeparateImageMarkingModel,
     includeExamContext,
+    shuffleSubtopics,
   } = useAppSettings();
   const {
     selectedTopics,
@@ -1622,18 +1623,8 @@ export function GeneratorView() {
                   techMode,
                   includeExamContext,
                   subtopics: topicSubtopics,
+                  shuffleSubtopics,
                   customFocusArea: getCustomFocusArea(),
-                  avoidSimilarQuestions,
-                  strictLatexValidation,
-                  strictSubtopicCoverage,
-                  minSubtopicCoverageRatio,
-                  diversityStrictness,
-                  priorQuestionPrompts: avoidSimilarQuestions
-                    ? getRecentSameTopicQuestionPrompts('written')
-                    : [],
-                  aiDifficultyScalingEnabled,
-                  recentAverageScore,
-                  recentDifficulty: difficulty,
                 },
               }
             );
@@ -1721,18 +1712,8 @@ export function GeneratorView() {
                   techMode,
                   includeExamContext,
                   subtopics: call.subtopics,
+                  shuffleSubtopics,
                   customFocusArea: getCustomFocusArea(),
-                  avoidSimilarQuestions,
-                  strictLatexValidation,
-                  strictSubtopicCoverage,
-                  minSubtopicCoverageRatio,
-                  diversityStrictness,
-                  priorQuestionPrompts: avoidSimilarQuestions
-                    ? getRecentSameTopicQuestionPrompts('written')
-                    : [],
-                  aiDifficultyScalingEnabled,
-                  recentAverageScore,
-                  recentDifficulty: difficulty,
                 },
               }
             );
@@ -1762,13 +1743,14 @@ export function GeneratorView() {
               inputs: {
                 topic,
                 difficulty,
-                questionCount: call.count,
-                questionMode: 'written',
+                questionCount: response.questions.length,
+                questionMode: 'multiple-choice',
                 techMode,
                 averageMarksPerQuestion,
-                subtopics: call.subtopics,
+                subtopics: topicSubtopics,
                 customFocusArea: getCustomFocusArea(),
               },
+
               outputs: {
                 durationMs: response.durationMs || 0,
                 promptTokens: response.promptTokens,
@@ -1961,6 +1943,7 @@ export function GeneratorView() {
                   techMode,
                   includeExamContext,
                   subtopics: topicSubtopics,
+                  shuffleSubtopics,
                   customFocusArea: getCustomFocusArea(),
                   avoidSimilarQuestions,
                   strictLatexValidation,
@@ -1977,12 +1960,7 @@ export function GeneratorView() {
               }
             );
 
-            // Shuffle options for each returned MC question and relabel
-            const adjusted = (response.questions || []).map((q) =>
-              shuffleMcQuestionOptions(q)
-            );
-
-            allQuestions = allQuestions.concat(adjusted);
+            allQuestions = allQuestions.concat(response.questions);
             totalTelemetry.durationMs += response.durationMs || 0;
             totalTelemetry.promptTokens += response.promptTokens || 0;
             totalTelemetry.completionTokens += response.completionTokens || 0;
@@ -2008,8 +1986,9 @@ export function GeneratorView() {
                 topic,
                 difficulty,
                 questionCount: response.questions.length,
-                questionMode: 'multiple-choice',
+                questionMode: 'written',
                 techMode,
+                averageMarksPerQuestion,
                 subtopics: topicSubtopics,
                 customFocusArea: getCustomFocusArea(),
               },
@@ -2021,8 +2000,6 @@ export function GeneratorView() {
                 estimatedCostUsd: response.estimatedCostUsd,
               },
             });
-
-            if (isMultiTopic) setBatchEntryDone(i);
             continue;
           }
 

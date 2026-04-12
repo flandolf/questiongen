@@ -121,10 +121,17 @@ pub fn tech_note(mode: &str, topics: &[String]) -> String {
     }
 }
 
-pub fn subtopics_note(selected: Option<&Vec<String>>) -> String {
-    let Some(subs) = selected.filter(|s| !s.is_empty()) else {
+pub fn subtopics_note(selected: Option<&Vec<String>>, shuffle: bool) -> String {
+    let Some(mut subs) = selected.filter(|s| !s.is_empty()).cloned() else {
         return String::new();
     };
+
+    if shuffle {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::rng();
+        subs.shuffle(&mut rng);
+    }
+
     let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
 
     // Inject Study Design key knowledge and exam technique notes from the catalog.
@@ -154,12 +161,19 @@ pub fn subtopic_synthesis_note(selected: Option<&Vec<String>>, question_count: u
     format!("\nINTEGRATED: {blend_scope}. Prefer exam-style synthesis. Use one primary subtopic label per question.")
 }
 
-pub fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option<&str>) -> String {
+pub fn focus_lock_note(
+    selected: Option<&Vec<String>>,
+    custom_focus_area: Option<&str>,
+    shuffle: bool,
+) -> String {
     let mut constraints = Vec::<String>::new();
-    if let Some(subs) = selected {
-        if !subs.is_empty() {
-            constraints.push(format!("Subtopics: {}.", subs.join(", ")));
+    if let Some(mut subs) = selected.filter(|s| !s.is_empty()).cloned() {
+        if shuffle {
+            use rand::seq::SliceRandom;
+            let mut rng = rand::rng();
+            subs.shuffle(&mut rng);
         }
+        constraints.push(format!("Subtopics: {}.", subs.join(", ")));
     }
     if let Some(area) = custom_focus_area {
         let trimmed = area.trim();
@@ -181,15 +195,19 @@ pub fn focus_lock_note(selected: Option<&Vec<String>>, custom_focus_area: Option
 pub fn pdf_reanchor_note(
     selected: Option<&Vec<String>>,
     custom_focus_area: Option<&str>,
+    shuffle: bool,
 ) -> String {
     let mut lines = vec![
         "── PDF STYLE REFERENCE ENDS HERE ──".to_string(),
         "Return to the focus constraints specified earlier:".to_string(),
     ];
-    if let Some(subs) = selected {
-        if !subs.is_empty() {
-            lines.push(format!("• Subtopics: {}.", subs.join(", ")));
+    if let Some(mut subs) = selected.filter(|s| !s.is_empty()).cloned() {
+        if shuffle {
+            use rand::seq::SliceRandom;
+            let mut rng = rand::rng();
+            subs.shuffle(&mut rng);
         }
+        lines.push(format!("• Subtopics: {}.", subs.join(", ")));
     }
     if let Some(area) = custom_focus_area {
         let trimmed = area.trim();
@@ -377,6 +395,7 @@ pub struct UserPromptBuilder {
     pub tech_mode: String,
     pub include_exam_context: bool,
     pub avoid_similar_questions: bool,
+    pub shuffle_subtopics: bool,
     pub prior_question_prompts: Option<Vec<String>>,
 }
 
@@ -416,7 +435,7 @@ impl UserPromptBuilder {
             topics                = sanitize_for_api(&self.topics.join(", ")),
             difficulty            = self.difficulty,
             diff_rules            = difficulty_guidance(&self.difficulty),
-            subs_note             = sanitize_for_api(&subtopics_note(self.subtopics.as_ref())),
+            subs_note             = sanitize_for_api(&subtopics_note(self.subtopics.as_ref(), self.shuffle_subtopics)),
             synth_note            = sanitize_for_api(&subtopic_synthesis_note(self.subtopics.as_ref(), self.count)),
             custom_note           = sanitize_for_api(&custom_note),
             tech                  = tech_note(&self.tech_mode, &self.topics),
@@ -424,7 +443,7 @@ impl UserPromptBuilder {
             math_diff             = math_difficulty_note(&self.difficulty, &self.topics),
             methods_exam1_note    = math_methods_exam1_tech_free_note(&self.topics, &self.tech_mode),
             prob_table_note       = probability_distribution_table_note(&self.topics),
-            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref())),
+            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics)),
             exam_context_preamble = exam_context_preamble,
             average_marks         = average_marks,
             total_marks           = total_marks,
@@ -466,14 +485,14 @@ impl UserPromptBuilder {
             topics                = sanitize_for_api(&self.topics.join(", ")),
             difficulty            = self.difficulty,
             diff_rules            = difficulty_guidance(&self.difficulty),
-            subs_note             = sanitize_for_api(&subtopics_note(self.subtopics.as_ref())),
+            subs_note             = sanitize_for_api(&subtopics_note(self.subtopics.as_ref(), self.shuffle_subtopics)),
             synth_note            = sanitize_for_api(&subtopic_synthesis_note(self.subtopics.as_ref(), self.count)),
             custom_note           = sanitize_for_api(&custom_note),
             tech                  = tech_note(&self.tech_mode, &self.topics),
             topic_notes           = topic_notes(&self.topics, self.subtopics.as_ref()),
             math_diff             = math_difficulty_note(&self.difficulty, &self.topics),
             prob_table_note       = probability_distribution_table_note(&self.topics),
-            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref())),
+            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics)),
             exam_context_preamble = exam_context_preamble,
             sim_note              = sanitize_for_api(&similarity_note(
                 self.avoid_similar_questions,
