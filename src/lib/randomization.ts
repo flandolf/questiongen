@@ -25,6 +25,11 @@ export function createSeededRandom(seed: number = Date.now()) {
 }
 
 /**
+ * Create a seeded pseudo-random generator with `next()` and `nextInt()`.
+ * @param seed - Numeric seed to initialize the generator
+ */
+
+/**
  * Generate a seed from topic and subtopic names for reproducible results.
  */
 export function generateSeedFromTopics(
@@ -39,6 +44,11 @@ export function generateSeedFromTopics(
   }
   return Math.abs(hash);
 }
+
+/**
+ * Derive an integer seed from topic and subtopic names for reproducible
+ * randomization across sessions.
+ */
 
 /**
  * Shuffle array in-place using Fisher-Yates with optional seeding.

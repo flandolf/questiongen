@@ -11,6 +11,11 @@ export function FirebaseSyncProvider({
 }) {
   const firebaseSync = useSyncV3();
 
+  /**
+   * Provides Firebase sync functionality (listeners, auth helpers) to the
+   * app via context. Wrap the application with `FirebaseSyncProvider` to
+   * enable cloud sync features.
+   */
   return (
     <FirebaseSyncContext.Provider value={firebaseSync}>
       {children}

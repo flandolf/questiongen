@@ -3,6 +3,10 @@
  * instances — unwrap them so UI can show the real message.
  */
 export function formatTauriInvokeError(err: unknown): string {
+  /**
+   * Extract a readable message from a Tauri `invoke` error payload which may
+   * be a string, an Error, or an object with `code`/`message` fields.
+   */
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
   if (err && typeof err === 'object') {

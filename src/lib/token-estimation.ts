@@ -143,6 +143,11 @@ export function persistLogRegressionCoefficients(
   }
 }
 
+/**
+ * Persist log-regression coefficients into localStorage (best-effort).
+ * @param coeffs - Coefficients object to persist
+ */
+
 export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
   try {
     if (typeof window !== 'undefined') {
@@ -170,6 +175,12 @@ export function loadLogRegressionCoefficients(): LogRegressionCoefficients {
   }
   return { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
 }
+
+/**
+ * Train a simple log-linear regression model on historical generation records.
+ * Returns updated coefficients and an R^2 fit metric. If insufficient data
+ * the function returns defaults with `sampleSize` set.
+ */
 
 function extractLogRegressionFeatures(
   questionCount: number,

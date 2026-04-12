@@ -7,6 +7,11 @@ import type { ModelStats } from '@/views/settings/types';
 
 type ModelType = 'generation' | 'marking' | 'image' | 'tutor';
 
+/**
+ * Internal helper hook to fetch model statistics from the native bridge.
+ * @param apiKey - API key to use when querying model stats
+ * @param modelType - One of 'generation' | 'marking' | 'image' | 'tutor'
+ */
 function useModelStat(apiKey: string | undefined, modelType: ModelType) {
   const [stats, setStats] = useState<ModelStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +57,13 @@ function useModelStat(apiKey: string | undefined, modelType: ModelType) {
  * Extracted hook to manage model statistics and reduce component complexity.
  */
 export function useModelStats(apiKey: string | undefined) {
+  /**
+   * Hook exposing grouped model statistics fetchers for generation, marking,
+   * image and tutor model types. Each sub-hook provides `stats`, `loading`,
+   * `error`, `updatedAt` and `fetch`.
+   *
+   * @param apiKey - API key to use for model queries
+   */
   const generation = useModelStat(apiKey, 'generation');
   const marking = useModelStat(apiKey, 'marking');
   const image = useModelStat(apiKey, 'image');

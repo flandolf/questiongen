@@ -15,6 +15,11 @@ export {
 } from './token-estimation';
 
 export function formatDate(dateInput: string): string {
+  /**
+   * Format an ISO/timestamp string into a locale date/time string.
+   * @param dateInput - ISO date string or timestamp
+   * @returns Human-readable local date/time or 'Unknown time' on failure
+   */
   const date = new Date(dateInput);
   if (Number.isNaN(date.getTime())) {
     return 'Unknown time';
@@ -24,10 +29,20 @@ export function formatDate(dateInput: string): string {
 }
 
 export function formatPercent(value: number, fractionDigits = 1): string {
+  /**
+   * Format a numeric value as a percentage string.
+   * @param value - Percentage value (e.g. 12.3)
+   * @param fractionDigits - Decimal places to show
+   */
   return `${value.toFixed(fractionDigits)}%`;
 }
 
 export function formatDurationMs(value?: number): string {
+  /**
+   * Convert a millisecond duration into a short human-readable string.
+   * Examples: '500ms', '1.2s', '2m 10s'.
+   * @param value - Duration in milliseconds
+   */
   if (value === undefined || value <= 0) {
     return 'n/a';
   }
@@ -52,6 +67,10 @@ export function clampWholeNumber(
   min: number,
   max: number,
 ): number {
+  /**
+   * Parse a value as a finite number, round it to an integer and clamp
+   * between `min` and `max`, returning `fallback` when parsing fails.
+   */
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
     return fallback;
@@ -64,6 +83,10 @@ export function normalizeMarkResponse(
   raw: unknown,
   questionMaxMarks: number,
 ): MarkAnswerResponse {
+  /**
+   * Normalize a raw marking response from the backend into a full
+   * `MarkAnswerResponse` with safe defaults and clamped numeric fields.
+   */
   const data = (raw ?? {}) as Partial<MarkAnswerResponse>;
   const maxMarks =
     questionMaxMarks > 0
@@ -109,6 +132,10 @@ export function fileToDataUrl(
     quality: 0.8,
   },
 ): Promise<string> {
+  /**
+   * Convert a `File` to a data URL, optionally resizing/compressing images.
+   * Returns unmodified data for non-images or SVGs.
+   */
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -163,6 +190,11 @@ export function fileToDataUrl(
 }
 
 export function readBackendError(error: unknown): string {
+  /**
+   * Extract a human-friendly message from a backend error object/string.
+   * @param error - Error thrown by backend or network operations
+   * @returns A readable error message
+   */
   if (typeof error === 'string') {
     return error;
   }
@@ -182,6 +214,9 @@ export function readBackendError(error: unknown): string {
 }
 
 export function formatCostUsd(costUsd: number | null | undefined): string {
+  /**
+   * Format an estimated USD cost to a compact string for display.
+   */
   if (costUsd == null) return 'n/a';
   if (costUsd === 0) return '$0.00';
   if (costUsd < 0.00001) return '<$0.00001';
@@ -194,6 +229,10 @@ export function formatCostUsd(costUsd: number | null | undefined): string {
  * Required for Firestore, which throws an error if an object contains 'undefined'.
  */
 export function removeUndefined<T>(obj: T): T {
+  /**
+   * Recursively remove `undefined` properties from objects/arrays.
+   * Useful for preparing data for Firestore which rejects `undefined`.
+   */
   if (obj === null || typeof obj !== 'object') return obj;
 
   if (Array.isArray(obj)) {

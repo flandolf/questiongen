@@ -1,3 +1,12 @@
+/**
+ * Normalize math delimiters in a string.
+ *
+ * Currently a passthrough because normalization is handled server-side,
+ * but kept as a stable API for callers.
+ *
+ * @param content - Input markdown/LaTeX content
+ * @returns Normalized content
+ */
 export function normalizeMathDelimiters(content: string): string {
   // Normalization now happens in Rust (`clean_field`) before content reaches
   // the UI. Keep this as a stable frontend API and passthrough.
@@ -18,6 +27,13 @@ function createMathToken(index: number): string {
 
 // Replace $...$ and $$...$$ blocks with placeholders so markdown parsers
 // cannot consume backslashes inside LaTeX commands.
+/**
+ * Replace inline/display LaTeX math blocks ($...$ / $$...$$) with opaque
+ * placeholder tokens so Markdown parsers do not consume or alter LaTeX
+ * sequences. Returns the transformed markdown and the list of placeholders.
+ *
+ * @param content - Original markdown containing LaTeX math
+ */
 export function shieldMathForMarkdown(content: string): ShieldedMath {
   const placeholders: Array<readonly [string, string]> = [];
   const out: string[] = [];
@@ -88,6 +104,12 @@ export function restoreMathPlaceholders(
   text: string,
   placeholders: ReadonlyArray<readonly [token: string, value: string]>,
 ): string {
+  /**
+   * Restore math placeholder tokens back to their original LaTeX fragments.
+   * @param text - Markdown text containing tokens
+   * @param placeholders - Array of [token, value] pairs to restore
+   * @returns Restored markdown with LaTeX fragments reinserted
+   */
   let output = text;
   for (const [token, value] of placeholders) {
     if (output.includes(token)) {

@@ -146,6 +146,11 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
+  /**
+   * Load persisted application state from Tauri backend or `localStorage`.
+   * Normalizes and migrates legacy values where necessary.
+   * @returns Normalized `PersistedAppState`
+   */
   const raw = await loadRawPersistedState();
   const hasDurableState =
     isRecord(raw) &&
@@ -162,6 +167,10 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
 export async function savePersistedAppState(
   state: PersistedAppState,
 ): Promise<void> {
+  /**
+   * Save the provided `PersistedAppState` either via Tauri command or
+   * to `localStorage` for the web runtime.
+   */
   if (isTauriRuntime()) {
     await invoke('save_persisted_state', { state });
     clearLegacyLocalStorage();
@@ -173,6 +182,9 @@ export async function savePersistedAppState(
 
 // Convenience helper to persist immediately from other modules.
 export async function persistNow(state: PersistedAppState): Promise<void> {
+  /**
+   * Convenience wrapper to persist state immediately.
+   */
   return savePersistedAppState(state);
 }
 

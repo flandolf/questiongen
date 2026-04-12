@@ -1,10 +1,17 @@
 export function scoreColorClass(pct: number): string {
+  /**
+   * Map a score percentage (0-1) to a Tailwind text color class.
+   * @param pct - Fractional score between 0 and 1
+   */
   if (pct >= 0.75) return 'text-emerald-500';
   if (pct >= 0.5) return 'text-amber-500';
   return 'text-rose-500';
 }
 
 export function scoreColorBgClass(pct: number): string {
+  /**
+   * Map a score percentage to a background + text color utility string.
+   */
   if (pct >= 0.9)
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300';
   if (pct >= 0.5)
@@ -13,12 +20,18 @@ export function scoreColorBgClass(pct: number): string {
 }
 
 export function scoreRingColor(pct: number): string {
+  /**
+   * Map a score percentage to a hex color used for ring/indicator components.
+   */
   if (pct >= 0.8) return '#10b981';
   if (pct >= 0.5) return '#f59e0b';
   return '#f43f5e';
 }
 
 export function scoreLabel(pct: number): string {
+  /**
+   * Return a short human label for the score percentage.
+   */
   if (pct >= 0.9) return 'Excellent';
   if (pct >= 0.75) return 'Good';
   if (pct >= 0.5) return 'Fair';

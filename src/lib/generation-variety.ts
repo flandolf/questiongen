@@ -21,6 +21,11 @@ interface GenerationContext {
  * Examples: "describe", "explain", "calculate", "derive", etc.
  */
 export function extractCommandVerbs(questionText: string): string[] {
+  /**
+   * Identify common command verbs in question text to detect patterns.
+   * @param questionText - Question prompt text
+   * @returns Array of matched verbs
+   */
   const commonVerbs = [
     'describe',
     'explain',
@@ -53,6 +58,9 @@ export function calculatePatternSimilarity(
   p1: QuestionPattern,
   p2: QuestionPattern,
 ): number {
+  /**
+   * Compute a heuristic similarity (0-1) between two question patterns.
+   */
   let similarity = 0;
   let factors = 0;
 
@@ -93,6 +101,10 @@ export function findSimilarPatterns(
   recentPatterns: QuestionPattern[],
   similarityThreshold: number = 0.6,
 ): QuestionPattern[] {
+  /**
+   * Return recent patterns that exceed the similarity threshold for a
+   * candidate pattern.
+   */
   return recentPatterns.filter((recent) => {
     const similarity = calculatePatternSimilarity(pattern, recent);
     return similarity >= similarityThreshold;
@@ -105,6 +117,10 @@ export function findSimilarPatterns(
 export function buildAvoidanceConstraints(
   generationContext: GenerationContext,
 ): string {
+  /**
+   * Build human-readable constraints to include in a generation prompt
+   * to avoid repeating recently observed patterns.
+   */
   const avoiders: string[] = [];
 
   if (
@@ -160,6 +176,10 @@ export function scoreVariety(
   question: QuestionPattern,
   recentQuestions: QuestionPattern[],
 ): number {
+  /**
+   * Score how novel a question is relative to recentQuestions. Higher means
+   * more variety.
+   */
   if (recentQuestions.length === 0) return 1;
 
   const similarities = recentQuestions.map((recent) =>
@@ -181,6 +201,9 @@ export function suggestFocusAreas(
   selectedTopics: string[],
   recentQuestions: QuestionPattern[],
 ): string[] {
+  /**
+   * Suggest topics to focus on to improve variety based on recent coverage.
+   */
   if (recentQuestions.length === 0) {
     return selectedTopics;
   }

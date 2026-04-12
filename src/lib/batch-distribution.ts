@@ -26,6 +26,11 @@ interface SubtopicDistribution {
 export function calculateOptimalBatchDistribution(
   config: BatchDistributionConfig,
 ): Map<Topic, number> {
+  /**
+   * Compute an optimal per-topic question distribution given constraints.
+   * @param config - Batch configuration including topics and total questions
+   * @returns Map of Topic -> question count
+   */
   const {
     topics,
     totalQuestions,
@@ -85,6 +90,10 @@ export function calculateSubtopicDistribution(
   subtopics: string[],
   questionCount: number,
 ): SubtopicDistribution[] {
+  /**
+   * Distribute `questionCount` across `subtopics`, preferring one-per-subtopic
+   * when counts are small and otherwise distributing evenly.
+   */
   if (!subtopics || subtopics.length === 0) {
     return [];
   }
@@ -117,6 +126,10 @@ export function validateBatchDistribution(
   topicCounts: Map<Topic, number>,
   expectedTopics: Topic[],
 ): { isValid: boolean; issues: string[] } {
+  /**
+   * Validate a proposed topic distribution for common issues like missing
+   * topics or over-concentration.
+   */
   const issues: string[] = [];
 
   // Check all topics are represented
@@ -155,6 +168,9 @@ export function estimateNextDifficulty(
   recentScore: number | undefined,
   performanceHistory: number[] = [],
 ): string {
+  /**
+   * Suggest the next difficulty level based on recent performance.
+   */
   if (recentScore === undefined || recentScore === null) {
     return currentDifficulty;
   }
@@ -199,6 +215,9 @@ export function recommendedQuestionCount(
   averageMarksPerQuestion: number,
   estimatedMinutesPerMark: number = 1.5,
 ): number {
+  /**
+   * Recommend how many questions fit in the provided time budget.
+   */
   const minutesPerQuestion = averageMarksPerQuestion * estimatedMinutesPerMark;
   const maxQuestions = Math.floor(timeAvailableMinutes / minutesPerQuestion);
 

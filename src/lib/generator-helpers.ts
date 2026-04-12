@@ -1,11 +1,19 @@
 import type { Difficulty, GeneratedQuestion, McQuestion } from '@/types';
 
 export function countWords(value: string): number {
+  /**
+   * Count words in a string using whitespace splitting.
+   * @param value - Input text
+   * @returns Number of words
+   */
   const trimmed = value.trim();
   return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
 }
 
 export function isMathTopic(topic?: string): boolean {
+  /**
+   * Return true when the topic is a math-related subject.
+   */
   return topic === 'Mathematical Methods' || topic === 'Specialist Mathematics';
 }
 
@@ -30,12 +38,19 @@ export function removeKey<T>(
   record: Record<string, T>,
   key: string,
 ): Record<string, T> {
+  /**
+   * Return a shallow copy of `record` with `key` removed.
+   */
   const next = { ...record };
   delete next[key];
   return next;
 }
 
 export function generateEntryId(): string {
+  /**
+   * Generate a stable-ish unique id for entries using `crypto.randomUUID`
+   * when available, otherwise falling back to timestamp + random suffix.
+   */
   if (
     typeof crypto !== 'undefined' &&
     typeof crypto.randomUUID === 'function'
@@ -46,6 +61,10 @@ export function generateEntryId(): string {
 }
 
 export function rekeyWritten(qs: GeneratedQuestion[]): GeneratedQuestion[] {
+  /**
+   * Recompute deterministic ids for written questions based on their
+   * content so duplicates can be detected and stable keys generated.
+   */
   const seen = new Map<string, number>();
   return qs.map((q) => {
     const signature = [
@@ -63,6 +82,10 @@ export function rekeyWritten(qs: GeneratedQuestion[]): GeneratedQuestion[] {
 }
 
 export function rekeyMc(qs: McQuestion[]): McQuestion[] {
+  /**
+   * Recompute deterministic ids for multiple-choice questions based on
+   * prompt, options and explanation to produce stable ids.
+   */
   const seen = new Map<string, number>();
   return qs.map((q) => {
     const options = q.options
@@ -85,6 +108,10 @@ export function rekeyMc(qs: McQuestion[]): McQuestion[] {
 }
 
 export function hashStringForSeed(str: string): number {
+  /**
+   * Lightweight string hash used for short stable seeds.
+   * @returns Non-negative 32-bit integer
+   */
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
     hash = (hash * 33) ^ str.charCodeAt(i);

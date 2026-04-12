@@ -14,6 +14,10 @@ interface SubtopicCallOptions {
 }
 
 export function distributeQuestions(topics: Topic[], total: number): number[] {
+  /**
+   * Evenly distribute `total` question slots across provided `topics`.
+   * Returns array of counts aligned with `topics` order.
+   */
   if (topics.length === 0) return [];
   const base = Math.floor(total / topics.length);
   const remainder = total % topics.length;
@@ -26,6 +30,10 @@ export function buildSubtopicCalls(
   topics: Topic[] = [],
   options: SubtopicCallOptions = {},
 ): SubtopicCall[] {
+  /**
+   * Build subtopic-focused generation calls that partition `total` questions
+   * across `subtopics`, optionally combining subtopics for small batches.
+   */
   if (!subtopics || subtopics.length === 0)
     return [{ subtopics: [], count: total }];
 
@@ -101,6 +109,10 @@ export function buildSubtopicCalls(
 }
 
 export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
+  /**
+   * Shuffle and relabel multiple-choice options deterministically based on
+   * the question id so shuffling is reproducible across clients.
+   */
   const originalOptions = q.options ?? [];
   if (originalOptions.length < 2) return q;
 
@@ -162,6 +174,9 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
 }
 
 export function hashStringForSeed(str: string): number {
+  /**
+   * Lightweight string-to-integer hash used for deterministic seeding.
+   */
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
     hash = (hash * 33) ^ str.charCodeAt(i);
@@ -170,6 +185,10 @@ export function hashStringForSeed(str: string): number {
 }
 
 export function preprocessMcQuestions(questions: McQuestion[]): McQuestion[] {
+  /**
+   * Run preprocessing steps on MC questions such as deterministic shuffling
+   * of options and explanation label fixes.
+   */
   return questions.map((q) => {
     return shuffleMcQuestionOptions(q);
   });

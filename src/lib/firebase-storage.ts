@@ -18,6 +18,12 @@ export async function uploadImage(
   file: File | Blob,
   filename: string,
 ): Promise<{ storagePath: string; downloadUrl: string }> {
+  /**
+   * Upload a `File` or `Blob` to Firebase Storage for the authenticated user.
+   * @param file - File or Blob to upload
+   * @param filename - Suggested filename used in the storage path
+   * @returns Object with `storagePath` and `downloadUrl`
+   */
   const user = auth.currentUser;
   if (!user) {
     throw new Error('User must be authenticated to upload images.');
@@ -44,6 +50,9 @@ export async function uploadImageDataUrl(
   questionId: string,
   imageId: string,
 ): Promise<{ storagePath: string; downloadUrl: string }> {
+  /**
+   * Upload an image represented as a data URL to Firebase Storage.
+   */
   const user = auth.currentUser;
   if (!user) {
     throw new Error('User must be authenticated to upload images.');
@@ -64,6 +73,9 @@ export async function uploadImageDataUrl(
  * @returns A Blob representation of the data URL.
  */
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  /**
+   * Convert a data URL string to a `Blob` via `fetch`.
+   */
   const res = await fetch(dataUrl);
   return await res.blob();
 }
@@ -73,6 +85,9 @@ export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
  * @param storagePath The path of the image in storage.
  */
 export async function deleteImage(storagePath: string): Promise<void> {
+  /**
+   * Delete an object at `storagePath` from Firebase Storage.
+   */
   const storageRef = ref(storage, storagePath);
   await deleteObject(storageRef);
 }
