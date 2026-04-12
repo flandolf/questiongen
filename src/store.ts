@@ -909,12 +909,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     void v3DeleteMcHistoryEntry(id);
   },
   addQuestionHistoryEntry: (entry) => {
-    set((s) => ({ questionHistory: [entry, ...s.questionHistory] }));
-    void v3SaveQuestionHistoryEntry(entry);
+    const nextEntry = { ...entry, isUploaded: false };
+    set((s) => ({ questionHistory: [nextEntry, ...s.questionHistory] }));
+    void v3SaveQuestionHistoryEntry(nextEntry);
   },
   addMcHistoryEntry: (entry) => {
-    set((s) => ({ mcHistory: [entry, ...s.mcHistory] }));
-    void v3SaveMcHistoryEntry(entry);
+    const nextEntry = { ...entry, isUploaded: false };
+    set((s) => ({ mcHistory: [nextEntry, ...s.mcHistory] }));
+    void v3SaveMcHistoryEntry(nextEntry);
   },
   updateQuestionHistoryEntry: (entry) => {
     set((s) => ({

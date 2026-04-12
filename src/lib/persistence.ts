@@ -582,6 +582,7 @@ function normalizeQuestionHistoryEntry(
     generationTelemetry:
       normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
     analytics: normalizeWrittenAnswerAnalytics(data.analytics) ?? undefined,
+    isUploaded: Boolean(data.isUploaded),
   };
 }
 
@@ -630,6 +631,7 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
     generationTelemetry:
       normalizeGenerationTelemetry(data.generationTelemetry) ?? undefined,
     analytics: normalizeMcAnswerAnalytics(data.analytics) ?? undefined,
+    isUploaded: Boolean(data.isUploaded),
   };
 }
 

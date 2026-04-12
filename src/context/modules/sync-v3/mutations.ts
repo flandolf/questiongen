@@ -23,6 +23,7 @@ export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
       doc(db, `users/${uid}/questionHistory`, entry.id),
       removeUndefined({
         ...entry,
+        isUploaded: true,
         updatedAt: serverTimestamp(),
       })
     );
@@ -48,6 +49,7 @@ export async function saveMcHistoryEntry(entry: McHistoryEntry) {
       doc(db, `users/${uid}/mcHistory`, entry.id),
       removeUndefined({
         ...entry,
+        isUploaded: true,
         updatedAt: serverTimestamp(),
       })
     );

@@ -40,6 +40,7 @@ export type QuestionHistoryEntry = {
   generationTelemetry?: GenerationTelemetry;
   analytics?: WrittenAnswerAnalytics;
   difficulty?: Difficulty;
+  isUploaded?: boolean;
 };
 
 export type McHistoryEntry = {
@@ -55,6 +56,7 @@ export type McHistoryEntry = {
   generationTelemetry?: GenerationTelemetry;
   analytics?: McAnswerAnalytics;
   difficulty?: Difficulty;
+  isUploaded?: boolean;
 };
 
 export type GenerationRecord = {

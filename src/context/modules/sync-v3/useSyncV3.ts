@@ -7,14 +7,12 @@ import {
 import {
   collection,
   doc,
-  getDocs,
   onSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
-  isSavedSetComplete,
   normalizeMcHistory,
   normalizeQuestionHistory,
   normalizeSavedSet,
@@ -23,12 +21,35 @@ import { useAppStore } from '@/store';
 import type { Preset, StreakData, StudyGoals } from '@/types';
 
 import { auth, db } from '../firebase-init';
-import { deleteSavedSet as v3DeleteSavedSet } from './mutations';
+import { saveMcHistoryEntry, saveQuestionHistoryEntry } from './mutations';
+
+function mergeById<T extends { id: string; lastModified?: number }>(
+  local: T[],
+  remote: T[]
+): T[] {
+  const result = [...remote];
+  const remoteMap = new Map(remote.map((e) => [e.id, e]));
+
+  for (const l of local) {
+    const r = remoteMap.get(l.id);
+    if (!r) {
+      result.push(l);
+    } else if (
+      l.lastModified &&
+      r.lastModified &&
+      l.lastModified > r.lastModified
+    ) {
+      const idx = result.findIndex((i) => i.id === l.id);
+      if (idx !== -1) result[idx] = l;
+    }
+  }
+  return result;
+}
 
 export interface UseSyncV3Return {
   user: FirebaseUser | null;
   isLoading: boolean;
-  isSyncing: boolean; // Managed by Firestore internally, but we can show "active" status
+  isSyncing: boolean;
   isSyncEnabled: boolean;
   isOnline: boolean;
   syncStatus: 'idle' | 'syncing' | 'error' | 'offline' | 'connecting';
@@ -50,117 +71,33 @@ export function useSyncV3(): UseSyncV3Return {
 
   const unsubscribesRef = useRef<Unsubscribe[]>([]);
   const activeUidRef = useRef<string | null>(null);
-  const recoveryInFlightRef = useRef(false);
-  const lastRecoveryAttemptAtRef = useRef(0);
-  const RECOVERY_COOLDOWN_MS = 10_000;
 
-  // Define callback functions first before using them in useEffect
   const cleanupListeners = useCallback(() => {
     unsubscribesRef.current.forEach((unsub) => unsub());
     unsubscribesRef.current = [];
   }, []);
 
-  const syncSavedSetsFromRaw = useCallback((rawSavedSets: unknown[]) => {
-    const parsedSavedSets = rawSavedSets
-      .map((entry) => normalizeSavedSet(entry))
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  const syncUpPendingData = useCallback(() => {
+    const state = useAppStore.getState();
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
 
-    const completedSavedSetIds = parsedSavedSets
-      .filter((entry) => isSavedSetComplete(entry))
-      .map((entry) => entry.id);
+    console.log('[FirebaseSync] Checking for pending local data to sync up...');
 
-    useAppStore.setState({
-      savedSets: parsedSavedSets.filter((entry) => !isSavedSetComplete(entry)),
-    });
+    // Push local-only or pending history
+    state.questionHistory
+      .filter((e) => !e.isUploaded)
+      .forEach((e) => void saveQuestionHistoryEntry(e));
 
-    completedSavedSetIds.forEach((id) => {
-      void v3DeleteSavedSet(id);
-    });
+    state.mcHistory
+      .filter((e) => !e.isUploaded)
+      .forEach((e) => void saveMcHistoryEntry(e));
+
+    // For saved sets, we don't have an isUploaded flag, but we can push them all
+    // and Firestore's offline cache/merge will handle it.
+    // However, to keep it simple, we just rely on mutations when they are created.
+    // If the user has discrepancies in history, the filters above will catch them.
   }, []);
-
-  const manualRefreshData = useCallback(
-    async (uid: string) => {
-      try {
-        // Fetch saved sets
-        const savedSetsSnapshot = await getDocs(
-          collection(db, `users/${uid}/savedSets`)
-        );
-        syncSavedSetsFromRaw(
-          savedSetsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-        );
-
-        // Fetch question history
-        const qhSnapshot = await getDocs(
-          collection(db, `users/${uid}/questionHistory`)
-        );
-        const qh = normalizeQuestionHistory(
-          qhSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-        );
-        useAppStore.setState({ questionHistory: qh });
-
-        // Fetch MC history
-        const mchSnapshot = await getDocs(
-          collection(db, `users/${uid}/mcHistory`)
-        );
-        const mch = normalizeMcHistory(
-          mchSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-        );
-        useAppStore.setState({ mcHistory: mch });
-
-        console.log('[FirebaseSync] Manual data refresh completed');
-      } catch (error) {
-        console.error('[FirebaseSync] Manual refresh error:', error);
-      }
-    },
-    [syncSavedSetsFromRaw]
-  );
-
-  const recoverSyncState = useCallback(
-    async (reason: 'online' | 'focus' | 'visibility') => {
-      const uid = activeUidRef.current;
-      if (!uid || !navigator.onLine) return;
-
-      const now = Date.now();
-      if (
-        recoveryInFlightRef.current ||
-        now - lastRecoveryAttemptAtRef.current < RECOVERY_COOLDOWN_MS
-      ) {
-        return;
-      }
-
-      recoveryInFlightRef.current = true;
-      lastRecoveryAttemptAtRef.current = now;
-
-      try {
-        const shouldRebindListeners =
-          syncStatus === 'error' || unsubscribesRef.current.length === 0;
-
-        console.log(
-          '[FirebaseSync] Recovery triggered after',
-          reason,
-          'uid=',
-          uid,
-          'rebind=',
-          shouldRebindListeners
-        );
-
-        if (shouldRebindListeners) {
-          setupListeners(uid);
-          return;
-        }
-
-        setSyncStatus('syncing');
-        await manualRefreshData(uid);
-        setSyncStatus('idle');
-      } catch (error) {
-        console.error('[FirebaseSync] Recovery failed:', error);
-        setSyncStatus('error');
-      } finally {
-        recoveryInFlightRef.current = false;
-      }
-    },
-    [manualRefreshData, setupListeners, syncStatus]
-  );
 
   const setupListeners = useCallback(
     (uid: string) => {
@@ -171,22 +108,22 @@ export function useSyncV3(): UseSyncV3Return {
         // 1. Question History
         const qhUnsub = onSnapshot(
           collection(db, `users/${uid}/questionHistory`),
+          { includeMetadataChanges: true },
           (snapshot) => {
-            try {
-              const history = normalizeQuestionHistory(
-                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-              );
-              useAppStore.setState({ questionHistory: history });
-            } catch (error) {
-              console.error(
-                '[FirebaseSync] Error processing question history snapshot:',
-                error
-              );
-            }
+            const history = normalizeQuestionHistory(
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+            ).map((e, idx) => ({
+              ...e,
+              isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
+            }));
+            const local = useAppStore.getState().questionHistory;
+            useAppStore.setState({
+              questionHistory: mergeById(local, history),
+            });
           },
           (error) => {
             console.error(
-              '[FirebaseSync] Error listening to question history:',
+              '[FirebaseSync] Question history listener error:',
               error
             );
             setSyncStatus('error');
@@ -196,24 +133,19 @@ export function useSyncV3(): UseSyncV3Return {
         // 2. MC History
         const mchUnsub = onSnapshot(
           collection(db, `users/${uid}/mcHistory`),
+          { includeMetadataChanges: true },
           (snapshot) => {
-            try {
-              const history = normalizeMcHistory(
-                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-              );
-              useAppStore.setState({ mcHistory: history });
-            } catch (error) {
-              console.error(
-                '[FirebaseSync] Error processing MC history snapshot:',
-                error
-              );
-            }
+            const history = normalizeMcHistory(
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+            ).map((e, idx) => ({
+              ...e,
+              isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
+            }));
+            const local = useAppStore.getState().mcHistory;
+            useAppStore.setState({ mcHistory: mergeById(local, history) });
           },
           (error) => {
-            console.error(
-              '[FirebaseSync] Error listening to MC history:',
-              error
-            );
+            console.error('[FirebaseSync] MC history listener error:', error);
             setSyncStatus('error');
           }
         );
@@ -221,23 +153,16 @@ export function useSyncV3(): UseSyncV3Return {
         // 3. Saved Sets
         const ssUnsub = onSnapshot(
           collection(db, `users/${uid}/savedSets`),
+          { includeMetadataChanges: true },
           (snapshot) => {
-            try {
-              syncSavedSetsFromRaw(
-                snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
-              );
-            } catch (error) {
-              console.error(
-                '[FirebaseSync] Error processing saved sets snapshot:',
-                error
-              );
-            }
+            const sets = snapshot.docs
+              .map((d) => normalizeSavedSet({ id: d.id, ...d.data() }))
+              .filter((s): s is NonNullable<typeof s> => s !== null);
+            const local = useAppStore.getState().savedSets;
+            useAppStore.setState({ savedSets: mergeById(local, sets) });
           },
           (error) => {
-            console.error(
-              '[FirebaseSync] Error listening to saved sets:',
-              error
-            );
+            console.error('[FirebaseSync] Saved sets listener error:', error);
             setSyncStatus('error');
           }
         );
@@ -246,21 +171,14 @@ export function useSyncV3(): UseSyncV3Return {
         const settingsMainUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'main'),
           (snapshot) => {
-            try {
-              if (snapshot.exists()) {
-                const data = snapshot.data() as { apiKey?: string };
-                if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
-              }
-            } catch (error) {
-              console.error(
-                '[FirebaseSync] Error processing main settings snapshot:',
-                error
-              );
+            if (snapshot.exists()) {
+              const data = snapshot.data() as { apiKey?: string };
+              if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
             }
           },
           (error) => {
             console.error(
-              '[FirebaseSync] Error listening to main settings:',
+              '[FirebaseSync] Main settings listener error:',
               error
             );
             setSyncStatus('error');
@@ -271,33 +189,19 @@ export function useSyncV3(): UseSyncV3Return {
         const settingsGoalsUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'goals'),
           (snapshot) => {
-            try {
-              if (snapshot.exists()) {
-                const data = snapshot.data() as {
-                  studyGoals?: StudyGoals;
-                  streakData?: StreakData;
-                };
-                if (data?.studyGoals)
-                  useAppStore.setState({
-                    studyGoals: data.studyGoals,
-                  });
-                if (data?.streakData)
-                  useAppStore.setState({
-                    streakData: data.streakData,
-                  });
-              }
-            } catch (error) {
-              console.error(
-                '[FirebaseSync] Error processing goals settings snapshot:',
-                error
-              );
+            if (snapshot.exists()) {
+              const data = snapshot.data() as {
+                studyGoals?: StudyGoals;
+                streakData?: StreakData;
+              };
+              if (data?.studyGoals)
+                useAppStore.setState({ studyGoals: data.studyGoals });
+              if (data?.streakData)
+                useAppStore.setState({ streakData: data.streakData });
             }
           },
           (error) => {
-            console.error(
-              '[FirebaseSync] Error listening to goals settings:',
-              error
-            );
+            console.error('[FirebaseSync] Goals listener error:', error);
             setSyncStatus('error');
           }
         );
@@ -306,24 +210,14 @@ export function useSyncV3(): UseSyncV3Return {
         const settingsPresetsUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'presets'),
           (snapshot) => {
-            try {
-              if (snapshot.exists()) {
-                const data = snapshot.data() as { presets?: Preset[] };
-                if (data?.presets)
-                  useAppStore.setState({ presets: data.presets });
-              }
-            } catch (error) {
-              console.error(
-                '[FirebaseSync] Error processing presets settings snapshot:',
-                error
-              );
+            if (snapshot.exists()) {
+              const data = snapshot.data() as { presets?: Preset[] };
+              if (data?.presets)
+                useAppStore.setState({ presets: data.presets });
             }
           },
           (error) => {
-            console.error(
-              '[FirebaseSync] Error listening to presets settings:',
-              error
-            );
+            console.error('[FirebaseSync] Presets listener error:', error);
             setSyncStatus('error');
           }
         );
@@ -337,54 +231,35 @@ export function useSyncV3(): UseSyncV3Return {
           settingsPresetsUnsub,
         ];
 
-        // Manually fetch data as a fallback to ensure we have the latest
-        // This handles cases where listeners might not fire immediately
-        manualRefreshData(uid).catch((err) => {
-          console.error('[FirebaseSync] Manual refresh failed:', err);
-        });
+        // After setting up listeners, trigger a one-time sync up of any pending local data
+        syncUpPendingData();
 
         setSyncStatus('idle');
-        console.log(
-          '[FirebaseSync] Listeners set up successfully for user:',
-          uid
-        );
       } catch (error) {
         console.error('[FirebaseSync] Error setting up listeners:', error);
         setSyncStatus('error');
       }
     },
-    [cleanupListeners, manualRefreshData, syncSavedSetsFromRaw]
+    [cleanupListeners, syncUpPendingData]
   );
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      if (activeUidRef.current) {
-        void recoverSyncState('online');
-      }
+      // Re-trigger sync up when coming back online
+      if (user) syncUpPendingData();
     };
     const handleOffline = () => {
       setIsOnline(false);
-      if (user) {
-        setSyncStatus('offline');
-      }
-    };
-    const handleFocus = () => {
-      if (document.visibilityState === 'visible' && activeUidRef.current) {
-        void recoverSyncState('focus');
-      }
+      if (user) setSyncStatus('offline');
     };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleFocus);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, [recoverSyncState, user]);
+  }, [user, syncUpPendingData]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
@@ -406,9 +281,6 @@ export function useSyncV3(): UseSyncV3Return {
     };
   }, [setupListeners, cleanupListeners]);
 
-  // Realtime listeners are the primary sync path; connectivity/focus recovery
-  // replays a catch-up refresh or listener rebind if the connection dropped.
-
   const enableSync = async (
     email: string,
     password: string,
@@ -421,7 +293,6 @@ export function useSyncV3(): UseSyncV3Return {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      // Note: onAuthStateChanged will trigger and setup listeners
     } catch (error) {
       setSyncStatus('error');
       throw error;
