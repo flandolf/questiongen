@@ -43,7 +43,7 @@ export function Autocomplete({
 
   const allOptions = React.useMemo(() => {
     return groups.flatMap((g) =>
-      g.options.map((o) => ({ ...o, group: g.label }))
+      g.options.map((o) => ({ ...o, group: g.label })),
     );
   }, [groups]);
 
@@ -56,7 +56,7 @@ export function Autocomplete({
         options: g.options.filter(
           (o) =>
             o.label.toLowerCase().includes(q) ||
-            o.value.toLowerCase().includes(q)
+            o.value.toLowerCase().includes(q),
         ),
       }))
       .filter((g) => g.options.length > 0);
@@ -74,75 +74,75 @@ export function Autocomplete({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
-          role="combobox"
+          variant='outline'
+          role='combobox'
           aria-expanded={open}
           className={cn(
             'w-full justify-between h-7 text-xs font-normal',
             !value && 'text-muted-foreground',
-            className
+            className,
           )}
         >
-          <span className="truncate">
+          <span className='truncate'>
             {selectedOption?.label || placeholder}
           </span>
-          <ChevronDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          <ChevronDown className='ml-2 h-3 w-3 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-75 p-0" align="start" sideOffset={4}>
-        <div className="flex items-center border-b px-2">
-          <Search className="mr-2 h-3 w-3 shrink-0 text-muted-foreground" />
+      <PopoverContent className='w-75 p-0' align='start' sideOffset={4}>
+        <div className='flex items-center border-b px-2'>
+          <Search className='mr-2 h-3 w-3 shrink-0 text-muted-foreground' />
           <Input
-            placeholder="Search..."
+            placeholder='Search...'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 border-0 focus-visible:ring-0 text-xs"
+            className='h-8 border-0 focus-visible:ring-0 text-xs'
             autoFocus
           />
           {search && (
             <button
-              type="button"
+              type='button'
               onClick={(e) => {
                 e.stopPropagation();
                 setSearch('');
               }}
-              className="p-1 hover:bg-muted rounded"
+              className='p-1 hover:bg-muted rounded'
             >
-              <X className="h-3 w-3" />
+              <X className='h-3 w-3' />
             </button>
           )}
         </div>
-        <div className="max-h-75 overflow-y-auto p-1">
+        <div className='max-h-75 overflow-y-auto p-1'>
           {filteredGroups.length === 0 ? (
-            <div className="p-2 text-xs text-muted-foreground">
+            <div className='p-2 text-xs text-muted-foreground'>
               No results found
             </div>
           ) : (
             filteredGroups.map((group) => (
               <div key={group.label}>
-                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 sticky top-0">
+                <div className='px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 sticky top-0'>
                   {group.label}
                 </div>
                 {group.options.map((option) => (
                   <button
                     key={option.value}
-                    type="button"
+                    type='button'
                     onClick={() => handleSelect(option.value)}
                     className={cn(
                       'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-2 text-xs outline-none hover:bg-accent hover:text-accent-foreground',
-                      value === option.value && 'bg-accent'
+                      value === option.value && 'bg-accent',
                     )}
                   >
-                    <span className="flex-1 truncate">{option.label}</span>
+                    <span className='flex-1 truncate'>{option.label}</span>
                     {showMatchScore &&
                       option.matchScore !== undefined &&
                       option.matchScore >= confidenceThreshold && (
-                        <span className="ml-2 text-[10px] text-muted-foreground">
+                        <span className='ml-2 text-[10px] text-muted-foreground'>
                           ({Math.round(option.matchScore * 100)}%)
                         </span>
                       )}
                     {value === option.value && (
-                      <Check className="ml-2 h-3 w-3 shrink-0" />
+                      <Check className='ml-2 h-3 w-3 shrink-0' />
                     )}
                   </button>
                 ))}

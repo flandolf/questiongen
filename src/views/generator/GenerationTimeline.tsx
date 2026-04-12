@@ -42,7 +42,7 @@ const GENERATION_STAGE_LABELS: Record<string, string> = {
 function phaseForStage(
   stage: KnownStage,
   currentStage: string,
-  isFailed: boolean
+  isFailed: boolean,
 ): TimelinePhase {
   const currentIdx = STAGE_ORDER.indexOf(currentStage as KnownStage);
   const thisIdx = STAGE_ORDER.indexOf(stage);
@@ -55,19 +55,19 @@ function phaseForStage(
 function TimelineDot({ phase }: { phase: TimelinePhase }) {
   if (phase === 'done')
     return (
-      <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />
+      <CheckCircle2 className='w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5' />
     );
   if (phase === 'error')
-    return <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />;
+    return <XCircle className='w-3.5 h-3.5 text-destructive shrink-0 mt-0.5' />;
   if (phase === 'active')
     return (
-      <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+      <span className='w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center'>
+        <span className='w-2 h-2 rounded-full bg-primary animate-pulse' />
       </span>
     );
   return (
-    <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
-      <span className="w-2 h-2 rounded-full bg-border" />
+    <span className='w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center'>
+      <span className='w-2 h-2 rounded-full bg-border' />
     </span>
   );
 }
@@ -89,21 +89,21 @@ export function LastGenerationStats({
 
   if (telemetry.estimatedCostUsd != null) {
     items.push({
-      icon: <DollarSign className="w-3 h-3" />,
+      icon: <DollarSign className='w-3 h-3' />,
       label: 'Cost',
       value: formatCostUsd(telemetry.estimatedCostUsd),
     });
   }
   if (telemetry.totalTokens != null) {
     items.push({
-      icon: <Coins className="w-3 h-3" />,
+      icon: <Coins className='w-3 h-3' />,
       label: 'Tokens',
       value: telemetry.totalTokens.toLocaleString(),
     });
   }
   if (telemetry.durationMs != null) {
     items.push({
-      icon: <Clock3 className="w-3 h-3" />,
+      icon: <Clock3 className='w-3 h-3' />,
       label: 'Time',
       value:
         telemetry.durationMs < 1000
@@ -115,19 +115,19 @@ export function LastGenerationStats({
   if (items.length === 0) return null;
 
   return (
-    <div className="w-full px-6 py-2">
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+    <div className='w-full px-6 py-2'>
+      <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5'>
         Last Generation
       </p>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
+      <div className='flex flex-wrap gap-x-4 gap-y-1'>
         {items.map(({ icon, label, value }) => (
           <div
             key={label}
-            className="flex items-center gap-1 text-xs text-foreground"
+            className='flex items-center gap-1 text-xs text-foreground'
           >
-            <span className="text-muted-foreground">{icon}</span>
-            <span className="text-muted-foreground">{label}:</span>
-            <span className="font-semibold tabular-nums">{value}</span>
+            <span className='text-muted-foreground'>{icon}</span>
+            <span className='text-muted-foreground'>{label}:</span>
+            <span className='font-semibold tabular-nums'>{value}</span>
           </div>
         ))}
       </div>
@@ -147,17 +147,17 @@ function TimelineStages({
   isDone: boolean;
 }) {
   return (
-    <div className="relative flex flex-col gap-1.5 pl-0.5">
+    <div className='relative flex flex-col gap-1.5 pl-0.5'>
       {STAGE_ORDER.map((stage) => {
         const phase = phaseForStage(
           stage,
           currentStage as KnownStage,
-          isFailed
+          isFailed,
         );
         if (phase === 'waiting' && !isGenerating && !isDone && !isFailed)
           return null;
         return (
-          <div key={stage} className="flex items-start gap-2 pl-0.5">
+          <div key={stage} className='flex items-start gap-2 pl-0.5'>
             <TimelineDot phase={phase} />
             <span
               className={`text-[11px] font-mono leading-tight pt-0.5 ${
@@ -193,10 +193,10 @@ function SubCallProgressHint({
     ? ' (local subtopic split)'
     : ' (one focus area per pass)';
   return (
-    <p className="text-[10px] font-mono text-muted-foreground/90 tabular-nums pl-0.5">
+    <p className='text-[10px] font-mono text-muted-foreground/90 tabular-nums pl-0.5'>
       {topicLabel ? `${topicLabel}: ` : ''}API pass {progress.current} /{' '}
       {progress.total}
-      <span className="text-muted-foreground/50 font-normal">{suffix}</span>
+      <span className='text-muted-foreground/50 font-normal'>{suffix}</span>
     </p>
   );
 }
@@ -224,15 +224,15 @@ function GenerationTokenStream({
   return (
     <div
       ref={streamRef}
-      className="max-h-28 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all"
+      className='max-h-28 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all'
     >
       {streamText ? (
         streamText
       ) : (
-        <span className="opacity-40">Waiting for tokens…</span>
+        <span className='opacity-40'>Waiting for tokens…</span>
       )}
       {isGenerating && currentStage === 'generating' && (
-        <span className="inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse" />
+        <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
       )}
     </div>
   );
@@ -245,17 +245,17 @@ function CompletedStats({
 }) {
   if (!completedEvent) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40">
+    <div className='flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40'>
       {completedEvent.totalTokens != null && completedEvent.totalTokens > 0 && (
-        <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-          <Coins className="w-3 h-3" />
-          <span className="tabular-nums font-semibold text-foreground">
+        <span className='flex items-center gap-1 text-[11px] font-mono text-muted-foreground'>
+          <Coins className='w-3 h-3' />
+          <span className='tabular-nums font-semibold text-foreground'>
             {completedEvent.totalTokens.toLocaleString()}
           </span>
           {' tok'}
           {completedEvent.promptTokens != null &&
             completedEvent.completionTokens != null && (
-              <span className="text-muted-foreground/60">
+              <span className='text-muted-foreground/60'>
                 {' '}
                 ({completedEvent.promptTokens.toLocaleString()} in /{' '}
                 {completedEvent.completionTokens.toLocaleString()} out)
@@ -264,9 +264,9 @@ function CompletedStats({
         </span>
       )}
       {completedEvent.estimatedCostUsd != null && (
-        <span className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-          <DollarSign className="w-3 h-3" />
-          <span className="tabular-nums font-semibold text-foreground">
+        <span className='flex items-center gap-1 text-[11px] font-mono text-muted-foreground'>
+          <DollarSign className='w-3 h-3' />
+          <span className='tabular-nums font-semibold text-foreground'>
             {completedEvent.estimatedCostUsd < 0.0001
               ? '<$0.0001'
               : `$${completedEvent.estimatedCostUsd.toFixed(4)}`}
@@ -302,34 +302,34 @@ export function GenerationTimeline({
   const completedEvent = isDone ? generationStatus : null;
 
   return (
-    <div className="w-full py-2.5 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+    <div className='w-full py-2.5 space-y-2'>
+      <div className='flex items-center justify-between'>
+        <div className='flex items-center gap-1.5'>
           {isGenerating ? (
-            <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
+            <Loader2 className='w-3 h-3 animate-spin text-primary shrink-0' />
           ) : isDone ? (
-            <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+            <CheckCircle2 className='w-3 h-3 text-green-500 shrink-0' />
           ) : (
-            <XCircle className="w-3 h-3 text-destructive shrink-0" />
+            <XCircle className='w-3 h-3 text-destructive shrink-0' />
           )}
-          <span className="text-xs font-medium text-foreground">
+          <span className='text-xs font-medium text-foreground'>
             {generationStatus?.message ?? 'Generating…'}
           </span>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1">
-          <Clock3 className="w-2.5 h-2.5" />
+        <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
+          <Clock3 className='w-2.5 h-2.5' />
           {formattedElapsedTime}
           {isGenerating && (
             <button
-              type="button"
+              type='button'
               onClick={onTogglePause}
-              className="ml-1 p-0.5 rounded hover:bg-muted transition-colors"
+              className='ml-1 p-0.5 rounded hover:bg-muted transition-colors'
               title={isPaused ? 'Resume' : 'Pause'}
             >
               {isPaused ? (
-                <Play className="w-3 h-3" />
+                <Play className='w-3 h-3' />
               ) : (
-                <Pause className="w-3 h-3" />
+                <Pause className='w-3 h-3' />
               )}
             </button>
           )}
@@ -389,17 +389,17 @@ export function BatchTimeline({
   const allDone = doneCount + errorCount === entries.length;
 
   return (
-    <div className="w-full px-6 py-2.5 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+    <div className='w-full px-6 py-2.5 space-y-2'>
+      <div className='flex items-center justify-between'>
+        <div className='flex items-center gap-1.5'>
           {isGenerating ? (
-            <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
+            <Loader2 className='w-3 h-3 animate-spin text-primary shrink-0' />
           ) : allDone && errorCount === 0 ? (
-            <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+            <CheckCircle2 className='w-3 h-3 text-green-500 shrink-0' />
           ) : (
-            <XCircle className="w-3 h-3 text-destructive shrink-0" />
+            <XCircle className='w-3 h-3 text-destructive shrink-0' />
           )}
-          <span className="text-xs font-medium text-foreground">
+          <span className='text-xs font-medium text-foreground'>
             {isGenerating
               ? activeEntry
                 ? `Generating ${activeEntry.topic} (${activeEntry.questionCount}q)…`
@@ -409,27 +409,27 @@ export function BatchTimeline({
                 : `${errorCount} subject${errorCount !== 1 ? 's' : ''} failed`}
           </span>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1">
-          <Clock3 className="w-2.5 h-2.5" />
+        <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
+          <Clock3 className='w-2.5 h-2.5' />
           {formattedElapsedTime}
           {isGenerating && (
             <button
-              type="button"
+              type='button'
               onClick={onTogglePause}
-              className="ml-1 p-0.5 rounded hover:bg-muted transition-colors"
+              className='ml-1 p-0.5 rounded hover:bg-muted transition-colors'
               title={isPaused ? 'Resume' : 'Pause'}
             >
               {isPaused ? (
-                <Play className="w-3 h-3" />
+                <Play className='w-3 h-3' />
               ) : (
-                <Pause className="w-3 h-3" />
+                <Pause className='w-3 h-3' />
               )}
             </button>
           )}
         </span>
       </div>
 
-      <div className="relative flex flex-col gap-1">
+      <div className='relative flex flex-col gap-1'>
         {entries.map((entry, idx) => {
           const isActive = entry.status === 'active';
           const isDone = entry.status === 'done';
@@ -446,25 +446,25 @@ export function BatchTimeline({
               : '';
 
           return (
-            <div key={idx} className="flex items-start gap-2 pl-0.5">
+            <div key={idx} className='flex items-start gap-2 pl-0.5'>
               {isDone && (
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />
+                <CheckCircle2 className='w-3.5 h-3.5 text-green-500 dark:text-green-400 shrink-0 mt-0.5' />
               )}
               {isError && (
-                <XCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+                <XCircle className='w-3.5 h-3.5 text-destructive shrink-0 mt-0.5' />
               )}
               {isActive && (
-                <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className='w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center'>
+                  <span className='w-2 h-2 rounded-full bg-primary animate-pulse' />
                 </span>
               )}
               {isWaiting && (
-                <span className="w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center">
-                  <span className="w-2 h-2 rounded-full bg-border" />
+                <span className='w-3.5 h-3.5 shrink-0 mt-0.5 flex items-center justify-center'>
+                  <span className='w-2 h-2 rounded-full bg-border' />
                 </span>
               )}
 
-              <div className="flex-1 min-w-0">
+              <div className='flex-1 min-w-0'>
                 <span
                   className={`text-[11px] font-mono leading-tight ${
                     isActive
@@ -477,16 +477,16 @@ export function BatchTimeline({
                   }`}
                 >
                   {entry.topic}
-                  <span className="font-normal opacity-70">
+                  <span className='font-normal opacity-70'>
                     {' '}
                     ·{entry.questionCount}q
                   </span>
                   {stageSuffix && (
-                    <span className="opacity-60">{stageSuffix}</span>
+                    <span className='opacity-60'>{stageSuffix}</span>
                   )}
                 </span>
                 {isError && entry.errorMessage && (
-                  <p className="text-[10px] text-destructive/80 mt-0.5 leading-tight truncate">
+                  <p className='text-[10px] text-destructive/80 mt-0.5 leading-tight truncate'>
                     {entry.errorMessage}
                   </p>
                 )}
@@ -507,21 +507,21 @@ export function BatchTimeline({
       {activeEntry?.stage === 'generating' && (
         <div
           ref={streamRef}
-          className="max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all"
+          className='max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all'
         >
           {streamText ? (
             streamText
           ) : (
-            <span className="opacity-40">Waiting for tokens…</span>
+            <span className='opacity-40'>Waiting for tokens…</span>
           )}
-          <span className="inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse" />
+          <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-0.5 border-t border-border/40">
-        <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+      <div className='flex items-center gap-2 pt-0.5 border-t border-border/40'>
+        <div className='flex-1 h-1 rounded-full bg-border overflow-hidden'>
           <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
+            className='h-full rounded-full bg-primary transition-all duration-500'
             style={{
               width:
                 entries.length > 0
@@ -530,7 +530,7 @@ export function BatchTimeline({
             }}
           />
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0">
+        <span className='text-[10px] font-mono text-muted-foreground tabular-nums shrink-0'>
           {doneCount + errorCount}/{entries.length}
         </span>
       </div>

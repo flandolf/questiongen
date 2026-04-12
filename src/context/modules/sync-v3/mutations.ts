@@ -25,7 +25,7 @@ export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
         ...entry,
         isUploaded: true,
         updatedAt: serverTimestamp(),
-      })
+      }),
     );
   } catch (error) {
     console.error('[SyncV3] Failed to save question history entry:', error);
@@ -51,7 +51,7 @@ export async function saveMcHistoryEntry(entry: McHistoryEntry) {
         ...entry,
         isUploaded: true,
         updatedAt: serverTimestamp(),
-      })
+      }),
     );
   } catch (error) {
     console.error('[SyncV3] Failed to save MC history entry:', error);
@@ -73,7 +73,7 @@ export async function saveSavedSet(entry: SavedQuestionSet) {
       removeUndefined({
         ...entry,
         updatedAt: serverTimestamp(),
-      })
+      }),
     );
   } catch (error) {
     console.error('[SyncV3] Failed to save saved set:', error);
@@ -88,7 +88,7 @@ export async function deleteSavedSet(id: string) {
 
 export async function updateStudyGoals(
   goals: StudyGoals,
-  streakData: StreakData
+  streakData: StreakData,
 ) {
   const uid = getUid();
   if (!uid) return;
@@ -100,7 +100,7 @@ export async function updateStudyGoals(
         streakData: streakData,
         updatedAt: serverTimestamp(),
       }),
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     console.error('[SyncV3] Failed to update study goals:', error);
@@ -117,7 +117,7 @@ export async function updatePresets(presets: Preset[]) {
         presets,
         updatedAt: serverTimestamp(),
       }),
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     console.error('[SyncV3] Failed to update presets:', error);
@@ -134,7 +134,7 @@ export async function updateApiKey(apiKey: string) {
         apiKey,
         updatedAt: serverTimestamp(),
       }),
-      { merge: true }
+      { merge: true },
     );
   } catch (error) {
     console.error('[SyncV3] Failed to update API key:', error);

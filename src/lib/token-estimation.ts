@@ -129,13 +129,13 @@ const DEFAULT_LOG_REGRESSION_COEFFICIENTS: LogRegressionCoefficients = {
 const LOG_REGRESSION_STORAGE_KEY = 'token-estimation-log-reg-v1';
 
 export function persistLogRegressionCoefficients(
-  coeffs: LogRegressionCoefficients
+  coeffs: LogRegressionCoefficients,
 ): void {
   try {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(
         LOG_REGRESSION_STORAGE_KEY,
-        JSON.stringify(coeffs)
+        JSON.stringify(coeffs),
       );
     }
   } catch {
@@ -180,7 +180,7 @@ function extractLogRegressionFeatures(
   techMode: TechMode,
   subtopics?: string[],
   customFocusArea?: string,
-  coeffs: LogRegressionCoefficients = DEFAULT_LOG_REGRESSION_COEFFICIENTS
+  coeffs: LogRegressionCoefficients = DEFAULT_LOG_REGRESSION_COEFFICIENTS,
 ): Record<string, number> {
   const totalMarks = (averageMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
   const logQuestionCount = Math.log(Math.max(questionCount, 1));
@@ -203,7 +203,7 @@ function extractLogRegressionFeatures(
 
 function predictTokensLogRegression(
   coeffs: LogRegressionCoefficients,
-  features: Record<string, number>
+  features: Record<string, number>,
 ): number {
   let linearPrediction = coeffs.bias;
   linearPrediction += coeffs.logQuestionCount * features.logQuestionCount;
@@ -224,13 +224,13 @@ function predictTokensLogRegression(
 // eslint-disable-next-line complexity
 export function trainLogRegressionModel(
   records: GenerationRecord[],
-  existingCoeffs?: LogRegressionCoefficients
+  existingCoeffs?: LogRegressionCoefficients,
 ): { coefficients: LogRegressionCoefficients; rSquared: number } {
   const validRecords = records.filter(
     (r) =>
       r.outputs.totalTokens != null &&
       r.outputs.totalTokens > 0 &&
-      r.inputs.questionCount > 0
+      r.inputs.questionCount > 0,
   );
 
   if (validRecords.length < 5) {
@@ -264,7 +264,7 @@ export function trainLogRegressionModel(
         record.inputs.techMode,
         record.inputs.subtopics,
         record.inputs.customFocusArea,
-        coeffs
+        coeffs,
       ),
       target: Math.log(record.outputs.totalTokens!),
     }));
@@ -384,7 +384,7 @@ function estimateTokensLogRegression(
   techMode: TechMode,
   subtopics?: string[],
   customFocusArea?: string,
-  historyRecords?: GenerationRecord[]
+  historyRecords?: GenerationRecord[],
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -396,7 +396,7 @@ function estimateTokensLogRegression(
   if (historyRecords && historyRecords.length > coeffs.sampleSize + 10) {
     const { coefficients, rSquared } = trainLogRegressionModel(
       historyRecords,
-      coeffs
+      coeffs,
     );
     if (rSquared > coeffs.rSquared) {
       coeffs = coefficients;
@@ -413,7 +413,7 @@ function estimateTokensLogRegression(
     techMode,
     subtopics,
     customFocusArea,
-    coeffs
+    coeffs,
   );
 
   const ratios = QUESTION_MODE_RATIOS[questionMode];
@@ -424,7 +424,7 @@ function estimateTokensLogRegression(
 
   const confidence = Math.min(
     0.95,
-    coeffs.rSquared * Math.min(1, coeffs.sampleSize / 50)
+    coeffs.rSquared * Math.min(1, coeffs.sampleSize / 50),
   );
 
   return { promptTokens, completionTokens, totalTokens, confidence };
@@ -438,7 +438,7 @@ function calculateSimilarity(
   techMode: TechMode,
   averageMarksPerQuestion?: number,
   subtopics?: string[],
-  customFocusArea?: string
+  customFocusArea?: string,
 ): number {
   let score = 0;
 
@@ -458,11 +458,11 @@ function calculateSimilarity(
 
   if (subtopics && record.inputs.subtopics) {
     const overlap = subtopics.filter((s) =>
-      record.inputs.subtopics!.includes(s)
+      record.inputs.subtopics!.includes(s),
     ).length;
     const maxLength = Math.max(
       subtopics.length,
-      record.inputs.subtopics.length
+      record.inputs.subtopics.length,
     );
     if (maxLength > 0) {
       score += 0.05 * (overlap / maxLength);
@@ -480,13 +480,13 @@ function calculateSimilarity(
 function projectTokensForCount(
   recordTotalTokens: number,
   recordQuestionCount: number,
-  requestedQuestionCount: number
+  requestedQuestionCount: number,
 ): number {
   const n = Math.max(recordQuestionCount, 1);
   const perQuestion = (recordTotalTokens - SYSTEM_PROMPT_TOKENS) / n;
   const safePerQuestion = Math.max(
     perQuestion,
-    PER_QUESTION_PROMPT_TOKENS * 0.5
+    PER_QUESTION_PROMPT_TOKENS * 0.5,
   );
   return SYSTEM_PROMPT_TOKENS + requestedQuestionCount * safePerQuestion;
 }
@@ -500,7 +500,7 @@ function estimateTokensAdvanced(
   techMode: TechMode,
   averageMarksPerQuestion?: number,
   subtopics?: string[],
-  customFocusArea?: string
+  customFocusArea?: string,
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -516,7 +516,7 @@ function estimateTokensAdvanced(
     techMode,
     subtopics,
     customFocusArea,
-    generationHistory
+    generationHistory,
   );
 
   if (logRegResult.confidence >= 0.3) {
@@ -527,7 +527,7 @@ function estimateTokensAdvanced(
     (record) =>
       record.outputs.totalTokens != null &&
       record.outputs.promptTokens != null &&
-      record.outputs.completionTokens != null
+      record.outputs.completionTokens != null,
   );
 
   if (validRecords.length === 0) {
@@ -539,7 +539,7 @@ function estimateTokensAdvanced(
       techMode,
       averageMarksPerQuestion,
       subtopics,
-      customFocusArea
+      customFocusArea,
     );
   }
 
@@ -554,12 +554,12 @@ function estimateTokensAdvanced(
         techMode,
         averageMarksPerQuestion,
         subtopics,
-        customFocusArea
+        customFocusArea,
       ),
       recencyWeight: Math.exp(
         -0.1 *
           ((Date.now() - new Date(record.timestamp).getTime()) /
-            (1000 * 60 * 60 * 24))
+            (1000 * 60 * 60 * 24)),
       ),
     }))
     .filter((item) => item.similarity > 0.3);
@@ -573,12 +573,12 @@ function estimateTokensAdvanced(
       techMode,
       averageMarksPerQuestion,
       subtopics,
-      customFocusArea
+      customFocusArea,
     );
   }
 
   recordsWithSimilarity.sort(
-    (a, b) => b.similarity * b.recencyWeight - a.similarity * a.recencyWeight
+    (a, b) => b.similarity * b.recencyWeight - a.similarity * a.recencyWeight,
   );
 
   const topMatches = recordsWithSimilarity.slice(0, 5);
@@ -595,7 +595,7 @@ function estimateTokensAdvanced(
     const projectedTotal = projectTokensForCount(
       record.outputs.totalTokens!,
       recordQuestionCount,
-      questionCount
+      questionCount,
     );
 
     weightedTotalTokens += projectedTotal * combinedWeight;
@@ -618,7 +618,7 @@ function estimateTokensAdvanced(
     topMatches.reduce((sum, m) => sum + m.recencyWeight, 0) / topMatches.length;
   const confidence = Math.min(
     1.0,
-    (topMatches.length / 3) * avgSimilarity * avgRecency
+    (topMatches.length / 3) * avgSimilarity * avgRecency,
   );
 
   return {
@@ -637,7 +637,7 @@ function estimateStaticTokens(
   techMode: TechMode,
   averageMarksPerQuestion?: number,
   subtopics?: string[],
-  customFocusArea?: string
+  customFocusArea?: string,
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -666,13 +666,13 @@ function estimateStaticTokens(
   const ratios = QUESTION_MODE_RATIOS[questionMode];
 
   const totalPromptTokens = Math.round(
-    SYSTEM_PROMPT_TOKENS + questionCount * perQuestionPromptBase
+    SYSTEM_PROMPT_TOKENS + questionCount * perQuestionPromptBase,
   );
 
   const perQuestionCompletion =
     (perQuestionPromptBase * ratios.completion) / ratios.prompt;
   const totalCompletionTokens = Math.round(
-    questionCount * perQuestionCompletion
+    questionCount * perQuestionCompletion,
   );
 
   return {
@@ -694,7 +694,7 @@ export function estimateTokensAndCost(
   subtopics?: string[],
   customFocusArea?: string,
   promptPricePerToken?: number | null,
-  completionPricePerToken?: number | null
+  completionPricePerToken?: number | null,
 ): EstimatedTokensAndCost {
   const { promptTokens, completionTokens, totalTokens, confidence } =
     estimateTokensAdvanced(
@@ -706,15 +706,15 @@ export function estimateTokensAndCost(
       techMode,
       averageMarksPerQuestion,
       subtopics,
-      customFocusArea
+      customFocusArea,
     );
 
   const variablePromptTokens = Math.max(promptTokens - SYSTEM_PROMPT_TOKENS, 0);
   const promptTokensPerQuestion = Math.round(
-    SYSTEM_PROMPT_TOKENS / questionCount + variablePromptTokens / questionCount
+    SYSTEM_PROMPT_TOKENS / questionCount + variablePromptTokens / questionCount,
   );
   const completionTokensPerQuestion = Math.round(
-    completionTokens / questionCount
+    completionTokens / questionCount,
   );
   const totalTokensPerQuestion =
     promptTokensPerQuestion + completionTokensPerQuestion;

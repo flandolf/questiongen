@@ -5,7 +5,7 @@ export function CreditBar({ used, total }: { used: number; total: number }) {
   const color =
     pct > 90 ? 'bg-destructive' : pct > 70 ? 'bg-amber-500' : 'bg-primary';
   return (
-    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+    <div className='w-full h-1.5 rounded-full bg-muted overflow-hidden'>
       <div
         className={cn('h-full rounded-full transition-all duration-500', color)}
         style={{ width: `${pct}%` }}

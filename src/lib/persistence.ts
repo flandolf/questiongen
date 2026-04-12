@@ -160,7 +160,7 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
 }
 
 export async function savePersistedAppState(
-  state: PersistedAppState
+  state: PersistedAppState,
 ): Promise<void> {
   if (isTauriRuntime()) {
     await invoke('save_persisted_state', { state });
@@ -211,7 +211,7 @@ function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
       typeof item.inputs.questionMode === 'string' &&
       typeof item.inputs.techMode === 'string' &&
       isRecord(item.outputs) &&
-      typeof item.outputs.durationMs === 'number'
+      typeof item.outputs.durationMs === 'number',
   );
 }
 
@@ -230,14 +230,14 @@ function applyLegacyMigration(state: PersistedAppState): PersistedAppState {
   }
 
   const legacyWrittenHistory = parseJsonArray(
-    window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY)
+    window.localStorage.getItem(QUESTION_HISTORY_STORAGE_KEY),
   );
   if (legacyWrittenHistory.length > 0) {
     next.questionHistory = normalizeQuestionHistory(legacyWrittenHistory);
   }
 
   const legacyMcHistory = parseJsonArray(
-    window.localStorage.getItem(MC_HISTORY_STORAGE_KEY)
+    window.localStorage.getItem(MC_HISTORY_STORAGE_KEY),
   );
   if (legacyMcHistory.length > 0) {
     next.mcHistory = normalizeMcHistory(legacyMcHistory);
@@ -290,13 +290,13 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       data.questionTextSize,
       DEFAULT_SETTINGS.questionTextSize ?? 16,
       12,
-      28
+      28,
     ),
     responseTextSize: clampWholeNumber(
       data.responseTextSize,
       DEFAULT_SETTINGS.responseTextSize ?? 16,
       12,
-      28
+      28,
     ),
     includeExamContext:
       data.includeExamContext !== undefined
@@ -348,31 +348,31 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     avoidSimilarQuestions: Boolean(data.avoidSimilarQuestions),
     mathMethodsSubtopics: filterStringLiterals(
       data.mathMethodsSubtopics,
-      MATH_METHODS_SUBTOPICS
+      MATH_METHODS_SUBTOPICS,
     ),
     specialistMathSubtopics: filterStringLiterals(
       data.specialistMathSubtopics,
-      SPECIALIST_MATH_SUBTOPICS
+      SPECIALIST_MATH_SUBTOPICS,
     ),
     chemistrySubtopics: filterStringLiterals(
       data.chemistrySubtopics,
-      CHEMISTRY_SUBTOPICS
+      CHEMISTRY_SUBTOPICS,
     ),
     physicalEducationSubtopics: filterStringLiterals(
       data.physicalEducationSubtopics,
-      PHYSICAL_EDUCATION_SUBTOPICS
+      PHYSICAL_EDUCATION_SUBTOPICS,
     ),
     questionCount: clampWholeNumber(
       data.questionCount,
       DEFAULT_PREFERENCES.questionCount,
       1,
-      20
+      20,
     ),
     averageMarksPerQuestion: clampWholeNumber(
       data.averageMarksPerQuestion,
       DEFAULT_PREFERENCES.averageMarksPerQuestion,
       1,
-      30
+      30,
     ),
     questionMode: isQuestionMode(data.questionMode)
       ? data.questionMode
@@ -390,13 +390,13 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
               data.difficultyThresholds.increase,
               DEFAULT_PREFERENCES.difficultyThresholds!.increase,
               0,
-              100
+              100,
             ),
             decrease: clampWholeNumber(
               data.difficultyThresholds.decrease,
               DEFAULT_PREFERENCES.difficultyThresholds!.decrease,
               0,
-              100
+              100,
             ),
           }
         : DEFAULT_PREFERENCES.difficultyThresholds!,
@@ -415,7 +415,7 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
             data.minSubtopicCoverageRatio,
             DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
             0,
-            1
+            1,
           )
         : DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
     generationStrategy: isGenerationStrategy(data.generationStrategy)
@@ -429,14 +429,14 @@ function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
   const questions = normalizeGeneratedQuestions(data.questions);
   const feedbackByQuestionId = normalizeFeedbackRecord(
     data.feedbackByQuestionId,
-    questions
+    questions,
   );
 
   return {
     questions,
     activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
     presentedAtByQuestionId: normalizeNumberRecord(
-      data.presentedAtByQuestionId
+      data.presentedAtByQuestionId,
     ),
     answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
     imagesByQuestionId: normalizeImageRecord(data.imagesByQuestionId),
@@ -455,7 +455,7 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
     questions,
     activeQuestionIndex: clampIndex(data.activeQuestionIndex, questions.length),
     presentedAtByQuestionId: normalizeNumberRecord(
-      data.presentedAtByQuestionId
+      data.presentedAtByQuestionId,
     ),
     answersByQuestionId: normalizeStringRecord(data.answersByQuestionId),
     rawModelOutput: asString(data.rawModelOutput),
@@ -545,7 +545,7 @@ export function normalizeQuestionHistory(raw: unknown): QuestionHistoryEntry[] {
 }
 
 function normalizeQuestionHistoryEntry(
-  raw: unknown
+  raw: unknown,
 ): QuestionHistoryEntry | null {
   const data = isRecord(raw) ? raw : null;
   if (!data) {
@@ -643,10 +643,10 @@ function normalizeGeneratedQuestions(raw: unknown) {
     .map((question) => normalizeGeneratedQuestion(question))
     .filter(
       (
-        question
+        question,
       ): question is NonNullable<
         ReturnType<typeof normalizeGeneratedQuestion>
-      > => question !== null
+      > => question !== null,
     );
 }
 
@@ -747,14 +747,14 @@ function normalizeMcOptions(raw: unknown): McOption[] {
 
 function normalizeFeedbackRecord(
   raw: unknown,
-  questions: Array<{ id: string; maxMarks: number }>
+  questions: Array<{ id: string; maxMarks: number }>,
 ) {
   if (!isRecord(raw)) {
     return {};
   }
 
   const maxMarksById = new Map(
-    questions.map((question) => [question.id, question.maxMarks])
+    questions.map((question) => [question.id, question.maxMarks]),
   );
   return Object.entries(raw).reduce<
     Record<string, ReturnType<typeof normalizeMarkResponse>>
@@ -776,7 +776,7 @@ function normalizeStringRecord(raw: unknown): Record<string, string> {
       }
       return acc;
     },
-    {}
+    {},
   );
 }
 
@@ -792,12 +792,12 @@ function normalizeNumberRecord(raw: unknown): Record<string, number> {
       }
       return acc;
     },
-    {}
+    {},
   );
 }
 
 function normalizeImageRecord(
-  raw: unknown
+  raw: unknown,
 ): Record<string, StudentAnswerImage | undefined> {
   if (!isRecord(raw)) {
     return {};
@@ -848,25 +848,25 @@ function normalizeGenerationTelemetry(raw: unknown) {
       data.durationMs,
       0,
       0,
-      Number.MAX_SAFE_INTEGER
+      Number.MAX_SAFE_INTEGER,
     ),
     promptTokens: clampWholeNumber(
       data.promptTokens,
       0,
       0,
-      Number.MAX_SAFE_INTEGER
+      Number.MAX_SAFE_INTEGER,
     ),
     completionTokens: clampWholeNumber(
       data.completionTokens,
       0,
       0,
-      Number.MAX_SAFE_INTEGER
+      Number.MAX_SAFE_INTEGER,
     ),
     totalTokens: clampWholeNumber(
       data.totalTokens,
       0,
       0,
-      Number.MAX_SAFE_INTEGER
+      Number.MAX_SAFE_INTEGER,
     ),
     estimatedCostUsd: asFiniteNumber(data.estimatedCostUsd),
     distinctnessAvg: asFiniteNumber(data.distinctnessAvg),
@@ -875,7 +875,7 @@ function normalizeGenerationTelemetry(raw: unknown) {
 }
 
 function normalizeWrittenAnswerAnalytics(
-  raw: unknown
+  raw: unknown,
 ): WrittenAnswerAnalytics | null {
   const base = normalizeAnswerAnalytics(raw);
   const data = isRecord(raw) ? raw : null;
@@ -907,7 +907,7 @@ function normalizeAnswerAnalytics(raw: unknown): AnswerAnalytics | null {
     data.answerCharacterCount,
     0,
     0,
-    1_000_000
+    1_000_000,
   );
   const answerWordCount = clampWholeNumber(data.answerWordCount, 0, 0, 200_000);
 
@@ -921,7 +921,7 @@ function normalizeAnswerAnalytics(raw: unknown): AnswerAnalytics | null {
 }
 
 function isWrittenAttemptKind(
-  raw: unknown
+  raw: unknown,
 ): raw is WrittenAnswerAnalytics['attemptKind'] {
   return raw === 'initial' || raw === 'appeal' || raw === 'override';
 }
@@ -1016,7 +1016,7 @@ function asFiniteNonNegativeNumber(value: unknown): number | undefined {
 
 function deterministicId(
   prefix: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): string {
   const input = JSON.stringify(payload, Object.keys(payload).sort());
   let hash = 2166136261;
@@ -1028,7 +1028,7 @@ function deterministicId(
 }
 
 function isDifficulty(
-  value: unknown
+  value: unknown,
 ): value is PersistedGeneratorPreferences['difficulty'] {
   return (
     value === 'Essential Skills' ||
@@ -1040,7 +1040,7 @@ function isDifficulty(
 }
 
 function isTechMode(
-  value: unknown
+  value: unknown,
 ): value is PersistedGeneratorPreferences['techMode'] {
   return value === 'tech-free' || value === 'tech-active';
 }
@@ -1055,7 +1055,7 @@ function isGenerationStrategy(value: unknown): value is GenerationStrategy {
 
 function filterStringLiterals<T extends readonly string[]>(
   value: unknown,
-  allowed: T
+  allowed: T,
 ): T[number][] {
   if (!Array.isArray(value)) {
     return [];
@@ -1064,7 +1064,7 @@ function filterStringLiterals<T extends readonly string[]>(
   const allowedSet = new Set<string>(allowed);
   return value.filter(
     (item): item is T[number] =>
-      typeof item === 'string' && allowedSet.has(item)
+      typeof item === 'string' && allowedSet.has(item),
   );
 }
 
@@ -1075,25 +1075,25 @@ function normalizeStudyGoals(raw: unknown): StudyGoals {
       raw.dailyQuestionGoal,
       DEFAULT_STUDY_GOALS.dailyQuestionGoal,
       1,
-      50
+      50,
     ),
     dailyWrittenGoal: clampWholeNumber(
       raw.dailyWrittenGoal,
       DEFAULT_STUDY_GOALS.dailyWrittenGoal,
       0,
-      20
+      20,
     ),
     dailyMcGoal: clampWholeNumber(
       raw.dailyMcGoal,
       DEFAULT_STUDY_GOALS.dailyMcGoal,
       0,
-      20
+      20,
     ),
     weeklyStreakGoal: clampWholeNumber(
       raw.weeklyStreakGoal,
       DEFAULT_STUDY_GOALS.weeklyStreakGoal,
       1,
-      7
+      7,
     ),
   };
 }

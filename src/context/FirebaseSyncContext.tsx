@@ -26,7 +26,7 @@ export function useFirebaseSyncContext(): UseSyncV3Return {
       console.warn('useFirebaseSyncContext used outside FirebaseSyncProvider.');
     }
     throw new Error(
-      'useFirebaseSyncContext must be used within FirebaseSyncProvider.'
+      'useFirebaseSyncContext must be used within FirebaseSyncProvider.',
     );
   }
 

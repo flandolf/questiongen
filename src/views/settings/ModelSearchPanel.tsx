@@ -106,14 +106,14 @@ const searchCache = new Map<string, SearchCache>();
 
 function getCacheKey(
   apiKey: string,
-  target: ModelSearchPanelProps['target']
+  target: ModelSearchPanelProps['target'],
 ): string {
   return `${apiKey}:${target === 'imageMarking' ? 'image' : 'text'}`;
 }
 
 function getCachedEntry(
   apiKey: string,
-  target: ModelSearchPanelProps['target']
+  target: ModelSearchPanelProps['target'],
 ): SearchCache | null {
   const key = getCacheKey(apiKey, target);
   const entry = searchCache.get(key);
@@ -134,13 +134,13 @@ function parseOpenRouterModels(raw: unknown): CatalogueModel[] {
       name: m.name,
       context_length: m.context_length,
       supportsImages: (m.architecture?.input_modalities ?? []).some(
-        (mod) => mod === 'image' || mod === 'vision' || mod === 'multimodal'
+        (mod) => mod === 'image' || mod === 'vision' || mod === 'multimodal',
       ),
     }));
 }
 
 async function fetchOpenRouterModels(
-  apiKey: string
+  apiKey: string,
 ): Promise<CatalogueModel[]> {
   const res = await fetch('https://openrouter.ai/api/v1/models', {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -174,26 +174,26 @@ function getDisplayedResults(
   results: ModelSearchResult[],
   query: string,
   sortKey: SortKey,
-  sortDir: SortDir
+  sortDir: SortDir,
 ): ModelSearchResult[] {
   const trimmed = query.trim().toLowerCase();
   const filtered = trimmed
     ? results.filter(
         (r) =>
           r.name.toLowerCase().includes(trimmed) ||
-          r.id.toLowerCase().includes(trimmed)
+          r.id.toLowerCase().includes(trimmed),
       )
     : results;
   const dir = sortDir === 'desc' ? -1 : 1;
   return [...filtered].sort(
-    (a, b) => dir * (getSortValue(a, sortKey) - getSortValue(b, sortKey))
+    (a, b) => dir * (getSortValue(a, sortKey) - getSortValue(b, sortKey)),
   );
 }
 
 function getCacheMinutesLeft(
   fromCache: boolean,
   apiKey: string,
-  target: ModelSearchPanelProps['target']
+  target: ModelSearchPanelProps['target'],
 ): number | null {
   if (!fromCache) return null;
   return Math.max(
@@ -201,8 +201,8 @@ function getCacheMinutesLeft(
     Math.ceil(
       (SEARCH_CACHE_TTL_MS -
         (Date.now() - (getCachedEntry(apiKey, target)?.fetchedAt ?? 0))) /
-        60_000
-    )
+        60_000,
+    ),
   );
 }
 
@@ -270,35 +270,35 @@ function ModelSearchHeader({
   onClose: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold flex items-center gap-2">
+    <div className='flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40'>
+      <div className='min-w-0'>
+        <p className='text-sm font-semibold flex items-center gap-2'>
           Model Search
           {target !== 'generation' && (
-            <span className="text-xs font-normal text-muted-foreground">
+            <span className='text-xs font-normal text-muted-foreground'>
               for {isImageTarget ? 'image marking' : 'marking'}
             </span>
           )}
           {isImageTarget && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800 leading-none flex items-center gap-0.5">
-              <ImageIcon className="h-2.5 w-2.5" />
+            <span className='text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800 leading-none flex items-center gap-0.5'>
+              <ImageIcon className='h-2.5 w-2.5' />
               Vision only
             </span>
           )}
           {fromCache && !loading && (
-            <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 leading-none">
+            <span className='text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 leading-none'>
               cached
             </span>
           )}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">{statusLine}</p>
+        <p className='text-xs text-muted-foreground mt-0.5'>{statusLine}</p>
       </div>
       <button
         onClick={onClose}
-        className="ml-4 shrink-0 p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        aria-label="Close"
+        className='ml-4 shrink-0 p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors'
+        aria-label='Close'
       >
-        <X className="h-4 w-4" />
+        <X className='h-4 w-4' />
       </button>
     </div>
   );
@@ -306,14 +306,14 @@ function ModelSearchHeader({
 
 function ModelSearchLoadingBar({ loading }: { loading: boolean }) {
   return (
-    <div className="h-0.5 bg-border overflow-hidden">
+    <div className='h-0.5 bg-border overflow-hidden'>
       {loading ? (
         <div
-          className="h-full w-1/3 bg-primary animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full"
+          className='h-full w-1/3 bg-primary animate-[shimmer_1.5s_ease-in-out_infinite] rounded-full'
           style={{ animation: 'pulse 1.5s ease-in-out infinite' }}
         />
       ) : (
-        <div className="h-full bg-emerald-500 w-full transition-all" />
+        <div className='h-full bg-emerald-500 w-full transition-all' />
       )}
     </div>
   );
@@ -348,7 +348,7 @@ function ModelSearchControls({
         'inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors',
         sortKey === k
           ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       <SortIcon k={k} />
@@ -357,28 +357,28 @@ function ModelSearchControls({
   );
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background flex-wrap gap-y-2">
-      <div className="relative flex-1 min-w-40">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+    <div className='flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background flex-wrap gap-y-2'>
+      <div className='relative flex-1 min-w-40'>
+        <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none' />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by name or ID…"
-          className="pl-8 pr-8 h-8 text-sm"
+          placeholder='Filter by name or ID…'
+          className='pl-8 pr-8 h-8 text-sm'
           autoFocus
         />
         {query && (
           <button
             onClick={() => setQuery('')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Clear search"
+            className='absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
+            aria-label='Clear search'
           >
-            <X className="h-3.5 w-3.5" />
+            <X className='h-3.5 w-3.5' />
           </button>
         )}
       </div>
-      <div className="flex items-center gap-1 ml-auto flex-wrap">
-        <span className="text-xs text-muted-foreground/60 mr-1 hidden sm:inline">
+      <div className='flex items-center gap-1 ml-auto flex-wrap'>
+        <span className='text-xs text-muted-foreground/60 mr-1 hidden sm:inline'>
           Sort:
         </span>
         {SORT_OPTIONS.map(({ key, label, description }) => (
@@ -408,7 +408,7 @@ function ModelSearchStates({
 }) {
   if (error && !loading) {
     return (
-      <div className="px-4 py-3">
+      <div className='px-4 py-3'>
         <ErrorBanner message={error} />
       </div>
     );
@@ -416,7 +416,7 @@ function ModelSearchStates({
 
   if (!loading && resultsLength === 0) {
     return (
-      <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+      <div className='px-4 py-10 text-center text-sm text-muted-foreground'>
         No models found matching the required capabilities ({requiresDesc}).
       </div>
     );
@@ -424,13 +424,13 @@ function ModelSearchStates({
 
   if (!loading && resultsLength > 0 && displayedLength === 0) {
     return (
-      <div className="px-4 py-10 text-center">
-        <p className="text-sm text-muted-foreground mb-1.5">
+      <div className='px-4 py-10 text-center'>
+        <p className='text-sm text-muted-foreground mb-1.5'>
           No models match{' '}
-          <span className="font-medium text-foreground">"{query}"</span>
+          <span className='font-medium text-foreground'>"{query}"</span>
         </p>
         <button
-          className="text-xs text-primary underline underline-offset-2"
+          className='text-xs text-primary underline underline-offset-2'
           onClick={() => setQuery('')}
         >
           Clear filter
@@ -441,11 +441,11 @@ function ModelSearchStates({
 
   if (loading && resultsLength === 0) {
     return (
-      <div className="px-4 py-3 space-y-2">
+      <div className='px-4 py-3 space-y-2'>
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="h-9 rounded-md bg-muted animate-pulse"
+            className='h-9 rounded-md bg-muted animate-pulse'
             style={{ opacity: 1 - i * 0.15 }}
           />
         ))}
@@ -460,7 +460,7 @@ function getResultsSummary(
   exhausted: boolean,
   query: string,
   displayedLength: number,
-  resultsLength: number
+  resultsLength: number,
 ): string {
   if (exhausted) return `All ${resultsLength} qualifying models shown`;
   if (query.trim()) {
@@ -499,69 +499,69 @@ function ModelSearchResultsTable({
   if (displayed.length === 0) return null;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border">
-          <tr className="text-xs text-muted-foreground">
-            <th className="text-left px-4 py-2 font-medium">Model</th>
+    <div className='overflow-x-auto'>
+      <table className='w-full text-sm'>
+        <thead className='sticky top-0 z-10 bg-muted/80 backdrop-blur border-b border-border'>
+          <tr className='text-xs text-muted-foreground'>
+            <th className='text-left px-4 py-2 font-medium'>Model</th>
             {TABLE_SORT_COLUMNS.map(({ k, label, title }) => (
               <th
                 key={k}
                 title={title}
                 className={cn(
                   'text-right px-3 py-2 font-medium cursor-pointer hover:text-foreground transition-colors whitespace-nowrap select-none',
-                  sortKey === k && 'text-foreground'
+                  sortKey === k && 'text-foreground',
                 )}
                 onClick={() => toggleSort(k)}
               >
-                <span className="inline-flex items-center justify-end gap-1">
+                <span className='inline-flex items-center justify-end gap-1'>
                   <SortIcon k={k} />
                   {label}
                 </span>
               </th>
             ))}
-            <th className="w-16 px-3 py-2" />
+            <th className='w-16 px-3 py-2' />
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className='divide-y divide-border'>
           {displayed.map((r) => (
             <tr
               key={r.id}
-              className="hover:bg-muted/40 transition-colors group"
+              className='hover:bg-muted/40 transition-colors group'
             >
-              <td className="px-4 py-2.5">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="min-w-0">
+              <td className='px-4 py-2.5'>
+                <div className='flex items-center gap-1.5 min-w-0'>
+                  <div className='min-w-0'>
                     <p
-                      className="font-medium text-sm truncate max-w-40"
+                      className='font-medium text-sm truncate max-w-40'
                       title={r.name}
                     >
                       {r.name}
                     </p>
                     <p
-                      className="text-xs text-muted-foreground truncate max-w-40"
+                      className='text-xs text-muted-foreground truncate max-w-40'
                       title={r.id}
                     >
                       {r.id}
                     </p>
                   </div>
                   {isImageTarget && r.supportsImages && (
-                    <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none">
+                    <span className='shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none'>
                       Vision
                     </span>
                   )}
                 </div>
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">
+              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
                 {fmt.tps(r.tpsP50)}
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">
+              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
                 {fmt.latency(r.latencyP50)}
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">
+              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
                 {fmt.price(r.promptPricePerToken)}
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">
+              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
                 {fmt.price(r.completionPricePerToken)}
               </td>
               <td
@@ -569,22 +569,22 @@ function ModelSearchResultsTable({
                   'px-3 py-2.5 text-right tabular-nums text-sm transition-colors',
                   sortKey === 'priceCombined'
                     ? 'text-foreground font-medium'
-                    : 'text-muted-foreground'
+                    : 'text-muted-foreground',
                 )}
               >
                 {fmt.priceCombined(
                   r.promptPricePerToken,
-                  r.completionPricePerToken
+                  r.completionPricePerToken,
                 )}
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground">
+              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
                 {fmt.context(r.contextLength)}
               </td>
-              <td className="px-3 py-2.5 text-right">
+              <td className='px-3 py-2.5 text-right'>
                 <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  size='sm'
+                  variant='outline'
+                  className='h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity'
                   onClick={() => {
                     onSelect(r.id);
                     onClose();
@@ -598,21 +598,21 @@ function ModelSearchResultsTable({
         </tbody>
       </table>
 
-      <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
+      <div className='px-4 py-3 border-t border-border bg-muted/20 flex items-center justify-between gap-3'>
+        <p className='text-xs text-muted-foreground'>
           {getResultsSummary(exhausted, query, displayed.length, resultsLength)}
         </p>
         {!exhausted && (
           <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 h-7 text-xs shrink-0"
+            variant='outline'
+            size='sm'
+            className='gap-1.5 h-7 text-xs shrink-0'
             disabled={loadingMore}
             onClick={onLoadMore}
           >
             {loadingMore ? (
               <>
-                <RefreshCw className="h-3 w-3 animate-spin" />
+                <RefreshCw className='h-3 w-3 animate-spin' />
                 Loading…
               </>
             ) : (
@@ -647,16 +647,16 @@ function ModelSearchPanelView({
   onLoadMore,
 }: ModelSearchPanelViewProps) {
   function SortIcon({ k }: { k: SortKey }) {
-    if (sortKey !== k) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+    if (sortKey !== k) return <ArrowUpDown className='h-3 w-3 opacity-30' />;
     return sortDir === 'desc' ? (
-      <ArrowDown className="h-3 w-3" />
+      <ArrowDown className='h-3 w-3' />
     ) : (
-      <ArrowUp className="h-3 w-3" />
+      <ArrowUp className='h-3 w-3' />
     );
   }
 
   return (
-    <Card className="overflow-hidden shadow-sm">
+    <Card className='overflow-hidden shadow-sm'>
       <ModelSearchHeader
         target={target}
         isImageTarget={isImageTarget}
@@ -749,7 +749,7 @@ export function ModelSearchPanel({
       }
       return true;
     },
-    [isImageTarget]
+    [isImageTarget],
   );
 
   const scanBatch = useCallback(
@@ -758,7 +758,7 @@ export function ModelSearchPanel({
       startOffset: number,
       needed: number,
       currentResults: ModelSearchResult[],
-      signal: { cancelled: boolean }
+      signal: { cancelled: boolean },
     ): Promise<{
       newResults: ModelSearchResult[];
       nextOffset: number;
@@ -794,7 +794,7 @@ export function ModelSearchPanel({
                 setCachedImageValidation(
                   apiKey,
                   m.id,
-                  stats.supportsImages === true
+                  stats.supportsImages === true,
                 );
                 found.push({
                   id: m.id,
@@ -814,13 +814,13 @@ export function ModelSearchPanel({
                 setCachedImageValidation(
                   apiKey,
                   m.id,
-                  stats.supportsImages === true
+                  stats.supportsImages === true,
                 );
               }
             } catch {
               /* skip */
             }
-          })
+          }),
         );
         offset = i + BATCH;
         if (found.length - currentResults.length >= needed) break outer;
@@ -829,7 +829,7 @@ export function ModelSearchPanel({
       const done = offset >= catalogue.length;
       return { newResults: found, nextOffset: offset, done };
     },
-    [apiKey, modelPasses]
+    [apiKey, modelPasses],
   );
 
   useEffect(() => {
@@ -863,7 +863,7 @@ export function ModelSearchPanel({
           0,
           SEARCH_MAX_RESULTS,
           [],
-          signal
+          signal,
         );
         if (signal.cancelled) return;
 
@@ -905,7 +905,7 @@ export function ModelSearchPanel({
         cached.catalogueOffset,
         SEARCH_LOAD_MORE,
         cached.results,
-        signal
+        signal,
       );
       if (signal.cancelled) return;
 
@@ -928,7 +928,7 @@ export function ModelSearchPanel({
 
   const displayed = useMemo(
     () => getDisplayedResults(results, query, sortKey, sortDir),
-    [results, query, sortKey, sortDir]
+    [results, query, sortKey, sortDir],
   );
 
   function toggleSort(key: SortKey) {

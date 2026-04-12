@@ -41,26 +41,26 @@ export function UnifiedQuestionPromptCard({
 }) {
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground/70">
-        <div className="flex items-center gap-2 uppercase tracking-[0.22em] font-medium">
-          <Info className="w-3.5 h-3.5" />
+      <div className='flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground/70'>
+        <div className='flex items-center gap-2 uppercase tracking-[0.22em] font-medium'>
+          <Info className='w-3.5 h-3.5' />
           <span>Question</span>
         </div>
-        {topic && <span className="text-foreground/80">{topic}</span>}
+        {topic && <span className='text-foreground/80'>{topic}</span>}
         {subtopic && <span>/ {subtopic}</span>}
         {difficulty && (
           <>
-            <span className="text-border">|</span>
-            <span className="capitalize">{difficulty}</span>
+            <span className='text-border'>|</span>
+            <span className='capitalize'>{difficulty}</span>
           </>
         )}
         {typeof maxMarks === 'number' && maxMarks > 0 && (
           <>
-            <span className="text-border">|</span>
+            <span className='text-border'>|</span>
             <span>{maxMarks} marks</span>
           </>
         )}
-        <div className="ml-auto">{rightSlot}</div>
+        <div className='ml-auto'>{rightSlot}</div>
       </div>
 
       {/* Quality Badges */}
@@ -68,7 +68,7 @@ export function UnifiedQuestionPromptCard({
         multiStepDepth !== undefined ||
         verbDiversityCount !== undefined ||
         scaffoldPattern) && (
-        <div className="px-5 sm:px-6">
+        <div className='px-5 sm:px-6'>
           <QuestionQualityBadges
             distinctness={distinctness}
             multiStepDepth={multiStepDepth}
@@ -79,10 +79,10 @@ export function UnifiedQuestionPromptCard({
         </div>
       )}
 
-      <div className="relative overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6">
-        <div className="absolute inset-y-0 right-0 w-28 pointer-events-none" />
+      <div className='relative overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6'>
+        <div className='absolute inset-y-0 right-0 w-28 pointer-events-none' />
         <div
-          className="relative leading-[1.75] text-foreground"
+          className='relative leading-[1.75] text-foreground'
           style={{ fontSize: 'var(--question-text-size)' }}
         >
           <MarkdownMath content={promptMarkdown} />
@@ -123,7 +123,7 @@ export function UnifiedMcqOptionsGrid({
       className={cn(
         'grid gap-3',
         columns === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2',
-        className
+        className,
       )}
     >
       {options.map((opt) => {
@@ -182,25 +182,25 @@ export function UnifiedMcqOptionsGrid({
         return (
           <button
             key={opt.label}
-            type="button"
+            type='button'
             disabled={disabled}
             onClick={() => onSelect?.(opt.label)}
             className={cn(
               'w-full text-left rounded-xl flex items-start gap-3.5',
-              containerClasses
+              containerClasses,
             )}
             style={{ padding: 0 }}
             aria-label={`Option ${opt.label}: ${opt.text.substring(0, 60)}${opt.text.length > 60 ? '...' : ''}`}
           >
             {/* Inner layout uses gap + padding-equivalent via inner wrapper */}
-            <div className="flex items-start gap-3.5 w-full p-4 sm:p-5">
+            <div className='flex items-start gap-3.5 w-full p-4 sm:p-5'>
               {/* Badge */}
               <div
                 className={cn(
                   'w-9 h-9 shrink-0 flex items-center justify-center rounded-lg',
                   'text-[12px] font-semibold tracking-[0.15em] uppercase leading-none pl-[0.15em]',
                   'transition-colors duration-150',
-                  badgeClasses
+                  badgeClasses,
                 )}
                 style={badgeStyle}
               >
@@ -209,7 +209,7 @@ export function UnifiedMcqOptionsGrid({
 
               {/* Content */}
               <div
-                className="flex-1 leading-[1.7] min-w-0 pt-0.75"
+                className='flex-1 leading-[1.7] min-w-0 pt-0.75'
                 style={{ fontSize: 'var(--response-text-size)' }}
               >
                 <MarkdownMath content={opt.text} />
@@ -254,17 +254,17 @@ export function UnifiedWrittenResponseCard({
 }) {
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-3 text-sm">
-        <div className="flex items-center gap-2 text-muted-foreground/70">
-          <PenLine className="w-4 h-4" />
-          <span className="text-xs uppercase tracking-wide">Response</span>
+      <div className='flex items-center gap-3 text-sm'>
+        <div className='flex items-center gap-2 text-muted-foreground/70'>
+          <PenLine className='w-4 h-4' />
+          <span className='text-xs uppercase tracking-wide'>Response</span>
         </div>
         {typeof maxMarks === 'number' && maxMarks > 0 && (
-          <span className="text-muted-foreground/50 text-xs">
+          <span className='text-muted-foreground/50 text-xs'>
             ({maxMarks} marks)
           </span>
         )}
-        <div className="ml-auto flex items-center gap-4">{headerRight}</div>
+        <div className='ml-auto flex items-center gap-4'>{headerRight}</div>
       </div>
       {topSlot}
       {inputSlot ?? (
@@ -273,22 +273,22 @@ export function UnifiedWrittenResponseCard({
           onChange={(e) => onChange?.(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+          className='min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30'
         />
       )}
 
       {showReveal && onReveal && (
-        <div className="flex items-center justify-end gap-2">
+        <div className='flex items-center justify-end gap-2'>
           {value.trim() && (
-            <span className="text-xs text-muted-foreground/50">Writing...</span>
+            <span className='text-xs text-muted-foreground/50'>Writing...</span>
           )}
           <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground/70 hover:text-foreground"
+            variant='ghost'
+            size='sm'
+            className='text-muted-foreground/70 hover:text-foreground'
             onClick={onReveal}
           >
-            <Eye className="w-3.5 h-3.5 mr-1.5" />
+            <Eye className='w-3.5 h-3.5 mr-1.5' />
             {revealLabel}
           </Button>
         </div>

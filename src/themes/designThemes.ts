@@ -30,7 +30,7 @@ function getThemeByName(name: string) {
 }
 
 export function resolveDesignThemeName(
-  name: string | null | undefined
+  name: string | null | undefined,
 ): string {
   const normalized = typeof name === 'string' ? name.trim() : '';
   return getThemeByName(normalized)?.name ?? DEFAULT_THEME_NAME;

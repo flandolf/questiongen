@@ -28,7 +28,7 @@ export function getDifficultyBadgeClasses(level: Difficulty): string {
 
 export function removeKey<T>(
   record: Record<string, T>,
-  key: string
+  key: string,
 ): Record<string, T> {
   const next = { ...record };
   delete next[key];

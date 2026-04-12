@@ -23,14 +23,14 @@ import { formatTauriInvokeError } from './tauri-invoke-error';
 
 async function invokeTauri<T>(
   cmd: string,
-  args: Record<string, unknown>
+  args: Record<string, unknown>,
 ): Promise<T> {
   try {
     return await invoke<T>(cmd, args);
   } catch (e) {
     // eslint-disable-next-line preserve-caught-error
     throw new Error(
-      `Tauri command "${cmd}" failed: ${formatTauriInvokeError(e)}`
+      `Tauri command "${cmd}" failed: ${formatTauriInvokeError(e)}`,
     );
   }
 }
@@ -159,7 +159,7 @@ export type JsonBackupFileInfo = {
 export async function exportEnvelopeToDirectory(
   dirPath: string,
   envelope: ExportEnvelope,
-  suggestedFilename?: string
+  suggestedFilename?: string,
 ): Promise<string> {
   if (!isTauriApp()) {
     throw new Error('Saving to a backup folder requires the desktop app.');
@@ -172,7 +172,7 @@ export async function exportEnvelopeToDirectory(
 }
 
 export async function listJsonBackupsInDirectory(
-  dirPath: string
+  dirPath: string,
 ): Promise<JsonBackupFileInfo[]> {
   if (!isTauriApp()) return [];
   return invokeTauri<JsonBackupFileInfo[]>('list_json_files_in_directory', {
@@ -188,7 +188,7 @@ export async function readBackupJsonFile(filePath: string): Promise<string> {
 }
 
 export async function downloadExport(
-  envelope: ExportEnvelope
+  envelope: ExportEnvelope,
 ): Promise<string | null> {
   const json = JSON.stringify(envelope, null, 2);
   const today = new Date().toISOString().slice(0, 10);
@@ -255,7 +255,7 @@ export function parseImportFile(file: File): Promise<PersistedAppState> {
         reject(
           err instanceof Error
             ? err
-            : new Error('Failed to parse import file: Unknown error')
+            : new Error('Failed to parse import file: Unknown error'),
         );
       }
     };
@@ -298,7 +298,7 @@ export function validateImportData(raw: unknown): {
     'preferences',
   ];
   const foundKeys = expectedKeys.filter(
-    (k) => k in s && s[k] !== undefined && s[k] !== null
+    (k) => k in s && s[k] !== undefined && s[k] !== null,
   );
 
   if (foundKeys.length < 2) {
@@ -314,26 +314,26 @@ export function validateImportData(raw: unknown): {
 
 export function computeImportCounts(
   current: ImportExportState,
-  imported: PersistedAppState
+  imported: PersistedAppState,
 ): ImportCounts {
   const newQuestionHistory = imported.questionHistory.filter(
-    (item) => !current.questionHistory.some((e) => e.id === item.id)
+    (item) => !current.questionHistory.some((e) => e.id === item.id),
   ).length;
   const newMcHistory = imported.mcHistory.filter(
-    (item) => !current.mcHistory.some((e) => e.id === item.id)
+    (item) => !current.mcHistory.some((e) => e.id === item.id),
   ).length;
   const newSavedSets = imported.savedSets.filter(
-    (item) => !current.savedSets.some((e) => e.id === item.id)
+    (item) => !current.savedSets.some((e) => e.id === item.id),
   ).length;
   const newPresets = (imported.presets ?? []).filter(
-    (item) => !current.presets.some((e) => e.id === item.id)
+    (item) => !current.presets.some((e) => e.id === item.id),
   ).length;
   const newGenerationHistory = (imported.generationHistory ?? []).filter(
-    (item) => !current.generationHistory.some((e) => e.id === item.id)
+    (item) => !current.generationHistory.some((e) => e.id === item.id),
   ).length;
   const importedCards = imported.spacedRepetition ?? {};
   const newSpacedCards = Object.keys(importedCards).filter(
-    (key) => !(key in current.spacedRepetitionCards)
+    (key) => !(key in current.spacedRepetitionCards),
   ).length;
 
   const totalImported =
@@ -357,21 +357,21 @@ export function computeImportCounts(
 
 export function mergeImportedState(
   current: ImportExportState,
-  imported: PersistedAppState
+  imported: PersistedAppState,
 ): Partial<ImportExportState> {
   const merged: Partial<ImportExportState> = {};
 
   // Array collections: merge by id, existing entries kept
   merged.questionHistory = mergeById(
     current.questionHistory,
-    imported.questionHistory
+    imported.questionHistory,
   );
   merged.mcHistory = mergeById(current.mcHistory, imported.mcHistory);
   merged.savedSets = mergeById(current.savedSets, imported.savedSets);
   merged.presets = mergeById(current.presets, imported.presets ?? []);
   merged.generationHistory = mergeById(
     current.generationHistory,
-    imported.generationHistory ?? []
+    imported.generationHistory ?? [],
   );
 
   // Spaced repetition cards: merged by key, existing keys kept
@@ -429,7 +429,7 @@ export function mergeImportedState(
 }
 
 export async function persistAndRehydrate(
-  state: ImportExportState
+  state: ImportExportState,
 ): Promise<void> {
   const snapshot = buildExportSnapshot(state);
   await savePersistedAppState(snapshot);
@@ -439,7 +439,7 @@ export async function persistAndRehydrate(
 
 function mergeById<T extends { id: string }>(
   existing: T[],
-  incoming: T[]
+  incoming: T[],
 ): T[] {
   const existingIds = new Set(existing.map((e) => e.id));
   return [...existing, ...incoming.filter((item) => !existingIds.has(item.id))];
@@ -447,7 +447,7 @@ function mergeById<T extends { id: string }>(
 
 function buildExportSnapshot(
   s: ImportExportState,
-  options?: { preserveImages?: boolean }
+  options?: { preserveImages?: boolean },
 ): PersistedAppState {
   const preserveImages = options?.preserveImages ?? false;
 
@@ -526,7 +526,7 @@ function buildExportSnapshot(
               dataUrl: preserveImages ? entry.uploadedAnswerImage.dataUrl : '',
             },
           }
-        : entry
+        : entry,
     ),
     mcHistory: s.mcHistory,
     savedSets: s.savedSets,

@@ -25,12 +25,12 @@ export function PageHeader({
       transition={SPRING}
       className={cn('flex items-start justify-between gap-4', className)}
     >
-      <div className="space-y-1">
+      <div className='space-y-1'>
         <motion.h1
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...SPRING, delay: 0.1 }}
-          className="text-3xl font-black tracking-tight"
+          className='text-3xl font-black tracking-tight'
         >
           {title}
         </motion.h1>
@@ -39,7 +39,7 @@ export function PageHeader({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="text-sm text-muted-foreground mb-2"
+            className='text-sm text-muted-foreground mb-2'
           >
             {description}
           </motion.p>
@@ -50,7 +50,7 @@ export function PageHeader({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ ...SPRING, delay: 0.1 }}
-          className="flex items-center gap-2"
+          className='flex items-center gap-2'
         >
           {actions}
         </motion.div>
@@ -65,11 +65,11 @@ interface SectionLabelProps {
 
 export function SectionLabel({ children }: SectionLabelProps) {
   return (
-    <div className="flex items-center gap-3 pt-2">
-      <span className="text-[10px] font-light uppercase tracking-[0.18em] text-muted-foreground/70">
+    <div className='flex items-center gap-3 pt-2'>
+      <span className='text-[10px] font-light uppercase tracking-[0.18em] text-muted-foreground/70'>
         {children}
       </span>
-      <div className="flex-1 border-t border-border/40" />
+      <div className='flex-1 border-t border-border/40' />
     </div>
   );
 }
@@ -111,18 +111,18 @@ export function StatCard({
     <div
       className={cn(
         'rounded-sm border bg-muted/20 px-4 py-3 space-y-0.5',
-        accentColor
+        accentColor,
       )}
     >
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        {icon && <span className="h-3 w-3">{icon}</span>}
-        <span className="text-[10px] font-light uppercase tracking-wider">
+      <div className='flex items-center gap-1.5 text-muted-foreground'>
+        {icon && <span className='h-3 w-3'>{icon}</span>}
+        <span className='text-[10px] font-light uppercase tracking-wider'>
           {label}
         </span>
       </div>
-      <div className="text-xl font-black tabular-nums">{value}</div>
+      <div className='text-xl font-black tabular-nums'>{value}</div>
       {subValue && (
-        <div className="text-[11px] text-muted-foreground">{subValue}</div>
+        <div className='text-[11px] text-muted-foreground'>{subValue}</div>
       )}
     </div>
   );
@@ -147,17 +147,17 @@ export function EmptyState({
     <div
       className={cn(
         'flex flex-col items-center justify-center gap-4 py-20 text-center',
-        className
+        className,
       )}
     >
       {icon && (
-        <div className="w-12 h-12 rounded-sm bg-muted flex items-center justify-center">
+        <div className='w-12 h-12 rounded-sm bg-muted flex items-center justify-center'>
           {icon}
         </div>
       )}
       <div>
-        <h3 className="text-lg font-light mb-1">{title}</h3>
-        <p className="text-sm text-muted-foreground max-w-xs">{description}</p>
+        <h3 className='text-lg font-light mb-1'>{title}</h3>
+        <p className='text-sm text-muted-foreground max-w-xs'>{description}</p>
       </div>
       {actions && <div>{actions}</div>}
     </div>
@@ -187,7 +187,7 @@ export function FilterGroup({ children, className }: FilterGroupProps) {
     <div
       className={cn(
         'flex items-center gap-1 rounded-sm border bg-muted/30 p-0.5 self-start',
-        className
+        className,
       )}
     >
       {children}
@@ -204,7 +204,7 @@ interface FilterButtonProps {
 export function FilterButton({ children, active, onClick }: FilterButtonProps) {
   return (
     <motion.button
-      type="button"
+      type='button'
       onClick={onClick}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
@@ -213,7 +213,7 @@ export function FilterButton({ children, active, onClick }: FilterButtonProps) {
         'px-3 py-1.5 text-xs rounded-sm font-medium transition-colors flex items-center gap-1.5',
         active
           ? 'bg-background shadow-sm text-foreground'
-          : 'text-muted-foreground hover:text-foreground'
+          : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {children}
@@ -237,29 +237,29 @@ export function SearchInput({
   return (
     <div className={cn('relative', className)}>
       <input
-        type="text"
+        type='text'
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 pl-9 pr-8 text-sm rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50"
+        className='h-9 pl-9 pr-8 text-sm rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring/50'
       />
       {value && (
         <button
-          type="button"
+          type='button'
           onClick={() => onChange('')}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className='absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
         >
           <svg
-            className="w-3.5 h-3.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+            className='w-3.5 h-3.5'
+            fill='none'
+            viewBox='0 0 24 24'
+            stroke='currentColor'
           >
             <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              strokeLinecap='round'
+              strokeLinejoin='round'
               strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
+              d='M6 18L18 6M6 6l12 12'
             />
           </svg>
         </button>
@@ -301,7 +301,7 @@ export function PageContainer({
       className={cn(
         'min-h-full h-full flex flex-col gap-4',
         noPadding ? '' : 'p-6',
-        className
+        className,
       )}
     >
       {children}

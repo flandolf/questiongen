@@ -58,7 +58,7 @@ export const MarkdownMath = memo(function MarkdownMath({
   return (
     <div
       ref={containerRef}
-      className="prose prose-base dark:prose-invert max-w-none font-normal"
+      className='prose prose-base dark:prose-invert max-w-none font-normal'
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} key={sanitized}>
         {sanitized}

@@ -18,16 +18,16 @@ export const ProgressBar = memo(function ProgressBar({
   const isComplete = completed === total && total > 0;
 
   return (
-    <div className="w-full space-y-1.5">
+    <div className='w-full space-y-1.5'>
       {/* Stats row */}
-      <div className="flex justify-between items-center text-[11px] font-medium text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="font-bold text-foreground tabular-nums">
+      <div className='flex justify-between items-center text-[11px] font-medium text-muted-foreground'>
+        <span className='flex items-center gap-1.5'>
+          <span className='font-bold text-foreground tabular-nums'>
             {current}
           </span>
-          <span className="text-muted-foreground/50">/</span>
-          <span className="tabular-nums">{total}</span>
-          <span className="text-muted-foreground/60 hidden sm:inline">
+          <span className='text-muted-foreground/50'>/</span>
+          <span className='tabular-nums'>{total}</span>
+          <span className='text-muted-foreground/60 hidden sm:inline'>
             questions
           </span>
         </span>
@@ -37,14 +37,14 @@ export const ProgressBar = memo(function ProgressBar({
           }`}
         >
           {isComplete ? (
-            <span className="inline-flex items-center gap-1">
-              <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
+            <span className='inline-flex items-center gap-1'>
+              <svg className='w-3 h-3' viewBox='0 0 12 12' fill='none'>
                 <path
-                  d="M2 6l3 3 5-5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  d='M2 6l3 3 5-5'
+                  stroke='currentColor'
+                  strokeWidth='1.5'
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
                 />
               </svg>
               All done
@@ -52,20 +52,20 @@ export const ProgressBar = memo(function ProgressBar({
           ) : (
             <span>
               {completed}{' '}
-              <span className="text-muted-foreground/60">completed</span>
+              <span className='text-muted-foreground/60'>completed</span>
             </span>
           )}
         </span>
       </div>
 
       {/* Track */}
-      <div className="relative w-full h-2 bg-muted/40 rounded-full overflow-hidden">
+      <div className='relative w-full h-2 bg-muted/40 rounded-full overflow-hidden'>
         {/* Completed (green, underneath) */}
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${completedPercent}%` }}
           transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-          className="absolute inset-y-0 left-0 rounded-full"
+          className='absolute inset-y-0 left-0 rounded-full'
           style={{
             background: isComplete
               ? 'linear-gradient(90deg, #10b981, #34d399)'
@@ -77,7 +77,7 @@ export const ProgressBar = memo(function ProgressBar({
           initial={{ width: 0 }}
           animate={{ width: `${percent}%` }}
           transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
-          className="absolute inset-y-0 left-0 rounded-full"
+          className='absolute inset-y-0 left-0 rounded-full'
           style={{
             background: 'hsl(var(--primary) / 0.75)',
           }}

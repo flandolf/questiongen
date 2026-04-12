@@ -64,7 +64,7 @@ export function ImageModelSelectRow({
         setValidation({ status: 'error', message: readBackendError(e) });
       }
     },
-    [apiKey]
+    [apiKey],
   );
 
   useEffect(() => {
@@ -88,33 +88,33 @@ export function ImageModelSelectRow({
   const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex gap-2 items-center">
+    <div className='space-y-1.5'>
+      <div className='flex gap-2 items-center'>
         <Select value={selectVal} onValueChange={onSelect} disabled={disabled}>
-          <SelectTrigger id={id} className="w-full min-w-0">
+          <SelectTrigger id={id} className='w-full min-w-0'>
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent>
             {extraEntry.map((m) => (
               <SelectItem key={m.id} value={m.id}>
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="truncate font-mono text-xs">{m.name}</span>
-                  <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none">
+                <span className='flex items-center gap-2 min-w-0'>
+                  <span className='truncate font-mono text-xs'>{m.name}</span>
+                  <span className='shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none'>
                     custom
                   </span>
                 </span>
               </SelectItem>
             ))}
             {extraEntry.length > 0 && (
-              <div className="my-1 border-t border-border" />
+              <div className='my-1 border-t border-border' />
             )}
             {PRESET_IMAGE_MODELS.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 {m.id === 'custom' ? (
                   m.name
                 ) : (
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="truncate">{m.name}</span>
+                  <span className='flex items-center gap-2 min-w-0'>
+                    <span className='truncate'>{m.name}</span>
                   </span>
                 )}
               </SelectItem>
@@ -123,24 +123,24 @@ export function ImageModelSelectRow({
         </Select>
         {onSearch && (
           <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
+            variant='outline'
+            size='sm'
+            className='shrink-0'
             disabled={disabled}
             onClick={onSearch}
-            title="Search vision-capable models"
+            title='Search vision-capable models'
           >
-            <Search className="h-3.5 w-3.5" />
+            <Search className='h-3.5 w-3.5' />
           </Button>
         )}
       </div>
       {validation.status === 'unsupported' &&
         selectVal &&
         selectVal !== 'custom' && (
-          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-            <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <div className='flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
+            <ShieldAlert className='h-3.5 w-3.5 shrink-0 mt-0.5' />
             <div>
-              <span className="font-semibold">
+              <span className='font-semibold'>
                 Vision support not detected.
               </span>{' '}
               This model may not be able to process image uploads.
@@ -148,8 +148,8 @@ export function ImageModelSelectRow({
           </div>
         )}
       {validation.status === 'error' && (
-        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+        <div className='flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground'>
+          <AlertCircle className='h-3.5 w-3.5 shrink-0 mt-0.5' />
           <span>Could not verify vision support: {validation.message}</span>
         </div>
       )}

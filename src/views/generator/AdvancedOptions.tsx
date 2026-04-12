@@ -37,7 +37,7 @@ import {
 import { GroupedSubtopicSelector, SectionLabel } from './SetupUI';
 
 const MATH_METHODS_SCOPED_SUBTOPIC_GROUPS = toScopedSubtopicGroups(
-  MATH_METHODS_SUBTOPIC_GROUPS
+  MATH_METHODS_SUBTOPIC_GROUPS,
 );
 
 export function ToggleRow({
@@ -61,29 +61,29 @@ export function ToggleRow({
         'flex items-start justify-between gap-3 py-3.5 px-4 rounded-xl border transition-all duration-200 cursor-pointer shadow-sm group hover:shadow-md',
         checked
           ? 'bg-primary/5 border-primary/30'
-          : 'bg-card hover:border-primary/20 border-border/60'
+          : 'bg-card hover:border-primary/20 border-border/60',
       )}
       onClick={() => onCheckedChange(!checked)}
     >
-      <div className="flex items-start gap-3 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5">
+      <div className='flex items-start gap-3 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5'>
         <span
           className={cn(
             'mt-0.5 shrink-0 transition-colors duration-200',
             checked
               ? 'text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]'
-              : 'text-muted-foreground group-hover:text-foreground'
+              : 'text-muted-foreground group-hover:text-foreground',
           )}
         >
           {icon}
         </span>
-        <div className="min-w-0">
+        <div className='min-w-0'>
           <Label
             htmlFor={id}
-            className="text-sm font-semibold cursor-pointer user-select-none"
+            className='text-sm font-semibold cursor-pointer user-select-none'
           >
             {label}
           </Label>
-          <p className="text-[11px] text-muted-foreground/80 mt-0.5 leading-relaxed">
+          <p className='text-[11px] text-muted-foreground/80 mt-0.5 leading-relaxed'>
             {description}
           </p>
         </div>
@@ -93,7 +93,7 @@ export function ToggleRow({
         checked={checked}
         onClick={(e) => e.stopPropagation()}
         onCheckedChange={onCheckedChange}
-        className="shrink-0 mt-1 shadow-inner"
+        className='shrink-0 mt-1 shadow-inner'
       />
     </div>
   );
@@ -157,16 +157,16 @@ export function AdvancedOptionsGroup({
   onSetCustomFocusArea,
 }: AdvancedOptionsGroupProps) {
   return (
-    <div className="space-y-2 pt-3">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+    <div className='space-y-2 pt-3'>
+      <div className='grid grid-cols-2 gap-4'>
+        <div className='space-y-2'>
           <SectionLabel>Session Size</SectionLabel>
-          <div className="">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                <Hash className="w-4 h-4 text-primary" /> Questions
+          <div className=''>
+            <div className='flex items-center justify-between'>
+              <Label className='text-sm font-semibold flex items-center gap-2'>
+                <Hash className='w-4 h-4 text-primary' /> Questions
               </Label>
-              <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm">
+              <div className='bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm'>
                 {questionCount}
               </div>
             </div>
@@ -176,23 +176,23 @@ export function AdvancedOptionsGroup({
               step={1}
               value={[questionCount]}
               onValueChange={(val) => onSetQuestionCount(val[0])}
-              className="py-2"
+              className='py-2'
             />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className='flex justify-between text-[11px] text-muted-foreground'>
               <span>1</span>
               <span>20</span>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className='space-y-2'>
           <SectionLabel>Target marks</SectionLabel>
           <div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" /> Target marks
+            <div className='flex items-center justify-between'>
+              <Label className='text-sm font-semibold flex items-center gap-2'>
+                <BarChart3 className='w-4 h-4 text-primary' /> Target marks
               </Label>
-              <div className="bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm">
+              <div className='bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm'>
                 {averageMarksPerQuestion}
               </div>
             </div>
@@ -202,10 +202,10 @@ export function AdvancedOptionsGroup({
               step={1}
               value={[averageMarksPerQuestion]}
               onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
-              className="py-2"
+              className='py-2'
               disabled={questionMode === 'multiple-choice'}
             />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className='flex justify-between text-[11px] text-muted-foreground'>
               <span>1</span>
               <span>15</span>
             </div>
@@ -213,41 +213,41 @@ export function AdvancedOptionsGroup({
         </div>
       </div>
 
-      <div className="space-y-2 pt-3">
+      <div className='space-y-2 pt-3'>
         <SectionLabel>Generation Flags</SectionLabel>
-        <div className="flex flex-col gap-2.5">
+        <div className='flex flex-col gap-2.5'>
           {selectedTopics.length > 1 && (
             <ToggleRow
-              id="shuffle-questions"
-              icon={<Shuffle className="w-4 h-4" />}
-              label="Shuffle Output"
-              description="Interleaves questions from all selected subjects."
+              id='shuffle-questions'
+              icon={<Shuffle className='w-4 h-4' />}
+              label='Shuffle Output'
+              description='Interleaves questions from all selected subjects.'
               checked={shuffleQuestions}
               onCheckedChange={onSetShuffleQuestions}
             />
           )}
         </div>
         <div>
-          <div className="rounded-xl space-y-2">
-            <Label className="text-sm font-semibold flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                <Crosshair className="w-3 h-3" />
+          <div className='rounded-xl space-y-2'>
+            <Label className='text-sm font-semibold flex items-center gap-2'>
+              <div className='w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary'>
+                <Crosshair className='w-3 h-3' />
               </div>
               Direction Override
-              <span className="font-medium text-[10px] uppercase text-muted-foreground tracking-wider ml-auto">
+              <span className='font-medium text-[10px] uppercase text-muted-foreground tracking-wider ml-auto'>
                 Optional
               </span>
             </Label>
-            <div className="relative">
+            <div className='relative'>
               <Input
                 value={customFocusArea}
                 onChange={(e) => onSetCustomFocusArea(e.target.value)}
                 maxLength={160}
-                placeholder="e.g. projectile motion with optimisation..."
-                className="text-sm rounded-lg bg-background border-border/60 shadow-inner resize-none transition-colors hover:border-primary/30 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50"
+                placeholder='e.g. projectile motion with optimisation...'
+                className='text-sm rounded-lg bg-background border-border/60 shadow-inner resize-none transition-colors hover:border-primary/30 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50'
               />
               {customFocusArea.length > 0 && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-medium tracking-tighter">
+                <div className='absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-medium tracking-tighter'>
                   {customFocusArea.length}/160
                 </div>
               )}
@@ -257,17 +257,17 @@ export function AdvancedOptionsGroup({
       </div>
 
       {hasSubtopicSection && (
-        <div className="space-y-3 pt-2">
+        <div className='space-y-3 pt-2'>
           <SectionLabel>
             Subtopics{' '}
-            <span className="ml-1 normal-case font-medium tracking-normal text-muted-foreground/50">
+            <span className='ml-1 normal-case font-medium tracking-normal text-muted-foreground/50'>
               (Leave blank for all)
             </span>
           </SectionLabel>
-          <div className="space-y-4">
+          <div className='space-y-4'>
             {selectedTopics.includes('Mathematical Methods') && (
               <GroupedSubtopicSelector
-                label="Mathematical Methods"
+                label='Mathematical Methods'
                 groups={MATH_METHODS_SCOPED_SUBTOPIC_GROUPS}
                 selected={mathMethodsSubtopics}
                 onToggle={onToggleMathMethodsSubtopic as (s: string) => void}
@@ -275,7 +275,7 @@ export function AdvancedOptionsGroup({
             )}
             {selectedTopics.includes('Specialist Mathematics') && (
               <GroupedSubtopicSelector
-                label="Specialist Mathematics"
+                label='Specialist Mathematics'
                 groups={SPECIALIST_MATH_SUBTOPIC_GROUPS}
                 selected={specialistMathSubtopics}
                 onToggle={onToggleSpecialistMathSubtopic as (s: string) => void}
@@ -283,7 +283,7 @@ export function AdvancedOptionsGroup({
             )}
             {selectedTopics.includes('Chemistry') && (
               <GroupedSubtopicSelector
-                label="Chemistry"
+                label='Chemistry'
                 groups={CHEMISTRY_SUBTOPIC_GROUPS}
                 selected={chemistrySubtopics}
                 onToggle={onToggleChemistrySubtopic as (s: string) => void}
@@ -291,7 +291,7 @@ export function AdvancedOptionsGroup({
             )}
             {selectedTopics.includes('Physical Education') && (
               <GroupedSubtopicSelector
-                label="Physical Education"
+                label='Physical Education'
                 groups={PE_SUBTOPIC_GROUPS}
                 selected={physicalEducationSubtopics}
                 onToggle={
@@ -304,22 +304,22 @@ export function AdvancedOptionsGroup({
       )}
 
       {hasAnyMathTopic && (
-        <div className="space-y-3 pt-6">
+        <div className='space-y-3 pt-6'>
           <SectionLabel>Calculator Settings</SectionLabel>
-          <div className="grid grid-cols-2 gap-2 bg-card p-1.5 rounded-xl border">
+          <div className='grid grid-cols-2 gap-2 bg-card p-1.5 rounded-xl border'>
             {(
               [
                 {
                   value: 'tech-free' as TechMode,
                   label: 'Tech Free',
-                  icon: <Pen className="w-4 h-4" />,
+                  icon: <Pen className='w-4 h-4' />,
                   desc: 'Questions that do not require a calculator',
                 },
                 /* 'Mixed' option removed — only tech-free and tech-active supported */
                 {
                   value: 'tech-active' as TechMode,
                   label: 'Tech Active',
-                  icon: <Calculator className="w-4 h-4" />,
+                  icon: <Calculator className='w-4 h-4' />,
                   desc: 'Questions that may require a calculator',
                 },
               ] as const
@@ -331,32 +331,32 @@ export function AdvancedOptionsGroup({
                     <TooltipTrigger asChild>
                       <button
                         key={value}
-                        type="button"
+                        type='button'
                         onClick={() => onSetTechMode(value)}
                         className={cn(
                           'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all cursor-pointer overflow-hidden relative',
                           isActive
                             ? 'bg-primary text-primary-foreground shadow-md'
-                            : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                            : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground',
                         )}
                       >
                         {isActive && (
-                          <div className="absolute inset-0 bg-white/10 dark:bg-black/10 rounded-lg pointer-events-none" />
+                          <div className='absolute inset-0 bg-white/10 dark:bg-black/10 rounded-lg pointer-events-none' />
                         )}
                         <span
                           className={cn(
                             'transition-transform',
-                            isActive ? 'scale-110' : ''
+                            isActive ? 'scale-110' : '',
                           )}
                         >
                           {icon}
                         </span>
-                        <span className="text-[11px] leading-none">
+                        <span className='text-[11px] leading-none'>
                           {label}
                         </span>
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top">
+                    <TooltipContent side='top'>
                       <p>{desc}</p>
                     </TooltipContent>
                   </Tooltip>

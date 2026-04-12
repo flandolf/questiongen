@@ -58,14 +58,14 @@ type TutorApiMessage = {
 };
 
 async function getSketchpadDataUrl(
-  sketchSessionKey?: string
+  sketchSessionKey?: string,
 ): Promise<string | undefined> {
   if (!sketchSessionKey) return undefined;
   if (typeof window === 'undefined' || !window.localStorage) return undefined;
 
   try {
     const storedValue = window.localStorage.getItem(
-      `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`
+      `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
     );
     if (!storedValue) return undefined;
 
@@ -80,7 +80,7 @@ async function getSketchpadDataUrl(
     const canvas = await rasterizeSvgString(
       parsed.strokeSvg,
       INTERNAL_RES_WIDTH,
-      INTERNAL_RES_HEIGHT
+      INTERNAL_RES_HEIGHT,
     );
 
     const cropBox = getCropBoundingBox(canvas, 30);
@@ -105,7 +105,7 @@ async function getSketchpadDataUrl(
       0,
       0,
       cropBox.width,
-      cropBox.height
+      cropBox.height,
     );
 
     return croppedCanvas.toDataURL('image/png', 0.85);
@@ -149,7 +149,7 @@ export function TutorPanel({
       totalTokensSession: s.totalTokensSession,
       totalCostSession: s.totalCostSession,
       updateMetrics: s.updateMetrics,
-    }))
+    })),
   );
 
   const { apiKey, tutorModel, tutorPersona } = useAppSettings();
@@ -164,7 +164,7 @@ export function TutorPanel({
   const modelName = React.useMemo(() => {
     if (!tutorModel) return '';
     const preset = [...PRESET_MODELS, ...PRESET_IMAGE_MODELS].find(
-      (m) => m.id === tutorModel
+      (m) => m.id === tutorModel,
     );
     if (preset) return preset.name;
     return tutorModel.split('/').pop() || tutorModel;
@@ -205,7 +205,7 @@ export function TutorPanel({
     // Initial check from localStorage
     try {
       const storedValue = window.localStorage.getItem(
-        `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`
+        `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
       );
       if (storedValue) {
         const parsed = JSON.parse(storedValue) as { strokeSvg?: unknown };
@@ -347,10 +347,10 @@ export function TutorPanel({
       // Update metrics
       const promptTokens = Number(result.promptTokens ?? result.prompt_tokens);
       const completionTokens = Number(
-        result.completionTokens ?? result.completion_tokens
+        result.completionTokens ?? result.completion_tokens,
       );
       const directTotalTokens = Number(
-        result.totalTokens ?? result.total_tokens
+        result.totalTokens ?? result.total_tokens,
       );
       const fallbackTotalTokens =
         (Number.isFinite(promptTokens) ? promptTokens : 0) +
@@ -360,7 +360,7 @@ export function TutorPanel({
         : fallbackTotalTokens;
 
       const directCost = Number(
-        result.estimatedCostUsd ?? result.estimated_cost_usd
+        result.estimatedCostUsd ?? result.estimated_cost_usd,
       );
       const cost = Number.isFinite(directCost)
         ? directCost
@@ -395,52 +395,52 @@ export function TutorPanel({
     <div
       className={cn(
         'fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50 flex flex-col items-start pointer-events-none',
-        className
+        className,
       )}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode='wait'>
         {!isOpen ? (
           <motion.div
-            key="tutor-toggle"
+            key='tutor-toggle'
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto"
+            className='pointer-events-auto'
           >
             <Button
               onClick={() => setIsOpen(true)}
-              size="icon"
-              className="h-12 w-12 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105 active:scale-95 group"
+              size='icon'
+              className='h-12 w-12 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105 active:scale-95 group'
             >
-              <Brain className="h-6 w-6 text-primary-foreground group-hover:rotate-12 transition-transform duration-300" />
+              <Brain className='h-6 w-6 text-primary-foreground group-hover:rotate-12 transition-transform duration-300' />
             </Button>
           </motion.div>
         ) : (
           <motion.div
-            key="tutor-panel"
+            key='tutor-panel'
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="pointer-events-auto flex flex-col w-[min(24rem,calc(100vw-2rem))] sm:w-96 h-[clamp(20rem,68dvh,37.5rem)] max-h-[calc(100dvh-4.5rem)] bg-card border border-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden"
+            className='pointer-events-auto flex flex-col w-[min(24rem,calc(100vw-2rem))] sm:w-96 h-[clamp(20rem,68dvh,37.5rem)] max-h-[calc(100dvh-4.5rem)] bg-card border border-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden'
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <div className="bg-primary/10 p-1.5 rounded-lg">
-                  <Sparkles className="h-4 w-4 text-primary" />
+            <div className='flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 backdrop-blur-sm'>
+              <div className='flex items-center gap-2'>
+                <div className='bg-primary/10 p-1.5 rounded-lg'>
+                  <Sparkles className='h-4 w-4 text-primary' />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm flex items-center gap-1.5">
+                  <h3 className='font-bold text-sm flex items-center gap-1.5'>
                     AI Tutor
                     {modelName && (
-                      <span className="text-[10px] font-medium text-muted-foreground px-1.5 ml-1 py-0.5 bg-muted rounded border border-border/50">
+                      <span className='text-[10px] font-medium text-muted-foreground px-1.5 ml-1 py-0.5 bg-muted rounded border border-border/50'>
                         {modelName}
                       </span>
                     )}
                   </h3>
-                  <p className="text-[10px] text-muted-foreground font-medium">
+                  <p className='text-[10px] text-muted-foreground font-medium'>
                     {totalTokensSession > 0
                       ? `${totalTokensSession.toLocaleString()} tokens (~$${totalCostSession.toFixed(4)})`
                       : 'Always here to help'}
@@ -448,26 +448,26 @@ export function TutorPanel({
                 </div>
               </div>
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full hover:bg-muted"
+                variant='ghost'
+                size='icon'
+                className='h-8 w-8 rounded-full hover:bg-muted'
                 onClick={() => setIsOpen(false)}
               >
-                <X className="h-4 w-4" />
+                <X className='h-4 w-4' />
               </Button>
             </div>
 
             {/* Chat Area */}
-            <ScrollArea className="flex-1 min-h-0 p-4 bg-muted/5">
-              <div className="space-y-4">
+            <ScrollArea className='flex-1 min-h-0 p-4 bg-muted/5'>
+              <div className='space-y-4'>
                 {messages.length === 0 && !isGenerating && (
-                  <div className="flex flex-col items-center justify-center text-center mt-6 sm:mt-12 space-y-3 px-6">
-                    <div className="bg-primary/5 p-3 rounded-full">
-                      <Brain className="h-8 w-8 text-primary/40" />
+                  <div className='flex flex-col items-center justify-center text-center mt-6 sm:mt-12 space-y-3 px-6'>
+                    <div className='bg-primary/5 p-3 rounded-full'>
+                      <Brain className='h-8 w-8 text-primary/40' />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold">Ask for guidance</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <div className='space-y-1'>
+                      <p className='text-xs font-semibold'>Ask for guidance</p>
+                      <p className='text-[11px] text-muted-foreground leading-relaxed'>
                         I can provide hints, check your working, or explain the
                         core concepts of this question.
                       </p>
@@ -482,7 +482,7 @@ export function TutorPanel({
                       'flex flex-col max-w-[85%] space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300',
                       msg.role === 'user'
                         ? 'ml-auto items-end'
-                        : 'mr-auto items-start'
+                        : 'mr-auto items-start',
                     )}
                   >
                     <div
@@ -490,14 +490,14 @@ export function TutorPanel({
                         'px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm',
                         msg.role === 'user'
                           ? 'bg-primary text-primary-foreground rounded-tr-none'
-                          : 'bg-card text-foreground rounded-tl-none border border-border/50'
+                          : 'bg-card text-foreground rounded-tl-none border border-border/50',
                       )}
                     >
                       <div
                         className={cn(
                           msg.role === 'user'
                             ? 'text-primary-foreground [&_.math-inline]:text-primary-foreground [&_.math-display]:text-primary-foreground'
-                            : ''
+                            : '',
                         )}
                       >
                         <MarkdownMath content={msg.content} />
@@ -508,12 +508,12 @@ export function TutorPanel({
 
                 {/* Streaming chunk */}
                 {isGenerating && (
-                  <div className="flex flex-col max-w-[85%] mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300">
-                    <div className="px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15">
+                  <div className='flex flex-col max-w-[85%] mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300'>
+                    <div className='px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15'>
                       {streamedContent ? (
                         <MarkdownMath content={streamedContent} />
                       ) : (
-                        <div className="flex gap-1 py-1">
+                        <div className='flex gap-1 py-1'>
                           <motion.div
                             animate={{ scale: [1, 1.2, 1] }}
                             transition={{
@@ -521,7 +521,7 @@ export function TutorPanel({
                               duration: 1,
                               times: [0, 0.5, 1],
                             }}
-                            className="h-1.5 w-1.5 bg-primary/40 rounded-full"
+                            className='h-1.5 w-1.5 bg-primary/40 rounded-full'
                           />
                           <motion.div
                             animate={{ scale: [1, 1.2, 1] }}
@@ -531,7 +531,7 @@ export function TutorPanel({
                               delay: 0.2,
                               times: [0, 0.5, 1],
                             }}
-                            className="h-1.5 w-1.5 bg-primary/40 rounded-full"
+                            className='h-1.5 w-1.5 bg-primary/40 rounded-full'
                           />
                           <motion.div
                             animate={{ scale: [1, 1.2, 1] }}
@@ -541,7 +541,7 @@ export function TutorPanel({
                               delay: 0.4,
                               times: [0, 0.5, 1],
                             }}
-                            className="h-1.5 w-1.5 bg-primary/40 rounded-full"
+                            className='h-1.5 w-1.5 bg-primary/40 rounded-full'
                           />
                         </div>
                       )}
@@ -553,19 +553,19 @@ export function TutorPanel({
             </ScrollArea>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-border bg-card">
+            <div className='p-4 border-t border-border bg-card'>
               {sketchSessionKey && (
-                <div className="flex items-center space-x-2 mb-3 px-1">
+                <div className='flex items-center space-x-2 mb-3 px-1'>
                   <Checkbox
-                    id="include-sketch"
+                    id='include-sketch'
                     checked={includeSketch}
                     onCheckedChange={(checked) =>
                       setIncludeSketch(checked === true)
                     }
                   />
                   <Label
-                    htmlFor="include-sketch"
-                    className="text-xs text-muted-foreground font-medium cursor-pointer"
+                    htmlFor='include-sketch'
+                    className='text-xs text-muted-foreground font-medium cursor-pointer'
                   >
                     Include Sketchpad
                   </Label>
@@ -577,38 +577,38 @@ export function TutorPanel({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-2 mb-2 px-1 text-[10px] text-muted-foreground overflow-hidden"
+                    className='flex items-center gap-2 mb-2 px-1 text-[10px] text-muted-foreground overflow-hidden'
                   >
                     {sketchStatus === 'processing' ? (
                       <>
-                        <Loader2 className="h-3 w-3 animate-spin text-primary/60" />
+                        <Loader2 className='h-3 w-3 animate-spin text-primary/60' />
                         <span>Rasterizing sketchpad...</span>
                       </>
                     ) : (
                       <>
-                        <PencilRuler className="h-3 w-3 text-primary/60" />
+                        <PencilRuler className='h-3 w-3 text-primary/60' />
                         <span>Uploading sketchpad content...</span>
                       </>
                     )}
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="relative flex items-end gap-2">
+              <div className='relative flex items-end gap-2'>
                 <Textarea
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask for a hint..."
-                  className="min-h-11 max-h-30 pr-12 resize-none py-3 px-4 text-xs rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                  placeholder='Ask for a hint...'
+                  className='min-h-11 max-h-30 pr-12 resize-none py-3 px-4 text-xs rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20'
                   disabled={isGenerating}
                 />
                 <Button
-                  size="icon"
-                  className="absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg transition-all duration-200"
+                  size='icon'
+                  className='absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg transition-all duration-200'
                   onClick={() => void handleSend()}
                   disabled={!inputValue.trim() || isGenerating}
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className='h-4 w-4' />
                 </Button>
               </div>
             </div>

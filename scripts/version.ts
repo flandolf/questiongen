@@ -24,7 +24,7 @@ function formatVersion(v: Version): string {
 
 function bumpVersion(
   current: Version,
-  type: 'major' | 'minor' | 'patch' | 'custom'
+  type: 'major' | 'minor' | 'patch' | 'custom',
 ): Version {
   switch (type) {
     case 'major':
@@ -75,11 +75,11 @@ function updatePackageJson(version: string): void {
 function updateCargoToml(version: string): void {
   const content = readFileSync(
     join(rootDir, 'src-tauri', 'Cargo.toml'),
-    'utf-8'
+    'utf-8',
   );
   const updated = content.replace(
     /^version = "[\d.]+"$/m,
-    `version = "${version}"`
+    `version = "${version}"`,
   );
   writeFileSync(join(rootDir, 'src-tauri', 'Cargo.toml'), updated, 'utf-8');
   console.log(`src-tauri/Cargo.toml: ${version}`);
@@ -95,16 +95,16 @@ function updateTauriConfJson(version: string): void {
 function updateSettingsView(version: string): void {
   const content = readFileSync(
     join(rootDir, 'src', 'views', 'settings', 'types.ts'),
-    'utf-8'
+    'utf-8',
   );
   const updated = content.replace(
     /export const APP_VERSION = '[\d.]+';/,
-    `export const APP_VERSION = '${version}';`
+    `export const APP_VERSION = '${version}';`,
   );
   writeFileSync(
     join(rootDir, 'src', 'views', 'settings', 'types.ts'),
     updated,
-    'utf-8'
+    'utf-8',
   );
   console.log(`src/views/settings/types.ts: ${version}`);
 }

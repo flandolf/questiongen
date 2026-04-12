@@ -96,15 +96,15 @@ export function PresetSection({
   const setSelectedTopics = useAppStore((s) => s.setSelectedTopics);
   const setMathMethodsSubtopics = useAppStore((s) => s.setMathMethodsSubtopics);
   const setSpecialistMathSubtopics = useAppStore(
-    (s) => s.setSpecialistMathSubtopics
+    (s) => s.setSpecialistMathSubtopics,
   );
   const setChemistrySubtopics = useAppStore((s) => s.setChemistrySubtopics);
   const setPhysicalEducationSubtopics = useAppStore(
-    (s) => s.setPhysicalEducationSubtopics
+    (s) => s.setPhysicalEducationSubtopics,
   );
   const setQuestionCount = useAppStore((s) => s.setQuestionCount);
   const setAverageMarksPerQuestion = useAppStore(
-    (s) => s.setAverageMarksPerQuestion
+    (s) => s.setAverageMarksPerQuestion,
   );
   const setQuestionMode = useAppStore((s) => s.setQuestionMode);
 
@@ -201,14 +201,14 @@ export function PresetSection({
   const canSavePreset = presetName.trim().length > 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center space-x-2">
+    <div className='space-y-2'>
+      <div className='flex items-center space-x-2'>
         <Input
-          id="preset-name"
+          id='preset-name'
           value={presetName}
           onChange={(e) => setPresetName(e.target.value)}
-          placeholder="New preset name…"
-          className="h-8 flex-1 bg-muted/50 text-xs focus-visible:ring-1 focus-visible:ring-primary/50"
+          placeholder='New preset name…'
+          className='h-8 flex-1 bg-muted/50 text-xs focus-visible:ring-1 focus-visible:ring-primary/50'
           onKeyDown={(e) => {
             if (e.key === 'Enter' && presetName.trim()) {
               e.preventDefault();
@@ -222,7 +222,7 @@ export function PresetSection({
             'h-8 w-8 shrink-0 p-0 leading-none appearance-none overflow-visible',
             canSavePreset
               ? ''
-              : 'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted'
+              : 'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted',
           )}
           onClick={(e) => {
             if (!canSavePreset) {
@@ -231,14 +231,14 @@ export function PresetSection({
             }
             handleSavePreset();
           }}
-          size="icon-lg"
+          size='icon-lg'
         >
-          <Plus className="w-3 h-3" />
+          <Plus className='w-3 h-3' />
         </Button>
       </div>
 
       {presets.length > 0 && (
-        <div className="space-y-1">
+        <div className='space-y-1'>
           {presets.map(function (preset) {
             const isRenaming = renamingPresetId === preset.id;
             return (
@@ -248,17 +248,17 @@ export function PresetSection({
                   'group rounded-md transition-all',
                   isRenaming
                     ? 'bg-accent/50 ring-1 ring-ring/20'
-                    : 'hover:bg-accent'
+                    : 'hover:bg-accent',
                 )}
               >
                 <div
-                  className="flex items-center justify-between rounded-md px-3 py-2 transition-colors cursor-pointer"
+                  className='flex items-center justify-between rounded-md px-3 py-2 transition-colors cursor-pointer'
                   onClick={() => !isRenaming && handleLoadPreset(preset)}
                 >
-                  <div className="flex-1 mr-3 min-w-0">
+                  <div className='flex-1 mr-3 min-w-0'>
                     {isRenaming ? (
                       <div
-                        className="flex items-center gap-2"
+                        className='flex items-center gap-2'
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Input
@@ -267,15 +267,15 @@ export function PresetSection({
                           onChange={(e) => setRenamingValue(e.target.value)}
                           onKeyDown={(e) => handleKeyDown(e, preset)}
                           onBlur={() => handleSaveRename(preset)}
-                          className="h-7 py-0 px-2 text-sm focus-visible:ring-1"
+                          className='h-7 py-0 px-2 text-sm focus-visible:ring-1'
                         />
                       </div>
                     ) : (
                       <div>
-                        <p className="text-sm font-medium leading-none">
+                        <p className='text-sm font-medium leading-none'>
                           {preset.name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        <p className='text-[11px] text-muted-foreground mt-0.5 truncate'>
                           {preset.preferences.selectedTopics.join(', ')} ·{' '}
                           {preset.preferences.questionMode === 'written'
                             ? 'Written'
@@ -299,16 +299,16 @@ export function PresetSection({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
-                          variant="ghost"
-                          size="icon-lg"
-                          className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          variant='ghost'
+                          size='icon-lg'
+                          className='h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity'
                         >
-                          <MoreHorizontal className="w-3.5 h-3.5" />
+                          <MoreHorizontal className='w-3.5 h-3.5' />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuContent align='end' className='w-32'>
                         <DropdownMenuItem
-                          className="text-xs"
+                          className='text-xs'
                           onClick={() => {
                             setRenamingPresetId(preset.id);
                             setRenamingValue(preset.name);
@@ -317,14 +317,14 @@ export function PresetSection({
                           Rename
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="text-xs"
+                          className='text-xs'
                           onClick={() => handleUpdatePreset(preset)}
                         >
                           Update to current
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          className="text-xs text-destructive focus:text-destructive"
+                          className='text-xs text-destructive focus:text-destructive'
                           onClick={() => deletePreset(preset.id)}
                         >
                           Delete

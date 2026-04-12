@@ -96,7 +96,7 @@ function buildSketchpadSessionKey(
     | Pick<
         McQuestion,
         'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
-      >
+      >,
 ): string {
   const signature = [
     mode,
@@ -113,7 +113,7 @@ function syncTimerPauseDuringMarking(
   timer: { isPaused: boolean; togglePause: () => void },
   isMarking: boolean,
   wasMarking: boolean,
-  wasPausedBeforeMarking: boolean
+  wasPausedBeforeMarking: boolean,
 ) {
   if (isMarking) {
     if (!wasMarking) {
@@ -279,7 +279,7 @@ export function GeneratorView() {
 
   const scopedMathMethodsGroups = useMemo(
     () => toScopedSubtopicGroups(MATH_METHODS_SUBTOPIC_GROUPS),
-    []
+    [],
   );
   const scopedMathMethodsByCanonical = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -304,7 +304,7 @@ export function GeneratorView() {
       }
       const candidates = scopedMathMethodsByCanonical.get(subtopic) ?? [];
       const available = candidates.find(
-        (candidate) => !usedScoped.has(candidate)
+        (candidate) => !usedScoped.has(candidate),
       );
       const mapped = available ?? candidates[0] ?? subtopic;
       usedScoped.add(mapped);
@@ -463,28 +463,28 @@ export function GeneratorView() {
           ? 1
           : 0;
     },
-    [mcAwardedMarksByQuestionId]
+    [mcAwardedMarksByQuestionId],
   );
   const recentAverageScore = useMemo(() => {
     if (questionMode === 'written') {
       const completedQuestions = questions.filter(
-        (q) => feedbackByQuestionId[q.id]
+        (q) => feedbackByQuestionId[q.id],
       );
       if (completedQuestions.length === 0) return undefined;
       const totalMarks = completedQuestions.reduce(
         (sum, q) => sum + q.maxMarks,
-        0
+        0,
       );
       if (totalMarks === 0) return undefined;
       const achievedMarks = completedQuestions.reduce(
         (sum, q) => sum + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
-        0
+        0,
       );
       return (achievedMarks / totalMarks) * 100;
     }
 
     const answeredQuestions = mcQuestions.filter(
-      (q) => mcAnswersByQuestionId[q.id]
+      (q) => mcAnswersByQuestionId[q.id],
     );
     if (answeredQuestions.length === 0) return undefined;
     const achievedMarks = answeredQuestions.reduce(
@@ -493,9 +493,9 @@ export function GeneratorView() {
         getMcAwardedMarks(
           q.id,
           mcAnswersByQuestionId[q.id] ?? '',
-          q.correctAnswer
+          q.correctAnswer,
         ),
-      0
+      0,
     );
     return (achievedMarks / answeredQuestions.length) * 100;
   }, [
@@ -553,7 +553,7 @@ export function GeneratorView() {
   }, [feedbackByQuestionId, questions]);
   const mcCompletedCount = useMemo(
     () => mcQuestions.filter((q) => mcAnswersByQuestionId[q.id]).length,
-    [mcAnswersByQuestionId, mcQuestions]
+    [mcAnswersByQuestionId, mcQuestions],
   );
 
   const isWrittenSetComplete =
@@ -586,7 +586,7 @@ export function GeneratorView() {
     return (
       (questions.reduce(
         (s, q) => s + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
-        0
+        0,
       ) /
         total) *
       100
@@ -719,11 +719,11 @@ export function GeneratorView() {
         setWrittenResponseEnteredAtById((prev) =>
           prev[questionId] !== undefined
             ? prev
-            : { ...prev, [questionId]: Date.now() }
+            : { ...prev, [questionId]: Date.now() },
         );
       }
     },
-    [activeQuestion, setAnswersByQuestionId, setWrittenResponseEnteredAtById]
+    [activeQuestion, setAnswersByQuestionId, setWrittenResponseEnteredAtById],
   );
 
   const handleWrittenImageDrop = useCallback(
@@ -748,7 +748,7 @@ export function GeneratorView() {
           setWrittenResponseEnteredAtById((prev) =>
             prev[questionId] !== undefined
               ? prev
-              : { ...prev, [questionId]: Date.now() }
+              : { ...prev, [questionId]: Date.now() },
           );
 
           if (user) {
@@ -756,7 +756,7 @@ export function GeneratorView() {
               const { storagePath, downloadUrl } = await uploadImageDataUrl(
                 dataUrl,
                 questionId,
-                imageId
+                imageId,
               );
               setImagesByQuestionId((prev) => ({
                 ...prev,
@@ -784,7 +784,7 @@ export function GeneratorView() {
       setImagesByQuestionId,
       setWrittenResponseEnteredAtById,
       user,
-    ]
+    ],
   );
 
   const handleWrittenImageRemove = useCallback(() => {
@@ -804,7 +804,7 @@ export function GeneratorView() {
         [activeQuestion.id]: value,
       }));
     },
-    [activeQuestion, setMarkAppealByQuestionId]
+    [activeQuestion, setMarkAppealByQuestionId],
   );
 
   const handleOverrideInputChange = useCallback(
@@ -815,7 +815,7 @@ export function GeneratorView() {
         [activeQuestion.id]: value,
       }));
     },
-    [activeQuestion, setMarkOverrideInputByQuestionId]
+    [activeQuestion, setMarkOverrideInputByQuestionId],
   );
 
   const handleMcAppealChange = useCallback(
@@ -826,7 +826,7 @@ export function GeneratorView() {
         [activeMcQuestion.id]: value,
       }));
     },
-    [activeMcQuestion, setMcMarkAppealByQuestionId]
+    [activeMcQuestion, setMcMarkAppealByQuestionId],
   );
 
   const handleMcOverrideInputChange = useCallback(
@@ -837,7 +837,7 @@ export function GeneratorView() {
         [activeMcQuestion.id]: value,
       }));
     },
-    [activeMcQuestion, setMcMarkOverrideInputByQuestionId]
+    [activeMcQuestion, setMcMarkOverrideInputByQuestionId],
   );
 
   // ── Timer actions v2 ───────────────────────────────────────────────────────────
@@ -866,14 +866,14 @@ export function GeneratorView() {
         writtenTimer,
         isMarking,
         wasMarking,
-        wasPausedBeforeMarkingRef.current.written
+        wasPausedBeforeMarkingRef.current.written,
       );
     } else if (questionMode === 'multiple-choice') {
       wasPausedBeforeMarkingRef.current.mc = syncTimerPauseDuringMarking(
         mcTimer,
         isMarking,
         wasMarking,
-        wasPausedBeforeMarkingRef.current.mc
+        wasPausedBeforeMarkingRef.current.mc,
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -972,7 +972,7 @@ export function GeneratorView() {
       return;
     }
     setActiveQuestionIndex(
-      Math.min(questions.length - 1, activeQuestionIndex + 1)
+      Math.min(questions.length - 1, activeQuestionIndex + 1),
     );
   }, [
     canAdvanceWritten,
@@ -991,7 +991,7 @@ export function GeneratorView() {
       return;
     }
     setActiveMcQuestionIndex(
-      Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1)
+      Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1),
     );
   }, [
     canAdvanceMc,
@@ -1078,7 +1078,7 @@ export function GeneratorView() {
   const handleCancelWrittenQuestion = useCallback(() => {
     if (!activeQuestion) return;
     setConfirmMessage(
-      `Remove question ${activeQuestionIndex + 1} ("${activeQuestion.topic}")? It will be taken out of your current set.`
+      `Remove question ${activeQuestionIndex + 1} ("${activeQuestion.topic}")? It will be taken out of your current set.`,
     );
     setPendingCancelType('written');
     setConfirmOpen(true);
@@ -1087,7 +1087,7 @@ export function GeneratorView() {
   const handleCancelMcQuestion = useCallback(() => {
     if (!activeMcQuestion) return;
     setConfirmMessage(
-      `Remove question ${activeMcQuestionIndex + 1} ("${activeMcQuestion.topic}")? It will be taken out of your current set.`
+      `Remove question ${activeMcQuestionIndex + 1} ("${activeMcQuestion.topic}")? It will be taken out of your current set.`,
     );
     setPendingCancelType('mc');
     setConfirmOpen(true);
@@ -1101,7 +1101,7 @@ export function GeneratorView() {
       setActiveWrittenSavedSetId(null);
       setShowCompletionScreen(false);
       setActiveQuestionIndex(
-        Math.min(activeQuestionIndex, Math.max(0, next.length - 1))
+        Math.min(activeQuestionIndex, Math.max(0, next.length - 1)),
       );
       setWrittenQuestionPresentedAtById((p) => removeKey(p, id));
       setAnswersByQuestionId((p) => removeKey(p, id));
@@ -1127,7 +1127,7 @@ export function GeneratorView() {
       setActiveMcSavedSetId(null);
       setShowCompletionScreen(false);
       setActiveMcQuestionIndex(
-        Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1))
+        Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)),
       );
       setMcQuestionPresentedAtById((p) => removeKey(p, id));
       setMcAnswersByQuestionId((p) => removeKey(p, id));
@@ -1190,10 +1190,10 @@ export function GeneratorView() {
   const toggleTopic = useCallback(
     (topic: Topic) => {
       setSelectedTopics((p) =>
-        p.includes(topic) ? p.filter((t) => t !== topic) : [...p, topic]
+        p.includes(topic) ? p.filter((t) => t !== topic) : [...p, topic],
       );
     },
-    [setSelectedTopics]
+    [setSelectedTopics],
   );
 
   const toggleMathMethodsSubtopic = useCallback(
@@ -1206,34 +1206,34 @@ export function GeneratorView() {
         return [...p.filter((s) => s !== canonical), sub];
       });
     },
-    [setMathMethodsSubtopics]
+    [setMathMethodsSubtopics],
   );
 
   const toggleSpecialistMathSubtopic = useCallback(
     (sub: SpecialistMathSubtopic) => {
       setSpecialistMathSubtopics((p) =>
-        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]
+        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub],
       );
     },
-    [setSpecialistMathSubtopics]
+    [setSpecialistMathSubtopics],
   );
 
   const toggleChemistrySubtopic = useCallback(
     (sub: ChemistrySubtopic) => {
       setChemistrySubtopics((p) =>
-        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]
+        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub],
       );
     },
-    [setChemistrySubtopics]
+    [setChemistrySubtopics],
   );
 
   const togglePhysicalEducationSubtopic = useCallback(
     (sub: PhysicalEducationSubtopic) => {
       setPhysicalEducationSubtopics((p) =>
-        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub]
+        p.includes(sub) ? p.filter((s) => s !== sub) : [...p, sub],
       );
     },
-    [setPhysicalEducationSubtopics]
+    [setPhysicalEducationSubtopics],
   );
 
   // ── Subtopic / focus helpers ─────────────────────────────────────────────────
@@ -1242,18 +1242,18 @@ export function GeneratorView() {
       case 'Mathematical Methods':
         return Array.from(
           new Set(
-            mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub))
-          )
+            mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub)),
+          ),
         );
       case 'Specialist Mathematics':
         return specialistMathSubtopics.map((sub) =>
-          toCanonicalSubtopicName(sub)
+          toCanonicalSubtopicName(sub),
         );
       case 'Chemistry':
         return chemistrySubtopics.map((sub) => toCanonicalSubtopicName(sub));
       case 'Physical Education':
         return physicalEducationSubtopics.map((sub) =>
-          toCanonicalSubtopicName(sub)
+          toCanonicalSubtopicName(sub),
         );
       default:
         return [];
@@ -1274,7 +1274,7 @@ export function GeneratorView() {
   }
 
   function getRecentSameTopicQuestionPrompts(
-    mode: 'written' | 'multiple-choice'
+    mode: 'written' | 'multiple-choice',
   ) {
     const topicSet = new Set(selectedTopics);
     const seen = new Set<string>();
@@ -1295,7 +1295,7 @@ export function GeneratorView() {
     selectedAnswer: string,
     awardedMarks: number,
     attemptKind: McAttemptKind,
-    responseEnteredAtMs?: number
+    responseEnteredAtMs?: number,
   ) {
     if (!question) return;
     const timing = mcTimer.getQuestionTiming(question.id);
@@ -1334,7 +1334,7 @@ export function GeneratorView() {
     questionId: string,
     selectedAnswer: string,
     awardedMarks: number,
-    responseEnteredAtMs?: number
+    responseEnteredAtMs?: number,
   ) {
     const now = Date.now();
     const responseAt = responseEnteredAtMs ?? now;
@@ -1345,7 +1345,7 @@ export function GeneratorView() {
       : latestMcHistory.find(
           (e: McHistoryEntry) =>
             e.question.id === questionId &&
-            (e.analytics?.attemptKind ?? 'initial') === 'initial'
+            (e.analytics?.attemptKind ?? 'initial') === 'initial',
         );
     if (!entry) return;
     const updatedEntry = {
@@ -1373,7 +1373,7 @@ export function GeneratorView() {
 
   function updateLatestMcHistoryEntryMark(
     questionId: string,
-    awardedMarks: number
+    awardedMarks: number,
   ) {
     const now = Date.now();
     const latestMcHistory = useAppStore.getState().mcHistory;
@@ -1381,7 +1381,7 @@ export function GeneratorView() {
     const entry = trackedEntryId
       ? latestMcHistory.find((e: McHistoryEntry) => e.id === trackedEntryId)
       : latestMcHistory.find(
-          (e: McHistoryEntry) => e.question.id === questionId
+          (e: McHistoryEntry) => e.question.id === questionId,
         );
     if (!entry) return;
     const updatedEntry = {
@@ -1399,17 +1399,17 @@ export function GeneratorView() {
 
   function updateLatestWrittenHistoryEntry(
     questionId: string,
-    response: ReturnType<typeof normalizeMarkResponse>
+    response: ReturnType<typeof normalizeMarkResponse>,
   ) {
     const now = Date.now();
     const latestQuestionHistory = useAppStore.getState().questionHistory;
     const trackedEntryId = writtenHistoryEntryIdByQuestionId[questionId];
     const entry = trackedEntryId
       ? latestQuestionHistory.find(
-          (e: QuestionHistoryEntry) => e.id === trackedEntryId
+          (e: QuestionHistoryEntry) => e.id === trackedEntryId,
         )
       : latestQuestionHistory.find(
-          (e: QuestionHistoryEntry) => e.question.id === questionId
+          (e: QuestionHistoryEntry) => e.question.id === questionId,
         );
     if (!entry) return;
     const updatedEntry = {
@@ -1443,7 +1443,7 @@ export function GeneratorView() {
       attemptKind?: WrittenAttemptKind;
       markingLatencyMs?: number;
       responseEnteredAtMs?: number;
-    }
+    },
   ) {
     if (!question) return;
     const uploadedAnswer =
@@ -1484,7 +1484,7 @@ export function GeneratorView() {
 
   function initBatchProgress(
     topics: Topic[],
-    counts: number[]
+    counts: number[],
   ): BatchTopicProgress[] {
     return topics.map((topic, i) => ({
       topic,
@@ -1626,7 +1626,7 @@ export function GeneratorView() {
                   shuffleSubtopics,
                   customFocusArea: getCustomFocusArea(),
                 },
-              }
+              },
             );
 
             allQuestions = allQuestions.concat(response.questions);
@@ -1715,7 +1715,7 @@ export function GeneratorView() {
                   shuffleSubtopics,
                   customFocusArea: getCustomFocusArea(),
                 },
-              }
+              },
             );
 
             allQuestions = allQuestions.concat(response.questions);
@@ -1774,7 +1774,7 @@ export function GeneratorView() {
             throw topicError;
           }
           setErrorMessage(
-            `Failed to generate questions for ${topic}: ${readBackendError(topicError)}`
+            `Failed to generate questions for ${topic}: ${readBackendError(topicError)}`,
           );
         }
       }
@@ -1796,7 +1796,7 @@ export function GeneratorView() {
 
       if (failedTopics.length > 0) {
         setErrorMessage(
-          `Failed to generate questions for: ${failedTopics.join(', ')}. Other subjects loaded successfully.`
+          `Failed to generate questions for: ${failedTopics.join(', ')}. Other subjects loaded successfully.`,
         );
       }
 
@@ -1957,7 +1957,7 @@ export function GeneratorView() {
                   recentAverageScore,
                   recentDifficulty: difficulty,
                 },
-              }
+              },
             );
 
             allQuestions = allQuestions.concat(response.questions);
@@ -2055,12 +2055,12 @@ export function GeneratorView() {
                   recentAverageScore,
                   recentDifficulty: difficulty,
                 },
-              }
+              },
             );
 
             // Shuffle options for each returned MC question and relabel
             const adjusted = (response.questions || []).map((q) =>
-              shuffleMcQuestionOptions(q)
+              shuffleMcQuestionOptions(q),
             );
 
             allQuestions = allQuestions.concat(adjusted);
@@ -2117,7 +2117,7 @@ export function GeneratorView() {
             throw topicError;
           }
           setErrorMessage(
-            `Failed to generate questions for ${topic}: ${readBackendError(topicError)}`
+            `Failed to generate questions for ${topic}: ${readBackendError(topicError)}`,
           );
         }
       }
@@ -2139,7 +2139,7 @@ export function GeneratorView() {
 
       if (failedTopics.length > 0) {
         setErrorMessage(
-          `Failed to generate questions for: ${failedTopics.join(', ')}. Other subjects loaded successfully.`
+          `Failed to generate questions for: ${failedTopics.join(', ')}. Other subjects loaded successfully.`,
         );
       }
 
@@ -2222,7 +2222,7 @@ export function GeneratorView() {
             const { storagePath, downloadUrl } = await uploadImageDataUrl(
               finalImage.dataUrl,
               activeQuestion.id,
-              finalImage.id
+              finalImage.id,
             );
             finalImage = {
               ...finalImage,
@@ -2254,7 +2254,7 @@ export function GeneratorView() {
       const markingLatencyMs = Date.now() - markStartedAt;
       const response = normalizeMarkResponse(
         rawResponse,
-        activeQuestion.maxMarks
+        activeQuestion.maxMarks,
       );
       setFeedbackByQuestionId((prev) => ({
         ...prev,
@@ -2274,7 +2274,7 @@ export function GeneratorView() {
       writtenTimer.markAnswered(activeQuestion.id);
       useAppStore.getState().recordCompletion('written');
       toast.success(
-        `Answer marked: ${response.achievedMarks}/${response.maxMarks} marks`
+        `Answer marked: ${response.achievedMarks}/${response.maxMarks} marks`,
       );
     } catch (error) {
       setErrorMessage(readBackendError(error));
@@ -2294,7 +2294,7 @@ export function GeneratorView() {
     }
     if (!apiKey.trim() || !markModel.trim()) {
       setErrorMessage(
-        'Configure API key and model before requesting a re-mark.'
+        'Configure API key and model before requesting a re-mark.',
       );
       return;
     }
@@ -2321,7 +2321,7 @@ export function GeneratorView() {
       });
       const response = normalizeMarkResponse(
         rawResponse,
-        activeQuestion.maxMarks
+        activeQuestion.maxMarks,
       );
       setFeedbackByQuestionId((prev) => ({
         ...prev,
@@ -2338,7 +2338,7 @@ export function GeneratorView() {
         responseEnteredAtMs,
       });
       toast.success(
-        `Re-mark complete: ${response.achievedMarks}/${response.maxMarks} marks`
+        `Re-mark complete: ${response.achievedMarks}/${response.maxMarks} marks`,
       );
     } catch (error) {
       setErrorMessage(readBackendError(error));
@@ -2357,7 +2357,7 @@ export function GeneratorView() {
     }
     const clamped = Math.max(
       0,
-      Math.min(activeFeedback.maxMarks, Math.round(parsed))
+      Math.min(activeFeedback.maxMarks, Math.round(parsed)),
     );
     const updated = {
       ...activeFeedback,
@@ -2386,20 +2386,20 @@ export function GeneratorView() {
   function handleOverrideCriterion(
     idx: number,
     achievedMarks: number,
-    rationale: string
+    rationale: string,
   ) {
     if (!activeQuestion || !activeFeedback) return;
     const nextScheme = activeFeedback.vcaaMarkingScheme.map((it, i) =>
-      i === idx ? { ...it, achievedMarks, rationale } : it
+      i === idx ? { ...it, achievedMarks, rationale } : it,
     );
     const totalAchieved = nextScheme.reduce(
       (s, c) => s + (Number.isFinite(c.achievedMarks) ? c.achievedMarks : 0),
-      0
+      0,
     );
     const totalMax =
       nextScheme.reduce(
         (s, c) => s + (Number.isFinite(c.maxMarks) ? c.maxMarks : 0),
-        0
+        0,
       ) || activeFeedback.maxMarks;
     const nextFeedback = {
       ...activeFeedback,
@@ -2452,7 +2452,7 @@ export function GeneratorView() {
         activeMcQuestion.id,
         selectedLabel,
         awardedMarks,
-        responseEnteredAtMs
+        responseEnteredAtMs,
       );
     } else {
       appendMcHistoryEntry(
@@ -2460,7 +2460,7 @@ export function GeneratorView() {
         selectedLabel,
         awardedMarks,
         'initial',
-        responseEnteredAtMs
+        responseEnteredAtMs,
       );
       mcTimer.markAnswered(activeMcQuestion.id);
       useAppStore.getState().recordCompletion('multiple-choice');
@@ -2489,7 +2489,7 @@ export function GeneratorView() {
               const { storagePath, downloadUrl } = await uploadImageDataUrl(
                 dataUrl,
                 questionId,
-                imageId
+                imageId,
               );
               setMcImagesByQuestionId((prev) => ({
                 ...prev,
@@ -2511,7 +2511,7 @@ export function GeneratorView() {
           setErrorMessage('Unable to read the selected image file.');
         });
     },
-    [activeMcQuestion, setErrorMessage, user]
+    [activeMcQuestion, setErrorMessage, user],
   );
 
   const handleMcImageRemove = useCallback(() => {
@@ -2541,7 +2541,7 @@ export function GeneratorView() {
     }
     if (!apiKey.trim() || !markModel.trim()) {
       setErrorMessage(
-        'Configure API key and model before requesting a re-mark.'
+        'Configure API key and model before requesting a re-mark.',
       );
       return;
     }
@@ -2551,7 +2551,7 @@ export function GeneratorView() {
       const responseEnteredAtMs = Date.now();
       const selectedOptionText =
         activeMcQuestion.options.find(
-          (o: McOption) => o.label === activeMcAnswer
+          (o: McOption) => o.label === activeMcAnswer,
         )?.text ?? '';
       const arguedAnswer = [
         `Student selected option ${activeMcAnswer}: ${selectedOptionText}`,
@@ -2589,7 +2589,7 @@ export function GeneratorView() {
         activeMcAnswer,
         awardedMarks,
         'appeal',
-        responseEnteredAtMs
+        responseEnteredAtMs,
       );
     } catch (error) {
       setErrorMessage(readBackendError(error));
@@ -2698,18 +2698,18 @@ export function GeneratorView() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-full w-full flex flex-col gap-6 animate-in fade-in duration-500">
+    <div className='min-h-full w-full flex flex-col gap-6 animate-in fade-in duration-500'>
       {errorMessage && (
         <div
-          role="alert"
-          aria-live="assertive"
-          className="bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-sm text-sm flex items-center gap-3 shadow-sm"
+          role='alert'
+          aria-live='assertive'
+          className='bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-sm text-sm flex items-center gap-3 shadow-sm'
         >
-          <XCircle className="w-5 h-5 shrink-0" />
-          <p className="font-medium flex-1">{errorMessage}</p>
+          <XCircle className='w-5 h-5 shrink-0' />
+          <p className='font-medium flex-1'>{errorMessage}</p>
           {lastFailedAction && (
             <button
-              type="button"
+              type='button'
               onClick={() => {
                 if (lastFailedAction === 'generate-written')
                   void handleGenerateQuestions();
@@ -2719,7 +2719,7 @@ export function GeneratorView() {
                   void handleSubmitForMarking();
                 setLastFailedAction(null);
               }}
-              className="ml-2 text-sm text-destructive underline"
+              className='ml-2 text-sm text-destructive underline'
             >
               Retry
             </button>
@@ -2837,9 +2837,9 @@ export function GeneratorView() {
         />
       ) : /* ── Written Question View ── */
       questionMode === 'written' ? (
-        <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
+        <div className='flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500'>
           <SessionHeader
-            type="written"
+            type='written'
             questionIndex={activeQuestionIndex}
             totalQuestions={questions.length}
             completedCount={completedCount}
@@ -2867,34 +2867,34 @@ export function GeneratorView() {
             onResetTimer={resetCurrentQuestionTimer}
           />
           {showKeyboardHint && (
-            <div className="flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+            <div className='flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground'>
               <span>
                 Tip: Use{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                <kbd className='px-1 py-0.5 rounded bg-background border text-[10px] font-mono'>
                   ←
                 </kbd>{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                <kbd className='px-1 py-0.5 rounded bg-background border text-[10px] font-mono'>
                   →
                 </kbd>{' '}
                 to navigate,{' '}
-                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-mono">
+                <kbd className='px-1 py-0.5 rounded bg-background border text-[10px] font-mono'>
                   Ctrl+Enter
                 </kbd>{' '}
                 to submit
               </span>
               <button
                 onClick={dismissKeyboardHint}
-                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className='text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
               >
                 Dismiss
               </button>
             </div>
           )}
           {activeQuestion && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+            <div className='flex-1 overflow-y-auto'>
+              <div className='mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8'>
                 {activeFeedback ? (
-                  <div className="min-w-0 pb-10">
+                  <div className='min-w-0 pb-10'>
                     <WrittenFeedbackPanel
                       questionId={activeQuestion.id}
                       promptMarkdown={activeQuestion.promptMarkdown}
@@ -2915,11 +2915,11 @@ export function GeneratorView() {
                   </div>
                 ) : (
                   <QuestionSplitLayout
-                    mode="written"
+                    mode='written'
                     sketchpadActive={writtenSketchpadActive}
                     leftSlot={
-                      <div className="flex gap-4">
-                        <div className="flex-1">
+                      <div className='flex gap-4'>
+                        <div className='flex-1'>
                           <MarkdownMath
                             content={activeQuestion.promptMarkdown}
                           />
@@ -2951,9 +2951,9 @@ export function GeneratorView() {
         </div>
       ) : (
         /* ── MC Question View ── */
-        <div className="flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500">
+        <div className='flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500'>
           <SessionHeader
-            type="mc"
+            type='mc'
             questionIndex={activeMcQuestionIndex}
             totalQuestions={mcQuestions.length}
             completedCount={mcCompletedCount}
@@ -2981,16 +2981,16 @@ export function GeneratorView() {
             onResetTimer={resetCurrentQuestionTimer}
           />
           {activeMcQuestion && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+            <div className='flex-1 overflow-y-auto'>
+              <div className='mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8'>
                 <QuestionSplitLayout
-                  mode="mc"
+                  mode='mc'
                   sketchpadActive={mcSketchpadActive}
                   leftSlot={
-                    <div className="flex gap-4 space-y-5">
-                      <div className="flex-1 space-y-5">
-                        <div className="p-6 bg-muted/20 rounded-md space-y-2">
-                          <h1 className="text-xl font-bold">
+                    <div className='flex gap-4 space-y-5'>
+                      <div className='flex-1 space-y-5'>
+                        <div className='p-6 bg-muted/20 rounded-md space-y-2'>
+                          <h1 className='text-xl font-bold'>
                             Question {activeMcQuestionIndex + 1}
                           </h1>
                           <MarkdownMath
@@ -2999,8 +2999,8 @@ export function GeneratorView() {
                         </div>
                         {countWords(activeMcQuestion.explanationMarkdown) >
                           MC_MAX_EXPLANATION_WORDS && (
-                          <div className="rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90">
-                            <strong className="font-semibold">Warning:</strong>{' '}
+                          <div className='rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90'>
+                            <strong className='font-semibold'>Warning:</strong>{' '}
                             Explanation is{' '}
                             {countWords(activeMcQuestion.explanationMarkdown)}{' '}
                             words (max {MC_MAX_EXPLANATION_WORDS}). This may be
@@ -3012,7 +3012,7 @@ export function GeneratorView() {
                   }
                   rightSlot={
                     mcSketchpadActive ? (
-                      <div className="min-w-0 space-y-4">
+                      <div className='min-w-0 space-y-4'>
                         <McSketchpadPanel
                           questionId={activeMcQuestion?.id}
                           sketchSessionKey={activeMcSketchSessionKey}
@@ -3022,7 +3022,7 @@ export function GeneratorView() {
                         />
                       </div>
                     ) : (
-                      <div className="min-w-0 space-y-4">
+                      <div className='min-w-0 space-y-4'>
                         <McAnswerCard
                           options={activeMcQuestion.options}
                           correctAnswer={activeMcQuestion.correctAnswer}
@@ -3060,21 +3060,21 @@ export function GeneratorView() {
 
       {/* ── Keyboard shortcut hint ── */}
       {isInSession && showKeyboardHint && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-sm bg-foreground/90 text-background text-[11px] font-medium shadow-lg backdrop-blur-sm">
+        <div className='fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-sm bg-foreground/90 text-background text-[11px] font-medium shadow-lg backdrop-blur-sm'>
           <span>Tip: Use</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">
+          <kbd className='px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono'>
             ←
           </kbd>
-          <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">
+          <kbd className='px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono'>
             →
           </kbd>
           <span>to navigate,</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono">
+          <kbd className='px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono'>
             Esc
           </kbd>
           <span>to exit</span>
           <button
-            type="button"
+            type='button'
             onClick={() => {
               setShowKeyboardHint(false);
               try {
@@ -3083,7 +3083,7 @@ export function GeneratorView() {
                 // ignore localStorage errors
               }
             }}
-            className="ml-2 text-background/60 hover:text-background cursor-pointer"
+            className='ml-2 text-background/60 hover:text-background cursor-pointer'
           >
             ×
           </button>
@@ -3116,10 +3116,10 @@ export function GeneratorView() {
 
       <ConfirmModal
         open={confirmOpen}
-        title="Remove question"
+        title='Remove question'
         description={confirmMessage ?? undefined}
-        confirmText="Remove"
-        cancelText="Keep"
+        confirmText='Remove'
+        cancelText='Keep'
         onConfirm={performConfirmedCancel}
         onCancel={() => {
           setConfirmOpen(false);

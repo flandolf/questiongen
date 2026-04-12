@@ -137,13 +137,13 @@ const TOOL_KEYS: Record<string, ToolType> = {
 };
 
 const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
-  pen: <Pencil className="w-5 h-5" />,
-  eraser: <Eraser className="w-5 h-5" />,
-  line: <Minus className="w-5 h-5" />,
-  rect: <Square className="w-5 h-5" />,
-  ellipse: <Circle className="w-5 h-5" />,
-  text: <Type className="w-5 h-5" />,
-  graph: <LineChart className="w-5 h-5" />,
+  pen: <Pencil className='w-5 h-5' />,
+  eraser: <Eraser className='w-5 h-5' />,
+  line: <Minus className='w-5 h-5' />,
+  rect: <Square className='w-5 h-5' />,
+  ellipse: <Circle className='w-5 h-5' />,
+  text: <Type className='w-5 h-5' />,
+  graph: <LineChart className='w-5 h-5' />,
 };
 
 const TOOL_LABELS: Record<ToolType, string> = {
@@ -167,7 +167,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       embedded = false,
       sessionKey,
     }: SketchpadProps,
-    ref
+    ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const overlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -218,7 +218,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           }
         }
         return DEFAULT_TOOL_SETTINGS;
-      }
+      },
     );
     const [, forceUpdate] = useState(0);
     const hasExplicitlySaved = useRef(false);
@@ -253,7 +253,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     } | null>(null);
     const velocityRef = useRef(0);
     const isAndroid = useRef(
-      typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+      typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent),
     ).current;
     const isHoveringRef = useRef(false);
 
@@ -311,7 +311,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     // ─── Persistence helpers ───────────────────────────────────────────────────
     const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-      null
+      null,
     );
     const hasDirtyCanvasRef = useRef(false);
 
@@ -360,7 +360,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         snapshotQueueRef.current = snapshotQueueRef.current.then(task, task);
       },
-      [captureCanvasSnapshot]
+      [captureCanvasSnapshot],
     );
 
     const flushSnapshotQueue = useCallback(async () => {
@@ -370,7 +370,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const getCanvasStorageKey = useCallback(
       (key?: string): string =>
         key ? `${CANVAS_STORAGE_KEY_PREFIX}-${key}` : '',
-      []
+      [],
     );
 
     const bgRef2 = useRef<BgType>(bg);
@@ -386,12 +386,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               INTERNAL_RES_WIDTH,
               INTERNAL_RES_HEIGHT,
               bgRef2.current,
-              true
+              true,
             ),
           };
           localStorage.setItem(
             getCanvasStorageKey(key),
-            JSON.stringify(payload)
+            JSON.stringify(payload),
           );
           hasDirtyCanvasRef.current = false;
           window.dispatchEvent(
@@ -400,13 +400,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 sessionKey: key,
                 hasStrokes: strokesRef.current.length > 0,
               },
-            })
+            }),
           );
         } catch (err) {
           console.warn('Failed to save canvas to localStorage:', err);
         }
       },
-      [getCanvasStorageKey]
+      [getCanvasStorageKey],
     );
 
     const requestRedraw = useRef<number | null>(null);
@@ -442,7 +442,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         bgRef2.current,
         zoomRef.current,
         panRef.current,
-        dpr
+        dpr,
       );
 
       const inProgressStroke = currentStrokeRef.current;
@@ -491,11 +491,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           if (storedValue.trim().startsWith('{')) {
             try {
               const payload = JSON.parse(
-                storedValue
+                storedValue,
               ) as Partial<SketchpadStoragePayload>;
               if (typeof payload.strokeSvg === 'string' && payload.strokeSvg) {
                 const restoredStrokes = parseStrokesFromSvgString(
-                  payload.strokeSvg
+                  payload.strokeSvg,
                 );
                 strokesRef.current = restoredStrokes;
                 setStrokes(restoredStrokes);
@@ -511,13 +511,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 sessionKey: key,
                 hasStrokes: strokesRef.current.length > 0,
               },
-            })
+            }),
           );
         } catch (err) {
           console.warn('Failed to restore canvas from localStorage:', err);
         }
       },
-      [clearHistoryStacks, getCanvasStorageKey, scheduleRedraw]
+      [clearHistoryStacks, getCanvasStorageKey, scheduleRedraw],
     );
 
     const scheduleAutoSave = useCallback(
@@ -531,7 +531,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           saveCanvasToStorage(key);
         }, 1000); // Save 1s after last drawing action
       },
-      [saveCanvasToStorage]
+      [saveCanvasToStorage],
     );
 
     function readCanvasBounds(): CanvasBounds | null {
@@ -554,7 +554,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const clampZoom = useCallback(
       (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)),
-      []
+      [],
     );
 
     const flushViewportState = useCallback(() => {
@@ -578,25 +578,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const setViewport = useCallback(
       (
         nextPan: { x: number; y: number },
-        nextZoom: number = zoomRef.current
+        nextZoom: number = zoomRef.current,
       ) => {
         zoomRef.current = clampZoom(nextZoom);
         panRef.current = nextPan;
         queueViewportState();
       },
-      [clampZoom, queueViewportState]
+      [clampZoom, queueViewportState],
     );
 
     const setViewportImmediate = useCallback(
       (
         nextPan: { x: number; y: number },
-        nextZoom: number = zoomRef.current
+        nextZoom: number = zoomRef.current,
       ) => {
         zoomRef.current = clampZoom(nextZoom);
         panRef.current = nextPan;
         commitViewportState();
       },
-      [clampZoom, commitViewportState]
+      [clampZoom, commitViewportState],
     );
 
     const zoomAroundClientPoint = useCallback(
@@ -623,10 +623,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             x: localX - contentX * targetZoom,
             y: localY - contentY * targetZoom,
           },
-          targetZoom
+          targetZoom,
         );
       },
-      [clampZoom, setViewport]
+      [clampZoom, setViewport],
     );
 
     const zoomAroundCenter = useCallback(
@@ -659,7 +659,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               x: localX - contentX * targetZoom,
               y: localY - contentY * targetZoom,
             },
-            targetZoom
+            targetZoom,
           );
           return;
         }
@@ -667,20 +667,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         zoomAroundClientPoint(
           rect.left + rect.width / 2,
           rect.top + rect.height / 2,
-          nextZoom
+          nextZoom,
         );
       },
-      [clampZoom, setViewport, setViewportImmediate, zoomAroundClientPoint]
+      [clampZoom, setViewport, setViewportImmediate, zoomAroundClientPoint],
     );
 
     const zoomByKeyboardStep = useCallback(
       (direction: 1 | -1) => {
         zoomAroundCenter(
           zoomRef.current + direction * KEYBOARD_ZOOM_STEP,
-          true
+          true,
         );
       },
-      [zoomAroundCenter]
+      [zoomAroundCenter],
     );
 
     const resetViewport = useCallback(() => {
@@ -696,7 +696,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           x: (container.clientWidth - INTERNAL_RES_WIDTH * nextZoom) / 2,
           y: (container.clientHeight - INTERNAL_RES_HEIGHT * nextZoom) / 2,
         },
-        nextZoom
+        nextZoom,
       );
     }, [setViewportImmediate]);
 
@@ -730,20 +730,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (fitViewport) {
           const fitZoom = Math.min(
             (width - 80) / INTERNAL_RES_WIDTH,
-            (height - 80) / INTERNAL_RES_HEIGHT
+            (height - 80) / INTERNAL_RES_HEIGHT,
           );
           setViewportImmediate(
             {
               x: (width - INTERNAL_RES_WIDTH * fitZoom) / 2,
               y: (height - INTERNAL_RES_HEIGHT * fitZoom) / 2,
             },
-            fitZoom
+            fitZoom,
           );
         }
 
         scheduleRedraw();
       },
-      [setViewportImmediate, scheduleRedraw]
+      [setViewportImmediate, scheduleRedraw],
     );
 
     useEffect(() => {
@@ -807,7 +807,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       return () => {
         window.removeEventListener(
           'tutor-request-sketch-save',
-          handleForceSave
+          handleForceSave,
         );
       };
     }, [sessionKey, saveCanvasToStorage]);
@@ -846,7 +846,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (newTool === activeTool) return;
         setActiveTool(newTool);
       },
-      [activeTool]
+      [activeTool],
     );
 
     const updateCurrentTool = useCallback(
@@ -859,28 +859,28 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           },
         }));
       },
-      [activeTool]
+      [activeTool],
     );
 
     const setSize = useCallback(
       (size: number) => {
         updateCurrentTool({ size });
       },
-      [updateCurrentTool]
+      [updateCurrentTool],
     );
 
     const setSmoothing = useCallback(
       (smoothing: number) => {
         updateCurrentTool({ smoothing });
       },
-      [updateCurrentTool]
+      [updateCurrentTool],
     );
 
     const setColor = useCallback(
       (color: string) => {
         updateCurrentTool({ color });
       },
-      [updateCurrentTool]
+      [updateCurrentTool],
     );
 
     useEffect(() => {
@@ -1011,7 +1011,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         zoomAroundClientPoint(
           e.clientX,
           e.clientY,
-          zoomRef.current * zoomFactor
+          zoomRef.current * zoomFactor,
         );
       };
 
@@ -1172,7 +1172,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       const settings = toolSettingsMapRef.current[tool];
       const adjustedPressure = applyPressureCurve(
         pressure,
-        settings.pressureCurve
+        settings.pressureCurve,
       );
       const isPressureSensitive =
         !settings.disablePressure && (tool === 'pen' || tool === 'eraser');
@@ -1222,7 +1222,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           0,
           zoomRef.current * dpr,
           panRef.current.x * dpr,
-          panRef.current.y * dpr
+          panRef.current.y * dpr,
         );
 
         applyToolStyle(overlayCtx, latest.pressure);
@@ -1244,7 +1244,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         0,
         zoomRef.current * dpr,
         panRef.current.x * dpr,
-        panRef.current.y * dpr
+        panRef.current.y * dpr,
       );
 
       let lastPoint = lastPointReal.current;
@@ -1314,7 +1314,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         queueSnapshotCapture('undo');
       },
-      [markCanvasDirty, queueSnapshotCapture]
+      [markCanvasDirty, queueSnapshotCapture],
     );
 
     const runUndo = useCallback(async () => {
@@ -1411,7 +1411,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     function hasActivePenPointer() {
       return Array.from(activePointers.current.values()).some(
-        (pointer) => pointer.type === 'pen'
+        (pointer) => pointer.type === 'pen',
       );
     }
 
@@ -1445,7 +1445,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       pt: { x: number; y: number },
       ctx: CanvasRenderingContext2D,
       pressure: number,
-      time: number
+      time: number,
     ) {
       pushUndo();
       if (!isDrawingRef.current) {
@@ -1488,7 +1488,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         0,
         zoomRef.current * dpr,
         panRef.current.x * dpr,
-        panRef.current.y * dpr
+        panRef.current.y * dpr,
       );
       ctx.beginPath();
       applyToolStyle(ctx, pressure);
@@ -1718,7 +1718,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       if (currentTool === 'graph') {
         graphPreviewPointRef.current = getCanvasPoint(
           e,
-          canvasBoundsRef.current
+          canvasBoundsRef.current,
         );
         if (!graphPreviewRaf.current) {
           graphPreviewRaf.current = requestAnimationFrame(() => {
@@ -1736,7 +1736,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               0,
               zoomRef.current * dpr,
               panRef.current.x * dpr,
-              panRef.current.y * dpr
+              panRef.current.y * dpr,
             );
             octx.globalAlpha = 0.35;
             drawGraphAxes(
@@ -1744,7 +1744,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               point.x,
               point.y,
               settings.color,
-              settings.size
+              settings.size,
             );
             octx.restore();
           });
@@ -1777,7 +1777,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             pt,
             octx,
             pressureForStart,
-            getEventTimeStamp(e)
+            getEventTimeStamp(e),
           );
           pointerMeta.strokeStarted = true;
         }
@@ -2098,7 +2098,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           bgRef2.current,
           1,
           { x: -bounds.x, y: -bounds.y },
-          exportDpr
+          exportDpr,
         );
 
         // Render strokes on a transparent layer so eraser only removes ink,
@@ -2124,7 +2124,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             reader.readAsDataURL(blob);
           },
           'image/webp',
-          0.92
+          0.92,
         );
       });
     }, []);
@@ -2145,11 +2145,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasArea = (
       <div
         ref={containerRef}
-        className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none"
+        className='relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none'
       >
         <div
           ref={cursorPreviewRef}
-          className="pointer-events-none absolute z-50 rounded-full hidden"
+          className='pointer-events-none absolute z-50 rounded-full hidden'
           style={{
             transform: 'translate(-50%, -50%)',
             background: 'transparent',
@@ -2160,7 +2160,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         {textInput && (
           <input
             ref={textInputRef}
-            type="text"
+            type='text'
             autoFocus
             value={textInput.value}
             onChange={(e) =>
@@ -2194,7 +2194,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 setTextInput(null);
               }
             }}
-            className="absolute z-50 px-2 py-1 text-sm border-2 border-primary rounded-md bg-background/90 shadow-lg outline-none"
+            className='absolute z-50 px-2 py-1 text-sm border-2 border-primary rounded-md bg-background/90 shadow-lg outline-none'
             style={{
               left: textInput.x * zoom + pan.x,
               top: textInput.y * zoom + pan.y,
@@ -2207,20 +2207,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         <canvas
           ref={bgRef}
-          className="absolute top-0 left-0 pointer-events-none"
+          className='absolute top-0 left-0 pointer-events-none'
         />
 
-        <canvas ref={canvasRef} className="absolute top-0 left-0" />
+        <canvas ref={canvasRef} className='absolute top-0 left-0' />
 
         <canvas
           ref={overlayRef}
-          className="absolute top-0 left-0 pointer-events-none"
+          className='absolute top-0 left-0 pointer-events-none'
           style={{ cursor: cursorStyle }}
         />
 
         {/* Subtle Paper Texture Overlay */}
         <div
-          className="absolute top-0 left-0 pointer-events-none opacity-[0.03]"
+          className='absolute top-0 left-0 pointer-events-none opacity-[0.03]'
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
@@ -2233,7 +2233,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     );
 
     const activeColorPalette = Array.from(
-      new Set([currentColor, ...recentColors])
+      new Set([currentColor, ...recentColors]),
     ).slice(0, 3);
     while (activeColorPalette.length < 3) {
       const fallback = PALETTE.find((c) => !activeColorPalette.includes(c));
@@ -2241,33 +2241,33 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }
 
     const settingsFooter = (
-      <Card className="flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-card pointer-events-auto">
+      <Card className='flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-card pointer-events-auto'>
         <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-          <SelectTrigger className="h-9 w-32 border-none rounded-xl transition-all">
-            <SelectValue placeholder="Background" />
+          <SelectTrigger className='h-9 w-32 border-none rounded-xl transition-all'>
+            <SelectValue placeholder='Background' />
           </SelectTrigger>
-          <SelectContent className="rounded-xl">
+          <SelectContent className='rounded-xl'>
             <SelectGroup>
-              <SelectItem value="lined">Lined Paper</SelectItem>
-              <SelectItem value="white-grid">Grid Paper</SelectItem>
-              <SelectItem value="dot-grid">Dotted Paper</SelectItem>
-              <SelectItem value="black-grid">Dark Canvas</SelectItem>
+              <SelectItem value='lined'>Lined Paper</SelectItem>
+              <SelectItem value='white-grid'>Grid Paper</SelectItem>
+              <SelectItem value='dot-grid'>Dotted Paper</SelectItem>
+              <SelectItem value='black-grid'>Dark Canvas</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
 
         <Button
           variant={penOnlyMode ? 'default' : 'secondary'}
-          size="sm"
+          size='sm'
           onClick={() => setPenOnlyMode(!penOnlyMode)}
-          className="rounded-xl h-9"
+          className='rounded-xl h-9'
         >
           {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
         </Button>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation='vertical' className='h-6 mx-1' />
 
-        <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+        <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
           Size
         </Label>
 
@@ -2277,13 +2277,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           step={1}
           value={[currentSize]}
           onValueChange={([val]) => setSize(val)}
-          className="w-20 ml-1"
+          className='w-20 ml-1'
         />
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation='vertical' className='h-6 mx-1' />
 
-        <div className="flex items-center gap-3 px-2">
-          <Label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+        <div className='flex items-center gap-3 px-2'>
+          <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
             Smooth
           </Label>
           <Slider
@@ -2292,7 +2292,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             step={0.05}
             value={[currentSmoothing]}
             onValueChange={([val]) => setSmoothing(val)}
-            className="w-24"
+            className='w-24'
           />
         </div>
       </Card>
@@ -2309,21 +2309,21 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           hasDirtyCanvasRef.current = false;
         },
       }),
-      [onSave, saveAsDataUrl]
+      [onSave, saveAsDataUrl],
     );
 
     const topNavigationBar = (
       <TooltipProvider>
-        <Card className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50 transition-all hover:bg-card">
-          <div className="flex items-center gap-0.5 px-1 pr-2">
+        <Card className='absolute top-4 left-1/2 -translate-x-1/2 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50 transition-all hover:bg-card'>
+          <div className='flex items-center gap-0.5 px-1 pr-2'>
             {!embedded && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="icon"
+                    variant='ghost'
+                    size='icon'
                     onClick={onClose}
-                    className="rounded-xl"
+                    className='rounded-xl'
                   >
                     <ChevronLeft size={20} />
                   </Button>
@@ -2334,11 +2334,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={undo}
                   disabled={undoStack.current.length === 0}
-                  className="rounded-xl disabled:opacity-20"
+                  className='rounded-xl disabled:opacity-20'
                 >
                   <Undo2 size={20} />
                 </Button>
@@ -2348,11 +2348,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={redo}
                   disabled={redoStack.current.length === 0}
-                  className="rounded-xl disabled:opacity-20"
+                  className='rounded-xl disabled:opacity-20'
                 >
                   <Redo2 size={20} />
                 </Button>
@@ -2361,9 +2361,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             </Tooltip>
           </div>
 
-          <Separator orientation="vertical" className="h-8 mx-1" />
+          <Separator orientation='vertical' className='h-8 mx-1' />
 
-          <div className="flex items-center gap-1 px-1">
+          <div className='flex items-center gap-1 px-1'>
             {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
               const isActive = activeTool === tool;
               return (
@@ -2371,11 +2371,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   <TooltipTrigger asChild>
                     <Button
                       variant={isActive ? 'default' : 'ghost'}
-                      size="icon"
+                      size='icon'
                       onClick={() => switchTool(tool)}
                       className={cn(
                         'rounded-xl transition-all',
-                        isActive && 'shadow-lg shadow-primary/20 scale-105'
+                        isActive && 'shadow-lg shadow-primary/20 scale-105',
                       )}
                     >
                       {TOOL_ICONS[tool]}
@@ -2387,10 +2387,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })}
           </div>
 
-          <Separator orientation="vertical" className="h-8 mx-1" />
+          <Separator orientation='vertical' className='h-8 mx-1' />
 
-          <div className="flex items-center gap-3 px-2">
-            <div className="flex items-center gap-1">
+          <div className='flex items-center gap-3 px-2'>
+            <div className='flex items-center gap-1'>
               {[0.5, 1, 2].map((m) => {
                 const baseSize = activeTool === 'eraser' ? 40 : 4;
                 const size = baseSize * m;
@@ -2399,14 +2399,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   <Button
                     key={size}
                     variant={isActive ? 'default' : 'ghost'}
-                    size="icon-sm"
+                    size='icon-sm'
                     onClick={() => setSize(size)}
-                    className="size-6 rounded-lg"
+                    className='size-6 rounded-lg'
                   >
                     <div
                       className={cn(
                         'rounded-full',
-                        isActive ? 'bg-primary-foreground' : 'bg-foreground/50'
+                        isActive ? 'bg-primary-foreground' : 'bg-foreground/50',
                       )}
                       style={{ width: 6 * m, height: 6 * m }}
                     />
@@ -2416,10 +2416,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             </div>
           </div>
 
-          <Separator orientation="vertical" className="h-8 mx-1" />
+          <Separator orientation='vertical' className='h-8 mx-1' />
 
-          <div className="flex items-center gap-3 px-2">
-            <div className="flex items-center gap-2">
+          <div className='flex items-center gap-3 px-2'>
+            <div className='flex items-center gap-2'>
               {activeColorPalette.map((c, i) => (
                 <button
                   key={`${c}-${i}`}
@@ -2428,31 +2428,31 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                     'w-7 h-7 rounded-full border-2 transition-all',
                     currentColor === c && activeTool !== 'eraser'
                       ? 'border-primary scale-110 shadow-md ring-4 ring-primary/20'
-                      : 'border-background hover:scale-110'
+                      : 'border-background hover:scale-110',
                   )}
                   style={{ background: c }}
                 />
               ))}
-              <div className="relative w-7 h-7 rounded-full overflow-hidden border border-border shadow-sm hover:scale-110 transition-all">
+              <div className='relative w-7 h-7 rounded-full overflow-hidden border border-border shadow-sm hover:scale-110 transition-all'>
                 <input
-                  type="color"
+                  type='color'
                   value={currentColor}
                   onChange={(e) => {
                     setColor(e.target.value);
                     addRecentColor(e.target.value);
                   }}
-                  className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
+                  className='absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer'
                 />
               </div>
             </div>
-            <Separator orientation="vertical" className="h-8 mx-1" />
+            <Separator orientation='vertical' className='h-8 mx-1' />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={clearCanvas}
-                  className="p-2 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl"
+                  className='p-2 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl'
                 >
                   <Trash2 size={20} />
                 </Button>
@@ -2465,28 +2465,28 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     );
 
     const zoomIndicator = (
-      <Card className="absolute bottom-6 right-6 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50">
+      <Card className='absolute bottom-6 right-6 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50'>
         <Button
-          variant="ghost"
-          size="icon-sm"
-          type="button"
+          variant='ghost'
+          size='icon-sm'
+          type='button'
           onClick={() => zoomByKeyboardStep(-1)}
-          className="rounded-xl"
+          className='rounded-xl'
         >
           <ZoomOut size={12} />
         </Button>
         <Badge
-          variant="secondary"
-          className="bg-muted px-2 py-0.5 text-[10px] font-bold tabular-nums rounded-lg"
+          variant='secondary'
+          className='bg-muted px-2 py-0.5 text-[10px] font-bold tabular-nums rounded-lg'
         >
           {Math.round(zoom * 100)}%
         </Badge>
         <Button
-          variant="ghost"
-          size="icon-sm"
-          type="button"
+          variant='ghost'
+          size='icon-sm'
+          type='button'
           onClick={() => zoomByKeyboardStep(1)}
-          className="rounded-xl"
+          className='rounded-xl'
         >
           <ZoomIn size={12} />
         </Button>
@@ -2497,18 +2497,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     if (embedded) {
       return (
-        <div className="flex flex-col flex-1 min-h-[70vh] bg-muted/20 relative overflow-hidden font-sans border border-border rounded-2xl shadow-inner">
+        <div className='flex flex-col flex-1 min-h-[70vh] bg-muted/20 relative overflow-hidden font-sans border border-border rounded-2xl shadow-inner'>
           {topNavigationBar}
           {canvasArea}
           {zoomIndicator}
-          <div className="absolute bottom-6 left-6 z-50">{settingsFooter}</div>
+          <div className='absolute bottom-6 left-6 z-50'>{settingsFooter}</div>
         </div>
       );
     }
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center font-sans overflow-hidden">
+      <div className='fixed inset-0 z-50 flex items-center justify-center font-sans overflow-hidden'>
         <div
-          className="absolute inset-0 bg-background/60 backdrop-blur-xl"
+          className='absolute inset-0 bg-background/60 backdrop-blur-xl'
           onClick={
             void (async () => {
               if (!hasExplicitlySaved.current) {
@@ -2525,19 +2525,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })
           }
         />
-        <div className="relative w-full h-full flex flex-col items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto h-full w-full relative flex flex-col">
+        <div className='relative w-full h-full flex flex-col items-center justify-center pointer-events-none'>
+          <div className='pointer-events-auto h-full w-full relative flex flex-col'>
             {topNavigationBar}
             {canvasArea}
             {zoomIndicator}
-            <div className="absolute bottom-6 left-6 z-50 pointer-events-auto">
+            <div className='absolute bottom-6 left-6 z-50 pointer-events-auto'>
               {settingsFooter}
             </div>
           </div>
         </div>
       </div>
     );
-  }
+  },
 );
 
 Sketchpad.displayName = 'Sketchpad';

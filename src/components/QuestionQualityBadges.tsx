@@ -34,12 +34,12 @@ export function QuestionQualityBadges({
 
     badges.push(
       <Badge
-        key="distinctness"
-        variant="outline"
+        key='distinctness'
+        variant='outline'
         className={`${color} text-xs`}
       >
         {compact ? '⬡' : 'Uniqueness'} {(distinctness * 100).toFixed(0)}%
-      </Badge>
+      </Badge>,
     );
   }
 
@@ -64,10 +64,10 @@ export function QuestionQualityBadges({
     }
 
     badges.push(
-      <Badge key="depth" variant="outline" className={`${color} text-xs`}>
-        <Zap className="w-3 h-3 mr-1 inline" />
+      <Badge key='depth' variant='outline' className={`${color} text-xs`}>
+        <Zap className='w-3 h-3 mr-1 inline' />
         {complexity}
-      </Badge>
+      </Badge>,
     );
   }
 
@@ -79,10 +79,10 @@ export function QuestionQualityBadges({
       : 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-950/40 dark:text-slate-200 dark:border-slate-800';
 
     badges.push(
-      <Badge key="scaffold" variant="outline" className={`${color} text-xs`}>
-        <BookOpen className="w-3 h-3 mr-1 inline" />
+      <Badge key='scaffold' variant='outline' className={`${color} text-xs`}>
+        <BookOpen className='w-3 h-3 mr-1 inline' />
         {scaffoldPattern}
-      </Badge>
+      </Badge>,
     );
   }
 
@@ -96,9 +96,9 @@ export function QuestionQualityBadges({
     }
 
     badges.push(
-      <Badge key="verbs" variant="outline" className={`${color} text-xs`}>
+      <Badge key='verbs' variant='outline' className={`${color} text-xs`}>
         {verbDiversityCount.toFixed(0)} Command Verbs
-      </Badge>
+      </Badge>,
     );
   }
 

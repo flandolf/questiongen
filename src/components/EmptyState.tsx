@@ -25,17 +25,17 @@ export function EmptyState({
       className={cn(
         'flex h-full flex-col items-center justify-center gap-3 text-center',
         compact ? 'p-4' : 'p-3 sm:p-4 lg:p-5',
-        className
+        className,
       )}
     >
       {Icon ? (
-        <div className="rounded-full bg-primary/10 p-4 text-primary">
-          <Icon className="h-8 w-8" />
+        <div className='rounded-full bg-primary/10 p-4 text-primary'>
+          <Icon className='h-8 w-8' />
         </div>
       ) : null}
       <div>
-        <h2 className="mb-2 text-2xl font-bold">{title}</h2>
-        <p className="text-muted-foreground">{description}</p>
+        <h2 className='mb-2 text-2xl font-bold'>{title}</h2>
+        <p className='text-muted-foreground'>{description}</p>
       </div>
       {actions}
     </div>

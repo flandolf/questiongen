@@ -21,7 +21,7 @@ export function SyncSection() {
   const firebaseSync = useFirebaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<'signin' | 'signup'>(
-    'signin'
+    'signin',
   );
   const [syncAuthEmail, setSyncAuthEmail] = useState('');
   const [syncAuthPassword, setSyncAuthPassword] = useState('');
@@ -73,7 +73,7 @@ export function SyncSection() {
       await enableSync(
         syncAuthEmail,
         syncAuthPassword,
-        syncAuthMode === 'signup'
+        syncAuthMode === 'signup',
       );
     } finally {
       setSyncIsSubmitting(false);
@@ -89,25 +89,25 @@ export function SyncSection() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       <SectionHeader
-        title="Cloud Sync"
-        description="Your data is automatically synced to the cloud in realtime using Firestore."
+        title='Cloud Sync'
+        description='Your data is automatically synced to the cloud in realtime using Firestore.'
       />
 
       {!isOnline && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+        <div className='flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-400'>
+          <AlertCircle className='h-4 w-4 shrink-0 mt-0.5' />
           <div>
-            <span className="font-semibold">You are offline.</span> Cloud sync
+            <span className='font-semibold'>You are offline.</span> Cloud sync
             requires an internet connection.
           </div>
         </div>
       )}
 
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <Card className='p-5 space-y-4'>
+        <div className='flex items-center justify-between'>
+          <div className='flex items-center gap-3'>
             <div
               className={cn(
                 'h-10 w-10 rounded-full flex items-center justify-center',
@@ -115,27 +115,27 @@ export function SyncSection() {
                   ? 'bg-emerald-500/10'
                   : isSignedIn
                     ? 'bg-amber-500/10'
-                    : 'bg-muted'
+                    : 'bg-muted',
               )}
             >
               {syncLoading ||
               syncIsSubmitting ||
               syncStatus === 'connecting' ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
               ) : syncStatus === 'syncing' ? (
-                <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
+                <Loader2 className='h-5 w-5 animate-spin text-sky-500' />
               ) : syncEnabled ? (
-                <Cloud className="h-5 w-5 text-emerald-500" />
+                <Cloud className='h-5 w-5 text-emerald-500' />
               ) : isSignedIn ? (
-                <CloudOff className="h-5 w-5 text-amber-500" />
+                <CloudOff className='h-5 w-5 text-amber-500' />
               ) : syncStatus === 'error' ? (
-                <AlertCircle className="h-5 w-5 text-destructive" />
+                <AlertCircle className='h-5 w-5 text-destructive' />
               ) : (
-                <CloudOff className="h-5 w-5 text-muted-foreground" />
+                <CloudOff className='h-5 w-5 text-muted-foreground' />
               )}
             </div>
             <div>
-              <p className="text-sm font-medium">
+              <p className='text-sm font-medium'>
                 {syncStatus === 'connecting'
                   ? 'Connecting...'
                   : syncStatus === 'syncing'
@@ -147,10 +147,10 @@ export function SyncSection() {
                         : 'Not Connected'}
               </p>
               {user && (
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+                <p className='text-xs text-muted-foreground'>{user.email}</p>
               )}
               {syncEnabled && (
-                <div className="mt-2 flex items-center gap-2">
+                <div className='mt-2 flex items-center gap-2'>
                   <span
                     className={cn(
                       'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
@@ -163,12 +163,12 @@ export function SyncSection() {
                       syncHealth.tone === 'stale' &&
                         'bg-orange-500/15 text-orange-700 dark:text-orange-400',
                       syncHealth.tone === 'muted' &&
-                        'bg-muted text-muted-foreground'
+                        'bg-muted text-muted-foreground',
                     )}
                   >
                     {syncHealth.label}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className='text-xs text-muted-foreground'>
                     {syncHealth.hint}
                   </span>
                 </div>
@@ -176,11 +176,11 @@ export function SyncSection() {
             </div>
           </div>
           {syncEnabled && (
-            <div className="flex gap-2">
+            <div className='flex gap-2'>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-destructive hover:text-destructive"
+                variant='outline'
+                size='sm'
+                className='gap-1.5 text-destructive hover:text-destructive'
                 onClick={() => {
                   void disableSync();
                 }}
@@ -188,9 +188,9 @@ export function SyncSection() {
                 Disable sync
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
+                variant='outline'
+                size='sm'
+                className='gap-1.5'
                 onClick={() => {
                   void handleSignOut();
                 }}
@@ -202,22 +202,22 @@ export function SyncSection() {
         </div>
 
         {isSignedIn && syncEnabled && (
-          <div className="pt-3 border-t border-border">
+          <div className='pt-3 border-t border-border'>
             <ToggleRow
-              id="sync-api-key"
+              id='sync-api-key'
               checked={syncApiKey}
               onChange={setSyncApiKey}
-              label="Sync API Key"
+              label='Sync API Key'
               description="Include your OpenRouter API key in cloud sync so it's available on all your devices."
             />
           </div>
         )}
 
         {!isSignedIn && (
-          <div className="space-y-4 pt-2">
-            <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <div className='space-y-4 pt-2'>
+            <div className='flex gap-1 p-1 bg-muted rounded-lg'>
               <button
-                type="button"
+                type='button'
                 onClick={() => {
                   setSyncAuthMode('signin');
                   setSyncAuthEmail('');
@@ -227,13 +227,13 @@ export function SyncSection() {
                   'flex-1 py-1.5 px-3 text-sm rounded-md transition-colors',
                   syncAuthMode === 'signin'
                     ? 'bg-background shadow-sm font-medium'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 Sign In
               </button>
               <button
-                type="button"
+                type='button'
                 onClick={() => {
                   setSyncAuthMode('signup');
                   setSyncAuthEmail('');
@@ -243,31 +243,31 @@ export function SyncSection() {
                   'flex-1 py-1.5 px-3 text-sm rounded-md transition-colors',
                   syncAuthMode === 'signup'
                     ? 'bg-background shadow-sm font-medium'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 Sign Up
               </button>
             </div>
 
-            <div className="space-y-3">
-              <FieldGroup label="Email" htmlFor="sync-email">
+            <div className='space-y-3'>
+              <FieldGroup label='Email' htmlFor='sync-email'>
                 <Input
-                  id="sync-email"
-                  type="email"
+                  id='sync-email'
+                  type='email'
                   value={syncAuthEmail}
                   onChange={(e) => setSyncAuthEmail(e.target.value)}
-                  placeholder="your@email.com"
+                  placeholder='your@email.com'
                   disabled={!isOnline}
                 />
               </FieldGroup>
-              <FieldGroup label="Password" htmlFor="sync-password">
+              <FieldGroup label='Password' htmlFor='sync-password'>
                 <Input
-                  id="sync-password"
-                  type="password"
+                  id='sync-password'
+                  type='password'
                   value={syncAuthPassword}
                   onChange={(e) => setSyncAuthPassword(e.target.value)}
-                  placeholder="Password"
+                  placeholder='Password'
                   disabled={!isOnline}
                   onKeyDown={(e) => {
                     if (
@@ -281,7 +281,7 @@ export function SyncSection() {
                 />
               </FieldGroup>
               <Button
-                className="w-full gap-2"
+                className='w-full gap-2'
                 onClick={() => {
                   void handleAuth();
                 }}
@@ -292,12 +292,12 @@ export function SyncSection() {
                   syncIsSubmitting
                 }
               >
-                <Cloud className="h-4 w-4" />
+                <Cloud className='h-4 w-4' />
                 {syncAuthMode === 'signin' ? 'Sign In' : 'Create Account'}
               </Button>
             </div>
 
-            <p className="text-xs text-muted-foreground text-center">
+            <p className='text-xs text-muted-foreground text-center'>
               {syncAuthMode === 'signin'
                 ? 'Sign in with your email to sync across all your devices.'
                 : 'Create an account to start syncing your data.'}
@@ -307,23 +307,23 @@ export function SyncSection() {
       </Card>
 
       {isSignedIn && (
-        <Card className="p-5">
-          <h3 className="text-sm font-medium mb-3">Sync Details</h3>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+        <Card className='p-5'>
+          <h3 className='text-sm font-medium mb-3'>Sync Details</h3>
+          <ul className='space-y-2 text-sm text-muted-foreground'>
+            <li className='flex items-center gap-2'>
+              <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
               Realtime Database-First Syncing
             </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <li className='flex items-center gap-2'>
+              <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
               Offline Persistence & Background Syncing
             </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <li className='flex items-center gap-2'>
+              <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
               History, Presets, and Saved Sets
             </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <li className='flex items-center gap-2'>
+              <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
               Multi-Device Synchronization
             </li>
           </ul>

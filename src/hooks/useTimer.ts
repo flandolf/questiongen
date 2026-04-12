@@ -24,7 +24,7 @@ export interface UseTimerReturn {
   resetCurrentQuestion: () => void;
 
   getQuestionTiming: (
-    questionId: string
+    questionId: string,
   ) => { elapsedSeconds: number; marks: number; isWarning: boolean } | null;
   getAllTimings: () => Array<{
     id: string;
@@ -74,7 +74,7 @@ type TimerStoreSlice = {
 
 function getElapsedSeconds(
   q: QuestionTiming | undefined,
-  nowMs: number
+  nowMs: number,
 ): number {
   if (!q) return 0;
   if (q.runningSinceMs === null) return q.elapsedSeconds;
@@ -104,10 +104,10 @@ function startQuestion(q: QuestionTiming, nowMs: number): QuestionTiming {
 export function useTimer(
   questions: Array<GeneratedQuestion | McQuestion>,
   activeQuestionIndex: number,
-  sessionKey: 'written' | 'mc'
+  sessionKey: 'written' | 'mc',
 ): UseTimerReturn {
   const persistedTimer = useAppStore((s) =>
-    sessionKey === 'written' ? s.writtenTimer : s.mcTimer
+    sessionKey === 'written' ? s.writtenTimer : s.mcTimer,
   );
 
   const [timerState, setTimerState] = useState<TimerState>(() => {
@@ -130,7 +130,7 @@ export function useTimer(
         store.setMcTimer(state);
       }
     },
-    [sessionKey]
+    [sessionKey],
   );
 
   useEffect(() => {
@@ -199,7 +199,7 @@ export function useTimer(
       const sameActive = prev.activeQuestionId === current.id;
       const sameQuestions =
         Object.keys(nextQuestions).every(
-          (id) => nextQuestions[id] === prev.questions[id]
+          (id) => nextQuestions[id] === prev.questions[id],
         ) &&
         Object.keys(prev.questions).length ===
           Object.keys(nextQuestions).length;
@@ -284,7 +284,7 @@ export function useTimer(
       });
       setNowMs(now);
     },
-    [activeQuestionIndex]
+    [activeQuestionIndex],
   );
 
   const markAnswered = useCallback((questionId: string) => {
@@ -395,7 +395,7 @@ export function useTimer(
         isWarning: computeShouldWarn(elapsedSeconds, q.marks),
       };
     },
-    [timerState.questions, nowMs]
+    [timerState.questions, nowMs],
   );
 
   const getAllTimings = useCallback(() => {
@@ -442,17 +442,17 @@ export function useTimer(
     : null;
   const currentQuestionElapsed = getElapsedSeconds(
     currentQ ?? undefined,
-    nowMs
+    nowMs,
   );
   const currentQuestionMarks = currentQ?.marks ?? 0;
   const isCurrentQuestionWarning = computeShouldWarn(
     currentQuestionElapsed,
-    currentQuestionMarks
+    currentQuestionMarks,
   );
 
   const sessionElapsedSeconds = Object.values(timerState.questions).reduce(
     (total, q) => total + getElapsedSeconds(q, nowMs),
-    0
+    0,
   );
 
   return {

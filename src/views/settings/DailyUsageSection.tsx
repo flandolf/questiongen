@@ -14,7 +14,7 @@ import { Card, EmptyState } from './SettingsUI';
 function computeDailyUsage(
   questionHistory: ReturnType<typeof useWrittenSession>['questionHistory'],
   mcHistory: ReturnType<typeof useMultipleChoiceSession>['mcHistory'],
-  generationHistory: GenerationRecord[]
+  generationHistory: GenerationRecord[],
 ) {
   const byDay = new Map<
     string,
@@ -57,7 +57,7 @@ export function DailyUsageSection({
     const byDay = computeDailyUsage(
       questionHistory,
       mcHistory,
-      generationHistory
+      generationHistory,
     );
 
     const sorted = Array.from(byDay.entries())
@@ -104,31 +104,31 @@ export function DailyUsageSection({
 
   if (totalDays === 0) {
     return (
-      <EmptyState message="No usage data yet. Token and cost tracking appears after your first generation." />
+      <EmptyState message='No usage data yet. Token and cost tracking appears after your first generation.' />
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className='space-y-4'>
       {/* Summary KPI row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className='grid grid-cols-3 gap-3'>
         {[
           {
-            icon: <TrendingUp className="h-4 w-4 text-sky-500" />,
+            icon: <TrendingUp className='h-4 w-4 text-sky-500' />,
             label: 'Avg tokens / day',
             value: fmt.tokens(Math.round(avgStats.avgTokens)),
             sub: `${fmt.tokens(avgStats.totalTokens)} total · ${totalDays}d`,
             accent: 'sky',
           },
           {
-            icon: <DollarSign className="h-4 w-4 text-emerald-500" />,
+            icon: <DollarSign className='h-4 w-4 text-emerald-500' />,
             label: 'Avg cost / day',
             value: fmt.cost(avgStats.avgCost),
             sub: `${fmt.cost(avgStats.totalCost)} total`,
             accent: 'emerald',
           },
           {
-            icon: <BarChart2 className="h-4 w-4 text-violet-500" />,
+            icon: <BarChart2 className='h-4 w-4 text-violet-500' />,
             label: 'Avg questions / day',
             value: avgStats.avgQuestions.toFixed(1),
             sub: `${avgStats.totalQuestions} total`,
@@ -142,12 +142,13 @@ export function DailyUsageSection({
               stat.accent === 'sky' && 'bg-sky-500/5 border-sky-500/20',
               stat.accent === 'emerald' &&
                 'bg-emerald-500/5 border-emerald-500/20',
-              stat.accent === 'violet' && 'bg-violet-500/5 border-violet-500/20'
+              stat.accent === 'violet' &&
+                'bg-violet-500/5 border-violet-500/20',
             )}
           >
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className='flex items-center gap-2 text-muted-foreground'>
               {stat.icon}
-              <span className="text-[10px] font-bold uppercase tracking-wider">
+              <span className='text-[10px] font-bold uppercase tracking-wider'>
                 {stat.label}
               </span>
             </div>
@@ -158,67 +159,67 @@ export function DailyUsageSection({
                 stat.accent === 'emerald' &&
                   'text-emerald-600 dark:text-emerald-400',
                 stat.accent === 'violet' &&
-                  'text-violet-600 dark:text-violet-400'
+                  'text-violet-600 dark:text-violet-400',
               )}
             >
               {stat.value}
             </div>
-            <div className="text-[11px] text-muted-foreground">{stat.sub}</div>
+            <div className='text-[11px] text-muted-foreground'>{stat.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Daily bar chart — tokens */}
-      <Card className="overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-3.5 w-3.5 text-sky-500" />
-            <span className="text-sm font-semibold">Daily token usage</span>
+      <Card className='overflow-hidden'>
+        <div className='flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30'>
+          <div className='flex items-center gap-2'>
+            <TrendingUp className='h-3.5 w-3.5 text-sky-500' />
+            <span className='text-sm font-semibold'>Daily token usage</span>
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className='text-xs text-muted-foreground'>
             Last {totalDays} active day{totalDays !== 1 ? 's' : ''}
           </span>
         </div>
-        <div className="px-4 py-4">
-          <div className="flex items-end gap-1 h-24">
+        <div className='px-4 py-4'>
+          <div className='flex items-end gap-1 h-24'>
             {dailyData.map((d) => {
               const pct = d.tokens / maxTokens;
               return (
                 <div
                   key={d.day}
-                  className="flex-1 flex flex-col items-center gap-1 group relative"
+                  className='flex-1 flex flex-col items-center gap-1 group relative'
                   title={`${d.label}: ${fmt.tokens(d.tokens)} tokens`}
                 >
                   <div
-                    className="w-full rounded-t-sm bg-sky-500/70 hover:bg-sky-500 transition-colors cursor-default"
+                    className='w-full rounded-t-sm bg-sky-500/70 hover:bg-sky-500 transition-colors cursor-default'
                     style={{
                       height: `${Math.max(pct * 88, d.tokens > 0 ? 4 : 0)}px`,
                     }}
                   />
-                  <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
-                    <div className="rounded-lg border bg-popover px-2.5 py-1.5 shadow-lg text-[11px] text-foreground whitespace-nowrap">
-                      <div className="font-semibold">{d.label}</div>
-                      <div className="text-muted-foreground">
+                  <div className='absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none'>
+                    <div className='rounded-lg border bg-popover px-2.5 py-1.5 shadow-lg text-[11px] text-foreground whitespace-nowrap'>
+                      <div className='font-semibold'>{d.label}</div>
+                      <div className='text-muted-foreground'>
                         {fmt.tokens(d.tokens)} tok · {d.questions}q ·{' '}
                         {fmt.cost(d.cost)}
                       </div>
                     </div>
-                    <div className="w-2 h-2 bg-popover border-r border-b rotate-45 -mt-1 border-border" />
+                    <div className='w-2 h-2 bg-popover border-r border-b rotate-45 -mt-1 border-border' />
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] text-muted-foreground/60">
+          <div className='flex items-center justify-between mt-1.5'>
+            <span className='text-[10px] text-muted-foreground/60'>
               {dailyData[0]?.label}
             </span>
             {dailyData.length > 2 && (
-              <span className="text-[10px] text-muted-foreground/60">
+              <span className='text-[10px] text-muted-foreground/60'>
                 {dailyData[Math.floor(dailyData.length / 2)]?.label}
               </span>
             )}
-            <span className="text-[10px] text-muted-foreground/60">
+            <span className='text-[10px] text-muted-foreground/60'>
               {dailyData[dailyData.length - 1]?.label}
             </span>
           </div>
@@ -226,58 +227,58 @@ export function DailyUsageSection({
       </Card>
 
       {/* Daily questions bar chart */}
-      <Card className="overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <BarChart2 className="h-3.5 w-3.5 text-violet-500" />
-            <span className="text-sm font-semibold">
+      <Card className='overflow-hidden'>
+        <div className='flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30'>
+          <div className='flex items-center gap-2'>
+            <BarChart2 className='h-3.5 w-3.5 text-violet-500' />
+            <span className='text-sm font-semibold'>
               Daily questions answered
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className='text-xs text-muted-foreground'>
             Last {totalDays} active day{totalDays !== 1 ? 's' : ''}
           </span>
         </div>
-        <div className="px-4 py-4">
-          <div className="flex items-end gap-1 h-24">
+        <div className='px-4 py-4'>
+          <div className='flex items-end gap-1 h-24'>
             {dailyData.map((d) => {
               const pct = d.questions / maxQuestions;
               return (
                 <div
                   key={d.day}
-                  className="flex-1 flex flex-col items-center gap-1 group relative"
+                  className='flex-1 flex flex-col items-center gap-1 group relative'
                   title={`${d.label}: ${d.questions} question${d.questions !== 1 ? 's' : ''}`}
                 >
                   <div
-                    className="w-full rounded-t-sm bg-violet-500/70 hover:bg-violet-500 transition-colors cursor-default"
+                    className='w-full rounded-t-sm bg-violet-500/70 hover:bg-violet-500 transition-colors cursor-default'
                     style={{
                       height: `${Math.max(pct * 88, d.questions > 0 ? 4 : 0)}px`,
                     }}
                   />
-                  <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
-                    <div className="rounded-lg border bg-popover px-2.5 py-1.5 shadow-lg text-[11px] text-foreground whitespace-nowrap">
-                      <div className="font-semibold">{d.label}</div>
-                      <div className="text-muted-foreground">
+                  <div className='absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none'>
+                    <div className='rounded-lg border bg-popover px-2.5 py-1.5 shadow-lg text-[11px] text-foreground whitespace-nowrap'>
+                      <div className='font-semibold'>{d.label}</div>
+                      <div className='text-muted-foreground'>
                         {d.questions} question{d.questions !== 1 ? 's' : ''} ·{' '}
                         {fmt.tokens(d.tokens)} tok
                       </div>
                     </div>
-                    <div className="w-2 h-2 bg-popover border-r border-b rotate-45 -mt-1 border-border" />
+                    <div className='w-2 h-2 bg-popover border-r border-b rotate-45 -mt-1 border-border' />
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] text-muted-foreground/60">
+          <div className='flex items-center justify-between mt-1.5'>
+            <span className='text-[10px] text-muted-foreground/60'>
               {dailyData[0]?.label}
             </span>
             {dailyData.length > 2 && (
-              <span className="text-[10px] text-muted-foreground/60">
+              <span className='text-[10px] text-muted-foreground/60'>
                 {dailyData[Math.floor(dailyData.length / 2)]?.label}
               </span>
             )}
-            <span className="text-[10px] text-muted-foreground/60">
+            <span className='text-[10px] text-muted-foreground/60'>
               {dailyData[dailyData.length - 1]?.label}
             </span>
           </div>
@@ -285,17 +286,17 @@ export function DailyUsageSection({
       </Card>
 
       {/* Recent days table */}
-      <Card className="overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-sm font-semibold">Recent daily breakdown</span>
+      <Card className='overflow-hidden'>
+        <div className='flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30'>
+          <Calendar className='h-3.5 w-3.5 text-muted-foreground' />
+          <span className='text-sm font-semibold'>Recent daily breakdown</span>
         </div>
-        <div className="divide-y divide-border">
-          <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/20">
+        <div className='divide-y divide-border'>
+          <div className='grid grid-cols-4 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/20'>
             <span>Date</span>
-            <span className="text-right">Questions</span>
-            <span className="text-right">Tokens</span>
-            <span className="text-right">Est. cost</span>
+            <span className='text-right'>Questions</span>
+            <span className='text-right'>Tokens</span>
+            <span className='text-right'>Est. cost</span>
           </div>
           {[...dailyData]
             .reverse()
@@ -303,23 +304,23 @@ export function DailyUsageSection({
             .map((d) => (
               <div
                 key={d.day}
-                className="grid grid-cols-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition-colors"
+                className='grid grid-cols-4 px-4 py-2.5 text-sm hover:bg-muted/20 transition-colors'
               >
-                <span className="text-foreground font-medium">{d.label}</span>
-                <span className="text-right tabular-nums text-muted-foreground">
+                <span className='text-foreground font-medium'>{d.label}</span>
+                <span className='text-right tabular-nums text-muted-foreground'>
                   {d.questions}
                 </span>
-                <span className="text-right tabular-nums text-muted-foreground">
+                <span className='text-right tabular-nums text-muted-foreground'>
                   {d.tokens > 0 ? fmt.tokens(d.tokens) : '—'}
                 </span>
-                <span className="text-right tabular-nums text-muted-foreground">
+                <span className='text-right tabular-nums text-muted-foreground'>
                   {d.cost > 0 ? fmt.cost(d.cost) : '—'}
                 </span>
               </div>
             ))}
         </div>
         {dailyData.length > 10 && (
-          <div className="px-4 py-2.5 text-xs text-muted-foreground/60 border-t border-border bg-muted/10 text-center">
+          <div className='px-4 py-2.5 text-xs text-muted-foreground/60 border-t border-border bg-muted/10 text-center'>
             Showing 10 most recent days · {totalDays} total active days tracked
           </div>
         )}

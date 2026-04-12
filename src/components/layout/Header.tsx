@@ -34,23 +34,23 @@ function GoalProgressBar({
   const pct = Math.min(100, (current / goal) * 100);
   const complete = current >= goal;
   return (
-    <div className="space-y-1.5 flex-1 min-w-20">
-      <div className="flex items-center justify-between px-0.5">
-        <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider">
+    <div className='space-y-1.5 flex-1 min-w-20'>
+      <div className='flex items-center justify-between px-0.5'>
+        <p className='text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider'>
           {label}
         </p>
-        <p className="text-[10px] font-bold tabular-nums opacity-80">
+        <p className='text-[10px] font-bold tabular-nums opacity-80'>
           {current}/{goal}
         </p>
       </div>
-      <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
+      <div className='h-1.5 w-full bg-muted/20 rounded-full overflow-hidden'>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
           className={cn(
             'h-full rounded-full',
-            complete ? color : 'bg-primary/60'
+            complete ? color : 'bg-primary/60',
           )}
         />
       </div>
@@ -73,12 +73,12 @@ function ConcentricRings({
   const maxRadius = cx - strokeWidth / 2;
   const ringSpacing = strokeWidth + gap;
   return (
-    <div className="flex items-center">
+    <div className='flex items-center'>
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="overflow-visible"
+        className='overflow-visible'
       >
         {activeGoals.map((g, i) => {
           const r = maxRadius - i * ringSpacing;
@@ -92,19 +92,19 @@ function ConcentricRings({
                 cx={cx}
                 cy={cy}
                 r={r}
-                fill="none"
-                stroke="currentColor"
-                className="text-muted/10"
+                fill='none'
+                stroke='currentColor'
+                className='text-muted/10'
                 strokeWidth={strokeWidth}
               />
               <motion.circle
                 cx={cx}
                 cy={cy}
                 r={r}
-                fill="none"
+                fill='none'
                 stroke={g.color}
                 strokeWidth={strokeWidth}
-                strokeLinecap="round"
+                strokeLinecap='round'
                 strokeDasharray={circumference}
                 initial={{ strokeDashoffset: circumference }}
                 animate={{ strokeDashoffset: dashoffset }}
@@ -153,22 +153,22 @@ export function Header() {
             'flex items-center h-9 px-3 rounded-lg transition-colors duration-150 relative group',
             isActive
               ? 'bg-primary/10 text-primary shadow-sm'
-              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
           )
         }
       >
-        <div className="flex items-center justify-center">
-          <link.icon className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-105" />
+        <div className='flex items-center justify-center'>
+          <link.icon className='h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-105' />
           {link.showSessionDot && hasActiveSession && (
-            <span className="absolute top-1.5 left-6 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className='absolute top-1.5 left-6 w-1.5 h-1.5 rounded-full bg-emerald-500' />
           )}
         </div>
-        <span className="ml-2 text-sm font-medium whitespace-nowrap">
+        <span className='ml-2 text-sm font-medium whitespace-nowrap'>
           {link.label}
         </span>
       </NavLink>
     ),
-    [hasActiveSession]
+    [hasActiveSession],
   );
 
   const navLinks = [
@@ -190,15 +190,15 @@ export function Header() {
       className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md w-full ${isAndroid ? 'mt-8' : ''} mb-1`}
     >
       {/* Left: Navigation */}
-      <nav className="flex items-center gap-1 no-scrollbar">
+      <nav className='flex items-center gap-1 no-scrollbar'>
         {navLinks.map(renderLink)}
       </nav>
 
       {/* Right: Stats + Settings */}
-      <div className="flex items-center gap-3">
+      <div className='flex items-center gap-3'>
         {/* Sync Indicator */}
         {isSyncEnabled && (
-          <div className="flex items-center">
+          <div className='flex items-center'>
             {isSyncing ? (
               <motion.div
                 animate={{ opacity: [1, 0.4, 1] }}
@@ -207,24 +207,24 @@ export function Header() {
                   repeat: Infinity,
                   ease: 'easeInOut',
                 }}
-                className="text-emerald-500"
-                title="Syncing..."
+                className='text-emerald-500'
+                title='Syncing...'
               >
-                <Cloud className="h-4 w-4" />
+                <Cloud className='h-4 w-4' />
               </motion.div>
             ) : (
-              <div className="text-emerald-500/80" title="Synced to Firestore">
-                <Cloud className="h-4 w-4" />
+              <div className='text-emerald-500/80' title='Synced to Firestore'>
+                <Cloud className='h-4 w-4' />
               </div>
             )}
           </div>
         )}
 
         {/* Goals */}
-        <div className="relative">
+        <div className='relative'>
           <button
             onClick={() => setShowGoals(!showGoals)}
-            className="flex items-center gap-2 h-8 px-2 rounded-md hover:bg-muted/50 transition-colors"
+            className='flex items-center gap-2 h-8 px-2 rounded-md hover:bg-muted/50 transition-colors'
           >
             <ConcentricRings
               goals={[
@@ -257,31 +257,31 @@ export function Header() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.95 }}
                 transition={EASE}
-                className="absolute right-0 top-full mt-2 w-64 p-4 bg-popover border border-border/50 rounded-xl shadow-lg z-50"
+                className='absolute right-0 top-full mt-2 w-64 p-4 bg-popover border border-border/50 rounded-xl shadow-lg z-50'
               >
-                <div className="space-y-4">
+                <div className='space-y-4'>
                   {studyGoals.dailyQuestionGoal > 0 && (
                     <GoalProgressBar
-                      label="Overall"
+                      label='Overall'
                       current={todayCompletions.total}
                       goal={studyGoals.dailyQuestionGoal}
-                      color="bg-emerald-500"
+                      color='bg-emerald-500'
                     />
                   )}
                   {studyGoals.dailyMcGoal > 0 && (
                     <GoalProgressBar
-                      label="Multiple Choice"
+                      label='Multiple Choice'
                       current={todayCompletions.mc}
                       goal={studyGoals.dailyMcGoal}
-                      color="bg-violet-500"
+                      color='bg-violet-500'
                     />
                   )}
                   {studyGoals.dailyWrittenGoal > 0 && (
                     <GoalProgressBar
-                      label="Written"
+                      label='Written'
                       current={todayCompletions.written}
                       goal={studyGoals.dailyWrittenGoal}
-                      color="bg-sky-500"
+                      color='bg-sky-500'
                     />
                   )}
                 </div>
@@ -292,9 +292,9 @@ export function Header() {
 
         {/* Streak */}
         {streakData.currentStreak > 0 && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/5 border border-orange-500/10">
-            <Flame className="h-4 w-4 text-orange-400 animate-pulse shrink-0" />
-            <span className="text-xs font-bold text-orange-400 tabular-nums">
+          <div className='flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/5 border border-orange-500/10'>
+            <Flame className='h-4 w-4 text-orange-400 animate-pulse shrink-0' />
+            <span className='text-xs font-bold text-orange-400 tabular-nums'>
               {streakData.currentStreak}
             </span>
           </div>
@@ -302,17 +302,17 @@ export function Header() {
 
         {/* Settings */}
         <NavLink
-          to="/settings"
+          to='/settings'
           className={({ isActive }) =>
             cn(
               'flex items-center h-9 px-3 rounded-lg transition-colors duration-150',
               isActive
                 ? 'bg-primary/10 text-primary shadow-sm'
-                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
             )
           }
         >
-          <Settings className="h-4 w-4" />
+          <Settings className='h-4 w-4' />
         </NavLink>
       </div>
     </motion.header>

@@ -58,7 +58,7 @@ export const CHEMISTRY_SUBTOPICS = getSubtopics('Chemistry');
 export const PHYSICAL_EDUCATION_SUBTOPICS = getSubtopics('Physical Education');
 
 export const TOPICS: Topic[] = CATALOG.topics.map(
-  (topic) => topic.name as Topic
+  (topic) => topic.name as Topic,
 );
 
 const PE_GROUP_LABELS: Record<string, { unit: string; aos: string }> = {
@@ -93,7 +93,7 @@ const SCOPED_SUBTOPIC_SEPARATOR = '@@';
 export function toScopedSubtopicId(
   subtopicName: string,
   groupId: string,
-  indexInGroup: number
+  indexInGroup: number,
 ): string {
   return `${subtopicName}${SCOPED_SUBTOPIC_SEPARATOR}${groupId}#${indexInGroup}`;
 }
@@ -105,12 +105,12 @@ export function toCanonicalSubtopicName(subtopicIdOrName: string): string {
 }
 
 export function toScopedSubtopicGroups(
-  groups: readonly TopicSubtopicGroup[]
+  groups: readonly TopicSubtopicGroup[],
 ): readonly TopicSubtopicGroup[] {
   return groups.map((group) => ({
     ...group,
     subtopics: group.subtopics.map((subtopic, index) =>
-      toScopedSubtopicId(subtopic, group.groupId, index)
+      toScopedSubtopicId(subtopic, group.groupId, index),
     ),
   }));
 }
@@ -121,7 +121,7 @@ function parseUnitSortValue(unit: string): number {
 }
 
 export function getTopicSubtopicGroups(
-  topicName: string
+  topicName: string,
 ): readonly TopicSubtopicGroup[] {
   const topic = CATALOG.topics.find((t) => t.name === topicName);
   if (!topic) return [];

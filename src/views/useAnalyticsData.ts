@@ -143,7 +143,7 @@ function normalizeCriterionLabel(value: string) {
 function updateBucket(
   bucketByTopic: Map<string, TopicAccumulator>,
   topic: string,
-  data: BucketUpdateData
+  data: BucketUpdateData,
 ): void {
   const bucket = bucketByTopic.get(topic) ?? {
     sampleCount: 0,
@@ -196,7 +196,7 @@ function updateBucket(
 function computeQualityRows(
   questionHistory: QuestionHistoryEntry[],
   mcHistory: McHistoryEntry[],
-  generationHistory: GenerationRecord[]
+  generationHistory: GenerationRecord[],
 ): QualityRow[] {
   const bucketByTopic = new Map<string, TopicAccumulator>();
 
@@ -272,7 +272,7 @@ export function useAnalyticsData() {
         isFirstAttempt: !attemptKind || attemptKind === 'initial',
         scorePercent: percent(
           entry.markResponse.achievedMarks,
-          entry.markResponse.maxMarks
+          entry.markResponse.maxMarks,
         ),
         responseLatencyMs: entry.analytics?.responseLatencyMs,
         markingLatencyMs: entry.analytics?.markingLatencyMs,
@@ -320,7 +320,7 @@ export function useAnalyticsData() {
 
   const allAttempts = useMemo(() => {
     return [...writtenAttempts, ...mcAttempts].sort(
-      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)
+      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
     );
   }, [mcAttempts, writtenAttempts]);
 
@@ -395,7 +395,7 @@ export function useAnalyticsData() {
       writtenFirstAttemptCorrect,
       writtenFirstAttemptAverageScore: average(
         writtenFirstAttemptScoreTotal,
-        writtenFirstAttemptTotal
+        writtenFirstAttemptTotal,
       ),
       mcAttempts: mcAttempts.length,
       mcCorrect,
@@ -403,15 +403,15 @@ export function useAnalyticsData() {
       mcFirstAttemptCorrect,
       mcFirstAttemptAccuracy: percent(
         mcFirstAttemptCorrect,
-        mcFirstAttemptTotal
+        mcFirstAttemptTotal,
       ),
       averageMarkingLatencyMs: average(
         markingLatencyTotal,
-        markingLatencyCount
+        markingLatencyCount,
       ),
       averageGenerationLatencyMs: average(
         generationLatencyTotal,
-        generationLatencyCount
+        generationLatencyCount,
       ),
       appealCount,
       overrideCount,
@@ -481,7 +481,7 @@ export function useAnalyticsData() {
     }
 
     return Array.from(bucketByTopic.values()).sort(
-      (a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts
+      (a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts,
     );
   }, [allAttempts]);
 
@@ -553,7 +553,7 @@ export function useAnalyticsData() {
   const writtenEffortDistribution = useMemo(() => {
     const labels = ['0-24', '25-74', '75-149', '150+'];
     const buckets = new Map(
-      labels.map((label) => [label, { attempts: 0, totalScorePercent: 0 }])
+      labels.map((label) => [label, { attempts: 0, totalScorePercent: 0 }]),
     );
 
     for (const attempt of writtenAttempts) {
@@ -656,11 +656,11 @@ export function useAnalyticsData() {
         bucket.availableMarks += criterion.maxMarks;
         bucket.lostMarks += Math.max(
           0,
-          criterion.maxMarks - criterion.achievedMarks
+          criterion.maxMarks - criterion.achievedMarks,
         );
         bucket.topics.set(
           entry.question.topic,
-          (bucket.topics.get(entry.question.topic) ?? 0) + 1
+          (bucket.topics.get(entry.question.topic) ?? 0) + 1,
         );
 
         if (Date.parse(entry.createdAt) > Date.parse(bucket.lastSeenAt)) {
@@ -695,7 +695,7 @@ export function useAnalyticsData() {
         (a, b) =>
           b.lostPercent - a.lostPercent ||
           b.lostMarks - a.lostMarks ||
-          b.attempts - a.attempts
+          b.attempts - a.attempts,
       )
       .slice(0, 6);
   }, [questionHistory]);
@@ -804,7 +804,7 @@ export function useAnalyticsData() {
     () =>
       // Now computeQualityRows is a stable reference from the module scope
       computeQualityRows(questionHistory, mcHistory, generationHistory),
-    [mcHistory, questionHistory, generationHistory]
+    [mcHistory, questionHistory, generationHistory],
   );
 
   const lowestScoringWritten = useMemo(() => {
@@ -812,7 +812,7 @@ export function useAnalyticsData() {
       .sort(
         (a, b) =>
           a.scorePercent - b.scorePercent ||
-          Date.parse(b.createdAt) - Date.parse(a.createdAt)
+          Date.parse(b.createdAt) - Date.parse(a.createdAt),
       )
       .slice(0, 10);
   }, [writtenAttempts]);
@@ -837,14 +837,14 @@ export function useAnalyticsData() {
     return w.length > 0
       ? average(
           w.reduce((s, a) => s + a.scorePercent, 0),
-          w.length
+          w.length,
         )
       : null;
   };
 
   const calcMc = (arr: AttemptRow[]) => {
     const mc = arr.filter(
-      (a) => a.mode === 'multiple-choice' && a.isFirstAttempt
+      (a) => a.mode === 'multiple-choice' && a.isFirstAttempt,
     );
     return mc.length > 0
       ? percent(mc.filter((a) => a.isCorrect).length, mc.length)

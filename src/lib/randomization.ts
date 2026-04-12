@@ -29,7 +29,7 @@ export function createSeededRandom(seed: number = Date.now()) {
  */
 export function generateSeedFromTopics(
   topics: string[],
-  subtopics?: string[]
+  subtopics?: string[],
 ): number {
   const combined = [...topics, ...(subtopics || [])].join('|');
   let hash = 0;
@@ -71,7 +71,7 @@ export function sampleWithSeed<T>(arr: T[], k: number, seed?: number): T[] {
 export function selectSubtopicsLocal(
   subtopics: string[],
   count: number,
-  seed?: number
+  seed?: number,
 ): string[] {
   if (count >= subtopics.length) return [...subtopics];
   if (count <= 0) return [];
@@ -83,7 +83,7 @@ export function selectSubtopicsLocal(
  * Validate and deduplicate a list of options.
  */
 export function validateAndDeduplicateOptions(
-  options: Array<{ label: string; text: string }>
+  options: Array<{ label: string; text: string }>,
 ): Array<{ label: string; text: string }> {
   const seen = new Set<string>();
   const deduped = [];

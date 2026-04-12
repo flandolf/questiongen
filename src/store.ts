@@ -72,7 +72,7 @@ function buildSavedSetTitle(mode: QuestionMode, topics: Topic[]) {
 
 function isWrittenSessionComplete(
   questions: GeneratedQuestion[],
-  feedbackByQuestionId: Record<string, MarkAnswerResponse>
+  feedbackByQuestionId: Record<string, MarkAnswerResponse>,
 ) {
   return (
     questions.length > 0 &&
@@ -82,7 +82,7 @@ function isWrittenSessionComplete(
 
 function isMcSessionComplete(
   questions: McQuestion[],
-  answersByQuestionId: Record<string, string>
+  answersByQuestionId: Record<string, string>,
 ) {
   return (
     questions.length > 0 &&
@@ -236,22 +236,22 @@ export interface AppActions {
   setMathMethodsSubtopics: (
     subtopics:
       | MathMethodsSubtopic[]
-      | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[])
+      | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[]),
   ) => void;
   setSpecialistMathSubtopics: (
     subtopics:
       | SpecialistMathSubtopic[]
-      | ((prev: SpecialistMathSubtopic[]) => SpecialistMathSubtopic[])
+      | ((prev: SpecialistMathSubtopic[]) => SpecialistMathSubtopic[]),
   ) => void;
   setChemistrySubtopics: (
     subtopics:
       | ChemistrySubtopic[]
-      | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[])
+      | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[]),
   ) => void;
   setPhysicalEducationSubtopics: (
     subtopics:
       | PhysicalEducationSubtopic[]
-      | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[])
+      | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[]),
   ) => void;
   setQuestionCount: (count: number) => void;
   setAverageMarksPerQuestion: (marks: number) => void;
@@ -277,35 +277,35 @@ export interface AppActions {
   setWrittenQuestionPresentedAtById: (
     presentedAt:
       | Record<string, number>
-      | ((prev: Record<string, number>) => Record<string, number>)
+      | ((prev: Record<string, number>) => Record<string, number>),
   ) => void;
   setAnswersByQuestionId: (
     answers:
       | Record<string, string>
-      | ((prev: Record<string, string>) => Record<string, string>)
+      | ((prev: Record<string, string>) => Record<string, string>),
   ) => void;
   setImagesByQuestionId: (
     images:
       | Record<string, StudentAnswerImage | undefined>
       | ((
-          prev: Record<string, StudentAnswerImage | undefined>
-        ) => Record<string, StudentAnswerImage | undefined>)
+          prev: Record<string, StudentAnswerImage | undefined>,
+        ) => Record<string, StudentAnswerImage | undefined>),
   ) => void;
   setFeedbackByQuestionId: (
     feedback:
       | Record<string, MarkAnswerResponse>
       | ((
-          prev: Record<string, MarkAnswerResponse>
-        ) => Record<string, MarkAnswerResponse>)
+          prev: Record<string, MarkAnswerResponse>,
+        ) => Record<string, MarkAnswerResponse>),
   ) => void;
   setQuestionHistory: (
     history:
       | QuestionHistoryEntry[]
-      | ((prev: QuestionHistoryEntry[]) => QuestionHistoryEntry[])
+      | ((prev: QuestionHistoryEntry[]) => QuestionHistoryEntry[]),
   ) => void;
   setWrittenRawModelOutput: (output: string) => void;
   setWrittenGenerationTelemetry: (
-    telemetry: GenerationTelemetry | null
+    telemetry: GenerationTelemetry | null,
   ) => void;
   setActiveWrittenSavedSetId: (id: string | null) => void;
 
@@ -315,15 +315,15 @@ export interface AppActions {
   setMcQuestionPresentedAtById: (
     presentedAt:
       | Record<string, number>
-      | ((prev: Record<string, number>) => Record<string, number>)
+      | ((prev: Record<string, number>) => Record<string, number>),
   ) => void;
   setMcAnswersByQuestionId: (
     answers:
       | Record<string, string>
-      | ((prev: Record<string, string>) => Record<string, string>)
+      | ((prev: Record<string, string>) => Record<string, string>),
   ) => void;
   setMcHistory: (
-    history: McHistoryEntry[] | ((prev: McHistoryEntry[]) => McHistoryEntry[])
+    history: McHistoryEntry[] | ((prev: McHistoryEntry[]) => McHistoryEntry[]),
   ) => void;
   setMcRawModelOutput: (output: string) => void;
   setMcGenerationTelemetry: (telemetry: GenerationTelemetry | null) => void;
@@ -385,17 +385,17 @@ const defaultState: AppState = {
   model: EMPTY_PERSISTED_APP_STATE.settings.model,
   markingModel: EMPTY_PERSISTED_APP_STATE.settings.markingModel,
   useSeparateMarkingModel: Boolean(
-    EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel
+    EMPTY_PERSISTED_APP_STATE.settings.useSeparateMarkingModel,
   ),
   imageMarkingModel: EMPTY_PERSISTED_APP_STATE.settings.imageMarkingModel,
   useSeparateImageMarkingModel: Boolean(
-    EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel
+    EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   ),
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
   includeExamContext: Boolean(
-    EMPTY_PERSISTED_APP_STATE.settings.includeExamContext
+    EMPTY_PERSISTED_APP_STATE.settings.includeExamContext,
   ),
   autoSyncIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
@@ -627,7 +627,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({
       writtenQuestionPresentedAtById: resolve(
         update,
-        s.writtenQuestionPresentedAtById
+        s.writtenQuestionPresentedAtById,
       ),
     })),
   setAnswersByQuestionId: (update) =>
@@ -681,14 +681,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       if (s.questions.length === 0) return null;
       const isComplete = isWrittenSessionComplete(
         s.questions,
-        s.feedbackByQuestionId
+        s.feedbackByQuestionId,
       );
       if (isComplete) {
         if (s.activeWrittenSavedSetId) {
           const completedSavedSetId = s.activeWrittenSavedSetId;
           set((state) => ({
             savedSets: state.savedSets.filter(
-              (e) => e.id !== completedSavedSetId
+              (e) => e.id !== completedSavedSetId,
             ),
             activeWrittenSavedSetId: null,
           }));
@@ -749,14 +749,14 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     if (s.mcQuestions.length === 0) return null;
     const isComplete = isMcSessionComplete(
       s.mcQuestions,
-      s.mcAnswersByQuestionId
+      s.mcAnswersByQuestionId,
     );
     if (isComplete) {
       if (s.activeMcSavedSetId) {
         const completedSavedSetId = s.activeMcSavedSetId;
         set((state) => ({
           savedSets: state.savedSets.filter(
-            (e) => e.id !== completedSavedSetId
+            (e) => e.id !== completedSavedSetId,
           ),
           activeMcSavedSetId: null,
         }));
@@ -925,7 +925,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   updateQuestionHistoryEntry: (entry) => {
     set((s) => ({
       questionHistory: s.questionHistory.map((e) =>
-        e.id === entry.id ? entry : e
+        e.id === entry.id ? entry : e,
       ),
     }));
     void v3SaveQuestionHistoryEntry(entry);
@@ -965,7 +965,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       .sort(
         (a, b) =>
           new Date(a.card.nextReviewDate).getTime() -
-          new Date(b.card.nextReviewDate).getTime()
+          new Date(b.card.nextReviewDate).getTime(),
       ),
 
   setStudyGoals: (goals) =>
@@ -995,7 +995,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
             : s.streakData.currentStreak + 1,
         longestStreak: Math.max(
           s.streakData.longestStreak,
-          s.streakData.currentStreak + 1
+          s.streakData.currentStreak + 1,
         ),
         lastActiveDate: today,
         dailyCompletions: {
@@ -1109,7 +1109,7 @@ function mapSettings(s: PersistedAppState): Partial<AppState> {
     useSeparateMarkingModel: Boolean(s.settings.useSeparateMarkingModel),
     imageMarkingModel: s.settings.imageMarkingModel,
     useSeparateImageMarkingModel: Boolean(
-      s.settings.useSeparateImageMarkingModel
+      s.settings.useSeparateImageMarkingModel,
     ),
     debugMode: s.settings.debugMode,
     questionTextSize: s.settings.questionTextSize ?? 16,
@@ -1189,7 +1189,7 @@ function mapSessions(s: PersistedAppState): Partial<AppState> {
 
 function mapHistory(s: PersistedAppState): Partial<AppState> {
   const savedSets = s.savedSets.filter(
-    (savedSet) => !isSavedSetComplete(savedSet)
+    (savedSet) => !isSavedSetComplete(savedSet),
   );
 
   return {

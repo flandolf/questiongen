@@ -49,7 +49,7 @@ export function isDeepEqual(a: unknown, b: unknown): boolean {
     if (
       !isDeepEqual(
         (a as Record<string, unknown>)[key],
-        (b as Record<string, unknown>)[key]
+        (b as Record<string, unknown>)[key],
       )
     ) {
       return false;

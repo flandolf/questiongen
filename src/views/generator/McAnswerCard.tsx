@@ -71,10 +71,10 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
   }
 
   return (
-    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="flex items-center gap-2 text-muted-foreground/70">
-        <PencilRuler className="w-4 h-4" />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
+    <div className='space-y-2 animate-in fade-in slide-in-from-top-2 duration-300'>
+      <div className='flex items-center gap-2 text-muted-foreground/70'>
+        <PencilRuler className='w-4 h-4' />
+        <span className='text-[11px] font-semibold uppercase tracking-[0.22em]'>
           Sketchpad
         </span>
       </div>
@@ -84,20 +84,20 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
         onSave={(dataUrl) => void handleSketchSave(dataUrl)}
       />
       {image && (
-        <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
+        <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
           <img
             src={image.downloadUrl || image.dataUrl}
-            alt="Saved sketch"
-            className="w-full h-auto max-h-64 object-contain rounded-lg"
+            alt='Saved sketch'
+            className='w-full h-auto max-h-64 object-contain rounded-lg'
           />
-          <div className="mt-2 flex justify-end">
+          <div className='mt-2 flex justify-end'>
             <Button
-              variant="destructive"
-              size="sm"
-              className="gap-1.5"
+              variant='destructive'
+              size='sm'
+              className='gap-1.5'
               onClick={onImageRemove}
             >
-              <Trash2 className="w-3.5 h-3.5" /> Remove
+              <Trash2 className='w-3.5 h-3.5' /> Remove
             </Button>
           </div>
         </div>
@@ -134,7 +134,7 @@ export const McAnswerCard = memo(function McAnswerCard({
   const showResult = answered && !hideCorrectAnswer;
 
   return (
-    <div className="space-y-4 flex flex-col h-full">
+    <div className='space-y-4 flex flex-col h-full'>
       {isSketchpadOpen && renderSketchpadInline && (
         <McSketchpadPanel
           image={image}
@@ -155,7 +155,7 @@ export const McAnswerCard = memo(function McAnswerCard({
       />
 
       {showResult ? (
-        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className='space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300'>
           <div
             className={`flex gap-3 items-start rounded-3xl border px-4 py-4 sm:px-5 sm:py-5 ${
               isCorrect
@@ -169,12 +169,12 @@ export const McAnswerCard = memo(function McAnswerCard({
               }`}
             >
               {isCorrect ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                <CheckCircle2 className='w-5 h-5 text-emerald-500' />
               ) : (
-                <XCircle className="w-5 h-5 text-rose-500" />
+                <XCircle className='w-5 h-5 text-rose-500' />
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className='flex-1 min-w-0'>
               <p
                 className={`font-semibold text-base mb-2 ${
                   isCorrect ? 'text-emerald-200' : 'text-rose-200'
@@ -195,59 +195,59 @@ export const McAnswerCard = memo(function McAnswerCard({
           </div>
 
           {image && (
-            <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
+            <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
               <img
                 src={image.downloadUrl || image.dataUrl}
-                alt="Uploaded sketch"
-                className="w-full h-auto max-h-64 object-contain rounded-lg"
+                alt='Uploaded sketch'
+                className='w-full h-auto max-h-64 object-contain rounded-lg'
               />
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl">
+              <div className='absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl'>
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  className="gap-1.5 shadow-lg"
+                  variant='destructive'
+                  size='sm'
+                  className='gap-1.5 shadow-lg'
                   onClick={onImageRemove}
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                  <Trash2 className='w-3.5 h-3.5' /> Remove
                 </Button>
               </div>
             </div>
           )}
 
-          <div className="rounded-xl border border-border/40 bg-muted/10 p-4 space-y-3">
+          <div className='rounded-xl border border-border/40 bg-muted/10 p-4 space-y-3'>
             <button
-              type="button"
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              type='button'
+              className='flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors'
               onClick={() =>
                 onAppealChange(
-                  appealText ? '' : 'I believe my answer is correct because...'
+                  appealText ? '' : 'I believe my answer is correct because...',
                 )
               }
             >
               Appeal
               {appealText ? (
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className='w-4 h-4' />
               ) : (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className='w-4 h-4' />
               )}
             </button>
 
             {appealText !== undefined && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className='space-y-2 animate-in fade-in slide-in-from-top-2 duration-200'>
                 <Textarea
                   value={appealText}
                   onChange={(e) => onAppealChange(e.target.value)}
-                  placeholder="I believe my answer is correct because..."
-                  className="min-h-20 text-sm"
+                  placeholder='I believe my answer is correct because...'
+                  className='min-h-20 text-sm'
                 />
-                <div className="flex justify-end">
+                <div className='flex justify-end'>
                   <Button
-                    size="sm"
+                    size='sm'
                     onClick={onArgueForMark}
                     disabled={!appealText.trim() || isMarking}
                   >
                     {isMarking ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className='w-4 h-4 animate-spin' />
                     ) : (
                       'Submit Appeal'
                     )}
@@ -259,21 +259,21 @@ export const McAnswerCard = memo(function McAnswerCard({
             {awardedMarks !== undefined && awardedMarks > 0 && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
+                <div className='space-y-2'>
+                  <Label className='text-sm font-medium'>
                     Override marks (out of 1)
                   </Label>
-                  <div className="flex gap-2">
+                  <div className='flex gap-2'>
                     <Input
-                      type="number"
+                      type='number'
                       min={0}
                       max={1}
                       step={0.5}
                       value={overrideInput}
                       onChange={(e) => onOverrideInputChange(e.target.value)}
-                      className="w-24"
+                      className='w-24'
                     />
-                    <Button size="sm" onClick={onApplyOverride}>
+                    <Button size='sm' onClick={onApplyOverride}>
                       Apply
                     </Button>
                   </div>
@@ -283,15 +283,15 @@ export const McAnswerCard = memo(function McAnswerCard({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 justify-between items-center">
-          <div className="text-sm text-muted-foreground animate-in fade-in duration-200">
+        <div className='grid grid-cols-2 justify-between items-center'>
+          <div className='text-sm text-muted-foreground animate-in fade-in duration-200'>
             Select an answer above to see the result.
           </div>
-          <div className="flex w-full justify-end">
+          <div className='flex w-full justify-end'>
             <Button
-              type="button"
+              type='button'
               variant={isSketchpadOpen ? 'default' : 'outline'}
-              size="sm"
+              size='sm'
               onClick={onToggleSketchpad}
             >
               <PencilRuler size={10} />

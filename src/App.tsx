@@ -63,7 +63,7 @@ function ensureMathJaxLoaded(): Promise<void> {
 
   mathJaxLoaderPromise = new Promise<void>((resolve, reject) => {
     const existing = document.getElementById(
-      MATHJAX_SCRIPT_ID
+      MATHJAX_SCRIPT_ID,
     ) as HTMLScriptElement | null;
 
     const runtime = getMathJaxRuntime();
@@ -99,31 +99,31 @@ function ensureMathJaxLoaded(): Promise<void> {
 }
 
 const GeneratorView = lazy(() =>
-  import('./views/GeneratorView').then((m) => ({ default: m.GeneratorView }))
+  import('./views/GeneratorView').then((m) => ({ default: m.GeneratorView })),
 );
 const HistoryView = lazy(() =>
-  import('./views/HistoryView').then((m) => ({ default: m.HistoryView }))
+  import('./views/HistoryView').then((m) => ({ default: m.HistoryView })),
 );
 const AnalyticsView = lazy(() =>
-  import('./views/AnalyticsView').then((m) => ({ default: m.AnalyticsView }))
+  import('./views/AnalyticsView').then((m) => ({ default: m.AnalyticsView })),
 );
 const SavedView = lazy(() =>
-  import('./views/SavedView').then((m) => ({ default: m.SavedView }))
+  import('./views/SavedView').then((m) => ({ default: m.SavedView })),
 );
 const SettingsView = lazy(() =>
-  import('./views/SettingsView').then((m) => ({ default: m.SettingsView }))
+  import('./views/SettingsView').then((m) => ({ default: m.SettingsView })),
 );
 const WrongQuestionView = lazy(() => import('./views/WrongQuestionView'));
 const NotFound = lazy(() =>
-  import('./views/NotFound').then((m) => ({ default: m.NotFound }))
+  import('./views/NotFound').then((m) => ({ default: m.NotFound })),
 );
 
 function RouteFallback() {
   return (
-    <div className="min-h-full flex items-center justify-center p-8">
-      <div className="text-center space-y-2">
-        <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+    <div className='min-h-full flex items-center justify-center p-8'>
+      <div className='text-center space-y-2'>
+        <div className='h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto' />
+        <p className='text-sm text-muted-foreground'>Loading...</p>
       </div>
     </div>
   );
@@ -134,12 +134,12 @@ function AppRoutes() {
 
   if (!isHydrated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">
+      <div className='min-h-screen flex items-center justify-center bg-background text-foreground px-6'>
+        <div className='text-center space-y-2'>
+          <h1 className='text-2xl font-bold tracking-tight'>
             Loading your workspace
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className='text-sm text-muted-foreground'>
             Restoring saved question sets, history, and analytics.
           </p>
         </div>
@@ -151,14 +151,14 @@ function AppRoutes() {
     <HashRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<Layout />}>
+          <Route path='/' element={<Layout />}>
             <Route index element={<GeneratorView />} />
-            <Route path="history" element={<HistoryView />} />
-            <Route path="analytics" element={<AnalyticsView />} />
-            <Route path="mistakes" element={<WrongQuestionView />} />
-            <Route path="saved" element={<SavedView />} />
-            <Route path="settings" element={<SettingsView />} />
-            <Route path="*" element={<NotFound />} />
+            <Route path='history' element={<HistoryView />} />
+            <Route path='analytics' element={<AnalyticsView />} />
+            <Route path='mistakes' element={<WrongQuestionView />} />
+            <Route path='saved' element={<SavedView />} />
+            <Route path='settings' element={<SettingsView />} />
+            <Route path='*' element={<NotFound />} />
           </Route>
         </Routes>
       </Suspense>
@@ -179,7 +179,7 @@ export default function App() {
         <ErrorBoundary>
           <AppRoutes />
           <Toaster
-            position="bottom-right"
+            position='bottom-right'
             richColors
             closeButton
             toastOptions={{

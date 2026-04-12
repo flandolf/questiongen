@@ -162,7 +162,7 @@ export function useAppContext() {
       clearApiKey: s.clearApiKey,
       theme: s.theme,
       setTheme: s.setTheme,
-    }))
+    })),
   );
 }
 
@@ -184,7 +184,7 @@ export function useGenerationStatus() {
       setIsMarking: s.setIsMarking,
       errorMessage: s.errorMessage,
       setErrorMessage: s.setErrorMessage,
-    }))
+    })),
   );
 }
 
@@ -221,7 +221,7 @@ export function useAppPreferences() {
       setDifficultyThresholds: s.setDifficultyThresholds,
       generationStrategy: s.generationStrategy,
       setGenerationStrategy: s.setGenerationStrategy,
-    }))
+    })),
   );
 }
 
@@ -263,7 +263,7 @@ export function useAppSettings() {
       setTutorModel: s.setTutorModel,
       shuffleSubtopics: s.shuffleSubtopics,
       setShuffleSubtopics: s.setShuffleSubtopics,
-    }))
+    })),
   );
 }
 
@@ -294,7 +294,7 @@ export function useWrittenSession() {
       setWrittenGenerationTelemetry: s.setWrittenGenerationTelemetry,
       activeWrittenSavedSetId: s.activeWrittenSavedSetId,
       setActiveWrittenSavedSetId: s.setActiveWrittenSavedSetId,
-    }))
+    })),
   );
 }
 
@@ -321,7 +321,7 @@ export function useMultipleChoiceSession() {
       setMcGenerationTelemetry: s.setMcGenerationTelemetry,
       activeMcSavedSetId: s.activeMcSavedSetId,
       setActiveMcSavedSetId: s.setActiveMcSavedSetId,
-    }))
+    })),
   );
 }
 
@@ -334,6 +334,6 @@ export function useSavedSets() {
       deleteSavedSet: s.deleteSavedSet,
       deleteAllSavedSets: s.deleteAllSavedSets,
       needsSaveBeforeLoad: s.needsSaveBeforeLoad,
-    }))
+    })),
   );
 }

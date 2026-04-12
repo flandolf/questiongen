@@ -129,49 +129,49 @@ const ListEntryCard = memo(function ListEntryCard({
   }
 
   return (
-    <div className="rounded-sm border border-border/50 overflow-hidden transition-shadow hover:shadow-md bg-muted/30">
-      <div className="flex items-stretch">
+    <div className='rounded-sm border border-border/50 overflow-hidden transition-shadow hover:shadow-md bg-muted/30'>
+      <div className='flex items-stretch'>
         <button
-          type="button"
-          className="flex-1 text-left px-3.5 py-3 flex items-start gap-3 group min-w-0"
+          type='button'
+          className='flex-1 text-left px-3.5 py-3 flex items-start gap-3 group min-w-0'
           onClick={onToggle}
         >
-          <span className="shrink-0 w-5 h-5 mt-0.5 rounded-sm bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums">
+          <span className='shrink-0 w-5 h-5 mt-0.5 rounded-sm bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground tabular-nums'>
             {index + 1}
           </span>
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-1">
+          <div className='flex-1 min-w-0 space-y-1'>
+            <div className='flex flex-wrap items-center gap-1'>
               <Badge
-                variant="outline"
+                variant='outline'
                 className={`text-[10px] font-semibold px-1.5 py-0 gap-0.5 ${isWritten ? 'border-sky-400/40 text-sky-600 dark:text-sky-400' : 'border-violet-400/40 text-violet-600 dark:text-violet-400'}`}
               >
                 {isWritten ? (
-                  <BookOpen className="w-2.5 h-2.5" />
+                  <BookOpen className='w-2.5 h-2.5' />
                 ) : (
-                  <Target className="w-2.5 h-2.5" />
+                  <Target className='w-2.5 h-2.5' />
                 )}
                 {isWritten ? 'Written' : 'MC'}
               </Badge>
               <Badge
-                variant="outline"
-                className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground"
+                variant='outline'
+                className='text-[10px] px-1.5 py-0 font-medium text-muted-foreground'
               >
                 {entry.question.topic}
               </Badge>
               {entry.question.subtopic && (
-                <span className="text-[10px] text-muted-foreground/50 truncate max-w-32">
+                <span className='text-[10px] text-muted-foreground/50 truncate max-w-32'>
                   {entry.question.subtopic}
                 </span>
               )}
             </div>
-            <div className="py-3 overflow-hidden relative">
-              <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+            <div className='py-3 overflow-hidden relative'>
+              <div className='text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none'>
                 <MarkdownMath content={entry.question.promptMarkdown} />
               </div>
-              <div className="absolute bottom-0 inset-x-0 h-5 bg-linear-to-t pointer-events-none" />
+              <div className='absolute bottom-0 inset-x-0 h-5 bg-linear-to-t pointer-events-none' />
             </div>
           </div>
-          <div className="shrink-0 flex items-center gap-1.5 ml-1 pt-0.5">
+          <div className='shrink-0 flex items-center gap-1.5 ml-1 pt-0.5'>
             {srCard && (
               <span
                 className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
@@ -197,47 +197,47 @@ const ListEntryCard = memo(function ListEntryCard({
               </span>
             )}
             {!isWritten && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-sm border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400">
+              <span className='text-xs font-bold px-2 py-0.5 rounded-sm border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'>
                 ✗
               </span>
             )}
-            <div className="text-muted-foreground group-hover:text-foreground transition-colors">
+            <div className='text-muted-foreground group-hover:text-foreground transition-colors'>
               {isExpanded ? (
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className='w-4 h-4' />
               ) : (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className='w-4 h-4' />
               )}
             </div>
           </div>
         </button>
         <button
-          type="button"
+          type='button'
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          className="shrink-0 flex items-center justify-center w-8 border-l border-border/30 text-muted-foreground/40 hover:text-rose-500 hover:bg-rose-500/5 transition-colors"
-          aria-label="Delete entry"
-          title="Remove from wrong answers"
+          className='shrink-0 flex items-center justify-center w-8 border-l border-border/30 text-muted-foreground/40 hover:text-rose-500 hover:bg-rose-500/5 transition-colors'
+          aria-label='Delete entry'
+          title='Remove from wrong answers'
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className='w-3.5 h-3.5' />
         </button>
       </div>
       {isExpanded && (
-        <div className="border-t border-border/40 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className='border-t border-border/40 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200'>
           {entry.kind === 'written' ? (
             <WrittenExpandedBody entry={entry} />
           ) : (
             <McExpandedBody entry={entry} />
           )}
-          <div className="flex justify-end mt-3">
+          <div className='flex justify-end mt-3'>
             <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
+              size='sm'
+              variant='outline'
+              className='gap-1.5'
               onClick={onReattempt}
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className='w-3.5 h-3.5' />
               Reattempt this question
             </Button>
           </div>
@@ -264,7 +264,7 @@ export function VirtualizedWrongList({
   const parentRef = useRef<HTMLDivElement>(null);
   const setIdsKey = useMemo(
     () => entries.map((s) => s.id).join('|'),
-    [entries]
+    [entries],
   );
   const rowVirtualizer = useVirtualizer({
     count: entries.length,
@@ -294,7 +294,7 @@ export function VirtualizedWrongList({
     <div
       key={setIdsKey}
       ref={parentRef}
-      className="flex-1 overflow-auto min-h-0"
+      className='flex-1 overflow-auto min-h-0'
     >
       <div
         style={{
@@ -340,25 +340,25 @@ export function VirtualizedWrongList({
 
 function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
   return (
-    <div className="space-y-4">
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+    <div className='space-y-4'>
+      <div className='grid sm:grid-cols-2 gap-3'>
+        <div className='space-y-1.5'>
+          <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
             Your answer
           </p>
-          <div className="rounded-sm border border-border/40 bg-muted/20 px-3.5 py-3 text-sm whitespace-pre-line leading-relaxed h-full min-h-20">
+          <div className='rounded-sm border border-border/40 bg-muted/20 px-3.5 py-3 text-sm whitespace-pre-line leading-relaxed h-full min-h-20'>
             {entry.uploadedAnswer?.trim() || (
-              <span className="italic text-muted-foreground/50">
+              <span className='italic text-muted-foreground/50'>
                 No text answer
               </span>
             )}
           </div>
         </div>
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+        <div className='space-y-1.5'>
+          <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
             Worked solution
           </p>
-          <div className="rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none h-full min-h-20">
+          <div className='rounded-sm border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none h-full min-h-20'>
             <MarkdownMath
               content={
                 entry.workedSolutionMarkdown || 'No worked solution available.'
@@ -367,11 +367,11 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
           </div>
         </div>
       </div>
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+      <div className='space-y-1.5'>
+        <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
           Feedback
         </p>
-        <div className="rounded-sm border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
+        <div className='rounded-sm border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none'>
           <MarkdownMath
             content={
               entry.markResponse.feedbackMarkdown || 'No feedback available.'
@@ -380,11 +380,11 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
         </div>
       </div>
       {entry.markResponse.vcaaMarkingScheme?.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+        <div className='space-y-1.5'>
+          <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
             Marking scheme
           </p>
-          <div className="divide-y divide-border/30 rounded-sm border border-border/40 overflow-hidden">
+          <div className='divide-y divide-border/30 rounded-sm border border-border/40 overflow-hidden'>
             {entry.markResponse.vcaaMarkingScheme.map((c, i) => {
               const p = c.maxMarks > 0 ? c.achievedMarks / c.maxMarks : 0;
               return (
@@ -397,7 +397,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
                   >
                     {c.achievedMarks}/{c.maxMarks}
                   </span>
-                  <span className="text-foreground/80 leading-snug">
+                  <span className='text-foreground/80 leading-snug'>
                     <MarkdownMath content={c.criterion} />
                   </span>
                 </div>
@@ -412,7 +412,7 @@ function WrittenExpandedBody({ entry }: { entry: WrittenWrongEntry }) {
 
 function McExpandedBody({ entry }: { entry: McWrongEntry }) {
   return (
-    <div className="space-y-4">
+    <div className='space-y-4'>
       <UnifiedMcqOptionsGrid
         options={entry.question.options}
         selectedAnswer={entry.selectedAnswer}
@@ -421,11 +421,11 @@ function McExpandedBody({ entry }: { entry: McWrongEntry }) {
         revealCorrectness
         onSelect={undefined}
       />
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+      <div className='space-y-1.5'>
+        <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
           Explanation
         </p>
-        <div className="rounded-sm border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none">
+        <div className='rounded-sm border border-border/40 bg-muted/10 px-3.5 py-3 text-sm prose prose-sm dark:prose-invert max-w-none'>
           <MarkdownMath content={entry.question.explanationMarkdown} />
         </div>
       </div>
@@ -480,11 +480,11 @@ function ReattemptView({
   const [results, setResults] = useState<ReattemptResult[]>([]);
   // Per-question state snapshots keyed by question id
   const [savedStates, setSavedStates] = useState<Record<string, QuestionState>>(
-    {}
+    {},
   );
   // Per-question timing: start timestamp for current question
   const [questionStartedAt, setQuestionStartedAt] = useState<number>(() =>
-    Date.now()
+    Date.now(),
   );
 
   // Live question timer with pause support
@@ -572,7 +572,7 @@ function ReattemptView({
   // --- MC state ---
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [awardedMarks, setAwardedMarks] = useState<number | undefined>(
-    undefined
+    undefined,
   );
   const [mcAppealText, setMcAppealText] = useState<string>('');
   const [mcOverrideInput, setMcOverrideInput] = useState<string>('');
@@ -660,7 +660,7 @@ function ReattemptView({
         setMcSketchpadActive(state.mcSketchpadActive);
       }
     },
-    [savedStates]
+    [savedStates],
   );
 
   // --- Determine correctness for current question ---
@@ -712,7 +712,7 @@ function ReattemptView({
       setFeedback(resp);
       setOverrideInput(String(resp.achievedMarks));
       setMarkingScheme(
-        resp.vcaaMarkingScheme ? [...resp.vcaaMarkingScheme] : null
+        resp.vcaaMarkingScheme ? [...resp.vcaaMarkingScheme] : null,
       );
     } catch {
       // Optionally show error
@@ -730,16 +730,16 @@ function ReattemptView({
   const handleCriterionChange = (
     cIdx: number,
     achievedMarks: number,
-    rationale: string
+    rationale: string,
   ) => {
     if (!feedback || !markingScheme) return;
     const updated = markingScheme.map((c, i) =>
-      i === cIdx ? { ...c, achievedMarks, rationale } : c
+      i === cIdx ? { ...c, achievedMarks, rationale } : c,
     );
     setMarkingScheme(updated);
     const totalAchieved = updated.reduce(
       (sum, c) => sum + (c.achievedMarks || 0),
-      0
+      0,
     );
     setFeedback({
       ...feedback,
@@ -836,10 +836,10 @@ function ReattemptView({
 
   // --- Per-question UI ---
   return (
-    <div className="flex flex-col h-full">
+    <div className='flex flex-col h-full'>
       {isWritten && (
         <SessionHeader
-          type="written"
+          type='written'
           questionIndex={idx}
           totalQuestions={questions.length}
           completedCount={completedCount}
@@ -866,7 +866,7 @@ function ReattemptView({
       )}
       {!isWritten && (
         <SessionHeader
-          type="mc"
+          type='mc'
           questionIndex={idx}
           totalQuestions={questions.length}
           completedCount={completedCount}
@@ -892,11 +892,11 @@ function ReattemptView({
         />
       )}
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8">
+      <div className='flex-1 overflow-y-auto'>
+        <div className='mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8'>
           {isWritten ? (
             activeFeedback ? (
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-400">
+              <div className='animate-in fade-in slide-in-from-bottom-2 duration-400'>
                 <WrittenFeedbackPanel
                   questionId={entry.id}
                   promptMarkdown={entry.question.promptMarkdown}
@@ -919,7 +919,7 @@ function ReattemptView({
               </div>
             ) : (
               <QuestionSplitLayout
-                mode="written"
+                mode='written'
                 sketchpadActive={writtenSketchpadActive}
                 leftSlot={
                   <MarkdownMath content={entry.question.promptMarkdown} />
@@ -939,7 +939,7 @@ function ReattemptView({
                           id: crypto.randomUUID(),
                           timestamp: new Date().toISOString(),
                           dataUrl,
-                        })
+                        }),
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}
@@ -951,16 +951,16 @@ function ReattemptView({
             )
           ) : (
             <QuestionSplitLayout
-              mode="mc"
+              mode='mc'
               sketchpadActive={mcSketchpadActive}
               leftSlot={
-                <div className="space-y-5">
-                  <div className="p-6 bg-muted/20 rounded-md space-y-2">
-                    <h1 className="text-xl font-bold">Question {idx + 1}</h1>
+                <div className='space-y-5'>
+                  <div className='p-6 bg-muted/20 rounded-md space-y-2'>
+                    <h1 className='text-xl font-bold'>Question {idx + 1}</h1>
                     <MarkdownMath content={entry.question.promptMarkdown} />
                   </div>
                   {mcSketchpadActive && (
-                    <div className="min-w-0">
+                    <div className='min-w-0'>
                       <McAnswerCard
                         options={entry.question.options}
                         correctAnswer={entry.question.correctAnswer}
@@ -986,7 +986,7 @@ function ReattemptView({
                               id: crypto.randomUUID(),
                               timestamp: new Date().toISOString(),
                               dataUrl,
-                            })
+                            }),
                           );
                         }}
                         onImageRemove={() => setImage(undefined)}
@@ -1007,7 +1007,7 @@ function ReattemptView({
                           id: crypto.randomUUID(),
                           timestamp: new Date().toISOString(),
                           dataUrl,
-                        })
+                        }),
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}
@@ -1036,7 +1036,7 @@ function ReattemptView({
                           id: crypto.randomUUID(),
                           timestamp: new Date().toISOString(),
                           dataUrl,
-                        })
+                        }),
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}
@@ -1137,56 +1137,56 @@ function ReattemptSummary({
   const weakTopics = topicStats.filter((t) => t.pct < 100);
 
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className='max-w-2xl mx-auto py-6 px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500'>
       {/* Header */}
-      <div className="text-center space-y-3">
-        <div className="relative w-28 h-28 mx-auto">
-          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+      <div className='text-center space-y-3'>
+        <div className='relative w-28 h-28 mx-auto'>
+          <svg viewBox='0 0 100 100' className='w-full h-full -rotate-90'>
             <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="8"
-              className="text-muted/30"
+              cx='50'
+              cy='50'
+              r='42'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='8'
+              className='text-muted/30'
             />
             <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
+              cx='50'
+              cy='50'
+              r='42'
+              fill='none'
               stroke={ringColor}
-              strokeWidth="8"
-              strokeLinecap="round"
+              strokeWidth='8'
+              strokeLinecap='round'
               strokeDasharray={`${accuracyPercent * 2.64} 264`}
-              className="transition-all duration-1000 ease-out"
+              className='transition-all duration-1000 ease-out'
             />
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className='absolute inset-0 flex flex-col items-center justify-center'>
             <span
-              className="text-3xl font-black tabular-nums"
+              className='text-3xl font-black tabular-nums'
               style={{ color: ringColor }}
             >
               {accuracyPercent.toFixed(0)}%
             </span>
-            <span className="text-[10px] font-semibold text-muted-foreground">
+            <span className='text-[10px] font-semibold text-muted-foreground'>
               {ringLabel}
             </span>
           </div>
         </div>
-        <h2 className="text-xl font-bold">Reattempt Complete</h2>
-        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+        <h2 className='text-xl font-bold'>Reattempt Complete</h2>
+        <div className='flex items-center justify-center gap-4 text-sm text-muted-foreground'>
           <span>
-            <span className="font-semibold text-foreground">
+            <span className='font-semibold text-foreground'>
               {correct}/{total}
             </span>{' '}
             correct
           </span>
-          <span className="text-muted-foreground/40">·</span>
-          <span className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span className="font-semibold text-foreground">
+          <span className='text-muted-foreground/40'>·</span>
+          <span className='flex items-center gap-1'>
+            <Clock className='w-3.5 h-3.5' />
+            <span className='font-semibold text-foreground'>
               {formatTime(totalTime)}
             </span>
           </span>
@@ -1195,18 +1195,18 @@ function ReattemptSummary({
 
       {/* Weak topics */}
       {weakTopics.length > 0 && (
-        <div className="rounded-sm border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+        <div className='rounded-sm border border-amber-500/20 bg-amber-500/5 p-4 space-y-2'>
+          <p className='text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400'>
             Topics to review
           </p>
           {topicStats
             .filter((t) => t.pct < 100)
             .map(({ topic, correct: c, total: t, pct }) => (
-              <div key={topic} className="flex items-center gap-3 text-xs">
-                <span className="flex-1 font-medium text-foreground truncate">
+              <div key={topic} className='flex items-center gap-3 text-xs'>
+                <span className='flex-1 font-medium text-foreground truncate'>
                   {topic}
                 </span>
-                <span className="tabular-nums text-muted-foreground">
+                <span className='tabular-nums text-muted-foreground'>
                   {c}/{t}
                 </span>
                 <span
@@ -1220,11 +1220,11 @@ function ReattemptSummary({
       )}
 
       {/* Details toggle */}
-      <div className="border-t pt-3">
+      <div className='border-t pt-3'>
         <button
-          type="button"
+          type='button'
           onClick={() => setShowDetails((v) => !v)}
-          className="w-full flex items-center justify-between py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className='w-full flex items-center justify-between py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
         >
           <span>Question breakdown</span>
           <ChevronDown
@@ -1232,41 +1232,41 @@ function ReattemptSummary({
           />
         </button>
         {showDetails && (
-          <div className="rounded-sm border divide-y divide-border/40 overflow-hidden mt-2">
+          <div className='rounded-sm border divide-y divide-border/40 overflow-hidden mt-2'>
             {rows.map((r) => (
               <div
                 key={r.id}
                 className={`flex items-center gap-3 px-3 py-2.5 text-xs ${r.correct ? 'bg-emerald-500/5' : 'bg-rose-500/5'}`}
               >
-                <span className="shrink-0 w-5 text-muted-foreground font-mono">
+                <span className='shrink-0 w-5 text-muted-foreground font-mono'>
                   {r.index}
                 </span>
                 <div
                   className={`shrink-0 w-5 h-5 rounded-sm flex items-center justify-center ${r.kind === 'written' ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
                 >
                   {r.kind === 'written' ? (
-                    <BookOpen className="w-2.5 h-2.5 text-sky-500" />
+                    <BookOpen className='w-2.5 h-2.5 text-sky-500' />
                   ) : (
-                    <Target className="w-2.5 h-2.5 text-violet-500" />
+                    <Target className='w-2.5 h-2.5 text-violet-500' />
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-foreground truncate block">
+                <div className='flex-1 min-w-0'>
+                  <span className='font-medium text-foreground truncate block'>
                     {r.topic}
                   </span>
                   {r.subtopic && (
-                    <span className="text-muted-foreground truncate block">
+                    <span className='text-muted-foreground truncate block'>
                       {r.subtopic}
                     </span>
                   )}
                 </div>
-                <span className="shrink-0 tabular-nums text-muted-foreground font-mono">
+                <span className='shrink-0 tabular-nums text-muted-foreground font-mono'>
                   {formatTime(r.timeSeconds)}
                 </span>
                 {r.correct ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className='w-4 h-4 text-emerald-500 shrink-0' />
                 ) : (
-                  <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <XCircle className='w-4 h-4 text-rose-400 shrink-0' />
                 )}
               </div>
             ))}
@@ -1275,12 +1275,12 @@ function ReattemptSummary({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-center gap-3 pt-2">
-        <Button onClick={onRetry} className="gap-1.5">
-          <RotateCcw className="w-3.5 h-3.5" />
+      <div className='flex items-center justify-center gap-3 pt-2'>
+        <Button onClick={onRetry} className='gap-1.5'>
+          <RotateCcw className='w-3.5 h-3.5' />
           Retry
         </Button>
-        <Button variant="outline" onClick={onBack}>
+        <Button variant='outline' onClick={onBack}>
           Back to list
         </Button>
       </div>
@@ -1291,7 +1291,7 @@ function ReattemptSummary({
 // ─── Main view ────────────────────────────────────────────────────────────────
 function computeAllWrongEntries(
   questionHistory: QuestionHistoryEntry[],
-  mcHistory: McHistoryEntry[]
+  mcHistory: McHistoryEntry[],
 ) {
   const written: WrittenWrongEntry[] = questionHistory
     .filter((e) => {
@@ -1307,7 +1307,7 @@ function computeAllWrongEntries(
     .filter((e) => !e.correct)
     .map((e) => ({ ...e, kind: 'multiple-choice' as const }));
   return [...written, ...mc].sort(
-    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   );
 }
 
@@ -1316,11 +1316,11 @@ export default function WrongQuestionView() {
   const questionHistory = useAppStore((s) => s.questionHistory);
   const mcHistory = useAppStore((s) => s.mcHistory);
   const deleteQuestionHistoryEntry = useAppStore(
-    (s) => s.deleteQuestionHistoryEntry
+    (s) => s.deleteQuestionHistoryEntry,
   );
   const deleteMcHistoryEntry = useAppStore((s) => s.deleteMcHistoryEntry);
   const updateQuestionHistoryEntry = useAppStore(
-    (s) => s.updateQuestionHistoryEntry
+    (s) => s.updateQuestionHistoryEntry,
   );
   const updateMcHistoryEntry = useAppStore((s) => s.updateMcHistoryEntry);
   const apiKey = useAppStore((s) => s.apiKey);
@@ -1335,7 +1335,7 @@ export default function WrongQuestionView() {
 
   const allWrong = useMemo<WrongEntry[]>(
     () => computeAllWrongEntries(questionHistory, mcHistory),
-    [questionHistory, mcHistory]
+    [questionHistory, mcHistory],
   );
 
   // Due for review cards
@@ -1408,7 +1408,7 @@ export default function WrongQuestionView() {
       });
       toast.success('Entry removed from wrong answers');
     },
-    [deleteQuestionHistoryEntry, deleteMcHistoryEntry]
+    [deleteQuestionHistoryEntry, deleteMcHistoryEntry],
   );
 
   const handleMarkCorrect = useCallback(
@@ -1432,12 +1432,12 @@ export default function WrongQuestionView() {
       }
       toast.success('Marked as correct - spaced repetition updated');
     },
-    [updateQuestionHistoryEntry, updateMcHistoryEntry, reviewSpacedCard]
+    [updateQuestionHistoryEntry, updateMcHistoryEntry, reviewSpacedCard],
   );
 
   const startReattempt = (shuffle: boolean) => {
     setReattemptQueue(
-      shuffle ? shuffleArray(filteredQuestions) : [...filteredQuestions]
+      shuffle ? shuffleArray(filteredQuestions) : [...filteredQuestions],
     );
     setReattemptResults(null);
     setViewMode('reattempt');
@@ -1451,7 +1451,7 @@ export default function WrongQuestionView() {
 
   if (viewMode === 'reattempt') {
     return (
-      <div className="h-full flex flex-col px-3 sm:px-5 py-4">
+      <div className='h-full flex flex-col px-3 sm:px-5 py-4'>
         <ReattemptView
           questions={reattemptQueue}
           apiKey={apiKey}
@@ -1469,7 +1469,7 @@ export default function WrongQuestionView() {
 
   if (viewMode === 'summary' && reattemptResults) {
     return (
-      <div className="min-h-full px-3 sm:px-5 py-4">
+      <div className='min-h-full px-3 sm:px-5 py-4'>
         <ReattemptSummary
           results={reattemptResults}
           questions={reattemptQueue}
@@ -1495,21 +1495,21 @@ export default function WrongQuestionView() {
       {allWrong.length > 0 && (
         <div>
           <PageHeader
-            title="Wrong Answers"
-            description="Review and reattempt questions you got wrong."
+            title='Wrong Answers'
+            description='Review and reattempt questions you got wrong.'
             actions={
-              <div className="flex items-center gap-2">
+              <div className='flex items-center gap-2'>
                 {allWrong.length > 0 && (
                   <Badge
-                    variant="secondary"
-                    className="text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                    variant='secondary'
+                    className='text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                   >
                     {allWrong.length}
                   </Badge>
                 )}
                 {dueCards.length > 0 && (
-                  <Badge className="text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1">
-                    <Brain className="w-3 h-3" />
+                  <Badge className='text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1'>
+                    <Brain className='w-3 h-3' />
                     {dueCards.length} due
                   </Badge>
                 )}
@@ -1533,20 +1533,20 @@ export default function WrongQuestionView() {
               ))}
             </FilterGroup>
             <button
-              type="button"
+              type='button'
               onClick={() => setIsShuffled((s) => !s)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-xs font-medium transition-all ${isShuffled ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'}`}
             >
-              <Shuffle className="w-3.5 h-3.5" />
+              <Shuffle className='w-3.5 h-3.5' />
               {isShuffled ? 'Shuffled' : 'Shuffle'}
             </button>
             {filteredQuestions.length > 0 && (
               <Button
-                size="sm"
-                className="ml-auto gap-2 h-8 px-4 shadow-sm"
+                size='sm'
+                className='ml-auto gap-2 h-8 px-4 shadow-sm'
                 onClick={() => startReattempt(isShuffled)}
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className='w-3.5 h-3.5' />
                 Reattempt{' '}
                 {filteredQuestions.length > 1
                   ? `all ${filteredQuestions.length}`
@@ -1558,39 +1558,39 @@ export default function WrongQuestionView() {
       )}
 
       {/* Content */}
-      <div className="flex-1 py-3">
+      <div className='flex-1 py-3'>
         {allWrong.length === 0 ? (
           <EmptyState
-            title="No Mistakes Yet."
-            description="Complete some questions and any incorrect answers will appear here for review."
+            title='No Mistakes Yet.'
+            description='Complete some questions and any incorrect answers will appear here for review.'
             icon={Trophy}
             actions={
               <Button onClick={() => void navigate('/')}>
-                <PlusCircle className="h-4 w-4" />
+                <PlusCircle className='h-4 w-4' />
                 Generate your first set
               </Button>
             }
           />
         ) : (
-          <div className="space-y-6">
+          <div className='space-y-6'>
             {/* Due for Review section */}
             {dueCards.length > 0 && (
-              <div className="rounded-sm border border-sky-500/20 bg-sky-500/5 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-sky-500/15 bg-sky-500/5">
-                  <Brain className="w-4 h-4 text-sky-500" />
-                  <span className="text-sm font-bold text-sky-700 dark:text-sky-300">
+              <div className='rounded-sm border border-sky-500/20 bg-sky-500/5 overflow-hidden'>
+                <div className='flex items-center gap-2 px-4 py-3 border-b border-sky-500/15 bg-sky-500/5'>
+                  <Brain className='w-4 h-4 text-sky-500' />
+                  <span className='text-sm font-bold text-sky-700 dark:text-sky-300'>
                     Due for Review
                   </span>
-                  <Badge className="ml-auto text-[10px] font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400">
+                  <Badge className='ml-auto text-[10px] font-bold bg-sky-500/15 text-sky-600 dark:text-sky-400'>
                     {dueCards.length} item{dueCards.length !== 1 ? 's' : ''}
                   </Badge>
                   {overdueCards.length > 0 && (
-                    <Badge className="text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                    <Badge className='text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400'>
                       {overdueCards.length} overdue
                     </Badge>
                   )}
                 </div>
-                <div className="divide-y divide-sky-500/10">
+                <div className='divide-y divide-sky-500/10'>
                   {dueCards.slice(0, 5).map((entry) => {
                     const card = spacedRepetitionCards[entry.id];
                     const days = card ? daysUntilReview(card) : 0;
@@ -1599,32 +1599,32 @@ export default function WrongQuestionView() {
                     return (
                       <div
                         key={entry.id}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-sky-500/5 transition-colors"
+                        className='flex items-center gap-3 px-4 py-3 hover:bg-sky-500/5 transition-colors'
                       >
                         <div
                           className={`w-6 h-6 rounded-sm flex items-center justify-center shrink-0 ${isWritten ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
                         >
                           {isWritten ? (
-                            <BookOpen className="w-3 h-3 text-sky-500" />
+                            <BookOpen className='w-3 h-3 text-sky-500' />
                           ) : (
-                            <Target className="w-3 h-3 text-violet-500" />
+                            <Target className='w-3 h-3 text-violet-500' />
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
+                        <div className='flex-1 min-w-0'>
+                          <div className='text-sm font-medium truncate'>
                             <MarkdownMath
                               content={entry.question.promptMarkdown.slice(
                                 0,
-                                120
+                                120,
                               )}
                             />
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-muted-foreground">
+                          <div className='flex items-center gap-2 mt-0.5'>
+                            <span className='text-[10px] text-muted-foreground'>
                               {entry.question.topic}
                             </span>
                             {entry.question.subtopic && (
-                              <span className="text-[10px] text-muted-foreground/50">
+                              <span className='text-[10px] text-muted-foreground/50'>
                                 · {entry.question.subtopic.slice(0, 30)}
                               </span>
                             )}
@@ -1646,7 +1646,7 @@ export default function WrongQuestionView() {
                               : `Due in ${days}d`}
                         </div>
                         {card && (
-                          <div className="shrink-0 text-[10px] text-muted-foreground">
+                          <div className='shrink-0 text-[10px] text-muted-foreground'>
                             EF: {card.easinessFactor.toFixed(1)}
                           </div>
                         )}
@@ -1655,19 +1655,19 @@ export default function WrongQuestionView() {
                   })}
                 </div>
                 {dueCards.length > 5 && (
-                  <div className="px-4 py-2 border-t border-sky-500/15 text-center">
-                    <span className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                  <div className='px-4 py-2 border-t border-sky-500/15 text-center'>
+                    <span className='text-xs text-sky-600 dark:text-sky-400 font-medium'>
                       +{dueCards.length - 5} more items due
                     </span>
                   </div>
                 )}
-                <div className="px-4 py-2 border-t border-sky-500/15">
+                <div className='px-4 py-2 border-t border-sky-500/15'>
                   <Button
-                    size="sm"
-                    className="w-full gap-2 h-8 bg-sky-500/90 hover:bg-sky-600 text-white"
+                    size='sm'
+                    className='w-full gap-2 h-8 bg-sky-500/90 hover:bg-sky-600 text-white'
                     onClick={() => startReattempt(true)}
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <RotateCcw className='w-3.5 h-3.5' />
                     Review due items
                   </Button>
                 </div>
@@ -1676,7 +1676,7 @@ export default function WrongQuestionView() {
 
             {/* All wrong answers list */}
             {filteredQuestions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
+              <p className='text-sm text-muted-foreground text-center py-8'>
                 No questions match this filter.
               </p>
             ) : (

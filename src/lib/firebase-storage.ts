@@ -16,7 +16,7 @@ import { auth, storage } from '@/context/modules/firebase-init';
  */
 export async function uploadImage(
   file: File | Blob,
-  filename: string
+  filename: string,
 ): Promise<{ storagePath: string; downloadUrl: string }> {
   const user = auth.currentUser;
   if (!user) {
@@ -42,7 +42,7 @@ export async function uploadImage(
 export async function uploadImageDataUrl(
   dataUrl: string,
   questionId: string,
-  imageId: string
+  imageId: string,
 ): Promise<{ storagePath: string; downloadUrl: string }> {
   const user = auth.currentUser;
   if (!user) {

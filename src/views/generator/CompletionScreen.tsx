@@ -136,7 +136,7 @@ function ScoreRing({ pct, color }: { pct: number; color: string }) {
 
   return (
     <div
-      className="relative flex items-center justify-center"
+      className='relative flex items-center justify-center'
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
@@ -145,20 +145,20 @@ function ScoreRing({ pct, color }: { pct: number; color: string }) {
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          fill="none"
-          stroke="currentColor"
+          fill='none'
+          stroke='currentColor'
           strokeWidth={strokeWidth}
-          className="text-muted/30"
+          className='text-muted/30'
         />
         {/* Animated fill */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          fill="none"
+          fill='none'
           stroke={color}
           strokeWidth={strokeWidth}
-          strokeLinecap="round"
+          strokeLinecap='round'
           strokeDasharray={circumference}
           strokeDashoffset={dashoffset}
           style={{
@@ -169,17 +169,17 @@ function ScoreRing({ pct, color }: { pct: number; color: string }) {
       </svg>
       {/* Center label */}
       <motion.div
-        className="absolute inset-0 flex flex-col items-center justify-center"
+        className='absolute inset-0 flex flex-col items-center justify-center'
         initial={{ opacity: 0, scale: 0.7 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.4, type: 'spring', stiffness: 260, damping: 18 }}
       >
         <span
-          className="text-3xl font-black tabular-nums leading-none"
+          className='text-3xl font-black tabular-nums leading-none'
           style={{ color }}
         >
           {pct.toFixed(0)}
-          <span className="text-lg">%</span>
+          <span className='text-lg'>%</span>
         </span>
       </motion.div>
     </div>
@@ -200,17 +200,17 @@ function TopicRow({
   const color = getBarColor(pct);
   return (
     <motion.div
-      className="group flex items-center gap-3"
+      className='group flex items-center gap-3'
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.05 * index, duration: 0.35, ease: 'easeOut' }}
     >
-      <span className="w-40 shrink-0 truncate text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">
+      <span className='w-40 shrink-0 truncate text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors'>
         {topic}
       </span>
-      <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden">
+      <div className='flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden'>
         <motion.div
-          className="h-full rounded-full"
+          className='h-full rounded-full'
           style={{ background: color }}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
@@ -222,7 +222,7 @@ function TopicRow({
         />
       </div>
       <span
-        className="shrink-0 w-10 text-right text-sm font-bold tabular-nums"
+        className='shrink-0 w-10 text-right text-sm font-bold tabular-nums'
         style={{ color }}
       >
         {pct.toFixed(0)}%
@@ -250,24 +250,24 @@ function StatTile({
 }) {
   return (
     <motion.div
-      className="flex flex-col gap-1.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3.5 backdrop-blur-sm"
+      className='flex flex-col gap-1.5 rounded-xl border border-border/50 bg-card/50 px-4 py-3.5 backdrop-blur-sm'
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4, ease: 'easeOut' }}
     >
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="w-3.5 h-3.5" />
-        <span className="text-[10px] font-bold uppercase tracking-widest">
+      <div className='flex items-center gap-1.5 text-muted-foreground'>
+        <Icon className='w-3.5 h-3.5' />
+        <span className='text-[10px] font-bold uppercase tracking-widest'>
           {label}
         </span>
       </div>
       <span
-        className="text-xl font-black tabular-nums leading-none"
+        className='text-xl font-black tabular-nums leading-none'
         style={{ color: color ?? 'inherit' }}
       >
         {value}
       </span>
-      {sub && <span className="text-[10px] text-muted-foreground">{sub}</span>}
+      {sub && <span className='text-[10px] text-muted-foreground'>{sub}</span>}
     </motion.div>
   );
 }
@@ -308,8 +308,8 @@ function CriterionChip({
       transition={{ delay: 0.06 * index, duration: 0.3 }}
     >
       <AlertTriangle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${color}`} />
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+      <div className='flex-1 min-w-0'>
+        <p className='text-xs font-medium text-foreground leading-snug line-clamp-2'>
           <MarkdownMath content={criterion} />
         </p>
         <span
@@ -351,36 +351,36 @@ function QuestionRow({
 
   return (
     <motion.div
-      className="flex items-center gap-3 px-4 py-2.5 text-sm border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors group"
+      className='flex items-center gap-3 px-4 py-2.5 text-sm border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors group'
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay, duration: 0.25 }}
     >
-      <span className="shrink-0 w-5 text-xs text-muted-foreground font-mono">
+      <span className='shrink-0 w-5 text-xs text-muted-foreground font-mono'>
         {index + 1}
       </span>
-      <div className="flex-1 min-w-0">
-        <span className="font-medium text-foreground truncate block text-xs">
+      <div className='flex-1 min-w-0'>
+        <span className='font-medium text-foreground truncate block text-xs'>
           {topic}
         </span>
         {subtopic && (
-          <span className="text-[11px] text-muted-foreground truncate block">
+          <span className='text-[11px] text-muted-foreground truncate block'>
             {subtopic}
           </span>
         )}
       </div>
       {scoreLabel && (
         <span
-          className="text-xs font-bold tabular-nums shrink-0"
+          className='text-xs font-bold tabular-nums shrink-0'
           style={{ color }}
         >
           {scoreLabel}
         </span>
       )}
       {correct ? (
-        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+        <CheckCircle2 className='w-4 h-4 text-emerald-500 shrink-0' />
       ) : (
-        <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+        <XCircle className='w-4 h-4 text-rose-400 shrink-0' />
       )}
     </motion.div>
   );
@@ -481,18 +481,18 @@ export function CompletionScreen({
 
   return (
     <motion.div
-      className="w-full px-12 py-12"
+      className='w-full px-12 py-12'
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
     >
       {/* ── Main card ── */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-xl overflow-hidden">
+      <div className='rounded-2xl border border-border/60 bg-card shadow-xl overflow-hidden'>
         {/* ── Hero: two-column split ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr]">
+        <div className='grid grid-cols-1 lg:grid-cols-[280px_1fr]'>
           {/* Left panel — score */}
           <motion.div
-            className="flex flex-col items-center justify-center gap-5 px-8 py-10 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border/40"
+            className='flex flex-col items-center justify-center gap-5 px-8 py-10 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border/40'
             style={{ background: meta.accentMuted }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -500,7 +500,7 @@ export function CompletionScreen({
           >
             {/* Ambient glow */}
             <div
-              className="absolute inset-0 pointer-events-none"
+              className='absolute inset-0 pointer-events-none'
               style={{
                 background: `radial-gradient(ellipse at center, ${meta.accent}18 0%, transparent 70%)`,
               }}
@@ -520,14 +520,14 @@ export function CompletionScreen({
             </motion.div>
 
             <motion.div
-              className="flex flex-col items-center gap-2 text-center"
+              className='flex flex-col items-center gap-2 text-center'
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35, duration: 0.4 }}
             >
               <Badge
-                variant="outline"
-                className="text-xs font-bold px-3 py-1 border"
+                variant='outline'
+                className='text-xs font-bold px-3 py-1 border'
                 style={{
                   color: meta.accent,
                   borderColor: `${meta.accent}40`,
@@ -536,34 +536,34 @@ export function CompletionScreen({
               >
                 {meta.label}
               </Badge>
-              <p className="text-sm text-muted-foreground font-medium">
+              <p className='text-sm text-muted-foreground font-medium'>
                 Session Complete
               </p>
             </motion.div>
           </motion.div>
 
           {/* Right panel — key stats */}
-          <div className="flex flex-col">
+          <div className='flex flex-col'>
             {/* Stat grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-6 pb-4">
+            <div className='grid grid-cols-2 sm:grid-cols-3 gap-3 p-6 pb-4'>
               <StatTile
                 icon={Target}
-                label="Score"
+                label='Score'
                 value={`${completedCount}/${totalCount}`}
-                sub="questions correct"
+                sub='questions correct'
                 color={meta.accent}
                 delay={0.2}
               />
               <StatTile
                 icon={Clock}
-                label="Time"
+                label='Time'
                 value={formattedElapsedTime}
-                sub="total session"
+                sub='total session'
                 delay={0.28}
               />
               <StatTile
                 icon={TrendingUp}
-                label="Lifetime"
+                label='Lifetime'
                 value={`${summary.overallAccuracy.toFixed(1)}%`}
                 sub={`${summary.totalAttempts} attempts`}
                 color={
@@ -577,7 +577,7 @@ export function CompletionScreen({
               />
               <StatTile
                 icon={Zap}
-                label="Written avg"
+                label='Written avg'
                 value={
                   summary.writtenAttempts > 0
                     ? `${summary.writtenAverageScore.toFixed(1)}%`
@@ -592,7 +592,7 @@ export function CompletionScreen({
               />
               <StatTile
                 icon={CheckCircle2}
-                label="MC accuracy"
+                label='MC accuracy'
                 value={
                   summary.mcAttempts > 0
                     ? `${((summary.mcCorrect / summary.mcAttempts) * 100).toFixed(1)}%`
@@ -610,12 +610,12 @@ export function CompletionScreen({
             {/* Accuracy trend (if available) */}
             {trendData.length > 2 && (
               <motion.div
-                className="px-6 pb-4"
+                className='px-6 pb-4'
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6, duration: 0.4 }}
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">
+                <p className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2'>
                   Accuracy trend
                 </p>
                 <AccuracyTrendChart data={trendData.slice(-30)} />
@@ -625,11 +625,11 @@ export function CompletionScreen({
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="border-t border-border/50 px-6 flex items-end gap-1 bg-muted/20">
+        <div className='border-t border-border/50 px-6 flex items-end gap-1 bg-muted/20'>
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              type="button"
+              type='button'
               onClick={() => setActiveTab(tab.id)}
               className={`relative px-3 py-3 text-xs font-semibold transition-colors ${
                 activeTab === tab.id
@@ -640,8 +640,8 @@ export function CompletionScreen({
               {tab.label}
               {activeTab === tab.id && (
                 <motion.div
-                  layoutId="tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                  layoutId='tab-indicator'
+                  className='absolute bottom-0 left-0 right-0 h-0.5 rounded-full'
                   style={{ background: meta.accent }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
@@ -651,7 +651,7 @@ export function CompletionScreen({
         </div>
 
         {/* ── Tab content ── */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode='wait'>
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 6 }}
@@ -661,14 +661,14 @@ export function CompletionScreen({
           >
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
-              <div className="px-6 py-5 space-y-5">
+              <div className='px-6 py-5 space-y-5'>
                 {/* Topic breakdown */}
                 {sessionTopics.length > 0 && (
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                  <div className='space-y-3'>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60'>
                       Topics this session
                     </p>
-                    <div className="space-y-2">
+                    <div className='space-y-2'>
                       {sessionTopics.map((t, i) => (
                         <TopicRow
                           key={t.topic}
@@ -683,11 +683,11 @@ export function CompletionScreen({
 
                 {/* Criteria weak spots */}
                 {questionMode === 'written' && sessionCriteria.length > 0 && (
-                  <div className="space-y-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                  <div className='space-y-2.5'>
+                    <p className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60'>
                       Areas to improve
                     </p>
-                    <div className="grid sm:grid-cols-2 gap-2">
+                    <div className='grid sm:grid-cols-2 gap-2'>
                       {sessionCriteria.map((c, i) => (
                         <CriterionChip key={i} {...c} index={i} />
                       ))}
@@ -703,19 +703,19 @@ export function CompletionScreen({
                     transition={{ delay: 0.4 }}
                   >
                     <button
-                      type="button"
+                      type='button'
                       onClick={() => void navigate('/mistakes')}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-rose-500/20 bg-rose-500/6 hover:bg-rose-500/10 transition-colors group text-sm"
+                      className='w-full flex items-center justify-between px-4 py-3 rounded-xl border border-rose-500/20 bg-rose-500/6 hover:bg-rose-500/10 transition-colors group text-sm'
                     >
-                      <div className="flex items-center gap-2.5">
-                        <XCircle className="w-4 h-4 text-rose-500" />
-                        <span className="font-semibold text-foreground">
+                      <div className='flex items-center gap-2.5'>
+                        <XCircle className='w-4 h-4 text-rose-500' />
+                        <span className='font-semibold text-foreground'>
                           {weakTopics.length} topic
                           {weakTopics.length > 1 ? 's' : ''} need
                           {weakTopics.length === 1 ? 's' : ''} attention
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight className='w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform' />
                     </button>
                   </motion.div>
                 )}
@@ -724,7 +724,7 @@ export function CompletionScreen({
 
             {/* QUESTIONS TAB */}
             {activeTab === 'questions' && (
-              <div className="divide-y divide-border/30">
+              <div className='divide-y divide-border/30'>
                 {questionMode === 'written' &&
                   writtenResults.map((r, i) => (
                     <QuestionRow
@@ -759,48 +759,48 @@ export function CompletionScreen({
 
             {/* TIMING TAB */}
             {activeTab === 'timing' && hasTiming && (
-              <div className="px-6 py-5">
-                <div className="rounded-xl border border-border/50 overflow-hidden">
-                  <table className="min-w-full text-xs">
+              <div className='px-6 py-5'>
+                <div className='rounded-xl border border-border/50 overflow-hidden'>
+                  <table className='min-w-full text-xs'>
                     <thead>
-                      <tr className="bg-muted/30 text-muted-foreground">
+                      <tr className='bg-muted/30 text-muted-foreground'>
                         {['Q#', 'Time used', 'Limit', 'Finished early'].map(
                           (h) => (
                             <th
                               key={h}
-                              className="px-4 py-2.5 text-left font-bold uppercase tracking-wide text-[10px]"
+                              className='px-4 py-2.5 text-left font-bold uppercase tracking-wide text-[10px]'
                             >
                               {h}
                             </th>
-                          )
+                          ),
                         )}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/30">
+                    <tbody className='divide-y divide-border/30'>
                       {perQuestionTiming.map((q, i) => (
                         <motion.tr
                           key={q.questionId}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.03 * i }}
-                          className="hover:bg-muted/20 transition-colors"
+                          className='hover:bg-muted/20 transition-colors'
                         >
-                          <td className="px-4 py-2.5 font-mono text-muted-foreground">
+                          <td className='px-4 py-2.5 font-mono text-muted-foreground'>
                             {i + 1}
                           </td>
-                          <td className="px-4 py-2.5 font-mono font-semibold">
+                          <td className='px-4 py-2.5 font-mono font-semibold'>
                             {formatTime(q.timeUsedSeconds)}
                           </td>
-                          <td className="px-4 py-2.5 font-mono text-muted-foreground">
+                          <td className='px-4 py-2.5 font-mono text-muted-foreground'>
                             {formatTime(q.timeLimitSeconds)}
                           </td>
-                          <td className="px-4 py-2.5">
+                          <td className='px-4 py-2.5'>
                             {q.finishedEarly ? (
-                              <span className="text-emerald-500 font-bold">
+                              <span className='text-emerald-500 font-bold'>
                                 ✓ Early
                               </span>
                             ) : (
-                              <span className="text-muted-foreground">—</span>
+                              <span className='text-muted-foreground'>—</span>
                             )}
                           </td>
                         </motion.tr>
@@ -815,29 +815,29 @@ export function CompletionScreen({
 
         {/* ── Footer ── */}
         <motion.div
-          className="border-t border-border/50 bg-muted/10 px-6 py-4 flex flex-wrap items-center justify-between gap-3"
+          className='border-t border-border/50 bg-muted/10 px-6 py-4 flex flex-wrap items-center justify-between gap-3'
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.4 }}
         >
-          <p className="text-xs text-muted-foreground">What's next?</p>
-          <div className="flex items-center gap-2">
+          <p className='text-xs text-muted-foreground'>What's next?</p>
+          <div className='flex items-center gap-2'>
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               onClick={() => void onReview()}
-              className="gap-2 h-9 text-sm font-semibold"
+              className='gap-2 h-9 text-sm font-semibold'
             >
-              <BookOpen className="w-3.5 h-3.5" />
+              <BookOpen className='w-3.5 h-3.5' />
               Review Answers
             </Button>
             <Button
-              size="sm"
+              size='sm'
               onClick={() => void onStartOver()}
-              className="gap-2 h-9 text-sm font-semibold"
+              className='gap-2 h-9 text-sm font-semibold'
               style={{ background: meta.accent, borderColor: meta.accent }}
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className='w-3.5 h-3.5' />
               New Session
             </Button>
           </div>

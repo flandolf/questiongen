@@ -42,7 +42,7 @@ function strokeToSvgElement(
   stroke: Stroke,
   metadata: string,
   opacity: number,
-  strokeWidth: number
+  strokeWidth: number,
 ): string {
   if (stroke.tool === 'line' && stroke.points.length >= 2) {
     const start = stroke.points[0];
@@ -97,7 +97,7 @@ function graphAxesToSvg(
   color: string,
   strokeWidth: number,
   opacity: number,
-  metadata: string
+  metadata: string,
 ): string {
   const halfW = 320;
   const halfH = 240;
@@ -114,18 +114,18 @@ function graphAxesToSvg(
   const gridLines: string[] = [];
   for (let tx = tickSpacing; tx < halfW; tx += tickSpacing) {
     gridLines.push(
-      `<line x1="${cx + tx}" y1="${cy - halfH}" x2="${cx + tx}" y2="${cy + halfH}" />`
+      `<line x1="${cx + tx}" y1="${cy - halfH}" x2="${cx + tx}" y2="${cy + halfH}" />`,
     );
     gridLines.push(
-      `<line x1="${cx - tx}" y1="${cy - halfH}" x2="${cx - tx}" y2="${cy + halfH}" />`
+      `<line x1="${cx - tx}" y1="${cy - halfH}" x2="${cx - tx}" y2="${cy + halfH}" />`,
     );
   }
   for (let ty = tickSpacing; ty < halfH; ty += tickSpacing) {
     gridLines.push(
-      `<line x1="${cx - halfW}" y1="${cy + ty}" x2="${cx + halfW}" y2="${cy + ty}" />`
+      `<line x1="${cx - halfW}" y1="${cy + ty}" x2="${cx + halfW}" y2="${cy + ty}" />`,
     );
     gridLines.push(
-      `<line x1="${cx - halfW}" y1="${cy - ty}" x2="${cx + halfW}" y2="${cy - ty}" />`
+      `<line x1="${cx - halfW}" y1="${cy - ty}" x2="${cx + halfW}" y2="${cy - ty}" />`,
     );
   }
 
@@ -137,18 +137,18 @@ function graphAxesToSvg(
   const ticks: string[] = [];
   for (let tx = tickSpacing; tx < halfW - arrowSize; tx += tickSpacing) {
     ticks.push(
-      `<line x1="${cx + tx}" y1="${cy - tickLen}" x2="${cx + tx}" y2="${cy + tickLen}" />`
+      `<line x1="${cx + tx}" y1="${cy - tickLen}" x2="${cx + tx}" y2="${cy + tickLen}" />`,
     );
     ticks.push(
-      `<line x1="${cx - tx}" y1="${cy - tickLen}" x2="${cx - tx}" y2="${cy + tickLen}" />`
+      `<line x1="${cx - tx}" y1="${cy - tickLen}" x2="${cx - tx}" y2="${cy + tickLen}" />`,
     );
   }
   for (let ty = tickSpacing; ty < halfH - arrowSize; ty += tickSpacing) {
     ticks.push(
-      `<line x1="${cx - tickLen}" y1="${cy - ty}" x2="${cx + tickLen}" y2="${cy - ty}" />`
+      `<line x1="${cx - tickLen}" y1="${cy - ty}" x2="${cx + tickLen}" y2="${cy - ty}" />`,
     );
     ticks.push(
-      `<line x1="${cx - tickLen}" y1="${cy + ty}" x2="${cx + tickLen}" y2="${cy + ty}" />`
+      `<line x1="${cx - tickLen}" y1="${cy + ty}" x2="${cx + tickLen}" y2="${cy + ty}" />`,
     );
   }
 
@@ -180,7 +180,7 @@ export function strokesToSvgString(
   width: number,
   height: number,
   bg?: BgType,
-  includeMetadata: boolean = false
+  includeMetadata: boolean = false,
 ): string {
   const bgFill = bg === 'black-grid' ? '#ffffff' : 'transparent';
   const bgRect = `<rect width="100%" height="100%" fill="${bgFill}"/>`;
@@ -305,7 +305,7 @@ export function parseStrokesFromSvgString(svgString: string): Stroke[] {
   try {
     const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
     const elements = Array.from(
-      doc.querySelectorAll('[data-sketchpad-stroke]')
+      doc.querySelectorAll('[data-sketchpad-stroke]'),
     );
 
     return elements
@@ -340,7 +340,7 @@ export function renderStrokesToCanvas(
     zoom?: number;
     pan?: { x: number; y: number };
     quality?: 'low' | 'high';
-  } = {}
+  } = {},
 ) {
   const {
     dpr = 1,
@@ -402,7 +402,7 @@ export function renderStrokesToCanvas(
           anchor.x,
           anchor.y,
           stroke.color,
-          Math.max(1, stroke.size)
+          Math.max(1, stroke.size),
         );
       }
       ctx.restore();
@@ -434,7 +434,7 @@ export function renderStrokesToCanvas(
         const simplified = simplifyPoints(points, 0.3);
         cachedPoints = getCatmullRomPoints(
           simplified,
-          Math.ceil(stroke.smoothing * 8)
+          Math.ceil(stroke.smoothing * 8),
         );
         smoothedPointsCache.set(stroke.id, {
           pointsLength: points.length,
@@ -455,7 +455,7 @@ export function renderStrokesToCanvas(
         const pressure = (p1.pressure + p2.pressure) / 2;
         const adjustedPressure = applyPressureCurve(
           pressure,
-          stroke.pressureCurve
+          stroke.pressureCurve,
         );
         ctx.lineWidth = Math.max(0.5, stroke.size * adjustedPressure);
 
@@ -473,7 +473,7 @@ export function renderStrokesToCanvas(
 export async function rasterizeSvgString(
   svgString: string,
   width: number,
-  height: number
+  height: number,
 ): Promise<HTMLCanvasElement> {
   const img = new Image();
   const svgBlob = new Blob([svgString], {

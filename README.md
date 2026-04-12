@@ -1,21 +1,29 @@
 # QuestionGen
 
-A desktop application for generating VCE (Victorian Certificate of Education) exam questions using AI. QuestionGen creates both multiple-choice and written-response questions for subjects including Mathematical Methods, Specialist Mathematics, Chemistry, and Physical Education.
+A desktop application for generating VCE (Victorian Certificate of Education)
+exam questions using AI. QuestionGen creates both multiple-choice and
+written-response questions for subjects including Mathematical Methods,
+Specialist Mathematics, Chemistry, and Physical Education.
 
 ## Features
 
-- **AI-Powered Question Generation**: Uses OpenRouter API to generate exam-style questions aligned with VCE study design
-- **Multiple Question Types**: Support for multiple-choice (4 options) and written-response questions
+- **AI-Powered Question Generation**: Uses OpenRouter API to generate exam-style
+  questions aligned with VCE study design
+- **Multiple Question Types**: Support for multiple-choice (4 options) and
+  written-response questions
 - **Subject Coverage**:
   - Mathematical Methods
   - Specialist Mathematics
   - Chemistry
   - Physical Education
 - **Difficulty Levels**: Essential Skills, Easy, Medium, Hard, Extreme
-- **Exam PDF Integration**: Attach past exam papers as style references for formatting and question patterns
-- **Examiners' Reports**: Import VCAA examiners' reports to inform question difficulty and common misconception targeting
+- **Exam PDF Integration**: Attach past exam papers as style references for
+  formatting and question patterns
+- **Examiners' Reports**: Import VCAA examiners' reports to inform question
+  difficulty and common misconception targeting
 - **Spaced Repetition**: Practice mode with Leitner system for retention
-- **Analytics Dashboard**: Track performance, generation history, and distinctness metrics
+- **Analytics Dashboard**: Track performance, generation history, and
+  distinctness metrics
 - **Cloud Sync**: Firebase integration for cross-device synchronization
 - **Progressive Web App**: Installable desktop app built with Tauri
 
@@ -111,7 +119,8 @@ The app follows a hybrid architecture:
 ### Quality Assurance
 
 - **Distinctness Scoring**: Cosine similarity between question embeddings
-- **Multi-step Detection**: Identifies questions requiring multiple reasoning steps
+- **Multi-step Detection**: Identifies questions requiring multiple reasoning
+  steps
 - **Schema Validation**: Strict JSON schema ensures consistent output format
 - **Topic Compliance**: Questions mapped to user-selected topics/subtopics only
 

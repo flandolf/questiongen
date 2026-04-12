@@ -24,7 +24,7 @@ interface SubtopicDistribution {
  * 3. Prefers variety over balance if requested
  */
 export function calculateOptimalBatchDistribution(
-  config: BatchDistributionConfig
+  config: BatchDistributionConfig,
 ): Map<Topic, number> {
   const {
     topics,
@@ -62,7 +62,7 @@ export function calculateOptimalBatchDistribution(
       const current = distribution.get(topic) || 0;
       distribution.set(
         topic,
-        current + baseExtra + (idx < extraRemainder ? 1 : 0)
+        current + baseExtra + (idx < extraRemainder ? 1 : 0),
       );
     });
   } else {
@@ -83,7 +83,7 @@ export function calculateOptimalBatchDistribution(
  */
 export function calculateSubtopicDistribution(
   subtopics: string[],
-  questionCount: number
+  questionCount: number,
 ): SubtopicDistribution[] {
   if (!subtopics || subtopics.length === 0) {
     return [];
@@ -115,7 +115,7 @@ export function calculateSubtopicDistribution(
  */
 export function validateBatchDistribution(
   topicCounts: Map<Topic, number>,
-  expectedTopics: Topic[]
+  expectedTopics: Topic[],
 ): { isValid: boolean; issues: string[] } {
   const issues: string[] = [];
 
@@ -129,13 +129,13 @@ export function validateBatchDistribution(
   // Check for over-concentration in single topic (>70% from one topic)
   const totalQuestions = Array.from(topicCounts.values()).reduce(
     (sum, count) => sum + count,
-    0
+    0,
   );
   topicCounts.forEach((count, topic) => {
     const ratio = count / totalQuestions;
     if (ratio > 0.7) {
       issues.push(
-        `Over-represented topic "${topic}": ${(ratio * 100).toFixed(1)}% of batch`
+        `Over-represented topic "${topic}": ${(ratio * 100).toFixed(1)}% of batch`,
       );
     }
   });
@@ -153,7 +153,7 @@ export function validateBatchDistribution(
 export function estimateNextDifficulty(
   currentDifficulty: string,
   recentScore: number | undefined,
-  performanceHistory: number[] = []
+  performanceHistory: number[] = [],
 ): string {
   if (recentScore === undefined || recentScore === null) {
     return currentDifficulty;
@@ -197,7 +197,7 @@ export function estimateNextDifficulty(
 export function recommendedQuestionCount(
   timeAvailableMinutes: number,
   averageMarksPerQuestion: number,
-  estimatedMinutesPerMark: number = 1.5
+  estimatedMinutesPerMark: number = 1.5,
 ): number {
   const minutesPerQuestion = averageMarksPerQuestion * estimatedMinutesPerMark;
   const maxQuestions = Math.floor(timeAvailableMinutes / minutesPerQuestion);
