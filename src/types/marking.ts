@@ -15,4 +15,7 @@ export type MarkAnswerResponse = {
   feedbackMarkdown: string;
   workedSolutionMarkdown: string;
   exemplarResponseMarkdown?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 };

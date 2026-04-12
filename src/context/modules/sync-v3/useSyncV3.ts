@@ -91,7 +91,9 @@ export function useSyncV3(): UseSyncV3Return {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
 
-    console.log('[FirebaseSync] Checking for pending local data to sync up...');
+    console.debug(
+      '[FirebaseSync] Checking for pending local data to sync up...',
+    );
 
     // Push local-only or pending history
     state.questionHistory
@@ -114,7 +116,7 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/questionHistory`),
           { includeMetadataChanges: true },
           (snapshot) => {
-            console.log(
+            console.info(
               `[FirebaseSync] Received snapshot for ${snapshot.size} question history entries.`,
             );
             const history = normalizeQuestionHistory(
@@ -163,7 +165,7 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/mcHistory`),
           { includeMetadataChanges: true },
           (snapshot) => {
-            console.log(
+            console.info(
               `[FirebaseSync] Received snapshot for ${snapshot.size} MC history entries.`,
             );
             const history = normalizeMcHistory(
@@ -194,7 +196,7 @@ export function useSyncV3(): UseSyncV3Return {
           collection(db, `users/${uid}/savedSets`),
           { includeMetadataChanges: true },
           (snapshot) => {
-            console.log(
+            console.info(
               `[FirebaseSync] Received snapshot for ${snapshot.size} saved sets.`,
             );
             const sets = snapshot.docs
@@ -213,7 +215,7 @@ export function useSyncV3(): UseSyncV3Return {
         const settingsMainUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'main'),
           (snapshot) => {
-            console.log('[FirebaseSync] Received main settings snapshot.');
+            console.info('[FirebaseSync] Received main settings snapshot.');
             if (snapshot.exists()) {
               const data = snapshot.data() as { apiKey?: string };
               if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
@@ -306,7 +308,7 @@ export function useSyncV3(): UseSyncV3Return {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log(
+      console.info(
         `[FirebaseSync] Auth state changed: ${
           firebaseUser
             ? 'User logged in (' + firebaseUser.uid + ')'

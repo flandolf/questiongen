@@ -121,6 +121,9 @@ export function normalizeMarkResponse(
     workedSolutionMarkdown:
       data.workedSolutionMarkdown || 'No worked solution returned.',
     exemplarResponseMarkdown: data.exemplarResponseMarkdown || undefined,
+    promptTokens: data.promptTokens,
+    completionTokens: data.completionTokens,
+    totalTokens: data.totalTokens,
   };
 }
 
