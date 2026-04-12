@@ -1457,6 +1457,9 @@ export default function WrongQuestionView() {
 
       if (res.success) {
         toast.success(`Exported to Anki: ${res.filePath}`);
+        if (res.errorMessage) {
+          toast.warning(res.errorMessage);
+        }
       } else {
         toast.error(`Export failed: ${res.errorMessage}`);
       }

@@ -179,24 +179,38 @@ async fn export_question_to_anki(
     app: tauri::AppHandle,
     request: ExportQuestionToAnkiRequest,
 ) -> CommandResult<ExportQuestionToAnkiResponse> {
-    use tauri_plugin_dialog::DialogExt;
+    #[cfg(not(target_os = "android"))]
+    let file_path = {
+        use tauri_plugin_dialog::DialogExt;
+        let save_path = app
+            .dialog()
+            .file()
+            .add_filter("Anki Deck", &["apkg"])
+            .set_file_name(format!("question-{}.apkg", request.id))
+            .blocking_save_file();
 
-    let save_path = app
-        .dialog()
-        .file()
-        .add_filter("Anki Deck", &["apkg"])
-        .set_file_name(format!("question-{}.apkg", request.id))
-        .blocking_save_file();
-
-    let Some(file_path_obj) = save_path else {
-        return Ok(ExportQuestionToAnkiResponse {
-            success: false,
-            file_path: None,
-            error_message: Some("User cancelled save dialog".to_string()),
-        });
+        match save_path {
+            Some(path) => path.to_string(),
+            None => {
+                return Ok(ExportQuestionToAnkiResponse {
+                    success: false,
+                    file_path: None,
+                    error_message: Some("User cancelled save dialog".to_string()),
+                });
+            }
+        }
     };
 
-    let file_path = file_path_obj.to_string();
+    #[cfg(target_os = "android")]
+    let file_path = {
+        use tauri::Manager;
+        let cache_dir = app
+            .path()
+            .cache_dir()
+            .map_err(|e| AppError::new("IO_ERROR", format!("Failed to get cache dir: {}", e)))?;
+        let full_path = cache_dir.join(format!("question-{}.apkg", request.id));
+        full_path.to_string_lossy().to_string()
+    };
 
     let model = anki::model();
     let note = anki::create_note(
@@ -211,6 +225,21 @@ async fn export_question_to_anki(
     deck.add_note(note);
 
     anki::export_deck_to_file(deck, &file_path)?;
+
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    {
+        use tauri_plugin_opener::OpenerExt;
+        if let Err(e) = app.opener().open_path(&file_path, None::<&str>) {
+            return Ok(ExportQuestionToAnkiResponse {
+                success: true,
+                file_path: Some(file_path),
+                error_message: Some(format!(
+                    "Deck exported, but could not auto-open it: {}",
+                    e
+                )),
+            });
+        }
+    }
 
     Ok(ExportQuestionToAnkiResponse {
         success: true,

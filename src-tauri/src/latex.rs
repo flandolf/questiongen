@@ -201,6 +201,9 @@ fn heal_math_node(inner: &str) -> String {
     // Repair tabular row breaks
     inner = repair_tabular_row_breaks(&inner);
 
+    // Ensure literal percentages in math render correctly in MathJax.
+    inner = escape_unescaped_percent(&inner);
+
     // Auto-balancing braces {} only, as [] and () can be unbalanced in intervals
     let mut stack = Vec::new();
     let mut escaped = false;
@@ -224,6 +227,36 @@ fn heal_math_node(inner: &str) -> String {
     }
 
     inner
+}
+
+fn escape_unescaped_percent(content: &str) -> String {
+    let mut result = String::with_capacity(content.len() + 4);
+    for (idx, ch) in content.char_indices() {
+        if ch != '%' {
+            result.push(ch);
+            continue;
+        }
+
+        let mut slash_count = 0usize;
+        let mut back = idx;
+        while back > 0 {
+            let prev = content[..back].chars().next_back();
+            let Some(prev_ch) = prev else {
+                break;
+            };
+            if prev_ch != '\\' {
+                break;
+            }
+            slash_count += 1;
+            back -= prev_ch.len_utf8();
+        }
+
+        if slash_count % 2 == 0 {
+            result.push('\\');
+        }
+        result.push('%');
+    }
+    result
 }
 
 fn repair_math_typos(text: &str) -> String {
@@ -685,6 +718,20 @@ mod tests {
             rendered,
             "Compute $\\frac{1}{}$ and $\\frac{1}{2}$ and $\\frac{\\pi}{2}$"
         );
+    }
+
+    #[test]
+    fn healer_escapes_unescaped_percent_in_math() {
+        let healed = heal_latex(lex("Rate is $50%$"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "Rate is $50\\%$");
+    }
+
+    #[test]
+    fn healer_keeps_escaped_percent_in_math() {
+        let healed = heal_latex(lex("Rate is $50\\%$"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "Rate is $50\\%$");
     }
 
     #[test]

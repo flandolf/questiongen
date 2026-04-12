@@ -69,17 +69,32 @@ impl GenerationService {
         }
     }
 
+    pub fn rust_log(&self, level: &str, message: &str, data: Option<serde_json::Value>) {
+        let _ = self.app.emit(
+            "rust-log",
+            serde_json::json!({
+                "level": level,
+                "message": message,
+                "data": data,
+            }),
+        );
+    }
+
     pub fn parse_payload<T: serde::de::DeserializeOwned>(&self, raw: &str) -> CommandResult<T> {
+        self.rust_log("debug", "Parsing payload from model", Some(serde_json::json!({ "raw": raw })));
         let protected = protect_latex_in_raw_json(raw);
+        self.rust_log("debug", "Protected LaTeX in JSON", Some(serde_json::json!({ "protected": protected })));
         let json_str = extract_json_object(&protected)
             .or_else(|| extract_json_array(&protected))
             .ok_or_else(|| {
                 AppError::new("MODEL_PARSE_ERROR", "No JSON object or array in response.")
             })?;
+        self.rust_log("debug", "Extracted JSON string", Some(serde_json::json!({ "json_str": json_str })));
         let value: serde_json::Value = serde_json::from_str(&json_str)
             .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
         let normalised =
             normalise_envelope(value).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
+        self.rust_log("debug", "Normalised JSON value", Some(serde_json::json!({ "normalised": normalised })));
         serde_json::from_value(normalised)
             .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))
     }
@@ -1065,7 +1080,9 @@ impl GenerationService {
         )
         .await?;
 
+        self.rust_log("debug", "Marking payload from model", Some(serde_json::json!({ "raw": result.content })));
         let protected_marking = protect_latex_in_raw_json(&result.content);
+        self.rust_log("debug", "Protected LaTeX in Marking JSON", Some(serde_json::json!({ "protected": protected_marking })));
         let json_str = extract_json_object(&protected_marking).ok_or_else(|| {
             AppError::new(
                 "MODEL_PARSE_ERROR",

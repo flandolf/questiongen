@@ -16,7 +16,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { useLocalBackupExport } from './hooks/useLocalBackupExport';
 import { useAppStore } from './store';
-import type { GenerationStatusEvent } from './types';
+import type { GenerationStatusEvent, LogEntry } from './types';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -46,9 +46,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const unlistenLog = listen<{
+      level: string;
+      message: string;
+      data?: unknown;
+    }>('rust-log', (event) => {
+      useAppStore.getState().addLog({
+        level: event.payload.level as LogEntry['level'],
+        message: event.payload.message,
+        data: event.payload.data,
+      });
+    });
+
     return () => {
       cancelled = true;
       unlisten?.();
+      void unlistenLog.then((fn) => fn());
     };
   }, [setGenerationStatus]);
 
