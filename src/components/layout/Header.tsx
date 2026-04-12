@@ -13,7 +13,7 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
-import { useSyncV3 } from '@/context/modules/sync-v3/useSyncV3';
+import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { cn, getTodayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
 
@@ -120,7 +120,7 @@ function ConcentricRings({
 }
 
 export function Header() {
-  const { isSyncEnabled, syncStatus } = useSyncV3();
+  const { isSyncEnabled, syncStatus } = useFirebaseSyncContext();
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
   const questions = useAppStore((s) => s.questions);
@@ -187,7 +187,7 @@ export function Header() {
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={SPRING}
-      className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md w-full ${isAndroid ? 'mt-8' : ''} mb-1`}
+      className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md w-full z-50 ${isAndroid ? 'mt-8' : ''} mb-1`}
     >
       {/* Left: Navigation */}
       <nav className='flex items-center gap-1 no-scrollbar'>
@@ -257,7 +257,7 @@ export function Header() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.95 }}
                 transition={EASE}
-                className='absolute right-0 top-full mt-2 w-64 p-4 bg-popover border border-border/50 rounded-xl shadow-lg z-50'
+                className='absolute right-0 top-full mt-2 w-64 p-4 bg-popover border border-border/50 rounded-xl shadow-lg'
               >
                 <div className='space-y-4'>
                   {studyGoals.dailyQuestionGoal > 0 && (

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { XCircle } from 'lucide-react';
+import { X, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ import {
 } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { TutorPanel } from '@/components/tutor/TutorPanel';
+import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
@@ -3093,7 +3094,7 @@ export function GeneratorView() {
                   }
                   rightSlot={
                     mcSketchpadActive ? (
-                      <div className='min-w-0 space-y-4'>
+                      <div className='flex flex-col min-w-0 space-y-4 justify-end'>
                         <McSketchpadPanel
                           questionId={activeMcQuestion?.id}
                           sketchSessionKey={activeMcSketchSessionKey}
@@ -3101,6 +3102,13 @@ export function GeneratorView() {
                           onImageDrop={handleMcImageDrop}
                           onImageRemove={handleMcImageRemove}
                         />
+                        <Button
+                          variant='outline'
+                          onClick={() => setMcSketchpadActive(false)}
+                        >
+                          <X className='w-4 h-4 mr-2' />
+                          Hide Sketchpad
+                        </Button>
                       </div>
                     ) : (
                       <div className='min-w-0 space-y-4'>

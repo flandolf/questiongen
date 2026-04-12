@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Shuffle,
   Target,
+  Trash,
   Trash2,
   Trophy,
   XCircle,
@@ -1372,6 +1373,8 @@ export default function WrongQuestionView() {
   const [reattemptResults, setReattemptResults] = useState<
     ReattemptResult[] | null
   >(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const confirmDeleteAllTimeoutRef = useRef<number | null>(null);
 
   const filteredQuestions = useMemo(() => {
     let list = allWrong;
@@ -1499,20 +1502,40 @@ export default function WrongQuestionView() {
             description='Review and reattempt questions you got wrong.'
             actions={
               <div className='flex items-center gap-2'>
-                {allWrong.length > 0 && (
-                  <Badge
-                    variant='secondary'
-                    className='text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                  >
-                    {allWrong.length}
-                  </Badge>
-                )}
-                {dueCards.length > 0 && (
-                  <Badge className='text-[11px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 gap-1'>
-                    <Brain className='w-3 h-3' />
-                    {dueCards.length} due
-                  </Badge>
-                )}
+                <Button
+                  size='sm'
+                  className='ml-auto gap-2 h-8 px-4 shadow-sm'
+                  onClick={() => {
+                    if (!confirmDeleteAll) {
+                      setConfirmDeleteAll(true);
+                      if (confirmDeleteAllTimeoutRef.current)
+                        window.clearTimeout(confirmDeleteAllTimeoutRef.current);
+                      confirmDeleteAllTimeoutRef.current = window.setTimeout(
+                        () => setConfirmDeleteAll(false),
+                        5000,
+                      );
+                      return;
+                    }
+
+                    // confirmed: perform deletion
+                    for (const entry of allWrong) {
+                      if (entry.kind === 'written') {
+                        deleteQuestionHistoryEntry(entry.id);
+                      } else {
+                        deleteMcHistoryEntry(entry.id);
+                      }
+                    }
+                    setConfirmDeleteAll(false);
+                    if (confirmDeleteAllTimeoutRef.current) {
+                      window.clearTimeout(confirmDeleteAllTimeoutRef.current);
+                      confirmDeleteAllTimeoutRef.current = null;
+                    }
+                    toast.success('All wrong entries deleted');
+                  }}
+                >
+                  <Trash className='w-3.5 h-3.5' />
+                  {confirmDeleteAll ? 'Confirm Delete All' : 'Delete All'}
+                </Button>
               </div>
             }
           />
@@ -1532,14 +1555,14 @@ export default function WrongQuestionView() {
                 </FilterButton>
               ))}
             </FilterGroup>
-            <button
-              type='button'
+            <Button
+              size='lg'
               onClick={() => setIsShuffled((s) => !s)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border text-xs font-medium transition-all ${isShuffled ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground'}`}
+              variant={isShuffled ? 'default' : 'outline'}
             >
               <Shuffle className='w-3.5 h-3.5' />
               {isShuffled ? 'Shuffled' : 'Shuffle'}
-            </button>
+            </Button>
             {filteredQuestions.length > 0 && (
               <Button
                 size='sm'

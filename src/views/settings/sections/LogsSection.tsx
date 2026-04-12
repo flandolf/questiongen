@@ -3,7 +3,11 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
@@ -70,18 +74,19 @@ export function LogsSection() {
       </div>
 
       <div className='space-y-4'>
-        <div className='relative'>
-          <Terminal className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
-          <Input
+        <InputGroup>
+          <InputGroupAddon align='inline-start'>
+            <Terminal size={16} className='text-zinc-500' />
+          </InputGroupAddon>
+          <InputGroupInput
             placeholder='Filter logs...'
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className='pl-9'
           />
-        </div>
+        </InputGroup>
 
         <Card className='bg-zinc-950 border-zinc-800 overflow-hidden'>
-          <ScrollArea className='h-125 w-full'>
+          <ScrollArea className='h-150 w-full'>
             <div className='p-4 font-mono text-xs space-y-1'>
               {filteredLogs.length === 0 ? (
                 <div className='text-zinc-500 italic py-4 text-center'>
