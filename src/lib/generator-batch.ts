@@ -151,19 +151,64 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
     }
   });
 
-  // Replace letter references with the new labels
-  // Match patterns like "Option A", " A:", " A,", " A.", " A is", etc.
-  // but avoid replacing letters mid-word
-  Object.entries(oldToNewLabel).forEach(([oldLabel, newLabel]) => {
-    // Replace common patterns: " A " (space-letter-space), "A.", "A,", "A:", etc.
-    const patterns = [
-      new RegExp(`\\b${oldLabel}\\b`, 'g'), // Word boundary (catches "A" as standalone)
-      new RegExp(`\\(${oldLabel}\\)`, 'g'), // (A)
-    ];
-    patterns.forEach((pattern) => {
-      fixedExplanation = fixedExplanation.replace(pattern, newLabel);
-    });
-  });
+  // Simultaneous replacement of all labels to avoid the swap problem (A->B, B->A).
+  // We use specific patterns to avoid accidentally replacing the article "A".
+  const labelChars = Object.keys(oldToNewLabel).join('');
+  if (labelChars) {
+    const combinedRegex = new RegExp(
+      `(\\b(?:[Oo]ption|[Cc]hoice|[Ss]election|[Aa]nswer|[Pp]art)\\s+)?\\(?([${labelChars}])\\)?(?=\\b|$)`,
+      'g',
+    );
+
+    fixedExplanation = fixedExplanation.replace(
+      combinedRegex,
+      (
+        match: string,
+        prefix: string | undefined,
+        label: string,
+        offset: number,
+      ) => {
+        const newLabel = oldToNewLabel[label];
+        if (!newLabel || newLabel === label) return match;
+
+        // Heuristic to avoid replacing "A" when it's used as an article
+        if (label === 'A' && !prefix && !match.includes('(')) {
+          const following = fixedExplanation.slice(offset + match.length);
+          const nextWordMatch = following.match(/^\s+([a-zA-Z]+)/);
+          if (nextWordMatch) {
+            const nextWord = nextWordMatch[1].toLowerCase();
+            const predicates = [
+              'is',
+              'was',
+              'refers',
+              'represents',
+              'shows',
+              'indicates',
+              'correct',
+              'incorrect',
+              'true',
+              'false',
+              'the',
+              'only',
+            ];
+            // If it's "A" followed by something that's not a known predicate,
+            // it's probably an article (e.g., "A tennis serve...")
+            if (!predicates.includes(nextWord)) {
+              return match;
+            }
+          }
+        }
+
+        // Safely replace the label within the matched context (e.g., "Option A" -> "Option B")
+        const labelIndex = match.lastIndexOf(label);
+        return (
+          match.slice(0, labelIndex) +
+          newLabel +
+          match.slice(labelIndex + label.length)
+        );
+      },
+    );
+  }
 
   return {
     ...q,

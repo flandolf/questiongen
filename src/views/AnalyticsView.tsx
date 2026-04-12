@@ -5,7 +5,7 @@ import {
   PlusCircle,
   Type,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { PieSectorShapeProps } from 'recharts';
 import {
@@ -105,7 +105,9 @@ const FOCUS_AREA_COLORS: readonly string[] = [
 
 // ─── Custom Pie Shape ─────────────────────────────────────────────────────────
 
-function CustomPieShape(props: PieSectorShapeProps) {
+const CustomPieShape = memo(function CustomPieShape(
+  props: PieSectorShapeProps,
+) {
   return (
     <Sector
       {...props}
@@ -115,11 +117,11 @@ function CustomPieShape(props: PieSectorShapeProps) {
       }
     />
   );
-}
+});
 
 // ─── Helpers & UI Wrappers ────────────────────────────────────────────────────
 
-function Card({
+const Card = memo(function Card({
   children,
   className = '',
 }: {
@@ -133,9 +135,9 @@ function Card({
       {children}
     </div>
   );
-}
+});
 
-function SectionHeading({
+const SectionHeading = memo(function SectionHeading({
   title,
   description,
 }: {
@@ -152,15 +154,15 @@ function SectionHeading({
       )}
     </div>
   );
-}
+});
 
-function ChartEmpty({ message }: { message: string }) {
+const ChartEmpty = memo(function ChartEmpty({ message }: { message: string }) {
   return (
     <div className='flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 '>
       {message}
     </div>
   );
-}
+});
 
 function accuracyColor(pct: number | undefined): string {
   if (pct === undefined) return 'text-muted-foreground';
@@ -169,7 +171,7 @@ function accuracyColor(pct: number | undefined): string {
   return 'text-rose-500';
 }
 
-function Kpi({
+const Kpi = memo(function Kpi({
   label,
   value,
   detail,
@@ -210,7 +212,7 @@ function Kpi({
       </span>
     </Card>
   );
-}
+});
 
 // ─── Daily usage helpers ──────────────────────────────────────────────────────
 
@@ -227,11 +229,27 @@ function formatTokensShort(v: number) {
   return String(v);
 }
 
+type DailyStatRow = {
+  day: string;
+  label: string;
+  tokens: number;
+  cost: number;
+  questions: number;
+};
+
+type DailyStatsResult = {
+  sorted: DailyStatRow[];
+  avgTokens: number;
+  avgCost: number;
+  avgQuestions: number;
+  totalDays: number;
+};
+
 function useDailyStats(
   questionHistory: QuestionHistoryEntry[],
   mcHistory: McHistoryEntry[],
   generationHistory: GenerationRecord[],
-) {
+): DailyStatsResult {
   return useMemo(() => {
     const byDay = new Map<
       string,
@@ -1143,7 +1161,9 @@ export function AnalyticsView() {
                       nameKey='name'
                       paddingAngle={3}
                       stroke='none'
-                      shape={CustomPieShape}
+                      shape={(props: PieSectorShapeProps) => (
+                        <CustomPieShape {...props} />
+                      )}
                     />
                     <ChartTooltip content={<ChartTooltipContent />} />
                   </PieChart>

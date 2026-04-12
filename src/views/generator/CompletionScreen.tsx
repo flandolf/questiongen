@@ -11,7 +11,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
@@ -120,7 +120,13 @@ function getBarColor(pct: number) {
 
 // ─── Animated score ring ──────────────────────────────────────────────────────
 
-function ScoreRing({ pct, color }: { pct: number; color: string }) {
+const ScoreRing = memo(function ScoreRing({
+  pct,
+  color,
+}: {
+  pct: number;
+  color: string;
+}) {
   const size = 140;
   const strokeWidth = 9;
   const radius = (size - strokeWidth) / 2;
@@ -184,11 +190,11 @@ function ScoreRing({ pct, color }: { pct: number; color: string }) {
       </motion.div>
     </div>
   );
-}
+});
 
 // ─── Topic bar row ────────────────────────────────────────────────────────────
 
-function TopicRow({
+const TopicRow = memo(function TopicRow({
   topic,
   pct,
   index,
@@ -229,11 +235,11 @@ function TopicRow({
       </span>
     </motion.div>
   );
-}
+});
 
 // ─── Stat tile ────────────────────────────────────────────────────────────────
 
-function StatTile({
+const StatTile = memo(function StatTile({
   icon: Icon,
   label,
   value,
@@ -270,11 +276,11 @@ function StatTile({
       {sub && <span className='text-[10px] text-muted-foreground'>{sub}</span>}
     </motion.div>
   );
-}
+});
 
 // ─── Criterion chip ───────────────────────────────────────────────────────────
 
-function CriterionChip({
+const CriterionChip = memo(function CriterionChip({
   criterion,
   achieved,
   available,
@@ -320,11 +326,11 @@ function CriterionChip({
       </div>
     </motion.div>
   );
-}
+});
 
 // ─── Question result row ──────────────────────────────────────────────────────
 
-function QuestionRow({
+const QuestionRow = memo(function QuestionRow({
   index,
   topic,
   subtopic,
@@ -384,12 +390,12 @@ function QuestionRow({
       )}
     </motion.div>
   );
-}
+});
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
-export function CompletionScreen({
+export const CompletionScreen = memo(function CompletionScreen({
   questionMode,
   accuracyPercent,
   formattedElapsedTime,
@@ -845,4 +851,4 @@ export function CompletionScreen({
       </div>
     </motion.div>
   );
-}
+});

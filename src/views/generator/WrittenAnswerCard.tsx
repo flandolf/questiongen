@@ -6,7 +6,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
 import type { SketchpadHandle } from '@/components/Sketchpad';
@@ -45,7 +45,7 @@ function getFooterNote(isExamMode: boolean | undefined): string {
 }
 
 // eslint-disable-next-line complexity
-export function WrittenAnswerCard({
+export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   questionId,
   sketchSessionKey,
   answer,
@@ -296,4 +296,4 @@ export function WrittenAnswerCard({
       )}
     </UnifiedWrittenResponseCard>
   );
-}
+});

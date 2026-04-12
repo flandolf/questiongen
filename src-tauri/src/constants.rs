@@ -16,7 +16,7 @@ pub const MIN_MARKS_PER_QUESTION: u8 = 1;
 
 // ─── MC validation constants ──────────────────────────────────────────────────
 
-pub const MC_MAX_EXPLANATION_WORDS: usize = 180;
+pub const MC_MAX_EXPLANATION_WORDS: usize = 300;
 
 pub const DISALLOWED_SELF_TALK: &[&str] = &[
     "let's",

@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Bookmark,
   ChartColumnIncreasing,
@@ -10,7 +10,7 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
@@ -25,7 +25,6 @@ import {
 } from '../ui/tooltip';
 
 const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
-const EASE = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as const };
 
 function GoalProgressBar({
   label,
@@ -41,25 +40,39 @@ function GoalProgressBar({
   const pct = Math.min(100, (current / goal) * 100);
   const complete = current >= goal;
   return (
-    <div className='space-y-1.5 flex-1 min-w-20'>
+    <div className='space-y-2 flex-1 min-w-48'>
       <div className='flex items-center justify-between px-0.5'>
-        <p className='text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider'>
-          {label}
-        </p>
-        <p className='text-[10px] font-bold tabular-nums opacity-80'>
-          {current}/{goal}
-        </p>
+        <div className='flex items-center gap-1.5'>
+          <div className={cn('h-1.5 w-1.5 rounded-full', color)} />
+          <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground'>
+            {label}
+          </p>
+        </div>
+        <div className='flex items-baseline gap-1'>
+          <span className='text-[11px] font-bold tabular-nums'>{current}</span>
+          <span className='text-[9px] font-medium text-muted-foreground opacity-60'>
+            / {goal}
+          </span>
+        </div>
       </div>
-      <div className='h-1.5 w-full bg-muted/20 rounded-full overflow-hidden'>
+      <div className='h-2 w-full bg-muted/10 rounded-full overflow-hidden relative group'>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+          transition={{ duration: 1, ease: [0.34, 1.56, 0.64, 1] }}
           className={cn(
-            'h-full rounded-full',
-            complete ? color : 'bg-primary/60',
+            'h-full rounded-full relative transition-all duration-500',
+            color,
+            complete && 'brightness-110 shadow-[0_0_8px_currentColor]',
           )}
-        />
+        >
+          <div className='absolute inset-0 bg-white/10' />
+        </motion.div>
+      </div>
+      <div className='flex justify-end px-0.5'>
+        <p className='text-[9px] font-bold text-muted-foreground/60 tabular-nums'>
+          {Math.round(pct)}%
+        </p>
       </div>
     </div>
   );
@@ -141,9 +154,16 @@ export function Header() {
     );
   }, [streakData.dailyCompletions]);
 
-  const [showGoals, setShowGoals] = useState(false);
-
   const isSyncing = syncStatus === 'syncing' || syncStatus === 'connecting';
+
+  const allGoalsMet = useMemo(() => {
+    const goals = [
+      { current: todayCompletions.total, goal: studyGoals.dailyQuestionGoal },
+      { current: todayCompletions.mc, goal: studyGoals.dailyMcGoal },
+      { current: todayCompletions.written, goal: studyGoals.dailyWrittenGoal },
+    ].filter((g) => g.goal > 0);
+    return goals.length > 0 && goals.every((g) => g.current >= g.goal);
+  }, [todayCompletions, studyGoals]);
 
   const renderLink = useCallback(
     (link: {
@@ -242,77 +262,88 @@ export function Header() {
               )}
             </div>
           )}
-        </TooltipProvider>
 
-        {/* Goals */}
-        <div className='relative'>
-          <button
-            onClick={() => setShowGoals(!showGoals)}
-            className='flex items-center gap-2 h-8 px-2 rounded-md hover:bg-muted/50 transition-colors'
-          >
-            <ConcentricRings
-              goals={[
-                {
-                  label: 'Daily',
-                  current: todayCompletions.total,
-                  goal: studyGoals.dailyQuestionGoal,
-                  color: 'oklch(69.6% 0.17 162.48)',
-                },
-                {
-                  label: 'MC',
-                  current: todayCompletions.mc,
-                  goal: studyGoals.dailyMcGoal,
-                  color: 'oklch(60.6% 0.25 292.717)',
-                },
-                {
-                  label: 'Written',
-                  current: todayCompletions.written,
-                  goal: studyGoals.dailyWrittenGoal,
-                  color: 'oklch(68.5% 0.169 237.323)',
-                },
-              ]}
-            />
-          </button>
+          {/* Goals */}
 
-          <AnimatePresence>
-            {showGoals && (
-              <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                transition={EASE}
-                className='absolute right-0 top-full mt-2 w-64 p-4 bg-popover border border-border/50 rounded-xl shadow-lg'
+          {todayCompletions.total > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className='flex items-center gap-1 text-sm font-medium text-muted-foreground cursor-pointer'>
+                  <ConcentricRings
+                    goals={[
+                      {
+                        label: 'Daily',
+                        current: todayCompletions.total,
+                        goal: studyGoals.dailyQuestionGoal,
+                        color: 'oklch(69.6% 0.17 162.48)',
+                      },
+                      {
+                        label: 'MC',
+                        current: todayCompletions.mc,
+                        goal: studyGoals.dailyMcGoal,
+                        color: 'oklch(60.6% 0.25 292.717)',
+                      },
+                      {
+                        label: 'Written',
+                        current: todayCompletions.written,
+                        goal: studyGoals.dailyWrittenGoal,
+                        color: 'oklch(68.5% 0.169 237.323)',
+                      },
+                    ]}
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent
+                side='bottom'
+                className='w-64 p-4 bg-popover/95 backdrop-blur-xl border-border/50 shadow-2xl'
               >
                 <div className='space-y-4'>
-                  {studyGoals.dailyQuestionGoal > 0 && (
-                    <GoalProgressBar
-                      label='Overall'
-                      current={todayCompletions.total}
-                      goal={studyGoals.dailyQuestionGoal}
-                      color='bg-emerald-500'
-                    />
-                  )}
-                  {studyGoals.dailyMcGoal > 0 && (
-                    <GoalProgressBar
-                      label='Multiple Choice'
-                      current={todayCompletions.mc}
-                      goal={studyGoals.dailyMcGoal}
-                      color='bg-violet-500'
-                    />
-                  )}
-                  {studyGoals.dailyWrittenGoal > 0 && (
-                    <GoalProgressBar
-                      label='Written'
-                      current={todayCompletions.written}
-                      goal={studyGoals.dailyWrittenGoal}
-                      color='bg-sky-500'
-                    />
+                  <div className='flex items-center justify-between pb-2 border-b border-border/10'>
+                    <h3 className='text-xs font-bold uppercase tracking-widest text-muted-foreground'>
+                      Daily Goals
+                    </h3>
+                    <Sparkles className='h-3.5 w-3.5 text-primary/40' />
+                  </div>
+
+                  <div className='space-y-5'>
+                    {studyGoals.dailyQuestionGoal > 0 && (
+                      <GoalProgressBar
+                        label='Overall'
+                        current={todayCompletions.total}
+                        goal={studyGoals.dailyQuestionGoal}
+                        color='bg-emerald-500'
+                      />
+                    )}
+                    {studyGoals.dailyMcGoal > 0 && (
+                      <GoalProgressBar
+                        label='Multiple Choice'
+                        current={todayCompletions.mc}
+                        goal={studyGoals.dailyMcGoal}
+                        color='bg-violet-500'
+                      />
+                    )}
+                    {studyGoals.dailyWrittenGoal > 0 && (
+                      <GoalProgressBar
+                        label='Written'
+                        current={todayCompletions.written}
+                        goal={studyGoals.dailyWrittenGoal}
+                        color='bg-sky-500'
+                      />
+                    )}
+                  </div>
+
+                  {allGoalsMet && (
+                    <div className='pt-2 mt-2 border-t border-border/10'>
+                      <p className='text-[10px] text-center font-medium text-emerald-500 italic'>
+                        All daily goals reached! Great job.
+                      </p>
+                    </div>
                   )}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </TooltipProvider>
 
         {/* Streak */}
         {streakData.currentStreak > 0 && (

@@ -9,7 +9,7 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,8 +52,87 @@ type SessionHeaderProps = {
   onResetTimer?: () => void;
 };
 
-// eslint-disable-next-line complexity
-export function SessionHeader({
+function TimerDisplay({
+  questionTimeSeconds,
+  isPaused,
+  isQuestionWarning,
+  recommendedSeconds,
+  onTogglePause,
+  onResetTimer,
+}: {
+  questionTimeSeconds: number;
+  isPaused?: boolean;
+  isQuestionWarning?: boolean;
+  recommendedSeconds?: number;
+  onTogglePause?: () => void;
+  onResetTimer?: () => void;
+}) {
+  const [tick, setTick] = useState(questionTimeSeconds);
+
+  useEffect(() => {
+    setTick(questionTimeSeconds);
+    if (isPaused) return;
+    const id = setInterval(() => setTick((t) => t + 1), 1_000);
+    return () => clearInterval(id);
+  }, [questionTimeSeconds, isPaused]);
+
+  const wholeSeconds = Math.max(0, Math.floor(tick));
+  const timerDisplay = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
+  const formatSeconds = (s: number) =>
+    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  return (
+    <span
+      className={`flex items-center gap-1 text-xs font-mono tabular-nums ${isQuestionWarning ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}
+    >
+      <Clock
+        className={`w-3 h-3 ${isQuestionWarning ? 'animate-pulse' : ''}`}
+      />
+      <span>
+        {timerDisplay} /{' '}
+        {recommendedSeconds !== undefined
+          ? formatSeconds(recommendedSeconds)
+          : '0:00'}
+      </span>
+
+      {onTogglePause && (
+        <Button
+          variant='ghost'
+          size='icon-sm'
+          onClick={onTogglePause}
+          title={isPaused ? 'Resume timer' : 'Pause timer'}
+          className='h-6 w-6 p-0 rounded-full ml-1'
+        >
+          {isPaused ? (
+            <Play className='w-3 h-3' />
+          ) : (
+            <Pause className='w-3 h-3' />
+          )}
+        </Button>
+      )}
+
+      {onResetTimer && (
+        <Button
+          variant='ghost'
+          size='icon-sm'
+          onClick={onResetTimer}
+          title='Reset timer'
+          className='h-6 w-6 p-0 rounded-full'
+        >
+          <RefreshCw className='w-3 h-3' />
+        </Button>
+      )}
+
+      {isQuestionWarning && (
+        <span className='text-amber-500 text-[10px] font-bold animate-pulse'>
+          !
+        </span>
+      )}
+    </span>
+  );
+}
+
+export const SessionHeader = memo(function SessionHeader({
   type,
   questionIndex,
   totalQuestions,
@@ -88,21 +167,6 @@ export function SessionHeader({
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
 
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (questionTimeSeconds === undefined) {
-      setTick(0);
-      return;
-    }
-    setTick(questionTimeSeconds);
-    if (isPaused) return;
-    const id = setInterval(() => setTick((t) => t + 1), 1_000);
-    return () => clearInterval(id);
-  }, [questionTimeSeconds, isPaused]);
-  const displaySeconds = questionTimeSeconds !== undefined ? tick : 0;
-  const wholeSeconds = Math.max(0, Math.floor(displaySeconds));
-  const timerDisplay = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
-
   const marksPerMinute =
     difficultyAllocation && difficultyAllocation.minutesPerQuestion > 0
       ? difficultyAllocation.marksPerQuestion /
@@ -114,8 +178,6 @@ export function SessionHeader({
     marksPerMinute > 0
       ? Math.round((questionMarks / marksPerMinute) * 60)
       : undefined;
-  const formatSeconds = (s: number) =>
-    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
     <div className='sticky top-0 bg-background/90 backdrop-blur-md'>
@@ -144,53 +206,14 @@ export function SessionHeader({
             <span className='text-muted-foreground'>of {totalQuestions}</span>
           </div>
           {questionTimeSeconds !== undefined && (
-            <span
-              className={`flex items-center gap-1 text-xs font-mono tabular-nums ${isQuestionWarning ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}
-            >
-              <Clock
-                className={`w-3 h-3 ${isQuestionWarning ? 'animate-pulse' : ''}`}
-              />
-              <span>
-                {timerDisplay} /{' '}
-                {recommendedSeconds !== undefined
-                  ? formatSeconds(recommendedSeconds)
-                  : '0:00'}
-              </span>
-
-              {onTogglePause && (
-                <Button
-                  variant='ghost'
-                  size='icon-sm'
-                  onClick={onTogglePause}
-                  title={isPaused ? 'Resume timer' : 'Pause timer'}
-                  className='h-6 w-6 p-0 rounded-full ml-1'
-                >
-                  {isPaused ? (
-                    <Play className='w-3 h-3' />
-                  ) : (
-                    <Pause className='w-3 h-3' />
-                  )}
-                </Button>
-              )}
-
-              {onResetTimer && (
-                <Button
-                  variant='ghost'
-                  size='icon-sm'
-                  onClick={onResetTimer}
-                  title='Reset timer'
-                  className='h-6 w-6 p-0 rounded-full'
-                >
-                  <RefreshCw className='w-3 h-3' />
-                </Button>
-              )}
-
-              {isQuestionWarning && (
-                <span className='text-amber-500 text-[10px] font-bold animate-pulse'>
-                  !
-                </span>
-              )}
-            </span>
+            <TimerDisplay
+              questionTimeSeconds={questionTimeSeconds}
+              isPaused={isPaused}
+              isQuestionWarning={isQuestionWarning}
+              recommendedSeconds={recommendedSeconds}
+              onTogglePause={onTogglePause}
+              onResetTimer={onResetTimer}
+            />
           )}
           {completedCount > 0 && completedCount < totalQuestions && (
             <span className='text-[10px] text-muted-foreground tabular-nums hidden sm:inline'>
@@ -310,7 +333,7 @@ export function SessionHeader({
       </div>
     </div>
   );
-}
+});
 
 // ─── Shared telemetry tooltip ─────────────────────────────────────────────────
 
