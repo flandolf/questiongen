@@ -49,6 +49,10 @@ export function useSyncV3(): UseSyncV3Return {
   >('idle');
 
   const unsubscribesRef = useRef<Unsubscribe[]>([]);
+  const activeUidRef = useRef<string | null>(null);
+  const recoveryInFlightRef = useRef(false);
+  const lastRecoveryAttemptAtRef = useRef(0);
+  const RECOVERY_COOLDOWN_MS = 10_000;
 
   // Define callback functions first before using them in useEffect
   const cleanupListeners = useCallback(() => {
@@ -109,6 +113,53 @@ export function useSyncV3(): UseSyncV3Return {
       }
     },
     [syncSavedSetsFromRaw]
+  );
+
+  const recoverSyncState = useCallback(
+    async (reason: 'online' | 'focus' | 'visibility') => {
+      const uid = activeUidRef.current;
+      if (!uid || !navigator.onLine) return;
+
+      const now = Date.now();
+      if (
+        recoveryInFlightRef.current ||
+        now - lastRecoveryAttemptAtRef.current < RECOVERY_COOLDOWN_MS
+      ) {
+        return;
+      }
+
+      recoveryInFlightRef.current = true;
+      lastRecoveryAttemptAtRef.current = now;
+
+      try {
+        const shouldRebindListeners =
+          syncStatus === 'error' || unsubscribesRef.current.length === 0;
+
+        console.log(
+          '[FirebaseSync] Recovery triggered after',
+          reason,
+          'uid=',
+          uid,
+          'rebind=',
+          shouldRebindListeners
+        );
+
+        if (shouldRebindListeners) {
+          setupListeners(uid);
+          return;
+        }
+
+        setSyncStatus('syncing');
+        await manualRefreshData(uid);
+        setSyncStatus('idle');
+      } catch (error) {
+        console.error('[FirebaseSync] Recovery failed:', error);
+        setSyncStatus('error');
+      } finally {
+        recoveryInFlightRef.current = false;
+      }
+    },
+    [manualRefreshData, setupListeners, syncStatus]
   );
 
   const setupListeners = useCallback(
@@ -306,25 +357,46 @@ export function useSyncV3(): UseSyncV3Return {
   );
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (activeUidRef.current) {
+        void recoverSyncState('online');
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      if (user) {
+        setSyncStatus('offline');
+      }
+    };
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible' && activeUidRef.current) {
+        void recoverSyncState('focus');
+      }
+    };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, []);
+  }, [recoverSyncState, user]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsLoading(false);
+      activeUidRef.current = firebaseUser?.uid ?? null;
 
       if (firebaseUser) {
         setupListeners(firebaseUser.uid);
       } else {
         cleanupListeners();
+        setSyncStatus('idle');
       }
     });
 
@@ -334,8 +406,8 @@ export function useSyncV3(): UseSyncV3Return {
     };
   }, [setupListeners, cleanupListeners]);
 
-  // No periodic refresh needed as listeners handle real-time updates.
-  // The initial manual refresh in setupListeners ensures we have data if listeners are slow to start.
+  // Realtime listeners are the primary sync path; connectivity/focus recovery
+  // replays a catch-up refresh or listener rebind if the connection dropped.
 
   const enableSync = async (
     email: string,
