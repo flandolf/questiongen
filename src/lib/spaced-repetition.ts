@@ -41,7 +41,7 @@ export function createCard(nextReviewDate?: string): SpacedRepetitionCard {
  */
 export function reviewCard(
   card: SpacedRepetitionCard,
-  quality: ReviewQuality
+  quality: ReviewQuality,
 ): SpacedRepetitionCard {
   const now = new Date();
   const nowIso = now.toISOString();
@@ -49,7 +49,7 @@ export function reviewCard(
   // Calculate new easiness factor
   const newEf = Math.max(
     MIN_EASINESS_FACTOR,
-    card.easinessFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    card.easinessFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)),
   );
 
   let newRepetitions: number;

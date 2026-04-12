@@ -31,7 +31,7 @@ export function useLocalBackupExport(): void {
           await exportEnvelopeToDirectory(
             trimmed,
             envelope,
-            `questiongen-export-auto-${stamp}.json`
+            `questiongen-export-auto-${stamp}.json`,
           );
         } catch (e) {
           console.warn('[LocalBackup] Scheduled export failed', e);

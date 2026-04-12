@@ -13,7 +13,7 @@ if (/Android/i.test(window.navigator.userAgent)) {
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     document.documentElement.style.setProperty(
       '--android-app-height',
-      `${Math.round(viewportHeight)}px`
+      `${Math.round(viewportHeight)}px`,
     );
   };
 
@@ -24,8 +24,8 @@ if (/Android/i.test(window.navigator.userAgent)) {
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <ThemeProvider defaultTheme="dark" storageKey="questiongen-theme">
+    <ThemeProvider defaultTheme='dark' storageKey='questiongen-theme'>
       <App />
     </ThemeProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

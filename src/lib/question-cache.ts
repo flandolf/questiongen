@@ -34,7 +34,7 @@ class GenerationResultCache {
   private generateKey(
     topics: string[],
     difficulty: string,
-    mode: 'written' | 'multiple-choice'
+    mode: 'written' | 'multiple-choice',
   ): string {
     return `${mode}:${topics.sort().join('|')}:${difficulty}`;
   }
@@ -46,7 +46,7 @@ class GenerationResultCache {
     topics: string[],
     difficulty: string,
     mode: 'written' | 'multiple-choice',
-    questions: GeneratedQuestion[] | McQuestion[]
+    questions: GeneratedQuestion[] | McQuestion[],
   ): void {
     const key = this.generateKey(topics, difficulty, mode);
 
@@ -71,7 +71,7 @@ class GenerationResultCache {
   get(
     topics: string[],
     difficulty: string,
-    mode: 'written' | 'multiple-choice'
+    mode: 'written' | 'multiple-choice',
   ): GeneratedQuestion[] | McQuestion[] | null {
     const key = this.generateKey(topics, difficulty, mode);
     const entry = this.cache.get(key);
@@ -103,7 +103,7 @@ export const generationCache = new GenerationResultCache();
  * Uses simple heuristics: question stem length, topic, and subtopic.
  */
 export function identifyDuplicateQuestions(
-  questions: GeneratedQuestion[] | McQuestion[]
+  questions: GeneratedQuestion[] | McQuestion[],
 ): { isDuplicate: boolean; duplicateIndices: number[] }[] {
   const results: { isDuplicate: boolean; duplicateIndices: number[] }[] = [];
 
@@ -145,10 +145,10 @@ export function identifyDuplicateQuestions(
  * Keeps first occurrence, removes later duplicates.
  */
 export function deduplicateQuestions<T extends GeneratedQuestion | McQuestion>(
-  questions: T[]
+  questions: T[],
 ): T[] {
   const duplicateInfo = identifyDuplicateQuestions(
-    questions as GeneratedQuestion[] | McQuestion[]
+    questions as GeneratedQuestion[] | McQuestion[],
   );
   const indicesToRemove = new Set<number>();
 
@@ -167,7 +167,7 @@ export function deduplicateQuestions<T extends GeneratedQuestion | McQuestion>(
  * Returns true if variance is acceptable.
  */
 export function validateQuestionVariance(
-  questions: GeneratedQuestion[] | McQuestion[]
+  questions: GeneratedQuestion[] | McQuestion[],
 ): boolean {
   const topicCounts = new Map<string, number>();
 
@@ -196,7 +196,7 @@ export function applyBatchQualityChecks<
 
   // Check for duplicates
   const duplicateInfo = identifyDuplicateQuestions(
-    questions as GeneratedQuestion[] | McQuestion[]
+    questions as GeneratedQuestion[] | McQuestion[],
   );
   const duplicateCount = duplicateInfo.filter((d) => d.isDuplicate).length;
   if (duplicateCount > 0) {

@@ -65,7 +65,7 @@ export function QuestionSplitLayout({
       const pct = clamp((x / rect.width) * 100);
       setLeftPct(pct);
     },
-    [setLeftPct]
+    [setLeftPct],
   );
 
   const onPointerUp = useCallback(() => {
@@ -106,7 +106,7 @@ export function QuestionSplitLayout({
         // ignore
       }
     },
-    [onPointerMove, onPointerUp]
+    [onPointerMove, onPointerUp],
   );
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -141,12 +141,12 @@ export function QuestionSplitLayout({
         ref={containerRef}
         className={cn(
           'hidden lg:flex w-full lg:gap-8',
-          sketchpadActive ? '' : ''
+          sketchpadActive ? '' : '',
         )}
         style={{ alignItems: 'stretch' }}
       >
         <motion.div
-          className="min-w-0 space-y-5"
+          className='min-w-0 space-y-5'
           // animate width changes for snappier feel; disable transition while dragging
           animate={{ width: `${leftPct}%` }}
           transition={
@@ -160,20 +160,20 @@ export function QuestionSplitLayout({
 
         {sketchpadActive ? (
           <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize question and sketchpad"
+            role='separator'
+            aria-orientation='vertical'
+            aria-label='Resize question and sketchpad'
             aria-valuemin={MIN_PCT}
             aria-valuemax={MAX_PCT}
             aria-valuenow={Math.round(leftPct)}
             tabIndex={0}
             onKeyDown={handleKeyDown}
             onPointerDown={handlePointerDown}
-            className="flex items-center justify-center px-1"
+            className='flex items-center justify-center px-1'
             style={{ cursor: 'col-resize', touchAction: 'none' }}
           >
             <motion.div
-              className="h-10 w-1 rounded-full bg-border/40 hover:bg-border transition-colors"
+              className='h-10 w-1 rounded-full bg-border/40 hover:bg-border transition-colors'
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 600, damping: 40 }}
@@ -181,14 +181,14 @@ export function QuestionSplitLayout({
           </div>
         ) : (
           // When sketchpad is not active, render a small spacer
-          <div className="w-0.5" />
+          <div className='w-0.5' />
         )}
 
-        <div className="min-w-0 flex-1 space-y-5">{rightSlot}</div>
+        <div className='min-w-0 flex-1 space-y-5'>{rightSlot}</div>
       </div>
 
       {/* Small screens: stacked layout (original behaviour) */}
-      <div className="grid grid-cols-1 lg:hidden gap-8">
+      <div className='grid grid-cols-1 lg:hidden gap-8'>
         {leftSlot}
         {rightSlot}
       </div>

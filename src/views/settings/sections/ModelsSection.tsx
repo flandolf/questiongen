@@ -33,7 +33,7 @@ function ErrorBanners({ stats }: { stats: ReturnType<typeof useModelStats> }) {
   if (errors.length === 0) return null;
 
   return (
-    <div className="mb-4 space-y-1.5">
+    <div className='mb-4 space-y-1.5'>
       {errors.map((error, i) => (
         <ErrorBanner key={i} message={error!} />
       ))}
@@ -78,7 +78,7 @@ function LiveStatsSection({
         : []),
       { label: 'Tutor', state: stats.tutor, m: models.tutor },
     ],
-    [stats, models]
+    [stats, models],
   );
 
   const columns = useMemo(
@@ -112,29 +112,29 @@ function LiveStatsSection({
         loading: stats.tutor.loading,
       },
     ],
-    [stats, models]
+    [stats, models],
   );
 
   if (!apiKey)
-    return <EmptyState message="Save your API key to load model stats." />;
+    return <EmptyState message='Save your API key to load model stats.' />;
 
   return (
     <section>
-      <div className="flex items-start justify-between mb-4">
+      <div className='flex items-start justify-between mb-4'>
         <div>
-          <h2 className="text-base font-semibold">Live Stats</h2>
+          <h2 className='text-base font-semibold'>Live Stats</h2>
           {latestUpdate && (
-            <p className="text-xs text-muted-foreground">
+            <p className='text-xs text-muted-foreground'>
               Updated {fmt.time(latestUpdate)}
             </p>
           )}
         </div>
-        <div className="flex gap-1.5">
+        <div className='flex gap-1.5'>
           {activeModels.map(({ label, state, m }) => (
             <Button
               key={label}
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               disabled={state.loading || !m || m === 'custom'}
               onClick={() => {
                 void state.fetch(m);
@@ -143,7 +143,7 @@ function LiveStatsSection({
               <RefreshCw
                 className={cn(
                   'h-3.5 w-3.5 mr-1.5',
-                  state.loading && 'animate-spin'
+                  state.loading && 'animate-spin',
                 )}
               />
               {label}
@@ -165,10 +165,10 @@ export function ModelsSection() {
 
   const [localModel, setLocalModel] = useState(settings.model);
   const [localMarkingModel, setLocalMarkingModel] = useState(
-    settings.markingModel
+    settings.markingModel,
   );
   const [localImageMarkingModel, setLocalImageMarkingModel] = useState(
-    settings.imageMarkingModel
+    settings.imageMarkingModel,
   );
   const [localTutorModel, setLocalTutorModel] = useState(settings.tutorModel);
   const [localUseSeparateMarkingModel, setLocalUseSeparateMarkingModel] =
@@ -178,7 +178,7 @@ export function ModelsSection() {
     setLocalUseSeparateImageMarkingModel,
   ] = useState(settings.useSeparateImageMarkingModel);
   const [localIncludeExamContext, setLocalIncludeExamContext] = useState(
-    settings.includeExamContext
+    settings.includeExamContext,
   );
 
   const [showCustom, setShowCustom] = useState(false);
@@ -233,7 +233,7 @@ export function ModelsSection() {
       settings.useSeparateImageMarkingModel
     ) {
       settings.setUseSeparateImageMarkingModel(
-        localUseSeparateImageMarkingModel
+        localUseSeparateImageMarkingModel,
       );
     }
   }, [localUseSeparateImageMarkingModel, settings]);
@@ -328,11 +328,11 @@ export function ModelsSection() {
       localTutorModel,
       localUseSeparateMarkingModel,
       localUseSeparateImageMarkingModel,
-    ]
+    ],
   );
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {searchOpen && (
         <ModelSearchPanel
           target={searchTarget}
@@ -342,14 +342,14 @@ export function ModelsSection() {
         />
       )}
 
-      <section className="space-y-3">
+      <section className='space-y-3'>
         <SectionHeader
-          title="Generation Model"
-          description="Used to generate questions."
+          title='Generation Model'
+          description='Used to generate questions.'
         />
-        <FieldGroup label="Model" htmlFor="model-select">
+        <FieldGroup label='Model' htmlFor='model-select'>
           <ModelSelectRow
-            id="model-select"
+            id='model-select'
             value={localModel}
             models={PRESET_MODELS}
             disabled={!settings.apiKey}
@@ -363,8 +363,8 @@ export function ModelsSection() {
         </FieldGroup>
         {showCustom && (
           <CustomModelInput
-            id="custom-model-id"
-            label="Custom Model ID"
+            id='custom-model-id'
+            label='Custom Model ID'
             value={customId}
             onChange={setCustomId}
             onApply={() => {
@@ -379,20 +379,20 @@ export function ModelsSection() {
 
       <section>
         <SectionHeader
-          title="Marking Model"
-          description="Optional separate model for grading."
+          title='Marking Model'
+          description='Optional separate model for grading.'
         />
         <ToggleRow
-          id="use-separate-marking-model"
+          id='use-separate-marking-model'
           checked={localUseSeparateMarkingModel}
           onChange={setLocalUseSeparateMarkingModel}
-          label="Use a separate marking model"
+          label='Use a separate marking model'
         />
         {localUseSeparateMarkingModel && (
-          <div className="space-y-3">
-            <FieldGroup label="Marking model" htmlFor="marking-model-select">
+          <div className='space-y-3'>
+            <FieldGroup label='Marking model' htmlFor='marking-model-select'>
               <ModelSelectRow
-                id="marking-model-select"
+                id='marking-model-select'
                 value={localMarkingModel}
                 models={PRESET_MODELS}
                 disabled={!settings.apiKey}
@@ -406,8 +406,8 @@ export function ModelsSection() {
             </FieldGroup>
             {showCustomMarking && (
               <CustomModelInput
-                id="custom-marking-model-id"
-                label="Custom Marking Model ID"
+                id='custom-marking-model-id'
+                label='Custom Marking Model ID'
                 value={customMarkingId}
                 onChange={setCustomMarkingId}
                 onApply={() => {
@@ -424,23 +424,23 @@ export function ModelsSection() {
 
       <section>
         <SectionHeader
-          title="Image Marking Model"
-          description="Optional separate vision model for marking uploaded answers."
+          title='Image Marking Model'
+          description='Optional separate vision model for marking uploaded answers.'
         />
         <ToggleRow
-          id="use-separate-image-marking-model"
+          id='use-separate-image-marking-model'
           checked={localUseSeparateImageMarkingModel}
           onChange={setLocalUseSeparateImageMarkingModel}
-          label="Use a separate image marking model"
+          label='Use a separate image marking model'
         />
         {localUseSeparateImageMarkingModel && (
-          <div className="space-y-3 mt-3">
+          <div className='space-y-3 mt-3'>
             <FieldGroup
-              label="Image marking model"
-              htmlFor="image-marking-model-select"
+              label='Image marking model'
+              htmlFor='image-marking-model-select'
             >
               <ImageModelSelectRow
-                id="image-marking-model-select"
+                id='image-marking-model-select'
                 value={localImageMarkingModel}
                 disabled={!settings.apiKey}
                 apiKey={settings.apiKey}
@@ -455,8 +455,8 @@ export function ModelsSection() {
             </FieldGroup>
             {showCustomImageMarking && (
               <CustomModelInput
-                id="custom-image-marking-model-id"
-                label="Custom Image Marking Model ID"
+                id='custom-image-marking-model-id'
+                label='Custom Image Marking Model ID'
                 value={customImageMarkingId}
                 onChange={setCustomImageMarkingId}
                 onApply={() => {
@@ -471,14 +471,14 @@ export function ModelsSection() {
 
       <Divider />
 
-      <section className="space-y-3">
+      <section className='space-y-3'>
         <SectionHeader
-          title="Tutor Model"
-          description="Model used for the AI chat panel."
+          title='Tutor Model'
+          description='Model used for the AI chat panel.'
         />
-        <FieldGroup label="Tutor model" htmlFor="tutor-model-select">
+        <FieldGroup label='Tutor model' htmlFor='tutor-model-select'>
           <ModelSelectRow
-            id="tutor-model-select"
+            id='tutor-model-select'
             value={localTutorModel}
             models={PRESET_MODELS}
             disabled={!settings.apiKey}
@@ -492,8 +492,8 @@ export function ModelsSection() {
         </FieldGroup>
         {showCustomTutor && (
           <CustomModelInput
-            id="custom-tutor-model-id"
-            label="Custom Tutor Model ID"
+            id='custom-tutor-model-id'
+            label='Custom Tutor Model ID'
             value={customTutorId}
             onChange={setCustomTutorId}
             onApply={() => {
@@ -508,15 +508,15 @@ export function ModelsSection() {
 
       <section>
         <SectionHeader
-          title="Exam Context"
-          description="Attach previous exam PDFs as style context when generating questions."
+          title='Exam Context'
+          description='Attach previous exam PDFs as style context when generating questions.'
         />
         <ToggleRow
-          id="include-exam-context"
+          id='include-exam-context'
           checked={localIncludeExamContext}
           onChange={setLocalIncludeExamContext}
-          label="Upload previous exams to the model during generation"
-          description="Uses your local exam PDF references to improve style and marking alignment."
+          label='Upload previous exams to the model during generation'
+          description='Uses your local exam PDF references to improve style and marking alignment.'
         />
       </section>
 

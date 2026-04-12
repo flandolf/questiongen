@@ -28,7 +28,7 @@ function mergeById<T extends { id: string; lastModified?: number }>(
   remote: T[],
   options?: {
     preserveLocalOnly?: (entry: T) => boolean;
-  }
+  },
 ): T[] {
   const result = [...remote];
   const remoteMap = new Map(remote.map((e) => [e.id, e]));
@@ -61,7 +61,7 @@ export interface UseSyncV3Return {
   enableSync: (
     email: string,
     password: string,
-    isSignUp?: boolean
+    isSignUp?: boolean,
   ) => Promise<void>;
   disableSync: () => Promise<void>;
 }
@@ -116,7 +116,7 @@ export function useSyncV3(): UseSyncV3Return {
           { includeMetadataChanges: true },
           (snapshot) => {
             const history = normalizeQuestionHistory(
-              snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
               ...e,
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
@@ -131,10 +131,10 @@ export function useSyncV3(): UseSyncV3Return {
           (error) => {
             console.error(
               '[FirebaseSync] Question history listener error:',
-              error
+              error,
             );
             setSyncStatus('error');
-          }
+          },
         );
 
         // 2. MC History
@@ -143,7 +143,7 @@ export function useSyncV3(): UseSyncV3Return {
           { includeMetadataChanges: true },
           (snapshot) => {
             const history = normalizeMcHistory(
-              snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
               ...e,
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
@@ -158,7 +158,7 @@ export function useSyncV3(): UseSyncV3Return {
           (error) => {
             console.error('[FirebaseSync] MC history listener error:', error);
             setSyncStatus('error');
-          }
+          },
         );
 
         // 3. Saved Sets
@@ -175,7 +175,7 @@ export function useSyncV3(): UseSyncV3Return {
           (error) => {
             console.error('[FirebaseSync] Saved sets listener error:', error);
             setSyncStatus('error');
-          }
+          },
         );
 
         // 4. Settings - Main
@@ -190,10 +190,10 @@ export function useSyncV3(): UseSyncV3Return {
           (error) => {
             console.error(
               '[FirebaseSync] Main settings listener error:',
-              error
+              error,
             );
             setSyncStatus('error');
-          }
+          },
         );
 
         // 5. Settings - Goals
@@ -214,7 +214,7 @@ export function useSyncV3(): UseSyncV3Return {
           (error) => {
             console.error('[FirebaseSync] Goals listener error:', error);
             setSyncStatus('error');
-          }
+          },
         );
 
         // 6. Settings - Presets
@@ -230,7 +230,7 @@ export function useSyncV3(): UseSyncV3Return {
           (error) => {
             console.error('[FirebaseSync] Presets listener error:', error);
             setSyncStatus('error');
-          }
+          },
         );
 
         unsubscribesRef.current = [
@@ -251,7 +251,7 @@ export function useSyncV3(): UseSyncV3Return {
         setSyncStatus('error');
       }
     },
-    [cleanupListeners, syncUpPendingData]
+    [cleanupListeners, syncUpPendingData],
   );
 
   useEffect(() => {
@@ -295,7 +295,7 @@ export function useSyncV3(): UseSyncV3Return {
   const enableSync = async (
     email: string,
     password: string,
-    isSignUp = false
+    isSignUp = false,
   ) => {
     setSyncStatus('connecting');
     try {

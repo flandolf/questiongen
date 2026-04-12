@@ -111,7 +111,7 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
     <div
       key={setIdsKey}
       ref={parentRef}
-      className="flex-1 overflow-auto"
+      className='flex-1 overflow-auto'
       style={{ minHeight: 0 }}
     >
       <div
@@ -146,16 +146,16 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                 paddingBottom: 16,
               }}
             >
-              <Card className="overflow-hidden border shadow-sm transition-shadow hover:shadow-md bg-muted/30">
-                <CardHeader className="px-4 border-b">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base  truncate">
+              <Card className='overflow-hidden border shadow-sm transition-shadow hover:shadow-md bg-muted/30'>
+                <CardHeader className='px-4 border-b'>
+                  <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                    <div className='space-y-1 min-w-0'>
+                      <div className='flex flex-wrap items-center gap-2'>
+                        <span className='text-base  truncate'>
                           {savedSet.title}
                         </span>
                         <Badge
-                          variant="secondary"
+                          variant='secondary'
                           className={`shrink-0 text-xs ${
                             isWritten
                               ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
@@ -165,90 +165,90 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                           {isWritten ? 'Written' : 'Multiple Choice'}
                         </Badge>
                       </div>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock3 className="h-3 w-3 shrink-0" />
+                      <p className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                        <Clock3 className='h-3 w-3 shrink-0' />
                         Saved {formatDate(savedSet.updatedAt)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className='flex items-center gap-2 shrink-0'>
                       <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 px-3 py-2 h-8 text-xs"
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='gap-1.5 px-3 py-2 h-8 text-xs'
                         onClick={() => onOpen(savedSet.id)}
                       >
-                        <FolderOpen className="h-3.5 w-3.5" />
+                        <FolderOpen className='h-3.5 w-3.5' />
                         Reopen
                       </Button>
                       <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5 px-3 py-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        type='button'
+                        variant='ghost'
+                        size='sm'
+                        className='gap-1.5 px-3 py-2 h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10'
                         onClick={() => onDelete(savedSet.id, savedSet.title)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className='h-3.5 w-3.5' />
                         Delete
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="px-4 py-3 space-y-3">
-                  <div className="flex flex-wrap gap-1.5">
+                <CardContent className='px-4 py-3 space-y-3'>
+                  <div className='flex flex-wrap gap-1.5'>
                     {topics.length > 0 ? (
                       topics.map((topic: string) => (
                         <Badge
                           key={topic}
-                          variant="outline"
-                          className="text-xs px-2 py-0.5"
+                          variant='outline'
+                          className='text-xs px-2 py-0.5'
                         >
                           {topic}
                         </Badge>
                       ))
                     ) : (
-                      <Badge variant="outline" className="text-xs px-2 py-0.5">
+                      <Badge variant='outline' className='text-xs px-2 py-0.5'>
                         Mixed topics
                       </Badge>
                     )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <BarChart2 className="h-3 w-3 shrink-0" />
-                        <span className="text-xs  uppercase tracking-wide">
+                  <div className='grid grid-cols-3 gap-2'>
+                    <div className='rounded-sm border bg-muted/20 px-3 py-2 space-y-1'>
+                      <div className='flex items-center gap-1 text-muted-foreground'>
+                        <BarChart2 className='h-3 w-3 shrink-0' />
+                        <span className='text-xs  uppercase tracking-wide'>
                           Difficulty
                         </span>
                       </div>
-                      <div className="text-xs  capitalize">
+                      <div className='text-xs  capitalize'>
                         {savedSet.preferences.difficulty}
                       </div>
                     </div>
-                    <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Hash className="h-3 w-3 shrink-0" />
-                        <span className="text-xs  uppercase tracking-wide">
+                    <div className='rounded-sm border bg-muted/20 px-3 py-2 space-y-1'>
+                      <div className='flex items-center gap-1 text-muted-foreground'>
+                        <Hash className='h-3 w-3 shrink-0' />
+                        <span className='text-xs  uppercase tracking-wide'>
                           Progress
                         </span>
                       </div>
-                      <div className="text-xs font-medium">
+                      <div className='text-xs font-medium'>
                         {completedCount}/{questionCount}
                       </div>
                     </div>
-                    <div className="rounded-sm border bg-muted/20 px-3 py-2 space-y-1">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock3 className="h-3 w-3 shrink-0" />
-                        <span className="text-xs font-semibold uppercase tracking-wide">
+                    <div className='rounded-sm border bg-muted/20 px-3 py-2 space-y-1'>
+                      <div className='flex items-center gap-1 text-muted-foreground'>
+                        <Clock3 className='h-3 w-3 shrink-0' />
+                        <span className='text-xs font-semibold uppercase tracking-wide'>
                           Saved
                         </span>
                       </div>
-                      <div className="text-xs font-medium truncate">
+                      <div className='text-xs font-medium truncate'>
                         {formatDate(savedSet.updatedAt)}
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <div className="h-1.5 w-full rounded-sm bg-muted overflow-hidden">
+                  <div className='space-y-1'>
+                    <div className='h-1.5 w-full rounded-sm bg-muted overflow-hidden'>
                       <div
                         className={`h-full rounded-sm transition-all duration-500 ${isWritten ? 'bg-sky-500' : 'bg-violet-500'}`}
                         style={{ width: `${progressPct}%` }}
@@ -348,7 +348,7 @@ export function SavedView() {
       result = result.filter((s) =>
         modeFilter === 'written'
           ? s.questionMode === 'written'
-          : s.questionMode !== 'written'
+          : s.questionMode !== 'written',
       );
     }
 
@@ -358,7 +358,7 @@ export function SavedView() {
       result = result.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
-          s.preferences.selectedTopics.some((t) => t.toLowerCase().includes(q))
+          s.preferences.selectedTopics.some((t) => t.toLowerCase().includes(q)),
       );
     }
 
@@ -366,7 +366,7 @@ export function SavedView() {
     result.sort((a, b) => {
       if (sortKey === 'updatedAt')
         return String(b.updatedAt || '').localeCompare(
-          String(a.updatedAt || '')
+          String(a.updatedAt || ''),
         );
       if (sortKey === 'title') return a.title.localeCompare(b.title);
       if (sortKey === 'progress') {
@@ -408,12 +408,12 @@ export function SavedView() {
     return (
       <PageContainer>
         <EmptyState
-          title="No Saved Sets Yet."
-          description="Save a generated question set from the generator to reopen it later."
+          title='No Saved Sets Yet.'
+          description='Save a generated question set from the generator to reopen it later.'
           icon={Bookmark}
           actions={
             <Button onClick={() => void navigate('/')}>
-              <PlusCircle className="h-4 w-4" />
+              <PlusCircle className='h-4 w-4' />
               Generate your first set
             </Button>
           }
@@ -425,19 +425,19 @@ export function SavedView() {
   return (
     <PageContainer>
       <PageHeader
-        title="Saved Sets"
-        description="Reopen saved written and multiple-choice sets with your progress intact."
+        title='Saved Sets'
+        description='Reopen saved written and multiple-choice sets with your progress intact.'
       />
 
       <Toolbar>
-        <div className="relative flex-1 min-w-[160px] max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <div className='relative flex-1 min-w-[160px] max-w-xs'>
+          <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none' />
           <input
-            type="text"
-            placeholder="Search sets…"
+            type='text'
+            placeholder='Search sets…'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 pl-8 pr-3 text-xs rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className='w-full h-8 pl-8 pr-3 text-xs rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring'
           />
         </div>
 
@@ -453,36 +453,36 @@ export function SavedView() {
           ))}
         </FilterGroup>
 
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <SortAsc className="h-3.5 w-3.5 shrink-0" />
+        <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+          <SortAsc className='h-3.5 w-3.5 shrink-0' />
           <select
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="h-8 px-2 text-xs rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className='h-8 px-2 text-xs rounded-sm border bg-background focus:outline-none focus:ring-2 focus:ring-ring'
           >
-            <option value="updatedAt">Last saved</option>
-            <option value="title">Title A–Z</option>
-            <option value="progress">Progress</option>
+            <option value='updatedAt'>Last saved</option>
+            <option value='title'>Title A–Z</option>
+            <option value='progress'>Progress</option>
           </select>
         </div>
         <Button
-          variant="outline"
-          size="sm"
+          variant='outline'
+          size='sm'
           onClick={handleDeleteAll}
-          className="h-8 gap-1.5 text-xs"
+          className='h-8 gap-1.5 text-xs'
         >
-          <RotateCcw className="h-3.5 w-3.5" />
+          <RotateCcw className='h-3.5 w-3.5' />
           Clear all
         </Button>
       </Toolbar>
 
       {filteredSets.length === 0 && (
-        <p className="text-sm text-muted-foreground px-1">
+        <p className='text-sm text-muted-foreground px-1'>
           No sets match your filters.
         </p>
       )}
 
-      <div className="flex-1">
+      <div className='flex-1'>
         <VirtualizedSavedSetList
           sets={filteredSets}
           onOpen={handleOpen}
@@ -492,14 +492,14 @@ export function SavedView() {
 
       <ConfirmModal
         open={confirmOpen}
-        title="Delete saved set"
+        title='Delete saved set'
         description={
           pendingDelete
             ? `"${pendingDelete.title}" will be permanently deleted. Your history entries will be kept.`
             : undefined
         }
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText='Delete'
+        cancelText='Cancel'
         onConfirm={performDeleteConfirmed}
         onCancel={() => {
           setConfirmOpen(false);
@@ -509,10 +509,10 @@ export function SavedView() {
 
       <ConfirmModal
         open={confirmDeleteAllOpen}
-        title="Clear all saved sets"
-        description="All saved sets will be permanently deleted. Your history entries will be kept."
-        confirmText="Clear all"
-        cancelText="Cancel"
+        title='Clear all saved sets'
+        description='All saved sets will be permanently deleted. Your history entries will be kept.'
+        confirmText='Clear all'
+        cancelText='Cancel'
         onConfirm={performDeleteAllConfirmed}
         onCancel={() => setConfirmDeleteAllOpen(false)}
       />
@@ -520,14 +520,14 @@ export function SavedView() {
       {/* --- #4 + #14: Reframed load confirm with set title --- */}
       <ConfirmModal
         open={loadConfirmOpen}
-        title="Load saved set"
+        title='Load saved set'
         description={
           pendingLoadSet
             ? `Your current session will be saved automatically before opening "${pendingLoadSet.title}".`
             : 'Your current session will be saved automatically before loading.'
         }
-        confirmText="Continue"
-        cancelText="Cancel"
+        confirmText='Continue'
+        cancelText='Cancel'
         onConfirm={performLoadConfirmed}
         onCancel={() => {
           setLoadConfirmOpen(false);

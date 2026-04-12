@@ -46,7 +46,7 @@ export function clampWholeNumber(
   value: unknown,
   fallback: number,
   min: number,
-  max: number
+  max: number,
 ): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
@@ -58,7 +58,7 @@ export function clampWholeNumber(
 
 export function normalizeMarkResponse(
   raw: unknown,
-  questionMaxMarks: number
+  questionMaxMarks: number,
 ): MarkAnswerResponse {
   const data = (raw ?? {}) as Partial<MarkAnswerResponse>;
   const maxMarks =
@@ -70,7 +70,7 @@ export function normalizeMarkResponse(
     data.scoreOutOf10,
     Math.round((achievedMarks / maxMarks) * 10),
     0,
-    10
+    10,
   );
   const vcaaMarkingScheme = Array.isArray(data.vcaaMarkingScheme)
     ? data.vcaaMarkingScheme.map((item) => ({
@@ -103,7 +103,7 @@ export function fileToDataUrl(
     maxWidth: 1600,
     maxHeight: 1600,
     quality: 0.8,
-  }
+  },
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -194,7 +194,7 @@ export function removeUndefined<T>(obj: T): T {
 
   if (Array.isArray(obj)) {
     return (obj as unknown[]).map((item) =>
-      removeUndefined(item)
+      removeUndefined(item),
     ) as unknown as T;
   }
 

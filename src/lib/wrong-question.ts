@@ -30,7 +30,7 @@ export function criterionScoreClass(pct: number) {
 }
 
 export function getScoreInfo(
-  entry: WrongEntry
+  entry: WrongEntry,
 ): { scoreLabel: string; pct: number } | null {
   if (entry.kind !== 'written') return null;
   const pct =

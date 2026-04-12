@@ -43,7 +43,7 @@ if (isTauriRuntime) {
   } catch (error) {
     console.warn(
       '[Firebase] Failed to clear Firestore localStorage keys',
-      error
+      error,
     );
   }
 }
@@ -61,7 +61,7 @@ const db = (() => {
   } catch (error) {
     console.warn(
       '[Firebase] Firestore init fallback to default transport',
-      error
+      error,
     );
     return getFirestore(app);
   }
@@ -73,7 +73,7 @@ console.log(
   'db:',
   !!db,
   'storage:',
-  !!storage
+  !!storage,
 );
 
 export { app, auth, db, storage };

@@ -42,23 +42,23 @@ function GoalProgressBar({
   const pct = Math.min(100, (current / goal) * 100);
   const complete = current >= goal;
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between px-0.5">
-        <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider">
+    <div className='space-y-1.5'>
+      <div className='flex items-center justify-between px-0.5'>
+        <p className='text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider'>
           {label}
         </p>
-        <p className="text-[10px] font-bold tabular-nums opacity-80">
+        <p className='text-[10px] font-bold tabular-nums opacity-80'>
           {current}/{goal}
         </p>
       </div>
-      <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
+      <div className='h-1.5 w-full bg-muted/20 rounded-full overflow-hidden'>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }} // slight overshoot
           className={cn(
             'h-full rounded-full',
-            complete ? color : 'bg-primary/60'
+            complete ? color : 'bg-primary/60',
           )}
         />
       </div>
@@ -82,12 +82,12 @@ function ConcentricRings({
   const maxRadius = cx - strokeWidth / 2;
   const ringSpacing = strokeWidth + gap;
   return (
-    <div className="flex flex-col items-center gap-1 py-1 w-full">
+    <div className='flex flex-col items-center gap-1 py-1 w-full'>
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="overflow-visible"
+        className='overflow-visible'
       >
         {activeGoals.map((g, i) => {
           const r = maxRadius - i * ringSpacing;
@@ -101,19 +101,19 @@ function ConcentricRings({
                 cx={cx}
                 cy={cy}
                 r={r}
-                fill="none"
-                stroke="currentColor"
-                className="text-muted/10"
+                fill='none'
+                stroke='currentColor'
+                className='text-muted/10'
                 strokeWidth={strokeWidth}
               />
               <motion.circle
                 cx={cx}
                 cy={cy}
                 r={r}
-                fill="none"
+                fill='none'
                 stroke={g.color}
                 strokeWidth={strokeWidth}
-                strokeLinecap="round"
+                strokeLinecap='round'
                 strokeDasharray={circumference}
                 initial={{ strokeDashoffset: circumference }}
                 animate={{ strokeDashoffset: dashoffset }}
@@ -171,27 +171,27 @@ export function Sidebar() {
             `flex items-center ${collapsed ? 'justify-center' : 'justify-start'} h-10 px-3 rounded-lg transition-colors duration-150 relative group w-full`,
             isActive
               ? 'bg-primary/10 text-primary shadow-sm'
-              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
           )
         }
       >
-        <div className="flex items-center justify-center min-w-6">
-          <link.icon className="h-5 w-5 shrink-0 transition-transform duration-150 group-hover:scale-105" />
+        <div className='flex items-center justify-center min-w-6'>
+          <link.icon className='h-5 w-5 shrink-0 transition-transform duration-150 group-hover:scale-105' />
           {link.showSessionDot && hasActiveSession && (
-            <span className="absolute top-2.5 left-7 w-2 h-2 rounded-full bg-emerald-500 border-2 border-background" />
+            <span className='absolute top-2.5 left-7 w-2 h-2 rounded-full bg-emerald-500 border-2 border-background' />
           )}
         </div>
 
         {/* Label: slides + fades in; exits instantly so it doesn't linger during collapse */}
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode='wait' initial={false}>
           {!collapsed && (
             <motion.span
-              key="label"
+              key='label'
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -4, transition: { duration: 0.1 } }}
               transition={{ ...EASE, delay: 0.06 }}
-              className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden"
+              className='ml-3 text-sm font-medium whitespace-nowrap overflow-hidden'
             >
               {link.label}
             </motion.span>
@@ -200,13 +200,13 @@ export function Sidebar() {
 
         {/* Tooltip when collapsed */}
         {collapsed && (
-          <div className="absolute left-14 hidden group-hover:block z-50 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border shadow-md whitespace-nowrap">
+          <div className='absolute left-14 hidden group-hover:block z-50 px-2 py-1 bg-popover text-popover-foreground text-xs rounded border shadow-md whitespace-nowrap'>
             {link.label}
           </div>
         )}
       </NavLink>
     ),
-    [hasActiveSession, collapsed]
+    [hasActiveSession, collapsed],
   );
 
   const topLinks = [
@@ -222,10 +222,10 @@ export function Sidebar() {
       initial={false}
       animate={{ width: collapsed ? 64 : 192 }}
       transition={SPRING}
-      className="flex flex-col items-center h-full border-r border-border/50 bg-background/80 backdrop-blur-md relative overflow-hidden"
+      className='flex flex-col items-center h-full border-r border-border/50 bg-background/80 backdrop-blur-md relative overflow-hidden'
     >
       {/* Header */}
-      <div className="h-14 flex items-center justify-center px-3 mb-2 w-full">
+      <div className='h-14 flex items-center justify-center px-3 mb-2 w-full'>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -234,7 +234,7 @@ export function Sidebar() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 transition={SPRING}
-                className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground transition-colors"
+                className='p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground transition-colors'
               >
                 <motion.div
                   animate={{ rotate: collapsed ? 0 : 180 }}
@@ -244,7 +244,7 @@ export function Sidebar() {
                 </motion.div>
               </motion.button>
             </TooltipTrigger>
-            <TooltipContent side="right">
+            <TooltipContent side='right'>
               <p>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</p>
             </TooltipContent>
           </Tooltip>
@@ -252,16 +252,16 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="px-2 space-y-1 flex flex-col no-scrollbar w-full">
+      <nav className='px-2 space-y-1 flex flex-col no-scrollbar w-full'>
         {topLinks.map(renderLink)}
       </nav>
 
       {/* Footer / Stats */}
-      <div className="mt-auto px-3 pb-6 w-full">
+      <div className='mt-auto px-3 pb-6 w-full'>
         <div
           className={cn(
             'pt-4 border-t border-border/40',
-            collapsed ? 'space-y-1' : 'space-y-4'
+            collapsed ? 'space-y-1' : 'space-y-4',
           )}
         >
           {/* Streak badge */}
@@ -271,39 +271,39 @@ export function Sidebar() {
                 'flex items-center rounded-xl transition-all duration-300',
                 collapsed
                   ? 'justify-center'
-                  : 'gap-3 px-3 py-2.5 bg-orange-500/5 border border-orange-500/10'
+                  : 'gap-3 px-3 py-2.5 bg-orange-500/5 border border-orange-500/10',
               )}
             >
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence mode='wait' initial={false}>
                 {collapsed ? (
                   <motion.div
-                    key="streak-collapsed"
+                    key='streak-collapsed'
                     initial={{ opacity: 0, scale: 0.7 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.7 }}
                     transition={SPRING}
-                    className="relative flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/25 shadow-[0_0_8px_rgba(249,115,22,0.15)] cursor-default"
+                    className='relative flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/25 shadow-[0_0_8px_rgba(249,115,22,0.15)] cursor-default'
                   >
-                    <Flame className="h-4 w-4 text-orange-400 animate-pulse shrink-0" />
-                    <span className="text-[10px] font-semibold leading-none text-orange-300 tabular-nums">
+                    <Flame className='h-4 w-4 text-orange-400 animate-pulse shrink-0' />
+                    <span className='text-[10px] font-semibold leading-none text-orange-300 tabular-nums'>
                       {streakData.currentStreak}
                     </span>
                   </motion.div>
                 ) : (
                   <motion.div
-                    key="streak-expanded"
+                    key='streak-expanded'
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -8 }}
                     transition={{ ...EASE, delay: 0.08 }}
-                    className="relative flex items-center gap-2.5 px-3 py-2 rounded-xl overflow-hidden w-full"
+                    className='relative flex items-center gap-2.5 px-3 py-2 rounded-xl overflow-hidden w-full'
                   >
-                    <Flame className="shrink-0 h-5 w-5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.9)] animate-pulse" />
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[11px] font-semibold text-orange-300/70 leading-none tracking-wide uppercase">
+                    <Flame className='shrink-0 h-5 w-5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.9)] animate-pulse' />
+                    <div className='flex flex-col gap-0.5 min-w-0'>
+                      <span className='text-[11px] font-semibold text-orange-300/70 leading-none tracking-wide uppercase'>
                         Current Streak
                       </span>
-                      <span className="text-sm font-bold text-orange-400 leading-none tabular-nums">
+                      <span className='text-sm font-bold text-orange-400 leading-none tabular-nums'>
                         {streakData.currentStreak} days
                       </span>
                     </div>
@@ -314,44 +314,44 @@ export function Sidebar() {
           )}
 
           {/* Goals */}
-          <div className="px-1 pt-4">
-            <AnimatePresence mode="wait" initial={false}>
+          <div className='px-1 pt-4'>
+            <AnimatePresence mode='wait' initial={false}>
               {!collapsed ? (
                 <motion.div
-                  key="goals-expanded"
+                  key='goals-expanded'
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
-                  className="space-y-4"
+                  className='space-y-4'
                 >
                   {studyGoals.dailyQuestionGoal > 0 && (
                     <GoalProgressBar
-                      label="Overall"
+                      label='Overall'
                       current={todayCompletions.total}
                       goal={studyGoals.dailyQuestionGoal}
-                      color="bg-emerald-500"
+                      color='bg-emerald-500'
                     />
                   )}
                   {studyGoals.dailyMcGoal > 0 && (
                     <GoalProgressBar
-                      label="Multiple Choice"
+                      label='Multiple Choice'
                       current={todayCompletions.mc}
                       goal={studyGoals.dailyMcGoal}
-                      color="bg-violet-500"
+                      color='bg-violet-500'
                     />
                   )}
                   {studyGoals.dailyWrittenGoal > 0 && (
                     <GoalProgressBar
-                      label="Written"
+                      label='Written'
                       current={todayCompletions.written}
                       goal={studyGoals.dailyWrittenGoal}
-                      color="bg-sky-500"
+                      color='bg-sky-500'
                     />
                   )}
                 </motion.div>
               ) : (
                 <motion.div
-                  key="goals-collapsed"
+                  key='goals-collapsed'
                   initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{
@@ -389,7 +389,7 @@ export function Sidebar() {
         </div>
 
         {/* Settings */}
-        <div className="pt-6 w-full">
+        <div className='pt-6 w-full'>
           {renderLink({ to: '/settings', label: 'Settings', icon: Settings })}
         </div>
       </div>

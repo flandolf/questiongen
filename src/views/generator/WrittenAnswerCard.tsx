@@ -137,36 +137,36 @@ export function WrittenAnswerCard({
       onChange={onAnswerChange}
       disabled={isMarking}
       topSlot={
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-1">
-          <div className="grid grid-cols-3 gap-1">
+        <div className='rounded-xl border border-border/60 bg-muted/20 p-1'>
+          <div className='grid grid-cols-3 gap-1'>
             <Button
-              type="button"
+              type='button'
               variant={activeTab === 'response' ? 'default' : 'ghost'}
-              size="sm"
-              className="gap-1.5"
+              size='sm'
+              className='gap-1.5'
               onClick={() => setActiveTab('response')}
             >
-              <Type className="h-3.5 w-3.5" />
+              <Type className='h-3.5 w-3.5' />
               Response
             </Button>
             <Button
-              type="button"
+              type='button'
               variant={activeTab === 'upload' ? 'default' : 'ghost'}
-              size="sm"
-              className="gap-1.5"
+              size='sm'
+              className='gap-1.5'
               onClick={() => setActiveTab('upload')}
             >
-              <ImageIcon className="h-3.5 w-3.5" />
+              <ImageIcon className='h-3.5 w-3.5' />
               Upload image
             </Button>
             <Button
-              type="button"
+              type='button'
               variant={activeTab === 'sketchpad' ? 'default' : 'ghost'}
-              size="sm"
-              className="gap-1.5"
+              size='sm'
+              className='gap-1.5'
               onClick={() => setActiveTab('sketchpad')}
             >
-              <PencilRuler className="h-3.5 w-3.5" />
+              <PencilRuler className='h-3.5 w-3.5' />
               Sketchpad
             </Button>
           </div>
@@ -178,8 +178,8 @@ export function WrittenAnswerCard({
             value={answer}
             onChange={(e) => onAnswerChange(e.target.value)}
             disabled={isMarking}
-            placeholder="Draft your solution here..."
-            className="min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+            placeholder='Draft your solution here...'
+            className='min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30'
           />
         ) : (
           <></>
@@ -187,7 +187,7 @@ export function WrittenAnswerCard({
       }
       headerRight={
         words > 0 ? (
-          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+          <span className='text-xs font-medium text-muted-foreground tabular-nums'>
             {words} {words === 1 ? 'word' : 'words'}
           </span>
         ) : undefined
@@ -195,33 +195,33 @@ export function WrittenAnswerCard({
       footerNote={footerNote}
     >
       {activeTab === 'upload' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-muted-foreground/70">
-            <ImageIcon className="w-4 h-4" />
-            <span className="text-xs uppercase tracking-wide">
+        <div className='space-y-2'>
+          <div className='flex items-center gap-2 text-muted-foreground/70'>
+            <ImageIcon className='w-4 h-4' />
+            <span className='text-xs uppercase tracking-wide'>
               Upload Image
             </span>
           </div>
           {image ? (
-            <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
+            <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
               <img
                 src={image.downloadUrl || image.dataUrl}
-                alt="Uploaded working"
-                className="w-full h-auto max-h-96 object-contain rounded-lg"
+                alt='Uploaded working'
+                className='w-full h-auto max-h-96 object-contain rounded-lg'
               />
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl">
+              <div className='absolute inset-0 bg-background/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl'>
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  className="gap-1.5 shadow-lg"
+                  variant='destructive'
+                  size='sm'
+                  className='gap-1.5 shadow-lg'
                   onClick={onImageRemove}
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                  <Trash2 className='w-3.5 h-3.5' /> Remove
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="border-2 border-dashed border-border/60 rounded-xl hover:border-primary/40 hover:bg-muted/20 transition-colors">
+            <div className='border-2 border-dashed border-border/60 rounded-xl hover:border-primary/40 hover:bg-muted/20 transition-colors'>
               <Dropzone onDrop={onImageDrop} />
             </div>
           )}
@@ -229,7 +229,7 @@ export function WrittenAnswerCard({
       )}
 
       {activeTab === 'sketchpad' && (
-        <div className="space-y-2">
+        <div className='space-y-2'>
           <Sketchpad
             ref={sketchpadRef}
             embedded
@@ -238,20 +238,20 @@ export function WrittenAnswerCard({
           />
 
           {image && (
-            <div className="relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2">
+            <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
               <img
                 src={image.downloadUrl || image.dataUrl}
-                alt="Saved sketch"
-                className="w-full h-auto max-h-64 object-contain rounded-lg"
+                alt='Saved sketch'
+                className='w-full h-auto max-h-64 object-contain rounded-lg'
               />
-              <div className="mt-2 flex justify-end">
+              <div className='mt-2 flex justify-end'>
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  className="gap-1.5"
+                  variant='destructive'
+                  size='sm'
+                  className='gap-1.5'
                   onClick={onImageRemove}
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Remove saved sketch
+                  <Trash2 className='w-3.5 h-3.5' /> Remove saved sketch
                 </Button>
               </div>
             </div>
@@ -263,7 +263,7 @@ export function WrittenAnswerCard({
       {!isExamMode && (
         <>
           <Button
-            size="lg"
+            size='lg'
             className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
               hasContent && !isMarking
                 ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
@@ -274,21 +274,21 @@ export function WrittenAnswerCard({
           >
             {isMarking ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Evaluating…
+                <Loader2 className='w-4 h-4 animate-spin' /> Evaluating…
               </>
             ) : activeTab === 'sketchpad' && confirmSketchSubmit ? (
               <>
-                <CheckCircle2 className="w-4 h-4" /> Tap again to confirm sketch
+                <CheckCircle2 className='w-4 h-4' /> Tap again to confirm sketch
                 submission
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-4 h-4" /> Submit for Marking
+                <CheckCircle2 className='w-4 h-4' /> Submit for Marking
               </>
             )}
           </Button>
           {activeTab === 'sketchpad' && confirmSketchSubmit && !isMarking && (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
+            <p className='mt-2 text-center text-xs text-muted-foreground'>
               Confirmation expires in a few seconds.
             </p>
           )}

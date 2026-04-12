@@ -107,7 +107,7 @@ export const PALM_REJECTION = {
 
 export function applyPressureCurve(
   pressure: number,
-  curve: PressureCurve
+  curve: PressureCurve,
 ): number {
   const p = Math.max(0, Math.min(1, pressure));
   switch (curve) {
@@ -125,7 +125,7 @@ export function applyPressureCurve(
 
 export function hexToRgba(
   hex: string,
-  alpha: number
+  alpha: number,
 ): [number, number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -139,7 +139,7 @@ export function floodFill(
   startY: number,
   fillColor: string,
   alpha: number,
-  tolerance: number = 32
+  tolerance: number = 32,
 ) {
   const canvas = ctx.canvas;
   const w = canvas.width;
@@ -191,7 +191,7 @@ export function floodFill(
 
 export function getCropBoundingBox(
   canvas: HTMLCanvasElement,
-  padding: number = 20
+  padding: number = 20,
 ) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
@@ -288,7 +288,7 @@ export function getStrokeBoundingBox(strokes: Stroke[], padding: number = 20) {
 
 export function mergeBoundingBoxes(
   a: { x: number; y: number; width: number; height: number } | null,
-  b: { x: number; y: number; width: number; height: number } | null
+  b: { x: number; y: number; width: number; height: number } | null,
 ) {
   if (!a) return b;
   if (!b) return a;
@@ -318,7 +318,7 @@ export function cloneStrokes(strokeList: Stroke[]): Stroke[] {
  */
 export function simplifyPoints(
   points: Point[],
-  tolerance: number = 0.5
+  tolerance: number = 0.5,
 ): Point[] {
   if (points.length <= 2) return points;
 
@@ -353,7 +353,7 @@ export function simplifyPoints(
     first: number,
     last: number,
     sqTolerance: number,
-    simplified: Point[]
+    simplified: Point[],
   ) {
     let maxSqDist = sqTolerance,
       index = -1;
@@ -388,7 +388,7 @@ export function simplifyPoints(
  */
 export function getCatmullRomPoints(
   points: Point[],
-  segments: number = 4
+  segments: number = 4,
 ): Point[] {
   if (points.length < 3) return points;
 
@@ -434,7 +434,7 @@ export function drawShape(
   ctx: CanvasRenderingContext2D,
   tool: ToolType,
   start: { x: number; y: number },
-  end: { x: number; y: number }
+  end: { x: number; y: number },
 ) {
   ctx.beginPath();
   if (tool === 'line') {
@@ -458,7 +458,7 @@ export function drawGraphAxes(
   cx: number,
   cy: number,
   color: string,
-  strokeWidth: number = 2
+  strokeWidth: number = 2,
 ) {
   const halfW = 320;
   const halfH = 240;
@@ -524,11 +524,11 @@ export function drawGraphAxes(
     ctx.moveTo(tipX, tipY);
     ctx.lineTo(
       tipX - ux * arrowSize + px * base,
-      tipY - uy * arrowSize + py * base
+      tipY - uy * arrowSize + py * base,
     );
     ctx.lineTo(
       tipX - ux * arrowSize - px * base,
-      tipY - uy * arrowSize - py * base
+      tipY - uy * arrowSize - py * base,
     );
     ctx.closePath();
     ctx.fill();
@@ -589,7 +589,7 @@ export function paintBackground(
   bg: BgType,
   zoom: number = 1,
   pan: { x: number; y: number } = { x: 0, y: 0 },
-  dpr: number = 1
+  dpr: number = 1,
 ) {
   const isDark = bg === 'black-grid';
   const darkBg = 'oklch(27.4% 0.006 286.033)';

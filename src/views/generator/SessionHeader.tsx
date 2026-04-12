@@ -82,7 +82,7 @@ export function SessionHeader({
 }: SessionHeaderProps) {
   const timeAllocations = useAppStore((s) => s.timeAllocations);
   const difficultyAllocation = timeAllocations.find(
-    (a) => a.difficulty === difficulty
+    (a) => a.difficulty === difficulty,
   );
   const progressPct =
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
@@ -118,9 +118,9 @@ export function SessionHeader({
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md">
+    <div className='sticky top-0 z-20 bg-background/90 backdrop-blur-md'>
       {/* Session progress bar at very top */}
-      <div className="h-1 w-full bg-muted/30">
+      <div className='h-1 w-full bg-muted/30'>
         <div
           className={`h-full ${progressBarColor} transition-all duration-500 ease-out`}
           style={{ width: `${progressPct}%` }}
@@ -128,20 +128,20 @@ export function SessionHeader({
       </div>
 
       {/* Navigation row */}
-      <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className='px-4 py-2 flex flex-wrap items-center justify-between gap-3'>
+        <div className='flex min-w-0 items-center gap-3'>
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={onExit}
-            className="gap-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 h-9"
+            className='gap-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 h-9'
           >
-            <Flag className="w-4 h-4" /> End Session
+            <Flag className='w-4 h-4' /> End Session
           </Button>
-          <div className="h-4 w-px bg-border hidden sm:block" />
-          <div className="hidden sm:flex items-center gap-2 text-sm font-medium">
-            <span className="text-foreground">Q {questionIndex + 1}</span>
-            <span className="text-muted-foreground">of {totalQuestions}</span>
+          <div className='h-4 w-px bg-border hidden sm:block' />
+          <div className='hidden sm:flex items-center gap-2 text-sm font-medium'>
+            <span className='text-foreground'>Q {questionIndex + 1}</span>
+            <span className='text-muted-foreground'>of {totalQuestions}</span>
           </div>
           {questionTimeSeconds !== undefined && (
             <span
@@ -159,47 +159,47 @@ export function SessionHeader({
 
               {onTogglePause && (
                 <Button
-                  variant="ghost"
-                  size="icon-sm"
+                  variant='ghost'
+                  size='icon-sm'
                   onClick={onTogglePause}
                   title={isPaused ? 'Resume timer' : 'Pause timer'}
-                  className="h-6 w-6 p-0 rounded-full ml-1"
+                  className='h-6 w-6 p-0 rounded-full ml-1'
                 >
                   {isPaused ? (
-                    <Play className="w-3 h-3" />
+                    <Play className='w-3 h-3' />
                   ) : (
-                    <Pause className="w-3 h-3" />
+                    <Pause className='w-3 h-3' />
                   )}
                 </Button>
               )}
 
               {onResetTimer && (
                 <Button
-                  variant="ghost"
-                  size="icon-sm"
+                  variant='ghost'
+                  size='icon-sm'
                   onClick={onResetTimer}
-                  title="Reset timer"
-                  className="h-6 w-6 p-0 rounded-full"
+                  title='Reset timer'
+                  className='h-6 w-6 p-0 rounded-full'
                 >
-                  <RefreshCw className="w-3 h-3" />
+                  <RefreshCw className='w-3 h-3' />
                 </Button>
               )}
 
               {isQuestionWarning && (
-                <span className="text-amber-500 text-[10px] font-bold animate-pulse">
+                <span className='text-amber-500 text-[10px] font-bold animate-pulse'>
                   !
                 </span>
               )}
             </span>
           )}
           {completedCount > 0 && completedCount < totalQuestions && (
-            <span className="text-[10px] text-muted-foreground tabular-nums hidden sm:inline">
+            <span className='text-[10px] text-muted-foreground tabular-nums hidden sm:inline'>
               ({completedCount} answered)
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2 ml-auto">
+        <div className='flex items-center gap-2 ml-auto'>
           <InfoBadges
             topic={topic}
             difficulty={difficulty}
@@ -213,17 +213,17 @@ export function SessionHeader({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="shrink-0 rounded-full text-muted-foreground hover:text-foreground h-9 w-9"
-                  aria-label="Question details"
+                  variant='ghost'
+                  size='icon-sm'
+                  className='shrink-0 rounded-full text-muted-foreground hover:text-foreground h-9 w-9'
+                  aria-label='Question details'
                 >
-                  <Info className="h-3.5 w-3.5" />
+                  <Info className='h-3.5 w-3.5' />
                 </Button>
               </TooltipTrigger>
               <TooltipContent
-                side="bottom"
-                align="end"
+                side='bottom'
+                align='end'
                 sideOffset={8}
                 className={
                   type === 'written' ? 'w-72 max-w-[calc(100vw-2rem)] p-3' : ''
@@ -242,15 +242,15 @@ export function SessionHeader({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="sm"
+                    variant='ghost'
+                    size='sm'
                     onClick={onRegenerate}
-                    className="h-9 w-9 p-0 rounded-full"
+                    className='h-9 w-9 p-0 rounded-full'
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
+                    <RefreshCw className='w-3.5 h-3.5' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
+                <TooltipContent side='bottom'>
                   <p>Regenerate this question</p>
                 </TooltipContent>
               </Tooltip>
@@ -260,48 +260,48 @@ export function SessionHeader({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant='ghost'
+                  size='sm'
                   onClick={onDelete}
                   disabled={totalQuestions === 0}
-                  className="h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  className='h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10'
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className='w-3.5 h-3.5' />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
+              <TooltipContent side='bottom'>
                 <p>Remove question from set</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <div className="flex items-center gap-1">
+          <div className='flex items-center gap-1'>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant='outline'
+                    size='sm'
                     onClick={onPrev}
                     disabled={questionIndex === 0}
-                    className="h-9 w-9 p-0 rounded-full"
+                    className='h-9 w-9 p-0 rounded-full'
                   >
-                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <ArrowLeft className='w-3.5 h-3.5' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom">
+                <TooltipContent side='bottom'>
                   <p>Previous question (Left arrow)</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <Button
               variant={isAtLast && canAdvance ? 'default' : 'secondary'}
-              size="sm"
+              size='sm'
               onClick={onNext}
               disabled={!canAdvance}
-              className="h-9 rounded-full px-4 gap-1.5 shadow-sm"
+              className='h-9 rounded-full px-4 gap-1.5 shadow-sm'
             >
               <span>{isAtLast ? 'Complete' : 'Next'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className='w-4 h-4' />
             </Button>
           </div>
         </div>
@@ -324,23 +324,23 @@ export function TelemetryTooltip({
   const hasAny = generationStartedAt !== null || telemetry;
   if (!hasAny) {
     return (
-      <div className="text-xs text-background/80">
+      <div className='text-xs text-background/80'>
         No generation diagnostics yet.
       </div>
     );
   }
   return (
-    <div className="flex flex-col gap-2 text-xs">
-      <div className="font-semibold text-background">Question details</div>
+    <div className='flex flex-col gap-2 text-xs'>
+      <div className='font-semibold text-background'>Question details</div>
       {telemetry && (
         <Row
-          label="Generation time"
+          label='Generation time'
           value={formatDurationMs(telemetry.durationMs)}
         />
       )}
       {telemetry?.totalTokens !== undefined && telemetry.totalTokens > 0 && (
         <Row
-          label="Tokens"
+          label='Tokens'
           value={
             <span
               title={`Prompt: ${telemetry.promptTokens ?? 0} · Completion: ${telemetry.completionTokens ?? 0}`}
@@ -352,13 +352,13 @@ export function TelemetryTooltip({
       )}
       {telemetry?.distinctnessAvg !== undefined && (
         <Row
-          label="Distinctness"
+          label='Distinctness'
           value={`${(telemetry.distinctnessAvg * 100).toFixed(0)}%`}
         />
       )}
       {telemetry?.multiStepDepthAvg !== undefined && (
         <Row
-          label="Multi-step depth"
+          label='Multi-step depth'
           value={telemetry.multiStepDepthAvg.toFixed(2)}
         />
       )}
@@ -368,9 +368,9 @@ export function TelemetryTooltip({
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-background/80">
+    <div className='flex items-center justify-between gap-3 text-background/80'>
       <span>{label}</span>
-      <span className="text-background">{value}</span>
+      <span className='text-background'>{value}</span>
     </div>
   );
 }
@@ -393,25 +393,25 @@ function InfoBadges({
   getDifficultyBadgeClasses: (level: Difficulty) => string;
 }) {
   return (
-    <div className="hidden lg:flex items-center gap-1.5 text-xs bg-muted/50 px-3 py-1.5 rounded-full">
+    <div className='hidden lg:flex items-center gap-1.5 text-xs bg-muted/50 px-3 py-1.5 rounded-full'>
       {topic && (
         <Badge
-          variant="outline"
-          className="h-5 px-1.5 text-[10px] font-medium border-border/50"
+          variant='outline'
+          className='h-5 px-1.5 text-[10px] font-medium border-border/50'
         >
           {topic}
         </Badge>
       )}
       <Badge
-        variant="outline"
+        variant='outline'
         className={`h-5 px-1.5 text-[10px] font-semibold ${getDifficultyBadgeClasses(difficulty)}`}
       >
         {difficulty}
       </Badge>
       {type === 'written' && maxMarks !== undefined && (
         <Badge
-          variant="secondary"
-          className="h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20"
+          variant='secondary'
+          className='h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20'
         >
           {maxMarks} marks
         </Badge>
@@ -419,7 +419,7 @@ function InfoBadges({
       {isMathTopic && techAllowed !== undefined && (
         <Badge
           variant={techAllowed ? 'default' : 'destructive'}
-          className="h-5 px-1.5 text-[10px]"
+          className='h-5 px-1.5 text-[10px]'
         >
           {techAllowed ? 'CAS' : 'No CAS'}
         </Badge>

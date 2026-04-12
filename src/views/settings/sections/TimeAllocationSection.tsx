@@ -20,24 +20,24 @@ export function TimeAllocationSection() {
   const handleUpdateAllocation = (
     difficulty: Difficulty,
     field: 'minutesPerQuestion',
-    value: number
+    value: number,
   ) => {
     const updated: TimeAllocationConfig = timeAllocations.map((alloc) =>
       alloc.difficulty === difficulty
         ? { ...alloc, [field]: value, marksPerQuestion: 1 }
-        : alloc
+        : alloc,
     );
     setTimeAllocations(updated);
   };
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       <SectionHeader
-        title="Time & Mark Allocations"
-        description="Customize the time and marks allocated per question by difficulty level."
+        title='Time & Mark Allocations'
+        description='Customize the time and marks allocated per question by difficulty level.'
       />
       <Button
-        variant="outline"
+        variant='outline'
         onClick={() =>
           setTimeAllocations([
             {
@@ -68,18 +68,18 @@ export function TimeAllocationSection() {
       </Button>
       {difficulties.map((difficulty) => {
         const allocation = timeAllocations.find(
-          (a) => a.difficulty === difficulty
+          (a) => a.difficulty === difficulty,
         );
         if (!allocation) return null;
 
         return (
-          <Card key={difficulty} className="p-6 space-y-4">
+          <Card key={difficulty} className='p-6 space-y-4'>
             <div>
-              <p className="text-sm font-semibold">{difficulty}</p>
+              <p className='text-sm font-semibold'>{difficulty}</p>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">
+            <div className='space-y-1'>
+              <label className='text-xs text-muted-foreground'>
                 Minutes per 1 Mark
               </label>
               <Slider
@@ -91,14 +91,14 @@ export function TimeAllocationSection() {
                   handleUpdateAllocation(
                     difficulty,
                     'minutesPerQuestion',
-                    value[0]
+                    value[0],
                   )
                 }
               />
             </div>
 
             <p>
-              <span className="text-xs text-muted-foreground">
+              <span className='text-xs text-muted-foreground'>
                 {allocation.minutesPerQuestion.toFixed(1)} min/mark
               </span>
             </p>

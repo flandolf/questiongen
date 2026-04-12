@@ -50,26 +50,26 @@ export function CreditsSection() {
   }, [apiKey, fetchCredits]);
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* Credit balance */}
-      <div className="flex items-start justify-between">
+      <div className='flex items-start justify-between'>
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className='text-lg font-semibold tracking-tight'>
             Account Credits
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className='mt-1 text-sm text-muted-foreground'>
             OpenRouter credit balance for the current API key.
           </p>
           {creditsUpdatedAt && !creditsLoading && (
-            <p className="mt-1 text-xs text-muted-foreground/60">
+            <p className='mt-1 text-xs text-muted-foreground/60'>
               Updated {fmt.time(creditsUpdatedAt)}
             </p>
           )}
         </div>
         <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 shrink-0"
+          variant='outline'
+          size='sm'
+          className='gap-2 shrink-0'
           disabled={creditsLoading || !apiKey}
           onClick={() => void fetchCredits(apiKey)}
         >
@@ -90,36 +90,36 @@ export function CreditsSection() {
         />
       )}
       {creditsLoading && (
-        <div className="space-y-2">
+        <div className='space-y-2'>
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className='h-10 rounded-lg bg-muted animate-pulse' />
           ))}
         </div>
       )}
       {credits && !creditsLoading && (
-        <div className="space-y-4">
-          <Card className="p-5 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Credit usage</span>
-              <span className="text-muted-foreground tabular-nums">
+        <div className='space-y-4'>
+          <Card className='p-5 space-y-3'>
+            <div className='flex items-center justify-between text-sm'>
+              <span className='font-medium'>Credit usage</span>
+              <span className='text-muted-foreground tabular-nums'>
                 ${credits.totalUsage.toFixed(4)} / $
                 {credits.totalCredits.toFixed(4)}
               </span>
             </div>
             <CreditBar used={credits.totalUsage} total={credits.totalCredits} />
-            <div className="flex items-center justify-between text-xs mt-1">
-              <span className="text-muted-foreground">Percent used</span>
-              <span className="tabular-nums font-mono">
+            <div className='flex items-center justify-between text-xs mt-1'>
+              <span className='text-muted-foreground'>Percent used</span>
+              <span className='tabular-nums font-mono'>
                 {credits.totalCredits > 0
                   ? ((credits.totalUsage / credits.totalCredits) * 100).toFixed(
-                      5
+                      5,
                     )
                   : '0.00000'}
                 %
               </span>
             </div>
           </Card>
-          <Card className="overflow-hidden divide-y divide-border">
+          <Card className='overflow-hidden divide-y divide-border'>
             {[
               {
                 label: 'Remaining',
@@ -134,13 +134,13 @@ export function CreditsSection() {
             ].map((row) => (
               <div
                 key={row.label}
-                className="flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/30 transition-colors"
+                className='flex items-center justify-between px-4 py-3 text-sm hover:bg-muted/30 transition-colors'
               >
-                <span className="text-muted-foreground">{row.label}</span>
+                <span className='text-muted-foreground'>{row.label}</span>
                 <span
                   className={cn(
                     'tabular-nums font-medium',
-                    row.highlight && 'text-emerald-600 dark:text-emerald-400'
+                    row.highlight && 'text-emerald-600 dark:text-emerald-400',
                   )}
                 >
                   {row.value}
@@ -155,12 +155,12 @@ export function CreditsSection() {
 
       {/* Daily usage section */}
       <div>
-        <div className="mb-4">
-          <h2 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+        <div className='mb-4'>
+          <h2 className='text-base font-semibold tracking-tight flex items-center gap-2'>
+            <Calendar className='h-4 w-4 text-muted-foreground' />
             Daily Token & Cost Usage
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className='mt-1 text-sm text-muted-foreground'>
             Based on generation telemetry stored locally in your history. Only
             sessions with token data are included.
           </p>

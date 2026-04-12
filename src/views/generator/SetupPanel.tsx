@@ -69,10 +69,10 @@ export type { BatchTopicProgress } from '@/types';
 // ─── Topic icon map ───────────────────────────────────────────────────────────
 
 const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
-  'Mathematical Methods': <FunctionSquare className="w-4 h-4" />,
-  'Specialist Mathematics': <SigmaSquare className="w-4 h-4" />,
-  Chemistry: <FlaskConical className="w-4 h-4" />,
-  'Physical Education': <Dumbbell className="w-4 h-4" />,
+  'Mathematical Methods': <FunctionSquare className='w-4 h-4' />,
+  'Specialist Mathematics': <SigmaSquare className='w-4 h-4' />,
+  Chemistry: <FlaskConical className='w-4 h-4' />,
+  'Physical Education': <Dumbbell className='w-4 h-4' />,
 };
 
 // ─── Difficulty metadata ──────────────────────────────────────────────────────
@@ -220,14 +220,14 @@ function SetupPanelImpl({
   const { apiKey, model } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(
-    null
+    null,
   );
   const [completionPricePerToken, setCompletionPricePerToken] = useState<
     number | null
   >(null);
 
   const hasAnyMathTopic = selectedTopics.some(
-    (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics'
+    (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics',
   );
   const hasSubtopicSection =
     selectedTopics.includes('Mathematical Methods') ||
@@ -252,10 +252,10 @@ function SetupPanelImpl({
             : []),
           ...(selectedTopics.includes('Physical Education')
             ? physicalEducationSubtopics.map((sub) =>
-                toCanonicalSubtopicName(sub)
+                toCanonicalSubtopicName(sub),
               )
             : []),
-        ])
+        ]),
       ),
     [
       selectedTopics,
@@ -263,7 +263,7 @@ function SetupPanelImpl({
       specialistMathSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -302,7 +302,7 @@ function SetupPanelImpl({
       selectedSubtopics.length > 0 ? selectedSubtopics : undefined,
       customFocusArea.trim() || undefined,
       promptPricePerToken ?? undefined,
-      completionPricePerToken ?? undefined
+      completionPricePerToken ?? undefined,
     );
   }, [
     generationHistory,
@@ -320,49 +320,49 @@ function SetupPanelImpl({
 
   return (
     <TooltipProvider>
-      <div className="px-6 py-6 space-y-6">
+      <div className='px-6 py-6 space-y-6'>
         {/* ── Header ── */}
-        <div className="space-y-4">
+        <div className='space-y-4'>
           <PageHeader
-            title="Generator"
-            description="Setup generation parameters here."
+            title='Generator'
+            description='Setup generation parameters here.'
             actions={
               <FilterGroup>
                 <FilterButton
                   active={questionMode === 'written'}
                   onClick={() => onSetQuestionMode('written')}
                 >
-                  <BookOpen className="w-3.5 h-3.5 mr-1.5" /> Written
+                  <BookOpen className='w-3.5 h-3.5 mr-1.5' /> Written
                 </FilterButton>
                 <FilterButton
                   active={questionMode === 'multiple-choice'}
                   onClick={() => onSetQuestionMode('multiple-choice')}
                 >
-                  <Target className="w-3.5 h-3.5 mr-1.5" /> Multiple Choice
+                  <Target className='w-3.5 h-3.5 mr-1.5' /> Multiple Choice
                 </FilterButton>
               </FilterGroup>
             }
           />
         </div>
 
-        <div className="space-y-6">
+        <div className='space-y-6'>
           {/* ── Subjects ── */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div className='space-y-2'>
+            <div className='flex items-center justify-between'>
               <SectionLabel>Subjects</SectionLabel>
               {selectedTopics.length > 0 && (
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant='secondary' className='text-[10px]'>
                   {selectedTopics.length} selected
                 </Badge>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className='grid grid-cols-2 gap-2'>
               {TOPICS.map((topic) => {
                 const isSelected = selectedTopics.includes(topic);
                 return (
                   <motion.button
                     key={topic}
-                    type="button"
+                    type='button'
                     onClick={() => onToggleTopic(topic)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -374,17 +374,17 @@ function SetupPanelImpl({
                         : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-muted/30',
                     ].join(' ')}
                   >
-                    <span className="shrink-0">
-                      {TOPIC_ICONS[topic] ?? <BookOpen className="w-4 h-4" />}
+                    <span className='shrink-0'>
+                      {TOPIC_ICONS[topic] ?? <BookOpen className='w-4 h-4' />}
                     </span>
-                    <span className="flex-1 leading-tight">{topic}</span>
+                    <span className='flex-1 leading-tight'>{topic}</span>
                     {isSelected && (
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={SPRING}
                       >
-                        <CheckCheck className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                        <CheckCheck className='w-3.5 h-3.5 shrink-0 opacity-70' />
                       </motion.span>
                     )}
                   </motion.button>
@@ -394,8 +394,8 @@ function SetupPanelImpl({
           </div>
 
           {/* ── Difficulty ── */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div className='space-y-2'>
+            <div className='flex items-center justify-between'>
               <SectionLabel>Difficulty</SectionLabel>
               <span
                 className={`text-xs font-semibold ${DIFFICULTY_META[difficulty].color}`}
@@ -403,7 +403,7 @@ function SetupPanelImpl({
                 {DIFFICULTY_META[difficulty].desc}
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className='grid grid-cols-5 gap-1.5'>
               {(
                 [
                   'Essential Skills',
@@ -419,7 +419,7 @@ function SetupPanelImpl({
                   <Tooltip key={level}>
                     <TooltipTrigger asChild>
                       <button
-                        type="button"
+                        type='button'
                         onClick={() => onSetDifficulty(level)}
                         className={[
                           'flex flex-col items-center gap-1 py-2.5 px-1 rounded-md border text-center transition-all duration-150 cursor-pointer',
@@ -435,8 +435,8 @@ function SetupPanelImpl({
                         </span>
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">{meta.desc}</p>
+                    <TooltipContent side='bottom'>
+                      <p className='text-xs'>{meta.desc}</p>
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -483,7 +483,7 @@ function SetupPanelImpl({
           </div>
 
           {/* ── Presets ── */}
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <SectionLabel>Presets</SectionLabel>
             <PresetSection
               selectedTopics={selectedTopics}
@@ -502,16 +502,16 @@ function SetupPanelImpl({
 
           {/* ── API key warning ── */}
           {!hasApiKey && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-500/5 px-3 py-3">
-              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-1">
-                <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
+            <div className='flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-500/5 px-3 py-3'>
+              <AlertTriangle className='w-4 h-4 text-amber-500 shrink-0 mt-0.5' />
+              <div className='flex-1 space-y-1'>
+                <p className='text-xs text-amber-700 dark:text-amber-400 leading-snug'>
                   <strong>API key missing.</strong> Configure your OpenRouter
                   key in Settings before generating.
                 </p>
                 <Button
-                  size="sm"
-                  variant="outline"
+                  size='sm'
+                  variant='outline'
                   onClick={() => void navigate('/settings')}
                 >
                   Open Settings
@@ -522,32 +522,32 @@ function SetupPanelImpl({
         </div>
 
         {/* ── Footer / Generate ── */}
-        <div className="border-t pt-4 space-y-1">
+        <div className='border-t pt-4 space-y-1'>
           {/* Session Summary */}
           {!isGenerating && (
-            <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className='space-y-1'>
+              <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wider'>
                 Session Summary
               </p>
 
               {/* Subjects row */}
-              <div className="flex items-start gap-2">
-                <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wide w-14 shrink-0 pt-0.5">
+              <div className='flex items-start gap-2'>
+                <span className='text-[10px] text-muted-foreground/60 uppercase tracking-wide w-14 shrink-0 pt-0.5'>
                   Subjects
                 </span>
-                <div className="flex flex-wrap gap-1 flex-1">
+                <div className='flex flex-wrap gap-1 flex-1'>
                   {selectedTopics.length === 0 ? (
-                    <span className="text-[11px] font-medium text-amber-500 dark:text-amber-400 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> None selected
+                    <span className='text-[11px] font-medium text-amber-500 dark:text-amber-400 flex items-center gap-1'>
+                      <AlertTriangle className='w-3 h-3' /> None selected
                     </span>
                   ) : (
                     selectedTopics.map((t) => (
                       <span
                         key={t}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[11px]"
+                        className='flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[11px]'
                       >
                         {TOPIC_ICONS[t] && (
-                          <span className="opacity-70">{TOPIC_ICONS[t]}</span>
+                          <span className='opacity-70'>{TOPIC_ICONS[t]}</span>
                         )}
                         {t}
                       </span>
@@ -557,36 +557,36 @@ function SetupPanelImpl({
               </div>
 
               {/* Details pills */}
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
-                <span className="flex items-center gap-1">
-                  <span className="text-muted-foreground/60">Difficulty</span>
+              <div className='flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]'>
+                <span className='flex items-center gap-1'>
+                  <span className='text-muted-foreground/60'>Difficulty</span>
                   <span
                     className={`font-semibold ${DIFFICULTY_META[difficulty].color}`}
                   >
                     {DIFFICULTY_META[difficulty].label}
                   </span>
                 </span>
-                <span className="text-border">·</span>
-                <span className="flex items-center gap-1">
-                  <span className="text-muted-foreground/60">Questions</span>
-                  <span className="font-semibold text-foreground tabular-nums">
+                <span className='text-border'>·</span>
+                <span className='flex items-center gap-1'>
+                  <span className='text-muted-foreground/60'>Questions</span>
+                  <span className='font-semibold text-foreground tabular-nums'>
                     {questionCount}
                   </span>
                 </span>
                 {questionMode === 'written' && (
                   <>
-                    <span className="text-border">·</span>
-                    <span className="flex items-center gap-1">
-                      <span className="text-muted-foreground/60">
+                    <span className='text-border'>·</span>
+                    <span className='flex items-center gap-1'>
+                      <span className='text-muted-foreground/60'>
                         Avg marks
                       </span>
-                      <span className="font-semibold text-foreground tabular-nums">
+                      <span className='font-semibold text-foreground tabular-nums'>
                         {averageMarksPerQuestion}
                       </span>
                     </span>
                   </>
                 )}
-                <span className="text-border">·</span>
+                <span className='text-border'>·</span>
                 <span
                   className={`font-semibold ${questionMode === 'written' ? 'text-sky-600 dark:text-sky-400' : 'text-violet-600 dark:text-violet-400'}`}
                 >
@@ -595,9 +595,9 @@ function SetupPanelImpl({
               </div>
 
               {/* Cost estimate */}
-              <div className="flex items-center justify-between text-[11px] border-t border-border/40 pt-1.5">
-                <span className="text-muted-foreground/70 tabular-nums flex items-center gap-1">
-                  <Coins className="w-3 h-3" />~
+              <div className='flex items-center justify-between text-[11px] border-t border-border/40 pt-1.5'>
+                <span className='text-muted-foreground/70 tabular-nums flex items-center gap-1'>
+                  <Coins className='w-3 h-3' />~
                   {estimated.totalTokens.toLocaleString()} tokens
                   {estimated.confidence != null && (
                     <span
@@ -616,12 +616,12 @@ function SetupPanelImpl({
                 </span>
                 {estimated.promptCost != null ||
                 estimated.completionCost != null ? (
-                  <span className="font-semibold text-foreground tabular-nums flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 text-muted-foreground" />
+                  <span className='font-semibold text-foreground tabular-nums flex items-center gap-1'>
+                    <DollarSign className='w-3 h-3 text-muted-foreground' />
                     {formatCostUsd(estimated.totalCost)}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground/50 text-[10px]">
+                  <span className='text-muted-foreground/50 text-[10px]'>
                     cost unavailable
                   </span>
                 )}
@@ -630,15 +630,15 @@ function SetupPanelImpl({
           )}
 
           {/* Generate button */}
-          <div className="mt-2">
+          <div className='mt-2'>
             <Button
-              className="w-full py-5 text-sm font-bold gap-2 transition-all duration-200" // Removed h-full, increased py for better click target
+              className='w-full py-5 text-sm font-bold gap-2 transition-all duration-200' // Removed h-full, increased py for better click target
               onClick={onGenerate}
               disabled={!canGenerate}
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className='w-4 h-4 animate-spin' />
                   Generating...
                 </>
               ) : (

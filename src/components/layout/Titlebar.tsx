@@ -18,40 +18,40 @@ export default function Titlebar() {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className='flex flex-col'>
       <div
         ref={barRef}
-        className="w-full h-10 flex items-center px-3 bg-background border-b border-border select-none overflow-hidden"
+        className='w-full h-10 flex items-center px-3 bg-background border-b border-border select-none overflow-hidden'
         style={{ userSelect: 'none', position: 'relative', zIndex: 50 }}
         onMouseDown={handleMouseDown}
       >
-        <span className="flex-1 font-light text-sm text-muted-foreground">
+        <span className='flex-1 font-light text-sm text-muted-foreground'>
           questiongen
         </span>
-        <div className="flex gap-1">
+        <div className='flex gap-1'>
           <button
-            aria-label="Minimize"
-            className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs pointer-events-auto"
+            aria-label='Minimize'
+            className='w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs pointer-events-auto'
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => void appWindow.minimize()}
           >
-            <Minus className="w-3 h-3" />
+            <Minus className='w-3 h-3' />
           </button>
           <button
-            aria-label="Maximize"
-            className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs pointer-events-auto"
+            aria-label='Maximize'
+            className='w-8 h-8 flex items-center justify-center hover:bg-muted rounded-xs pointer-events-auto'
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => void appWindow.toggleMaximize()}
           >
-            <Maximize className="w-3 h-3" />
+            <Maximize className='w-3 h-3' />
           </button>
           <button
-            aria-label="Close"
-            className="w-8 h-8 flex items-center justify-center hover:bg-red-500/80 hover:text-white rounded-xs pointer-events-auto"
+            aria-label='Close'
+            className='w-8 h-8 flex items-center justify-center hover:bg-red-500/80 hover:text-white rounded-xs pointer-events-auto'
             onMouseDown={(e) => e.stopPropagation()}
             onClick={() => void appWindow.close()}
           >
-            <X className="w-3 h-3" />
+            <X className='w-3 h-3' />
           </button>
         </div>
       </div>

@@ -24,7 +24,7 @@ export function normalizeMathDelimiters(content: string): string {
 
 function transformOutsideCode(
   content: string,
-  transform: (segment: string) => string
+  transform: (segment: string) => string,
 ): string {
   return content
     .split(/(```[\s\S]*?```)/g)
@@ -86,7 +86,7 @@ function escapeBarePercentInMath(content: string): string {
       const delimiter = mathSegment.startsWith('$$') ? '$$' : '$';
       const inner = mathSegment.slice(delimiter.length, -delimiter.length);
       return `${delimiter}${escapeUnescapedPercent(inner)}${delimiter}`;
-    }
+    },
   );
 }
 

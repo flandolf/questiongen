@@ -51,7 +51,7 @@ export function extractCommandVerbs(questionText: string): string[] {
  */
 export function calculatePatternSimilarity(
   p1: QuestionPattern,
-  p2: QuestionPattern
+  p2: QuestionPattern,
 ): number {
   let similarity = 0;
   let factors = 0;
@@ -91,7 +91,7 @@ export function calculatePatternSimilarity(
 export function findSimilarPatterns(
   pattern: QuestionPattern,
   recentPatterns: QuestionPattern[],
-  similarityThreshold: number = 0.6
+  similarityThreshold: number = 0.6,
 ): QuestionPattern[] {
   return recentPatterns.filter((recent) => {
     const similarity = calculatePatternSimilarity(pattern, recent);
@@ -103,7 +103,7 @@ export function findSimilarPatterns(
  * Build a set of constraints to avoid pattern repetition.
  */
 export function buildAvoidanceConstraints(
-  generationContext: GenerationContext
+  generationContext: GenerationContext,
 ): string {
   const avoiders: string[] = [];
 
@@ -131,7 +131,7 @@ export function buildAvoidanceConstraints(
     const ratio = count / totalQuestions;
     if (ratio > 0.4) {
       avoiders.push(
-        `Avoid over-relying on ${topic} again (${(ratio * 100).toFixed(0)}% of recent)`
+        `Avoid over-relying on ${topic} again (${(ratio * 100).toFixed(0)}% of recent)`,
       );
     }
   });
@@ -140,7 +140,7 @@ export function buildAvoidanceConstraints(
     const ratio = count / totalQuestions;
     if (ratio > 0.4) {
       avoiders.push(
-        `Use fewer "${verb}" questions (${(ratio * 100).toFixed(0)}% of recent)`
+        `Use fewer "${verb}" questions (${(ratio * 100).toFixed(0)}% of recent)`,
       );
     }
   });
@@ -158,12 +158,12 @@ export function buildAvoidanceConstraints(
  */
 export function scoreVariety(
   question: QuestionPattern,
-  recentQuestions: QuestionPattern[]
+  recentQuestions: QuestionPattern[],
 ): number {
   if (recentQuestions.length === 0) return 1;
 
   const similarities = recentQuestions.map((recent) =>
-    calculatePatternSimilarity(question, recent)
+    calculatePatternSimilarity(question, recent),
   );
 
   // Average similarity (0-1)
@@ -179,7 +179,7 @@ export function scoreVariety(
  */
 export function suggestFocusAreas(
   selectedTopics: string[],
-  recentQuestions: QuestionPattern[]
+  recentQuestions: QuestionPattern[],
 ): string[] {
   if (recentQuestions.length === 0) {
     return selectedTopics;
@@ -187,7 +187,7 @@ export function suggestFocusAreas(
 
   const coveredTopics = new Set(recentQuestions.map((q) => q.topic));
   const underrepresentedTopics = selectedTopics.filter(
-    (t) => !coveredTopics.has(t)
+    (t) => !coveredTopics.has(t),
   );
 
   if (underrepresentedTopics.length > 0) {

@@ -10,7 +10,7 @@ function getImageValidationCacheKey(apiKey: string, modelId: string): string {
 
 export function getCachedImageValidation(
   apiKey: string,
-  modelId: string
+  modelId: string,
 ): boolean | null {
   const key = getImageValidationCacheKey(apiKey, modelId);
   const entry = imageValidationCache.get(key);
@@ -25,7 +25,7 @@ export function getCachedImageValidation(
 export function setCachedImageValidation(
   apiKey: string,
   modelId: string,
-  supportsImages: boolean
+  supportsImages: boolean,
 ): void {
   imageValidationCache.set(getImageValidationCacheKey(apiKey, modelId), {
     supportsImages,

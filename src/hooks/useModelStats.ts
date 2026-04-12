@@ -33,7 +33,7 @@ function useModelStat(apiKey: string | undefined, modelType: ModelType) {
           setCachedImageValidation(
             apiKey,
             modelId,
-            fetchedStats.supportsImages === true
+            fetchedStats.supportsImages === true,
           );
         }
       } catch (fetchError) {
@@ -42,7 +42,7 @@ function useModelStat(apiKey: string | undefined, modelType: ModelType) {
         setLoading(false);
       }
     },
-    [apiKey, modelType]
+    [apiKey, modelType],
   );
 
   return { stats, loading, error, updatedAt, fetch };

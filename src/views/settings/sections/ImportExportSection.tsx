@@ -38,7 +38,7 @@ export function ImportExportSection() {
 
   const [showPreview, setShowPreview] = useState(false);
   const [pendingImport, setPendingImport] = useState<PersistedAppState | null>(
-    null
+    null,
   );
   const [importCounts, setImportCounts] = useState<ImportCounts | null>(null);
 
@@ -69,11 +69,11 @@ export function ImportExportSection() {
       setSuccess(
         savedPath
           ? `Export saved successfully to: ${savedPath}`
-          : 'Export downloaded successfully.'
+          : 'Export downloaded successfully.',
       );
     } catch (err) {
       setError(
-        `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+        `Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
       );
     } finally {
       setExporting(false);
@@ -102,7 +102,7 @@ export function ImportExportSection() {
         beginImportPreview(imported);
       } catch (err) {
         setError(
-          `Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+          `Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
         );
       } finally {
         setImporting(false);
@@ -111,7 +111,7 @@ export function ImportExportSection() {
         }
       }
     },
-    [beginImportPreview]
+    [beginImportPreview],
   );
 
   const handleConfirmImport = useCallback(() => {
@@ -120,11 +120,11 @@ export function ImportExportSection() {
     try {
       importState(pendingImport);
       setSuccess(
-        'Import completed successfully. Data has been merged with your existing data.'
+        'Import completed successfully. Data has been merged with your existing data.',
       );
     } catch (err) {
       setError(
-        `Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+        `Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
       );
     } finally {
       setShowPreview(false);
@@ -170,39 +170,39 @@ export function ImportExportSection() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       <SectionHeader
-        title="Import / Export"
-        description="Backup your data locally or restore from a previous export."
+        title='Import / Export'
+        description='Backup your data locally or restore from a previous export.'
       />
 
       {error && <ErrorBanner message={error} />}
 
       {success && (
-        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <div className='flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2'>
+          <CheckCircle2 className='h-4 w-4 shrink-0' />
           {success}
         </div>
       )}
 
       {!supportsFolderBackups && (
-        <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2">
+        <p className='text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2'>
           Scheduled backups, saving to a chosen folder, and importing from that
           folder are available on desktop. On Android and in the browser, use
           Export and Choose File below.
         </p>
       )}
 
-      <Card className="p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <HardDriveDownload className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium">Export Data</p>
+      <Card className='p-4 space-y-3'>
+        <div className='flex items-center gap-2'>
+          <HardDriveDownload className='h-4 w-4 text-muted-foreground' />
+          <p className='text-sm font-medium'>Export Data</p>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className='text-xs text-muted-foreground'>
           Download a complete backup of your data as a JSON file. Images in your
           history are included. Your API key is stripped for security.
         </p>
-        <div className="text-xs text-muted-foreground space-y-0.5">
+        <div className='text-xs text-muted-foreground space-y-0.5'>
           <p>
             {questionHistory.length} written history entries, {mcHistory.length}{' '}
             MC history entries
@@ -214,12 +214,12 @@ export function ImportExportSection() {
         <Button
           onClick={() => void handleExport()}
           disabled={exporting}
-          className="gap-2"
+          className='gap-2'
         >
           {exporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className='h-4 w-4 animate-spin' />
           ) : (
-            <HardDriveDownload className="h-4 w-4" />
+            <HardDriveDownload className='h-4 w-4' />
           )}
           {exporting ? 'Exporting...' : 'Export All Data'}
         </Button>
@@ -238,33 +238,33 @@ export function ImportExportSection() {
 
       <Divider />
 
-      <Card className="p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <HardDriveUpload className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium">Import Data</p>
+      <Card className='p-4 space-y-3'>
+        <div className='flex items-center gap-2'>
+          <HardDriveUpload className='h-4 w-4 text-muted-foreground' />
+          <p className='text-sm font-medium'>Import Data</p>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className='text-xs text-muted-foreground'>
           Restore data from a previously exported backup file. Duplicate entries
           are automatically skipped. Settings and preferences will be
           overwritten (your API key is preserved).
         </p>
         <input
           ref={fileInputRef}
-          type="file"
-          accept=".json"
+          type='file'
+          accept='.json'
           onChange={(e) => void handleFileSelect(e)}
-          className="hidden"
+          className='hidden'
         />
         <Button
-          variant="outline"
+          variant='outline'
           onClick={() => fileInputRef.current?.click()}
           disabled={importing}
-          className="gap-2"
+          className='gap-2'
         >
           {importing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className='h-4 w-4 animate-spin' />
           ) : (
-            <HardDriveUpload className="h-4 w-4" />
+            <HardDriveUpload className='h-4 w-4' />
           )}
           {importing ? 'Reading file...' : 'Choose File'}
         </Button>
@@ -273,10 +273,10 @@ export function ImportExportSection() {
       {showPreview && importCounts && (
         <ConfirmModal
           open={showPreview}
-          title="Import Preview"
+          title='Import Preview'
           description={buildPreviewDescription()}
           confirmText={importCounts.totalImported > 0 ? 'Import Data' : 'Close'}
-          cancelText="Cancel"
+          cancelText='Cancel'
           onConfirm={
             importCounts.totalImported > 0
               ? handleConfirmImport

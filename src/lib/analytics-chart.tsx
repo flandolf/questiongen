@@ -52,12 +52,12 @@ export function SectionHeading({
   description?: string;
 }) {
   return (
-    <div className="mb-4">
-      <h2 className="text-lg font-medium tracking-tight text-foreground">
+    <div className='mb-4'>
+      <h2 className='text-lg font-medium tracking-tight text-foreground'>
         {title}
       </h2>
       {description && (
-        <p className="text-sm  text-muted-foreground">{description}</p>
+        <p className='text-sm  text-muted-foreground'>{description}</p>
       )}
     </div>
   );
@@ -65,7 +65,7 @@ export function SectionHeading({
 
 export function ChartEmpty({ message }: { message: string }) {
   return (
-    <div className="flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 ">
+    <div className='flex h-48 items-center justify-center rounded-sm border border-dashed border-border/50 text-sm text-muted-foreground/60 '>
       {message}
     </div>
   );

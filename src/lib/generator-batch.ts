@@ -24,7 +24,7 @@ export function buildSubtopicCalls(
   subtopics: string[],
   total: number,
   topics: Topic[] = [],
-  options: SubtopicCallOptions = {}
+  options: SubtopicCallOptions = {},
 ): SubtopicCall[] {
   if (!subtopics || subtopics.length === 0)
     return [{ subtopics: [], count: total }];
@@ -37,11 +37,11 @@ export function buildSubtopicCalls(
 
   const minSubtopicsPerQuestion = Math.max(
     1,
-    Math.min(shuffledSubs.length, options.minSubtopicsPerQuestion ?? 2)
+    Math.min(shuffledSubs.length, options.minSubtopicsPerQuestion ?? 2),
   );
   const maxSubtopicsPerQuestion = Math.max(
     minSubtopicsPerQuestion,
-    Math.min(shuffledSubs.length, options.maxSubtopicsPerQuestion ?? 3)
+    Math.min(shuffledSubs.length, options.maxSubtopicsPerQuestion ?? 3),
   );
 
   if (total <= subtopics.length) {
@@ -54,8 +54,8 @@ export function buildSubtopicCalls(
           minSubtopicsPerQuestion,
           Math.min(
             maxSubtopicsPerQuestion,
-            Math.ceil(shuffledSubs.length / total)
-          )
+            Math.ceil(shuffledSubs.length / total),
+          ),
         )
       : 1;
 
@@ -70,7 +70,7 @@ export function buildSubtopicCalls(
 
       const stride = Math.max(
         1,
-        Math.floor(shuffledSubs.length / targetSubtopicsPerQuestion)
+        Math.floor(shuffledSubs.length / targetSubtopicsPerQuestion),
       );
       const chosen: string[] = [];
       const seen = new Set<string>();
@@ -105,11 +105,11 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
   if (originalOptions.length < 2) return q;
 
   const correctText = originalOptions.find(
-    (o) => o.label === q.correctAnswer
+    (o) => o.label === q.correctAnswer,
   )?.text;
 
   const seed = hashStringForSeed(
-    q.id ?? `${q.topic}-${q.promptMarkdown.slice(0, 50)}`
+    q.id ?? `${q.topic}-${q.promptMarkdown.slice(0, 50)}`,
   );
   const shuffled = shuffleWithSeed([...originalOptions], seed);
 
@@ -121,7 +121,7 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
 
   const newCorrect =
     relabeled.find((o) =>
-      correctText ? o.text.trim() === correctText.trim() : false
+      correctText ? o.text.trim() === correctText.trim() : false,
     )?.label ??
     relabeled[0]?.label ??
     q.correctAnswer;
