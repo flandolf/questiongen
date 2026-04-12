@@ -9,6 +9,7 @@ import {
   Clock,
   PlusCircle,
   RotateCcw,
+  Share2,
   Shuffle,
   Target,
   Trash,
@@ -47,6 +48,7 @@ import { useAppStore } from '@/store';
 // --- Generator parity reattempt view (restored full UI) ---
 import type {
   Difficulty,
+  ExportQuestionToAnkiResponse,
   MarkAnswerResponse,
   McHistoryEntry,
   QuestionHistoryEntry,
@@ -106,6 +108,7 @@ const ListEntryCard = memo(function ListEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  onExport,
   onReattempt,
   srCard,
 }: {
@@ -114,6 +117,7 @@ const ListEntryCard = memo(function ListEntryCard({
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onExport: () => void;
   onReattempt: () => void;
   srCard?: SpacedRepetitionCard;
 }) {
@@ -175,12 +179,13 @@ const ListEntryCard = memo(function ListEntryCard({
           <div className='shrink-0 flex items-center gap-1.5 ml-1 pt-0.5'>
             {srCard && (
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${daysUntilReview(srCard) < 0
-                  ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
-                  : daysUntilReview(srCard) === 0
-                    ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
-                    : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
-                  }`}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${
+                  daysUntilReview(srCard) < 0
+                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
+                    : daysUntilReview(srCard) === 0
+                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                      : 'bg-sky-500/10 border-sky-500/20 text-sky-600 dark:text-sky-400'
+                }`}
               >
                 {daysUntilReview(srCard) < 0
                   ? `${Math.abs(daysUntilReview(srCard))}d overdue`
@@ -209,6 +214,18 @@ const ListEntryCard = memo(function ListEntryCard({
               )}
             </div>
           </div>
+        </button>
+        <button
+          type='button'
+          onClick={(e) => {
+            e.stopPropagation();
+            onExport();
+          }}
+          className='shrink-0 flex items-center justify-center w-8 border-l border-border/30 text-muted-foreground/40 hover:text-primary hover:bg-primary/5 transition-colors'
+          aria-label='Export to Anki'
+          title='Export to Anki'
+        >
+          <Share2 className='w-3.5 h-3.5' />
         </button>
         <button
           type='button'
@@ -251,6 +268,7 @@ export function VirtualizedWrongList({
   expandedIds,
   onToggle,
   onDelete,
+  onExport,
   onReattempt,
   spacedRepetitionCards,
 }: {
@@ -258,6 +276,7 @@ export function VirtualizedWrongList({
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
   onDelete: (entry: WrongEntry) => void;
+  onExport: (entry: WrongEntry) => void;
   onReattempt: (entry: WrongEntry) => void;
   spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
 }) {
@@ -325,6 +344,7 @@ export function VirtualizedWrongList({
                 isExpanded={expandedIds.has(entry.id)}
                 onToggle={() => onToggle(entry.id)}
                 onDelete={() => onDelete(entry)}
+                onExport={() => onExport(entry)}
                 onReattempt={() => onReattempt(entry)}
                 srCard={spacedRepetitionCards[entry.id]}
               />
@@ -596,24 +616,24 @@ function ReattemptView({
     const state: QuestionState =
       currentEntry.kind === 'written'
         ? {
-          writtenAnswer,
-          image,
-          feedback,
-          markingScheme,
-          appealText,
-          overrideInput,
-          result: results.find((r) => r.id === currentEntry.id) ?? null,
-          timeSeconds: totalTime,
-        }
+            writtenAnswer,
+            image,
+            feedback,
+            markingScheme,
+            appealText,
+            overrideInput,
+            result: results.find((r) => r.id === currentEntry.id) ?? null,
+            timeSeconds: totalTime,
+          }
         : {
-          selectedAnswer,
-          awardedMarks,
-          mcAppealText,
-          mcOverrideInput,
-          mcSketchpadActive,
-          result: results.find((r) => r.id === currentEntry.id) ?? null,
-          timeSeconds: totalTime,
-        };
+            selectedAnswer,
+            awardedMarks,
+            mcAppealText,
+            mcOverrideInput,
+            mcSketchpadActive,
+            result: results.find((r) => r.id === currentEntry.id) ?? null,
+            timeSeconds: totalTime,
+          };
     setSavedStates((prev) => ({ ...prev, [currentEntry.id]: state }));
   }, [
     idx,
@@ -912,7 +932,7 @@ function ReattemptView({
                   isMarking={isMarking}
                   onAppealChange={setAppealText}
                   onOverrideInputChange={setOverrideInput}
-                  onArgueForMark={() => { }}
+                  onArgueForMark={() => {}}
                   onApplyOverride={handleApplyOverride}
                   onCriterionChange={handleCriterionChange}
                 />
@@ -974,7 +994,7 @@ function ReattemptView({
                         onSelectAnswer={handleSelectAnswer}
                         onAppealChange={setMcAppealText}
                         onOverrideInputChange={setMcOverrideInput}
-                        onArgueForMark={() => { }}
+                        onArgueForMark={() => {}}
                         onApplyOverride={handleApplyMcOverride}
                         isSketchpadOpen={mcSketchpadActive}
                         onToggleSketchpad={() =>
@@ -1026,7 +1046,7 @@ function ReattemptView({
                     onSelectAnswer={handleSelectAnswer}
                     onAppealChange={setMcAppealText}
                     onOverrideInputChange={setMcOverrideInput}
-                    onArgueForMark={() => { }}
+                    onArgueForMark={() => {}}
                     onApplyOverride={handleApplyMcOverride}
                     isSketchpadOpen={mcSketchpadActive}
                     onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
@@ -1413,6 +1433,39 @@ export default function WrongQuestionView() {
     [deleteQuestionHistoryEntry, deleteMcHistoryEntry],
   );
 
+  const handleExportToAnki = useCallback(async (entry: WrongEntry) => {
+    try {
+      let answerText = '';
+      if (entry.kind === 'written') {
+        answerText = `${entry.markResponse.feedbackMarkdown}\n\n### Worked Solution\n${entry.workedSolutionMarkdown}`;
+      } else {
+        answerText = `Correct Answer: ${entry.question.correctAnswer}\n\n${entry.question.explanationMarkdown}`;
+      }
+
+      const res = await invoke<ExportQuestionToAnkiResponse>(
+        'export_question_to_anki',
+        {
+          request: {
+            id: entry.id,
+            question: entry.question.promptMarkdown,
+            answer: answerText,
+            topic: entry.question.topic,
+            subtopic: entry.question.subtopic ?? '',
+          },
+        },
+      );
+
+      if (res.success) {
+        toast.success(`Exported to Anki: ${res.filePath}`);
+      } else {
+        toast.error(`Export failed: ${res.errorMessage}`);
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error(`Export error: ${message}`);
+    }
+  }, []);
+
   const handleMarkCorrect = useCallback(
     (entry: WrongEntry) => {
       if (entry.kind === 'written') {
@@ -1653,12 +1706,13 @@ export default function WrongQuestionView() {
                           </div>
                         </div>
                         <div
-                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${isOverdue
-                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                            : days === 0
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                            }`}
+                          className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-sm ${
+                            isOverdue
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                              : days === 0
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                          }`}
                         >
                           {isOverdue
                             ? `${Math.abs(days)}d overdue`
@@ -1706,6 +1760,9 @@ export default function WrongQuestionView() {
                 expandedIds={expandedIds}
                 onToggle={toggleExpand}
                 onDelete={handleDelete}
+                onExport={(e) => {
+                  void handleExportToAnki(e);
+                }}
                 onReattempt={startSingleReattempt}
                 spacedRepetitionCards={spacedRepetitionCards}
               />

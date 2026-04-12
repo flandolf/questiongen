@@ -1,3 +1,4 @@
+mod anki;
 mod catalog;
 mod cleanup;
 mod constants;
@@ -173,6 +174,51 @@ async fn cleanup_subtopics(
     Ok(CleanupSubtopicsResponse { subtopic_mapping })
 }
 
+#[tauri::command]
+async fn export_question_to_anki(
+    app: tauri::AppHandle,
+    request: ExportQuestionToAnkiRequest,
+) -> CommandResult<ExportQuestionToAnkiResponse> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let save_path = app
+        .dialog()
+        .file()
+        .add_filter("Anki Deck", &["apkg"])
+        .set_file_name(format!("question-{}.apkg", request.id))
+        .blocking_save_file();
+
+    let Some(file_path_obj) = save_path else {
+        return Ok(ExportQuestionToAnkiResponse {
+            success: false,
+            file_path: None,
+            error_message: Some("User cancelled save dialog".to_string()),
+        });
+    };
+
+    let file_path = file_path_obj.to_string();
+
+    let model = anki::model();
+    let note = anki::create_note(
+        &model,
+        &request.question,
+        &request.answer,
+        &request.topic,
+        &request.subtopic,
+    )?;
+
+    let mut deck = genanki_rs::Deck::new(1607392319, "QuestionGen Deck", "");
+    deck.add_note(note);
+
+    anki::export_deck_to_file(deck, &file_path)?;
+
+    Ok(ExportQuestionToAnkiResponse {
+        success: true,
+        file_path: Some(file_path),
+        error_message: None,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -211,6 +257,7 @@ pub fn run() {
             get_credits,
             cleanup_topics,
             cleanup_subtopics,
+            export_question_to_anki,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

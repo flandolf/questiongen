@@ -17,7 +17,12 @@ import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { cn, getTodayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip';
 
 const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
 const EASE = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as const };
@@ -221,7 +226,10 @@ export function Header() {
                   <TooltipContent side='bottom'>Syncing...</TooltipContent>
                 </Tooltip>
               ) : (
-                <div className='text-emerald-500/80' title='Synced to Firestore'>
+                <div
+                  className='text-emerald-500/80'
+                  title='Synced to Firestore'
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Cloud className='h-4 w-4' />
@@ -230,7 +238,6 @@ export function Header() {
                       Synced to Firestore
                     </TooltipContent>
                   </Tooltip>
-
                 </div>
               )}
             </div>
