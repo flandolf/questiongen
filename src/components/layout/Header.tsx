@@ -17,6 +17,8 @@ import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { cn, getTodayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
 const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
 const EASE = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as const };
 
@@ -196,29 +198,44 @@ export function Header() {
 
       {/* Right: Stats + Settings */}
       <div className='flex items-center gap-3'>
-        {/* Sync Indicator */}
-        {isSyncEnabled && (
-          <div className='flex items-center'>
-            {isSyncing ? (
-              <motion.div
-                animate={{ opacity: [1, 0.4, 1] }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-                className='text-emerald-500'
-                title='Syncing...'
-              >
-                <Cloud className='h-4 w-4' />
-              </motion.div>
-            ) : (
-              <div className='text-emerald-500/80' title='Synced to Firestore'>
-                <Cloud className='h-4 w-4' />
-              </div>
-            )}
-          </div>
-        )}
+        <TooltipProvider>
+          {/* Sync Indicator */}
+          {isSyncEnabled && (
+            <div className='flex items-center'>
+              {isSyncing ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <motion.div
+                      animate={{ opacity: [1, 0.4, 1] }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                      className='text-emerald-500'
+                      title='Syncing...'
+                    >
+                      <Cloud className='h-4 w-4' />
+                    </motion.div>
+                  </TooltipTrigger>
+                  <TooltipContent side='bottom'>Syncing...</TooltipContent>
+                </Tooltip>
+              ) : (
+                <div className='text-emerald-500/80' title='Synced to Firestore'>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Cloud className='h-4 w-4' />
+                    </TooltipTrigger>
+                    <TooltipContent side='bottom'>
+                      Synced to Firestore
+                    </TooltipContent>
+                  </Tooltip>
+
+                </div>
+              )}
+            </div>
+          )}
+        </TooltipProvider>
 
         {/* Goals */}
         <div className='relative'>
