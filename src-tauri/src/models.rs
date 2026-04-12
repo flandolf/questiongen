@@ -19,6 +19,24 @@ impl AppError {
     }
 }
 
+impl From<genanki_rs::Error> for AppError {
+    fn from(e: genanki_rs::Error) -> Self {
+        Self::new("ANKI_ERROR", format!("Anki error: {:?}", e))
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for AppError {
+    fn from(e: Box<dyn std::error::Error>) -> Self {
+        Self::new("ERROR", e.to_string())
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(e: std::io::Error) -> Self {
+        Self::new("IO_ERROR", format!("I/O error: {e}"))
+    }
+}
+
 pub type CommandResult<T> = Result<T, AppError>;
 
 // ─── OpenRouter wire types ────────────────────────────────────────────────────
@@ -306,6 +324,28 @@ pub struct CleanupSubtopicsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CleanupSubtopicsResponse {
     pub subtopic_mapping: HashMap<String, String>,
+}
+
+// ─── Export to Anki ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportQuestionToAnkiRequest {
+    pub id: String,
+    pub question: String,
+    pub answer: String,
+    pub topic: String,
+    pub subtopic: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportQuestionToAnkiResponse {
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
 }
 
 // ─── Multiple-choice ──────────────────────────────────────────────────────────

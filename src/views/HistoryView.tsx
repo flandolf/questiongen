@@ -1,4 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { invoke } from '@tauri-apps/api/core';
 import {
   BarChart3,
   BookOpen,
@@ -15,6 +16,7 @@ import {
   ImageIcon,
   PlusCircle,
   Search,
+  Share2,
   SlidersHorizontal,
   Target,
   Trash2,
@@ -61,6 +63,12 @@ type SortOrder =
   | 'score-low'
   | 'response-time-fast'
   | 'response-time-slow';
+
+interface ExportAnkiResponse {
+  success: boolean;
+  filePath?: string;
+  errorMessage?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -347,12 +355,14 @@ const McEntryCard = memo(function McEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  onExport,
   isSyncEnabled,
 }: {
   item: { kind: 'mc' } & McHistoryEntry;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onExport: () => void;
   isSyncEnabled: boolean;
 }) {
   const awarded = item.awardedMarks ?? (item.correct ? 1 : 0);
@@ -415,6 +425,14 @@ const McEntryCard = memo(function McEntryCard({
           <div className='flex items-center gap-1.5 shrink-0'>
             <ScorePill awarded={awarded} max={max} />
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
+            <button
+              type='button'
+              onClick={onExport}
+              className='h-7 w-7 flex items-center justify-center rounded-sm text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors'
+              title='Export to Anki'
+            >
+              <Share2 className='h-3.5 w-3.5' />
+            </button>
             <button
               type='button'
               onClick={onDelete}
@@ -512,12 +530,14 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  onExport,
   isSyncEnabled,
 }: {
   item: { kind: 'written' } & QuestionHistoryEntry;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onExport: () => void;
   isSyncEnabled: boolean;
 }) {
   const score = item.markResponse.scoreOutOf10;
@@ -577,6 +597,14 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
               {score}/10
             </span>
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
+            <button
+              type='button'
+              onClick={onExport}
+              className='h-7 w-7 flex items-center justify-center rounded-sm text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors'
+              title='Export to Anki'
+            >
+              <Share2 className='h-3.5 w-3.5' />
+            </button>
             <button
               type='button'
               onClick={onDelete}
@@ -719,12 +747,14 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  onExport,
   isSyncEnabled,
 }: {
   item: AnyEntry;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onExport: () => void;
   isSyncEnabled: boolean;
 }) {
   if (item.kind === 'mc') {
@@ -734,6 +764,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
         isExpanded={isExpanded}
         onToggle={onToggle}
         onDelete={onDelete}
+        onExport={onExport}
         isSyncEnabled={isSyncEnabled}
       />
     );
@@ -744,6 +775,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
       isExpanded={isExpanded}
       onToggle={onToggle}
       onDelete={onDelete}
+      onExport={onExport}
       isSyncEnabled={isSyncEnabled}
     />
   );
@@ -856,6 +888,36 @@ export function HistoryView() {
 
   const handleSubjectBadgeClick = useCallback((subject: string | null) => {
     setSubjectFilter((cur) => (cur === subject ? null : subject));
+  }, []);
+
+  const handleExportToAnki = useCallback(async (item: AnyEntry) => {
+    try {
+      let answerText = '';
+      if (item.kind === 'written') {
+        answerText = `${item.markResponse.feedbackMarkdown}\n\n### Worked Solution\n${item.workedSolutionMarkdown}`;
+      } else {
+        answerText = `Correct Answer: ${item.question.correctAnswer}\n\n${item.question.explanationMarkdown}`;
+      }
+
+      const res = await invoke<ExportAnkiResponse>('export_question_to_anki', {
+        request: {
+          id: item.id,
+          question: item.question.promptMarkdown,
+          answer: answerText,
+          topic: item.question.topic,
+          subtopic: item.question.subtopic ?? '',
+        },
+      });
+
+      if (res.success) {
+        toast.success(`Exported to Anki: ${res.filePath}`);
+      } else {
+        toast.error(`Export failed: ${res.errorMessage}`);
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      toast.error(`Export error: ${message}`);
+    }
   }, []);
 
   // Virtualizer setup
@@ -1224,6 +1286,7 @@ export function HistoryView() {
                       setPendingDeleteEntry(item);
                       setDeleteConfirmOpen(true);
                     }}
+                    onExport={() => void handleExportToAnki(item)}
                     isSyncEnabled={isSyncEnabled}
                   />
                 </div>

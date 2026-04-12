@@ -1,6 +1,6 @@
 [package]
 name = "questiongen"
-version = "3.3.17"
+version = "3.3.18"
 description = "A tool to generate questions from text using AI models."
 authors = ["flandolf"]
 edition = "2021"
@@ -30,6 +30,8 @@ futures-util = "0.3"
 once_cell = "1.21"
 tauri-plugin-dialog = "2.7.0"
 rand = "0.10.1"
+genanki-rs = "0.4"
+regex = "1"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
