@@ -3,7 +3,9 @@ mod catalog;
 mod cleanup;
 mod constants;
 mod difficulty;
+mod envelope;
 mod generation;
+mod json_input;
 mod latex;
 mod models;
 mod normalization;
@@ -15,6 +17,8 @@ mod persistence;
 mod prompts;
 mod quality;
 mod schemas;
+mod text_clean;
+mod topic_normalize;
 
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -233,10 +237,7 @@ async fn export_question_to_anki(
             return Ok(ExportQuestionToAnkiResponse {
                 success: true,
                 file_path: Some(file_path),
-                error_message: Some(format!(
-                    "Deck exported, but could not auto-open it: {}",
-                    e
-                )),
+                error_message: Some(format!("Deck exported, but could not auto-open it: {}", e)),
             });
         }
     }

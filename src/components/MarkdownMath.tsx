@@ -25,7 +25,10 @@ export const MarkdownMath = memo(function MarkdownMath({
   content,
 }: MarkdownMathProps) {
   const normalized = useMemo(() => normalizeMathDelimiters(content), [content]);
-  const shielded = useMemo(() => shieldMathForMarkdown(normalized), [normalized]);
+  const shielded = useMemo(
+    () => shieldMathForMarkdown(normalized),
+    [normalized],
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
 

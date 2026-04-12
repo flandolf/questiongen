@@ -10,7 +10,8 @@ import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
 import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
 import { useAppStore } from './store';
 
-const MATHJAX_CDN_URL = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
+const MATHJAX_CDN_URL =
+  'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
 const MATHJAX_SCRIPT_ID = 'mathjax-script';
 let mathJaxLoaderPromise: Promise<void> | null = null;
 

@@ -1,10 +1,9 @@
+use crate::json_input::{extract_json_array, extract_json_object, repair_llm_json_trailing_commas};
 use crate::models::{AppError, CommandResult};
 use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
-use crate::parsing::{
-    extract_json_array, extract_json_object, repair_llm_json_trailing_commas, sanitize_for_api,
-};
 use crate::prompts;
 use crate::schemas;
+use crate::text_clean::sanitize_for_api;
 use std::collections::{HashMap, HashSet};
 
 pub struct CleanupService;

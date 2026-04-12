@@ -1,7 +1,7 @@
 use crate::catalog;
 use crate::constants;
 use crate::difficulty::difficulty_guidance;
-use crate::parsing::sanitize_for_api;
+use crate::text_clean::sanitize_for_api;
 
 pub fn generation_compliance_contract() -> &'static str {
     "CONTRACT: 1. Only assessable Study Design content. 2. Focus constraints override style PDFs. 3. PDFs are style-only; do NOT copy scenarios/content. 4. Valid JSON only."

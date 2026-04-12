@@ -251,7 +251,7 @@ fn escape_unescaped_percent(content: &str) -> String {
             back -= prev_ch.len_utf8();
         }
 
-        if slash_count % 2 == 0 {
+        if slash_count.is_multiple_of(2) {
             result.push('\\');
         }
         result.push('%');
