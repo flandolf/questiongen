@@ -144,6 +144,7 @@ export interface AppState {
   strictLatexValidation: boolean;
   strictSubtopicCoverage: boolean;
   minSubtopicCoverageRatio: number;
+  shuffleSubtopics: boolean;
   generationStrategy: GenerationStrategy;
 
   // ── Written session ────────────────────────────────────────────────────────
@@ -267,6 +268,7 @@ export interface AppActions {
   setStrictLatexValidation: (enabled: boolean) => void;
   setStrictSubtopicCoverage: (enabled: boolean) => void;
   setMinSubtopicCoverageRatio: (ratio: number) => void;
+  setShuffleSubtopics: (enabled: boolean) => void;
   setGenerationStrategy: (strategy: GenerationStrategy) => void;
 
   // Written session
@@ -429,6 +431,7 @@ const defaultState: AppState = {
   strictLatexValidation: true,
   strictSubtopicCoverage: true,
   minSubtopicCoverageRatio: 0.6,
+  shuffleSubtopics: false,
   generationStrategy: 'multi-pass',
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
   activeQuestionIndex:
@@ -615,6 +618,7 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set({ strictSubtopicCoverage }),
   setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) =>
     set({ minSubtopicCoverageRatio }),
+  setShuffleSubtopics: (shuffleSubtopics) => set({ shuffleSubtopics }),
   setGenerationStrategy: (generationStrategy) => set({ generationStrategy }),
 
   setQuestions: (questions) => set({ questions }),
@@ -1041,6 +1045,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       theme: s.theme,
       tutorPersona: s.tutorPersona,
       tutorModel: s.tutorModel,
+      shuffleSubtopics: s.shuffleSubtopics,
     },
     preferences: {
       selectedTopics: s.selectedTopics,
@@ -1117,6 +1122,7 @@ function mapSettings(s: PersistedAppState): Partial<AppState> {
     theme: normalizeThemeName(s.settings.theme),
     tutorPersona: s.settings.tutorPersona ?? '',
     tutorModel: s.settings.tutorModel ?? s.settings.model,
+    shuffleSubtopics: s.settings.shuffleSubtopics ?? false,
   };
 }
 

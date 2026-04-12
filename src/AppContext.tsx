@@ -261,6 +261,8 @@ export function useAppSettings() {
       setTutorPersona: s.setTutorPersona,
       tutorModel: s.tutorModel,
       setTutorModel: s.setTutorModel,
+      shuffleSubtopics: s.shuffleSubtopics,
+      setShuffleSubtopics: s.setShuffleSubtopics,
     }))
   );
 }
