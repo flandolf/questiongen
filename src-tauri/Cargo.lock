@@ -3091,7 +3091,7 @@ dependencies = [
 
 [[package]]
 name = "questiongen"
-version = "3.3.18"
+version = "3.3.19"
 dependencies = [
  "base64 0.22.1",
  "futures-util",

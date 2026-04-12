@@ -12,6 +12,7 @@
   `src/lib/math-normalization.ts`.
 
 ## Critical Commands
+
 - **Verification Flow**: `bun run lint && bun run typecheck`
 - **Backend Tests**: `cd src-tauri && cargo test` (Tests parsing, LaTeX
   normalization, and prompt logic).
@@ -29,8 +30,8 @@
 
 ## Quirks & Constraints
 
-- **Lockfiles**: Repository contains both `bun.lock`.
-  Prefer `bun` for consistency with `package.json` scripts.
+- **Lockfiles**: Repository contains both `bun.lock`. Prefer `bun` for
+  consistency with `package.json` scripts.
 - **Tailwind 4**: Configuration is CSS-first (integrated in `src/index.css` via
   `@theme`).
 - **PDFs**: `exams/` and `reports/` are for reference PDFs (excluded from git).

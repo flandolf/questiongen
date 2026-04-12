@@ -14,7 +14,15 @@ import { useAppStore } from '@/store';
 
 import { Card, SectionHeader } from '../SettingsUI';
 
-function hasLogData(data: unknown): data is Record<string, unknown> | unknown[] | string | number | boolean | null {
+function hasLogData(
+  data: unknown,
+): data is
+  | Record<string, unknown>
+  | unknown[]
+  | string
+  | number
+  | boolean
+  | null {
   return data !== undefined && data !== null;
 }
 
