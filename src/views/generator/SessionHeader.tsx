@@ -118,7 +118,7 @@ export function SessionHeader({
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <div className='sticky top-0 z-20 bg-background/90 backdrop-blur-md'>
+    <div className='sticky top-0 bg-background/90 backdrop-blur-md'>
       {/* Session progress bar at very top */}
       <div className='h-1 w-full bg-muted/30'>
         <div
@@ -226,7 +226,9 @@ export function SessionHeader({
                 align='end'
                 sideOffset={8}
                 className={
-                  type === 'written' ? 'w-72 max-w-[calc(100vw-2rem)] p-3' : ''
+                  type === 'written'
+                    ? 'w-72 max-w-[calc(100vw-2rem)] p-3 z-50'
+                    : 'z-50'
                 }
               >
                 <TelemetryTooltip
@@ -250,7 +252,7 @@ export function SessionHeader({
                     <RefreshCw className='w-3.5 h-3.5' />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side='bottom'>
+                <TooltipContent side='bottom' className='z-50'>
                   <p>Regenerate this question</p>
                 </TooltipContent>
               </Tooltip>
@@ -269,7 +271,7 @@ export function SessionHeader({
                   <Trash2 className='w-3.5 h-3.5' />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side='bottom'>
+              <TooltipContent side='bottom' className='z-50'>
                 <p>Remove question from set</p>
               </TooltipContent>
             </Tooltip>

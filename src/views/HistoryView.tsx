@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { PageContainer, PageHeader } from '@/components/layout/primitives';
+import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 
 import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
 import { EmptyState } from '../components/EmptyState';
@@ -43,7 +44,6 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { useSyncV3 } from '../context/modules/sync-v3/useSyncV3';
 import { formatDate } from '../lib/app-utils';
 import { scoreColorBgClass } from '../lib/score-utils';
 import type { McHistoryEntry, QuestionHistoryEntry, Topic } from '../types';
@@ -774,7 +774,7 @@ function compareEntries(a: AnyEntry, b: AnyEntry, sortOrder: SortOrder) {
 // eslint-disable-next-line complexity
 export function HistoryView() {
   const navigate = useNavigate();
-  const { isSyncEnabled } = useSyncV3();
+  const { isSyncEnabled } = useFirebaseSyncContext();
   const { questionHistory, deleteQuestionHistoryEntry, clearQuestionHistory } =
     useWrittenSession();
   const { mcHistory, deleteMcHistoryEntry, clearMcHistory } =
