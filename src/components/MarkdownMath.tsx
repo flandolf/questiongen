@@ -2,7 +2,11 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { normalizeMathDelimiters } from '../lib/app-utils';
+import {
+  normalizeMathDelimiters,
+  restoreMathPlaceholders,
+  shieldMathForMarkdown,
+} from '../lib/app-utils';
 
 type MathJaxRuntime = {
   typesetPromise?: (elements?: Element[]) => Promise<void>;
@@ -20,7 +24,8 @@ type MarkdownMathProps = {
 export const MarkdownMath = memo(function MarkdownMath({
   content,
 }: MarkdownMathProps) {
-  const sanitized = useMemo(() => normalizeMathDelimiters(content), [content]);
+  const normalized = useMemo(() => normalizeMathDelimiters(content), [content]);
+  const shielded = useMemo(() => shieldMathForMarkdown(normalized), [normalized]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +35,29 @@ export const MarkdownMath = memo(function MarkdownMath({
       return;
     }
 
+    // Restore protected math placeholders after markdown rendering.
+    const restorePlaceholders = () => {
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+      let current = walker.nextNode();
+      while (current) {
+        const textNode = current as Text;
+        const originalText = textNode.textContent;
+        if (originalText) {
+          const restoredText = restoreMathPlaceholders(
+            originalText,
+            shielded.placeholders,
+          );
+          if (restoredText !== originalText) {
+            textNode.textContent = restoredText;
+          }
+        }
+        current = walker.nextNode();
+      }
+    };
+
     const typeset = () => {
+      restorePlaceholders();
+
       const runtime = getMathJaxRuntime();
       if (typeof runtime?.typesetPromise !== 'function') {
         return;
@@ -53,15 +80,15 @@ export const MarkdownMath = memo(function MarkdownMath({
     return () => {
       window.removeEventListener('mathjax:ready', typeset);
     };
-  }, [sanitized]);
+  }, [shielded]);
 
   return (
     <div
       ref={containerRef}
       className='prose prose-base dark:prose-invert max-w-none font-normal'
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} key={sanitized}>
-        {sanitized}
+      <ReactMarkdown remarkPlugins={[remarkGfm]} key={shielded.markdown}>
+        {shielded.markdown}
       </ReactMarkdown>
     </div>
   );

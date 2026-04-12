@@ -1,6 +1,10 @@
 import type { BackendError, MarkAnswerResponse } from '../types';
 
-export { normalizeMathDelimiters } from './math-normalization';
+export {
+  normalizeMathDelimiters,
+  restoreMathPlaceholders,
+  shieldMathForMarkdown,
+} from './math-normalization';
 export {
   type EstimatedTokensAndCost,
   estimateTokensAndCost,
@@ -74,11 +78,11 @@ export function normalizeMarkResponse(
   );
   const vcaaMarkingScheme = Array.isArray(data.vcaaMarkingScheme)
     ? data.vcaaMarkingScheme.map((item) => ({
-        criterion: item.criterion || 'Criterion',
-        achievedMarks: clampWholeNumber(item.achievedMarks, 0, 0, maxMarks),
-        maxMarks: clampWholeNumber(item.maxMarks, maxMarks, 1, maxMarks),
-        rationale: item.rationale || 'No rationale provided.',
-      }))
+      criterion: item.criterion || 'Criterion',
+      achievedMarks: clampWholeNumber(item.achievedMarks, 0, 0, maxMarks),
+      maxMarks: clampWholeNumber(item.maxMarks, maxMarks, 1, maxMarks),
+      rationale: item.rationale || 'No rationale provided.',
+    }))
     : [];
 
   return {

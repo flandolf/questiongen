@@ -811,6 +811,19 @@ mod tests {
     }
 
     #[test]
+    fn escapes_percent_inside_math() {
+        assert_eq!(clean_field("Rate is $50%$"), "Rate is $50\\%$");
+    }
+
+    #[test]
+    fn leaves_percent_outside_math_unchanged() {
+        assert_eq!(
+            clean_field("Increase by 50% today"),
+            "Increase by 50% today"
+        );
+    }
+
+    #[test]
     fn double_escaped_paren_normalised() {
         assert_eq!(clean_field("\\\\(x\\\\)"), "$x$");
     }

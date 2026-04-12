@@ -1,108 +1,98 @@
-const NORMALIZED_MATH_CACHE_MAX_ENTRIES = 200;
-const normalizedMathCache = new Map<string, string>();
-
 export function normalizeMathDelimiters(content: string): string {
-  const cached = normalizedMathCache.get(content);
-  if (cached !== undefined) {
-    return cached;
-  }
-
-  const normalized = transformOutsideCode(content, (segment) => {
-    return escapeBarePercentInMath(renderCurrencyEscapes(segment));
-  });
-
-  if (normalizedMathCache.size >= NORMALIZED_MATH_CACHE_MAX_ENTRIES) {
-    const firstKey = normalizedMathCache.keys().next().value;
-    if (firstKey !== undefined) {
-      normalizedMathCache.delete(firstKey);
-    }
-  }
-
-  normalizedMathCache.set(content, normalized);
-  return normalized;
+  // Normalization now happens in Rust (`clean_field`) before content reaches
+  // the UI. Keep this as a stable frontend API and passthrough.
+  return content;
 }
 
-function transformOutsideCode(
-  content: string,
-  transform: (segment: string) => string,
-): string {
-  return content
-    .split(/(```[\s\S]*?```)/g)
-    .map((fencedOrPlainChunk) => {
-      if (fencedOrPlainChunk.startsWith('```')) {
-        return fencedOrPlainChunk;
-      }
-      return fencedOrPlainChunk
-        .split(/(`[^`\n]*`)/g)
-        .map((inlineCodeOrPlain) => {
-          if (
-            inlineCodeOrPlain.startsWith('`') &&
-            inlineCodeOrPlain.endsWith('`')
-          ) {
-            return inlineCodeOrPlain;
-          }
-          return transform(inlineCodeOrPlain);
-        })
-        .join('');
-    })
-    .join('');
+export type ShieldedMath = {
+  markdown: string;
+  placeholders: Array<readonly [token: string, value: string]>;
+};
+
+const MATH_TOKEN_PREFIX = 'QG_MATH_TOKEN_START_';
+const MATH_TOKEN_SUFFIX = '_QG_MATH_TOKEN_END';
+
+function createMathToken(index: number): string {
+  return `${MATH_TOKEN_PREFIX}${index}${MATH_TOKEN_SUFFIX}`;
 }
 
-function renderCurrencyEscapes(content: string): string {
-  let result = '';
+// Replace $...$ and $$...$$ blocks with placeholders so markdown parsers
+// cannot consume backslashes inside LaTeX commands.
+export function shieldMathForMarkdown(content: string): ShieldedMath {
+  const placeholders: Array<readonly [string, string]> = [];
+  const out: string[] = [];
+  const chars = Array.from(content);
+  const len = chars.length;
+
   let i = 0;
-  while (i < content.length) {
-    if (content[i] === '$' && content[i + 1] === '$') {
-      const close = content.indexOf('$$', i + 2);
-      if (close !== -1) {
-        result += content.slice(i, close + 2);
-        i = close + 2;
-        continue;
-      }
-    }
-    if (content[i] === '$' && content[i - 1] !== '\\') {
-      const close = content.indexOf('$', i + 1);
-      if (close !== -1) {
-        result += content.slice(i, close + 1);
-        i = close + 1;
-        continue;
-      }
-    }
-    if (content[i] === '\\' && content[i + 1] === '$') {
-      result += '$';
+  while (i < len) {
+    const ch = chars[i];
+
+    // Preserve escaped characters while scanning for delimiters.
+    if (ch === '\\' && i + 1 < len) {
+      out.push(ch, chars[i + 1]);
       i += 2;
       continue;
     }
-    result += content[i];
-    i += 1;
-  }
-  return result;
-}
 
-function escapeBarePercentInMath(content: string): string {
-  return content.replace(
-    /(\$\$[\s\S]*?\$\$|\$[^$\n]+\$)/g,
-    (mathSegment: string) => {
-      const delimiter = mathSegment.startsWith('$$') ? '$$' : '$';
-      const inner = mathSegment.slice(delimiter.length, -delimiter.length);
-      return `${delimiter}${escapeUnescapedPercent(inner)}${delimiter}`;
-    },
-  );
-}
-
-function escapeUnescapedPercent(content: string): string {
-  let result = '';
-  for (let i = 0; i < content.length; i += 1) {
-    const char = content[i];
-    if (char !== '%') {
-      result += char;
+    if (ch !== '$') {
+      out.push(ch);
+      i += 1;
       continue;
     }
-    let backslashCount = 0;
-    for (let j = i - 1; j >= 0 && content[j] === '\\'; j -= 1) {
-      backslashCount += 1;
+
+    const isDisplay = i + 1 < len && chars[i + 1] === '$';
+    const start = i;
+    i += isDisplay ? 2 : 1;
+
+    let found = false;
+    while (i < len) {
+      if (chars[i] === '\\' && i + 1 < len) {
+        i += 2;
+        continue;
+      }
+
+      if (isDisplay) {
+        if (i + 1 < len && chars[i] === '$' && chars[i + 1] === '$') {
+          i += 2;
+          found = true;
+          break;
+        }
+      } else if (chars[i] === '$') {
+        i += 1;
+        found = true;
+        break;
+      }
+
+      i += 1;
     }
-    result += backslashCount % 2 === 0 ? '\\%' : '%';
+
+    if (!found) {
+      out.push(...chars.slice(start));
+      break;
+    }
+
+    const value = chars.slice(start, i).join('');
+    const token = createMathToken(placeholders.length);
+    placeholders.push([token, value]);
+    out.push(token);
   }
-  return result;
+
+  return {
+    markdown: out.join(''),
+    placeholders,
+  };
+}
+
+export function restoreMathPlaceholders(
+  text: string,
+  placeholders: ReadonlyArray<readonly [token: string, value: string]>,
+): string {
+  let output = text;
+  for (const [token, value] of placeholders) {
+    if (output.includes(token)) {
+      output = output.split(token).join(value);
+    }
+  }
+  return output;
 }

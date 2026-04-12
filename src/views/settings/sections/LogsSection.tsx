@@ -14,10 +14,22 @@ import { useAppStore } from '@/store';
 
 import { Card, SectionHeader } from '../SettingsUI';
 
+function hasLogData(data: unknown): data is Record<string, unknown> | unknown[] | string | number | boolean | null {
+  return data !== undefined && data !== null;
+}
+
 export function LogsSection() {
   const logs = useAppStore((s) => s.logs);
   const clearLogs = useAppStore((s) => s.clearLogs);
   const [filter, setFilter] = useState('');
+
+  const formatLogData = (data: unknown) => {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch {
+      return String(data);
+    }
+  };
 
   const filteredLogs = useMemo(() => {
     if (!filter.trim()) return logs;
@@ -94,32 +106,44 @@ export function LogsSection() {
                 </div>
               ) : (
                 filteredLogs.map((log) => (
-                  <div key={log.id} className='flex gap-3 leading-relaxed'>
-                    <span className='text-zinc-500 shrink-0 select-none'>
-                      [{new Date(log.timestamp).toLocaleTimeString()}]
-                    </span>
-                    <span
-                      className={cn('shrink-0 font-bold select-none w-12', {
-                        'text-zinc-400': log.level === 'log',
-                        'text-blue-400': log.level === 'info',
-                        'text-yellow-500': log.level === 'warn',
-                        'text-red-500': log.level === 'error',
-                        'text-purple-400': log.level === 'debug',
-                      })}
-                    >
-                      {log.level.toUpperCase()}
-                    </span>
-                    <span
-                      className={cn('wrap-break-word whitespace-pre-wrap', {
-                        'text-zinc-300': log.level === 'log',
-                        'text-blue-200': log.level === 'info',
-                        'text-yellow-200': log.level === 'warn',
-                        'text-red-200': log.level === 'error',
-                        'text-purple-200': log.level === 'debug',
-                      })}
-                    >
-                      {log.message}
-                    </span>
+                  <div
+                    key={log.id}
+                    className='flex flex-col gap-1 leading-relaxed border-b border-zinc-900 pb-2 last:border-0'
+                  >
+                    <div className='flex gap-3'>
+                      <span className='text-zinc-500 shrink-0 select-none'>
+                        [{new Date(log.timestamp).toLocaleTimeString()}]
+                      </span>
+                      <span
+                        className={cn('shrink-0 font-bold select-none w-12', {
+                          'text-zinc-400': log.level === 'log',
+                          'text-blue-400': log.level === 'info',
+                          'text-yellow-500': log.level === 'warn',
+                          'text-red-500': log.level === 'error',
+                          'text-purple-400': log.level === 'debug',
+                        })}
+                      >
+                        {log.level.toUpperCase()}
+                      </span>
+                      <span
+                        className={cn('wrap-break-word whitespace-pre-wrap', {
+                          'text-zinc-300': log.level === 'log',
+                          'text-blue-200': log.level === 'info',
+                          'text-yellow-200': log.level === 'warn',
+                          'text-red-200': log.level === 'error',
+                          'text-purple-200': log.level === 'debug',
+                        })}
+                      >
+                        {log.message}
+                      </span>
+                    </div>
+                    {hasLogData(log.data) && (
+                      <div className='ml-15 mt-1 overflow-x-auto rounded bg-zinc-900/50 p-2'>
+                        <pre className='text-[10px] text-zinc-400'>
+                          {formatLogData(log.data)}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
