@@ -70,13 +70,14 @@ HYGIENE:
 - PROFESSIONALISM: Standard punctuation only. No excessive exclamation marks (!).";
 
 /// Injected into every system prompt.
-pub const LATEX_RULES: &str = "
+pub const LATEX_RULES: &str = r#"
 LATEX:
-- Use inline $...$ or display $$...$$. NO \\(...\\) or \\[...\\].
-- Use LaTeX for ALL math symbols, Greek letters, and Chemistry species ($\\text{H}_2\\text{O}$).
+- Use inline $...$ or display $$...$$. NO \(...\) or \[...\].
+- Use LaTeX for ALL math symbols, Greek letters, and Chemistry species ($\text{H}_2\text{O}$).
 - Do not place LaTeX commands outside math delimiters.
-- NO empty fractions (\\frac{}{}) or incomplete commands.
-- Use LaTeX only when mathematically necessary.";
+- In arrays/tabulars/cases, end a row with \\ before any rule command. Never write \\ \hline or \\ \cline; use \\ \hline / \\ \cline instead.
+- NO empty fractions (\frac{}{}) or incomplete commands.
+- Use LaTeX only when mathematically necessary."#;
 
 pub const WRITTEN_STYLE_RULES: &str = "
 VCAA WRITTEN STYLE:

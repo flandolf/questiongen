@@ -427,6 +427,56 @@ fn repair_tabular_row_breaks(s: &str) -> String {
     out
 }
 
+fn table_rule_row_break_issues(segment: &str) -> Vec<String> {
+    const RULE_COMMANDS: [&str; 6] = [
+        "hline",
+        "cline",
+        "cmidrule",
+        "toprule",
+        "midrule",
+        "bottomrule",
+    ];
+
+    let chars: Vec<char> = segment.chars().collect();
+    let len = chars.len();
+    let mut issues = Vec::new();
+    let mut i = 0usize;
+
+    while i < len {
+        if chars[i] == '\\' {
+            let mut cmd_end = i + 1;
+            while cmd_end < len && chars[cmd_end].is_ascii_alphabetic() {
+                cmd_end += 1;
+            }
+
+            if cmd_end > i + 1 {
+                let command: String = chars[i + 1..cmd_end].iter().collect();
+                if RULE_COMMANDS.iter().any(|candidate| candidate == &command) {
+                    let mut back = i;
+                    while back > 0 && chars[back - 1].is_whitespace() {
+                        back -= 1;
+                    }
+
+                    if back > 0 && chars[back - 1] == '\\' && (back < 2 || chars[back - 2] != '\\')
+                    {
+                        issues.push(format!(
+                            "table rule \\{} needs a row break of \\\\ before it; single \\ causes Misplaced \\hline",
+                            command
+                        ));
+                    }
+                }
+            }
+
+            i = cmd_end;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    issues
+}
+
 pub fn render_latex(nodes: &[LatexNode]) -> String {
     let mut out = String::new();
     for node in nodes {
@@ -491,6 +541,9 @@ pub fn first_brace_group(content: &str) -> Option<(String, usize)> {
 
 pub fn latex_semantic_issues(segment: &str) -> Vec<String> {
     let mut issues = Vec::new();
+
+    issues.extend(table_rule_row_break_issues(segment));
+
     let mut i = 0usize;
     let bytes = segment.as_bytes();
 
@@ -622,5 +675,20 @@ mod tests {
             rendered,
             "Compute $\\frac{1}{}$ and $\\frac{1}{2}$ and $\\frac{\\pi}{2}$"
         );
+    }
+
+    #[test]
+    fn latex_issue_detector_flags_misplaced_hline_row_breaks() {
+        let issues = latex_issues_for_text(r"\begin{array}{c|c} x & 1 \ \hline y & 2 \end{array}");
+        assert!(
+            issues.iter().any(|i| i.contains("Misplaced \\hline")),
+            "expected misplaced hline issue, got {issues:?}"
+        );
+    }
+
+    #[test]
+    fn latex_issue_detector_accepts_valid_hline_row_breaks() {
+        let issues = latex_issues_for_text(r"\begin{array}{c|c} x & 1 \\ \hline y & 2 \end{array}");
+        assert!(issues.is_empty(), "unexpected issues: {issues:?}");
     }
 }

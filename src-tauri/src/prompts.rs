@@ -343,6 +343,7 @@ PROBABILITY DISTRIBUTION TABLE FORMAT (MANDATORY, STRICT):
   * \begin{array}{c|cc} X & 0 & 1 \\ \hline P(X=x) & 0.5 & 0.5 \end{array}
   * \begin{array}{c|ccc} Y & 1 & 2 & 3 \\ \hline P(Y=y) & \frac{1}{6} & \frac{1}{3} & \frac{1}{2} \end{array}
 - CRITICAL: Row breaks use \\ (double backslash), NOT \ (single backslash followed by space).
+- CRITICAL: A missing row break before \hline causes the LaTeX error 'Misplaced \hline'. Always write \\ \hline, never \ \hline.
 - FORBIDDEN FORMATS:
   * Using single backslash: x & 1 & 2 \ \hline (WRONG — generates LaTeX errors)
   * Markdown tables: | X | 0 | 1 | (WRONG — invalid)
