@@ -248,8 +248,7 @@ const ToggleButton = memo(function ToggleButton({
   );
 });
 
-// Accuracy arc mini-indicator
-function AccuracyArc({ pct }: { pct: number }) {
+const AccuracyArc = memo(function AccuracyArc({ pct }: { pct: number }) {
   const color = pct >= 75 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e';
   const r = 10;
   const circ = 2 * Math.PI * r;
@@ -286,9 +285,9 @@ function AccuracyArc({ pct }: { pct: number }) {
       />
     </svg>
   );
-}
+});
 
-function CloudStatusIndicator({
+const CloudStatusIndicator = memo(function CloudStatusIndicator({
   isUploaded,
   isSyncEnabled,
 }: {
@@ -324,9 +323,15 @@ function CloudStatusIndicator({
       <CloudUpload className='h-3.5 w-3.5' />
     </div>
   );
-}
+});
 
-function ScorePill({ awarded, max }: { awarded: number; max: number }) {
+const ScorePill = memo(function ScorePill({
+  awarded,
+  max,
+}: {
+  awarded: number;
+  max: number;
+}) {
   const isCorrect = awarded >= max;
   return (
     <span
@@ -344,7 +349,7 @@ function ScorePill({ awarded, max }: { awarded: number; max: number }) {
       {awarded.toFixed(0)}/{max}
     </span>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // McEntryCard
