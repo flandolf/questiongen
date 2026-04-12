@@ -9,6 +9,7 @@ import {
   HardDriveDownload,
   Key,
   Palette,
+  ScrollText,
   TrendingUp,
   Wand2,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { DebugSection } from './settings/sections/DebugSection';
 import { GenerationSettingsSection } from './settings/sections/GenerationSettingsSection';
 import { GoalsSection } from './settings/sections/GoalsSection';
 import { ImportExportSection } from './settings/sections/ImportExportSection';
+import { LogsSection } from './settings/sections/LogsSection';
 import { ModelsSection } from './settings/sections/ModelsSection';
 import { SyncSection } from './settings/sections/SyncSection';
 import { TimeAllocationSection } from './settings/sections/TimeAllocationSection';
@@ -60,6 +62,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: React.ReactNode }[] = [
     icon: <Clock className='h-4 w-4' />,
   },
   { id: 'debug', label: 'Debug', icon: <Bug className='h-4 w-4' /> },
+  { id: 'logs', label: 'Logs', icon: <ScrollText className='h-4 w-4' /> },
   { id: 'sync', label: 'Cloud Sync', icon: <Cloud className='h-4 w-4' /> },
   { id: 'cleanup', label: 'Data Cleanup', icon: <Wand2 className='h-4 w-4' /> },
   {
@@ -89,6 +92,8 @@ function renderSection(activeSection: Section) {
       return <TimeAllocationSection />;
     case 'debug':
       return <DebugSection />;
+    case 'logs':
+      return <LogsSection />;
     case 'sync':
       return <SyncSection />;
     case 'cleanup':

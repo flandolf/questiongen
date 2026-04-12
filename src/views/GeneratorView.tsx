@@ -1610,6 +1610,18 @@ export function GeneratorView() {
                 attempt: 1,
               });
             }
+
+            console.log('[Generator] Calling generate_questions with:', {
+              topic,
+              difficulty,
+              count,
+              model,
+              techMode,
+              includeExamContext,
+              subtopics: topicSubtopics,
+              shuffleSubtopics,
+            });
+
             const response = await invoke<GenerateQuestionsResponse>(
               'generate_questions',
               {
@@ -1628,6 +1640,13 @@ export function GeneratorView() {
                 },
               },
             );
+
+            console.log('[Generator] Received response:', {
+              questionCount: response.questions.length,
+              durationMs: response.durationMs,
+              totalTokens: response.totalTokens,
+              cost: response.estimatedCostUsd,
+            });
 
             allQuestions = allQuestions.concat(response.questions);
             totalTelemetry.durationMs += response.durationMs || 0;
@@ -1699,6 +1718,15 @@ export function GeneratorView() {
                 total: subCalls.length,
               });
             }
+
+            console.log('[Generator] Multi-pass sub-call:', {
+              topic,
+              subtopics: call.subtopics,
+              count: call.count,
+              si,
+              totalSubCalls: subCalls.length,
+            });
+
             const response = await invoke<GenerateQuestionsResponse>(
               'generate_questions',
               {
@@ -1717,6 +1745,11 @@ export function GeneratorView() {
                 },
               },
             );
+
+            console.log('[Generator] Sub-call response:', {
+              questionCount: response.questions.length,
+              durationMs: response.durationMs,
+            });
 
             allQuestions = allQuestions.concat(response.questions);
             totalTelemetry.durationMs += response.durationMs || 0;
@@ -1931,6 +1964,20 @@ export function GeneratorView() {
                 attempt: 1,
               });
             }
+
+            console.log('[Generator] Calling generate_mc_questions with:', {
+              topic,
+              difficulty,
+              count,
+              model,
+              techMode,
+              includeExamContext,
+              subtopics: topicSubtopics,
+              shuffleSubtopics,
+              avoidSimilarQuestions,
+              aiDifficultyScalingEnabled,
+            });
+
             const response = await invoke<GenerateMcQuestionsResponse>(
               'generate_mc_questions',
               {
@@ -1959,6 +2006,12 @@ export function GeneratorView() {
                 },
               },
             );
+
+            console.log('[Generator] Received MC response:', {
+              questionCount: response.questions.length,
+              durationMs: response.durationMs,
+              totalTokens: response.totalTokens,
+            });
 
             allQuestions = allQuestions.concat(response.questions);
             totalTelemetry.durationMs += response.durationMs || 0;
@@ -2030,6 +2083,15 @@ export function GeneratorView() {
                 total: subCalls.length,
               });
             }
+
+            console.log('[Generator] Multi-pass MC sub-call:', {
+              topic,
+              subtopics: call.subtopics,
+              count: call.count,
+              si,
+              totalSubCalls: subCalls.length,
+            });
+
             const response = await invoke<GenerateMcQuestionsResponse>(
               'generate_mc_questions',
               {
@@ -2057,6 +2119,11 @@ export function GeneratorView() {
                 },
               },
             );
+
+            console.log('[Generator] MC sub-call response:', {
+              questionCount: response.questions.length,
+              durationMs: response.durationMs,
+            });
 
             // Shuffle options for each returned MC question and relabel
             const adjusted = (response.questions || []).map((q) =>
@@ -2242,6 +2309,11 @@ export function GeneratorView() {
       const responseEnteredAtMs =
         writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
       const markStartedAt = Date.now();
+      console.log('[Marking] Calling mark_answer:', {
+        questionId: activeQuestion.id,
+        model: markModel,
+        hasImage: Boolean(finalImage),
+      });
       const rawResponse = await invoke<unknown>('mark_answer', {
         request: {
           question: activeQuestion,
@@ -2251,6 +2323,7 @@ export function GeneratorView() {
           apiKey,
         },
       });
+      console.log('[Marking] Received response for:', activeQuestion.id);
       const markingLatencyMs = Date.now() - markStartedAt;
       const response = normalizeMarkResponse(
         rawResponse,
@@ -2310,6 +2383,10 @@ export function GeneratorView() {
       ]
         .filter((p) => p.trim())
         .join('\n\n');
+      console.log('[Marking] Requesting re-mark/appeal:', {
+        questionId: activeQuestion.id,
+        appealText,
+      });
       const rawResponse = await invoke<unknown>('mark_answer', {
         request: {
           question: activeQuestion,
@@ -2319,6 +2396,10 @@ export function GeneratorView() {
           apiKey,
         },
       });
+      console.log(
+        '[Marking] Received re-mark response for:',
+        activeQuestion.id,
+      );
       const response = normalizeMarkResponse(
         rawResponse,
         activeQuestion.maxMarks,

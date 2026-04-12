@@ -3,6 +3,7 @@ export * from './catalog';
 export * from './events';
 export * from './generator';
 export * from './history';
+export * from './logs';
 export * from './marking';
 export * from './persistence';
 export * from './questions';
