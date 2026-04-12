@@ -3,6 +3,7 @@ import {
   Bookmark,
   ChartColumnIncreasing,
   CircleX,
+  Cloud,
   Flame,
   History,
   type LucideIcon,
@@ -12,8 +13,9 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
-import { cn, getTodayKey } from '../../lib/utils';
-import { useAppStore } from '../../store';
+import { useSyncV3 } from '@/context/modules/sync-v3/useSyncV3';
+import { cn, getTodayKey } from '@/lib/utils';
+import { useAppStore } from '@/store';
 
 const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
 const EASE = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as const };
@@ -118,6 +120,7 @@ function ConcentricRings({
 }
 
 export function Header() {
+  const { isSyncEnabled, syncStatus } = useSyncV3();
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
   const questions = useAppStore((s) => s.questions);
@@ -132,6 +135,8 @@ export function Header() {
   }, [streakData.dailyCompletions]);
 
   const [showGoals, setShowGoals] = useState(false);
+
+  const isSyncing = syncStatus === 'syncing' || syncStatus === 'connecting';
 
   const renderLink = useCallback(
     (link: {
@@ -191,6 +196,30 @@ export function Header() {
 
       {/* Right: Stats + Settings */}
       <div className="flex items-center gap-3">
+        {/* Sync Indicator */}
+        {isSyncEnabled && (
+          <div className="flex items-center">
+            {isSyncing ? (
+              <motion.div
+                animate={{ opacity: [1, 0.4, 1] }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                className="text-emerald-500"
+                title="Syncing..."
+              >
+                <Cloud className="h-4 w-4" />
+              </motion.div>
+            ) : (
+              <div className="text-emerald-500/80" title="Synced to Firestore">
+                <Cloud className="h-4 w-4" />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Goals */}
         <div className="relative">
           <button

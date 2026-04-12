@@ -6,6 +6,9 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Cloud,
+  CloudOff,
+  CloudUpload,
   FileText,
   Filter,
   History,
@@ -40,6 +43,7 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { useSyncV3 } from '../context/modules/sync-v3/useSyncV3';
 import { formatDate } from '../lib/app-utils';
 import { scoreColorBgClass } from '../lib/score-utils';
 import type { McHistoryEntry, QuestionHistoryEntry, Topic } from '../types';
@@ -276,6 +280,44 @@ function AccuracyArc({ pct }: { pct: number }) {
   );
 }
 
+function CloudStatusIndicator({
+  isUploaded,
+  isSyncEnabled,
+}: {
+  isUploaded?: boolean;
+  isSyncEnabled: boolean;
+}) {
+  if (!isSyncEnabled) {
+    return (
+      <div
+        className="flex items-center text-muted-foreground/30"
+        title="Sync is disabled"
+      >
+        <CloudOff className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+
+  if (isUploaded) {
+    return (
+      <div
+        className="flex items-center text-sky-500"
+        title="Synced to Firestore"
+      >
+        <Cloud className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+  return (
+    <div
+      className="flex items-center text-amber-500"
+      title="Pending cloud sync"
+    >
+      <CloudUpload className="h-3.5 w-3.5" />
+    </div>
+  );
+}
+
 function ScorePill({ awarded, max }: { awarded: number; max: number }) {
   const isCorrect = awarded >= max;
   return (
@@ -305,11 +347,13 @@ const McEntryCard = memo(function McEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  isSyncEnabled,
 }: {
   item: { kind: 'mc' } & McHistoryEntry;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  isSyncEnabled: boolean;
 }) {
   const awarded = item.awardedMarks ?? (item.correct ? 1 : 0);
   const max = item.maxMarks ?? 1;
@@ -350,6 +394,10 @@ const McEntryCard = memo(function McEntryCard({
                 >
                   MC
                 </Badge>
+                <CloudStatusIndicator
+                  isUploaded={item.isUploaded}
+                  isSyncEnabled={isSyncEnabled}
+                />
               </div>
               {item.question.subtopic && (
                 <p className="text-xs text-muted-foreground truncate">
@@ -464,11 +512,13 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  isSyncEnabled,
 }: {
   item: { kind: 'written' } & QuestionHistoryEntry;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  isSyncEnabled: boolean;
 }) {
   const score = item.markResponse.scoreOutOf10;
   const pct =
@@ -502,6 +552,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                 >
                   Written
                 </Badge>
+                <CloudStatusIndicator
+                  isUploaded={item.isUploaded}
+                  isSyncEnabled={isSyncEnabled}
+                />
               </div>
               {item.question.subtopic && (
                 <p className="text-xs text-muted-foreground truncate">
@@ -665,11 +719,13 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
   isExpanded,
   onToggle,
   onDelete,
+  isSyncEnabled,
 }: {
   item: AnyEntry;
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  isSyncEnabled: boolean;
 }) {
   if (item.kind === 'mc') {
     return (
@@ -678,6 +734,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
         isExpanded={isExpanded}
         onToggle={onToggle}
         onDelete={onDelete}
+        isSyncEnabled={isSyncEnabled}
       />
     );
   }
@@ -687,6 +744,7 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
       isExpanded={isExpanded}
       onToggle={onToggle}
       onDelete={onDelete}
+      isSyncEnabled={isSyncEnabled}
     />
   );
 });
@@ -716,6 +774,7 @@ function compareEntries(a: AnyEntry, b: AnyEntry, sortOrder: SortOrder) {
 // eslint-disable-next-line complexity
 export function HistoryView() {
   const navigate = useNavigate();
+  const { isSyncEnabled } = useSyncV3();
   const { questionHistory, deleteQuestionHistoryEntry, clearQuestionHistory } =
     useWrittenSession();
   const { mcHistory, deleteMcHistoryEntry, clearMcHistory } =
@@ -1165,6 +1224,7 @@ export function HistoryView() {
                       setPendingDeleteEntry(item);
                       setDeleteConfirmOpen(true);
                     }}
+                    isSyncEnabled={isSyncEnabled}
                   />
                 </div>
               );

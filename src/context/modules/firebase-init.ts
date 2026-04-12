@@ -3,6 +3,7 @@ import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
   initializeFirestore,
+  memoryLocalCache,
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore';
@@ -27,13 +28,35 @@ if (!app) {
 const auth = getAuth(app);
 const storage = getStorage(app);
 
+const isTauriRuntime =
+  typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
+
+if (isTauriRuntime) {
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith('firestore_')) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch (error) {
+    console.warn(
+      '[Firebase] Failed to clear Firestore localStorage keys',
+      error
+    );
+  }
+}
+
 const db = (() => {
   try {
     return initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
+      localCache: isTauriRuntime
+        ? memoryLocalCache()
+        : persistentLocalCache({
+            tabManager: persistentMultipleTabManager(),
+          }),
     });
   } catch (error) {
     console.warn(
