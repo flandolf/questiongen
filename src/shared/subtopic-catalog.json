@@ -153,27 +153,27 @@
         {
           "name": "Dilations",
           "technique_notes": "Generate questions requiring students to apply and identify vertical dilations (from the x-axis, factor $|a|$) and horizontal dilations (from the y-axis, factor $1/|b|$) to standard functions. Include tasks to write the transformed equation, state the dilation in standard language, and track how key coordinates change. Test the common confusion between dilation factor and its reciprocal for horizontal dilations. Use standard language: 'dilation by factor $|a|$ from the x-axis' (vertical) and 'dilation by factor $1/|b|$ from the y-axis' (horizontal). Always track the mapping $(x, y) \\to (x', y')$ to verify transformed coordinates. For tech-free items, use integer or simple rational dilation factors.",
-          "group": "unit3-functions"
+          "group": "unit3-transformations"
         },
         {
           "name": "Reflections and Translations",
           "technique_notes": "Create questions where students apply reflections across the x-axis ($y \\to -y$) or y-axis ($x \\to -x$), and horizontal/vertical translations, individually and in combination. Emphasise sign conventions: a translation of $h$ units right corresponds to replacing $x$ with $x - h$ (not $x + h$). Include tasks identifying the transformation from two given equations. Use the general form $y = af(b(x-h))+k$ to identify all parameters. Describe each transformation in plain language with a stated direction and magnitude before writing the algebraic form. For combined transformations, number each step in the correct sequence (dilations and reflections before translations unless otherwise indicated).",
-          "group": "unit3-functions"
+          "group": "unit3-transformations"
         },
         {
           "name": "Identifying Parameters from Graphs",
           "technique_notes": "Present students with sketches of transformed functions and require them to read off or calculate the parameters $a$, $b$, $h$, and $k$ in $y = af(b(x-h))+k$. Include cases involving amplitude and period for circular functions, and asymptote shifts for exponential and logarithmic functions. Require written justification linking graph features to parameter values. Structure these questions by first asking students to identify the base function, then determine each parameter in order: $a$, $b$, $h$, $k$. Require a written sentence linking each graph feature (e.g. 'the period is $\\pi$, so $2\\pi/b = \\pi$, giving $b = 2$') to the parameter value.",
-          "group": "unit3-functions"
+          "group": "unit3-transformations"
         },
         {
           "name": "Coordinate Mapping",
           "technique_notes": "Develop questions where students systematically track how specific points or features are transformed through a sequence of operations, using the general mapping $(x, y) \\to (x/b + h,\\, ay + k)$. Include multi-step sequences and require students to verify that the image coordinates lie on the transformed curve. Test reverse mapping   finding the original point given the image. Set up coordinate mapping as a table: original point $(x, y)$, mapping rule, image point $(x', y')$. Require at least 3 key points to be tracked per transformation sequence. For reverse problems, solve the mapping equations algebraically and verify by substituting back.",
-          "group": "unit3-functions"
+          "group": "unit3-transformations"
         },
         {
           "name": "Families of Transformed Functions",
           "technique_notes": "Create questions where a single parameter (e.g. $a$, $b$, or $k$) varies continuously and students describe the resulting family of curves   how key features (intercepts, asymptotes, turning points, range) change with the parameter. Include tasks requiring students to find the value of the parameter satisfying a given condition (e.g. the graph passes through a specific point or the range equals a specific interval). For family questions, express the answer as a condition on the parameter (e.g. '$a > 0$' or '$k < -3$') rather than a single value when the question asks for a set of values. For 'find the parameter' questions, substitute the given constraint and solve algebraically.",
-          "group": "unit3-functions"
+          "group": "unit3-transformations"
         },
         {
           "name": "Solving Polynomial Equations",

@@ -171,7 +171,7 @@ export function ModelSelectRow({
   const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-row items-center gap-2">
       <Select value={selectVal} onValueChange={onSelect}>
         <SelectTrigger id={id} className="flex-1 min-w-0">
           <SelectValue placeholder={placeholder} />
@@ -200,13 +200,12 @@ export function ModelSelectRow({
       {onSearch && (
         <Button
           variant="outline"
-          size="sm"
-          className="shrink-0"
+          size="icon"
           disabled={disabled}
           onClick={onSearch}
           title="Search all OpenRouter models"
         >
-          <Search className="h-3.5 w-3.5" />
+          <Search size={4} />
         </Button>
       )}
     </div>
