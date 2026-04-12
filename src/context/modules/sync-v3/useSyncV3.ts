@@ -25,7 +25,10 @@ import { saveMcHistoryEntry, saveQuestionHistoryEntry } from './mutations';
 
 function mergeById<T extends { id: string; lastModified?: number }>(
   local: T[],
-  remote: T[]
+  remote: T[],
+  options?: {
+    preserveLocalOnly?: (entry: T) => boolean;
+  }
 ): T[] {
   const result = [...remote];
   const remoteMap = new Map(remote.map((e) => [e.id, e]));
@@ -33,7 +36,9 @@ function mergeById<T extends { id: string; lastModified?: number }>(
   for (const l of local) {
     const r = remoteMap.get(l.id);
     if (!r) {
-      result.push(l);
+      if (options?.preserveLocalOnly?.(l)) {
+        result.push(l);
+      }
     } else if (
       l.lastModified &&
       r.lastModified &&
@@ -118,7 +123,9 @@ export function useSyncV3(): UseSyncV3Return {
             }));
             const local = useAppStore.getState().questionHistory;
             useAppStore.setState({
-              questionHistory: mergeById(local, history),
+              questionHistory: mergeById(local, history, {
+                preserveLocalOnly: (entry) => entry.isUploaded === false,
+              }),
             });
           },
           (error) => {
@@ -142,7 +149,11 @@ export function useSyncV3(): UseSyncV3Return {
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
             }));
             const local = useAppStore.getState().mcHistory;
-            useAppStore.setState({ mcHistory: mergeById(local, history) });
+            useAppStore.setState({
+              mcHistory: mergeById(local, history, {
+                preserveLocalOnly: (entry) => entry.isUploaded === false,
+              }),
+            });
           },
           (error) => {
             console.error('[FirebaseSync] MC history listener error:', error);
