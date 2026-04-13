@@ -237,6 +237,22 @@ pub fn read_text_file(path: String) -> CommandResult<String> {
         .map_err(|e| AppError::new("READ_FILE_ERROR", format!("Could not read file: {e}")))
 }
 
+/// Write a UTF-8 text file to disk at a chosen path.
+#[tauri::command]
+pub fn write_text_file(path: String, content: String) -> CommandResult<()> {
+    let trimmed = normalize_fs_path_arg(&path);
+    if trimmed.is_empty() {
+        return Err(AppError::new("WRITE_FILE_ERROR", "Path is empty."));
+    }
+    let p = Path::new(trimmed.as_str());
+    if let Some(parent) = p.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| AppError::new("WRITE_FILE_ERROR", format!("Cannot create dir: {e}")))?;
+    }
+    fs::write(p, content)
+        .map_err(|e| AppError::new("WRITE_FILE_ERROR", format!("Could not write file: {e}")))
+}
+
 fn state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
     app.path()
         .app_data_dir()

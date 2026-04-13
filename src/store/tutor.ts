@@ -10,6 +10,8 @@ export interface TutorMessage {
 export interface TutorSession {
   questionId: string;
   messages: TutorMessage[];
+  modelOverride?: string;
+  personaOverride?: string;
 }
 
 export interface TutorState {
@@ -19,18 +21,28 @@ export interface TutorState {
   streamedContent: string;
   totalTokensSession: number;
   totalCostSession: number;
+  totalMessagesCount: number;
+  totalErrorsCount: number;
+  isCompact: boolean;
 }
 
 export interface TutorActions {
   setIsOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
+  setIsCompact: (isCompact: boolean) => void;
+  toggleCompact: () => void;
   addMessage: (questionId: string, message: TutorMessage) => void;
+  updateSessionOverrides: (
+    questionId: string,
+    overrides: { model?: string; persona?: string },
+  ) => void;
   clearSession: (questionId: string) => void;
   clearAllSessions: () => void;
   setIsGenerating: (isGenerating: boolean) => void;
   setStreamedContent: (content: string) => void;
   appendStreamedContent: (chunk: string) => void;
   updateMetrics: (tokens: number, cost: number) => void;
+  incrementErrorCount: () => void;
 }
 
 export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
@@ -40,11 +52,34 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
   streamedContent: '',
   totalTokensSession: 0,
   totalCostSession: 0,
+  totalMessagesCount: 0,
+  totalErrorsCount: 0,
+  isCompact: false,
 
   setIsOpen: (isOpen) => set({ isOpen }),
   toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
+  setIsCompact: (isCompact) => set({ isCompact }),
+  toggleCompact: () => set((state) => ({ isCompact: !state.isCompact })),
 
   addMessage: (questionId, message) =>
+    set((state) => {
+      const session = state.sessions[questionId] || {
+        questionId,
+        messages: [],
+      };
+      return {
+        totalMessagesCount: state.totalMessagesCount + 1,
+        sessions: {
+          ...state.sessions,
+          [questionId]: {
+            ...session,
+            messages: [...session.messages, message],
+          },
+        },
+      };
+    }),
+
+  updateSessionOverrides: (questionId, overrides) =>
     set((state) => {
       const session = state.sessions[questionId] || {
         questionId,
@@ -55,7 +90,8 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
           ...state.sessions,
           [questionId]: {
             ...session,
-            messages: [...session.messages, message],
+            modelOverride: overrides.model ?? session.modelOverride,
+            personaOverride: overrides.persona ?? session.personaOverride,
           },
         },
       };
@@ -77,6 +113,8 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
       sessions: {},
       totalTokensSession: 0,
       totalCostSession: 0,
+      totalMessagesCount: 0,
+      totalErrorsCount: 0,
       streamedContent: '',
       isOpen: false,
     })),
@@ -91,4 +129,7 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
       totalTokensSession: state.totalTokensSession + tokens,
       totalCostSession: state.totalCostSession + cost,
     })),
+
+  incrementErrorCount: () =>
+    set((state) => ({ totalErrorsCount: state.totalErrorsCount + 1 })),
 }));

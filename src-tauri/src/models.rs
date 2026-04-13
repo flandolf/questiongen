@@ -279,6 +279,7 @@ pub struct TutorChatRequest {
     pub messages: Vec<TutorMessage>,
     pub model: String,
     pub api_key: String,
+    pub diagnostic: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
