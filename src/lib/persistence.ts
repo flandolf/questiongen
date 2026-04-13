@@ -27,8 +27,10 @@ import type {
 import {
   API_KEY_STORAGE_KEY,
   APP_STATE_STORAGE_KEY,
+  BIOLOGY_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
   DEBUG_MODE_STORAGE_KEY,
+  GENERAL_MATHEMATICS_SUBTOPICS,
   MATH_METHODS_SUBTOPICS,
   MC_HISTORY_STORAGE_KEY,
   PERSISTED_APP_STATE_VERSION,
@@ -69,6 +71,8 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   specialistMathSubtopics: [],
   chemistrySubtopics: [],
   physicalEducationSubtopics: [],
+  biologySubtopics: [],
+  generalMathematicsSubtopics: [],
   questionCount: 3,
   averageMarksPerQuestion: 10,
   questionMode: 'written',
@@ -373,6 +377,14 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     physicalEducationSubtopics: filterStringLiterals(
       data.physicalEducationSubtopics,
       PHYSICAL_EDUCATION_SUBTOPICS,
+    ),
+    biologySubtopics: filterStringLiterals(
+      data.biologySubtopics,
+      BIOLOGY_SUBTOPICS,
+    ),
+    generalMathematicsSubtopics: filterStringLiterals(
+      data.generalMathematicsSubtopics,
+      GENERAL_MATHEMATICS_SUBTOPICS,
     ),
     questionCount: clampWholeNumber(
       data.questionCount,

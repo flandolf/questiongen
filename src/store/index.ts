@@ -85,6 +85,9 @@ const defaultState: AppState = {
   chemistrySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
   physicalEducationSubtopics:
     EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
+  biologySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.biologySubtopics,
+  generalMathematicsSubtopics:
+    EMPTY_PERSISTED_APP_STATE.preferences.generalMathematicsSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   averageMarksPerQuestion:
     EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
@@ -280,6 +283,15 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     set((s) => ({
       physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics),
     })),
+  setBiologySubtopics: (update) =>
+    set((s) => ({ biologySubtopics: resolve(update, s.biologySubtopics) })),
+  setGeneralMathematicsSubtopics: (update) =>
+    set((s) => ({
+      generalMathematicsSubtopics: resolve(
+        update,
+        s.generalMathematicsSubtopics,
+      ),
+    })),
   setQuestionCount: (questionCount) => set({ questionCount }),
   setAverageMarksPerQuestion: (averageMarksPerQuestion) =>
     set({ averageMarksPerQuestion }),
@@ -395,6 +407,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         specialistMathSubtopics: s.specialistMathSubtopics,
         chemistrySubtopics: s.chemistrySubtopics,
         physicalEducationSubtopics: s.physicalEducationSubtopics,
+        biologySubtopics: s.biologySubtopics,
+        generalMathematicsSubtopics: s.generalMathematicsSubtopics,
         questionCount: s.questionCount,
         averageMarksPerQuestion: s.averageMarksPerQuestion,
         questionMode: s.questionMode,
@@ -470,6 +484,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       specialistMathSubtopics: s.specialistMathSubtopics,
       chemistrySubtopics: s.chemistrySubtopics,
       physicalEducationSubtopics: s.physicalEducationSubtopics,
+      biologySubtopics: s.biologySubtopics,
+      generalMathematicsSubtopics: s.generalMathematicsSubtopics,
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,

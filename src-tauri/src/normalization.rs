@@ -4,6 +4,18 @@ use crate::constants::{
 use crate::models::{default_max_marks, AppError, CommandResult, GeneratedQuestion, McQuestion};
 use crate::text_clean::clean_field;
 use crate::topic_normalize::normalise_topic_and_subtopic;
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+static RE_AFTER_MARK: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(\[\d+\s*marks?\])[^\S\r\n]*([^\r\n])").unwrap());
+static RE_BEFORE_PART: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"([^\r\n\$])[^\S\r\n]*(\([a-g]\))").unwrap());
+
+fn fix_prompt_newlines(s: &str) -> String {
+    let s = RE_AFTER_MARK.replace_all(s, "$1\n$2");
+    RE_BEFORE_PART.replace_all(&s, "$1\n$2").to_string()
+}
 
 fn sole_selected_subtopic(selected_subtopics: Option<&Vec<String>>) -> Option<&str> {
     selected_subtopics
@@ -42,7 +54,7 @@ pub fn normalise_written(
             selected_topics,
             sole_subtopic,
         );
-        q.prompt_markdown = clean_field(q.prompt_markdown.trim());
+        q.prompt_markdown = fix_prompt_newlines(&clean_field(q.prompt_markdown.trim()));
         let marks = if q.max_marks == 0 {
             default_max_marks()
         } else {
@@ -106,7 +118,7 @@ pub fn normalise_mc(
             selected_topics,
             sole_subtopic,
         );
-        q.prompt_markdown = clean_field(q.prompt_markdown.trim());
+        q.prompt_markdown = fix_prompt_newlines(&clean_field(q.prompt_markdown.trim()));
         q.explanation_markdown = clean_field(q.explanation_markdown.trim());
         q.correct_answer = q.correct_answer.trim().to_uppercase();
         for opt in &mut q.options {
@@ -192,4 +204,30 @@ pub fn validate_mc(questions: &[McQuestion], expected: usize) -> CommandResult<(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fix_prompt_newlines() {
+        let cases = vec![
+            (
+                "Find $x$. [2 marks](a) Find $y$.",
+                "Find $x$. [2 marks]\n(a) Find $y$.",
+            ),
+            ("Some text. (a) More text.", "Some text.\n(a) More text."),
+            ("Let $(a)$ be a constant.", "Let $(a)$ be a constant."),
+            ("Compute [1 mark] (b)", "Compute [1 mark]\n(b)"),
+            (
+                "Multiple parts [1 mark](a) Part 1 [2 marks](b) Part 2",
+                "Multiple parts [1 mark]\n(a) Part 1 [2 marks]\n(b) Part 2",
+            ),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(fix_prompt_newlines(input), expected);
+        }
+    }
 }

@@ -45,17 +45,25 @@ export type Topic =
   | 'Mathematical Methods'
   | 'Specialist Mathematics'
   | 'Chemistry'
-  | 'Physical Education';
+  | 'Biology'
+  | 'Physical Education'
+  | 'General Mathematics';
 
 export type MathMethodsSubtopic = string;
 export type SpecialistMathSubtopic = string;
 export type ChemistrySubtopic = string;
+export type BiologySubtopic = string;
 export type PhysicalEducationSubtopic = string;
+export type GeneralMathematicsSubtopic = string;
 
 export const MATH_METHODS_SUBTOPICS = getSubtopics('Mathematical Methods');
 export const SPECIALIST_MATH_SUBTOPICS = getSubtopics('Specialist Mathematics');
 export const CHEMISTRY_SUBTOPICS = getSubtopics('Chemistry');
 export const PHYSICAL_EDUCATION_SUBTOPICS = getSubtopics('Physical Education');
+export const BIOLOGY_SUBTOPICS = getSubtopics('Biology');
+export const GENERAL_MATHEMATICS_SUBTOPICS = getSubtopics(
+  'General Mathematics',
+);
 
 export const TOPICS: Topic[] = CATALOG.topics.map(
   (topic) => topic.name as Topic,
@@ -175,3 +183,7 @@ export const SPECIALIST_MATH_SUBTOPIC_GROUPS: readonly TopicSubtopicGroup[] =
   getTopicSubtopicGroups('Specialist Mathematics');
 export const CHEMISTRY_SUBTOPIC_GROUPS: readonly TopicSubtopicGroup[] =
   getTopicSubtopicGroups('Chemistry');
+export const BIOLOGY_SUBTOPIC_GROUPS: readonly TopicSubtopicGroup[] =
+  getTopicSubtopicGroups('Biology');
+export const GENERAL_MATHEMATICS_SUBTOPIC_GROUPS: readonly TopicSubtopicGroup[] =
+  getTopicSubtopicGroups('General Mathematics');

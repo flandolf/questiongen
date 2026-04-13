@@ -82,7 +82,7 @@ export function GroupedSubtopicSelector({
   label: string;
   groups: readonly TopicSubtopicGroup[];
   selected: string[];
-  onToggle: (item: string) => void;
+  onToggle: (item: string | string[]) => void;
 }) {
   const [selectedUnits, setSelectedUnits] = useState<Set<string>>(() => {
     const units = new Set<string>();
@@ -100,23 +100,23 @@ export function GroupedSubtopicSelector({
 
     const toSelect = allSubtopics.filter((s) => !selected.includes(s));
     if (toSelect.length > 0) {
-      toSelect.forEach((s) => onToggle(s));
+      onToggle(toSelect);
       return;
     }
 
     const toDeselect = allSubtopics.filter((s) => selected.includes(s));
-    toDeselect.forEach((s) => onToggle(s));
+    onToggle(toDeselect);
   };
 
   const toggleSelectAllInGroup = (group: TopicSubtopicGroup) => {
     const toSelect = group.subtopics.filter((s) => !selected.includes(s));
     if (toSelect.length > 0) {
-      toSelect.forEach((s) => onToggle(s));
+      onToggle(toSelect);
       return;
     }
 
     const toDeselect = group.subtopics.filter((s) => selected.includes(s));
-    toDeselect.forEach((s) => onToggle(s));
+    onToggle(toDeselect);
   };
 
   const toggleUnit = (unit: string) => {

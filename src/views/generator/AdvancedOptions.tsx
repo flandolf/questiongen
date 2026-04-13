@@ -19,9 +19,13 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
+  BIOLOGY_SUBTOPIC_GROUPS,
+  type BiologySubtopic,
   CHEMISTRY_SUBTOPIC_GROUPS,
   type ChemistrySubtopic,
   type DiversityStrictness,
+  GENERAL_MATHEMATICS_SUBTOPIC_GROUPS,
+  type GeneralMathematicsSubtopic,
   MATH_METHODS_SUBTOPIC_GROUPS,
   type MathMethodsSubtopic,
   PE_SUBTOPIC_GROUPS,
@@ -108,13 +112,27 @@ export type AdvancedOptionsGroupProps = {
   selectedTopics: Topic[];
   hasSubtopicSection: boolean;
   mathMethodsSubtopics: MathMethodsSubtopic[];
-  onToggleMathMethodsSubtopic: (sub: MathMethodsSubtopic) => void;
+  onToggleMathMethodsSubtopic: (
+    sub: MathMethodsSubtopic | MathMethodsSubtopic[],
+  ) => void;
   specialistMathSubtopics: SpecialistMathSubtopic[];
-  onToggleSpecialistMathSubtopic: (sub: SpecialistMathSubtopic) => void;
+  onToggleSpecialistMathSubtopic: (
+    sub: SpecialistMathSubtopic | SpecialistMathSubtopic[],
+  ) => void;
   chemistrySubtopics: ChemistrySubtopic[];
-  onToggleChemistrySubtopic: (sub: ChemistrySubtopic) => void;
+  onToggleChemistrySubtopic: (
+    sub: ChemistrySubtopic | ChemistrySubtopic[],
+  ) => void;
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  onTogglePhysicalEducationSubtopic: (sub: PhysicalEducationSubtopic) => void;
+  onTogglePhysicalEducationSubtopic: (
+    sub: PhysicalEducationSubtopic | PhysicalEducationSubtopic[],
+  ) => void;
+  biologySubtopics: BiologySubtopic[];
+  onToggleBiologySubtopic: (sub: BiologySubtopic | BiologySubtopic[]) => void;
+  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
+  onToggleGeneralMathematicsSubtopic: (
+    sub: GeneralMathematicsSubtopic | GeneralMathematicsSubtopic[],
+  ) => void;
   hasAnyMathTopic: boolean;
   techMode: TechMode;
   onSetTechMode: (mode: TechMode) => void;
@@ -147,6 +165,10 @@ export function AdvancedOptionsGroup({
   chemistrySubtopics,
   onToggleChemistrySubtopic,
   physicalEducationSubtopics,
+  biologySubtopics,
+  onToggleBiologySubtopic,
+  generalMathematicsSubtopics,
+  onToggleGeneralMathematicsSubtopic,
   onTogglePhysicalEducationSubtopic,
   hasAnyMathTopic,
   techMode,
@@ -270,7 +292,9 @@ export function AdvancedOptionsGroup({
                 label='Mathematical Methods'
                 groups={MATH_METHODS_SCOPED_SUBTOPIC_GROUPS}
                 selected={mathMethodsSubtopics}
-                onToggle={onToggleMathMethodsSubtopic as (s: string) => void}
+                onToggle={
+                  onToggleMathMethodsSubtopic as (s: string | string[]) => void
+                }
               />
             )}
             {selectedTopics.includes('Specialist Mathematics') && (
@@ -278,7 +302,11 @@ export function AdvancedOptionsGroup({
                 label='Specialist Mathematics'
                 groups={SPECIALIST_MATH_SUBTOPIC_GROUPS}
                 selected={specialistMathSubtopics}
-                onToggle={onToggleSpecialistMathSubtopic as (s: string) => void}
+                onToggle={
+                  onToggleSpecialistMathSubtopic as (
+                    s: string | string[],
+                  ) => void
+                }
               />
             )}
             {selectedTopics.includes('Chemistry') && (
@@ -286,7 +314,9 @@ export function AdvancedOptionsGroup({
                 label='Chemistry'
                 groups={CHEMISTRY_SUBTOPIC_GROUPS}
                 selected={chemistrySubtopics}
-                onToggle={onToggleChemistrySubtopic as (s: string) => void}
+                onToggle={
+                  onToggleChemistrySubtopic as (s: string | string[]) => void
+                }
               />
             )}
             {selectedTopics.includes('Physical Education') && (
@@ -295,7 +325,31 @@ export function AdvancedOptionsGroup({
                 groups={PE_SUBTOPIC_GROUPS}
                 selected={physicalEducationSubtopics}
                 onToggle={
-                  onTogglePhysicalEducationSubtopic as (s: string) => void
+                  onTogglePhysicalEducationSubtopic as (
+                    s: string | string[],
+                  ) => void
+                }
+              />
+            )}
+            {selectedTopics.includes('Biology') && (
+              <GroupedSubtopicSelector
+                label='Biology'
+                groups={BIOLOGY_SUBTOPIC_GROUPS}
+                selected={biologySubtopics}
+                onToggle={
+                  onToggleBiologySubtopic as (s: string | string[]) => void
+                }
+              />
+            )}
+            {selectedTopics.includes('General Mathematics') && (
+              <GroupedSubtopicSelector
+                label='General Mathematics'
+                groups={GENERAL_MATHEMATICS_SUBTOPIC_GROUPS}
+                selected={generalMathematicsSubtopics}
+                onToggle={
+                  onToggleGeneralMathematicsSubtopic as (
+                    s: string | string[],
+                  ) => void
                 }
               />
             )}

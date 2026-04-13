@@ -60,6 +60,8 @@ export interface ImportExportState {
   specialistMathSubtopics: PersistedAppState['preferences']['specialistMathSubtopics'];
   chemistrySubtopics: PersistedAppState['preferences']['chemistrySubtopics'];
   physicalEducationSubtopics: PersistedAppState['preferences']['physicalEducationSubtopics'];
+  biologySubtopics: PersistedAppState['preferences']['biologySubtopics'];
+  generalMathematicsSubtopics: PersistedAppState['preferences']['generalMathematicsSubtopics'];
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: PersistedAppState['preferences']['questionMode'];
@@ -497,6 +499,8 @@ function buildExportSnapshot(
       specialistMathSubtopics: s.specialistMathSubtopics,
       chemistrySubtopics: s.chemistrySubtopics,
       physicalEducationSubtopics: s.physicalEducationSubtopics,
+      biologySubtopics: s.biologySubtopics,
+      generalMathematicsSubtopics: s.generalMathematicsSubtopics,
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,

@@ -1,6 +1,8 @@
 import type {
+  BiologySubtopic,
   ChemistrySubtopic,
   Difficulty,
+  GeneralMathematicsSubtopic,
   GeneratedQuestion,
   GenerationRecord,
   GenerationStatusEvent,
@@ -62,6 +64,8 @@ export interface AppState {
   specialistMathSubtopics: SpecialistMathSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  biologySubtopics: BiologySubtopic[];
+  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
@@ -183,6 +187,16 @@ export interface AppActions {
     subtopics:
       | PhysicalEducationSubtopic[]
       | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[]),
+  ) => void;
+  setBiologySubtopics: (
+    subtopics:
+      | BiologySubtopic[]
+      | ((prev: BiologySubtopic[]) => BiologySubtopic[]),
+  ) => void;
+  setGeneralMathematicsSubtopics: (
+    subtopics:
+      | GeneralMathematicsSubtopic[]
+      | ((prev: GeneralMathematicsSubtopic[]) => GeneralMathematicsSubtopic[]),
   ) => void;
   setQuestionCount: (count: number) => void;
   setAverageMarksPerQuestion: (marks: number) => void;

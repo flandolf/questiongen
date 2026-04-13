@@ -3,10 +3,7 @@
     {
       "name": "Mathematical Methods",
       "icon": "FunctionSquare",
-      "examPdfs": [
-        "2025-MathMethods1.pdf",
-        "2025-MathMethods2.pdf"
-      ],
+      "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
       "reportPdfs": [
         "2025-MathematicalMethods1-report.pdf",
         "2025-MathematicalMethods2-report.pdf"
@@ -393,10 +390,7 @@
     {
       "name": "Specialist Mathematics",
       "icon": "SigmaSquare",
-      "examPdfs": [
-        "2025-SpecialistMaths1.pdf",
-        "2025-SpecialistMaths2.pdf"
-      ],
+      "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
       "reportPdfs": [
         "2025-SpecialistMaths1-report.pdf",
         "2025-SpecialistMaths2-report.pdf"
@@ -463,12 +457,8 @@
     {
       "name": "Chemistry",
       "icon": "FlaskConical",
-      "examPdfs": [
-        "2025-Chemistry.pdf"
-      ],
-      "reportPdfs": [
-        "2025-Chemistry-report.pdf"
-      ],
+      "examPdfs": ["2025-Chemistry.pdf"],
+      "reportPdfs": ["2025-Chemistry-report.pdf"],
       "examGuidance": " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ",
       "subtopics": [
         {
@@ -591,12 +581,8 @@
     {
       "name": "Physical Education",
       "icon": "Dumbbell",
-      "examPdfs": [
-        "2025-PhysicalEducation.pdf"
-      ],
-      "reportPdfs": [
-        "2025-PhysEd-report.pdf"
-      ],
+      "examPdfs": ["2025-PhysicalEducation.pdf"],
+      "reportPdfs": ["2025-PhysEd-report.pdf"],
       "examGuidance": "\nVCAA PHYSICAL EDUCATION EXAM QUESTION GENERATION - COMPREHENSIVE INSTRUCTIONS\nWRITING STYLE FOR PHYSICAL EDUCATION:\n- Do NOT use mathematical equations, derivations, or formula-heavy solutions.\n- Write all worked solutions and exemplar responses in prose - paragraphs and bullet points.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', '$\text{VO}_2$ max', '1RM', 'F = ma') - mention by name and explain application in words. Do NOT rearrange, derive, or chain equations.\n- Focus on qualitative analysis, evaluation, and justification rather than calculation.\n\nPE EXAM QUESTION TYPES & COGNITIVE DEMANDS:\n\nSHORT-ANSWER QUESTIONS (1-2 marks) - RECALL/COMPREHENSION\n|- Verbs: Define, identify, list, state, describe (basic), explain (simple)\n|- Example: \"Define the term 'discrete motor skill'.\"\n`- Expected response: 1-2 sentences with accurate definition\n\nEXTENDED-RESPONSE QUESTIONS (2-6 marks) - APPLICATION/ANALYSIS\n|- Verbs: Explain (with evidence), apply, demonstrate, analyze, evaluate, justify\n|- Example: \"Explain how the ATP-CP system is particularly suited to high-intensity, short-duration activities. Refer to its rate of ATP regeneration and the role of phosphocreatine in your response.\"\n`- Expected response: 3-4 detailed sentences or structured paragraphs\n\nAPPLICATION/SCENARIO QUESTIONS (3-8 marks) - SYNTHESIS/INTEGRATION\n|- Verbs: Design, evaluate, critique, create, analyze (multi-component), justify (complex)\n|- Example: \"A netball player is training to improve her vertical jump for shooting. Design a 4-week periodized training program that includes appropriate training methods and progression. Justify your choice of methods with reference to the physiological demands of jumping, energy systems used, and skill acquisition principles.\"\n`- Expected response: Structured program with detailed scientific justification\n\nDATA INTERPRETATION QUESTIONS (2-5 marks) - OBSERVATION/INFERENCE/APPLICATION\n|- Verbs: Interpret, analyze, identify (trends), explain (what data shows)\n|- Example: \"The graph shows a swimmer's lactate levels during a 400 m freestyle race. (a) Identify the point(s) where the anaerobic threshold was exceeded. (b) Explain what this suggests about energy system contribution. (c) Recommend a training method to improve lactate tolerance.\"\n`- Expected response: Observation -> explanation -> application progression\n\nCOMPARISON QUESTIONS (2-6 marks) - DIFFERENTIATION/CONTRAST\n|- Verbs: Compare (similarities AND differences), contrast, distinguish, evaluate (relative merit)\n|- Example: \"Compare the relative contribution of the aerobic and anaerobic glycolysis systems during (a) a 100 m sprint and (b) a 1500 m run. In your answer, consider rate of ATP yield, duration, and total ATP production.\"\n`- Expected response: Structured comparison with specific references to both similarities and differences\n\nAUTHENTICITY & CONTEXT REQUIREMENTS:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nVCAA questions must be grounded in REALISTIC sports and training contexts.\n\nCOMMON AUSTRALIAN SPORTS:\nAFL, cricket, rugby league, rugby union, netball, basketball, tennis, swimming, athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\nREALISTIC SCENARIOS:\n- Pre-season training and conditioning phases\n- Return-to-play after injury / rehabilitation\n- Peaking for competition (tapering strategies)\n- Performance plateau problems and solutions\n- Adapting training for different athlete levels (beginner, intermediate, elite)\n- Managing recovery and fatigue in multi-competition seasons\n- Technique refinement under fatigue\n\nATHLETE PERSPECTIVES:\n- Scenarios should relate to experiences of VCE PE students (school athletes, club athletes, potential elite pathway athletes)\n- Acknowledge recreational participation, competitive club level, and elite development\n- Consider both individual sports (tennis, gymnastics, swimming) and team sports (netball, AFL, basketball, soccer)\n\nQUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n\n[OK] Aligned with Unit 3 or 4 key knowledge/skills from Study Design?\n[OK] Requires higher-order thinking (application, analysis, synthesis)?\n[OK] Context is realistic and relevant to VCE PE students?\n[OK] Mark allocation matches cognitive demand appropriately?\n[OK] Question is unambiguous and free of jargon confusion?\n[OK] A clear, defensible marking rubric exists?\n[OK] Question integrates multiple concepts where appropriate?\n[OK] All terms are defined or contextually clear?\n[OK] Question avoids leading or telegraphing the expected answer?\n[OK] Expected response length is reasonable for marks allocated?\n[OK] Question reflects the style and rigor of actual VCAA examinations?\n",
       "subtopics": [
         {
@@ -867,12 +853,68 @@
       ]
     },
     {
+      "name": "Biology",
+      "icon": "TestTubeDiagonal",
+      "examPdfs": ["2025-Biology.pdf"],
+      "reportPdfs": ["2025-Biology-report.pdf"],
+      "examGuidance": "Biology questions should be set in authentic biological contexts, using VCE command verbs to assess knowledge and skills across the breadth of the Study Design. Questions should require students to apply biological concepts to real-world scenarios, interpret data from experiments, and evaluate scientific claims. Always define variables and state units in solutions.",
+      "subtopics": [
+        {
+          "name": "How do cells function?",
+          "technique_notes": "Design questions that require students to explain cellular processes such as photosynthesis, cellular respiration, and cell division in detail. Include tasks that involve interpreting data from experiments on enzyme activity, membrane transport, or genetic inheritance. Ensure questions assess the ability to apply concepts to novel situations, such as predicting the effects of mutations or environmental changes on cellular function.",
+          "group": "unit1-How-do-organisms-regulate-their-functions?"
+        },
+        {
+          "name": "How do plant and animal systems function?",
+          "technique_notes": "Formulate questions that require students to compare and contrast the structure and function of plant and animal systems, such as the circulatory system in animals and the vascular system in plants. Include tasks that involve analyzing data from physiological experiments, such as measuring transpiration rates or heart rate responses to exercise. Ensure questions assess the ability to apply knowledge of systems to real-world contexts, such as understanding how environmental factors affect organismal function.",
+          "group": "unit1-How-do-organisms-regulate-their-functions?"
+        },
+        {
+          "name": "How do scientific investigations develop understanding of how organisms regulate their functions?",
+          "technique_notes": "Design questions that require students to evaluate the design and implementation of scientific investigations, such as controlled experiments or observational studies. Include tasks that involve analyzing data from multiple sources, identifying biases, and drawing conclusions based on evidence. Ensure questions assess the ability to apply scientific reasoning to real-world scenarios, such as evaluating the validity of a research claim or designing a study to test a hypothesis.",
+          "group": "unit1-How-do-organisms-regulate-their-functions?"
+        },
+        {
+          "name": "How is inheritance explained?",
+          "technique_notes": "Formulate questions that require students to explain the mechanisms of genetic inheritance, including dominant and recessive alleles, codominance, and sex-linked traits. Include tasks that involve analyzing pedigree charts and predicting the likelihood of certain genotypes or phenotypes in offspring. Ensure questions assess the ability to apply genetic principles to real-world scenarios, such as understanding the inheritance of diseases or traits in humans or other organisms.",
+          "group": "unit2-How-does-inheritance-impact-on-diversity?"
+        },
+        {
+          "name": "How do inherited adaptations impact on diversity?",
+          "technique_notes": "Design questions that require students to explain how inherited adaptations contribute to the diversity of life, such as through natural selection or genetic drift. Include tasks that involve analyzing data from evolutionary studies, such as fossil records or genetic variation within populations. Ensure questions assess the ability to apply evolutionary concepts to real-world contexts, such as understanding the impact of environmental changes on species diversity or the role of adaptations in survival and reproduction.",
+          "group": "unit2-How-does-inheritance-impact-on-diversity?"
+        },
+        {
+          "name": "How do humans use science to explore and communicate contemporary bioethical issues?",
+          "technique_notes": "Formulate questions that require students to evaluate contemporary bioethical issues, such as genetic engineering, cloning, or stem cell research. Include tasks that involve analyzing ethical arguments from multiple perspectives and applying ethical frameworks to real-world scenarios. Ensure questions assess the ability to communicate complex bioethical issues clearly and persuasively, using evidence to support arguments and considering the implications of scientific advancements on society.",
+          "group": "unit2-How-does-inheritance-impact-on-diversity?"
+        },
+        {
+          "name": "What is the role of nucleic acids and proteins in maintaining life?",
+          "technique_notes": "Design questions that explore the expression of the information encoded in a sequence of DNA to form a protein and outline the nature of the genetic code and the proteome. They apply their knowledge to the structure and function of the DNA molecule to examine how molecular tools and techniques can be used to manipulate the molecule for a particular purpose. Students compare gene technologies used to address human and agricultural issues and consider the ethical implications of their use. The relationship between nucleic acids and proteins, nucleic acids as information molecules that encode instructions for the synthesis of proteins: the structure of DNA, the three main forms of RNA (mRNA, rRNA and tRNA) and a comparison of their respective nucleotides, the genetic code as a universal triplet code that is degenerate and the steps in gene expression, including transcription, RNA processing in eukaryotic cells and translation by ribosomes, the structure of genes: exons, introns and promoter and operator regions, the basic elements of gene regulation: prokaryotic trp operon as a simplified example of a regulatory process, amino acids as the monomers of a polypeptide chain and the resultant hierarchical levels of structure that give rise to a functional protein, proteins as a diverse group of molecules that collectively make an organism’s proteome, including enzymes as catalysts in biochemical pathways, the role of rough endoplasmic reticulum, Golgi apparatus and associated vesicles in the export of proteins from a cell via the protein secretory pathway DNA manipulation techniques and applications, the use of enzymes to manipulate DNA, including polymerase to synthesise DNA, ligase to join DNA and endonucleases to cut DNA, the function of CRISPR-Cas9 in bacteria and the application of this function in editing an organism’s genome, amplification of DNA using polymerase chain reaction and the use of gel electrophoresis in sorting DNA fragments, including the interpretation of gel runs for DNA profiling, the use of recombinant plasmids as vectors to transform bacterial cells as demonstrated by the production of human insulin, the use of genetically modified and transgenic organisms in agriculture to increase crop productivity and to provide resistance to disease.",
+          "group": "unit3-How-do-cells-maintain-life?"
+        },
+        {
+          "name": "How are biochemical pathways regulated?",
+          "technique_notes": "Design questions that analyse the structure and regulation of biochemical pathways in photosynthesis and cellular respiration, and evaluate how biotechnology can be used to solve problems related to the regulation of biochemical pathways. Key knowledge: Regulation of biochemical pathways in photosynthesis and cellular respiration, the general structure of the biochemical pathways in photosynthesis and cellular respiration from initial reactant to final product, the general role of enzymes and coenzymes in facilitating steps in photosynthesis and cellular respiration, the general factors that impact on enzyme function in relation to photosynthesis and cellular respiration: changes in temperature, pH, concentration, competitive and non-competitive enzyme inhibitors. Photosynthesis as an example of biochemical pathways, inputs, outputs and locations of the light dependent and light independent stages of photosynthesis in C3 plants (details of biochemical pathway mechanisms are not required), the role of Rubisco in photosynthesis, including adaptations of C3, C4 and CAM plants to maximise the efficiency of photosynthesis, the factors that affect the rate of photosynthesis: light availability, water availability, temperature and carbon dioxide concentration. Cellular respiration as an example of biochemical pathways, the main inputs, outputs and locations of glycolysis, Krebs Cycle and electron transport chain including ATP yield (details of biochemical pathway mechanisms are not required), the location, inputs and the difference in outputs of anaerobic fermentation in animals and yeasts , the factors that affect the rate of cellular respiration: temperature, glucose availability and oxygen concentration. Biotechnological applications of biochemical pathways, potential uses and applications of CRISPR-Cas9 technologies to improve photosynthetic efficiencies and crop yields, uses and applications of anaerobic fermentation of biomass for biofuel production.",
+          "group": "unit3-How-do-cells-maintain-life?"
+        },
+        {
+          "name": "How do organisms respond to pathogens?",
+          "technique_notes": "Design questions that focus on the immune response of organisms to specific pathogens. Students examine unique molecules called antigens and how they illicit an immune response, the nature of immunity and the role of vaccinations in providing immunity. They explain how technological advances assist in managing immune system disorders and how immunotherapies can be applied to the treatment of other diseases. Students consider that in a globally connected world there are biological challenges that can be mediated by identification of pathogens, the prevention of spread and the development of treatments for diseases. Key knowledge: Responding to antigens: physical, chemical and microbiota barriers as preventative mechanisms of pathogenic infection in animals and plants the innate immune response including the steps in an inflammatory response and the characteristics and roles of macrophages, neutrophils, dendritic cells, eosinophils, natural killer cells, mast cells, complement proteins and interferons, initiation of an immune response, including antigen presentation, the distinction between self-antigens and non-self antigens, cellular and non-cellular pathogens and allergens. Acquiring immunity: The role of the lymphatic system in the immune response as a transport network and the role of lymph nodes as sites for antigen recognition by T and B lymphocytes, the characteristics and roles of the components of the adaptive immune response against both extracellular and intracellular threats, including the actions of B lymphocytes and their antibodies, helper T and cytotoxic T cells, the difference between natural and artificial immunity and active and passive strategies for acquiring immunity. Disease challenges and strategies: Disease challenges and strategies include the emergence of new pathogens and the re-emergence of known pathogens in a globally connected world, including the impact of European arrival on Aboriginal and Torres Strait Islander peoples; scientific and social strategies used to identify and control pathogen spread, including identifying the pathogen and host, understanding modes of transmission, and implementing control measures; vaccination programs and their role in maintaining herd immunity within human populations; and the development of immunotherapy strategies, including the use of monoclonal antibodies to treat autoimmune diseases and cancer.",
+          "group": "unit4-How-do-organisms-maintain-health?"
+        },
+        {
+          "name": " How are species related over time?",
+          "technique_notes": "Questions should focus on changes to genetic material over time and the evidence for biological evolution. They consider how the field of evolutionary biology is based upon the accumulation of evidence over time and develop an understanding of how interpretations of evidence can change in the light of new evidence as a result of technological advances, particularly in molecular biology. Students consider the biological consequences of changes in allele frequencies and how isolation and divergence are required elements for speciation. They consider the evidence for determining the relatedness between species and examine the evidence for major trends in hominin evolution, including the migration of modern human populations around the world. Key knowledge of genetic changes in a population over time includes the causes of changing allele frequencies in a gene pool, such as environmental selection pressures, genetic drift, gene flow, and mutations as the source of new alleles; the biological consequences of these changes in terms of increased or decreased genetic diversity; manipulation of gene pools through selective breeding programs; and the consequences of bacterial resistance and viral antigenic drift and shift for treatment strategies and vaccination. It also includes changes in species over geological time evidenced by the fossil record, including faunal succession, index and transitional fossils, and relative and absolute dating; evidence of speciation through isolation and genetic divergence, such as Galapagos finches (allopatric speciation) and Howea palms on Lord Howe Island (sympatric speciation); determining relatedness between species using structural morphology (homologous and vestigial structures) and molecular homology (DNA and amino acid sequences), as well as interpreting phylogenetic trees; and human change over time, including characteristics of mammals, primates, hominoids and hominins, trends in hominin evolution from Australopithecus to Homo (brain size and limb structure), the contested and evolving nature of the human fossil record including interbreeding between Homo sapiens and Homo neanderthalensis and new putative Homo species, and the use of fossil and DNA evidence (mtDNA and whole genomes) to explain the migration of modern humans, including Aboriginal and Torres Strait Islander populations and their connection to Country and Place.",
+          "group": "unit4-How-do-organisms-maintain-health?"
+        }
+      ]
+    },
+    {
       "name": "General Mathematics",
       "icon": "Calculator",
-      "examPdfs": [
-        "2025-GeneralMaths1.pdf",
-        "2025-GeneralMaths2.pdf"
-      ],
+      "examPdfs": ["2025-GeneralMaths1.pdf", "2025-GeneralMaths2.pdf"],
       "reportPdfs": [
         "2025-GeneralMaths1-Report.pdf",
         "2025-GeneralMaths2-Report.pdf"
