@@ -338,6 +338,7 @@ pub struct ExportQuestionToAnkiRequest {
     pub answer: String,
     pub topic: String,
     pub subtopic: String,
+    pub options: Option<Vec<McOption>>,
 }
 
 #[derive(Debug, Serialize)]

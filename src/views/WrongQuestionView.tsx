@@ -1451,6 +1451,10 @@ export default function WrongQuestionView() {
             answer: answerText,
             topic: entry.question.topic,
             subtopic: entry.question.subtopic ?? '',
+            options:
+              entry.kind === 'multiple-choice'
+                ? entry.question.options
+                : undefined,
           },
         },
       );
