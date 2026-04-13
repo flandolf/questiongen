@@ -29,7 +29,7 @@ use models::*;
 use openrouter_info::{get_credits, get_model_stats};
 use persistence::{
     export_data_file, export_data_file_to_directory, list_json_files_in_directory,
-    load_persisted_state, read_text_file, save_persisted_state,
+    load_persisted_state, read_text_file, save_persisted_state, write_text_file,
 };
 
 #[tauri::command]
@@ -277,6 +277,7 @@ pub fn run() {
             export_data_file_to_directory,
             list_json_files_in_directory,
             read_text_file,
+            write_text_file,
             generate_questions,
             mark_answer,
             batch_mark_answers,
