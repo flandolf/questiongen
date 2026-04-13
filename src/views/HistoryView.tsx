@@ -911,6 +911,7 @@ export function HistoryView() {
           answer: answerText,
           topic: item.question.topic,
           subtopic: item.question.subtopic ?? '',
+          options: item.kind === 'mc' ? item.question.options : undefined,
         },
       });
 

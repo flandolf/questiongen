@@ -22,6 +22,8 @@ mod topic_normalize;
 
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+use std::process::Command;
 
 static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
@@ -116,6 +118,39 @@ async fn analyze_image(
     generation::GenerationService::new(app)
         .analyze_image(request)
         .await
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+fn auto_open_exported_anki_deck(app: &tauri::AppHandle, file_path: &str) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+
+    if app.opener().open_path(file_path, None::<&str>).is_ok() {
+        return Ok(());
+    }
+
+    let status_result = {
+        #[cfg(target_os = "macos")]
+        {
+            Command::new("open").arg(file_path).status()
+        }
+        #[cfg(target_os = "linux")]
+        {
+            Command::new("xdg-open").arg(file_path).status()
+        }
+        #[cfg(target_os = "windows")]
+        {
+            Command::new("cmd")
+                .args(["/C", "start", ""])
+                .arg(file_path)
+                .status()
+        }
+    };
+
+    match status_result {
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => Err(format!("open command exited with status: {}", status)),
+        Err(e) => Err(format!("failed to run open command: {}", e)),
+    }
 }
 
 #[tauri::command]
@@ -217,9 +252,18 @@ async fn export_question_to_anki(
     };
 
     let model = anki::model();
+    let mut question_text = request.question.clone();
+
+    if let Some(options) = request.options {
+        question_text.push_str("\n\n");
+        for opt in options {
+            question_text.push_str(&format!("**({})** {}\n", opt.label, opt.text));
+        }
+    }
+
     let note = anki::create_note(
         &model,
-        &request.question,
+        &question_text,
         &request.answer,
         &request.topic,
         &request.subtopic,
@@ -230,10 +274,27 @@ async fn export_question_to_anki(
 
     anki::export_deck_to_file(deck, &file_path)?;
 
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        use tauri_plugin_sharekit::ShareExt;
+        if let Some(window) = app.get_webview_window("main") {
+            app.share()
+                .share_file(
+                    window,
+                    format!("file://{}", file_path),
+                    tauri_plugin_sharekit::ShareFileOptions {
+                        title: Some("Anki Export".to_string()),
+                        ..Default::default()
+                    },
+                )
+                .map_err(|e| AppError::new("SHARE_ERROR", format!("Failed to share: {}", e)))?;
+        }
+    }
+
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     {
-        use tauri_plugin_opener::OpenerExt;
-        if let Err(e) = app.opener().open_path(&file_path, None::<&str>) {
+        if let Err(e) = auto_open_exported_anki_deck(&app, &file_path) {
             return Ok(ExportQuestionToAnkiResponse {
                 success: true,
                 file_path: Some(file_path),
@@ -270,6 +331,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_sharekit::init())
         .invoke_handler(tauri::generate_handler![
             load_persisted_state,
             save_persisted_state,
