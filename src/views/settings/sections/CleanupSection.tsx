@@ -1,39 +1,42 @@
 import { invoke } from '@tauri-apps/api/core';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Activity,
   AlertTriangle,
+  ArrowRight,
   ArrowUpDown,
   Check,
   CheckCircle2,
   CheckSquare,
-  ChevronDown,
-  ChevronUp,
+  Database,
   Eye,
   EyeOff,
+  Filter,
+  Layers,
   Loader2,
-  Pencil,
+  MousePointerClick,
+  PencilLine,
+  RefreshCw,
+  Search,
+  Settings2,
   Sparkles,
   Square,
   ThumbsUp,
+  Trash2,
   Wand2,
-  X,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useAppContext } from '../../../AppContext';
+import { Autocomplete } from '../../../components/ui/autocomplete';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '../../../components/ui/select';
 import { readBackendError } from '../../../lib/app-utils';
+import { cn } from '../../../lib/utils';
 import {
+  BIOLOGY_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
+  GENERAL_MATHEMATICS_SUBTOPICS,
   MATH_METHODS_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
   SPECIALIST_MATH_SUBTOPICS,
@@ -49,10 +52,8 @@ import {
 } from '../../../types/catalog';
 import { PRESET_MODELS } from '../constants';
 import {
-  Card,
   Divider,
   ErrorBanner,
-  FieldGroup,
   ModelSelectRow,
   SectionHeader,
 } from '../SettingsUI';
@@ -64,6 +65,8 @@ const CANONICAL_SUBTOPICS: string[] = [
   ...SPECIALIST_MATH_SUBTOPICS,
   ...CHEMISTRY_SUBTOPICS,
   ...PHYSICAL_EDUCATION_SUBTOPICS,
+  ...BIOLOGY_SUBTOPICS,
+  ...GENERAL_MATHEMATICS_SUBTOPICS,
 ];
 
 type TopicsCleanupResponse = {
@@ -89,44 +92,26 @@ type ScanResult = {
   unknownSubtopics: string[];
   totalWritten: number;
   totalMc: number;
+  totalEntries: number;
+  canonicalCount: number;
+  healthScore: number;
 };
 
 // ─── Fuzzy Matching ───────────────────────────────────────────────────────────
 
-/**
- * Represents the result of a fuzzy match operation with detailed rationale.
- */
 type MatchResult = {
-  /** The matched canonical value */
   match: string;
-  /** Similarity score between 0 and 1 */
   score: number;
-  /** Human-readable explanation of why this match was chosen */
   rationale: string;
-  /** Whether multiple options tied for best score */
   isTie: boolean;
 };
 
-/**
- * Memoization cache for similarity computations between string pairs.
- * Uses a composite key to avoid recomputing the same pair.
- */
 const similarityCache = new Map<string, number>();
 
-/**
- * Computes a normalized similarity score between two strings.
- * Uses multiple heuristics: exact match, substring containment, and Levenshtein distance.
- * Results are cached to avoid redundant computation.
- *
- * @param a - First string to compare
- * @param b - Second string to compare
- * @returns Similarity score between 0 (no similarity) and 1 (identical)
- */
 function similarity(a: string, b: string): number {
   const la = a.toLowerCase().trim();
   const lb = b.toLowerCase().trim();
 
-  // Create cache key with consistent ordering
   const cacheKey = la < lb ? `${la}|||${lb}` : `${lb}|||${la}`;
   if (similarityCache.has(cacheKey)) {
     return similarityCache.get(cacheKey)!;
@@ -137,16 +122,13 @@ function similarity(a: string, b: string): number {
   if (la === lb) {
     result = 1;
   } else if (lb.includes(la) || la.includes(lb)) {
-    // Substring containment indicates high similarity
     result = 0.85;
   } else {
-    // Levenshtein-based similarity for more nuanced comparison
     const lenA = la.length;
     const lenB = lb.length;
     if (lenA === 0 || lenB === 0) {
       result = 0;
     } else {
-      // Optimized Levenshtein using two-row approach
       let prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
       const currRow: number[] = new Array<number>(lenB + 1);
 
@@ -155,9 +137,9 @@ function similarity(a: string, b: string): number {
         for (let j = 1; j <= lenB; j++) {
           const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
           currRow[j] = Math.min(
-            prevRow[j] + 1, // deletion
-            currRow[j - 1] + 1, // insertion
-            prevRow[j - 1] + cost, // substitution
+            prevRow[j] + 1,
+            currRow[j - 1] + 1,
+            prevRow[j - 1] + cost,
           );
         }
         prevRow = [...currRow];
@@ -172,14 +154,6 @@ function similarity(a: string, b: string): number {
   return result;
 }
 
-/**
- * Determines the reason for a match score to provide user-facing rationale.
- *
- * @param a - Original unknown item
- * @param b - Matched canonical option
- * @param score - Computed similarity score
- * @returns Human-readable explanation of the match
- */
 function getMatchRationale(a: string, b: string, score: number): string {
   const la = a.toLowerCase().trim();
   const lb = b.toLowerCase().trim();
@@ -190,9 +164,8 @@ function getMatchRationale(a: string, b: string, score: number): string {
 
   const lenA = la.length;
   const lenB = lb.length;
-  if (lenA === 0 || lenB === 0) return 'Empty string comparison';
+  if (lenA === 0 || lenB === 0) return 'Empty';
 
-  // Calculate approximate edit distance for rationale
   let prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
   const currRow: number[] = new Array<number>(lenB + 1);
 
@@ -210,17 +183,9 @@ function getMatchRationale(a: string, b: string, score: number): string {
   }
 
   const distance = prevRow[lenB];
-  return `~${distance} edit${distance !== 1 ? 's' : ''} difference`;
+  return `~${distance} edits`;
 }
 
-/**
- * Finds the best canonical match for an unknown item using optimized search.
- * Handles ties deterministically by selecting the alphabetically first option.
- *
- * @param item - The unknown topic/subtopic to match
- * @param options - Array of canonical options to match against
- * @returns Best match result with score and rationale, or null if below threshold
- */
 function findBestMatch(item: string, options: string[]): MatchResult | null {
   let bestScore = -1;
   let bestMatch: string | null = null;
@@ -234,7 +199,6 @@ function findBestMatch(item: string, options: string[]): MatchResult | null {
       bestMatch = opt;
       isTie = false;
     } else if (score === bestScore && score > 0) {
-      // Deterministic tie-breaking: prefer alphabetically first option
       if (opt < (bestMatch ?? '')) {
         bestMatch = opt;
         isTie = true;
@@ -258,9 +222,31 @@ function findBestMatch(item: string, options: string[]): MatchResult | null {
 
 const CONFIDENCE_THRESHOLD = 0.4;
 
+// ─── Shared Components ────────────────────────────────────────────────────────
+
+function DataLabel({
+  children,
+  variant = 'unknown',
+}: {
+  children: React.ReactNode;
+  variant?: 'unknown' | 'canonical';
+}) {
+  return (
+    <code
+      className={cn(
+        'font-mono text-[10px] px-2 py-0.5 rounded border transition-all duration-300',
+        variant === 'unknown'
+          ? 'bg-amber-500/5 text-amber-600 dark:text-amber-400 border-amber-500/20 group-hover:bg-amber-500/10'
+          : 'bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 group-hover:bg-emerald-500/10',
+      )}
+    >
+      {children}
+    </code>
+  );
+}
+
 // ─── Manual Fix Panel ─────────────────────────────────────────────────────────
 
-/* eslint-disable-next-line complexity */
 function ManualFixPanel({
   unknownItems,
   canonicalOptions,
@@ -274,7 +260,6 @@ function ManualFixPanel({
   onApply: (mapping: Record<string, string>) => number;
   subtopicGroups?: readonly TopicSubtopicGroup[];
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [customInputs, setCustomInputs] = useState<Record<string, string>>({});
   const [resultCount, setResultCount] = useState<number | null>(null);
@@ -285,25 +270,20 @@ function ManualFixPanel({
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkValue, setBulkValue] = useState('');
 
-  // Compute best matches for all unknown items with memoization
   const bestMatches = useMemo(() => {
     const map: Record<string, MatchResult> = {};
     for (const item of unknownItems) {
       const result = findBestMatch(item, canonicalOptions);
-      if (result) {
-        map[item] = result;
-      }
+      if (result) map[item] = result;
     }
     return map;
   }, [unknownItems, canonicalOptions]);
 
-  // Sort items
   const sortedUnknownItems = useMemo(() => {
     const items = [...unknownItems];
     if (sortBy === 'alpha') {
       items.sort((a, b) => a.localeCompare(b));
     } else {
-      // Sort by best match score descending (most confident suggestions first)
       items.sort((a, b) => {
         const scoreA = bestMatches[a]?.score ?? 0;
         const scoreB = bestMatches[b]?.score ?? 0;
@@ -313,7 +293,6 @@ function ManualFixPanel({
     return items;
   }, [unknownItems, sortBy, bestMatches]);
 
-  // Filter by search
   const filteredUnknownItems = useMemo(() => {
     if (!search.trim()) return sortedUnknownItems;
     const q = search.trim().toLowerCase();
@@ -323,6 +302,21 @@ function ManualFixPanel({
         bestMatches[item]?.match.toLowerCase().includes(q),
     );
   }, [search, sortedUnknownItems, bestMatches]);
+
+  const buildMapping = useCallback((): Record<string, string> => {
+    const mapping: Record<string, string> = {};
+    for (const item of unknownItems) {
+      const sel = selections[item];
+      if (!sel || sel === '') continue;
+      if (sel === '__custom__') {
+        const custom = (customInputs[item] ?? '').trim();
+        if (custom) mapping[item] = custom;
+      } else {
+        mapping[item] = sel;
+      }
+    }
+    return mapping;
+  }, [unknownItems, selections, customInputs]);
 
   const handleSelect = (unknown: string, value: string) => {
     setSelections((prev) => ({ ...prev, [unknown]: value }));
@@ -338,21 +332,6 @@ function ManualFixPanel({
   const handleCustomInput = (unknown: string, text: string) => {
     setCustomInputs((prev) => ({ ...prev, [unknown]: text }));
     setSelections((prev) => ({ ...prev, [unknown]: '__custom__' }));
-  };
-
-  const buildMapping = (): Record<string, string> => {
-    const mapping: Record<string, string> = {};
-    for (const item of unknownItems) {
-      const sel = selections[item];
-      if (!sel || sel === '') continue;
-      if (sel === '__custom__') {
-        const custom = (customInputs[item] ?? '').trim();
-        if (custom) mapping[item] = custom;
-      } else {
-        mapping[item] = sel;
-      }
-    }
-    return mapping;
   };
 
   const handleApply = () => {
@@ -395,13 +374,8 @@ function ManualFixPanel({
     });
   };
 
-  const selectAllBulk = () => {
-    setBulkSelected(new Set(filteredUnknownItems));
-  };
-
-  const deselectAllBulk = () => {
-    setBulkSelected(new Set());
-  };
+  const selectAllBulk = () => setBulkSelected(new Set(filteredUnknownItems));
+  const deselectAllBulk = () => setBulkSelected(new Set());
 
   const resolvedCount = Object.keys(selections).filter((k) => {
     const sel = selections[k];
@@ -417,375 +391,671 @@ function ManualFixPanel({
     return false;
   }).length;
 
-  // Live preview mapping
-  const previewMapping = useMemo(() => {
-    const mapping = buildMapping();
-    return Object.entries(mapping);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selections, customInputs, unknownItems]);
+  const previewMapping = useMemo(
+    () => Object.entries(buildMapping()),
+    [buildMapping],
+  );
 
-  // Reset state when panel collapses
-  const handleExpandToggle = () => {
-    setExpanded((v) => {
-      if (v) {
-        setSearch('');
-        setBulkMode(false);
-        setBulkSelected(new Set());
-        setShowPreview(false);
-      }
-      return !v;
+  const autocompleteGroups = useMemo(() => {
+    const groups =
+      subtopicGroups && subtopicGroups.length > 0
+        ? subtopicGroups.map((g) => ({
+            label: g.label,
+            options: g.subtopics.map((s) => ({ value: s, label: s })),
+          }))
+        : [
+            {
+              label: 'Canonical Options',
+              options: canonicalOptions.map((o) => ({ value: o, label: o })),
+            },
+          ];
+
+    // Add Manual Override as a special group at the end
+    groups.push({
+      label: 'Overrides',
+      options: [{ value: '__custom__', label: 'Manual Override…' }],
     });
-  };
+
+    return groups;
+  }, [subtopicGroups, canonicalOptions]);
 
   if (resultCount !== null) {
     return (
-      <Card className='p-4 space-y-3'>
-        <div className='flex items-center gap-2'>
-          <CheckCircle2 className='h-4 w-4 text-emerald-500' />
-          <p className='text-sm font-medium'>
-            Manual {mappingKind === 'topic' ? 'Topic' : 'Subtopic'} Fix Complete
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className='p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex flex-col items-center justify-center text-center space-y-3'
+      >
+        <div className='h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500'>
+          <CheckCircle2 className='h-6 w-6' />
+        </div>
+        <div>
+          <h4 className='text-sm font-semibold text-emerald-600 dark:text-emerald-400'>
+            Cleanup Successful
+          </h4>
+          <p className='text-xs text-muted-foreground mt-1'>
+            Updated {resultCount} {mappingKind}(s) across your history.
           </p>
         </div>
-        <p className='text-xs text-muted-foreground'>
-          Updated {resultCount} {mappingKind}(s) across your history.
-        </p>
-      </Card>
+        <Button
+          size='sm'
+          variant='outline'
+          onClick={() => setResultCount(null)}
+        >
+          Scrub More
+        </Button>
+      </motion.div>
     );
   }
 
   return (
-    <Card className='overflow-hidden'>
-      <button
-        type='button'
-        onClick={handleExpandToggle}
-        className='w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors'
-      >
-        <div className='flex items-center gap-2'>
-          <Pencil className='h-4 w-4 text-muted-foreground' />
-          <span className='text-sm font-medium'>
-            Manually Fix Unknown{' '}
-            {mappingKind === 'topic' ? 'Topics' : 'Subtopics'}
-          </span>
-          <span className='text-xs text-muted-foreground'>
-            ({unknownItems.length})
-          </span>
-          {Object.keys(bestMatches).length > 0 && (
-            <span className='text-xs text-blue-600 dark:text-blue-400 flex items-center gap-0.5'>
-              <Sparkles className='h-3 w-3' />
-              {Object.keys(bestMatches).length} suggestions
-            </span>
-          )}
+    <div className='space-y-4'>
+      {/* Control Bar */}
+      <div className='flex flex-wrap items-center gap-3 p-3 bg-muted/30 border border-border rounded-lg'>
+        <div className='relative flex-1 min-w-60'>
+          <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search unknown ${mappingKind}s…`}
+            className='pl-9 h-9 bg-background border-border text-sm'
+          />
         </div>
-        {expanded ? (
-          <ChevronUp className='h-4 w-4 text-muted-foreground' />
-        ) : (
-          <ChevronDown className='h-4 w-4 text-muted-foreground' />
-        )}
-      </button>
 
-      {expanded && (
-        <div className='border-t border-border p-4 space-y-4'>
-          {/* Toolbar */}
-          <div className='flex flex-wrap items-center gap-2'>
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={`Search unknown ${mappingKind}s or canonical matches…`}
-              className='h-7 text-xs font-mono flex-1 min-w-45'
-              autoFocus
-            />
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() =>
-                setSortBy((s) => (s === 'alpha' ? 'similarity' : 'alpha'))
-              }
-              className='h-7 gap-1 text-xs'
-              title={
-                sortBy === 'alpha'
-                  ? 'Sort by best match'
-                  : 'Sort alphabetically'
-              }
-            >
-              <ArrowUpDown className='h-3 w-3' />
-              {sortBy === 'alpha' ? 'A-Z' : 'Best match'}
-            </Button>
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() => setBulkMode((v) => !v)}
-              className={`h-7 gap-1 text-xs ${bulkMode ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700' : ''}`}
-            >
-              {bulkMode ? (
-                <CheckSquare className='h-3 w-3' />
-              ) : (
-                <Square className='h-3 w-3' />
-              )}
-              Bulk
-            </Button>
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() => setShowPreview((v) => !v)}
-              className='h-7 gap-1 text-xs'
-              disabled={resolvedCount === 0}
-            >
-              {showPreview ? (
-                <EyeOff className='h-3 w-3' />
-              ) : (
-                <Eye className='h-3 w-3' />
-              )}
-              Preview {resolvedCount > 0 ? `(${resolvedCount})` : ''}
-            </Button>
-          </div>
+        <div className='flex items-center gap-1 bg-background border border-border rounded-md p-1'>
+          <Button
+            size='sm'
+            variant='ghost'
+            onClick={() => setSortBy('similarity')}
+            className={cn(
+              'h-7 text-xs px-2.5 gap-1.5',
+              sortBy === 'similarity' && 'bg-muted font-medium',
+            )}
+          >
+            <Activity className='h-3.5 w-3.5' />
+            Match
+          </Button>
+          <Button
+            size='sm'
+            variant='ghost'
+            onClick={() => setSortBy('alpha')}
+            className={cn(
+              'h-7 text-xs px-2.5 gap-1.5',
+              sortBy === 'alpha' && 'bg-muted font-medium',
+            )}
+          >
+            <ArrowUpDown className='h-3.5 w-3.5' />
+            A-Z
+          </Button>
+        </div>
 
-          {/* Apply all best matches */}
-          {Object.keys(bestMatches).length > 0 && unresolvedCount > 0 && (
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={handleApplyAllBestMatches}
-              className='gap-1.5 text-xs border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-            >
-              <Sparkles className='h-3 w-3' />
-              Auto-fill {Object.keys(bestMatches).length} best match
-              {Object.keys(bestMatches).length !== 1 ? 'es' : ''}
-            </Button>
-          )}
+        <div className='h-6 w-px bg-border mx-1' />
 
-          {/* Bulk mode toolbar */}
-          {bulkMode && (
-            <div className='flex flex-wrap items-center gap-2 p-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'>
-              <span className='text-xs text-muted-foreground'>
-                {bulkSelected.size} selected
+        <div className='flex items-center gap-2'>
+          <Button
+            size='sm'
+            variant={bulkMode ? 'default' : 'outline'}
+            onClick={() => setBulkMode(!bulkMode)}
+            className='h-9 px-3 gap-2'
+          >
+            {bulkMode ? (
+              <CheckSquare className='h-4 w-4' />
+            ) : (
+              <Square className='h-4 w-4' />
+            )}
+            <span className='hidden sm:inline'>Bulk</span>
+          </Button>
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={() => setShowPreview(!showPreview)}
+            disabled={resolvedCount === 0}
+            className={cn('h-9 px-3 gap-2', showPreview && 'bg-muted')}
+          >
+            {showPreview ? (
+              <EyeOff className='h-4 w-4' />
+            ) : (
+              <Eye className='h-4 w-4' />
+            )}
+            <span className='hidden sm:inline'>Preview</span>
+            {resolvedCount > 0 && (
+              <span className='ml-1 text-[10px] font-bold px-1.5 rounded-full bg-primary text-primary-foreground'>
+                {resolvedCount}
               </span>
-              <Button
-                size='sm'
-                variant='ghost'
-                onClick={selectAllBulk}
-                className='h-6 text-xs px-2'
-              >
-                Select all
-              </Button>
-              <Button
-                size='sm'
-                variant='ghost'
-                onClick={deselectAllBulk}
-                className='h-6 text-xs px-2'
-              >
-                Deselect all
-              </Button>
-              <div className='flex-1' />
-              <Select value={bulkValue} onValueChange={setBulkValue}>
-                <SelectTrigger className='h-6 text-xs w-50'>
-                  <SelectValue placeholder='Map all selected to…' />
-                </SelectTrigger>
-                <SelectContent>
-                  {canonicalOptions.map((opt) => (
-                    <SelectItem key={opt} value={opt} className='text-xs'>
-                      {opt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Auto-fill Suggestions */}
+      {Object.keys(bestMatches).length > 0 && unresolvedCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className='flex items-center justify-between p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg'
+        >
+          <div className='flex items-center gap-2 text-blue-600 dark:text-blue-400'>
+            <Sparkles className='h-4 w-4' />
+            <span className='text-xs font-medium'>
+              {Object.keys(bestMatches).length} high-confidence matches found.
+            </span>
+          </div>
+          <Button
+            size='sm'
+            variant='ghost'
+            onClick={handleApplyAllBestMatches}
+            className='h-7 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 gap-1.5'
+          >
+            <MousePointerClick className='h-3.5 w-3.5' />
+            Auto-fill All
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Bulk Toolbar */}
+      <AnimatePresence>
+        {bulkMode && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className='overflow-hidden'
+          >
+            <div className='p-3 bg-secondary/50 border border-border rounded-lg flex flex-wrap items-center gap-3'>
+              <div className='flex items-center gap-2 mr-auto'>
+                <span className='text-xs font-semibold text-muted-foreground px-2 py-1 bg-muted rounded'>
+                  {bulkSelected.size} Selected
+                </span>
+                <Button
+                  size='sm'
+                  variant='link'
+                  onClick={selectAllBulk}
+                  className='h-auto p-0 text-xs'
+                >
+                  Select All
+                </Button>
+                <Button
+                  size='sm'
+                  variant='link'
+                  onClick={deselectAllBulk}
+                  className='h-auto p-0 text-xs text-muted-foreground'
+                >
+                  Deselect
+                </Button>
+              </div>
+
+              <div className='w-80'>
+                <Autocomplete
+                  value={bulkValue}
+                  onChange={setBulkValue}
+                  groups={autocompleteGroups}
+                  placeholder='Map selection to…'
+                  className='h-8 bg-background'
+                  showMatchScore={false}
+                />
+              </div>
+
               <Button
                 size='sm'
                 onClick={handleBulkApply}
                 disabled={bulkSelected.size === 0 || !bulkValue}
-                className='h-6 text-xs gap-1'
+                className='h-8 px-4 gap-2'
               >
-                <Check className='h-3 w-3' />
-                Apply
+                <Check className='h-3.5 w-3.5' />
+                Apply to Selection
               </Button>
             </div>
-          )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {/* Preview panel */}
-          {showPreview && previewMapping.length > 0 && (
-            <div className='rounded border border-border bg-muted/30 p-3 space-y-1.5'>
-              <p className='text-xs font-medium text-muted-foreground mb-2'>
-                Mapping Preview ({previewMapping.length} change
-                {previewMapping.length !== 1 ? 's' : ''}):
+      {/* Preview Panel */}
+      <AnimatePresence>
+        {showPreview && previewMapping.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className='overflow-hidden'
+          >
+            <div className='p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2'>
+              <div className='flex items-center justify-between mb-2'>
+                <h5 className='text-[10px] uppercase tracking-widest font-bold text-emerald-600 dark:text-emerald-400'>
+                  Mapping Preview
+                </h5>
+                <span className='text-[10px] text-muted-foreground'>
+                  {previewMapping.length} changes queued
+                </span>
+              </div>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5'>
+                {previewMapping.map(([from, to]) => (
+                  <div key={from} className='flex items-center gap-2 group'>
+                    <DataLabel variant='unknown'>{from}</DataLabel>
+                    <ArrowRight className='h-3 w-3 text-muted-foreground shrink-0' />
+                    <DataLabel variant='canonical'>{to}</DataLabel>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Grid List */}
+      <div className='space-y-2 max-h-125 overflow-y-auto pr-2 custom-scrollbar'>
+        {filteredUnknownItems.length === 0 ? (
+          <div className='py-12 flex flex-col items-center justify-center text-center space-y-2 opacity-50'>
+            <Filter className='h-8 w-8 text-muted-foreground' />
+            <p className='text-sm text-muted-foreground'>
+              {search.trim()
+                ? 'No matching data found.'
+                : 'All data is canonical.'}
+            </p>
+          </div>
+        ) : (
+          filteredUnknownItems.map((item, idx) => {
+            const sel = selections[item] ?? '';
+            const isCustom = sel === '__custom__';
+            const best = bestMatches[item];
+            const isBulkChecked = bulkSelected.has(item);
+
+            // Inject match scores into the options for this specific item
+            const itemAutocompleteGroups = autocompleteGroups.map((group) => ({
+              ...group,
+              options: group.options.map((opt) => ({
+                ...opt,
+                matchScore:
+                  best && opt.value === best.match ? best.score : undefined,
+              })),
+            }));
+
+            return (
+              <motion.div
+                layout
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.02 }}
+                key={item}
+                className={cn(
+                  'group flex flex-col p-3 rounded-lg border transition-all duration-200',
+                  isBulkChecked
+                    ? 'bg-blue-500/5 border-blue-500/30'
+                    : 'bg-background border-border hover:border-muted-foreground/30 hover:shadow-sm',
+                )}
+              >
+                <div className='flex items-center gap-3'>
+                  {bulkMode && (
+                    <button
+                      type='button'
+                      onClick={() => toggleBulkItem(item)}
+                      className={cn(
+                        'shrink-0 h-5 w-5 rounded border flex items-center justify-center transition-colors',
+                        isBulkChecked
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'border-border bg-muted/50',
+                      )}
+                    >
+                      {isBulkChecked && <Check className='h-3 w-3' />}
+                    </button>
+                  )}
+
+                  <div className='flex-[0.8] min-w-0 flex flex-col gap-1'>
+                    <div className='flex items-center gap-2'>
+                      <DataLabel variant='unknown'>{item}</DataLabel>
+                      {best && (
+                        <div className='flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <span className='text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 rounded'>
+                            Suggestion
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {best && (
+                      <div className='flex items-center gap-1 text-[10px] text-muted-foreground'>
+                        <ThumbsUp className='h-2.5 w-2.5' />
+                        <span>
+                          Recommended:{' '}
+                          <span className='font-semibold text-foreground'>
+                            {best.match}
+                          </span>{' '}
+                          ({Math.round(best.score * 100)}% match)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className='shrink-0 px-2'>
+                    <ArrowRight className='h-4 w-4 text-muted-foreground opacity-30' />
+                  </div>
+
+                  <div className='flex-[1.2] min-w-0 space-y-1.5'>
+                    <Autocomplete
+                      value={isCustom ? '__custom__' : sel}
+                      onChange={(v) => handleSelect(item, v)}
+                      groups={itemAutocompleteGroups}
+                      placeholder='Map to canonical…'
+                      className='bg-muted/30 group-hover:bg-background transition-colors'
+                      showMatchScore={true}
+                    />
+
+                    {isCustom && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                      >
+                        <div className='relative'>
+                          <PencilLine className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground' />
+                          <Input
+                            value={customInputs[item] ?? ''}
+                            onChange={(e) =>
+                              handleCustomInput(item, e.target.value)
+                            }
+                            placeholder='Type custom canonical value…'
+                            className='h-8 pl-8 text-xs font-mono bg-background border-dashed border-muted-foreground/30 focus-visible:border-primary'
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      <div className='flex items-center justify-between pt-4 border-t border-border'>
+        <div className='text-xs text-muted-foreground'>
+          {resolvedCount} of {unknownItems.length} items mapped
+        </div>
+        <div className='flex items-center gap-2'>
+          <Button
+            size='sm'
+            variant='ghost'
+            onClick={() => {
+              setSelections({});
+              setCustomInputs({});
+              setBulkSelected(new Set());
+            }}
+            className='h-9 px-4 text-muted-foreground hover:text-destructive gap-2'
+          >
+            <Trash2 className='h-4 w-4' />
+            Reset
+          </Button>
+          <Button
+            size='sm'
+            onClick={handleApply}
+            disabled={resolvedCount === 0}
+            className='h-9 px-6 gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95'
+          >
+            <Check className='h-4 w-4' />
+            Apply Changes
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Extraction Components ───────────────────────────────────────────────────
+
+function HealthDashboard({
+  scan,
+  hasUnknowns,
+  hasUnknownTopics,
+  hasUnknownSubtopics,
+}: {
+  scan: ScanResult;
+  hasUnknowns: boolean;
+  hasUnknownTopics: boolean;
+  hasUnknownSubtopics: boolean;
+}) {
+  return (
+    <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+      <motion.div
+        layout
+        className='lg:col-span-2 p-6 rounded-2xl border border-border bg-linear-to-br from-background to-muted/20 relative overflow-hidden group shadow-sm'
+      >
+        <div className='absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity'>
+          <Database className='h-32 w-32 rotate-12' />
+        </div>
+
+        <div className='relative z-10 space-y-6'>
+          <div className='flex items-center justify-between'>
+            <div className='space-y-1'>
+              <h3 className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>
+                Canonical Health
+              </h3>
+              <div className='flex items-baseline gap-2'>
+                <span className='text-4xl font-black tabular-nums tracking-tight'>
+                  {Math.round(scan.healthScore)}%
+                </span>
+                <span className='text-xs font-medium text-muted-foreground'>
+                  of history is valid
+                </span>
+              </div>
+            </div>
+            <div className='h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20'>
+              <Activity className='h-6 w-6' />
+            </div>
+          </div>
+
+          <div className='space-y-2'>
+            <div className='h-3 w-full bg-muted rounded-full overflow-hidden border border-border p-0.5'>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${scan.healthScore}%` }}
+                className={cn(
+                  'h-full rounded-full shadow-sm',
+                  scan.healthScore > 90
+                    ? 'bg-emerald-500'
+                    : scan.healthScore > 60
+                      ? 'bg-amber-500'
+                      : 'bg-destructive',
+                )}
+              />
+            </div>
+            <div className='flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
+              <span>Valid Entries</span>
+              <span>
+                {scan.canonicalCount} / {scan.totalEntries}
+              </span>
+            </div>
+          </div>
+
+          <div className='grid grid-cols-2 gap-4'>
+            <div className='p-3 rounded-xl bg-background/50 border border-border'>
+              <div className='text-[10px] font-bold text-muted-foreground uppercase mb-1'>
+                Topics
+              </div>
+              <div className='flex items-center gap-2'>
+                <span
+                  className={cn(
+                    'text-lg font-bold',
+                    hasUnknownTopics ? 'text-amber-500' : 'text-emerald-500',
+                  )}
+                >
+                  {scan.unknownTopics.length}
+                </span>
+                <span className='text-xs text-muted-foreground'>unknown</span>
+              </div>
+            </div>
+            <div className='p-3 rounded-xl bg-background/50 border border-border'>
+              <div className='text-[10px] font-bold text-muted-foreground uppercase mb-1'>
+                Subtopics
+              </div>
+              <div className='flex items-center gap-2'>
+                <span
+                  className={cn(
+                    'text-lg font-bold',
+                    hasUnknownSubtopics ? 'text-amber-500' : 'text-emerald-500',
+                  )}
+                >
+                  {scan.unknownSubtopics.length}
+                </span>
+                <span className='text-xs text-muted-foreground'>unknown</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className='p-6 rounded-2xl border border-border bg-card flex flex-col justify-between h-full shadow-sm'>
+        <div className='space-y-4'>
+          <div className='flex items-center gap-2 text-amber-500'>
+            <AlertTriangle className='h-4 w-4' />
+            <h4 className='text-xs font-bold uppercase tracking-wider'>
+              Audit Summary
+            </h4>
+          </div>
+          <p className='text-xs leading-relaxed text-muted-foreground'>
+            Scanning{' '}
+            <span className='font-bold text-foreground'>
+              {scan.totalWritten}
+            </span>{' '}
+            written and{' '}
+            <span className='font-bold text-foreground'>{scan.totalMc}</span>{' '}
+            multiple-choice records.
+          </p>
+          {!hasUnknowns ? (
+            <div className='p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-3'>
+              <div className='h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0'>
+                <CheckCircle2 className='h-4 w-4' />
+              </div>
+              <span className='text-xs font-medium text-emerald-600 dark:text-emerald-400'>
+                Metadata Integrity Verified
+              </span>
+            </div>
+          ) : (
+            <div className='space-y-3'>
+              <p className='text-[11px] text-muted-foreground'>
+                Detected{' '}
+                <span className='font-mono font-bold text-amber-600 dark:text-amber-400'>
+                  {scan.unknownTopics.length + scan.unknownSubtopics.length}
+                </span>{' '}
+                non-canonical entries that may cause synchronization issues.
               </p>
-              {previewMapping.map(([from, to]) => (
-                <div key={from} className='text-xs flex items-center gap-1.5'>
-                  <span className='font-mono px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 line-through truncate max-w-[45%]'>
+            </div>
+          )}
+        </div>
+
+        <Button
+          variant='outline'
+          size='sm'
+          className='w-full mt-6 h-10 rounded-xl gap-2 font-bold uppercase tracking-widest text-[10px]'
+          onClick={() => window.location.reload()}
+        >
+          <RefreshCw className='h-3 w-3' />
+          Rescan Database
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AutoAuditCard({
+  title,
+  subtitle,
+  icon: Icon,
+  loading,
+  result,
+  mapping,
+  error,
+  hasUnknown,
+  onAudit,
+  iconClass,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ElementType;
+  loading: boolean;
+  result: TopicCleanupResult | SubtopicCleanupResult | null;
+  mapping: Record<string, string>;
+  error: string | null;
+  hasUnknown: boolean;
+  onAudit: () => void;
+  iconClass: string;
+}) {
+  const updatedCount = result
+    ? 'topicsUpdated' in result
+      ? result.topicsUpdated
+      : result.subtopicsUpdated
+    : 0;
+
+  return (
+    <div className='p-6 rounded-2xl border border-border bg-card space-y-6 relative overflow-hidden shadow-sm'>
+      <div className='flex items-center gap-3 mb-2'>
+        <div
+          className={cn(
+            'h-10 w-10 rounded-xl flex items-center justify-center border',
+            iconClass,
+          )}
+        >
+          <Icon className='h-5 w-5' />
+        </div>
+        <div>
+          <h4 className='text-sm font-bold'>{title}</h4>
+          <p className='text-xs text-muted-foreground'>{subtitle}</p>
+        </div>
+      </div>
+
+      <div className='min-h-25 flex flex-col justify-center'>
+        {result ? (
+          <div className='p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3'>
+            <div className='flex items-center gap-2 text-emerald-600 dark:text-emerald-400'>
+              <CheckCircle2 className='h-4 w-4' />
+              <span className='text-xs font-bold'>
+                Success: {updatedCount} items updated
+              </span>
+            </div>
+            <div className='max-h-30 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar'>
+              {Object.entries(mapping).map(([from, to]) => (
+                <div
+                  key={from}
+                  className='flex items-center gap-1.5 text-[10px]'
+                >
+                  <span className='font-mono opacity-50 line-through'>
                     {from}
                   </span>
-                  <span className='text-muted-foreground shrink-0'>→</span>
-                  <span className='font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 truncate max-w-[45%]'>
+                  <ArrowRight className='h-2 w-2 opacity-30' />
+                  <span className='font-mono font-bold text-emerald-500'>
                     {to}
                   </span>
                 </div>
               ))}
             </div>
-          )}
-
-          {/* Item list */}
-          {filteredUnknownItems.length === 0 ? (
-            <div className='text-xs text-muted-foreground'>
-              {search.trim() ? 'No matches found.' : 'No unknown items.'}
-            </div>
-          ) : (
-            filteredUnknownItems.map((item) => {
-              const sel = selections[item] ?? '';
-              const isCustom = sel === '__custom__';
-              const best = bestMatches[item];
-              const isBulkChecked = bulkSelected.has(item);
-
-              return (
-                <div key={item} className='space-y-1.5'>
-                  <div className='flex items-center gap-2'>
-                    {bulkMode && (
-                      <button
-                        type='button'
-                        onClick={() => toggleBulkItem(item)}
-                        className='shrink-0 text-muted-foreground hover:text-foreground transition-colors'
-                      >
-                        {isBulkChecked ? (
-                          <CheckSquare className='h-3.5 w-3.5 text-blue-600 dark:text-blue-400' />
-                        ) : (
-                          <Square className='h-3.5 w-3.5' />
-                        )}
-                      </button>
-                    )}
-                    <div className='shrink-0 flex flex-col items-start'>
-                      <span className='font-mono text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'>
-                        {item}
-                      </span>
-                      {best && (
-                        <span className='text-[10px] text-muted-foreground mt-0.5 flex items-center gap-0.5'>
-                          <ThumbsUp className='h-2.5 w-2.5' />
-                          {Math.round(best.score * 100)}% → {best.match}
-                          {best.isTie && (
-                            <span
-                              className='text-blue-600 dark:text-blue-400 ml-0.5'
-                              title='Multiple options tied'
-                            >
-                              ≈
-                            </span>
-                          )}
-                          <span className='text-muted-foreground/70 ml-0.5'>
-                            ({best.rationale})
-                          </span>
-                        </span>
-                      )}
-                    </div>
-                    <span className='text-muted-foreground text-xs shrink-0'>
-                      →
-                    </span>
-                    <div className='min-w-0 flex-1'>
-                      <Select
-                        value={isCustom ? '__custom__' : sel}
-                        onValueChange={(v) => handleSelect(item, v)}
-                      >
-                        <SelectTrigger className='w-full h-7 text-xs'>
-                          <SelectValue placeholder='Choose canonical…' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {subtopicGroups && subtopicGroups.length > 0
-                            ? subtopicGroups.map((group) => (
-                                <SelectGroup key={group.groupId}>
-                                  <SelectLabel className='font-semibold text-[10px] uppercase tracking-wider px-2 py-1 bg-muted/50 sticky top-0'>
-                                    {group.label}
-                                  </SelectLabel>
-                                  {group.subtopics.map((opt) => {
-                                    const matchScore =
-                                      best && opt === best.match
-                                        ? best.score
-                                        : null;
-                                    return (
-                                      <SelectItem
-                                        key={opt}
-                                        value={opt}
-                                        className='text-xs'
-                                      >
-                                        {opt}
-                                        {matchScore !== null &&
-                                        matchScore >= CONFIDENCE_THRESHOLD
-                                          ? ` (${Math.round(matchScore * 100)}%)`
-                                          : ''}
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectGroup>
-                              ))
-                            : canonicalOptions.map((opt) => {
-                                const matchScore =
-                                  best && opt === best.match
-                                    ? best.score
-                                    : null;
-                                return (
-                                  <SelectItem
-                                    key={opt}
-                                    value={opt}
-                                    className='text-xs'
-                                  >
-                                    {opt}
-                                    {matchScore !== null &&
-                                    matchScore >= CONFIDENCE_THRESHOLD
-                                      ? ` (${Math.round(matchScore * 100)}%)`
-                                      : ''}
-                                  </SelectItem>
-                                );
-                              })}
-                          <SelectItem
-                            value='__custom__'
-                            className='text-xs text-muted-foreground'
-                          >
-                            Custom value…
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  {isCustom && (
-                    <Input
-                      value={customInputs[item] ?? ''}
-                      onChange={(e) => handleCustomInput(item, e.target.value)}
-                      placeholder='Type custom canonical value…'
-                      className='h-7 text-xs font-mono'
-                    />
-                  )}
-                </div>
-              );
-            })
-          )}
-
-          {/* Action buttons */}
-          <div className='flex items-center gap-2 pt-2'>
+          </div>
+        ) : (
+          <div className='space-y-4'>
+            <p className='text-xs text-muted-foreground leading-relaxed italic'>
+              The AI will analyze the unknown labels and map them to the closest
+              VCAA specifications.
+            </p>
             <Button
-              size='sm'
-              onClick={handleApply}
-              disabled={resolvedCount === 0}
-              className='gap-1.5'
+              onClick={onAudit}
+              disabled={loading || !hasUnknown}
+              className='w-full h-12 rounded-xl gap-3 text-sm font-bold shadow-lg shadow-primary/20 transition-all active:scale-[0.98]'
             >
-              <Check className='h-3.5 w-3.5' />
-              Apply {resolvedCount > 0 ? `(${resolvedCount})` : ''}
-            </Button>
-            <Button
-              size='sm'
-              variant='ghost'
-              onClick={() => {
-                setSelections({});
-                setCustomInputs({});
-                setBulkSelected(new Set());
-              }}
-              className='gap-1.5 text-muted-foreground'
-            >
-              <X className='h-3.5 w-3.5' />
-              Clear
+              {loading ? (
+                <Loader2 className='h-5 w-5 animate-spin' />
+              ) : (
+                <Sparkles className='h-5 w-5' />
+              )}
+              {loading
+                ? 'Processing Data…'
+                : `Start ${title.split(' ')[0]} Audit`}
             </Button>
           </div>
-        </div>
-      )}
-    </Card>
+        )}
+      </div>
+      {error && <ErrorBanner message={error} />}
+    </div>
   );
 }
 
 // ─── Main Section ─────────────────────────────────────────────────────────────
 
-/* eslint-disable-next-line complexity */
 export function CleanupSection() {
   const {
     apiKey,
@@ -795,6 +1065,7 @@ export function CleanupSection() {
     updateMcHistoryEntry,
   } = useAppContext();
 
+  const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
   const [selectedModel, setSelectedModel] = useState(PRESET_MODELS[0].id);
 
   const [topicLoading, setTopicLoading] = useState(false);
@@ -811,38 +1082,61 @@ export function CleanupSection() {
   const scan = useMemo((): ScanResult => {
     const topicSet = new Set<string>();
     const subtopicSet = new Set<string>();
+    const totalEntriesCount = questionHistory.length + mcHistory.length;
+    let nonCanonicalCount = 0;
 
     for (const entry of questionHistory) {
       const t = entry.question.topic;
-      if (t && !CANONICAL_TOPICS.includes(t)) topicSet.add(t);
       const st = entry.question.subtopic;
-      if (st && !CANONICAL_SUBTOPICS.includes(st)) subtopicSet.add(st);
+      let isUnk = false;
+      if (t && !CANONICAL_TOPICS.includes(t)) {
+        topicSet.add(t);
+        isUnk = true;
+      }
+      if (st && !CANONICAL_SUBTOPICS.includes(st)) {
+        subtopicSet.add(st);
+        isUnk = true;
+      }
+      if (isUnk) nonCanonicalCount++;
     }
     for (const entry of mcHistory) {
       const t = entry.question.topic;
-      if (t && !CANONICAL_TOPICS.includes(t)) topicSet.add(t);
       const st = entry.question.subtopic;
-      if (st && !CANONICAL_SUBTOPICS.includes(st)) subtopicSet.add(st);
+      let isUnk = false;
+      if (t && !CANONICAL_TOPICS.includes(t)) {
+        topicSet.add(t);
+        isUnk = true;
+      }
+      if (st && !CANONICAL_SUBTOPICS.includes(st)) {
+        subtopicSet.add(st);
+        isUnk = true;
+      }
+      if (isUnk) nonCanonicalCount++;
     }
+
+    const canonicalCount = totalEntriesCount - nonCanonicalCount;
+    const healthScore =
+      totalEntriesCount > 0 ? (canonicalCount / totalEntriesCount) * 100 : 100;
 
     return {
       unknownTopics: [...topicSet].sort(),
       unknownSubtopics: [...subtopicSet].sort(),
       totalWritten: questionHistory.length,
       totalMc: mcHistory.length,
+      totalEntries: totalEntriesCount,
+      canonicalCount,
+      healthScore,
     };
   }, [questionHistory, mcHistory]);
 
   const applyTopicMapping = useCallback(
     (topicMapping: Record<string, string>): number => {
       let count = 0;
-
       for (const entry of questionHistory) {
         const mappedTopic = entry.question.topic
           ? topicMapping[entry.question.topic]
           : undefined;
         if (!mappedTopic) continue;
-
         count++;
         updateQuestionHistoryEntry({
           ...entry,
@@ -850,13 +1144,11 @@ export function CleanupSection() {
           lastModified: Date.now(),
         });
       }
-
       for (const entry of mcHistory) {
         const mappedTopic = entry.question.topic
           ? topicMapping[entry.question.topic]
           : undefined;
         if (!mappedTopic) continue;
-
         count++;
         updateMcHistoryEntry({
           ...entry,
@@ -864,7 +1156,6 @@ export function CleanupSection() {
           lastModified: Date.now(),
         });
       }
-
       return count;
     },
     [
@@ -878,13 +1169,11 @@ export function CleanupSection() {
   const applySubtopicMapping = useCallback(
     (subtopicMapping: Record<string, string>): number => {
       let count = 0;
-
       for (const entry of questionHistory) {
         const mappedSubtopic = entry.question.subtopic
           ? subtopicMapping[entry.question.subtopic]
           : undefined;
         if (!mappedSubtopic) continue;
-
         count++;
         updateQuestionHistoryEntry({
           ...entry,
@@ -892,13 +1181,11 @@ export function CleanupSection() {
           lastModified: Date.now(),
         });
       }
-
       for (const entry of mcHistory) {
         const mappedSubtopic = entry.question.subtopic
           ? subtopicMapping[entry.question.subtopic]
           : undefined;
         if (!mappedSubtopic) continue;
-
         count++;
         updateMcHistoryEntry({
           ...entry,
@@ -906,7 +1193,6 @@ export function CleanupSection() {
           lastModified: Date.now(),
         });
       }
-
       return count;
     },
     [
@@ -918,23 +1204,15 @@ export function CleanupSection() {
   );
 
   const handleCleanupTopics = useCallback(async () => {
-    if (!apiKey.trim()) {
-      setTopicError('API key is required.');
+    if (
+      !apiKey.trim() ||
+      selectedModel === 'custom' ||
+      scan.unknownTopics.length === 0
+    )
       return;
-    }
-    if (selectedModel === 'custom') {
-      setTopicError('Select a specific model (not custom).');
-      return;
-    }
-    if (scan.unknownTopics.length === 0) {
-      setTopicError('No unknown topics found.');
-      return;
-    }
-
     setTopicLoading(true);
     setTopicError(null);
     setTopicResult(null);
-
     try {
       const response = await invoke<TopicsCleanupResponse>('cleanup_topics', {
         request: {
@@ -944,10 +1222,8 @@ export function CleanupSection() {
           canonicalTopics: CANONICAL_TOPICS,
         },
       });
-
       const topicMapping = response.topicMapping ?? {};
       const topicsUpdated = applyTopicMapping(topicMapping);
-
       setTopicResult({ topicMapping, topicsUpdated });
     } catch (e) {
       setTopicError(readBackendError(e));
@@ -957,23 +1233,15 @@ export function CleanupSection() {
   }, [apiKey, selectedModel, scan, applyTopicMapping]);
 
   const handleCleanupSubtopics = useCallback(async () => {
-    if (!apiKey.trim()) {
-      setSubtopicError('API key is required.');
+    if (
+      !apiKey.trim() ||
+      selectedModel === 'custom' ||
+      scan.unknownSubtopics.length === 0
+    )
       return;
-    }
-    if (selectedModel === 'custom') {
-      setSubtopicError('Select a specific model (not custom).');
-      return;
-    }
-    if (scan.unknownSubtopics.length === 0) {
-      setSubtopicError('No unknown subtopics found.');
-      return;
-    }
-
     setSubtopicLoading(true);
     setSubtopicError(null);
     setSubtopicResult(null);
-
     try {
       const response = await invoke<SubtopicsCleanupResponse>(
         'cleanup_subtopics',
@@ -986,10 +1254,8 @@ export function CleanupSection() {
           },
         },
       );
-
       const subtopicMapping = response.subtopicMapping ?? {};
       const subtopicsUpdated = applySubtopicMapping(subtopicMapping);
-
       setSubtopicResult({ subtopicMapping, subtopicsUpdated });
     } catch (e) {
       setSubtopicError(readBackendError(e));
@@ -1003,240 +1269,193 @@ export function CleanupSection() {
   const hasUnknowns = hasUnknownTopics || hasUnknownSubtopics;
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-8 pb-12'>
       <SectionHeader
-        title='Data Cleanup'
-        description='Normalize topics and subtopics in your question history to match canonical VCAA study design values.'
+        title='Data Cleanup & Normalisation'
+        description='Audit and sync your question metadata against official study design specifications.'
       />
 
-      <Card className='p-4 space-y-3'>
-        <div className='flex items-center gap-2'>
-          <AlertTriangle className='h-4 w-4 text-amber-500' />
-          <p className='text-sm font-medium'>Scan Results</p>
-        </div>
-        <p className='text-xs text-muted-foreground'>
-          Scanning {scan.totalWritten} written and {scan.totalMc}{' '}
-          multiple-choice history entries.
-        </p>
-        {!hasUnknowns ? (
-          <p className='text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5'>
-            <CheckCircle2 className='h-4 w-4' />
-            All topics and subtopics are canonical.
-          </p>
-        ) : (
-          <div className='space-y-2'>
-            {hasUnknownTopics && (
-              <div>
-                <p className='text-xs font-medium text-muted-foreground mb-1'>
-                  Unknown topics ({scan.unknownTopics.length}):
-                </p>
-                <div className='flex flex-wrap gap-1'>
-                  {scan.unknownTopics.map((t) => (
-                    <span
-                      key={t}
-                      className='inline-flex items-center px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-mono'
-                    >
-                      {t}
+      <HealthDashboard
+        scan={scan}
+        hasUnknowns={hasUnknowns}
+        hasUnknownTopics={hasUnknownTopics}
+        hasUnknownSubtopics={hasUnknownSubtopics}
+      />
+
+      <AnimatePresence>
+        {hasUnknowns && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className='space-y-8'
+          >
+            <Divider />
+
+            <div className='w-full'>
+              <div className='flex flex-wrap items-center justify-between gap-4 mb-6'>
+                <div className='flex items-center bg-muted/50 p-1 rounded-xl border border-border shadow-inner'>
+                  <button
+                    onClick={() => setActiveTab('auto')}
+                    className={cn(
+                      'rounded-lg px-6 h-9 gap-2 flex items-center transition-all duration-200',
+                      activeTab === 'auto'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Wand2
+                      className={cn(
+                        'h-4 w-4',
+                        activeTab === 'auto' && 'text-primary',
+                      )}
+                    />
+                    <span className='text-xs font-bold uppercase tracking-wider'>
+                      Auto-Normalize
                     </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {hasUnknownSubtopics && (
-              <div>
-                <p className='text-xs font-medium text-muted-foreground mb-1'>
-                  Unknown subtopics ({scan.unknownSubtopics.length}):
-                </p>
-                <div className='flex flex-wrap gap-1'>
-                  {scan.unknownSubtopics.map((st) => (
-                    <span
-                      key={st}
-                      className='inline-flex items-center px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-mono'
-                    >
-                      {st}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('manual')}
+                    className={cn(
+                      'rounded-lg px-6 h-9 gap-2 flex items-center transition-all duration-200',
+                      activeTab === 'manual'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Layers
+                      className={cn(
+                        'h-4 w-4',
+                        activeTab === 'manual' && 'text-primary',
+                      )}
+                    />
+                    <span className='text-xs font-bold uppercase tracking-wider'>
+                      Manual Scrubbing
                     </span>
-                  ))}
+                  </button>
                 </div>
+
+                {activeTab === 'auto' && (
+                  <div className='flex items-center gap-4 bg-muted/30 px-4 py-1.5 rounded-xl border border-border'>
+                    <span className='text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap'>
+                      Engine
+                    </span>
+                    <ModelSelectRow
+                      id='cleanup-model-select'
+                      value={selectedModel}
+                      models={PRESET_MODELS}
+                      disabled={!apiKey}
+                      onSelect={(v) => setSelectedModel(v)}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+
+              <div className='min-h-100'>
+                <AnimatePresence mode='wait'>
+                  {activeTab === 'auto' ? (
+                    <motion.div
+                      key='auto'
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      className='grid grid-cols-1 md:grid-cols-2 gap-8 outline-none'
+                    >
+                      <AutoAuditCard
+                        title='Topic Normalization'
+                        subtitle='High-level category alignment'
+                        icon={Settings2}
+                        loading={topicLoading}
+                        result={topicResult}
+                        mapping={topicResult?.topicMapping ?? {}}
+                        error={topicError}
+                        hasUnknown={hasUnknownTopics}
+                        onAudit={() => void handleCleanupTopics()}
+                        iconClass='bg-amber-500/10 text-amber-500 border-amber-500/20'
+                      />
+                      <AutoAuditCard
+                        title='Subtopic Refinement'
+                        subtitle='Granular study design mapping'
+                        icon={Wand2}
+                        loading={subtopicLoading}
+                        result={subtopicResult}
+                        mapping={subtopicResult?.subtopicMapping ?? {}}
+                        error={subtopicError}
+                        hasUnknown={hasUnknownSubtopics}
+                        onAudit={() => void handleCleanupSubtopics()}
+                        iconClass='bg-blue-500/10 text-blue-500 border-blue-500/20'
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key='manual'
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className='grid grid-cols-1 gap-12 outline-none'
+                    >
+                      {hasUnknownTopics && !topicResult && (
+                        <div className='space-y-4'>
+                          <div className='flex items-center gap-3'>
+                            <div className='h-1.5 w-1.5 rounded-full bg-amber-500' />
+                            <h4 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground'>
+                              Topic Scrubbing Station
+                            </h4>
+                          </div>
+                          <ManualFixPanel
+                            unknownItems={scan.unknownTopics}
+                            canonicalOptions={CANONICAL_TOPICS}
+                            mappingKind='topic'
+                            onApply={applyTopicMapping}
+                          />
+                        </div>
+                      )}
+
+                      {hasUnknownSubtopics && !subtopicResult && (
+                        <div className='space-y-4'>
+                          <div className='flex items-center gap-3'>
+                            <div className='h-1.5 w-1.5 rounded-full bg-blue-500' />
+                            <h4 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground'>
+                              Subtopic Scrubbing Station
+                            </h4>
+                          </div>
+                          <ManualFixPanel
+                            unknownItems={scan.unknownSubtopics}
+                            canonicalOptions={CANONICAL_SUBTOPICS}
+                            mappingKind='subtopic'
+                            onApply={applySubtopicMapping}
+                            subtopicGroups={[
+                              ...MATH_METHODS_SUBTOPIC_GROUPS,
+                              ...SPECIALIST_MATH_SUBTOPIC_GROUPS,
+                              ...CHEMISTRY_SUBTOPIC_GROUPS,
+                              ...PE_SUBTOPIC_GROUPS,
+                            ]}
+                          />
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
         )}
-      </Card>
+      </AnimatePresence>
 
-      {hasUnknowns && (
-        <>
-          <Divider />
-          <section className='space-y-3'>
-            <FieldGroup label='LLM Model' htmlFor='cleanup-model-select'>
-              <ModelSelectRow
-                id='cleanup-model-select'
-                value={selectedModel}
-                models={PRESET_MODELS}
-                disabled={!apiKey}
-                onSelect={(v) => setSelectedModel(v)}
-              />
-            </FieldGroup>
-            <p className='text-xs text-muted-foreground'>
-              The selected model will map non-canonical values to their closest
-              canonical match.
-            </p>
-          </section>
-
-          {hasUnknownTopics && (
-            <div className='space-y-3'>
-              {topicError && <ErrorBanner message={topicError} />}
-              <Button
-                onClick={() => void handleCleanupTopics()}
-                disabled={topicLoading || !apiKey || selectedModel === 'custom'}
-                className='gap-2'
-              >
-                {topicLoading ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : (
-                  <Wand2 className='h-4 w-4' />
-                )}
-                {topicLoading ? 'Normalizing Topics…' : 'Normalize Topics'}
-              </Button>
-            </div>
-          )}
-
-          {hasUnknownTopics && !topicResult && (
-            <ManualFixPanel
-              unknownItems={scan.unknownTopics}
-              canonicalOptions={CANONICAL_TOPICS}
-              mappingKind='topic'
-              onApply={applyTopicMapping}
-            />
-          )}
-
-          {hasUnknownSubtopics && !subtopicResult && (
-            <ManualFixPanel
-              unknownItems={scan.unknownSubtopics}
-              canonicalOptions={CANONICAL_SUBTOPICS}
-              mappingKind='subtopic'
-              onApply={applySubtopicMapping}
-              subtopicGroups={[
-                ...MATH_METHODS_SUBTOPIC_GROUPS,
-                ...SPECIALIST_MATH_SUBTOPIC_GROUPS,
-                ...CHEMISTRY_SUBTOPIC_GROUPS,
-                ...PE_SUBTOPIC_GROUPS,
-              ]}
-            />
-          )}
-
-          {hasUnknownSubtopics && (
-            <div className='space-y-3'>
-              {subtopicError && <ErrorBanner message={subtopicError} />}
-              <Button
-                onClick={() => void handleCleanupSubtopics()}
-                disabled={
-                  subtopicLoading || !apiKey || selectedModel === 'custom'
-                }
-                className='gap-2'
-              >
-                {subtopicLoading ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : (
-                  <Wand2 className='h-4 w-4' />
-                )}
-                {subtopicLoading
-                  ? 'Normalizing Subtopics…'
-                  : 'Normalize Subtopics'}
-              </Button>
-            </div>
-          )}
-
-          {hasUnknownSubtopics && !subtopicResult && (
-            <ManualFixPanel
-              unknownItems={scan.unknownSubtopics}
-              canonicalOptions={CANONICAL_SUBTOPICS}
-              mappingKind='subtopic'
-              onApply={applySubtopicMapping}
-            />
-          )}
-        </>
-      )}
-
-      {topicResult && (
-        <>
-          <Divider />
-          <Card className='p-4 space-y-3'>
-            <div className='flex items-center gap-2'>
-              <CheckCircle2 className='h-4 w-4 text-emerald-500' />
-              <p className='text-sm font-medium'>Topic Cleanup Complete</p>
-            </div>
-            <p className='text-xs text-muted-foreground'>
-              Updated {topicResult.topicsUpdated} topic(s) across your history.
-            </p>
-            {Object.keys(topicResult.topicMapping).length > 0 && (
-              <div>
-                <p className='text-xs font-medium text-muted-foreground mb-1'>
-                  Topic mappings:
-                </p>
-                <div className='space-y-1'>
-                  {Object.entries(topicResult.topicMapping).map(
-                    ([from, to]) => (
-                      <div
-                        key={from}
-                        className='text-xs flex items-center gap-1.5'
-                      >
-                        <span className='font-mono px-1.5 py-0.5 rounded bg-muted line-through'>
-                          {from}
-                        </span>
-                        <span className='text-muted-foreground'>→</span>
-                        <span className='font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'>
-                          {to}
-                        </span>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-            )}
-          </Card>
-        </>
-      )}
-
-      {subtopicResult && (
-        <>
-          <Divider />
-          <Card className='p-4 space-y-3'>
-            <div className='flex items-center gap-2'>
-              <CheckCircle2 className='h-4 w-4 text-emerald-500' />
-              <p className='text-sm font-medium'>Subtopic Cleanup Complete</p>
-            </div>
-            <p className='text-xs text-muted-foreground'>
-              Updated {subtopicResult.subtopicsUpdated} subtopic(s) across your
-              history.
-            </p>
-            {Object.keys(subtopicResult.subtopicMapping).length > 0 && (
-              <div>
-                <p className='text-xs font-medium text-muted-foreground mb-1'>
-                  Subtopic mappings:
-                </p>
-                <div className='space-y-1'>
-                  {Object.entries(subtopicResult.subtopicMapping).map(
-                    ([from, to]) => (
-                      <div
-                        key={from}
-                        className='text-xs flex items-center gap-1.5'
-                      >
-                        <span className='font-mono px-1.5 py-0.5 rounded bg-muted line-through'>
-                          {from}
-                        </span>
-                        <span className='text-muted-foreground'>→</span>
-                        <span className='font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'>
-                          {to}
-                        </span>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-            )}
-          </Card>
-        </>
-      )}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: var(--border);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: var(--muted-foreground);
+        }
+      `}</style>
     </div>
   );
 }

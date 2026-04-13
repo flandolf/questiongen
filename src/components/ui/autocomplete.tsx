@@ -89,7 +89,7 @@ export function Autocomplete({
           <ChevronDown className='ml-2 h-3 w-3 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-75 p-0' align='start' sideOffset={4}>
+      <PopoverContent className='w-100 p-0' align='start' sideOffset={4}>
         <div className='flex items-center border-b px-2'>
           <Search className='mr-2 h-3 w-3 shrink-0 text-muted-foreground' />
           <Input
@@ -129,11 +129,13 @@ export function Autocomplete({
                     type='button'
                     onClick={() => handleSelect(option.value)}
                     className={cn(
-                      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-2 text-xs outline-none hover:bg-accent hover:text-accent-foreground',
+                      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-2 text-xs outline-none hover:bg-accent hover:text-accent-foreground justify-start text-left',
                       value === option.value && 'bg-accent',
                     )}
                   >
-                    <span className='flex-1 truncate'>{option.label}</span>
+                    <span className='flex-1 truncate text-left'>
+                      {option.label}
+                    </span>
                     {showMatchScore &&
                       option.matchScore !== undefined &&
                       option.matchScore >= confidenceThreshold && (
