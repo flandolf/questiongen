@@ -174,12 +174,14 @@ const TutorHeader = ({
 }) => (
   <div className='flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 backdrop-blur-sm'>
     <div className='flex items-center gap-2'>
-      <div className='bg-primary/10 p-1.5 rounded-lg'>
-        <Sparkles className='h-4 w-4 text-primary' />
-      </div>
+      {!isCompact && (
+        <div className='bg-primary/10 p-1.5 rounded-lg'>
+          <Sparkles className='h-4 w-4 text-primary' />
+        </div>
+      )}
       <div>
         <h3 className='font-bold text-sm flex items-center gap-1.5'>
-          AI Tutor
+          {!isCompact && 'AI Tutor'}
           <Popover>
             <PopoverTrigger asChild>
               <button className='text-[10px] font-medium text-muted-foreground px-1.5 py-0.5 bg-muted rounded border border-border/50 hover:bg-muted/80 transition-colors'>
@@ -781,12 +783,14 @@ export function TutorPanel({
             />
 
             {/* Chat Area */}
-            <ScrollArea className='flex-1 min-h-0 p-4 bg-muted/5'>
-              <div className='space-y-4'>
+            <ScrollArea className='flex-1 min-h-0 p-2 bg-muted/5'>
+              <div className='space-y-2'>
                 {messages.length === 0 && !isGenerating && (
-                  <div className='flex flex-col items-center justify-center text-center mt-6 sm:mt-12 space-y-3 px-6'>
-                    <div className='bg-primary/5 p-3 rounded-full'>
-                      <Brain className='h-8 w-8 text-primary/40' />
+                  <div className='flex flex-col items-center justify-center text-center mt-10 space-y-2 px-4'>
+                    <div className='bg-primary/5 p-2 rounded-full'>
+                      <Brain
+                        className={`text-primary/40 ${!isCompact ? 'h-6 w-6' : 'h-4 w-4'}`}
+                      />
                     </div>
                     <div className='space-y-1'>
                       <p className='text-xs font-semibold'>Ask for guidance</p>
@@ -854,8 +858,8 @@ export function TutorPanel({
             </ScrollArea>
 
             {/* Input Area */}
-            <div className='p-4 border-t border-border bg-card'>
-              <div className='flex items-center justify-between mb-3 px-1'>
+            <div className='p-2 border-t border-border bg-card'>
+              <div className='flex items-center justify-between mb-1 px-1'>
                 {sketchSessionKey && (
                   <div className='flex items-center space-x-2'>
                     <Checkbox

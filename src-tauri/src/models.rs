@@ -279,6 +279,7 @@ pub struct TutorChatRequest {
     pub messages: Vec<TutorMessage>,
     pub model: String,
     pub api_key: String,
+    /// If true, triggers diagnostic mode (lower temperature for precise analysis).
     pub diagnostic: Option<bool>,
 }
 

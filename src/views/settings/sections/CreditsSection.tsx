@@ -67,8 +67,7 @@ export function CreditsSection() {
           )}
         </div>
         <Button
-          variant='outline'
-          size='sm'
+          size='default'
           className='gap-2 shrink-0'
           disabled={creditsLoading || !apiKey}
           onClick={() => void fetchCredits(apiKey)}

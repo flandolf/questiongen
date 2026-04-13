@@ -14,6 +14,25 @@ export function GoalsSection() {
         title='Study Goals'
         description='Set daily targets and track your study streaks.'
       />
+      {/* Streak stats */}
+      <Card className='p-4'>
+        <div className='flex items-center justify-between'>
+          <div>
+            <p className='text-sm font-medium'>Current streak</p>
+            <p className='text-xs text-muted-foreground mt-0.5'>
+              Consecutive days with at least one question completed.
+            </p>
+          </div>
+          <div className='text-right'>
+            <p className='text-2xl font-black tabular-nums text-amber-500'>
+              {streakData.currentStreak}
+            </p>
+            <p className='text-xs text-muted-foreground'>
+              Best: {streakData.longestStreak}
+            </p>
+          </div>
+        </div>
+      </Card>
       <Card className='p-4 space-y-4'>
         <div>
           <p className='text-sm font-medium'>Daily question goal</p>
@@ -96,25 +115,6 @@ export function GoalsSection() {
           <span className='text-sm font-bold tabular-nums w-8 text-center'>
             {studyGoals.weeklyStreakGoal}
           </span>
-        </div>
-      </Card>
-      {/* Streak stats */}
-      <Card className='p-4'>
-        <div className='flex items-center justify-between'>
-          <div>
-            <p className='text-sm font-medium'>Current streak</p>
-            <p className='text-xs text-muted-foreground mt-0.5'>
-              Consecutive days with at least one question completed.
-            </p>
-          </div>
-          <div className='text-right'>
-            <p className='text-2xl font-black tabular-nums text-amber-500'>
-              {streakData.currentStreak}
-            </p>
-            <p className='text-xs text-muted-foreground'>
-              Best: {streakData.longestStreak}
-            </p>
-          </div>
         </div>
       </Card>
     </div>
