@@ -576,15 +576,37 @@ export function TutorPanel({
       console.log(`[Tutor] Starting chat with model: ${activeModel}`);
 
       setSketchStatus('processing');
-      if (includeSketch) {
-        window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
-        // Slight delay to allow synchronous localstorage save
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
+      let sketchpadDataUrl: string | undefined = undefined;
 
-      const sketchpadDataUrl = includeSketch
-        ? await getSketchpadDataUrl(sketchSessionKey)
-        : undefined;
+      if (includeSketch) {
+        sketchpadDataUrl = await new Promise<string | undefined>((resolve) => {
+          let resolved = false;
+
+          const handler = (e: Event) => {
+            if (resolved) return;
+            resolved = true;
+            window.removeEventListener('tutor-sketch-response', handler);
+            const customEvent = e as CustomEvent<{ dataUrl?: string }>;
+            resolve(customEvent.detail.dataUrl);
+          };
+          window.addEventListener('tutor-sketch-response', handler);
+
+          window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
+
+          // Fallback to local storage if Sketchpad component is unmounted or doesn't respond
+          setTimeout(() => {
+            if (resolved) return;
+            resolved = true;
+            window.removeEventListener('tutor-sketch-response', handler);
+            console.warn(
+              '[Tutor] Sketchpad did not respond in time, falling back to local storage',
+            );
+            getSketchpadDataUrl(sketchSessionKey)
+              .then(resolve)
+              .catch(() => resolve(undefined));
+          }, 500);
+        });
+      }
 
       if (sketchpadDataUrl) {
         setSketchStatus('sending');
