@@ -30,6 +30,7 @@ import {
   distributeQuestions,
   preprocessMcQuestions,
   shuffleMcQuestionOptions,
+  shuffleWithSeed,
 } from '@/lib/generator-batch';
 import {
   countWords,
@@ -1493,6 +1494,10 @@ export function GeneratorView() {
                   attempt: 1,
                 });
               }
+              const shuffledSubtopics = shuffleWithSeed(
+                topicSubtopics,
+                generationSeed + i * 17,
+              );
               const response = await invoke<GenerateQuestionsResponse>(
                 'generate_questions',
                 {
@@ -1505,8 +1510,8 @@ export function GeneratorView() {
                     apiKey,
                     techMode,
                     includeExamContext,
-                    subtopics: topicSubtopics,
-                    shuffleSubtopics,
+                    subtopics: shuffledSubtopics,
+                    shuffleSubtopics: true,
                     customFocusArea: getCustomFocusArea(),
                   },
                 },
@@ -1533,7 +1538,7 @@ export function GeneratorView() {
                   questionMode: 'written',
                   techMode,
                   averageMarksPerQuestion,
-                  subtopics: topicSubtopics,
+                  subtopics: shuffledSubtopics,
                   customFocusArea: getCustomFocusArea(),
                 },
                 outputs: {
@@ -1722,7 +1727,6 @@ export function GeneratorView() {
     apiKey,
     techMode,
     includeExamContext,
-    shuffleSubtopics,
     addGenerationRecord,
     setQuestions,
     setWrittenRawModelOutput,
@@ -1746,6 +1750,7 @@ export function GeneratorView() {
     setBatchEntryDone,
     setBatchEntryError,
     getSubtopicsForTopic,
+    shuffleSubtopics,
   ]);
 
   const handleGenerateMcQuestions = useCallback(async () => {
@@ -1834,6 +1839,10 @@ export function GeneratorView() {
                   attempt: 1,
                 });
               }
+              const shuffledSubtopics = shuffleWithSeed(
+                topicSubtopics,
+                generationSeed + i * 19,
+              );
               const response = await invoke<GenerateMcQuestionsResponse>(
                 'generate_mc_questions',
                 {
@@ -1845,8 +1854,8 @@ export function GeneratorView() {
                     apiKey,
                     techMode,
                     includeExamContext,
-                    subtopics: topicSubtopics,
-                    shuffleSubtopics,
+                    subtopics: shuffledSubtopics,
+                    shuffleSubtopics: true,
                     customFocusArea: getCustomFocusArea(),
                     avoidSimilarQuestions,
                     strictLatexValidation,
@@ -1881,10 +1890,10 @@ export function GeneratorView() {
                   topic,
                   difficulty,
                   questionCount: response.questions.length,
-                  questionMode: 'written',
+                  questionMode: 'multiple-choice',
                   techMode,
                   averageMarksPerQuestion,
-                  subtopics: topicSubtopics,
+                  subtopics: shuffledSubtopics,
                   customFocusArea: getCustomFocusArea(),
                 },
                 outputs: {
@@ -2083,7 +2092,6 @@ export function GeneratorView() {
     apiKey,
     techMode,
     includeExamContext,
-    shuffleSubtopics,
     avoidSimilarQuestions,
     strictLatexValidation,
     strictSubtopicCoverage,
