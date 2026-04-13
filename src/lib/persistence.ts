@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { cleanupOldSketchpadData } from '../components/sketchpadUtils';
 import type {
   AnswerAnalytics,
   DiversityStrictness,
@@ -155,6 +156,7 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
    * Normalizes and migrates legacy values where necessary.
    * @returns Normalized `PersistedAppState`
    */
+  cleanupOldSketchpadData();
   const raw = await loadRawPersistedState();
   const hasDurableState =
     isRecord(raw) &&
@@ -181,7 +183,11 @@ export async function savePersistedAppState(
     return;
   }
 
-  window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
+  try {
+    window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.warn('Failed to save persisted state to localStorage:', err);
+  }
 }
 
 // Convenience helper to persist immediately from other modules.

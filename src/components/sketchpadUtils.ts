@@ -87,6 +87,46 @@ export const MAX_ZOOM = 10;
 export const KEYBOARD_ZOOM_STEP = 0.25;
 export const MAX_UNDO_SNAPSHOTS = 40;
 export const MAX_PENDING_MOVE_POINTS = 240;
+export const MAX_STORED_SKETCHES = 15;
+
+export function cleanupOldSketchpadData() {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(CANVAS_STORAGE_KEY_PREFIX)) {
+        keys.push(key);
+      }
+    }
+
+    if (keys.length <= MAX_STORED_SKETCHES) return;
+
+    const sketches = keys.map((key) => {
+      try {
+        const item = localStorage.getItem(key);
+        if (!item) return { key, lastModified: 0 };
+        const parsed = JSON.parse(item) as { lastModified?: number };
+        return {
+          key,
+          lastModified: parsed.lastModified || 0,
+        };
+      } catch {
+        return { key, lastModified: 0 };
+      }
+    });
+
+    sketches.sort((a, b) => b.lastModified - a.lastModified);
+
+    const toRemove = sketches.slice(MAX_STORED_SKETCHES);
+    for (const sketch of toRemove) {
+      localStorage.removeItem(sketch.key);
+    }
+  } catch (err) {
+    console.warn('Failed to cleanup old sketchpad data:', err);
+  }
+}
 
 export const PALETTE = [
   '#2D3436', // Obsidian

@@ -124,6 +124,7 @@ type CanvasSnapshot = {
 type SketchpadStoragePayload = {
   version: 2;
   strokeSvg?: string;
+  lastModified?: number;
 };
 
 const TOOL_KEYS: Record<string, ToolType> = {
@@ -388,6 +389,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               bgRef2.current,
               true,
             ),
+            lastModified: Date.now(),
           };
           localStorage.setItem(
             getCanvasStorageKey(key),
@@ -763,7 +765,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [activeTool]);
 
     useEffect(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toolSettingsMap));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toolSettingsMap));
+      } catch (err) {
+        console.warn('Failed to save tool settings to localStorage:', err);
+      }
     }, [toolSettingsMap]);
 
     useEffect(() => {
@@ -792,25 +798,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         scheduleAutoSave(sessionKey);
       }
     }, [isDrawing, sessionKey, scheduleAutoSave]);
-
-    // Force save when TutorPanel requests it
-    useEffect(() => {
-      const handleForceSave = () => {
-        if (sessionKey && hasDirtyCanvasRef.current) {
-          if (autoSaveTimeoutRef.current) {
-            clearTimeout(autoSaveTimeoutRef.current);
-          }
-          saveCanvasToStorage(sessionKey);
-        }
-      };
-      window.addEventListener('tutor-request-sketch-save', handleForceSave);
-      return () => {
-        window.removeEventListener(
-          'tutor-request-sketch-save',
-          handleForceSave,
-        );
-      };
-    }, [sessionKey, saveCanvasToStorage]);
 
     // Save canvas immediately when sessionKey changes (user switched questions)
     useEffect(() => {
@@ -2128,6 +2115,54 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         );
       });
     }, []);
+
+    // Force save when TutorPanel requests it
+    useEffect(() => {
+      const handleForceSave = () => {
+        if (sessionKey && hasDirtyCanvasRef.current) {
+          if (autoSaveTimeoutRef.current) {
+            clearTimeout(autoSaveTimeoutRef.current);
+          }
+          saveCanvasToStorage(sessionKey);
+        }
+
+        // Generate a direct link for TutorPanel
+        void (async () => {
+          try {
+            // Only generate dataUrl if we actually have strokes
+            if (strokesRef.current.length === 0) {
+              window.dispatchEvent(
+                new CustomEvent('tutor-sketch-response', {
+                  detail: { dataUrl: undefined },
+                }),
+              );
+              return;
+            }
+            const dataUrl = await saveAsDataUrl();
+            window.dispatchEvent(
+              new CustomEvent('tutor-sketch-response', {
+                detail: { dataUrl },
+              }),
+            );
+          } catch (e) {
+            console.error('Failed to generate direct sketchpad data url:', e);
+            window.dispatchEvent(
+              new CustomEvent('tutor-sketch-response', {
+                detail: { dataUrl: undefined },
+              }),
+            );
+          }
+        })();
+      };
+
+      window.addEventListener('tutor-request-sketch-save', handleForceSave);
+      return () => {
+        window.removeEventListener(
+          'tutor-request-sketch-save',
+          handleForceSave,
+        );
+      };
+    }, [sessionKey, saveCanvasToStorage, saveAsDataUrl]);
 
     const isGrabMode = spaceDown.current || middleDown.current;
     const cursorStyle = isGrabMode
