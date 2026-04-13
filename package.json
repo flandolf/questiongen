@@ -37,7 +37,6 @@
     "react-dom": "^19.2.5",
     "react-dropzone": "^15.0.0",
     "react-markdown": "^10.1.0",
-    "react-markdown-mermaid": "^0.0.3",
     "react-router-dom": "^7.14.0",
     "recharts": "3.8.1",
     "remark-gfm": "^4.0.1",
