@@ -233,12 +233,12 @@ mod tests {
     #[test]
     fn keeps_canonical_subtopic_when_already_canonical() {
         let mut topic = "Mathematical Methods".to_string();
-        let mut subtopic = Some("integration".to_string());
+        let mut subtopic = Some("functions and function notation".to_string());
         let selected_topics = vec!["Mathematical Methods".to_string()];
 
         normalise_topic_and_subtopic(&mut topic, &mut subtopic, &selected_topics, None);
 
         assert_eq!(topic, "Mathematical Methods");
-        assert_eq!(subtopic.as_deref(), Some("integration"));
+        assert_eq!(subtopic.as_deref(), Some("functions and function notation"));
     }
 }

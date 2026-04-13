@@ -44,10 +44,57 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
   while (i < len) {
     const ch = chars[i];
 
-    // Preserve escaped characters while scanning for delimiters.
+    // Preserve escaped characters.
     if (ch === '\\' && i + 1 < len) {
       out.push(ch, chars[i + 1]);
       i += 2;
+      continue;
+    }
+
+    // Skip code blocks - Fenced
+    if (
+      ch === '`' &&
+      i + 2 < len &&
+      chars[i + 1] === '`' &&
+      chars[i + 2] === '`'
+    ) {
+      out.push('`', '`', '`');
+      i += 3;
+      while (i < len) {
+        if (
+          chars[i] === '`' &&
+          i + 2 < len &&
+          chars[i + 1] === '`' &&
+          chars[i + 2] === '`'
+        ) {
+          out.push('`', '`', '`');
+          i += 3;
+          break;
+        }
+        out.push(chars[i]);
+        i++;
+      }
+      continue;
+    }
+
+    // Skip code blocks - Inline
+    if (ch === '`') {
+      out.push('`');
+      i++;
+      while (i < len) {
+        if (chars[i] === '`') {
+          out.push('`');
+          i++;
+          break;
+        }
+        if (chars[i] === '\\' && i + 1 < len) {
+          out.push('\\', chars[i + 1]);
+          i += 2;
+          continue;
+        }
+        out.push(chars[i]);
+        i++;
+      }
       continue;
     }
 

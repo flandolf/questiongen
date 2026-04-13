@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { memo, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { MermaidBlock, rehypeMermaid } from 'react-markdown-mermaid';
 import remarkGfm from 'remark-gfm';
 
 import {
@@ -20,6 +22,11 @@ function getMathJaxRuntime(): MathJaxRuntime | undefined {
 type MarkdownMathProps = {
   content: string;
 };
+
+const components = {
+  MermaidBlock: MermaidBlock,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
 
 export const MarkdownMath = memo(function MarkdownMath({
   content,
@@ -90,7 +97,16 @@ export const MarkdownMath = memo(function MarkdownMath({
       ref={containerRef}
       className='prose prose-base dark:prose-invert max-w-none font-normal'
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} key={shielded.markdown}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[
+        [
+          rehypeMermaid,
+          {
+            mermaidConfig: {
+              flowchart: { useMaxWidth: true },
+            },
+          },
+        ],
+      ]} components={components} key={shielded.markdown}>
         {shielded.markdown}
       </ReactMarkdown>
     </div>

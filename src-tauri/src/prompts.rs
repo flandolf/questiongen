@@ -17,7 +17,8 @@ pub fn written_system() -> String {
          {contract}\n\
          {hygiene}\n\
          {latex_rules}\n\
-         {style_rules}\n\n\
+         {style_rules}\n\
+         {mermaid_rules}\n\n\
          CORE RULES:\n\
          - 'show that': every step must be explicit.\n\
          - 'hence': must use previous result.\n\
@@ -28,6 +29,7 @@ pub fn written_system() -> String {
         hygiene = constants::GLOBAL_HYGIENE_RULES,
         latex_rules = constants::LATEX_RULES,
         style_rules = constants::WRITTEN_STYLE_RULES,
+        mermaid_rules = constants::MERMAID_RULES,
         field_contract = topic_field_contract(),
     )
 }
@@ -38,7 +40,8 @@ pub fn mc_system() -> String {
          {contract}\n\
          {hygiene}\n\
          {latex_rules}\n\
-         {style_rules}\n\n\
+         {style_rules}\n\
+         {mermaid_rules}\n\n\
          CORE RULES:\n\
          - Provide ONLY final answers and concise rationale.\n\
          - NO chain-of-thought in output.\n\
@@ -48,6 +51,7 @@ pub fn mc_system() -> String {
         hygiene = constants::GLOBAL_HYGIENE_RULES,
         latex_rules = constants::LATEX_RULES,
         style_rules = constants::MC_STYLE_RULES,
+        mermaid_rules = constants::MERMAID_RULES,
         field_contract = topic_field_contract(),
     )
 }
@@ -69,6 +73,7 @@ pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> Str
          5. MC: justify correct and explain all 3 distractors.\n\n\
          {hygiene}\n\
          {latex_rules}\n\
+         {mermaid_rules}\n\
          {chem_note}{phys_ed_note}\n\n\
          REPORTS: PDFs are PRIMARY authority for criteria.\n\n\
          LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words} words).\n\n\
@@ -79,6 +84,7 @@ pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> Str
          worked_words = worked_words,
          hygiene = constants::GLOBAL_HYGIENE_RULES,
          latex_rules = constants::LATEX_RULES,
+         mermaid_rules = constants::MERMAID_RULES,
          chem_note = chem_note,
          phys_ed_note = phys_ed_note
     )

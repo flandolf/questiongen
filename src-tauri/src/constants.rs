@@ -79,6 +79,13 @@ LATEX:
 - NO empty fractions (\frac{}{}) or incomplete commands.
 - Use LaTeX only when mathematically necessary."#;
 
+pub const MERMAID_RULES: &str = r#"
+DIAGRAMS (MERMAID):
+- Use Mermaid diagrams for processes, flows, cycles, or complex charts where they enhance clarity.
+- Format: ```mermaid\n<diagram content>\n```
+- For bar or line charts, prefer 'xychart-beta' syntax where appropriate.
+- Ensure all text inside diagrams is ASCII and concise."#;
+
 pub const WRITTEN_STYLE_RULES: &str = "
 VCAA WRITTEN STYLE:
 1. STRUCTURE: Match marks. 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
