@@ -34,6 +34,7 @@ function createMathToken(index: number): string {
  *
  * @param content - Original markdown containing LaTeX math
  */
+// eslint-disable-next-line complexity
 export function shieldMathForMarkdown(content: string): ShieldedMath {
   const placeholders: Array<readonly [string, string]> = [];
   const out: string[] = [];
