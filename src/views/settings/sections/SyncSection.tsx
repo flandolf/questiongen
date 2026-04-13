@@ -13,7 +13,13 @@ import { useAppSettings } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
-import { Card, FieldGroup, SectionHeader, ToggleRow } from '../SettingsUI';
+import {
+  AnimatedSection,
+  Card,
+  FieldGroup,
+  SectionHeader,
+  ToggleRow,
+} from '../SettingsUI';
 
 // eslint-disable-next-line complexity
 export function SyncSection() {
@@ -89,7 +95,7 @@ export function SyncSection() {
   };
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='Cloud Sync'
         description='Your data is automatically synced to the cloud in realtime using Firestore.'
@@ -329,6 +335,6 @@ export function SyncSection() {
           </ul>
         </Card>
       )}
-    </div>
+    </AnimatedSection>
   );
 }

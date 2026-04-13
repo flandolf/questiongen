@@ -1,10 +1,12 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { Plus } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toCanonicalSubtopicName, type TopicSubtopicGroup } from '@/types';
+
+const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 export function ResizableAccordionContent({
   children,
@@ -60,17 +62,16 @@ export function ResizableAccordionContent({
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className='flex items-center gap-3 py-2'>
-      <p className='text-xs font-bold text-primary tracking-[0.2em] uppercase'>
+    <div className='flex items-center pt-1 pb-3 w-full'>
+      <h2 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/80'>
         {children}
-      </p>
-      <div className='h-px flex-1 bg-border/50 rounded-full' />
+      </h2>
     </div>
   );
 }
 
 export function SectionDivider() {
-  return <div className='h-6 w-full' />;
+  return <div className='h-10 w-full' />;
 }
 
 export function GroupedSubtopicSelector({
@@ -91,6 +92,8 @@ export function GroupedSubtopicSelector({
         units.add(group.unit);
       }
     }
+    // If nothing selected, maybe expand the first unit by default?
+    // Let's leave it as is to match previous behavior
     return units;
   });
 
@@ -151,15 +154,14 @@ export function GroupedSubtopicSelector({
   );
 
   return (
-    <div className='flex flex-col gap-6 w-full'>
-      <div className='flex flex-col gap-3'>
-        <div className='flex items-end justify-between px-1'>
-          <h3 className='text-sm font-semibold tracking-tight text-foreground'>
-            {label}
-          </h3>
+    <div className='flex flex-col gap-8 w-full'>
+      <div className='flex flex-col gap-5'>
+        <div className='flex items-center gap-3'>
+          <h3 className='text-sm font-bold text-foreground'>{label}</h3>
         </div>
 
-        <div className='flex flex-wrap gap-2 p-1.5 bg-muted/30 rounded-2xl border border-border/40'>
+        {/* High-density Unit Selector Cards */}
+        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
           {units.map((unit) => {
             const isActive = selectedUnits.has(unit);
             const unitGroups = groups.filter((g) => g.unit === unit);
@@ -177,128 +179,141 @@ export function GroupedSubtopicSelector({
               totalSubs > 0 ? (selectedCount / totalSubs) * 100 : 0;
 
             return (
-              <button
+              <motion.button
                 key={unit}
                 type='button'
                 onClick={() => toggleUnit(unit)}
+                whileHover={{ y: -2, scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                transition={SPRING}
                 className={cn(
-                  'relative flex-1 min-w-30 flex flex-col items-start gap-1.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden',
+                  'group relative flex flex-col items-start gap-4 p-5 rounded-xl transition-all overflow-hidden border',
                   isActive
-                    ? 'bg-background shadow-sm border border-border/60 text-foreground ring-1 ring-primary/10'
-                    : 'bg-transparent border border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                    ? 'bg-primary/5 border-primary/30'
+                    : 'bg-card border-border hover:bg-muted/50 text-muted-foreground',
                 )}
               >
-                <div className='flex items-center justify-between w-full'>
-                  <div className='flex items-center gap-2 z-10'>
-                    <span className='font-semibold'>{unit}</span>
-                    <span
-                      role='button'
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        toggleSelectAllInUnit(unit);
-                      }}
-                      className='cursor-pointer text-[11px] font-medium text-muted-foreground px-2 py-0.5 rounded-md hover:bg-muted/20'
-                    >
-                      <Plus className='w-3 h-3' />
-                    </span>
+                <div className='flex items-start justify-between w-full relative z-10'>
+                  <span
+                    className={cn(
+                      'font-medium text-sm',
+                      isActive ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    {unit}
+                  </span>
+                  <div
+                    role='button'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      toggleSelectAllInUnit(unit);
+                    }}
+                    className='cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors'
+                  >
+                    All
                   </div>
-                  {selectedCount > 0 && (
-                    <span className='text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary z-10'>
-                      {selectedCount}/{totalSubs}
-                    </span>
-                  )}
                 </div>
 
-                <div className='w-full h-1 bg-muted/50 rounded-full overflow-hidden z-10'>
-                  <div
-                    className='h-full bg-primary transition-all duration-500 ease-out'
-                    style={{ width: `${progressPercentage}%` }}
-                  />
+                <div className='w-full space-y-1.5 relative z-10'>
+                  <div className='flex items-center justify-between text-[10px] font-medium text-muted-foreground'>
+                    <span>COVERAGE</span>
+                    <span className={cn(selectedCount > 0 && 'text-primary')}>
+                      {selectedCount}/{totalSubs}
+                    </span>
+                  </div>
+                  <div className='w-full h-1.5 bg-muted rounded-full overflow-hidden'>
+                    <motion.div
+                      className='h-full bg-primary rounded-full'
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPercentage}%` }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    />
+                  </div>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
       </div>
 
-      {visibleGroups.length > 0 && (
-        <div className='flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500'>
-          {visibleGroups.map((group) => {
-            const selectedCount = group.subtopics.filter((s) =>
-              selected.includes(s),
-            ).length;
-            const allSelected = selectedCount === group.subtopics.length;
+      <AnimatePresence mode='popLayout'>
+        {visibleGroups.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className='grid grid-cols-1 lg:grid-cols-2 gap-6'
+          >
+            {visibleGroups.map((group) => {
+              const selectedCount = group.subtopics.filter((s) =>
+                selected.includes(s),
+              ).length;
+              const allSelected = selectedCount === group.subtopics.length;
 
-            return (
-              <div
-                key={group.groupId}
-                className={cn(
-                  'flex flex-col gap-3 p-4 rounded-2xl border transition-all duration-300',
-                  allSelected
-                    ? 'bg-primary/5 border-primary/20'
-                    : 'bg-card border-border/40 shadow-sm hover:border-border',
-                )}
-              >
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-2.5'>
-                    <div
-                      className={cn(
-                        'w-2 h-2 rounded-full',
-                        allSelected
-                          ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary),0.6)]'
-                          : 'bg-muted-foreground/30',
-                      )}
-                    />
-                    <h4 className='text-xs font-bold text-foreground/80 uppercase tracking-wide'>
-                      {group.aos}
-                    </h4>
-                  </div>
-                  <div className='flex items-center gap-2'>
+              return (
+                <motion.div
+                  layout
+                  key={group.groupId}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={cn(
+                    'flex flex-col gap-5 p-6 rounded-xl border transition-all relative overflow-hidden',
+                    allSelected
+                      ? 'bg-primary/5 border-primary/20'
+                      : 'bg-card border-border',
+                  )}
+                >
+                  <div className='flex items-start justify-between relative z-10'>
+                    <div className='flex items-center gap-2'>
+                      <h4 className='text-sm font-medium text-foreground leading-tight'>
+                        {group.aos}
+                      </h4>
+                    </div>
                     <button
                       type='button'
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleSelectAllInGroup(group);
                       }}
-                      className='text-[11px] font-medium text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md'
+                      className='text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted px-2 py-1 rounded transition-colors shrink-0'
                     >
-                      <Plus className='w-3 h-3' />
+                      {allSelected ? (
+                        <X className='w-3 h-3' />
+                      ) : (
+                        <Plus className='w-3 h-3' />
+                      )}
                     </button>
-                    <Badge
-                      variant='outline'
-                      className='text-[10px] px-2 py-0 h-5 font-semibold bg-background/50'
-                    >
-                      {selectedCount} selected
-                    </Badge>
                   </div>
-                </div>
 
-                <div className='flex flex-wrap gap-2 pt-1'>
-                  {group.subtopics.map((subtopic) => {
-                    const isSelected = selected.includes(subtopic);
-                    return (
-                      <button
-                        key={subtopic}
-                        type='button'
-                        onClick={() => onToggle(subtopic)}
-                        className={cn(
-                          'inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 border',
-                          isSelected
-                            ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 hover:bg-primary/90'
-                            : 'bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:bg-muted/30 hover:text-foreground',
-                        )}
-                      >
-                        {toCanonicalSubtopicName(subtopic)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  <div className='flex flex-wrap gap-2 pt-2 relative z-10'>
+                    {group.subtopics.map((subtopic) => {
+                      const isSelected = selected.includes(subtopic);
+                      return (
+                        <motion.button
+                          key={subtopic}
+                          type='button'
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => onToggle(subtopic)}
+                          className={cn(
+                            'inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border',
+                            isSelected
+                              ? 'bg-primary/10 text-primary border-primary/20'
+                              : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
+                          )}
+                        >
+                          {toCanonicalSubtopicName(subtopic)}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

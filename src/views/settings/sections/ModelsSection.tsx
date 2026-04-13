@@ -11,6 +11,7 @@ import { fmt } from '../formatters';
 import { ImageModelSelectRow } from '../ImageModelSelectRow';
 import { ModelSearchPanel } from '../ModelSearchPanel';
 import {
+  AnimatedSection,
   CustomModelInput,
   Divider,
   EmptyState,
@@ -332,7 +333,7 @@ export function ModelsSection() {
   );
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       {searchOpen && (
         <ModelSearchPanel
           target={searchTarget}
@@ -527,6 +528,6 @@ export function ModelsSection() {
         apiKey={settings.apiKey}
         models={currentModelConfig}
       />
-    </div>
+    </AnimatedSection>
   );
 }

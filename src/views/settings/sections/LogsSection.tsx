@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type { LogEntry } from '@/types';
 
-import { Card, SectionHeader } from '../SettingsUI';
+import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
 
 function hasLogData(
   data: unknown,
@@ -172,7 +172,7 @@ export function LogsSection() {
   const levels: LogEntry['level'][] = ['debug', 'info', 'log', 'warn', 'error'];
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <div className='flex items-center justify-between'>
         <SectionHeader
           title='System Logs'
@@ -299,6 +299,6 @@ export function LogsSection() {
           </ScrollArea>
         </Card>
       </div>
-    </div>
+    </AnimatedSection>
   );
 }

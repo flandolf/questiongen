@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
+  normalizeGenerationHistory,
   normalizeMcHistory,
   normalizeQuestionHistory,
   normalizeSavedSet,
@@ -21,7 +22,11 @@ import { useAppStore } from '@/store';
 import type { Preset, StreakData, StudyGoals } from '@/types';
 
 import { auth, db } from '../firebase-init';
-import { saveMcHistoryEntry, saveQuestionHistoryEntry } from './mutations';
+import {
+  saveGenerationRecord,
+  saveMcHistoryEntry,
+  saveQuestionHistoryEntry,
+} from './mutations';
 
 function mergeById<T extends { id: string; lastModified?: number }>(
   local: T[],
@@ -103,6 +108,10 @@ export function useSyncV3(): UseSyncV3Return {
     state.mcHistory
       .filter((e) => !e.isUploaded)
       .forEach((e) => void saveMcHistoryEntry(e));
+
+    state.generationHistory
+      .filter((e) => !e.isUploaded)
+      .forEach((e) => void saveGenerationRecord(e));
   }, []);
 
   const setupListeners = useCallback(
@@ -191,6 +200,36 @@ export function useSyncV3(): UseSyncV3Return {
           },
         );
 
+        // 2.5 Generation History
+        const ghUnsub = onSnapshot(
+          collection(db, `users/${uid}/generationHistory`),
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            console.info(
+              `[FirebaseSync] Received snapshot for ${snapshot.size} generation history entries.`,
+            );
+            const history = normalizeGenerationHistory(
+              snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
+            ).map((e, idx) => ({
+              ...e,
+              isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
+            }));
+            const local = useAppStore.getState().generationHistory;
+            useAppStore.setState({
+              generationHistory: mergeById(local, history, {
+                preserveLocalOnly: (entry) => entry.isUploaded === false,
+              }),
+            });
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Generation history listener error:',
+              error,
+            );
+            setSyncStatus('error');
+          },
+        );
+
         // 3. Saved Sets
         const ssUnsub = onSnapshot(
           collection(db, `users/${uid}/savedSets`),
@@ -270,6 +309,7 @@ export function useSyncV3(): UseSyncV3Return {
         unsubscribesRef.current = [
           qhUnsub,
           mchUnsub,
+          ghUnsub,
           ssUnsub,
           settingsMainUnsub,
           settingsGoalsUnsub,

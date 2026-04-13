@@ -19,7 +19,13 @@ import {
 } from '../../../lib/import-export';
 import { useAppStore } from '../../../store';
 import type { PersistedAppState } from '../../../types';
-import { Card, Divider, ErrorBanner, SectionHeader } from '../SettingsUI';
+import {
+  AnimatedSection,
+  Card,
+  Divider,
+  ErrorBanner,
+  SectionHeader,
+} from '../SettingsUI';
 import { LocalBackupFolderCard } from './LocalBackupFolderCard';
 
 export function ImportExportSection() {
@@ -170,7 +176,7 @@ export function ImportExportSection() {
   };
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='Import / Export'
         description='Backup your data locally or restore from a previous export.'
@@ -285,6 +291,6 @@ export function ImportExportSection() {
           onCancel={handleCancelImport}
         />
       )}
-    </div>
+    </AnimatedSection>
   );
 }

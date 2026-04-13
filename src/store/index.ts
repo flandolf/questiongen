@@ -5,6 +5,7 @@ import {
   deleteMcHistoryEntry as v3DeleteMcHistoryEntry,
   deleteQuestionHistoryEntry as v3DeleteQuestionHistoryEntry,
   deleteSavedSet as v3DeleteSavedSet,
+  saveGenerationRecord as v3SaveGenerationRecord,
   saveMcHistoryEntry as v3SaveMcHistoryEntry,
   saveQuestionHistoryEntry as v3SaveQuestionHistoryEntry,
   saveSavedSet as v3SaveSavedSet,
@@ -195,10 +196,13 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
     }
   },
 
-  addGenerationRecord: (record) =>
+  addGenerationRecord: (record) => {
+    const nextRecord = { ...record, isUploaded: false };
     set((s) => ({
-      generationHistory: [record, ...s.generationHistory].slice(0, 1000),
-    })),
+      generationHistory: [nextRecord, ...s.generationHistory].slice(0, 1000),
+    }));
+    void v3SaveGenerationRecord(nextRecord);
+  },
   setWrittenTimer: (writtenTimer) => set({ writtenTimer: writtenTimer }),
   setMcTimer: (mcTimer) => set({ mcTimer: mcTimer }),
 

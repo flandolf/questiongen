@@ -2,13 +2,13 @@ import { Bug } from 'lucide-react';
 
 import { useAppSettings } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
-import { Card, SectionHeader } from '../SettingsUI';
+import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
 
 export function DebugSection() {
   const { debugMode, setDebugMode } = useAppSettings();
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='Debug Mode'
         description='Developer tools for inspecting LLM payloads.'
@@ -31,6 +31,6 @@ export function DebugSection() {
           {debugMode ? 'Disable' : 'Enable'}
         </Button>
       </Card>
-    </div>
+    </AnimatedSection>
   );
 }
