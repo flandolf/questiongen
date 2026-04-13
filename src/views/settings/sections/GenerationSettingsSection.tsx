@@ -19,7 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import { useAppStore } from '../../../store';
-import { Card, SectionHeader } from '../SettingsUI';
+import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
 
 export function GenerationSettingsSection() {
   const avoidSimilarQuestions = useAppStore((s) => s.avoidSimilarQuestions);
@@ -56,7 +56,7 @@ export function GenerationSettingsSection() {
   const setShuffleSubtopics = useAppStore((s) => s.setShuffleSubtopics);
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='Generation Settings'
         description='Configure default options for question generation.'
@@ -295,6 +295,6 @@ export function GenerationSettingsSection() {
           </div>
         </div>
       </Card>
-    </div>
+    </AnimatedSection>
   );
 }

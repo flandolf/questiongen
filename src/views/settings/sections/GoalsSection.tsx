@@ -1,7 +1,7 @@
 import { Slider } from '@/components/ui/slider';
 
 import { useAppStore } from '../../../store';
-import { Card, SectionHeader } from '../SettingsUI';
+import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
 
 export function GoalsSection() {
   const studyGoals = useAppStore((s) => s.studyGoals);
@@ -9,7 +9,7 @@ export function GoalsSection() {
   const streakData = useAppStore((s) => s.streakData);
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='Study Goals'
         description='Set daily targets and track your study streaks.'
@@ -117,6 +117,6 @@ export function GoalsSection() {
           </span>
         </div>
       </Card>
-    </div>
+    </AnimatedSection>
   );
 }

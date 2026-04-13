@@ -1,7 +1,11 @@
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { removeUndefined } from '@/lib/app-utils';
-import type { McHistoryEntry, QuestionHistoryEntry } from '@/types/history';
+import type {
+  GenerationRecord,
+  McHistoryEntry,
+  QuestionHistoryEntry,
+} from '@/types/history';
 import type { SavedQuestionSet } from '@/types/persistence';
 import type { Preset, StreakData, StudyGoals } from '@/types/study';
 
@@ -86,6 +90,43 @@ export async function deleteMcHistoryEntry(id: string) {
   const uid = getUid();
   if (!uid) return;
   await deleteDoc(doc(db, `users/${uid}/mcHistory`, id));
+}
+
+/**
+ * Persist a `GenerationRecord` to Firestore under the current user.
+ * Marks the entry as uploaded and sets `updatedAt` to server time.
+ *
+ * @param entry - The generation record to persist. Must include an `id`.
+ */
+export async function saveGenerationRecord(entry: GenerationRecord) {
+  const uid = getUid();
+  if (!uid) {
+    console.warn('[SyncV3] No UID available to save generation record');
+    return;
+  }
+  try {
+    await setDoc(
+      doc(db, `users/${uid}/generationHistory`, entry.id),
+      removeUndefined({
+        ...entry,
+        isUploaded: true,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  } catch (error) {
+    console.error('[SyncV3] Failed to save generation record:', error);
+  }
+}
+
+/**
+ * Delete a `GenerationRecord` from the current user's Firestore.
+ *
+ * @param id - The id of the generation record to delete.
+ */
+export async function deleteGenerationRecord(id: string) {
+  const uid = getUid();
+  if (!uid) return;
+  await deleteDoc(doc(db, `users/${uid}/generationHistory`, id));
 }
 
 /**

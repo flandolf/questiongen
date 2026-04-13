@@ -1,12 +1,14 @@
+import { motion } from 'framer-motion';
 import {
   BarChart3,
+  Book,
   Calculator,
-  Crosshair,
-  Hash,
   Pen,
   Shuffle,
+  Terminal,
 } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -60,36 +62,34 @@ export function ToggleRow({
   onCheckedChange: (v: boolean) => void;
 }) {
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -1, scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
       className={cn(
-        'flex items-start justify-between gap-3 py-3.5 px-4 rounded-xl border transition-all duration-200 cursor-pointer shadow-sm group hover:shadow-md',
+        'flex items-center justify-between gap-4 py-3 px-4 rounded-xl border transition-colors cursor-pointer group',
         checked
-          ? 'bg-primary/5 border-primary/30'
-          : 'bg-card hover:border-primary/20 border-border/60',
+          ? 'bg-primary/5 border-primary/20'
+          : 'bg-card border-border hover:bg-muted/50',
       )}
       onClick={() => onCheckedChange(!checked)}
     >
-      <div className='flex items-start gap-3 min-w-0 transition-transform duration-200 group-hover:translate-x-0.5'>
-        <span
+      <div className='flex items-start gap-3 min-w-0'>
+        <div
           className={cn(
-            'mt-0.5 shrink-0 transition-colors duration-200',
-            checked
-              ? 'text-primary drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]'
-              : 'text-muted-foreground group-hover:text-foreground',
+            'p-2 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+            checked ? 'text-primary' : 'text-muted-foreground',
           )}
         >
           {icon}
-        </span>
+        </div>
         <div className='min-w-0'>
           <Label
             htmlFor={id}
-            className='text-sm font-semibold cursor-pointer user-select-none'
+            className='text-sm font-semibold cursor-pointer block text-foreground'
           >
             {label}
           </Label>
-          <p className='text-[11px] text-muted-foreground/80 mt-0.5 leading-relaxed'>
-            {description}
-          </p>
+          <p className='text-xs mt-0.5 text-muted-foreground'>{description}</p>
         </div>
       </div>
       <Switch
@@ -97,16 +97,14 @@ export function ToggleRow({
         checked={checked}
         onClick={(e) => e.stopPropagation()}
         onCheckedChange={onCheckedChange}
-        className='shrink-0 mt-1 shadow-inner'
+        className='shrink-0'
       />
-    </div>
+    </motion.div>
   );
 }
 
 export type AdvancedOptionsGroupProps = {
   questionMode: QuestionMode;
-  questionCount: number;
-  onSetQuestionCount: (count: number) => void;
   averageMarksPerQuestion: number;
   onSetAverageMarksPerQuestion: (marks: number) => void;
   selectedTopics: Topic[];
@@ -152,8 +150,6 @@ export type AdvancedOptionsGroupProps = {
 
 export function AdvancedOptionsGroup({
   questionMode,
-  questionCount,
-  onSetQuestionCount,
   averageMarksPerQuestion,
   onSetAverageMarksPerQuestion,
   selectedTopics,
@@ -179,114 +175,179 @@ export function AdvancedOptionsGroup({
   onSetCustomFocusArea,
 }: AdvancedOptionsGroupProps) {
   return (
-    <div className='space-y-2 pt-3'>
-      <div className='grid grid-cols-2 gap-4'>
-        <div className='space-y-2'>
-          <SectionLabel>Session Size</SectionLabel>
-          <div className=''>
-            <div className='flex items-center justify-between'>
-              <Label className='text-sm font-semibold flex items-center gap-2'>
-                <Hash className='w-4 h-4 text-primary' /> Questions
-              </Label>
-              <div className='bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm'>
-                {questionCount}
-              </div>
-            </div>
-            <Slider
-              min={1}
-              max={20}
-              step={1}
-              value={[questionCount]}
-              onValueChange={(val) => onSetQuestionCount(val[0])}
-              className='py-2'
-            />
-            <div className='flex justify-between text-[11px] text-muted-foreground'>
-              <span>1</span>
-              <span>20</span>
+    <div className='flex flex-col gap-8 w-full'>
+      {/* Session Size & Marks Row */}
+      <div className='flex flex-col gap-3'>
+        <SectionLabel>
+          <span className='flex items-center gap-2'>
+            <BarChart3 className='w-3.5 h-3.5' /> Target Marks
+          </span>
+        </SectionLabel>
+        <motion.div
+          whileHover={{ y: -2 }}
+          className={cn(
+            'p-6 rounded-xl border flex flex-col gap-5 transition-colors w-full',
+            questionMode === 'multiple-choice'
+              ? 'bg-muted/30 border-transparent opacity-60 pointer-events-none'
+              : 'bg-card border-border',
+          )}
+        >
+          <div className='flex items-center justify-between'>
+            <Label className='text-sm font-semibold flex items-center gap-2'>
+              <BarChart3 className='w-4 h-4 text-muted-foreground' /> Average
+              Marks Per Question
+            </Label>
+            <div className='font-mono text-xl font-medium text-foreground'>
+              {averageMarksPerQuestion}
             </div>
           </div>
-        </div>
-
-        <div className='space-y-2'>
-          <SectionLabel>Target marks</SectionLabel>
           <div>
-            <div className='flex items-center justify-between'>
-              <Label className='text-sm font-semibold flex items-center gap-2'>
-                <BarChart3 className='w-4 h-4 text-primary' /> Target marks
-              </Label>
-              <div className='bg-primary/10 text-primary font-bold px-3 py-1 rounded-md min-w-10 text-center tabular-nums text-sm'>
-                {averageMarksPerQuestion}
-              </div>
-            </div>
             <Slider
               min={1}
               max={15}
               step={1}
               value={[averageMarksPerQuestion]}
               onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
-              className='py-2'
               disabled={questionMode === 'multiple-choice'}
             />
-            <div className='flex justify-between text-[11px] text-muted-foreground'>
+            <div className='flex justify-between mt-2 font-mono text-[10px] text-muted-foreground font-medium'>
               <span>1</span>
               <span>15</span>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
+      {/* Calculator & Flags Row */}
+      {(hasAnyMathTopic || selectedTopics.length > 1) && (
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-8 items-start'>
+          {hasAnyMathTopic && (
+            <div
+              className={cn(
+                'flex flex-col gap-3',
+                selectedTopics.length <= 1 && 'md:col-span-2',
+              )}
+            >
+              <SectionLabel>
+                <span className='flex items-center gap-2'>
+                  <Calculator className='w-3.5 h-3.5' /> Calculator Mode
+                </span>
+              </SectionLabel>
 
-      <div className='space-y-2 pt-3'>
-        <SectionLabel>Generation Flags</SectionLabel>
-        <div className='flex flex-col gap-2.5'>
+              <div className='grid grid-cols-2 gap-4'>
+                {(
+                  [
+                    {
+                      value: 'tech-free' as TechMode,
+                      label: 'Tech Free',
+                      icon: <Pen className='w-4 h-4' />,
+                      desc: 'No calculator allowed',
+                    },
+                    {
+                      value: 'tech-active' as TechMode,
+                      label: 'Tech Active',
+                      icon: <Calculator className='w-4 h-4' />,
+                      desc: 'Calculator required',
+                    },
+                  ] as const
+                ).map(({ value, label, icon, desc }) => {
+                  const isActive = techMode === value;
+                  return (
+                    <TooltipProvider key={value}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <motion.button
+                            whileHover={{ y: -2, scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            type='button'
+                            onClick={() => onSetTechMode(value)}
+                            className={cn(
+                              'flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-all cursor-pointer w-full',
+                              isActive
+                                ? 'bg-primary/5 border-primary/30 text-primary'
+                                : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
+                            )}
+                          >
+                            <div>{icon}</div>
+                            <div className='text-sm font-medium'>{label}</div>
+                          </motion.button>
+                        </TooltipTrigger>
+                        <TooltipContent side='top'>
+                          <p>{desc}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {selectedTopics.length > 1 && (
-            <ToggleRow
-              id='shuffle-questions'
-              icon={<Shuffle className='w-4 h-4' />}
-              label='Shuffle Output'
-              description='Interleaves questions from all selected subjects.'
-              checked={shuffleQuestions}
-              onCheckedChange={onSetShuffleQuestions}
-            />
+            <div
+              className={cn(
+                'flex flex-col gap-3',
+                !hasAnyMathTopic && 'md:col-span-2',
+              )}
+            >
+              <SectionLabel>
+                <span className='flex items-center gap-2'>
+                  <Shuffle className='w-3.5 h-3.5' /> Modifiers
+                </span>
+              </SectionLabel>
+              <div className='flex flex-col gap-3'>
+                <ToggleRow
+                  id='shuffle-questions'
+                  icon={<Shuffle className='w-5 h-5' />}
+                  label='Shuffle Questions'
+                  description='Mix questions evenly from all subjects'
+                  checked={shuffleQuestions}
+                  onCheckedChange={onSetShuffleQuestions}
+                />
+              </div>
+            </div>
           )}
         </div>
-        <div>
-          <div className='rounded-xl space-y-2'>
-            <Label className='text-sm font-semibold flex items-center gap-2'>
-              <div className='w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center text-primary'>
-                <Crosshair className='w-3 h-3' />
-              </div>
-              Direction Override
-              <span className='font-medium text-[10px] uppercase text-muted-foreground tracking-wider ml-auto'>
-                Optional
-              </span>
-            </Label>
-            <div className='relative'>
-              <Input
-                value={customFocusArea}
-                onChange={(e) => onSetCustomFocusArea(e.target.value)}
-                maxLength={160}
-                placeholder='e.g. projectile motion with optimisation...'
-                className='text-sm rounded-lg bg-background border-border/60 shadow-inner resize-none transition-colors hover:border-primary/30 focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50'
-              />
-              {customFocusArea.length > 0 && (
-                <div className='absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 font-medium tracking-tighter'>
-                  {customFocusArea.length}/160
-                </div>
-              )}
+      )}
+
+      {/* Direction Override */}
+      <div className='flex flex-col gap-3'>
+        <div className='flex items-center justify-between w-full pt-1 pb-3'>
+          <h2 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2'>
+            <Terminal className='w-3.5 h-3.5' /> Custom Focus Area
+          </h2>
+          <Badge
+            variant='secondary'
+            className='font-mono text-[10px] tracking-wider bg-muted text-muted-foreground'
+          >
+            OPTIONAL
+          </Badge>
+        </div>
+
+        <div className='relative'>
+          <Input
+            value={customFocusArea}
+            onChange={(e) => onSetCustomFocusArea(e.target.value)}
+            maxLength={160}
+            placeholder='Define specific context, style, or focus topics here...'
+            className='pr-16 rounded-xl h-12 bg-card border-border text-sm placeholder:text-muted-foreground/50 focus-visible:ring-primary/20'
+          />
+          {customFocusArea.length > 0 && (
+            <div className='absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground font-medium'>
+              {customFocusArea.length}/160
             </div>
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Subtopics */}
       {hasSubtopicSection && (
-        <div className='space-y-3 pt-2'>
+        <div className='flex flex-col gap-3'>
           <SectionLabel>
-            Subtopics{' '}
-            <span className='ml-1 normal-case font-medium tracking-normal text-muted-foreground/50'>
-              (Leave blank for all)
+            <span className='flex items-center gap-2'>
+              <Book className='w-3.5 h-3.5' /> Subtopic Focus
             </span>
           </SectionLabel>
-          <div className='space-y-4'>
+          <div className='flex flex-col gap-12'>
             {selectedTopics.includes('Mathematical Methods') && (
               <GroupedSubtopicSelector
                 label='Mathematical Methods'
@@ -353,70 +414,6 @@ export function AdvancedOptionsGroup({
                 }
               />
             )}
-          </div>
-        </div>
-      )}
-
-      {hasAnyMathTopic && (
-        <div className='space-y-3 pt-6'>
-          <SectionLabel>Calculator Settings</SectionLabel>
-          <div className='grid grid-cols-2 gap-2 bg-card p-1.5 rounded-xl border'>
-            {(
-              [
-                {
-                  value: 'tech-free' as TechMode,
-                  label: 'Tech Free',
-                  icon: <Pen className='w-4 h-4' />,
-                  desc: 'Questions that do not require a calculator',
-                },
-                /* 'Mixed' option removed — only tech-free and tech-active supported */
-                {
-                  value: 'tech-active' as TechMode,
-                  label: 'Tech Active',
-                  icon: <Calculator className='w-4 h-4' />,
-                  desc: 'Questions that may require a calculator',
-                },
-              ] as const
-            ).map(({ value, label, icon, desc }) => {
-              const isActive = techMode === value;
-              return (
-                <TooltipProvider key={value}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        key={value}
-                        type='button'
-                        onClick={() => onSetTechMode(value)}
-                        className={cn(
-                          'flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg text-sm font-semibold transition-all cursor-pointer overflow-hidden relative',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-md'
-                            : 'bg-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground',
-                        )}
-                      >
-                        {isActive && (
-                          <div className='absolute inset-0 bg-white/10 dark:bg-black/10 rounded-lg pointer-events-none' />
-                        )}
-                        <span
-                          className={cn(
-                            'transition-transform',
-                            isActive ? 'scale-110' : '',
-                          )}
-                        >
-                          {icon}
-                        </span>
-                        <span className='text-[11px] leading-none'>
-                          {label}
-                        </span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side='top'>
-                      <p>{desc}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            })}
           </div>
         </div>
       )}

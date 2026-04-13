@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { AlertCircle, CheckCircle2, Search } from 'lucide-react';
 import React from 'react';
 
@@ -13,6 +14,66 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+export const SECTION_ANIMATION_VARIANTS = {
+  hidden: { opacity: 0, y: 10, filter: 'blur(10px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { duration: 0.3, ease: 'easeOut' as const },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    filter: 'blur(10px)',
+    transition: { duration: 0.2, ease: 'easeIn' as const },
+  },
+};
+
+export const STAGGER_CONTAINER_VARIANTS = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+export const STAGGER_ITEM_VARIANTS = {
+  hidden: { opacity: 0, y: 10, filter: 'blur(4px)' },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: 'blur(0px)',
+    transition: { duration: 0.3, ease: 'easeOut' as const },
+  },
+};
+
+export function AnimatedSection({
+  children,
+  className = 'space-y-6',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <motion.div
+      variants={STAGGER_CONTAINER_VARIANTS}
+      initial='hidden'
+      animate='visible'
+      className={className}
+    >
+      {React.Children.map(children, (child) => {
+        if (!React.isValidElement(child)) return child;
+        return (
+          <motion.div variants={STAGGER_ITEM_VARIANTS}>{child}</motion.div>
+        );
+      })}
+    </motion.div>
+  );
+}
 
 export function SectionHeader({
   title,

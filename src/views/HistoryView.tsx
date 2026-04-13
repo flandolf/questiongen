@@ -1255,7 +1255,7 @@ export function HistoryView() {
         style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}
       >
         <div
-          key={`${activeFilterKey}-${filteredHistoryIdsKey}`}
+          key={activeFilterKey}
           ref={parentRef}
           style={{
             height: '100%',

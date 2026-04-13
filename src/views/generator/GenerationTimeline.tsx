@@ -115,7 +115,7 @@ export function LastGenerationStats({
   if (items.length === 0) return null;
 
   return (
-    <div className='w-full px-6 py-2'>
+    <div className='w-full'>
       <p className='text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5'>
         Last Generation
       </p>

@@ -31,6 +31,7 @@ import { ModelsSection } from './settings/sections/ModelsSection';
 import { SyncSection } from './settings/sections/SyncSection';
 import { TimeAllocationSection } from './settings/sections/TimeAllocationSection';
 import { TutorSection } from './settings/sections/TutorSection';
+import { SECTION_ANIMATION_VARIANTS } from './settings/SettingsUI';
 import { APP_VERSION, type Section } from './settings/types';
 
 const SIDEBAR_CATEGORIES: {
@@ -235,15 +236,18 @@ export function SettingsView() {
 
       <main className='flex-1 min-w-0 overflow-y-auto bg-background/30'>
         <div className='max-w-4xl mx-auto p-12'>
-          <motion.div
-            key={activeSection}
-            initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className='w-full'
-          >
-            {renderSection(activeSection)}
-          </motion.div>
+          <AnimatePresence mode='wait'>
+            <motion.div
+              key={activeSection}
+              variants={SECTION_ANIMATION_VARIANTS}
+              initial='hidden'
+              animate='visible'
+              exit='exit'
+              className='w-full'
+            >
+              {renderSection(activeSection)}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

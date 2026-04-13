@@ -132,8 +132,10 @@ function wordBucketLabel(wordCount: number) {
   return '0-24';
 }
 
+const WHITESPACE_REGEX = /\s+/g;
+
 function normalizeCriterionLabel(value: string) {
-  const cleaned = value.trim().replace(/\s+/g, ' ');
+  const cleaned = value.trim().replace(WHITESPACE_REGEX, ' ');
   return cleaned.length > 0 ? cleaned : 'Unnamed criterion';
 }
 

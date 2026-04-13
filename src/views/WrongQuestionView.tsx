@@ -310,11 +310,7 @@ export function VirtualizedWrongList({
   }, [setIdsKey, rowVirtualizer]);
 
   return (
-    <div
-      key={setIdsKey}
-      ref={parentRef}
-      className='flex-1 overflow-auto min-h-0'
-    >
+    <div ref={parentRef} className='flex-1 overflow-auto min-h-0'>
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,

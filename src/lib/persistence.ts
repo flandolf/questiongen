@@ -213,22 +213,29 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
   };
 }
 
-function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
+export function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (item): item is GenerationRecord =>
-      isRecord(item) &&
-      typeof item.id === 'string' &&
-      typeof item.timestamp === 'string' &&
-      isRecord(item.inputs) &&
-      typeof item.inputs.topic === 'string' &&
-      typeof item.inputs.difficulty === 'string' &&
-      typeof item.inputs.questionCount === 'number' &&
-      typeof item.inputs.questionMode === 'string' &&
-      typeof item.inputs.techMode === 'string' &&
-      isRecord(item.outputs) &&
-      typeof item.outputs.durationMs === 'number',
-  );
+  return raw
+    .filter(
+      (item): item is GenerationRecord =>
+        isRecord(item) &&
+        typeof item.id === 'string' &&
+        typeof item.timestamp === 'string' &&
+        isRecord(item.inputs) &&
+        typeof item.inputs.topic === 'string' &&
+        typeof item.inputs.difficulty === 'string' &&
+        typeof item.inputs.questionCount === 'number' &&
+        typeof item.inputs.questionMode === 'string' &&
+        typeof item.inputs.techMode === 'string' &&
+        isRecord(item.outputs) &&
+        typeof item.outputs.durationMs === 'number',
+    )
+    .map((item) => ({
+      ...item,
+      isUploaded: Boolean(item.isUploaded),
+      lastModified:
+        typeof item.lastModified === 'number' ? item.lastModified : undefined,
+    }));
 }
 
 function applyLegacyMigration(state: PersistedAppState): PersistedAppState {

@@ -68,9 +68,12 @@ export type GenerationRecord = {
     questionCount: number;
     questionMode: QuestionMode;
     techMode: TechMode;
+    generationStrategy?: 'single-pass' | 'multi-pass';
     averageMarksPerQuestion?: number;
     subtopics?: string[];
     customFocusArea?: string;
   };
   outputs: GenerationTelemetry;
+  lastModified?: number;
+  isUploaded?: boolean;
 };

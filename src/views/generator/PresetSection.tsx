@@ -217,8 +217,8 @@ export function PresetSection({
   const canSavePreset = presetName.trim().length > 0;
 
   return (
-    <div className='space-y-2'>
-      <div className='flex items-center space-x-2'>
+    <div className='space-y-4'>
+      <div className='flex items-center'>
         <Input
           id='preset-name'
           value={presetName}
@@ -254,7 +254,7 @@ export function PresetSection({
       </div>
 
       {presets.length > 0 && (
-        <div className='space-y-1'>
+        <div className='space-y-4'>
           {presets.map(function (preset) {
             const isRenaming = renamingPresetId === preset.id;
             return (

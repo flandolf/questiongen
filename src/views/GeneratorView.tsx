@@ -1627,6 +1627,7 @@ export function GeneratorView() {
                   questionCount: response.questions.length,
                   questionMode: 'written',
                   techMode,
+                  generationStrategy: 'multi-pass',
                   averageMarksPerQuestion,
                   subtopics: shuffledSubtopics,
                   customFocusArea: getCustomFocusArea(),
@@ -1982,6 +1983,7 @@ export function GeneratorView() {
                   questionCount: response.questions.length,
                   questionMode: 'multiple-choice',
                   techMode,
+                  generationStrategy: 'multi-pass',
                   averageMarksPerQuestion,
                   subtopics: shuffledSubtopics,
                   customFocusArea: getCustomFocusArea(),
@@ -2081,6 +2083,7 @@ export function GeneratorView() {
                     questionCount: call.count,
                     questionMode: 'multiple-choice',
                     techMode,
+                    generationStrategy: 'multi-pass',
                     averageMarksPerQuestion,
                     subtopics: call.subtopics,
                   },
@@ -2892,6 +2895,7 @@ export function GeneratorView() {
           streamText={streamText}
           batchProgress={batchProgress}
           generationSubCallProgress={generationSubCallProgress}
+          generationStrategy={generationStrategy}
         />
       ) : showCompletionScreen && isSetComplete ? (
         <CompletionScreen

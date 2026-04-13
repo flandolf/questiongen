@@ -84,6 +84,7 @@ export interface LogRegressionCoefficients {
   techModeCoefficients: Record<string, number>;
   subtopicsCoefficient: number;
   hasCustomFocusCoefficient: number;
+  multiPassCoefficient: number;
   modelVersion: string;
   trainedAt: number;
   sampleSize: number;
@@ -120,6 +121,7 @@ const DEFAULT_LOG_REGRESSION_COEFFICIENTS: LogRegressionCoefficients = {
   },
   subtopicsCoefficient: 0.02,
   hasCustomFocusCoefficient: 0.05,
+  multiPassCoefficient: 0.3,
   modelVersion: '1.0.0',
   trainedAt: 0,
   sampleSize: 0,
@@ -191,6 +193,7 @@ function extractLogRegressionFeatures(
   techMode: TechMode,
   subtopics?: string[],
   customFocusArea?: string,
+  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
   coeffs: LogRegressionCoefficients = DEFAULT_LOG_REGRESSION_COEFFICIENTS,
 ): Record<string, number> {
   const totalMarks = (averageMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
@@ -209,6 +212,7 @@ function extractLogRegressionFeatures(
     subtopicsLog: Math.log((subtopics?.length ?? 0) + 1),
     hasCustomFocus:
       customFocusArea && customFocusArea.trim().length > 0 ? 1 : 0,
+    isMultiPass: generationStrategy === 'multi-pass' ? 1 : 0,
   };
 }
 
@@ -228,6 +232,10 @@ function predictTokensLogRegression(
   linearPrediction += coeffs.subtopicsCoefficient * features.subtopicsLog;
   linearPrediction +=
     coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+  if ('multiPassCoefficient' in coeffs && 'isMultiPass' in features) {
+    linearPrediction +=
+      (coeffs.multiPassCoefficient ?? 0.3) * features.isMultiPass;
+  }
 
   return Math.round(Math.exp(linearPrediction));
 }
@@ -275,6 +283,7 @@ export function trainLogRegressionModel(
         record.inputs.techMode,
         record.inputs.subtopics,
         record.inputs.customFocusArea,
+        record.inputs.generationStrategy ?? 'multi-pass',
         coeffs,
       ),
       target: Math.log(record.outputs.totalTokens!),
@@ -292,7 +301,8 @@ export function trainLogRegressionModel(
       gradLogM = 0,
       gradM = 0;
     let gradSub = 0,
-      gradFocus = 0;
+      gradFocus = 0,
+      gradMultiPass = 0;
 
     const gradTopic: Record<string, number> = {};
     const gradDiff: Record<string, number> = {};
@@ -321,6 +331,7 @@ export function trainLogRegressionModel(
       gradM += error * features.totalMarks;
       gradSub += error * features.subtopicsLog;
       gradFocus += error * features.hasCustomFocus;
+      gradMultiPass += error * features.isMultiPass;
 
       const t = record.inputs.topic;
       const d = record.inputs.difficulty as string;
@@ -342,6 +353,7 @@ export function trainLogRegressionModel(
     coeffs.totalMarks -= gradM * scale * 0.001;
     coeffs.subtopicsCoefficient -= gradSub * scale;
     coeffs.hasCustomFocusCoefficient -= gradFocus * scale;
+    coeffs.multiPassCoefficient -= gradMultiPass * scale;
 
     const catScale = scale * 0.1;
     for (const [level, grad] of Object.entries(gradTopic)) {
@@ -395,6 +407,7 @@ function estimateTokensLogRegression(
   techMode: TechMode,
   subtopics?: string[],
   customFocusArea?: string,
+  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
   historyRecords?: GenerationRecord[],
 ): {
   promptTokens: number;
@@ -424,6 +437,7 @@ function estimateTokensLogRegression(
     techMode,
     subtopics,
     customFocusArea,
+    generationStrategy,
     coeffs,
   );
 
@@ -512,6 +526,7 @@ function estimateTokensAdvanced(
   averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string,
+  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -527,6 +542,7 @@ function estimateTokensAdvanced(
     techMode,
     subtopics,
     customFocusArea,
+    generationStrategy,
     generationHistory,
   );
 
@@ -551,6 +567,7 @@ function estimateTokensAdvanced(
       averageMarksPerQuestion,
       subtopics,
       customFocusArea,
+      generationStrategy,
     );
   }
 
@@ -585,6 +602,7 @@ function estimateTokensAdvanced(
       averageMarksPerQuestion,
       subtopics,
       customFocusArea,
+      generationStrategy,
     );
   }
 
@@ -649,6 +667,7 @@ function estimateStaticTokens(
   averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string,
+  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -676,8 +695,16 @@ function estimateStaticTokens(
 
   const ratios = QUESTION_MODE_RATIOS[questionMode];
 
+  const apiCallsCount =
+    generationStrategy === 'single-pass'
+      ? 1
+      : !subtopics || subtopics.length === 0
+        ? 1
+        : Math.min(questionCount, subtopics.length);
+
   const totalPromptTokens = Math.round(
-    SYSTEM_PROMPT_TOKENS + questionCount * perQuestionPromptBase,
+    SYSTEM_PROMPT_TOKENS * apiCallsCount +
+      questionCount * perQuestionPromptBase,
   );
 
   const perQuestionCompletion =
@@ -706,6 +733,7 @@ export function estimateTokensAndCost(
   customFocusArea?: string,
   promptPricePerToken?: number | null,
   completionPricePerToken?: number | null,
+  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
 ): EstimatedTokensAndCost {
   const { promptTokens, completionTokens, totalTokens, confidence } =
     estimateTokensAdvanced(
@@ -718,11 +746,23 @@ export function estimateTokensAndCost(
       averageMarksPerQuestion,
       subtopics,
       customFocusArea,
+      generationStrategy,
     );
 
-  const variablePromptTokens = Math.max(promptTokens - SYSTEM_PROMPT_TOKENS, 0);
+  const apiCallsCount =
+    generationStrategy === 'single-pass'
+      ? 1
+      : !subtopics || subtopics.length === 0
+        ? 1
+        : Math.min(questionCount, subtopics.length);
+
+  const variablePromptTokens = Math.max(
+    promptTokens - SYSTEM_PROMPT_TOKENS * apiCallsCount,
+    0,
+  );
   const promptTokensPerQuestion = Math.round(
-    SYSTEM_PROMPT_TOKENS / questionCount + variablePromptTokens / questionCount,
+    (SYSTEM_PROMPT_TOKENS * apiCallsCount) / questionCount +
+      variablePromptTokens / questionCount,
   );
   const completionTokensPerQuestion = Math.round(
     completionTokens / questionCount,

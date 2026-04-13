@@ -392,6 +392,9 @@ const QuestionRow = memo(function QuestionRow({
   );
 });
 
+const EMPTY_WRITTEN_RESULTS: WrittenResultRow[] = [];
+const EMPTY_MC_RESULTS: McResultRow[] = [];
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
@@ -404,8 +407,8 @@ export const CompletionScreen = memo(function CompletionScreen({
   onReview,
   onStartOver,
   perQuestionTiming,
-  sessionWrittenResults = [],
-  sessionMcResults = [],
+  sessionWrittenResults = EMPTY_WRITTEN_RESULTS,
+  sessionMcResults = EMPTY_MC_RESULTS,
 }: CompletionScreenProps) {
   const { summary, trendData } = useAnalyticsData();
   const navigate = useNavigate();

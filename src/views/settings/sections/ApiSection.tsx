@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAppSettings } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { FieldGroup, SectionHeader } from '../SettingsUI';
+import { AnimatedSection, FieldGroup, SectionHeader } from '../SettingsUI';
 
 export function ApiSection() {
   const { apiKey, setApiKey, clearApiKey, showApiKey, setShowApiKey } =
@@ -19,7 +19,7 @@ export function ApiSection() {
   }
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='OpenRouter API Key'
         description='Required for question generation, marking, and account info.'
@@ -70,6 +70,6 @@ export function ApiSection() {
           Clear
         </Button>
       </div>
-    </div>
+    </AnimatedSection>
   );
 }

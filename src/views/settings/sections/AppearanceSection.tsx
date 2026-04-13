@@ -12,7 +12,12 @@ import { useAppStore } from '@/store';
 import { getDesignThemeLabel, themes } from '@/themes/designThemes';
 
 import { useAppSettings } from '../../../AppContext';
-import { Card, FieldGroup, SectionHeader } from '../SettingsUI';
+import {
+  AnimatedSection,
+  Card,
+  FieldGroup,
+  SectionHeader,
+} from '../SettingsUI';
 
 export function AppearanceSection() {
   const {
@@ -25,7 +30,7 @@ export function AppearanceSection() {
   const setTheme = useAppStore((s) => s.setTheme);
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       <SectionHeader
         title='Appearance'
         description='Customize the look and feel of the application.'
@@ -127,6 +132,6 @@ export function AppearanceSection() {
           </div>
         </div>
       </FieldGroup>
-    </div>
+    </AnimatedSection>
   );
 }

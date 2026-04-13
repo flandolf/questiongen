@@ -15,7 +15,13 @@ import { useAppStore } from '../../../store';
 import { CreditBar } from '../CreditBar';
 import { DailyUsageSection } from '../DailyUsageSection';
 import { fmt } from '../formatters';
-import { Card, Divider, EmptyState, ErrorBanner } from '../SettingsUI';
+import {
+  AnimatedSection,
+  Card,
+  Divider,
+  EmptyState,
+  ErrorBanner,
+} from '../SettingsUI';
 import type { CreditsInfo } from '../types';
 
 export function CreditsSection() {
@@ -50,7 +56,7 @@ export function CreditsSection() {
   }, [apiKey, fetchCredits]);
 
   return (
-    <div className='space-y-6'>
+    <AnimatedSection className='space-y-6'>
       {/* Credit balance */}
       <div className='flex items-start justify-between'>
         <div>
@@ -170,6 +176,6 @@ export function CreditsSection() {
           generationHistory={generationHistory}
         />
       </div>
-    </div>
+    </AnimatedSection>
   );
 }

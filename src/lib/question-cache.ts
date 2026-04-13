@@ -110,6 +110,11 @@ class GenerationResultCache {
 
 export const generationCache = new GenerationResultCache();
 
+const WHITESPACE_REGEX = /\s+/g;
+function normalizeWhitespace(text: string): string {
+  return text.replace(WHITESPACE_REGEX, ' ');
+}
+
 /**
  * Detect duplicate or very similar questions in a batch.
  * Uses simple heuristics: question stem length, topic, and subtopic.
@@ -138,8 +143,8 @@ export function identifyDuplicateQuestions(
       if (!stem1 || !stem2) continue;
 
       const sameTopic = q1.topic === q2.topic;
-      const normalizedStem1 = stem1.replace(/\s+/g, ' ');
-      const normalizedStem2 = stem2.replace(/\s+/g, ' ');
+      const normalizedStem1 = normalizeWhitespace(stem1);
+      const normalizedStem2 = normalizeWhitespace(stem2);
       const isExactDuplicate = normalizedStem1 === normalizedStem2;
 
       if (sameTopic && isExactDuplicate) {

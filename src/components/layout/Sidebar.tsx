@@ -132,9 +132,9 @@ function ConcentricRings({
 export function Sidebar() {
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
-  const questions = useAppStore((s) => s.questions);
-  const mcQuestions = useAppStore((s) => s.mcQuestions);
-  const hasActiveSession = questions.length > 0 || mcQuestions.length > 0;
+  const hasActiveSession = useAppStore(
+    (s) => s.questions.length > 0 || s.mcQuestions.length > 0,
+  );
 
   const todayCompletions = useMemo(() => {
     const today = getTodayKey();

@@ -199,21 +199,28 @@ interface FilterButtonProps {
   children: ReactNode;
   active?: boolean;
   onClick?: () => void;
+  className?: string;
 }
 
-export function FilterButton({ children, active, onClick }: FilterButtonProps) {
+export function FilterButton({
+  children,
+  active,
+  onClick,
+  className,
+}: FilterButtonProps) {
   return (
     <motion.button
       type='button'
       onClick={onClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       transition={SPRING}
       className={cn(
-        'px-3 py-1.5 text-xs rounded-sm font-medium transition-colors flex items-center gap-1.5',
+        'px-3 py-1.5 text-sm rounded-md font-medium transition-colors flex items-center justify-center gap-1.5',
         active
           ? 'bg-background shadow-sm text-foreground'
           : 'text-muted-foreground hover:text-foreground',
+        className,
       )}
     >
       {children}

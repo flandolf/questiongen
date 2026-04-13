@@ -3,13 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
 import { TUTOR_PERSONA_PRESETS } from '../constants';
-import { SectionHeader } from '../SettingsUI';
+import { AnimatedSection, SectionHeader } from '../SettingsUI';
 
 export function TutorSection() {
   const { tutorPersona, setTutorPersona } = useAppSettings();
 
   return (
-    <div className='space-y-6 w-full'>
+    <AnimatedSection className='space-y-6 w-full'>
       <SectionHeader
         title='AI Tutor'
         description='Configure the persona and behavior of the AI Tutor.'
@@ -57,6 +57,6 @@ export function TutorSection() {
           </div>
         </div>
       </div>
-    </div>
+    </AnimatedSection>
   );
 }
