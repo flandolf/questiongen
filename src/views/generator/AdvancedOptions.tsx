@@ -63,10 +63,10 @@ export function ToggleRow({
 }) {
   return (
     <motion.div
-      whileHover={{ y: -1, scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 1 }}
       className={cn(
-        'flex items-center justify-between gap-3 py-2 px-3 rounded-lg border transition-colors cursor-pointer group',
+        'flex min-h-17 items-center justify-between gap-3 px-3 py-3 rounded-lg border transition-colors cursor-pointer group',
         checked
           ? 'bg-primary/5 border-primary/20'
           : 'bg-card border-border hover:bg-muted/50',
@@ -76,7 +76,7 @@ export function ToggleRow({
       <div className='flex items-start gap-3 min-w-0'>
         <div
           className={cn(
-            'p-2 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+            'p-2 rounded-lg flex items-center justify-center shrink-0',
             checked ? 'text-primary' : 'text-muted-foreground',
           )}
         >
@@ -89,7 +89,9 @@ export function ToggleRow({
           >
             {label}
           </Label>
-          <p className='text-xs mt-0.5 text-muted-foreground'>{description}</p>
+          <p className='text-xs mt-0.5 line-clamp-1 text-muted-foreground'>
+            {description}
+          </p>
         </div>
       </div>
       <Switch
@@ -261,7 +263,7 @@ export function AdvancedOptionsGroup({
                             type='button'
                             onClick={() => onSetTechMode(value)}
                             className={cn(
-                              'flex flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all cursor-pointer w-full',
+                              'flex min-h-16 flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all cursor-pointer w-full',
                               isActive
                                 ? 'bg-primary/5 border-primary/30 text-primary'
                                 : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
