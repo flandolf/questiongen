@@ -1,6 +1,8 @@
 import { generateSeedFromTopics, shuffleWithSeed } from '@/lib/randomization';
 import type { McQuestion, Topic } from '@/types';
 
+export { generateSeedFromTopics, shuffleWithSeed };
+
 interface SubtopicCall {
   subtopics: string[];
   count: number;
@@ -105,7 +107,10 @@ export function buildSubtopicCalls(
   }
 
   const counts = distributeQuestions(subtopics as Topic[], total);
-  return shuffledSubs.map((s, i) => ({ subtopics: [s], count: counts[i] }));
+  return shuffledSubs.map((s: string, i: number) => ({
+    subtopics: [s],
+    count: counts[i],
+  }));
 }
 
 export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
@@ -117,7 +122,7 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
   if (originalOptions.length < 2) return q;
 
   const correctText = originalOptions.find(
-    (o) => o.label === q.correctAnswer,
+    (o: { label: string; text: string }) => o.label === q.correctAnswer,
   )?.text;
 
   const seed = hashStringForSeed(
@@ -125,14 +130,18 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
   );
   const shuffled = shuffleWithSeed([...originalOptions], seed);
 
-  const labels = shuffled.map((_, i) => String.fromCharCode(65 + i));
-  const relabeled = shuffled.map((o, i) => ({
-    label: labels[i],
-    text: o.text,
-  }));
+  const labels = shuffled.map((_: unknown, i: number) =>
+    String.fromCharCode(65 + i),
+  );
+  const relabeled = shuffled.map(
+    (o: { label: string; text: string }, i: number) => ({
+      label: labels[i],
+      text: o.text,
+    }),
+  );
 
   const newCorrect =
-    relabeled.find((o) =>
+    relabeled.find((o: { label: string; text: string }) =>
       correctText ? o.text.trim() === correctText.trim() : false,
     )?.label ??
     relabeled[0]?.label ??
@@ -143,13 +152,18 @@ export function shuffleMcQuestionOptions(q: McQuestion): McQuestion {
 
   // Map original letter positions to their option text for context-aware replacement
   const oldToNewLabel: Record<string, string> = {};
-  originalOptions.forEach((opt, index) => {
-    const oldLabel = String.fromCharCode(65 + index);
-    const newOpt = relabeled.find((o) => o.text.trim() === opt.text.trim());
-    if (newOpt) {
-      oldToNewLabel[oldLabel] = newOpt.label;
-    }
-  });
+  originalOptions.forEach(
+    (opt: { label: string; text: string }, index: number) => {
+      const oldLabel = String.fromCharCode(65 + index);
+      const newOpt = relabeled.find(
+        (o: { label: string; text: string }) =>
+          o.text.trim() === opt.text.trim(),
+      );
+      if (newOpt) {
+        oldToNewLabel[oldLabel] = newOpt.label;
+      }
+    },
+  );
 
   // Simultaneous replacement of all labels to avoid the swap problem (A->B, B->A).
   // We use specific patterns to avoid accidentally replacing the article "A".
