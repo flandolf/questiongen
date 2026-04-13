@@ -66,7 +66,7 @@ export function ToggleRow({
       whileHover={{ y: -1, scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
       className={cn(
-        'flex items-center justify-between gap-4 py-3 px-4 rounded-xl border transition-colors cursor-pointer group',
+        'flex items-center justify-between gap-3 py-2 px-3 rounded-lg border transition-colors cursor-pointer group',
         checked
           ? 'bg-primary/5 border-primary/20'
           : 'bg-card border-border hover:bg-muted/50',
@@ -175,9 +175,9 @@ export function AdvancedOptionsGroup({
   onSetCustomFocusArea,
 }: AdvancedOptionsGroupProps) {
   return (
-    <div className='flex flex-col gap-8 w-full'>
+    <div className='flex flex-col gap-5 w-full'>
       {/* Session Size & Marks Row */}
-      <div className='flex flex-col gap-3'>
+      <div className='flex flex-col gap-2'>
         <SectionLabel>
           <span className='flex items-center gap-2'>
             <BarChart3 className='w-3.5 h-3.5' /> Target Marks
@@ -186,7 +186,7 @@ export function AdvancedOptionsGroup({
         <motion.div
           whileHover={{ y: -2 }}
           className={cn(
-            'p-6 rounded-xl border flex flex-col gap-5 transition-colors w-full',
+            'p-4 rounded-lg border flex flex-col gap-3 transition-colors w-full',
             questionMode === 'multiple-choice'
               ? 'bg-muted/30 border-transparent opacity-60 pointer-events-none'
               : 'bg-card border-border',
@@ -219,11 +219,11 @@ export function AdvancedOptionsGroup({
       </div>
       {/* Calculator & Flags Row */}
       {(hasAnyMathTopic || selectedTopics.length > 1) && (
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-8 items-start'>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-4 items-start'>
           {hasAnyMathTopic && (
             <div
               className={cn(
-                'flex flex-col gap-3',
+                'flex flex-col gap-2',
                 selectedTopics.length <= 1 && 'md:col-span-2',
               )}
             >
@@ -261,7 +261,7 @@ export function AdvancedOptionsGroup({
                             type='button'
                             onClick={() => onSetTechMode(value)}
                             className={cn(
-                              'flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-all cursor-pointer w-full',
+                              'flex flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all cursor-pointer w-full',
                               isActive
                                 ? 'bg-primary/5 border-primary/30 text-primary'
                                 : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
@@ -285,7 +285,7 @@ export function AdvancedOptionsGroup({
           {selectedTopics.length > 1 && (
             <div
               className={cn(
-                'flex flex-col gap-3',
+                'flex flex-col gap-2',
                 !hasAnyMathTopic && 'md:col-span-2',
               )}
             >
@@ -294,7 +294,7 @@ export function AdvancedOptionsGroup({
                   <Shuffle className='w-3.5 h-3.5' /> Modifiers
                 </span>
               </SectionLabel>
-              <div className='flex flex-col gap-3'>
+              <div className='flex flex-col gap-2'>
                 <ToggleRow
                   id='shuffle-questions'
                   icon={<Shuffle className='w-5 h-5' />}
@@ -310,8 +310,8 @@ export function AdvancedOptionsGroup({
       )}
 
       {/* Direction Override */}
-      <div className='flex flex-col gap-3'>
-        <div className='flex items-center justify-between w-full pt-1 pb-3'>
+      <div className='flex flex-col gap-2'>
+        <div className='flex items-center justify-between w-full pt-1 pb-2'>
           <h2 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2'>
             <Terminal className='w-3.5 h-3.5' /> Custom Focus Area
           </h2>
@@ -329,7 +329,7 @@ export function AdvancedOptionsGroup({
             onChange={(e) => onSetCustomFocusArea(e.target.value)}
             maxLength={160}
             placeholder='Define specific context, style, or focus topics here...'
-            className='pr-16 rounded-xl h-12 bg-card border-border text-sm placeholder:text-muted-foreground/50 focus-visible:ring-primary/20'
+            className='pr-16 rounded-lg h-10 bg-card border-border text-sm placeholder:text-muted-foreground/50 focus-visible:ring-primary/20'
           />
           {customFocusArea.length > 0 && (
             <div className='absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground font-medium'>
@@ -341,13 +341,13 @@ export function AdvancedOptionsGroup({
 
       {/* Subtopics */}
       {hasSubtopicSection && (
-        <div className='flex flex-col gap-3'>
+        <div className='flex flex-col gap-2'>
           <SectionLabel>
             <span className='flex items-center gap-2'>
               <Book className='w-3.5 h-3.5' /> Subtopic Focus
             </span>
           </SectionLabel>
-          <div className='flex flex-col gap-12'>
+          <div className='flex flex-col gap-6'>
             {selectedTopics.includes('Mathematical Methods') && (
               <GroupedSubtopicSelector
                 label='Mathematical Methods'
