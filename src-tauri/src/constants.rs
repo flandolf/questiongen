@@ -82,9 +82,10 @@ LATEX:
 pub const WRITTEN_STYLE_RULES: &str = "
 VCAA WRITTEN STYLE:
 1. STRUCTURE: Match marks. 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
-2. SCAFFOLDING: For items ≥4 marks, earlier parts MUST produce results reused in later parts.
-3. COGNITION: Demand must increase: recall -> method -> synthesis/justification.
-4. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No duplicate skills in one batch.";
+2. FORMATTING: Use newlines after [X marks] and before part labels (a), (b), etc.
+3. SCAFFOLDING: For items ≥4 marks, earlier parts MUST produce results reused in later parts.
+4. COGNITION: Demand must increase: recall -> method -> synthesis/justification.
+5. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No duplicate skills in one batch.";
 
 /// Injected into MC question-generation prompts for distractor quality.
 pub const MC_STYLE_RULES: &str = "

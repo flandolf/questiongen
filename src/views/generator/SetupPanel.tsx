@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   BookOpen,
+  Calculator,
   CheckCheck,
   Coins,
   DollarSign,
@@ -12,6 +13,7 @@ import {
   Loader2,
   SigmaSquare,
   Target,
+  TestTubeDiagonal,
 } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -34,9 +36,11 @@ import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
 import { useAppStore } from '@/store';
 import {
   type BatchTopicProgress,
+  type BiologySubtopic,
   type ChemistrySubtopic,
   type Difficulty,
   type DiversityStrictness,
+  type GeneralMathematicsSubtopic,
   type GenerationStatusEvent,
   type GenerationSubCallProgress,
   type GenerationTelemetry,
@@ -72,7 +76,9 @@ const TOPIC_ICONS: Partial<Record<Topic, React.ReactNode>> = {
   'Mathematical Methods': <FunctionSquare className='w-4 h-4' />,
   'Specialist Mathematics': <SigmaSquare className='w-4 h-4' />,
   Chemistry: <FlaskConical className='w-4 h-4' />,
+  Biology: <TestTubeDiagonal className='w-4 h-4' />,
   'Physical Education': <Dumbbell className='w-4 h-4' />,
+  'General Mathematics': <Calculator className='w-4 h-4' />,
 };
 
 // ─── Difficulty metadata ──────────────────────────────────────────────────────
@@ -121,13 +127,27 @@ type SetupPanelProps = {
   selectedTopics: Topic[];
   onToggleTopic: (topic: Topic) => void;
   mathMethodsSubtopics: MathMethodsSubtopic[];
-  onToggleMathMethodsSubtopic: (sub: MathMethodsSubtopic) => void;
+  onToggleMathMethodsSubtopic: (
+    sub: MathMethodsSubtopic | MathMethodsSubtopic[],
+  ) => void;
   specialistMathSubtopics: SpecialistMathSubtopic[];
-  onToggleSpecialistMathSubtopic: (sub: SpecialistMathSubtopic) => void;
+  onToggleSpecialistMathSubtopic: (
+    sub: SpecialistMathSubtopic | SpecialistMathSubtopic[],
+  ) => void;
   chemistrySubtopics: ChemistrySubtopic[];
-  onToggleChemistrySubtopic: (sub: ChemistrySubtopic) => void;
+  onToggleChemistrySubtopic: (
+    sub: ChemistrySubtopic | ChemistrySubtopic[],
+  ) => void;
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  onTogglePhysicalEducationSubtopic: (sub: PhysicalEducationSubtopic) => void;
+  onTogglePhysicalEducationSubtopic: (
+    sub: PhysicalEducationSubtopic | PhysicalEducationSubtopic[],
+  ) => void;
+  biologySubtopics: BiologySubtopic[];
+  onToggleBiologySubtopic: (sub: BiologySubtopic | BiologySubtopic[]) => void;
+  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
+  onToggleGeneralMathematicsSubtopic: (
+    sub: GeneralMathematicsSubtopic | GeneralMathematicsSubtopic[],
+  ) => void;
   techMode: TechMode;
   onSetTechMode: (mode: TechMode) => void;
   customFocusArea: string;
@@ -182,6 +202,10 @@ function SetupPanelImpl({
   onToggleChemistrySubtopic,
   physicalEducationSubtopics,
   onTogglePhysicalEducationSubtopic,
+  biologySubtopics,
+  onToggleBiologySubtopic,
+  generalMathematicsSubtopics,
+  onToggleGeneralMathematicsSubtopic,
   techMode,
   onSetTechMode,
   customFocusArea,
@@ -233,36 +257,33 @@ function SetupPanelImpl({
     selectedTopics.includes('Mathematical Methods') ||
     selectedTopics.includes('Specialist Mathematics') ||
     selectedTopics.includes('Chemistry') ||
-    selectedTopics.includes('Physical Education');
+    selectedTopics.includes('Physical Education') ||
+    selectedTopics.includes('Biology') ||
+    selectedTopics.includes('General Mathematics');
 
   const showBatchTimeline = batchProgress.length > 1;
 
   const selectedSubtopics = useMemo(
     () =>
       Array.from(
-        new Set([
-          ...(selectedTopics.includes('Mathematical Methods')
-            ? mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub))
-            : []),
-          ...(selectedTopics.includes('Specialist Mathematics')
-            ? specialistMathSubtopics.map((sub) => toCanonicalSubtopicName(sub))
-            : []),
-          ...(selectedTopics.includes('Chemistry')
-            ? chemistrySubtopics.map((sub) => toCanonicalSubtopicName(sub))
-            : []),
-          ...(selectedTopics.includes('Physical Education')
-            ? physicalEducationSubtopics.map((sub) =>
-                toCanonicalSubtopicName(sub),
-              )
-            : []),
-        ]),
+        new Set(
+          [
+            ...mathMethodsSubtopics,
+            ...specialistMathSubtopics,
+            ...chemistrySubtopics,
+            ...physicalEducationSubtopics,
+            ...biologySubtopics,
+            ...generalMathematicsSubtopics,
+          ].map(toCanonicalSubtopicName),
+        ),
       ),
     [
-      selectedTopics,
       mathMethodsSubtopics,
       specialistMathSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
+      biologySubtopics,
+      generalMathematicsSubtopics,
     ],
   );
 
@@ -464,6 +485,12 @@ function SetupPanelImpl({
               onTogglePhysicalEducationSubtopic={
                 onTogglePhysicalEducationSubtopic
               }
+              biologySubtopics={biologySubtopics}
+              onToggleBiologySubtopic={onToggleBiologySubtopic}
+              generalMathematicsSubtopics={generalMathematicsSubtopics}
+              onToggleGeneralMathematicsSubtopic={
+                onToggleGeneralMathematicsSubtopic
+              }
               hasAnyMathTopic={hasAnyMathTopic}
               techMode={techMode}
               onSetTechMode={onSetTechMode}
@@ -494,6 +521,8 @@ function SetupPanelImpl({
               specialistMathSubtopics={specialistMathSubtopics}
               chemistrySubtopics={chemistrySubtopics}
               physicalEducationSubtopics={physicalEducationSubtopics}
+              biologySubtopics={biologySubtopics}
+              generalMathematicsSubtopics={generalMathematicsSubtopics}
               questionCount={questionCount}
               averageMarksPerQuestion={averageMarksPerQuestion}
               questionMode={questionMode}

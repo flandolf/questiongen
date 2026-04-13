@@ -13,8 +13,10 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type {
+  BiologySubtopic,
   ChemistrySubtopic,
   Difficulty,
+  GeneralMathematicsSubtopic,
   MathMethodsSubtopic,
   PhysicalEducationSubtopic,
   Preset,
@@ -33,6 +35,8 @@ type PresetSectionProps = {
   specialistMathSubtopics: SpecialistMathSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
   physicalEducationSubtopics: PhysicalEducationSubtopic[];
+  biologySubtopics: BiologySubtopic[];
+  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
@@ -83,6 +87,8 @@ export function PresetSection({
   specialistMathSubtopics,
   chemistrySubtopics,
   physicalEducationSubtopics,
+  biologySubtopics,
+  generalMathematicsSubtopics,
   questionCount,
   averageMarksPerQuestion,
   questionMode,
@@ -101,6 +107,10 @@ export function PresetSection({
   const setChemistrySubtopics = useAppStore((s) => s.setChemistrySubtopics);
   const setPhysicalEducationSubtopics = useAppStore(
     (s) => s.setPhysicalEducationSubtopics,
+  );
+  const setBiologySubtopics = useAppStore((s) => s.setBiologySubtopics);
+  const setGeneralMathematicsSubtopics = useAppStore(
+    (s) => s.setGeneralMathematicsSubtopics,
   );
   const setQuestionCount = useAppStore((s) => s.setQuestionCount);
   const setAverageMarksPerQuestion = useAppStore(
@@ -155,6 +165,10 @@ export function PresetSection({
       ...(topicSet.has('Physical Education')
         ? { physicalEducationSubtopics }
         : {}),
+      ...(topicSet.has('Biology') ? { biologySubtopics } : {}),
+      ...(topicSet.has('General Mathematics')
+        ? { generalMathematicsSubtopics }
+        : {}),
     };
   };
 
@@ -187,6 +201,8 @@ export function PresetSection({
     setSpecialistMathSubtopics([...(p.specialistMathSubtopics ?? [])]);
     setChemistrySubtopics([...(p.chemistrySubtopics ?? [])]);
     setPhysicalEducationSubtopics([...(p.physicalEducationSubtopics ?? [])]);
+    setBiologySubtopics([...(p.biologySubtopics ?? [])]);
+    setGeneralMathematicsSubtopics([...(p.generalMathematicsSubtopics ?? [])]);
     setQuestionCount(p.questionCount);
     setAverageMarksPerQuestion(p.averageMarksPerQuestion);
     setQuestionMode(p.questionMode);

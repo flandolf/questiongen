@@ -1,5 +1,7 @@
 import type {
+  BiologySubtopic,
   ChemistrySubtopic,
+  GeneralMathematicsSubtopic,
   MathMethodsSubtopic,
   PhysicalEducationSubtopic,
   SpecialistMathSubtopic,
@@ -42,6 +44,8 @@ export type PresetPreferences = {
   specialistMathSubtopics?: SpecialistMathSubtopic[];
   chemistrySubtopics?: ChemistrySubtopic[];
   physicalEducationSubtopics?: PhysicalEducationSubtopic[];
+  biologySubtopics?: BiologySubtopic[];
+  generalMathematicsSubtopics?: GeneralMathematicsSubtopic[];
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;

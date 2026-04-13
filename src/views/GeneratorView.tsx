@@ -47,8 +47,10 @@ import { useAppStore } from '@/store';
 import { useTutorStore } from '@/store/tutor';
 import type {
   BatchTopicProgress,
+  BiologySubtopic,
   ChemistrySubtopic,
   DiversityStrictness,
+  GeneralMathematicsSubtopic,
   GeneratedQuestion,
   GenerateMcQuestionsResponse,
   GenerateQuestionsResponse,
@@ -68,7 +70,9 @@ import type {
   WrittenAttemptKind,
 } from '@/types';
 import {
+  BIOLOGY_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
+  GENERAL_MATHEMATICS_SUBTOPICS,
   MATH_METHODS_SUBTOPIC_GROUPS,
   MATH_METHODS_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
@@ -228,6 +232,10 @@ export function GeneratorView() {
     setChemistrySubtopics,
     physicalEducationSubtopics,
     setPhysicalEducationSubtopics,
+    biologySubtopics,
+    setBiologySubtopics,
+    generalMathematicsSubtopics,
+    setGeneralMathematicsSubtopics,
     questionCount,
     setQuestionCount,
     averageMarksPerQuestion,
@@ -674,6 +682,16 @@ export function GeneratorView() {
         ) {
           setChemistrySubtopics([subtopic]);
         } else if (
+          topic === 'Biology' &&
+          BIOLOGY_SUBTOPICS.includes(subtopic)
+        ) {
+          setBiologySubtopics([subtopic]);
+        } else if (
+          topic === 'General Mathematics' &&
+          GENERAL_MATHEMATICS_SUBTOPICS.includes(subtopic)
+        ) {
+          setGeneralMathematicsSubtopics([subtopic]);
+        } else if (
           topic === 'Physical Education' &&
           PHYSICAL_EDUCATION_SUBTOPICS.includes(subtopic)
         ) {
@@ -878,47 +896,111 @@ export function GeneratorView() {
   );
 
   const toggleMathMethodsSubtopic = useCallback(
-    (sub: MathMethodsSubtopic) => {
-      setMathMethodsSubtopics(
-        mathMethodsSubtopics.includes(sub)
-          ? mathMethodsSubtopics.filter((s) => s !== sub)
-          : [...mathMethodsSubtopics, sub],
-      );
+    (sub: MathMethodsSubtopic | MathMethodsSubtopic[]) => {
+      const subs = Array.isArray(sub) ? sub : [sub];
+      setMathMethodsSubtopics((prev) => {
+        let next = [...prev];
+        for (const s of subs) {
+          if (next.includes(s)) {
+            next = next.filter((item) => item !== s);
+          } else {
+            next.push(s);
+          }
+        }
+        return next;
+      });
     },
-    [mathMethodsSubtopics, setMathMethodsSubtopics],
+    [setMathMethodsSubtopics],
   );
 
   const toggleSpecialistMathSubtopic = useCallback(
-    (sub: SpecialistMathSubtopic) => {
-      setSpecialistMathSubtopics(
-        specialistMathSubtopics.includes(sub)
-          ? specialistMathSubtopics.filter((s) => s !== sub)
-          : [...specialistMathSubtopics, sub],
-      );
+    (sub: SpecialistMathSubtopic | SpecialistMathSubtopic[]) => {
+      const subs = Array.isArray(sub) ? sub : [sub];
+      setSpecialistMathSubtopics((prev) => {
+        let next = [...prev];
+        for (const s of subs) {
+          if (next.includes(s)) {
+            next = next.filter((item) => item !== s);
+          } else {
+            next.push(s);
+          }
+        }
+        return next;
+      });
     },
-    [specialistMathSubtopics, setSpecialistMathSubtopics],
+    [setSpecialistMathSubtopics],
   );
 
   const toggleChemistrySubtopic = useCallback(
-    (sub: ChemistrySubtopic) => {
-      setChemistrySubtopics(
-        chemistrySubtopics.includes(sub)
-          ? chemistrySubtopics.filter((s) => s !== sub)
-          : [...chemistrySubtopics, sub],
-      );
+    (sub: ChemistrySubtopic | ChemistrySubtopic[]) => {
+      const subs = Array.isArray(sub) ? sub : [sub];
+      setChemistrySubtopics((prev) => {
+        let next = [...prev];
+        for (const s of subs) {
+          if (next.includes(s)) {
+            next = next.filter((item) => item !== s);
+          } else {
+            next.push(s);
+          }
+        }
+        return next;
+      });
     },
-    [chemistrySubtopics, setChemistrySubtopics],
+    [setChemistrySubtopics],
   );
 
   const togglePhysicalEducationSubtopic = useCallback(
-    (sub: PhysicalEducationSubtopic) => {
-      setPhysicalEducationSubtopics(
-        physicalEducationSubtopics.includes(sub)
-          ? physicalEducationSubtopics.filter((s) => s !== sub)
-          : [...physicalEducationSubtopics, sub],
-      );
+    (sub: PhysicalEducationSubtopic | PhysicalEducationSubtopic[]) => {
+      const subs = Array.isArray(sub) ? sub : [sub];
+      setPhysicalEducationSubtopics((prev) => {
+        let next = [...prev];
+        for (const s of subs) {
+          if (next.includes(s)) {
+            next = next.filter((item) => item !== s);
+          } else {
+            next.push(s);
+          }
+        }
+        return next;
+      });
     },
-    [physicalEducationSubtopics, setPhysicalEducationSubtopics],
+    [setPhysicalEducationSubtopics],
+  );
+
+  const toggleBiologySubtopic = useCallback(
+    (sub: BiologySubtopic | BiologySubtopic[]) => {
+      const subs = Array.isArray(sub) ? sub : [sub];
+      setBiologySubtopics((prev) => {
+        let next = [...prev];
+        for (const s of subs) {
+          if (next.includes(s)) {
+            next = next.filter((item) => item !== s);
+          } else {
+            next.push(s);
+          }
+        }
+        return next;
+      });
+    },
+    [setBiologySubtopics],
+  );
+
+  const toggleGeneralMathematicsSubtopic = useCallback(
+    (sub: GeneralMathematicsSubtopic | GeneralMathematicsSubtopic[]) => {
+      const subs = Array.isArray(sub) ? sub : [sub];
+      setGeneralMathematicsSubtopics((prev) => {
+        let next = [...prev];
+        for (const s of subs) {
+          if (next.includes(s)) {
+            next = next.filter((item) => item !== s);
+          } else {
+            next.push(s);
+          }
+        }
+        return next;
+      });
+    },
+    [setGeneralMathematicsSubtopics],
   );
 
   const dismissKeyboardHint = useCallback(() => {
@@ -1060,6 +1142,12 @@ export function GeneratorView() {
           return physicalEducationSubtopics.map((sub) =>
             toCanonicalSubtopicName(sub),
           );
+        case 'Biology':
+          return biologySubtopics.map((sub) => toCanonicalSubtopicName(sub));
+        case 'General Mathematics':
+          return generalMathematicsSubtopics.map((sub) =>
+            toCanonicalSubtopicName(sub),
+          );
         default:
           return [];
       }
@@ -1069,6 +1157,8 @@ export function GeneratorView() {
       specialistMathSubtopics,
       chemistrySubtopics,
       physicalEducationSubtopics,
+      biologySubtopics,
+      generalMathematicsSubtopics,
     ],
   );
 
@@ -2760,6 +2850,10 @@ export function GeneratorView() {
           onToggleChemistrySubtopic={toggleChemistrySubtopic}
           physicalEducationSubtopics={physicalEducationSubtopics}
           onTogglePhysicalEducationSubtopic={togglePhysicalEducationSubtopic}
+          biologySubtopics={biologySubtopics}
+          onToggleBiologySubtopic={toggleBiologySubtopic}
+          generalMathematicsSubtopics={generalMathematicsSubtopics}
+          onToggleGeneralMathematicsSubtopic={toggleGeneralMathematicsSubtopic}
           techMode={techMode}
           onSetTechMode={setTechMode}
           customFocusArea={customFocusArea}
