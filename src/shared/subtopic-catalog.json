@@ -3,7 +3,10 @@
     {
       "name": "Mathematical Methods",
       "icon": "FunctionSquare",
-      "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+      "examPdfs": [
+        "2025-MathMethods1.pdf",
+        "2025-MathMethods2.pdf"
+      ],
       "reportPdfs": [
         "2025-MathematicalMethods1-report.pdf",
         "2025-MathematicalMethods2-report.pdf"
@@ -27,7 +30,7 @@
         },
         {
           "name": "Qualitative Interpretation of Graphs",
-          "technique_notes": "Design questions where students interpret features of graphs of functions — including those representing real data with no explicit rule — describing approximate intercepts, stationary points, points of inflection, and intervals of increase/decrease. Include tasks that link graph shape to context (e.g., motion, temperature). For tech-free items, provide sketch graphs and ask for qualitative descriptions. Always require the use of correct mathematical terminology (e.g., 'stationary point', 'point of inflection').",
+          "technique_notes": "Design questions where students interpret features of graphs of functions \u2014 including those representing real data with no explicit rule \u2014 describing approximate intercepts, stationary points, points of inflection, and intervals of increase/decrease. Include tasks that link graph shape to context (e.g., motion, temperature). For tech-free items, provide sketch graphs and ask for qualitative descriptions. Always require the use of correct mathematical terminology (e.g., 'stationary point', 'point of inflection').",
           "group": "unit1-functions-relations-graphs"
         },
         {
@@ -52,7 +55,7 @@
         },
         {
           "name": "Transformations of the Plane",
-          "technique_notes": "Design questions where students describe and apply transformations — dilations (parallel to or from an axis), reflections in an axis, and translations — to graphs of functions and relations. Include tasks to determine the image of a function after a sequence of transformations and to determine the transformation(s) mapping one graph to another. For tech-free items, restrict to simple polynomial and power functions. Matrix representation may be included but is not required. Always require students to describe transformations in words using correct terminology.",
+          "technique_notes": "Design questions where students describe and apply transformations \u2014 dilations (parallel to or from an axis), reflections in an axis, and translations \u2014 to graphs of functions and relations. Include tasks to determine the image of a function after a sequence of transformations and to determine the transformation(s) mapping one graph to another. For tech-free items, restrict to simple polynomial and power functions. Matrix representation may be included but is not required. Always require students to describe transformations in words using correct terminology.",
           "group": "unit1-algebra-number-structure"
         },
         {
@@ -390,7 +393,10 @@
     {
       "name": "Specialist Mathematics",
       "icon": "SigmaSquare",
-      "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+      "examPdfs": [
+        "2025-SpecialistMaths1.pdf",
+        "2025-SpecialistMaths2.pdf"
+      ],
       "reportPdfs": [
         "2025-SpecialistMaths1-report.pdf",
         "2025-SpecialistMaths2-report.pdf"
@@ -457,8 +463,12 @@
     {
       "name": "Chemistry",
       "icon": "FlaskConical",
-      "examPdfs": ["2025-Chemistry.pdf"],
-      "reportPdfs": ["2025-Chemistry-report.pdf"],
+      "examPdfs": [
+        "2025-Chemistry.pdf"
+      ],
+      "reportPdfs": [
+        "2025-Chemistry-report.pdf"
+      ],
       "examGuidance": " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ",
       "subtopics": [
         {
@@ -581,8 +591,12 @@
     {
       "name": "Physical Education",
       "icon": "Dumbbell",
-      "examPdfs": ["2025-PhysicalEducation.pdf"],
-      "reportPdfs": ["2025-PhysEd-report.pdf"],
+      "examPdfs": [
+        "2025-PhysicalEducation.pdf"
+      ],
+      "reportPdfs": [
+        "2025-PhysEd-report.pdf"
+      ],
       "examGuidance": "\nVCAA PHYSICAL EDUCATION EXAM QUESTION GENERATION - COMPREHENSIVE INSTRUCTIONS\nWRITING STYLE FOR PHYSICAL EDUCATION:\n- Do NOT use mathematical equations, derivations, or formula-heavy solutions.\n- Write all worked solutions and exemplar responses in prose - paragraphs and bullet points.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', '$\text{VO}_2$ max', '1RM', 'F = ma') - mention by name and explain application in words. Do NOT rearrange, derive, or chain equations.\n- Focus on qualitative analysis, evaluation, and justification rather than calculation.\n\nPE EXAM QUESTION TYPES & COGNITIVE DEMANDS:\n\nSHORT-ANSWER QUESTIONS (1-2 marks) - RECALL/COMPREHENSION\n|- Verbs: Define, identify, list, state, describe (basic), explain (simple)\n|- Example: \"Define the term 'discrete motor skill'.\"\n`- Expected response: 1-2 sentences with accurate definition\n\nEXTENDED-RESPONSE QUESTIONS (2-6 marks) - APPLICATION/ANALYSIS\n|- Verbs: Explain (with evidence), apply, demonstrate, analyze, evaluate, justify\n|- Example: \"Explain how the ATP-CP system is particularly suited to high-intensity, short-duration activities. Refer to its rate of ATP regeneration and the role of phosphocreatine in your response.\"\n`- Expected response: 3-4 detailed sentences or structured paragraphs\n\nAPPLICATION/SCENARIO QUESTIONS (3-8 marks) - SYNTHESIS/INTEGRATION\n|- Verbs: Design, evaluate, critique, create, analyze (multi-component), justify (complex)\n|- Example: \"A netball player is training to improve her vertical jump for shooting. Design a 4-week periodized training program that includes appropriate training methods and progression. Justify your choice of methods with reference to the physiological demands of jumping, energy systems used, and skill acquisition principles.\"\n`- Expected response: Structured program with detailed scientific justification\n\nDATA INTERPRETATION QUESTIONS (2-5 marks) - OBSERVATION/INFERENCE/APPLICATION\n|- Verbs: Interpret, analyze, identify (trends), explain (what data shows)\n|- Example: \"The graph shows a swimmer's lactate levels during a 400 m freestyle race. (a) Identify the point(s) where the anaerobic threshold was exceeded. (b) Explain what this suggests about energy system contribution. (c) Recommend a training method to improve lactate tolerance.\"\n`- Expected response: Observation -> explanation -> application progression\n\nCOMPARISON QUESTIONS (2-6 marks) - DIFFERENTIATION/CONTRAST\n|- Verbs: Compare (similarities AND differences), contrast, distinguish, evaluate (relative merit)\n|- Example: \"Compare the relative contribution of the aerobic and anaerobic glycolysis systems during (a) a 100 m sprint and (b) a 1500 m run. In your answer, consider rate of ATP yield, duration, and total ATP production.\"\n`- Expected response: Structured comparison with specific references to both similarities and differences\n\nAUTHENTICITY & CONTEXT REQUIREMENTS:\n---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\nVCAA questions must be grounded in REALISTIC sports and training contexts.\n\nCOMMON AUSTRALIAN SPORTS:\nAFL, cricket, rugby league, rugby union, netball, basketball, tennis, swimming, athletics (track & field), cycling, badminton, gymnastics, soccer (football)\n\nREALISTIC SCENARIOS:\n- Pre-season training and conditioning phases\n- Return-to-play after injury / rehabilitation\n- Peaking for competition (tapering strategies)\n- Performance plateau problems and solutions\n- Adapting training for different athlete levels (beginner, intermediate, elite)\n- Managing recovery and fatigue in multi-competition seasons\n- Technique refinement under fatigue\n\nATHLETE PERSPECTIVES:\n- Scenarios should relate to experiences of VCE PE students (school athletes, club athletes, potential elite pathway athletes)\n- Acknowledge recreational participation, competitive club level, and elite development\n- Consider both individual sports (tennis, gymnastics, swimming) and team sports (netball, AFL, basketball, soccer)\n\nQUALITY CHECKS BEFORE FINALIZING ANY QUESTION:\n\n[OK] Aligned with Unit 3 or 4 key knowledge/skills from Study Design?\n[OK] Requires higher-order thinking (application, analysis, synthesis)?\n[OK] Context is realistic and relevant to VCE PE students?\n[OK] Mark allocation matches cognitive demand appropriately?\n[OK] Question is unambiguous and free of jargon confusion?\n[OK] A clear, defensible marking rubric exists?\n[OK] Question integrates multiple concepts where appropriate?\n[OK] All terms are defined or contextually clear?\n[OK] Question avoids leading or telegraphing the expected answer?\n[OK] Expected response length is reasonable for marks allocated?\n[OK] Question reflects the style and rigor of actual VCAA examinations?\n",
       "subtopics": [
         {
@@ -849,6 +863,146 @@
           "name": "Interdisciplinary Performance Optimization: Connecting Biomechanics, Physiology, and Psychology",
           "technique_notes": "Develop integrative questions that explore the connections between biomechanical efficiency, physiological energy cost, and psychological focus during performance. Tasks should ask for an analysis of a complex performance scenario, identifying how improvements in one domain (e.g., more efficient technique) reduce the demand on another (e.g., aerobic energy system). Students must explain these interactions holistically to design a comprehensive intervention for optimizing an athlete's total performance output. EXAM STYLE: - Integration: how biomechanical efficiency affects energy cost; how psychological state affects technique - VCAA pattern: analyze performance holistically -> identify interacting factors -> design comprehensive intervention - Must explain how improvements in one domain affect others - Applications: performance plateau, technique breakdown under pressure, injury rehabilitation - Common errors: treating domains in isolation; not explaining interactions",
           "group": "unit4-integration"
+        }
+      ]
+    },
+    {
+      "name": "General Mathematics",
+      "icon": "Calculator",
+      "examPdfs": [
+        "2025-GeneralMaths1.pdf",
+        "2025-GeneralMaths2.pdf"
+      ],
+      "reportPdfs": [
+        "2025-GeneralMaths1-Report.pdf",
+        "2025-GeneralMaths2-Report.pdf"
+      ],
+      "examGuidance": "General Mathematics questions should be set in practical, real-world contexts. Use VCE command verbs and apply questions to everyday financial, statistical, geometric and network situations. For technology-active items, assume access to CAS or approved calculator with numerical, graphical, financial and statistical functionality. For Units 1 and 2, all assessment is school-based; for Units 3 and 4, align tasks to the Application task and modelling or problem-solving task formats. Round answers to the number of decimal places or significant figures specified. Avoid requiring algebraic proof; focus on interpretation, modelling and calculation in context. Always define variables and state units in solutions.",
+      "subtopics": [
+        {
+          "name": "Types of Data and Frequency Distributions",
+          "technique_notes": "Create questions where students classify variables as categorical (nominal or ordinal) or numerical (discrete or continuous) and construct or interpret frequency tables and bar charts for categorical data. Include tasks to identify the mode and interpret it in context. For numerical data, include stem plots, dot plots and histograms, and ask students to choose an appropriate display with justification. Always require students to label axes, state the variable type, and interpret the display in plain language.",
+          "group": "unit1-data-analysis"
+        },
+        {
+          "name": "Summary Statistics: Centre and Spread",
+          "technique_notes": "Design questions where students calculate and interpret the median, mean, range, interquartile range (IQR) and sample standard deviation for a given data set. Include tasks to determine the five-number summary (minimum, $Q_1$, median, $Q_3$, maximum) and construct a boxplot, identifying possible outliers using the lower fence $Q_1 - 1.5 \\times IQR$ and upper fence $Q_3 + 1.5 \\times IQR$. For tech-active items, allow calculator use for standard deviation. Always require interpretation of each statistic in the context of the data.",
+          "group": "unit1-data-analysis"
+        },
+        {
+          "name": "Comparing Data Distributions",
+          "technique_notes": "Construct questions where students use back-to-back stem plots or parallel boxplots to compare the distribution of a numerical variable across two or more groups. Tasks should require comparison in terms of centre (median), spread (IQR and range) and the presence of outliers, with all observations interpreted in context. Include questions on the shape of distributions (symmetrical, positively or negatively skewed). Always require students to use comparative language ('the median for group A is higher than for group B') and refer explicitly to the context.",
+          "group": "unit1-data-analysis"
+        },
+        {
+          "name": "Arithmetic and Geometric Sequences",
+          "technique_notes": "Create questions where students generate arithmetic and geometric sequences from a first-order linear recurrence relation of the form $t_1 = a$, $t_{n+1} = t_n + d$ (arithmetic) or $t_1 = a$, $t_{n+1} = r \\cdot t_n$ (geometric). Include tasks to identify common difference $d$ or common ratio $r$, tabulate and graph sequences, and classify behaviour (increasing, decreasing, constant, oscillating). Tasks should also require students to derive and apply the explicit rule $t_n = a + (n-1)d$ or $t_n = a \\cdot r^{n-1}$ and evaluate terms in practical contexts. Always require full substitution and exact or rounded answers as specified.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Financial Mathematics: Interest, Depreciation and Comparison",
+          "technique_notes": "Design questions where students apply first-order linear recurrence relations to model simple interest investments and loans ($V_{n+1} = V_n + d$) and compound interest and reducing-balance depreciation ($V_{n+1} = r \\cdot V_n$). Include tasks involving flat-rate and unit-cost depreciation, percentage increase and decrease, mark-ups, discounts and GST, and the impact of inflation on purchasing power. Tasks should also require comparison of purchase options (cash, credit, personal loans, buy now pay later). Always define the recurrence relation explicitly, state $V_0$, and interpret the result in context.",
+          "group": "unit1-algebra-number-structure"
+        },
+        {
+          "name": "Linear Functions, Equations and Models",
+          "technique_notes": "Create questions where students work with linear functions of the form $y = c + mx$, interpreting $c$ as the initial value and $m$ as the constant rate of change. Include tasks to graph linear relations written as $ax + by = c$ or equivalent forms, formulate linear models from worded descriptions, determine the equation from two points or a point and gradient, and solve simultaneous linear equations in two variables. Tasks should also include domain specification for the context. Always require labelled graphs with axis intercepts marked and full algebraic working for equation formulation.",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Piecewise Linear Graphs and Applications",
+          "technique_notes": "Design questions where students construct and interpret piecewise linear (line-segment and step) graphs used to model real situations such as tax scales, parking charges, and pay rates. Include tasks to read values from the graph, determine costs or incomes for given inputs, and identify breakpoints. For step graphs, tasks should require students to state whether endpoints are included or excluded. Always require a fully labelled graph with clearly marked breakpoints and a written interpretation of each piece in context.",
+          "group": "unit1-functions-relations-graphs"
+        },
+        {
+          "name": "Matrix Arithmetic and Applications",
+          "technique_notes": "Create questions where students define the order of a matrix, identify types (row, column, square, zero, identity), and perform matrix addition, subtraction, multiplication by a scalar, and matrix multiplication. Include tasks to determine whether a product $AB$ is defined given the orders of $A$ and $B$, compute powers of square matrices using technology, and use matrix products to solve practical problems such as costing or communication-network problems. Always require students to state the order of the result matrix and verify that operations are valid before computing.",
+          "group": "unit1-discrete-mathematics"
+        },
+        {
+          "name": "Inverse Matrices and Transition Matrices",
+          "technique_notes": "Design questions where students find the inverse $A^{-1}$ of a $2 \\times 2$ matrix (by hand) and use it to solve a system of simultaneous linear equations in the form $AX = B$. Include tasks on transition matrices: construct a transition matrix from a written description or transition diagram, generate successive state matrices using the recurrence relation $S_{n+1} = T \\cdot S_n$, and informally identify the long-run steady state. Tasks should use practical contexts such as population movement between regions. Always define the initial state matrix $S_0$ and interpret each state matrix in context.",
+          "group": "unit1-discrete-mathematics"
+        },
+        {
+          "name": "Scatterplots and Association Between Two Numerical Variables",
+          "technique_notes": "Create questions where students construct and interpret scatterplots, identifying the response and explanatory variables. Tasks should require a qualitative description of association in terms of direction (positive or negative), form (linear or non-linear) and strength (strong, moderate or weak), as well as a discussion of association versus causation. Include tasks to fit a line of good fit by eye, determine its equation from two points on the line, and use the line to make predictions, noting the issues of interpolation and extrapolation. Always require students to name the explanatory and response variables and interpret slope and intercept in context.",
+          "group": "unit2-data-analysis"
+        },
+        {
+          "name": "Graphs, Networks and Their Properties",
+          "technique_notes": "Design questions where students use the language and notation of graph theory: vertices, edges, loops, degree of a vertex, adjacency matrices, and connected and isomorphic graphs. Include tasks to verify Euler's formula $v - e + f = 2$ for planar graphs, identify bridges, and classify walks, trails, paths, circuits and cycles. Tasks should also require students to determine whether an Eulerian trail or circuit exists (using the condition on vertex degrees) and apply these concepts to practical traversal problems. Always require students to state the number of vertices, edges and faces when applying Euler's formula.",
+          "group": "unit2-discrete-mathematics"
+        },
+        {
+          "name": "Weighted Graphs: Shortest Path and Minimum Spanning Trees",
+          "technique_notes": "Create questions where students solve shortest-path problems in small weighted graphs by inspection, identifying the path and its total weight. Include tasks to find a minimum spanning tree using a greedy algorithm (inspection or Prim's-style approach for small graphs), justify why it is a spanning tree, and interpret the result in a practical context such as cable laying or road construction. Tasks should present graphs with 5 to 8 vertices. Always require students to list the edges included in the minimum spanning tree and state the total weight.",
+          "group": "unit2-discrete-mathematics"
+        },
+        {
+          "name": "Direct and Inverse Variation and Non-Linear Modelling",
+          "technique_notes": "Design questions where students identify and model direct variation ($y = kx^n$) and inverse variation ($y = k/x^n$) from tables or graphs, determine the constant of variation $k$, and use the model to make predictions. Include tasks to transform non-linear data to linearity using a square, reciprocal or $\\log_{10}$ transformation (applied to one axis), graph the transformed data, fit a line of good fit and convert the equation back to the original variables. Always require students to state the type of variation, write the equation of the model, and verify it against at least one data point.",
+          "group": "unit2-functions-relations-graphs"
+        },
+        {
+          "name": "Measurement: Perimeter, Area, Volume and Similarity",
+          "technique_notes": "Create questions where students calculate the perimeter and area of triangles (using $A = \\frac{1}{2}bh$), quadrilaterals, circles, sectors ($A = \\frac{\\theta}{360} \\pi r^2$), arcs and composite shapes, and the surface area and volume of spheres, cylinders, prisms, pyramids and composite solids. Include tasks involving similar figures: use a linear scale factor $k > 0$ to scale lengths, areas (factor $k^2$) and volumes (factor $k^3$). Require appropriate rounding and the use of scientific notation for very large or small values. Always state and use the correct formula, include units in the answer, and distinguish between exact and approximate results.",
+          "group": "unit2-space-measurement"
+        },
+        {
+          "name": "Trigonometry: Right-Angled and Non-Right-Angled Triangles",
+          "technique_notes": "Design questions where students apply the trigonometric ratios (sine, cosine, tangent) and Pythagoras' theorem to find unknown sides and angles in right-angled triangles in two and three dimensions, including problems involving angles of elevation and depression. Extend to non-right-angled triangles using the sine rule $\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}$ (including the ambiguous case) and the cosine rule $c^2 = a^2 + b^2 - 2ab\\cos C$. Include navigation tasks using three-figure (true) bearings. Always require a clearly labelled diagram, identification of the appropriate rule or ratio, and answers rounded to the specified degree of accuracy.",
+          "group": "unit2-space-measurement"
+        },
+        {
+          "name": "Least Squares Regression and Correlation",
+          "technique_notes": "Create questions where students use technology to determine the equation of the least squares line $y = a + bx$ with coefficients rounded as specified. Include tasks to calculate and interpret the Pearson correlation coefficient $r$ and the coefficient of determination $r^2$, construct and analyse a residual plot to check linearity, and apply a square, $\\log_{10}$ or reciprocal transformation to linearise non-linear data before refitting. Tasks should require students to use the model to make predictions and comment on the validity of extrapolation. Always require students to identify the explanatory and response variables and interpret slope, intercept, $r$ and $r^2$ in context.",
+          "group": "unit3-data-analysis"
+        },
+        {
+          "name": "The Normal Distribution and z-Scores",
+          "technique_notes": "Design questions where students use the normal model for bell-shaped distributions and apply the 68-95-99.7 rule to estimate the percentage of data lying within one, two or three standard deviations of the mean. Include tasks to calculate standardised values using $z = \\frac{x - \\bar{x}}{s}$, interpret $z$-scores in context and use them to compare data values from different distributions. Tasks should present real contexts such as height, test scores or manufacturing tolerances. Always require students to state the mean and standard deviation used and interpret the $z$-score in a sentence.",
+          "group": "unit3-data-analysis"
+        },
+        {
+          "name": "Time Series Analysis and Forecasting",
+          "technique_notes": "Create questions where students identify qualitative features of a time series plot (trend, seasonality, irregular fluctuations, possible outliers). Include tasks to smooth data using moving means with centring where appropriate, calculate and apply seasonal indices using $\\text{seasonal index} = \\frac{\\text{seasonal mean}}{\\text{overall mean}}$, de-seasonalise data, fit a least squares trend line with time as the explanatory variable, and re-seasonalise forecasts. Always require students to interpret the trend line in context and comment on the reliability of predictions made far beyond the data range.",
+          "group": "unit3-data-analysis"
+        },
+        {
+          "name": "Depreciation and Compound Interest Using Recurrence Relations",
+          "technique_notes": "Design questions where students model flat-rate, unit-cost and reducing-balance depreciation using recurrence relations of the form $V_0 = a$, $V_{n+1} = V_n - d$ or $V_{n+1} = r \\cdot V_n$, and use the future-value rule to find the value of an asset after $n$ periods. Include tasks on compound interest investments and loans: model using $V_{n+1} = R \\cdot V_n$ where $R = 1 + \\frac{r}{100}$, distinguish between nominal and effective interest rates, and compare returns. Always require students to define the recurrence relation fully (including $V_0$), state units and interpret the result.",
+          "group": "unit3-recursion-financial-modelling"
+        },
+        {
+          "name": "Reducing Balance Loans, Annuities and Perpetuities",
+          "technique_notes": "Create questions where students model a reducing-balance loan or annuity using a recurrence relation of the form $V_{n+1} = R \\cdot V_n - d$, complete or interpret an amortisation table showing payment, interest, principal reduction and balance, and use technology with financial mathematics functionality to determine repayment amount, time to repay, or total interest paid. Include tasks on annuity investments ($V_{n+1} = R \\cdot V_n + d$) and simple perpetuities where interest equals withdrawal. Always require students to set up the recurrence relation before using technology and interpret each column of the amortisation table.",
+          "group": "unit3-recursion-financial-modelling"
+        },
+        {
+          "name": "Matrix Types, Operations and Applications",
+          "technique_notes": "Design questions where students identify matrix types (row, column, square, diagonal, symmetric, triangular, zero, binary, permutation, identity) and compute the transpose, sum, difference, scalar multiple, product and power of matrices. Include tasks involving binary and permutation matrices, dominance matrices for ranking in round-robin tournaments, and communication matrices to determine two-step connections. Require students to find the inverse of a $2 \\times 2$ matrix by hand and use matrix equations to solve practical problems. Always require students to state the order of each matrix and verify that operations are defined.",
+          "group": "unit4-matrices"
+        },
+        {
+          "name": "Transition Matrices and Population Modelling",
+          "technique_notes": "Create questions where students construct a transition matrix $T$ from a transition diagram or written description, define an initial state matrix $S_0$, and use the recurrence relation $S_{n+1} = T \\cdot S_n$ to generate successive state matrices. Include tasks to informally identify the equilibrium (steady-state) matrix by iterating until no noticeable change occurs. Extend to models with culling or restocking using $S_{n+1} = T \\cdot S_n + B$. Tasks should use contexts such as insect population stages (eggs, juveniles, adults) or market-share modelling. Always require students to interpret each entry of the state matrix in context.",
+          "group": "unit4-matrices"
+        },
+        {
+          "name": "Eulerian Trails, Hamiltonian Cycles and Network Traversal",
+          "technique_notes": "Design questions where students determine whether a graph has an Eulerian trail (exactly two odd-degree vertices) or Eulerian circuit (all vertices even degree), and identify or describe one if it exists. Include tasks on Hamiltonian paths and cycles: determine whether one exists by inspection in small graphs and describe a route. Extend to directed graphs (digraphs). Tasks should present practical contexts such as rubbish collection routes or inspection tours. Always require students to state the relevant condition (vertex degrees) and list the sequence of vertices or edges in the trail or cycle.",
+          "group": "unit4-networks-decision-mathematics"
+        },
+        {
+          "name": "Shortest Path, Maximum Flow and Matching Problems",
+          "technique_notes": "Create questions where students apply Dijkstra's algorithm to find the shortest path between a specified vertex and all others in a weighted graph, recording distances in a table. Include tasks involving flow networks: identify sources, sinks and capacity constraints, find the maximum flow by inspection or by applying the minimum-cut maximum-flow theorem for larger problems. Extend to matching problems using bipartite graphs: determine the optimum assignment of people to tasks by inspection or the Hungarian algorithm. Always require students to show all steps of the algorithm used and state the final path, flow value or assignment explicitly.",
+          "group": "unit4-networks-decision-mathematics"
+        },
+        {
+          "name": "Critical Path Analysis and Project Scheduling",
+          "technique_notes": "Design questions where students construct an activity network from a precedence table (using dummy activities where necessary), perform forward scanning to find the earliest starting time (EST) and backward scanning to find the latest starting time (LST) for each activity, calculate float time $= LST - EST$ for non-critical activities, and identify the critical path. Include tasks on crashing: reduce the duration of selected activities to shorten the overall project completion time and determine the new critical path. Always require students to show the EST and LST for each activity in a clearly labelled network and list the activities on the critical path.",
+          "group": "unit4-networks-decision-mathematics"
         }
       ]
     }
