@@ -334,19 +334,28 @@ pub struct OpenRouterChatConfig {
     pub model: String,
     pub messages: Vec<crate::models::TutorMessage>,
     pub max_tokens: u32,
+    pub temperature: Option<f32>,
     pub app: tauri::AppHandle,
 }
 
 pub async fn call_openrouter_chat_streaming(
     config: OpenRouterChatConfig,
 ) -> CommandResult<OpenRouterResult> {
-    let body = serde_json::json!({
+    let mut body_json = serde_json::json!({
         "model": config.model,
         "messages": config.messages,
         "max_tokens": config.max_tokens,
         "stream": true,
         "stream_options": { "include_usage": true },
     });
+
+    if let Some(temp) = config.temperature {
+        if let Some(obj) = body_json.as_object_mut() {
+            obj.insert("temperature".into(), serde_json::json!(temp));
+        }
+    }
+
+    let body = body_json;
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)

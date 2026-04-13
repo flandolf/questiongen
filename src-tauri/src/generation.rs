@@ -1199,11 +1199,18 @@ impl GenerationService {
         let api_key = request.api_key.clone();
         let model = request.model.clone();
 
+        let temperature = if request.diagnostic == Some(true) {
+            Some(0.1)
+        } else {
+            None
+        };
+
         let config = crate::openrouter::OpenRouterChatConfig {
             api_key: request.api_key,
             model: request.model,
             messages: request.messages,
             max_tokens: 50000,
+            temperature,
             app: self.app.clone(),
         };
 
