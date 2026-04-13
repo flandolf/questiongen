@@ -943,128 +943,113 @@
       "examGuidance": "General Mathematics questions should be set in practical, real-world contexts. Use VCE command verbs and apply questions to everyday financial, statistical, geometric and network situations. For technology-active items, assume access to CAS or approved calculator with numerical, graphical, financial and statistical functionality. For Units 1 and 2, all assessment is school-based; for Units 3 and 4, align tasks to the Application task and modelling or problem-solving task formats. Round answers to the number of decimal places or significant figures specified. Avoid requiring algebraic proof; focus on interpretation, modelling and calculation in context. Always define variables and state units in solutions.",
       "subtopics": [
         {
-          "name": "Univariate Data",
-          "technique_notes": "The classification of data into categorical and numerical types constitutes the foundational step in statistical inquiry. For categorical data, analysis involves the construction of frequency tables and bar charts to identify the mode and relative proportions. For numerical data, students must generate histograms, stem-and-leaf plots, and dot plots to observe the distribution's shape, including symmetry and skewness. The calculation of summary statistics—specifically the mean for symmetric data and the median for skewed data—is essential for identifying the centre of the dataset.",
+          "name": "Investigating and Comparing Data Distributions",
+          "technique_notes": "Create questions where students classify data as categorical (nominal, ordinal) or numerical (discrete, continuous). Include tasks to construct and interpret frequency tables, bar charts, histograms, stem plots, and dot plots. Require calculation of summary statistics: mean, median, range, IQR, and standard deviation. Always include the five-number summary and boxplots, applying the $1.5 \\times \\text{IQR}$ rule to identify outliers. Design comparative tasks using back-to-back stem plots or parallel boxplots to compare centre and spread across multiple groups. For tech-free items, use small datasets with manageable arithmetic. For tech-active items, use larger datasets and require interpretation of distribution shape (symmetry/skewness).",
           "group": "unit1-Data-analysis-probability-and-statistics"
         },
         {
-          "name": "Variation and Outliers",
-          "technique_notes": "The spread of a dataset is quantified through the range, interquartile range (IQR), and standard deviation $s$. The five-number summary provides a comprehensive overview of the distribution and serves as the basis for constructing boxplots. The identification of outliers is performed using the lower fence ($Q_1 - 1.5 \\times \\text{IQR}$) and the upper fence ($Q_3 + 1.5 \\times \\text{IQR}$). Comparative analysis between two or more datasets involves evaluating these measures of centre and spread to draw meaningful conclusions within a specific context.",
-          "group": "unit1-Data-analysis-probability-and-statistics"
-        },
-        {
-          "name": "Sequences and Series",
-          "technique_notes": "Arithmetic and geometric sequences are explored through both recursive and explicit definitions to model discrete changes over time. An arithmetic sequence is defined by a constant common difference $d$, whereas a geometric sequence is defined by a constant common ratio $r$. Students must be proficient in determining the $n^{th}$ term and the sum of the first $n$ terms. These mathematical structures are utilized to model linear growth and decay, such as simple interest and straight-line depreciation, as well as exponential growth and decay.",
+          "name": "Arithmetic and Geometric Sequences",
+          "technique_notes": "Design questions using first-order linear recurrence relations of the form $u_{n+1} = u_n + d$ (arithmetic) and $u_{n+1} = Ru_n$ (geometric). Include tasks to generate terms, deduce the explicit rule $u_n$, and investigate sequence behaviour (increasing, decreasing, oscillating). Use these to model growth and decay in contexts like simple interest, straight-line or unit-cost depreciation, and reducing heights of a bouncing ball. Always require students to state the recurrence relation and initial value $u_0$. For tech-free items, keep $n$ small or ensure the explicit rule is easily solvable. For tech-active items, allow use of spreadsheets or sequence functionality to find long-term behaviour.",
           "group": "unit1-algebra-number-and-structure"
         },
         {
           "name": "Consumer Mathematics",
-          "technique_notes": "The application of financial mathematics is central to analyzing economic transactions and personal finance. This includes the calculation of simple and compound interest to determine the future value of investments or loans. Students must apply percentage change formulas to account for the Goods and Services Tax (GST) and the effects of inflation on purchasing power. The unitary method is employed as a versatile problem-solving tool to find the value of a single unit and then apply it to solve for multiple units in various financial contexts.",
+          "technique_notes": "Construct problems involving percentage increase/decrease, mark-ups, discounts, and GST calculations. Include tasks on the impact of inflation on costs and purchasing power over time. Use the unitary method to solve for unknown quantities in financial contexts. Compare purchase options including cash, credit cards, personal loans, and buy now/pay later schemes. Always require students to show clear steps in multi-stage calculations. For tech-free items, use 'friendly' percentages (e.g., 10%, 25%, 150%). For tech-active items, include realistic tax rates and varying compounding periods.",
           "group": "unit1-algebra-number-and-structure"
         },
         {
-          "name": "Linear Modeling",
-          "technique_notes": "Linear functions expressed in the form $y = a + bx$ are used to model the relationship between two variables, where $a$ represents the vertical intercept and $b$ represents the gradient. The interpretation of these parameters is crucial for understanding the real-world implications of the model, such as initial costs or rates of change. Students must also be able to rearrange and graph linear equations from the general form $Ax + By = C$ and identify the intersection of two lines by solving simultaneous equations using algebraic or graphical methods.",
+          "name": "Linear Functions and Equations",
+          "technique_notes": "Create questions using the linear function $y = a + bx$, requiring interpretation of $a$ (initial value) and $b$ (rate of change) in context. Include tasks to graph linear relations $Ax + By = C$, find intercepts and gradients, and solve simultaneous linear equations in two variables. Progress from simple algebraic solving to formulated models from worded descriptions. Always require exact coordinates for intercepts and clearly stated units for the gradient. For tech-free items, restrict to integer or simple rational coefficients. For tech-active items, use data-driven contexts requiring a line of best fit.",
           "group": "unit1-functions-relations-and-graphs"
         },
         {
-          "name": "Piecewise and Step Functions",
-          "technique_notes": "Complex relationships that change behavior over different intervals are modeled using piecewise linear graphs. A common application is found in national tax systems, where different income brackets are subject to varying tax rates. Similarly, pricing models for utilities or postage often follow a step-function structure. Analysis involves identifying the constraints of each interval, calculating values at the boundary points, and interpreting the overall trend of the composite function within the specified domain.",
+          "name": "Piecewise and Step Graphs",
+          "technique_notes": "Design questions involving line segment and step graphs to model practical situations such as tax scales, utility charges, and shipping costs. Include tasks to identify the domain of each piece, calculate values at boundary points, and interpret the meaning of horizontal segments (no change) versus sloped segments (constant rate). Always use correct notation for intervals (e.g., $x \\in [0, 20000]$). For tech-free items, provide the graph and ask for qualitative or simple quantitative interpretation. For tech-active items, require the construction of the piecewise rule from a table of rates.",
           "group": "unit1-functions-relations-and-graphs"
         },
         {
-          "name": "Matrix Arithmetic",
-          "technique_notes": "Matrices are utilized as an efficient method for storing and manipulating structured data. Students must identify the order of a matrix (rows $\\times$ columns) and perform operations such as addition, subtraction, and scalar multiplication. Matrix multiplication is executed by taking the dot product of rows from the first matrix and columns from the second, provided the inner dimensions are consistent. The calculation of powers of square matrices is also explored, particularly in the context of repeated operations or multi-stage processes.",
+          "name": "Matrices and Applications",
+          "technique_notes": "Create tasks involving matrix operations: addition, subtraction, scalar multiplication, and matrix multiplication. Include identification of matrix order and types (row, column, square, zero, identity). Use matrices to store and display information like social networks or road systems (communication matrices) and round-robin results (dominance matrices). Require students to solve systems of linear equations using the inverse matrix method $X = A^{-1}B$. Always verify that matrix dimensions are compatible before operations. For tech-free items, restrict multiplication to small matrices ($2 \\times 2$ or $1 \\times 3$). For tech-active items, include powers of matrices to determine indirect links in networks.",
           "group": "unit1-discrete-mathematics"
         },
         {
-          "name": "Transition and Systems",
-          "technique_notes": "Systems of simultaneous linear equations are solved using the inverse matrix method, where the solution vector is found by multiplying the inverse of the coefficient matrix by the constant vector. Furthermore, transition matrices are applied to model the movement of objects or populations between various states over discrete time intervals. By applying the recurrence relation $S_{n+1} = T \\times S_n$, students can predict future distributions and investigate whether the system eventually reaches a stable steady-state matrix.",
+          "name": "Transition Matrices",
+          "technique_notes": "Design questions using first-order linear matrix recurrence relations $S_{n+1} = T S_n$ to model population movement or market share. Include tasks to construct the transition matrix $T$ from a diagram or table, generate subsequent state matrices, and identify the equilibrium state matrix informally. Extend to populations with culling or restocking using $S_{n+1} = T S_n + B$. Always require students to interpret the elements of the state matrix in the context of the problem. For tech-free items, limit to two states and 1-2 iterations. For tech-active items, investigate long-term trends and the effect of different starting states.",
           "group": "unit1-discrete-mathematics"
         },
         {
-          "name": "Bivariate Associations",
-          "technique_notes": "Bivariate data analysis involves the investigation of relationships between an explanatory variable and a response variable. Scatterplots are the primary tool for visualizing these relationships, which are described in terms of their direction (positive or negative), form (linear or non-linear), and strength (weak, moderate, or strong). It is critical to distinguish between correlation, which measures the degree of association, and causation, which implies a functional dependency that requires experimental validation rather than just statistical observation.",
-          "group": "unit2-Data-analysis-probability-and-statistics"
-        },
-        {
-          "name": "Regression and Prediction",
-          "technique_notes": "The line of best fit, or least-squares regression line, is constructed to minimize the sum of the squared residuals and provide a mathematical model for prediction. Interpretation of the gradient and intercept within the context of the data is required. Students use the resulting equation to perform interpolation—making predictions within the range of the observed data—and extrapolation, which involves predicting values outside the data range. The reliability of extrapolation must be critically evaluated due to the potential for changing trends beyond the sample.",
+          "name": "Investigating Relationships between Two Numerical Variables",
+          "technique_notes": "Create bivariate data questions involving scatterplots. Require students to identify response and explanatory variables and describe associations in terms of direction, form, and strength. Include tasks to fit a line of good fit by eye and use it to make predictions. Discuss the issues of interpolation versus extrapolation and the distinction between association and causation. Always require students to justify their description of strength (weak, moderate, strong) based on the visual spread of points. For tech-free items, provide the scatterplot; for tech-active items, require its construction from data.",
           "group": "unit2-Data-analysis-probability-and-statistics"
         },
         {
           "name": "Graphs and Networks",
-          "technique_notes": "Graph theory provides a framework for modeling connections between discrete objects. Basic terminology includes vertices (points), edges (links), and the degree of a vertex (number of connected edges). For planar graphs, Euler’s formula ($V + F - E = 2$) is used to verify the relationship between vertices, faces, and edges. Students differentiate between various types of movement through a network, including walks, trails, paths, circuits, and cycles, which is foundational for more advanced network analysis.",
+          "technique_notes": "Develop questions on the terminology of graphs: edges, loops, vertices, degree, and isomorphism. Include tasks to describe planar graphs using Euler’s formula $V + F - E = 2$. Require identification of walks, trails, paths, cycles, and circuits in practical applications (e.g., mail delivery, garbage collection). Always check for connectivity before applying network theorems. For tech-free items, use small graphs (up to 6 vertices). For tech-active items, use adjacency matrices to calculate the number of paths of length $n$ between vertices.",
           "group": "unit2-discrete-mathematics"
         },
         {
           "name": "Network Optimization",
-          "technique_notes": "Optimization within networks focuses on efficiency and resource management. Shortest path problems are solved by inspection or systematic algorithms to find the most direct route between two vertices. The construction of a minimum spanning tree (MST) is achieved using greedy algorithms, such as Prim's algorithm, to connect all vertices in a network with the minimum total edge weight. These techniques are applied to practical scenarios such as telecommunications layout, transport logistics, and urban planning to reduce costs or distance.",
+          "technique_notes": "Construct problems involving weighted graphs. Include tasks to find the shortest path between vertices by inspection and to determine the minimum spanning tree (MST) using greedy algorithms like Prim’s algorithm. Apply these to minimal connector problems (e.g., laying cables, building roads). Always show the steps of the algorithm used, especially for MST. For tech-free items, restrict to graphs where the shortest path is easily found by comparison. For tech-active items, provide larger networks and require the total weight of the MST.",
           "group": "unit2-discrete-mathematics"
         },
         {
-          "name": "Variation and Powers",
-          "technique_notes": "Direct variation is modeled by the function $y = kx^n$, where $k$ is the constant of variation, while inverse variation is modeled by $y = \\frac{k}{x^n}$. Students must be able to solve for the constant $k$ given a set of coordinates and use the model to find unknown values. Understanding the graphical behavior of these power functions is essential, as direct variation typically passes through the origin and inverse variation exhibits asymptotic behavior toward the axes.",
+          "name": "Variation and Modelling",
+          "technique_notes": "Design questions involving direct variation ($y = kx^n$) and inverse variation ($y = k/x^n$). Include the use of logarithmic (base 10) scales to represent quantities over multiple orders of magnitude. Task students with transforming non-linear data to linearity using $x^2$, $1/x$, or $\\log_{10} x$ transformations. Always require solving for the constant of variation $k$ and stating the final model. For tech-free items, use $n=1, 2$ or $-1$. For tech-active items, include real-world data requiring transformation before fitting a least-squares line.",
           "group": "unit2-functions-relations-and-graphs"
         },
         {
-          "name": "Linearizing Data",
-          "technique_notes": "When data exhibits a non-linear trend, transformations are applied to one or both variables to achieve a linear relationship. Common techniques include plotting $y$ against $x^2$, $y$ against $\\frac{1}{x}$, or using logarithmic scales such as $\\log y$ against $x$. Once the data is linearized, standard linear regression techniques can be applied to determine the line of best fit. The final model must then be transformed back into its original non-linear form to facilitate predictions in the original context of the variables.",
-          "group": "unit2-functions-relations-and-graphs"
-        },
-        {
-          "name": "Measurement and Geometry",
-          "technique_notes": "Calculations involving physical space require precision through the use of appropriate units and significant figures. Similarity in geometry is explored through scale factors $k$ for length, $k^2$ for area, and $k^3$ for volume. Students compute the perimeter and area of composite two-dimensional shapes and the surface area and volume of three-dimensional solids, including prisms, pyramids, cylinders, and spheres. Proficiency in rearranging formulas to find missing dimensions from a given area or volume is also required.",
+          "name": "Space, Measurement and Trigonometry",
+          "technique_notes": "Create problems involving perimeter, area, volume, and surface area of composite shapes and solids (spheres, cylinders, pyramids, prisms). Include applications of Pythagoras’ theorem in 3D and the use of sine and cosine rules for non-right-angled triangles. Task students with navigation problems using three-figure bearings. Always apply scale factors $k, k^2, k^3$ to similar objects. For tech-free items, use exact values and simple surds. For tech-active items, require rounding to specific decimal places and include the ambiguous case of the sine rule.",
           "group": "unit2-space-and-measurement"
         },
         {
-          "name": "Trigonometry and Bearings",
-          "technique_notes": "Advanced geometric problem-solving utilizes Pythagoras’ theorem and trigonometric ratios (sine, cosine, tangent) for right-angled triangles. For non-right-angled triangles, the sine rule and cosine rule are applied to determine unknown side lengths and angles. These techniques are extended to three-dimensional contexts to find lengths and angles between planes. Additionally, navigation problems are solved using three-figure bearings (measured clockwise from North) and compass bearings to determine relative positions and paths between locations.",
-          "group": "unit2-space-and-measurement"
-        },
-        {
-          "name": "Normal Distribution",
-          "technique_notes": "The normal distribution is used to model continuous numerical data that is symmetric and bell-shaped. Students apply the 68-95-99.7% empirical rule to estimate the proportion of data within certain standard deviations of the mean. Standardized $z$-scores are calculated using $z = \\frac{x - \\mu}{\\sigma}$ to compare data points from different distributions by expressing them in terms of their distance from the mean. This allows for the determination of percentiles and the identification of unusual values or outliers within a population.",
+          "name": "Data Distributions and the Normal Model",
+          "technique_notes": "Develop questions on the normal model for bell-shaped distributions. Require students to apply the 68-95-99.7% rule to estimate percentages and give meaning to standard deviation. Include tasks to calculate and interpret standardised $z$-scores to compare values from different distributions. Always distinguish between sample statistics and population parameters. For tech-free items, use values that fall exactly on 1, 2, or 3 standard deviations from the mean. For tech-active items, use the cumulative distribution function to find probabilities for any $z$ value.",
           "group": "unit3-Data-analysis-probability-and-statistics"
         },
         {
-          "name": "Linear Regression and Residuals",
-          "technique_notes": "In-depth bivariate analysis focuses on the Pearson correlation coefficient $r$ and the coefficient of determination $r^2$ to quantify the strength and predictive power of a linear model. Residual analysis is performed by calculating the difference between observed and predicted values ($y - \\hat{y}$) and plotting them against the explanatory variable. A random scatter of residuals confirms the appropriateness of a linear model, while a clear pattern in the residual plot suggests that a non-linear transformation may be necessary for a more accurate fit.",
+          "name": "Investigating and Modelling Linear Associations",
+          "technique_notes": "Construct bivariate analysis questions focusing on the least squares line $y = a + bx$. Require calculation and interpretation of Pearson’s correlation coefficient $r$ and the coefficient of determination $r^2$. Include tasks to perform residual analysis (calculating $y - \\hat{y}$ and plotting) to check for linearity. Task students with transforming non-linear data using square, log, or reciprocal transformations. Always interpret the slope and intercept in the context of the variables. For tech-active items, require the full regression output including $r, r^2$, and the equation.",
           "group": "unit3-Data-analysis-probability-and-statistics"
         },
         {
-          "name": "Time Series Analysis",
-          "technique_notes": "Time series data is analyzed to identify components such as secular trends, seasonal patterns, cyclic movements, and irregular fluctuations. Smoothing techniques, including moving averages and centering, are applied to reduce the impact of random noise and highlight the underlying trend. Seasonality is addressed by calculating seasonal indices and deseasonalizing the data. The resulting trend line is used to forecast future values, which must then be re-seasonalized to provide a realistic prediction for a specific time period.",
+          "name": "Investigating and Modelling Time Series Data",
+          "technique_notes": "Design time series questions to identify trend, seasonality, and irregular fluctuations. Include smoothing techniques: moving means (with centring for even numbers of points) and moving medians. Task students with calculating seasonal indices, deseasonalising data, fitting a trend line, and forecasting (including re-seasonalising). Always discuss the limitations of extrapolation in time series models. For tech-active items, use large datasets (e.g., several years of monthly data) and require seasonal adjustment of the entire series.",
           "group": "unit3-Data-analysis-probability-and-statistics"
         },
         {
-          "name": "Financial Models",
-          "technique_notes": "First-order linear recurrence relations of the form $u_{n+1} = Ru_n + d$ are used to model dynamic financial systems. This includes reducing balance loans, where a payment $d$ is subtracted after interest $R$ is applied, and annuities, where regular deposits are made. Amortization tables are interpreted to track the reduction of the principal, the interest paid in each period, and the remaining balance. Students also compare nominal interest rates with effective interest rates to evaluate the true cost of borrowing or the real return on investments.",
+          "name": "Depreciation and Compound Interest",
+          "technique_notes": "Create financial questions using recurrence relations to model flat-rate, unit-cost, and reducing-balance depreciation. Include tasks to compare simple and compound interest investments. Require students to calculate effective interest rates to compare loans with different compounding periods. Always state the rule for the future value after $n$ periods. For tech-free items, focus on the first few periods. For tech-active items, use the rule to find the value after many years or the time required to reach a salvage value.",
           "group": "unit3-Recursion-and-financial-modelling"
         },
         {
-          "name": "Investments and Depreciations",
-          "technique_notes": "Different methods of depreciation, including flat-rate, unit-cost, and reducing-balance depreciation, are modeled using recurrence relations to track the book value of assets over time. Investments such as perpetuities are analyzed, where the regular payment is equal to the interest earned, leaving the principal intact ($d = -u_0(R-1)$). Students must be able to solve for various parameters, such as the number of time periods required to reach a target value or the interest rate necessary to achieve a specific financial goal.",
+          "name": "Reducing Balance Loans and Annuities",
+          "technique_notes": "Design problems on the amortisation of reducing balance loans and annuities using recurrence relations and financial solver technology. Include tasks to construct and interpret amortisation tables (payment, interest, principal reduction, balance). Cover perpetuities as a special case where the balance remains constant. Always investigate the impact of changing interest rates or repayment amounts on the total interest paid and time to repay. For tech-active items, assume use of a TVM solver for complex variables like $N, I, PV, PMT, FV$.",
           "group": "unit3-Recursion-and-financial-modelling"
         },
         {
-          "name": "Advanced Operations",
-          "technique_notes": "The study of matrices extends to the calculation of the determinant and the inverse of $2 \\times 2$ matrices, and the understanding of singular matrices where the determinant is zero. Matrix algebra is used to manipulate equations and solve for unknown matrices within a given expression. This includes the application of the identity matrix $I$ and the property that $A \\times A^{-1} = I$. These skills are essential for transitioning from simple data storage to solving complex linear systems and modeling structural relationships in discrete mathematics.",
+          "name": "Matrix Arithmetic and Advanced Applications",
+          "technique_notes": "Develop questions on advanced matrix types (diagonal, symmetric, binary, permutation) and the transpose of a matrix. Include tasks to calculate the determinant and inverse of $2 \\times 2$ matrices and solve matrix equations. Apply matrices to round-robin tournaments (dominance) and communication networks. Always check for the existence of an inverse ($\\Delta \\neq 0$). For tech-free items, focus on $2 \\times 2$ algebra and simple ranking systems. For tech-active items, use higher-order matrices to model complex structural relationships.",
           "group": "unit4-matrices"
         },
         {
-          "name": "Transition and Population",
-          "technique_notes": "Transition matrices model the probability of moving from one state to another in a closed system, governed by the recurrence relation $S_{n+1} = T \\times S_n$. For systems with external influences, the model is adjusted to $S_{n+1} = T \\times S_n + B$, where $B$ represents a constant addition or removal. Students analyze the long-term behavior of these systems to identify steady-state vectors where $S_{n+1} \\approx S_n$. Applications include predicting market share shifts, population dynamics between regions, and the analysis of dominance and communication networks.",
+          "name": "Transition Matrices and Leslie Matrices",
+          "technique_notes": "Construct questions using matrix recurrence $S_{n+1} = T S_n$ and $S_{n+1} = T S_n + B$ (culling/restocking). Include Leslie matrices to model population growth based on age cohorts (eggs, juveniles, adults). Task students with identifying regular transition matrices and their equilibrium state. Always require students to interpret the state vector components at each iteration. For tech-active items, use power of matrices to find long-run trends and investigate the stability of the population growth rate.",
           "group": "unit4-matrices"
         },
         {
           "name": "Path and Flow Analysis",
-          "technique_notes": "Advanced network analysis includes the study of Eulerian paths (using every edge exactly once) and Hamiltonian paths (visiting every vertex exactly once). Flow networks are analyzed to determine the maximum capacity of a system, such as a water pipe network or data traffic. The maximum-flow minimum-cut theorem is applied to identify bottlenecks and calculate the total flow from source to sink. Matching problems, where resources must be optimally assigned to tasks, are solved using the Hungarian algorithm to minimize total cost or time.",
+          "technique_notes": "Design network problems focusing on Eulerian trails/circuits and Hamiltonian paths/cycles. Include flow networks where students identify source, sink, and edge capacities. Task students with using the maximum-flow minimum-cut theorem to determine the capacity of a network. Always require showing the cut that determines the minimum capacity. For tech-free items, use small networks where all paths can be checked. For tech-active items, use complex networks representing water, data, or traffic flow.",
           "group": "unit4-networks-and-decision-mathematics"
         },
         {
-          "name": "Project Scheduling",
-          "technique_notes": "Critical Path Analysis (CPA) is used to manage complex projects by identifying the sequence of activities that determines the minimum completion time. This involves constructing activity-on-edge networks, performing forward scans to find earliest start times (EST) and backward scans to find latest start times (LST). The critical path consists of activities with zero float. Students also investigate the impact of 'crashing' a project—allocating more resources to reduce the duration of critical activities—and the resulting trade-offs in terms of cost and efficiency.",
+          "name": "Shortest Paths and Matching",
+          "technique_notes": "Create problems using Dijkstra’s algorithm to find the shortest path from a start vertex to all others. Include matching problems using bipartite graphs and the Hungarian algorithm to find the optimum assignment (minimising cost or time). Always show the steps of the Hungarian algorithm (row reduction, column reduction, covering zeros, adjustment). For tech-free items, restrict matching to $3 \\times 3$ or $4 \\times 4$ matrices. For tech-active items, apply Dijkstra’s to large-scale transport networks.",
+          "group": "unit4-networks-and-decision-mathematics"
+        },
+        {
+          "name": "Scheduling and Critical Path Analysis",
+          "technique_notes": "Construct activity networks from precedence tables, including dummy activities where necessary. Task students with forward and backward scanning to determine earliest start times (EST), latest start times (LST), and float times. Identify the critical path and the minimum completion time for the project. Include 'crashing' tasks to reduce completion time. Always require a clearly labelled activity-on-edge (AoE) diagram. For tech-active items, evaluate the cost-benefit of crashing specific activities on the critical path.",
           "group": "unit4-networks-and-decision-mathematics"
         }
       ]
