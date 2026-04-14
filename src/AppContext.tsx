@@ -238,6 +238,7 @@ export function useAppPreferences() {
       setDifficultyThresholds: s.setDifficultyThresholds,
       generationStrategy: s.generationStrategy,
       setGenerationStrategy: s.setGenerationStrategy,
+      resetPreferences: s.resetPreferences,
     })),
   );
 }
@@ -280,6 +281,8 @@ export function useAppSettings() {
       setTutorModel: s.setTutorModel,
       shuffleSubtopics: s.shuffleSubtopics,
       setShuffleSubtopics: s.setShuffleSubtopics,
+      shuffleQuestions: s.shuffleQuestions,
+      setShuffleQuestions: s.setShuffleQuestions,
     })),
   );
 }

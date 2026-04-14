@@ -1,0 +1,212 @@
+@import 'tailwindcss';
+
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/jetbrains-mono';
+
+@custom-variant dark (&:is(.dark *));
+
+:root[data-design-theme='academic'] {
+  /* Light Mode - The Scholarly Minimalist */
+  --background: oklch(0.99 0.005 85);
+  --foreground: oklch(0.15 0.02 260);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 260);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 260);
+
+  --primary: oklch(0.35 0.08 260);
+  --primary-foreground: oklch(0.99 0.005 85);
+
+  --secondary: oklch(0.96 0.01 85);
+  --secondary-foreground: oklch(0.3 0.04 260);
+
+  --muted: oklch(0.94 0.01 85);
+  --muted-foreground: oklch(0.45 0.03 260);
+
+  --accent: oklch(0.92 0.02 260 / 0.1);
+  --accent-foreground: oklch(0.35 0.08 260);
+
+  --destructive: oklch(0.5 0.15 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --border: oklch(0.85 0.02 260 / 0.3);
+  --input: oklch(0.85 0.02 260 / 0.3);
+  --ring: oklch(0.35 0.08 260);
+
+  --chart-1: oklch(0.35 0.08 260);
+  --chart-2: oklch(0.45 0.1 280);
+  --chart-3: oklch(0.55 0.12 300);
+  --chart-4: oklch(0.65 0.14 320);
+  --chart-5: oklch(0.75 0.16 340);
+
+  --sidebar: oklch(0.98 0.005 85);
+  --sidebar-foreground: oklch(0.2 0.02 260);
+  --sidebar-primary: oklch(0.35 0.08 260);
+  --sidebar-primary-foreground: oklch(0.99 0.005 85);
+  --sidebar-accent: oklch(0.94 0.01 85);
+  --sidebar-accent-foreground: oklch(0.15 0.02 260);
+  --sidebar-border: oklch(0.9 0.01 85);
+  --sidebar-ring: oklch(0.35 0.08 260);
+
+  --radius: 0.125rem;
+
+  --font-sans: 'Manrope Variable', sans-serif;
+  --font-serif:
+    'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+
+  --shadow-2xs: 0px 1px 2px 0px oklch(0 0 0 / 0.02);
+  --shadow-xs: 0px 1px 2px 0px oklch(0 0 0 / 0.02);
+  --shadow-sm: 0px 2px 4px 0px oklch(0 0 0 / 0.03);
+  --shadow: 0px 4px 8px 0px oklch(0 0 0 / 0.04);
+  --shadow-md: 0px 8px 16px 0px oklch(0 0 0 / 0.05);
+  --shadow-lg: 0px 12px 24px 0px oklch(0 0 0 / 0.06);
+  --shadow-xl: 0px 20px 40px 0px oklch(0 0 0 / 0.07);
+  --shadow-2xl: 0px 32px 64px 0px oklch(0 0 0 / 0.08);
+
+  --tracking-normal: -0.015em;
+  --spacing: 0.25rem;
+}
+
+.dark[data-design-theme='academic'] {
+  /* Dark Mode - The Midnight Scholar */
+  --background: oklch(0.12 0.01 260);
+  --foreground: oklch(0.92 0.01 260);
+
+  --card: oklch(0.15 0.01 260);
+  --card-foreground: oklch(0.92 0.01 260);
+
+  --popover: oklch(0.14 0.01 260);
+  --popover-foreground: oklch(0.92 0.01 260);
+
+  --primary: oklch(0.7 0.08 260);
+  --primary-foreground: oklch(0.1 0.01 260);
+
+  --secondary: oklch(0.18 0.02 260);
+  --secondary-foreground: oklch(0.85 0.02 260);
+
+  --muted: oklch(0.16 0.01 260);
+  --muted-foreground: oklch(0.65 0.02 260);
+
+  --accent: oklch(0.7 0.08 260 / 0.15);
+  --accent-foreground: oklch(0.92 0.01 260);
+
+  --destructive: oklch(0.45 0.15 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --border: oklch(0.22 0.02 260);
+  --input: oklch(0.22 0.02 260);
+  --ring: oklch(0.7 0.08 260);
+
+  --sidebar: oklch(0.1 0.01 260);
+  --sidebar-foreground: oklch(0.85 0.01 260);
+  --sidebar-primary: oklch(0.7 0.08 260);
+  --sidebar-primary-foreground: oklch(0.1 0.01 260);
+  --sidebar-accent: oklch(0.16 0.01 260);
+  --sidebar-accent-foreground: oklch(0.92 0.01 260);
+  --sidebar-border: oklch(0.18 0.02 260);
+  --sidebar-ring: oklch(0.7 0.08 260);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 1px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+/* Academic Theme Specifics */
+[data-design-theme='academic'] body {
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Ffilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
+    linear-gradient(to bottom right, var(--background), var(--secondary));
+  background-blend-mode: overlay;
+  background-attachment: fixed;
+}
+
+[data-design-theme='academic'] .question-card {
+  @apply border-border/40 shadow-sm;
+  background-color: var(--card);
+  transition:
+    transform 0.2s ease,
+    shadow 0.2s ease;
+}
+
+[data-design-theme='academic'] .question-card:hover {
+  @apply shadow-md;
+  transform: translateY(-2px);
+}
+
+[data-design-theme='academic'] .mc-option {
+  @apply border-border/20 rounded-sm;
+}
+
+[data-design-theme='academic'] .mc-option-selected {
+  @apply border-primary/40 bg-primary/5;
+}

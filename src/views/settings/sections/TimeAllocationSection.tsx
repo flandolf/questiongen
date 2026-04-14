@@ -81,24 +81,23 @@ export function TimeAllocationSection() {
     setTimeAllocations([
       {
         difficulty: 'Essential Skills',
-        minutesPerQuestion: 0.8,
-        marksPerQuestion: 1,
+        minutesPerMark: 0.8,
       },
-      { difficulty: 'Easy', minutesPerQuestion: 1, marksPerQuestion: 1 },
+      {
+        difficulty: 'Easy',
+        minutesPerMark: 1,
+      },
       {
         difficulty: 'Medium',
-        minutesPerQuestion: 1.4,
-        marksPerQuestion: 1,
+        minutesPerMark: 1.25,
       },
       {
         difficulty: 'Hard',
-        minutesPerQuestion: 1.8,
-        marksPerQuestion: 1,
+        minutesPerMark: 1.75,
       },
       {
         difficulty: 'Extreme',
-        minutesPerQuestion: 2,
-        marksPerQuestion: 1,
+        minutesPerMark: 2,
       },
     ]);
   };
@@ -154,7 +153,7 @@ export function TimeAllocationSection() {
               <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/50 shadow-sm shrink-0'>
                 <Timer className='size-3 text-primary/60' />
                 <span className='text-xs font-mono font-bold tabular-nums text-primary'>
-                  {allocation.minutesPerQuestion.toFixed(2)}
+                  {allocation.minutesPerMark.toFixed(2)}
                 </span>
                 <span className='text-[10px] font-semibold text-muted-foreground uppercase tracking-tighter'>
                   min/mark
@@ -167,7 +166,7 @@ export function TimeAllocationSection() {
                 min={0.1}
                 max={5}
                 step={0.1}
-                value={[allocation.minutesPerQuestion]}
+                value={[allocation.minutesPerMark]}
                 onValueChange={(value) =>
                   handleUpdateAllocation(
                     difficulty,

@@ -74,8 +74,8 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   physicalEducationSubtopics: [],
   biologySubtopics: [],
   generalMathematicsSubtopics: [],
-  questionCount: 3,
-  averageMarksPerQuestion: 10,
+  questionCount: 1,
+  averageMarksPerQuestion: 3,
   questionMode: 'written',
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
@@ -125,13 +125,24 @@ const DEFAULT_STREAK_DATA: StreakData = {
 const DEFAULT_TIME_ALLOCATIONS: TimeAllocationConfig = [
   {
     difficulty: 'Essential Skills',
-    minutesPerQuestion: 2,
-    marksPerQuestion: 5,
+    minutesPerMark: 0.8,
   },
-  { difficulty: 'Easy', minutesPerQuestion: 3, marksPerQuestion: 8 },
-  { difficulty: 'Medium', minutesPerQuestion: 5, marksPerQuestion: 10 },
-  { difficulty: 'Hard', minutesPerQuestion: 7, marksPerQuestion: 12 },
-  { difficulty: 'Extreme', minutesPerQuestion: 10, marksPerQuestion: 15 },
+  {
+    difficulty: 'Easy',
+    minutesPerMark: 1,
+  },
+  {
+    difficulty: 'Medium',
+    minutesPerMark: 1.25,
+  },
+  {
+    difficulty: 'Hard',
+    minutesPerMark: 1.75,
+  },
+  {
+    difficulty: 'Extreme',
+    minutesPerMark: 2,
+  }
 ];
 
 export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
@@ -344,14 +355,14 @@ function normalizeSyncSettings(data: Record<string, unknown>) {
   return {
     autoSyncIntervalMinutes:
       typeof data.autoSyncIntervalMinutes === 'number' &&
-      data.autoSyncIntervalMinutes >= 0
+        data.autoSyncIntervalMinutes >= 0
         ? data.autoSyncIntervalMinutes
         : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
     syncApiKey: Boolean(data.syncApiKey),
     localBackupFolderPath: asString(data.localBackupFolderPath),
     localBackupIntervalMinutes:
       typeof data.localBackupIntervalMinutes === 'number' &&
-      data.localBackupIntervalMinutes >= 0
+        data.localBackupIntervalMinutes >= 0
         ? data.localBackupIntervalMinutes
         : DEFAULT_SETTINGS.localBackupIntervalMinutes,
   };
@@ -361,8 +372,8 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
   const diversityStrictness: DiversityStrictness =
     data.diversityStrictness === 'lenient' ||
-    data.diversityStrictness === 'moderate' ||
-    data.diversityStrictness === 'strict'
+      data.diversityStrictness === 'moderate' ||
+      data.diversityStrictness === 'strict'
       ? data.diversityStrictness
       : DEFAULT_PREFERENCES.diversityStrictness;
 
@@ -420,22 +431,22 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
         : DEFAULT_PREFERENCES.aiDifficultyScalingEnabled,
     difficultyThresholds:
       isRecord(data.difficultyThresholds) &&
-      typeof data.difficultyThresholds.increase === 'number' &&
-      typeof data.difficultyThresholds.decrease === 'number'
+        typeof data.difficultyThresholds.increase === 'number' &&
+        typeof data.difficultyThresholds.decrease === 'number'
         ? {
-            increase: clampWholeNumber(
-              data.difficultyThresholds.increase,
-              DEFAULT_PREFERENCES.difficultyThresholds!.increase,
-              0,
-              100,
-            ),
-            decrease: clampWholeNumber(
-              data.difficultyThresholds.decrease,
-              DEFAULT_PREFERENCES.difficultyThresholds!.decrease,
-              0,
-              100,
-            ),
-          }
+          increase: clampWholeNumber(
+            data.difficultyThresholds.increase,
+            DEFAULT_PREFERENCES.difficultyThresholds!.increase,
+            0,
+            100,
+          ),
+          decrease: clampWholeNumber(
+            data.difficultyThresholds.decrease,
+            DEFAULT_PREFERENCES.difficultyThresholds!.decrease,
+            0,
+            100,
+          ),
+        }
         : DEFAULT_PREFERENCES.difficultyThresholds!,
     diversityStrictness,
     strictLatexValidation:
@@ -449,11 +460,11 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     minSubtopicCoverageRatio:
       typeof data.minSubtopicCoverageRatio === 'number'
         ? clampWholeNumber(
-            data.minSubtopicCoverageRatio,
-            DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
-            0,
-            1,
-          )
+          data.minSubtopicCoverageRatio,
+          DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
+          0,
+          1,
+        )
         : DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
     generationStrategy: isGenerationStrategy(data.generationStrategy)
       ? data.generationStrategy

@@ -154,16 +154,15 @@ export function GeneratorView() {
   const location = useLocation();
   const { user } = useFirebaseSyncContext();
 
-  const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
   const [customFocusArea, setCustomFocusArea] = useState('');
   const [diversityStrictness, setDiversityStrictness] =
     useState<DiversityStrictness>('moderate');
-  const [strictLatexValidation, setStrictLatexValidation] = useState(false);
-  const [strictSubtopicCoverage, setStrictSubtopicCoverage] = useState(false);
-  const [minSubtopicCoverageRatio, setMinSubtopicCoverageRatio] = useState(0.7);
+  const [strictLatexValidation, setStrictLatexValidation] = useState(true);
+  const [strictSubtopicCoverage, setStrictSubtopicCoverage] = useState(true);
+  const [minSubtopicCoverageRatio, setMinSubtopicCoverageRatio] = useState(0.6);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
     Record<string, string>
@@ -214,6 +213,7 @@ export function GeneratorView() {
     useSeparateImageMarkingModel,
     includeExamContext,
     shuffleSubtopics,
+    shuffleQuestions,
   } = useAppSettings();
   const {
     selectedTopics,
@@ -244,6 +244,7 @@ export function GeneratorView() {
     setQuestionMode,
     aiDifficultyScalingEnabled,
     generationStrategy,
+    resetPreferences,
   } = useAppPreferences();
 
   const scopedMathMethodsGroups = useMemo(
@@ -1224,6 +1225,11 @@ export function GeneratorView() {
         ...prev,
         [question.id]: entry.id,
       }));
+
+      // Add to spaced repetition
+      useAppStore
+        .getState()
+        .reviewSpacedCard(question.id, awardedMarks >= 1 ? 4 : 1);
     },
     [
       mcTimer,
@@ -1347,6 +1353,12 @@ export function GeneratorView() {
         ...prev,
         [question.id]: entry.id,
       }));
+
+      // Add to spaced repetition
+      const isCorrect =
+        response.verdict?.toLowerCase() === 'correct' ||
+        (response.maxMarks > 0 && response.achievedMarks >= response.maxMarks);
+      useAppStore.getState().reviewSpacedCard(question.id, isCorrect ? 4 : 1);
     },
     [
       answersByQuestionId,
@@ -1443,8 +1455,8 @@ export function GeneratorView() {
     setMcMarkOverrideInputByQuestionId,
     setMcHistoryEntryIdByQuestionId,
     setMcAwardedMarksByQuestionId,
-    mcHistoryEntryIdByQuestionId,
     deleteMcHistoryEntry,
+    mcHistoryEntryIdByQuestionId,
     mcTimer,
     setErrorMessage,
   ]);
@@ -1779,7 +1791,11 @@ export function GeneratorView() {
         );
 
       const cleaned = applyBatchQualityChecks(rekeyWritten(allQuestions));
-      setQuestions(cleaned.cleanedQuestions);
+      let finalQuestions = cleaned.cleanedQuestions;
+      if (shuffleQuestions) {
+        finalQuestions = shuffleWithSeed(finalQuestions, generationSeed + 99);
+      }
+      setQuestions(finalQuestions);
       setWrittenRawModelOutput('');
       setWrittenGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -1842,6 +1858,7 @@ export function GeneratorView() {
     setBatchEntryError,
     getSubtopicsForTopic,
     shuffleSubtopics,
+    shuffleQuestions,
   ]);
 
   const handleGenerateMcQuestions = useCallback(async () => {
@@ -2147,7 +2164,11 @@ export function GeneratorView() {
         );
 
       const preprocessed = preprocessMcQuestions(rekeyMc(allQuestions));
-      setMcQuestions(preprocessed);
+      let finalMcQuestions = preprocessed;
+      if (shuffleQuestions) {
+        finalMcQuestions = shuffleWithSeed(preprocessed, generationSeed + 99);
+      }
+      setMcQuestions(finalMcQuestions);
       setMcRawModelOutput('');
       setMcGenerationTelemetry(totalTelemetry);
       setLastSessionTelemetry(totalTelemetry);
@@ -2217,6 +2238,7 @@ export function GeneratorView() {
     setBatchEntryError,
     getSubtopicsForTopic,
     averageMarksPerQuestion,
+    shuffleQuestions,
   ]);
 
   const handleSubmitForMarking = useCallback(
@@ -2702,6 +2724,12 @@ export function GeneratorView() {
     if (questionMode === 'written' && questions.length > 0) saveCurrentSet();
     else if (questionMode === 'multiple-choice' && mcQuestions.length > 0)
       saveCurrentSet();
+    resetPreferences();
+    setCustomFocusArea('');
+    setDiversityStrictness('moderate');
+    setStrictLatexValidation(true);
+    setStrictSubtopicCoverage(true);
+    setMinSubtopicCoverageRatio(0.6);
     resetStopwatch();
     useTutorStore.getState().clearAllSessions();
     setBatchProgress([]);
@@ -2754,6 +2782,7 @@ export function GeneratorView() {
     setMcMarkAppealByQuestionId,
     setMcMarkOverrideInputByQuestionId,
     setMcAwardedMarksByQuestionId,
+    resetPreferences,
   ]);
 
   const isInSession = !showSetup && !showCompletionScreen;
@@ -2815,27 +2844,37 @@ export function GeneratorView() {
         <div
           role='alert'
           aria-live='assertive'
-          className='bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-sm text-sm flex items-center gap-3 shadow-sm'
+          className='mx-6 mt-6 bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-sm text-sm flex items-center gap-3 shadow-sm'
         >
           <XCircle className='w-5 h-5 shrink-0' />
           <p className='font-medium flex-1'>{errorMessage}</p>
-          {lastFailedAction && (
+          <div className='flex items-center gap-3'>
+            {lastFailedAction && (
+              <button
+                type='button'
+                onClick={() => {
+                  if (lastFailedAction === 'generate-written')
+                    void handleGenerateQuestions();
+                  else if (lastFailedAction === 'generate-mc')
+                    void handleGenerateMcQuestions();
+                  else if (lastFailedAction === 'mark-written')
+                    void handleSubmitForMarking();
+                  setLastFailedAction(null);
+                }}
+                className='text-sm font-semibold hover:underline'
+              >
+                Retry
+              </button>
+            )}
             <button
               type='button'
-              onClick={() => {
-                if (lastFailedAction === 'generate-written')
-                  void handleGenerateQuestions();
-                else if (lastFailedAction === 'generate-mc')
-                  void handleGenerateMcQuestions();
-                else if (lastFailedAction === 'mark-written')
-                  void handleSubmitForMarking();
-                setLastFailedAction(null);
-              }}
-              className='ml-2 text-sm text-destructive underline'
+              onClick={() => setErrorMessage(null)}
+              className='p-1 hover:bg-destructive/20 rounded-full transition-colors'
+              aria-label='Dismiss error'
             >
-              Retry
+              <X className='w-4 h-4' />
             </button>
-          )}
+          </div>
         </div>
       )}
 
@@ -2877,8 +2916,6 @@ export function GeneratorView() {
           onSetAverageMarksPerQuestion={setAverageMarksPerQuestion}
           avoidSimilarQuestions={avoidSimilarQuestions}
           onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
-          shuffleQuestions={shuffleQuestions}
-          onSetShuffleQuestions={setShuffleQuestions}
           hasApiKey={Boolean(apiKey)}
           canGenerate={canGenerate}
           isGenerating={isGenerating}
@@ -2891,6 +2928,7 @@ export function GeneratorView() {
             if (questionMode === 'written') void handleGenerateQuestions();
             else void handleGenerateMcQuestions();
           }}
+          onStartOver={handleStartOver}
           lastGenerationTelemetry={lastSessionTelemetry}
           streamText={streamText}
           batchProgress={batchProgress}

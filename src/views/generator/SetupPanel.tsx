@@ -28,7 +28,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
@@ -185,8 +190,6 @@ type SetupPanelProps = {
   onSetAverageMarksPerQuestion: (marks: number) => void;
   avoidSimilarQuestions: boolean;
   onSetAvoidSimilarQuestions: (enabled: boolean) => void;
-  shuffleQuestions: boolean;
-  onSetShuffleQuestions: (enabled: boolean) => void;
   hasApiKey: boolean;
   canGenerate: boolean;
   isGenerating: boolean;
@@ -196,6 +199,7 @@ type SetupPanelProps = {
   generationStartedAt: number | null;
   formattedElapsedTime: string;
   onGenerate: () => void;
+  onStartOver: () => void;
   lastGenerationTelemetry?: GenerationTelemetry | null;
   streamText?: string;
   batchProgress?: BatchTopicProgress[];
@@ -244,17 +248,14 @@ function SetupPanelImpl({
   onSetQuestionCount,
   averageMarksPerQuestion,
   onSetAverageMarksPerQuestion,
-  avoidSimilarQuestions,
-  shuffleQuestions,
-  onSetShuffleQuestions,
   hasApiKey,
-  canGenerate,
   isGenerating,
   isPaused,
   onTogglePause,
   generationStatus,
   formattedElapsedTime,
   onGenerate,
+  onStartOver,
   lastGenerationTelemetry,
   streamText = '',
   batchProgress = EMPTY_BATCH_PROGRESS,
@@ -362,6 +363,31 @@ function SetupPanelImpl({
     generationStrategy,
   ]);
 
+  const generationDisabledReasons = useMemo(() => {
+    const reasons: string[] = [];
+    if (!hasApiKey) {
+      reasons.push('OpenRouter API key is missing');
+    }
+    if (!model || model.trim().length === 0) {
+      reasons.push('AI model not selected');
+    }
+    if (selectedTopics.length === 0) {
+      reasons.push('Select at least one topic');
+    }
+    if (questionCount < 1) {
+      reasons.push('Question count must be at least 1');
+    }
+    if (questionCount > 20) {
+      reasons.push('Question count cannot exceed 20');
+    }
+    if (isGenerating) {
+      reasons.push('Generation in progress');
+    }
+    return reasons;
+  }, [hasApiKey, model, selectedTopics.length, questionCount, isGenerating]);
+
+  const isGenerationDisabled = generationDisabledReasons.length > 0;
+
   const levels = [
     'Essential Skills',
     'Easy',
@@ -425,7 +451,7 @@ function SetupPanelImpl({
                     className={cn(
                       'relative flex flex-col items-start gap-4 p-4 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none group',
                       isSelected
-                        ? 'bg-foreground/5 border-foreground'
+                        ? 'bg-primary/5 border-primary/30'
                         : 'bg-transparent border-border/60 hover:border-foreground/30 hover:bg-muted/30',
                     )}
                   >
@@ -434,7 +460,7 @@ function SetupPanelImpl({
                         className={cn(
                           'p-2 rounded-lg transition-colors duration-200',
                           isSelected
-                            ? 'bg-foreground text-background'
+                            ? 'bg-primary/5 border-primary/30 text-primary'
                             : 'bg-muted/50 text-muted-foreground group-hover:text-foreground',
                         )}
                       >
@@ -444,13 +470,13 @@ function SetupPanelImpl({
                         className={cn(
                           'w-4 h-4 rounded-sm border flex items-center justify-center transition-all duration-200',
                           isSelected
-                            ? 'border-foreground bg-foreground'
+                            ? 'bg-primary/5 border-primary/30 text-primary'
                             : 'border-border/60 bg-transparent',
                         )}
                       >
                         {isSelected && (
                           <Check
-                            className='w-3 h-3 text-background'
+                            className='w-3 h-3 text-current'
                             strokeWidth={3}
                           />
                         )}
@@ -615,7 +641,6 @@ function SetupPanelImpl({
                 selectedTopics={selectedTopics}
                 difficulty={difficulty}
                 techMode={techMode}
-                avoidSimilarQuestions={avoidSimilarQuestions}
                 mathMethodsSubtopics={mathMethodsSubtopics}
                 specialistMathSubtopics={specialistMathSubtopics}
                 chemistrySubtopics={chemistrySubtopics}
@@ -652,8 +677,6 @@ function SetupPanelImpl({
               hasAnyMathTopic={hasAnyMathTopic}
               techMode={techMode}
               onSetTechMode={onSetTechMode}
-              shuffleQuestions={shuffleQuestions}
-              onSetShuffleQuestions={onSetShuffleQuestions}
               customFocusArea={customFocusArea}
               onSetCustomFocusArea={onSetCustomFocusArea}
               diversityStrictness={diversityStrictness}
@@ -756,27 +779,66 @@ function SetupPanelImpl({
                     )}
                   </div>
                 </div>
-                <Button
-                  variant='ghost'
-                  onClick={onGenerate}
-                  disabled={!canGenerate}
-                >
-                  <span className='relative flex items-center justify-center gap-4 text-sm'>
-                    {isGenerating ? (
-                      <>
-                        <div className='relative'>
-                          <Loader2 className='w-5 h-5 animate-spin' />
-                          <div className='absolute inset-0 w-5 h-5 animate-ping bg-background/30 rounded-full' />
-                        </div>
-                        <span className='animate-pulse'>Loading...</span>
-                      </>
-                    ) : (
-                      <span className='flex flex-row items-center gap-3 text-md'>
-                        <Zap className='w-5 h-5 -rotate-12' /> Generate
-                      </span>
+                <div className='items-center flex flex-row'>
+                  <Button
+                    variant='destructive'
+                    onClick={onStartOver}
+                    disabled={isGenerating}
+                  >
+                    Start Over
+                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className='inline-block'>
+                        <Button
+                          variant='ghost'
+                          onClick={onGenerate}
+                          disabled={isGenerationDisabled}
+                        >
+                          <span className='relative flex items-center justify-center gap-4 text-sm'>
+                            {isGenerating ? (
+                              <>
+                                <div className='relative'>
+                                  <Loader2 className='w-5 h-5 animate-spin' />
+                                  <div className='absolute inset-0 w-5 h-5 animate-ping bg-background/30 rounded-full' />
+                                </div>
+                                <span className='animate-pulse'>
+                                  Loading...
+                                </span>
+                              </>
+                            ) : (
+                              <span className='flex flex-row items-center gap-3 text-md'>
+                                <Zap className='w-5 h-5 -rotate-12' /> Generate
+                              </span>
+                            )}
+                          </span>
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    {isGenerationDisabled && (
+                      <TooltipContent
+                        side='top'
+                        className='flex flex-col gap-1.5 p-3 min-w-48'
+                      >
+                        <p className='font-bold text-destructive-foreground flex items-center gap-2'>
+                          <AlertTriangle className='w-3.5 h-3.5' /> Missing
+                          Requirements
+                        </p>
+                        <ul className='space-y-1'>
+                          {generationDisabledReasons.map((reason, i) => (
+                            <li
+                              key={i}
+                              className='text-[10px] flex items-center gap-2'
+                            >
+                              <div className='w-1 h-1 rounded-full bg-destructive-foreground/50' />
+                              {reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </TooltipContent>
                     )}
-                  </span>
-                </Button>
+                  </Tooltip>
+                </div>
               </div>
 
               {!isGenerating &&

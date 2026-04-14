@@ -100,6 +100,7 @@ const defaultState: AppState = {
   strictSubtopicCoverage: true,
   minSubtopicCoverageRatio: 0.6,
   shuffleSubtopics: false,
+  shuffleQuestions: false,
   generationStrategy: 'multi-pass',
   questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
   activeQuestionIndex:
@@ -153,13 +154,24 @@ const defaultState: AppState = {
   timeAllocations: [
     {
       difficulty: 'Essential Skills',
-      minutesPerQuestion: 2,
-      marksPerQuestion: 5,
+      minutesPerMark: 0.8,
     },
-    { difficulty: 'Easy', minutesPerQuestion: 3, marksPerQuestion: 8 },
-    { difficulty: 'Medium', minutesPerQuestion: 5, marksPerQuestion: 10 },
-    { difficulty: 'Hard', minutesPerQuestion: 7, marksPerQuestion: 12 },
-    { difficulty: 'Extreme', minutesPerQuestion: 10, marksPerQuestion: 15 },
+    {
+      difficulty: 'Easy',
+      minutesPerMark: 1,
+    },
+    {
+      difficulty: 'Medium',
+      minutesPerMark: 1.25,
+    },
+    {
+      difficulty: 'Hard',
+      minutesPerMark: 1.5,
+    },
+    {
+      difficulty: 'Extreme',
+      minutesPerMark: 1.8,
+    }
   ],
   generationHistory: [],
   presets: [],
@@ -313,7 +325,33 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) =>
     set({ minSubtopicCoverageRatio }),
   setShuffleSubtopics: (shuffleSubtopics) => set({ shuffleSubtopics }),
+  setShuffleQuestions: (shuffleQuestions) => set({ shuffleQuestions }),
   setGenerationStrategy: (generationStrategy) => set({ generationStrategy }),
+  resetPreferences: () =>
+    set({
+      selectedTopics: defaultState.selectedTopics,
+      difficulty: defaultState.difficulty,
+      techMode: defaultState.techMode,
+      avoidSimilarQuestions: defaultState.avoidSimilarQuestions,
+      mathMethodsSubtopics: defaultState.mathMethodsSubtopics,
+      specialistMathSubtopics: defaultState.specialistMathSubtopics,
+      chemistrySubtopics: defaultState.chemistrySubtopics,
+      physicalEducationSubtopics: defaultState.physicalEducationSubtopics,
+      biologySubtopics: defaultState.biologySubtopics,
+      generalMathematicsSubtopics: defaultState.generalMathematicsSubtopics,
+      questionCount: defaultState.questionCount,
+      averageMarksPerQuestion: defaultState.averageMarksPerQuestion,
+      questionMode: defaultState.questionMode,
+      aiDifficultyScalingEnabled: defaultState.aiDifficultyScalingEnabled,
+      difficultyThresholds: defaultState.difficultyThresholds,
+      diversityStrictness: defaultState.diversityStrictness,
+      strictLatexValidation: defaultState.strictLatexValidation,
+      strictSubtopicCoverage: defaultState.strictSubtopicCoverage,
+      minSubtopicCoverageRatio: defaultState.minSubtopicCoverageRatio,
+      shuffleSubtopics: defaultState.shuffleSubtopics,
+      shuffleQuestions: defaultState.shuffleQuestions,
+      generationStrategy: defaultState.generationStrategy,
+    }),
 
   setQuestions: (questions) => set({ questions }),
   setActiveQuestionIndex: (activeQuestionIndex) => set({ activeQuestionIndex }),
@@ -555,41 +593,41 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         mcTimer: null,
         ...(entry.questionMode === 'written'
           ? {
-              questions: entry.writtenSession!.questions,
-              activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
-              writtenQuestionPresentedAtById:
-                entry.writtenSession!.presentedAtByQuestionId,
-              answersByQuestionId: entry.writtenSession!.answersByQuestionId,
-              imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
-              feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
-              writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
-              writtenGenerationTelemetry:
-                entry.writtenSession!.generationTelemetry ?? null,
-              activeWrittenSavedSetId: id,
-              mcQuestions: [],
-              activeMcQuestionIndex: 0,
-              mcQuestionPresentedAtById: {},
-              mcAnswersByQuestionId: {},
-              activeMcSavedSetId: null,
-            }
+            questions: entry.writtenSession!.questions,
+            activeQuestionIndex: entry.writtenSession!.activeQuestionIndex,
+            writtenQuestionPresentedAtById:
+              entry.writtenSession!.presentedAtByQuestionId,
+            answersByQuestionId: entry.writtenSession!.answersByQuestionId,
+            imagesByQuestionId: entry.writtenSession!.imagesByQuestionId,
+            feedbackByQuestionId: entry.writtenSession!.feedbackByQuestionId,
+            writtenRawModelOutput: entry.writtenSession!.rawModelOutput,
+            writtenGenerationTelemetry:
+              entry.writtenSession!.generationTelemetry ?? null,
+            activeWrittenSavedSetId: id,
+            mcQuestions: [],
+            activeMcQuestionIndex: 0,
+            mcQuestionPresentedAtById: {},
+            mcAnswersByQuestionId: {},
+            activeMcSavedSetId: null,
+          }
           : {
-              mcQuestions: entry.mcSession!.questions,
-              activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
-              mcQuestionPresentedAtById:
-                entry.mcSession!.presentedAtByQuestionId,
-              mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
-              mcRawModelOutput: entry.mcSession!.rawModelOutput,
-              mcGenerationTelemetry:
-                entry.mcSession!.generationTelemetry ?? null,
-              activeMcSavedSetId: id,
-              questions: [],
-              activeQuestionIndex: 0,
-              writtenQuestionPresentedAtById: {},
-              answersByQuestionId: {},
-              imagesByQuestionId: {},
-              feedbackByQuestionId: {},
-              activeWrittenSavedSetId: null,
-            }),
+            mcQuestions: entry.mcSession!.questions,
+            activeMcQuestionIndex: entry.mcSession!.activeQuestionIndex,
+            mcQuestionPresentedAtById:
+              entry.mcSession!.presentedAtByQuestionId,
+            mcAnswersByQuestionId: entry.mcSession!.answersByQuestionId,
+            mcRawModelOutput: entry.mcSession!.rawModelOutput,
+            mcGenerationTelemetry:
+              entry.mcSession!.generationTelemetry ?? null,
+            activeMcSavedSetId: id,
+            questions: [],
+            activeQuestionIndex: 0,
+            writtenQuestionPresentedAtById: {},
+            answersByQuestionId: {},
+            imagesByQuestionId: {},
+            feedbackByQuestionId: {},
+            activeWrittenSavedSetId: null,
+          }),
       });
     });
   },

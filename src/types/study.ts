@@ -39,7 +39,6 @@ export type PresetPreferences = {
   selectedTopics: Topic[];
   difficulty: Difficulty;
   techMode: TechMode;
-  avoidSimilarQuestions: boolean;
   mathMethodsSubtopics?: MathMethodsSubtopic[];
   specialistMathSubtopics?: SpecialistMathSubtopic[];
   chemistrySubtopics?: ChemistrySubtopic[];

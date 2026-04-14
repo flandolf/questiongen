@@ -39,6 +39,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       tutorPersona: s.tutorPersona,
       tutorModel: s.tutorModel,
       shuffleSubtopics: s.shuffleSubtopics,
+      shuffleQuestions: s.shuffleQuestions,
     },
     preferences: {
       selectedTopics: s.selectedTopics,
@@ -118,6 +119,7 @@ function mapSettings(s: PersistedAppState): Partial<AppState> {
     tutorPersona: s.settings.tutorPersona ?? '',
     tutorModel: s.settings.tutorModel ?? s.settings.model,
     shuffleSubtopics: s.settings.shuffleSubtopics ?? false,
+    shuffleQuestions: s.settings.shuffleQuestions ?? false,
   };
 }
 
@@ -156,7 +158,7 @@ function mapSessions(s: PersistedAppState): Partial<AppState> {
   );
   const writtenSavedSetId =
     s.writtenSession.savedSetId &&
-    activeSavedSetIds.has(s.writtenSession.savedSetId)
+      activeSavedSetIds.has(s.writtenSession.savedSetId)
       ? s.writtenSession.savedSetId
       : null;
   const mcSavedSetId =

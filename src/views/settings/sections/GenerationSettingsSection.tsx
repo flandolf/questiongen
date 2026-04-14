@@ -54,6 +54,8 @@ export function GenerationSettingsSection() {
   const setGenerationStrategy = useAppStore((s) => s.setGenerationStrategy);
   const shuffleSubtopics = useAppStore((s) => s.shuffleSubtopics);
   const setShuffleSubtopics = useAppStore((s) => s.setShuffleSubtopics);
+  const shuffleQuestions = useAppStore((s) => s.shuffleQuestions);
+  const setShuffleQuestions = useAppStore((s) => s.setShuffleQuestions);
 
   return (
     <AnimatedSection className='space-y-6'>
@@ -62,9 +64,24 @@ export function GenerationSettingsSection() {
         description='Configure default options for question generation.'
       />
       <Card className='flex items-center justify-between p-4'>
-        <div>
-          <p className='text-sm font-medium'>Avoid Similar Questions</p>
-          <p className='text-xs text-muted-foreground mt-0.5'>
+        <div className='flex flex-col gap-0.5'>
+          <div className='flex items-center gap-1.5'>
+            <p className='text-sm font-medium'>Avoid Similar Questions</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className='max-w-xs text-sm'>
+                    Prevents the generator from producing questions that are too
+                    similar to ones you've already answered in your history.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <p className='text-xs text-muted-foreground'>
             {avoidSimilarQuestions
               ? 'Avoid similar questions is enabled.'
               : 'Avoid similar questions is disabled.'}
@@ -82,9 +99,24 @@ export function GenerationSettingsSection() {
         </Button>
       </Card>
       <Card className='flex flex-row items-center justify-between p-4'>
-        <div>
-          <p className='text-sm font-medium'>AI Difficulty Scaling</p>
-          <p className='text-xs text-muted-foreground mt-0.5'>
+        <div className='flex flex-col gap-0.5'>
+          <div className='flex items-center gap-1.5'>
+            <p className='text-sm font-medium'>AI Difficulty Scaling</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className='max-w-xs text-sm'>
+                    Automatically adjusts question difficulty based on your
+                    recent performance.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <p className='text-xs text-muted-foreground'>
             {aiDifficultyScalingEnabled
               ? 'Difficulty will adjust based on your performance.'
               : 'Difficulty will remain constant.'}
@@ -183,7 +215,30 @@ export function GenerationSettingsSection() {
 
         <div className='space-y-4'>
           <div>
-            <p className='text-sm font-medium'>Generation Strategy</p>
+            <div className='flex items-center gap-1.5'>
+              <p className='text-sm font-medium'>Generation Strategy</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className='max-w-xs text-sm space-y-2'>
+                      <p>
+                        <strong>Multi-pass:</strong> Generates questions for
+                        each subtopic separately then combines them. More
+                        reliable for broad coverage.
+                      </p>
+                      <p>
+                        <strong>Single-pass:</strong> Generates all questions in
+                        one go. Faster but may have less consistent subtopic
+                        distribution.
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div className='mt-2 grid grid-cols-2 gap-2'>
               {(['multi-pass', 'single-pass'] as const).map((strategy) => (
                 <button
@@ -209,7 +264,22 @@ export function GenerationSettingsSection() {
           </div>
 
           <div>
-            <p className='text-sm font-medium'>Diversity Strictness</p>
+            <div className='flex items-center gap-1.5'>
+              <p className='text-sm font-medium'>Diversity Strictness</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className='max-w-xs text-sm'>
+                      Controls how strictly the AI should vary question styles
+                      and contexts to ensure a diverse set of questions.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div className='mt-2 grid grid-cols-3 gap-2'>
               {(['lenient', 'moderate', 'strict'] as const).map((lvl) => (
                 <button
@@ -231,7 +301,22 @@ export function GenerationSettingsSection() {
 
           <div className='flex items-center justify-between'>
             <div>
-              <p className='text-sm font-medium'>Strict LaTeX Validation</p>
+              <div className='flex items-center gap-1.5'>
+                <p className='text-sm font-medium'>Strict LaTeX Validation</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='max-w-xs text-sm'>
+                        Rejects questions with malformed mathematical notation
+                        to ensure all formulas render correctly.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className='text-xs text-muted-foreground mt-0.5'>
                 {strictLatexValidation
                   ? 'Malformed math is rejected.'
@@ -246,7 +331,22 @@ export function GenerationSettingsSection() {
 
           <div className='flex items-center justify-between'>
             <div>
-              <p className='text-sm font-medium'>Randomise Subtopics</p>
+              <div className='flex items-center gap-1.5'>
+                <p className='text-sm font-medium'>Randomise Subtopics</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='max-w-xs text-sm'>
+                        Shuffles the order of subtopics instead of following the
+                        curriculum order.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <p className='text-xs text-muted-foreground mt-0.5'>
                 {shuffleSubtopics
                   ? 'Subtopic order is randomised.'
@@ -259,10 +359,57 @@ export function GenerationSettingsSection() {
             />
           </div>
 
+          <div className='flex items-center justify-between'>
+            <div>
+              <div className='flex items-center gap-1.5'>
+                <p className='text-sm font-medium'>Shuffle Questions</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='max-w-xs text-sm'>
+                        Mixes questions from different subjects evenly when
+                        multiple topics are selected.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                {shuffleQuestions
+                  ? 'Questions are mixed evenly.'
+                  : 'Questions are grouped by subject.'}
+              </p>
+            </div>
+            <Switch
+              checked={shuffleQuestions}
+              onCheckedChange={setShuffleQuestions}
+            />
+          </div>
+
           <div>
             <div className='flex items-center justify-between'>
               <div>
-                <p className='text-sm font-medium'>Strict Subtopic Coverage</p>
+                <div className='flex items-center gap-1.5'>
+                  <p className='text-sm font-medium'>
+                    Strict Subtopic Coverage
+                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='max-w-xs text-sm'>
+                          Ensures the generator prioritises the specific
+                          subtopics you've selected.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <p className='text-xs text-muted-foreground mt-0.5'>
                   {strictSubtopicCoverage
                     ? 'Generator will prioritise selected subtopics.'
@@ -277,7 +424,24 @@ export function GenerationSettingsSection() {
 
             <div className='mt-3'>
               <div className='flex items-center justify-between mb-1'>
-                <p className='text-sm font-medium'>Minimum Subtopic Coverage</p>
+                <div className='flex items-center gap-1.5'>
+                  <p className='text-sm font-medium'>
+                    Minimum Subtopic Coverage
+                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className='max-w-xs text-sm'>
+                          The minimum percentage of selected subtopics that must
+                          be covered in the generated set.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <span className='text-sm font-semibold'>
                   {Math.round(minSubtopicCoverageRatio * 100)}%
                 </span>
