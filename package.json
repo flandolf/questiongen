@@ -37,7 +37,7 @@
     "react-dom": "^19.2.5",
     "react-dropzone": "^15.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.14.0",
+    "react-router-dom": "^7.14.1",
     "recharts": "3.8.1",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.2.0",
@@ -61,10 +61,10 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-simple-import-sort": "^13.0.0",
-    "globals": "^17.4.0",
+    "globals": "^17.5.0",
     "prettier": "^3.8.2",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.58.1",
+    "typescript-eslint": "^8.58.2",
     "vite": "^8.0.8"
   }
 }
