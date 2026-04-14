@@ -140,7 +140,7 @@ export function QuestionSplitLayout({
       <div
         ref={containerRef}
         className={cn(
-          'hidden lg:flex w-full lg:gap-8',
+          'hidden lg:flex w-full lg:gap-8 stagger-reveal',
           sketchpadActive ? '' : '',
         )}
         style={{ alignItems: 'stretch' }}
@@ -188,7 +188,7 @@ export function QuestionSplitLayout({
       </div>
 
       {/* Small screens: stacked layout (original behaviour) */}
-      <div className='grid grid-cols-1 lg:hidden gap-8'>
+      <div className='grid grid-cols-1 lg:hidden gap-8 stagger-reveal'>
         {leftSlot}
         {rightSlot}
       </div>

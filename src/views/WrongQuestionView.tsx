@@ -483,6 +483,7 @@ interface ReattemptViewProps {
   onExit: (results: ReattemptResult[]) => void;
   onDelete: (entry: WrongEntry) => void;
   onMarkCorrect: (entry: WrongEntry) => void;
+  onMarkWrong: (entry: WrongEntry) => void;
 }
 function ReattemptView({
   questions,
@@ -491,6 +492,7 @@ function ReattemptView({
   onExit,
   onDelete,
   onMarkCorrect,
+  onMarkWrong,
 }: ReattemptViewProps) {
   const [idx, setIdx] = useState<number>(0);
   const [results, setResults] = useState<ReattemptResult[]>([]);
@@ -818,7 +820,11 @@ function ReattemptView({
     const merged = actualResult
       ? [...results.filter((r) => r.id !== entry.id), actualResult]
       : results;
-    if (actualResult?.correct) onMarkCorrect(entry);
+    if (actualResult?.correct) {
+      onMarkCorrect(entry);
+    } else if (actualResult && !actualResult.correct) {
+      onMarkWrong(entry);
+    }
     if (isLast) {
       onExit(merged);
       return;
@@ -1305,6 +1311,23 @@ function ReattemptSummary({
 }
 
 // ─── Main view ────────────────────────────────────────────────────────────────
+function computeAllEntries(
+  questionHistory: QuestionHistoryEntry[],
+  mcHistory: McHistoryEntry[],
+) {
+  const written: WrittenWrongEntry[] = questionHistory.map((e) => ({
+    ...e,
+    kind: 'written' as const,
+  }));
+  const mc: McWrongEntry[] = mcHistory.map((e) => ({
+    ...e,
+    kind: 'multiple-choice' as const,
+  }));
+  return [...written, ...mc].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+}
+
 function computeAllWrongEntries(
   questionHistory: QuestionHistoryEntry[],
   mcHistory: McHistoryEntry[],
@@ -1354,9 +1377,14 @@ export default function WrongQuestionView() {
     [questionHistory, mcHistory],
   );
 
+  const allEntries = useMemo<WrongEntry[]>(
+    () => computeAllEntries(questionHistory, mcHistory),
+    [questionHistory, mcHistory],
+  );
+
   // Due for review cards
   const dueCards = useMemo(() => {
-    return allWrong
+    return allEntries
       .filter((entry) => {
         const card = spacedRepetitionCards[entry.id];
         return card && isDue(card);
@@ -1370,7 +1398,7 @@ export default function WrongQuestionView() {
           new Date(cardB.nextReviewDate).getTime()
         );
       });
-  }, [allWrong, spacedRepetitionCards]);
+  }, [allEntries, spacedRepetitionCards]);
 
   // Overdue cards (subset of due)
   const overdueCards = useMemo(() => {
@@ -1493,10 +1521,24 @@ export default function WrongQuestionView() {
     [updateQuestionHistoryEntry, updateMcHistoryEntry, reviewSpacedCard],
   );
 
+  const handleMarkWrong = useCallback(
+    (entry: WrongEntry) => {
+      // Record SR with quality 1 (wrong)
+      reviewSpacedCard(entry.id, 1);
+    },
+    [reviewSpacedCard],
+  );
+
   const startReattempt = (shuffle: boolean) => {
     setReattemptQueue(
       shuffle ? shuffleArray(filteredQuestions) : [...filteredQuestions],
     );
+    setReattemptResults(null);
+    setViewMode('reattempt');
+  };
+
+  const startDueReattempt = () => {
+    setReattemptQueue(shuffleArray(dueCards));
     setReattemptResults(null);
     setViewMode('reattempt');
   };
@@ -1516,6 +1558,7 @@ export default function WrongQuestionView() {
           model={effectiveModel}
           onDelete={handleDelete}
           onMarkCorrect={handleMarkCorrect}
+          onMarkWrong={handleMarkWrong}
           onExit={(res) => {
             setReattemptResults(res);
             setViewMode('summary');
@@ -1743,7 +1786,7 @@ export default function WrongQuestionView() {
                   <Button
                     size='sm'
                     className='w-full gap-2 h-8 bg-sky-500/90 hover:bg-sky-600 text-white'
-                    onClick={() => startReattempt(true)}
+                    onClick={() => startDueReattempt()}
                   >
                     <RotateCcw className='w-3.5 h-3.5' />
                     Review due items

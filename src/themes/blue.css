@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/jetbrains-mono';
+
 @custom-variant dark (&:is(.dark *));
 
 :root[data-design-theme='blue'] {
@@ -36,9 +39,9 @@
   --sidebar-border: oklch(0.9 0.02 250);
   --sidebar-ring: oklch(0.55 0.15 250);
   --radius: 0.5rem;
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Manrope Variable', sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono Variable', monospace;
   --shadow-2xs: 0px 2px 4px 0px oklch(0 0 0 / 0.05);
   --shadow-xs: 0px 2px 4px 0px oklch(0 0 0 / 0.05);
   --shadow-sm: 0px 2px 4px 0px oklch(0 0 0 / 0.1);

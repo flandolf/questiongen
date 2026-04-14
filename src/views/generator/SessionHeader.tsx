@@ -167,17 +167,9 @@ export const SessionHeader = memo(function SessionHeader({
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
 
-  const marksPerMinute =
-    difficultyAllocation && difficultyAllocation.minutesPerQuestion > 0
-      ? difficultyAllocation.marksPerQuestion /
-        difficultyAllocation.minutesPerQuestion
-      : undefined;
-  const recommendedSeconds =
-    questionMarks !== undefined &&
-    marksPerMinute !== undefined &&
-    marksPerMinute > 0
-      ? Math.round((questionMarks / marksPerMinute) * 60)
-      : undefined;
+  const recommendedSeconds = difficultyAllocation
+    ? difficultyAllocation.minutesPerMark * (questionMarks ?? maxMarks ?? 1) * (type === 'written' ? 1 : 0.8)
+    : undefined;
 
   return (
     <div className='sticky top-0 bg-background/90 backdrop-blur-md'>

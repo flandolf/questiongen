@@ -4,7 +4,6 @@ import {
   Book,
   Calculator,
   Pen,
-  Shuffle,
   Terminal,
 } from 'lucide-react';
 
@@ -136,8 +135,6 @@ export type AdvancedOptionsGroupProps = {
   hasAnyMathTopic: boolean;
   techMode: TechMode;
   onSetTechMode: (mode: TechMode) => void;
-  shuffleQuestions: boolean;
-  onSetShuffleQuestions: (enabled: boolean) => void;
   customFocusArea: string;
   onSetCustomFocusArea: (value: string) => void;
   diversityStrictness: DiversityStrictness;
@@ -171,8 +168,6 @@ export function AdvancedOptionsGroup({
   hasAnyMathTopic,
   techMode,
   onSetTechMode,
-  shuffleQuestions,
-  onSetShuffleQuestions,
   customFocusArea,
   onSetCustomFocusArea,
 }: AdvancedOptionsGroupProps) {
@@ -220,94 +215,65 @@ export function AdvancedOptionsGroup({
         </motion.div>
       </div>
       {/* Calculator & Flags Row */}
-      {(hasAnyMathTopic || selectedTopics.length > 1) && (
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-4 items-start'>
-          {hasAnyMathTopic && (
-            <div
-              className={cn(
-                'flex flex-col gap-2',
-                selectedTopics.length <= 1 && 'md:col-span-2',
-              )}
-            >
-              <SectionLabel>
-                <span className='flex items-center gap-2'>
-                  <Calculator className='w-3.5 h-3.5' /> Calculator Mode
-                </span>
-              </SectionLabel>
-
-              <div className='grid grid-cols-2 gap-4'>
-                {(
-                  [
-                    {
-                      value: 'tech-free' as TechMode,
-                      label: 'Tech Free',
-                      icon: <Pen className='w-4 h-4' />,
-                      desc: 'No calculator allowed',
-                    },
-                    {
-                      value: 'tech-active' as TechMode,
-                      label: 'Tech Active',
-                      icon: <Calculator className='w-4 h-4' />,
-                      desc: 'Calculator required',
-                    },
-                  ] as const
-                ).map(({ value, label, icon, desc }) => {
-                  const isActive = techMode === value;
-                  return (
-                    <TooltipProvider key={value}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <motion.button
-                            whileHover={{ y: -2, scale: 1.01 }}
-                            whileTap={{ scale: 0.99 }}
-                            type='button'
-                            onClick={() => onSetTechMode(value)}
-                            className={cn(
-                              'flex min-h-16 flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all cursor-pointer w-full',
-                              isActive
-                                ? 'bg-primary/5 border-primary/30 text-primary'
-                                : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
-                            )}
-                          >
-                            <div>{icon}</div>
-                            <div className='text-sm font-medium'>{label}</div>
-                          </motion.button>
-                        </TooltipTrigger>
-                        <TooltipContent side='top'>
-                          <p>{desc}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  );
-                })}
-              </div>
-            </div>
+      {hasAnyMathTopic && (
+        <div
+          className={cn(
+            'flex flex-col gap-2',
+            selectedTopics.length <= 1 && 'md:col-span-2',
           )}
+        >
+          <SectionLabel>
+            <span className='flex items-center gap-2'>
+              <Calculator className='w-3.5 h-3.5' /> Calculator Mode
+            </span>
+          </SectionLabel>
 
-          {selectedTopics.length > 1 && (
-            <div
-              className={cn(
-                'flex flex-col gap-2',
-                !hasAnyMathTopic && 'md:col-span-2',
-              )}
-            >
-              <SectionLabel>
-                <span className='flex items-center gap-2'>
-                  <Shuffle className='w-3.5 h-3.5' /> Modifiers
-                </span>
-              </SectionLabel>
-              <div className='flex flex-col gap-2'>
-                <ToggleRow
-                  id='shuffle-questions'
-                  icon={<Shuffle className='w-5 h-5' />}
-                  label='Shuffle Questions'
-                  description='Mix questions evenly from all subjects'
-                  checked={shuffleQuestions}
-                  onCheckedChange={onSetShuffleQuestions}
-                />
-              </div>
-            </div>
-          )}
+          <div className='grid grid-cols-2 gap-4'>
+            {(
+              [
+                {
+                  value: 'tech-free' as TechMode,
+                  label: 'Tech Free',
+                  icon: <Pen className='w-4 h-4' />,
+                  desc: 'No calculator allowed',
+                },
+                {
+                  value: 'tech-active' as TechMode,
+                  label: 'Tech Active',
+                  icon: <Calculator className='w-4 h-4' />,
+                  desc: 'Calculator required',
+                },
+              ] as const
+            ).map(({ value, label, icon, desc }) => {
+              const isActive = techMode === value;
+              return (
+                <TooltipProvider key={value}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <motion.button
+                        whileHover={{ y: -2, scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        type='button'
+                        onClick={() => onSetTechMode(value)}
+                        className={cn(
+                          'flex min-h-16 flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all cursor-pointer w-full',
+                          isActive
+                            ? 'bg-primary/5 border-primary/30 text-primary'
+                            : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
+                        )}
+                      >
+                        <div>{icon}</div>
+                        <div className='text-sm font-medium'>{label}</div>
+                      </motion.button>
+                    </TooltipTrigger>
+                    <TooltipContent side='top'>
+                      <p>{desc}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
+          </div>
         </div>
       )}
 

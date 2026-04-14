@@ -55,6 +55,7 @@ export type PersistedSettings = {
   /** Model ID for the AI Tutor */
   tutorModel?: string;
   shuffleSubtopics?: boolean;
+  shuffleQuestions?: boolean;
 };
 
 export type PersistedGeneratorPreferences = {

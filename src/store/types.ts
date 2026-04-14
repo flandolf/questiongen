@@ -79,6 +79,7 @@ export interface AppState {
   strictSubtopicCoverage: boolean;
   minSubtopicCoverageRatio: number;
   shuffleSubtopics: boolean;
+  shuffleQuestions: boolean;
   generationStrategy: GenerationStrategy;
 
   // ── Written session ────────────────────────────────────────────────────────
@@ -214,7 +215,9 @@ export interface AppActions {
   setStrictSubtopicCoverage: (enabled: boolean) => void;
   setMinSubtopicCoverageRatio: (ratio: number) => void;
   setShuffleSubtopics: (enabled: boolean) => void;
+  setShuffleQuestions: (enabled: boolean) => void;
   setGenerationStrategy: (strategy: GenerationStrategy) => void;
+  resetPreferences: () => void;
 
   // Written session
   setQuestions: (questions: GeneratedQuestion[]) => void;

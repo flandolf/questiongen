@@ -30,7 +30,6 @@ type PresetSectionProps = {
   selectedTopics: Topic[];
   difficulty: Difficulty;
   techMode: TechMode;
-  avoidSimilarQuestions: boolean;
   mathMethodsSubtopics: MathMethodsSubtopic[];
   specialistMathSubtopics: SpecialistMathSubtopic[];
   chemistrySubtopics: ChemistrySubtopic[];
@@ -82,7 +81,6 @@ export function PresetSection({
   selectedTopics,
   difficulty,
   techMode,
-  avoidSimilarQuestions,
   mathMethodsSubtopics,
   specialistMathSubtopics,
   chemistrySubtopics,
@@ -153,7 +151,6 @@ export function PresetSection({
       selectedTopics,
       difficulty,
       techMode,
-      avoidSimilarQuestions,
       questionCount,
       averageMarksPerQuestion,
       questionMode,

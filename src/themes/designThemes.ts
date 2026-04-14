@@ -5,6 +5,7 @@ export type DesignTheme = {
 };
 
 export const themes = [
+  { name: 'academic', path: '@/themes/academic.css', label: 'Academic' },
   { name: 'claude', path: '@/themes/claude.css', label: 'Claude' },
   { name: 'zen', path: '@/themes/zen.css', label: 'Zen' },
   { name: 'blue', path: '@/themes/blue.css', label: 'Blue' },
