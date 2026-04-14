@@ -15,25 +15,6 @@ const MATHJAX_CDN_URL =
 const MATHJAX_SCRIPT_ID = 'mathjax-script';
 let mathJaxLoaderPromise: Promise<void> | null = null;
 
-type MathJaxRuntime = {
-  tex?: {
-    inlineMath?: [string, string][];
-    displayMath?: [string, string][];
-    packages?: Record<string, string[]>;
-  };
-  loader?: {
-    load?: string[];
-  };
-  startup?: {
-    typeset?: boolean;
-  };
-  typesetPromise?: (elements?: Element[]) => Promise<void>;
-};
-
-function getMathJaxRuntime(): MathJaxRuntime | undefined {
-  return window.MathJax as MathJaxRuntime | undefined;
-}
-
 function ensureMathJaxLoaded(): Promise<void> {
   if (typeof window === 'undefined') {
     return Promise.resolve();
@@ -43,7 +24,7 @@ function ensureMathJaxLoaded(): Promise<void> {
     return mathJaxLoaderPromise;
   }
 
-  if (!getMathJaxRuntime()) {
+  if (!window.MathJax) {
     window.MathJax = {
       tex: {
         inlineMath: [['$', '$']],
@@ -66,7 +47,7 @@ function ensureMathJaxLoaded(): Promise<void> {
       MATHJAX_SCRIPT_ID,
     ) as HTMLScriptElement | null;
 
-    const runtime = getMathJaxRuntime();
+    const runtime = window.MathJax;
     if (existing && typeof runtime?.typesetPromise === 'function') {
       window.dispatchEvent(new Event('mathjax:ready'));
       resolve();
@@ -82,8 +63,25 @@ function ensureMathJaxLoaded(): Promise<void> {
       }) as HTMLScriptElement);
 
     script.addEventListener('load', () => {
-      window.dispatchEvent(new Event('mathjax:ready'));
-      resolve();
+      // For MathJax 4, script 'load' only means the core is there.
+      // We should wait for the component-level readiness if possible,
+      // but dispatching mathjax:ready here is the minimum signal.
+      const runtime = window.MathJax;
+      if (runtime?.startup?.promise) {
+        runtime.startup.promise
+          .then(() => {
+            window.dispatchEvent(new Event('mathjax:ready'));
+            resolve();
+          })
+          .catch(() => {
+            // Even on error, we resolve/dispatch so components can try fallback
+            window.dispatchEvent(new Event('mathjax:ready'));
+            resolve();
+          });
+      } else {
+        window.dispatchEvent(new Event('mathjax:ready'));
+        resolve();
+      }
     });
 
     script.addEventListener('error', () => {
