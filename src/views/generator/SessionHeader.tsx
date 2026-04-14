@@ -78,8 +78,10 @@ function TimerDisplay({
 
   const wholeSeconds = Math.max(0, Math.floor(tick));
   const timerDisplay = `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, '0')}`;
-  const formatSeconds = (s: number) =>
-    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const formatSeconds = (s: number) => {
+    const safeSeconds = Number.isFinite(s) ? Math.max(0, Math.floor(s)) : 0;
+    return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, '0')}`;
+  };
 
   return (
     <span
@@ -166,12 +168,14 @@ export const SessionHeader = memo(function SessionHeader({
   const progressPct =
     totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
+  const marksRaw = questionMarks ?? maxMarks ?? 1;
+  const safeMarks = Number.isFinite(marksRaw) ? Math.max(1, marksRaw) : 1;
+  const minutesPerMark = difficultyAllocation?.minutesPerMark;
 
-  const recommendedSeconds = difficultyAllocation
-    ? difficultyAllocation.minutesPerMark *
-      (questionMarks ?? maxMarks ?? 1) *
-      (type === 'written' ? 1 : 0.8)
-    : undefined;
+  const recommendedSeconds =
+    typeof minutesPerMark === 'number' && Number.isFinite(minutesPerMark)
+      ? Math.round(minutesPerMark * safeMarks * (type === 'written' ? 1 : 0.8) * 60)
+      : undefined;
 
   return (
     <div className='sticky top-0 bg-background/90 backdrop-blur-md'>
