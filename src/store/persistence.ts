@@ -158,7 +158,7 @@ function mapSessions(s: PersistedAppState): Partial<AppState> {
   );
   const writtenSavedSetId =
     s.writtenSession.savedSetId &&
-      activeSavedSetIds.has(s.writtenSession.savedSetId)
+    activeSavedSetIds.has(s.writtenSession.savedSetId)
       ? s.writtenSession.savedSetId
       : null;
   const mcSavedSetId =

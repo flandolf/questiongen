@@ -560,7 +560,7 @@ function SetupPanelImpl({
                         className={cn(
                           'w-full rounded-sm relative z-10 shadow-sm transition-shadow duration-300',
                           isCurrent &&
-                          'shadow-[0_0_12px_rgba(var(--color-foreground),0.3)]',
+                            'shadow-[0_0_12px_rgba(var(--color-foreground),0.3)]',
                         )}
                       />
 
@@ -739,7 +739,7 @@ function SetupPanelImpl({
                     <div className='flex items-baseline gap-1.5'>
                       <span className='text-xl font-mono font-black tabular-nums tracking-tight text-foreground'>
                         {estimated.promptCost != null ||
-                          estimated.completionCost != null
+                        estimated.completionCost != null
                           ? formatCostUsd(estimated.totalCost).replace('$', '')
                           : '--.--'}
                       </span>
@@ -818,9 +818,9 @@ function SetupPanelImpl({
                     {isGenerationDisabled && (
                       <TooltipContent
                         side='top'
-                        className='flex flex-col gap-1.5 p-3 min-w-48'
+                        className='flex flex-col gap-1.5'
                       >
-                        <p className='font-bold text-destructive-foreground flex items-center gap-2'>
+                        <p className='flex items-center gap-2'>
                           <AlertTriangle className='w-3.5 h-3.5' /> Missing
                           Requirements
                         </p>
