@@ -259,38 +259,8 @@ export function useTimer(
     timerState.sessionFinishedAt,
   ]);
 
-  useEffect(() => {
-    if (questions.length === 0) return;
-    setTimerState((prev) => {
-      if (Object.keys(prev.questions).length === 0) return prev;
-
-      let changed = false;
-      const nextQuestions = { ...prev.questions };
-
-      for (const q of questions) {
-        const existing = nextQuestions[q.id];
-        if (!existing) continue;
-
-        const expectedMarks = getMarks(q);
-        if (existing.marks !== expectedMarks) {
-          changed = true;
-          nextQuestions[q.id] = {
-            ...existing,
-            marks: expectedMarks,
-          };
-        }
-      }
-
-      if (!changed) return prev;
-      return {
-        ...prev,
-        questions: nextQuestions,
-      };
-    });
-  }, [questions]);
-
   const start = useCallback(
-    (qs: GeneratedQuestion[] | McQuestion[]) => {
+    (qs: Array<GeneratedQuestion | McQuestion>) => {
       const s = timerStateRef.current;
       if (s.sessionStartedAt && !s.sessionFinishedAt) return;
 
@@ -327,6 +297,43 @@ export function useTimer(
     },
     [activeQuestionIndex],
   );
+
+  useEffect(() => {
+    if (questions.length === 0) return;
+
+    const s = timerStateRef.current;
+    if (Object.keys(s.questions).length === 0 && !s.sessionStartedAt) {
+      start(questions);
+      return;
+    }
+
+    setTimerState((prev) => {
+      if (Object.keys(prev.questions).length === 0) return prev;
+
+      let changed = false;
+      const nextQuestions = { ...prev.questions };
+
+      for (const q of questions) {
+        const existing = nextQuestions[q.id];
+        if (!existing) continue;
+
+        const expectedMarks = getMarks(q);
+        if (existing.marks !== expectedMarks) {
+          changed = true;
+          nextQuestions[q.id] = {
+            ...existing,
+            marks: expectedMarks,
+          };
+        }
+      }
+
+      if (!changed) return prev;
+      return {
+        ...prev,
+        questions: nextQuestions,
+      };
+    });
+  }, [questions, start]);
 
   const markAnswered = useCallback((questionId: string) => {
     const now = Date.now();
