@@ -11,6 +11,10 @@ export const themes = [
   { name: 'purple', path: '@/themes/purple.css', label: 'Purple' },
   { name: 'pink', path: '@/themes/pink.css', label: 'Pink' },
   { name: 'rose-pine', path: '@/themes/rose-pine.css', label: 'Rose Pine' },
+  { name: 'forest', path: '@/themes/forest.css', label: 'Forest' },
+  { name: 'midnight', path: '@/themes/midnight.css', label: 'Midnight' },
+  { name: 'sunset', path: '@/themes/sunset.css', label: 'Sunset' },
+  { name: 'slate', path: '@/themes/slate.css', label: 'Slate' },
 ] as const satisfies readonly DesignTheme[];
 
 const cssLoaders = import.meta.glob('/src/themes/*.css');
