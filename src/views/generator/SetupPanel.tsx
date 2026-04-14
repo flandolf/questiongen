@@ -178,10 +178,6 @@ type SetupPanelProps = {
   onSetDiversityStrictness: (value: DiversityStrictness) => void;
   strictLatexValidation: boolean;
   onSetStrictLatexValidation: (enabled: boolean) => void;
-  strictSubtopicCoverage: boolean;
-  onSetStrictSubtopicCoverage: (enabled: boolean) => void;
-  minSubtopicCoverageRatio: number;
-  onSetMinSubtopicCoverageRatio: (ratio: number) => void;
   difficulty: Difficulty;
   onSetDifficulty: (level: Difficulty) => void;
   questionCount: number;
@@ -238,10 +234,6 @@ function SetupPanelImpl({
   onSetDiversityStrictness,
   strictLatexValidation,
   onSetStrictLatexValidation,
-  strictSubtopicCoverage,
-  onSetStrictSubtopicCoverage,
-  minSubtopicCoverageRatio,
-  onSetMinSubtopicCoverageRatio,
   difficulty,
   onSetDifficulty,
   questionCount,
@@ -683,10 +675,6 @@ function SetupPanelImpl({
               onSetDiversityStrictness={onSetDiversityStrictness}
               strictLatexValidation={strictLatexValidation}
               onSetStrictLatexValidation={onSetStrictLatexValidation}
-              strictSubtopicCoverage={strictSubtopicCoverage}
-              onSetStrictSubtopicCoverage={onSetStrictSubtopicCoverage}
-              minSubtopicCoverageRatio={minSubtopicCoverageRatio}
-              onSetMinSubtopicCoverageRatio={onSetMinSubtopicCoverageRatio}
             />
           </div>
         </div>

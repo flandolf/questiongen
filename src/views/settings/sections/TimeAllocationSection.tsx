@@ -64,14 +64,10 @@ export function TimeAllocationSection() {
     'Extreme',
   ];
 
-  const handleUpdateAllocation = (
-    difficulty: Difficulty,
-    field: 'minutesPerQuestion',
-    value: number,
-  ) => {
+  const handleUpdateAllocation = (difficulty: Difficulty, value: number) => {
     const updated: TimeAllocationConfig = timeAllocations.map((alloc) =>
       alloc.difficulty === difficulty
-        ? { ...alloc, [field]: value, marksPerQuestion: 1 }
+        ? { ...alloc, minutesPerMark: value }
         : alloc,
     );
     setTimeAllocations(updated);
@@ -168,11 +164,7 @@ export function TimeAllocationSection() {
                 step={0.1}
                 value={[allocation.minutesPerMark]}
                 onValueChange={(value) =>
-                  handleUpdateAllocation(
-                    difficulty,
-                    'minutesPerQuestion',
-                    value[0],
-                  )
+                  handleUpdateAllocation(difficulty, value[0])
                 }
                 className='**:[[role=slider]]:size-4 **:[[role=slider]]:border-primary **:[[role=slider]]:bg-background **:[[role=slider]]:ring-offset-background'
               />

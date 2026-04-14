@@ -76,8 +76,6 @@ export type PersistedGeneratorPreferences = {
   difficultyThresholds?: { increase: number; decrease: number };
   diversityStrictness: DiversityStrictness;
   strictLatexValidation: boolean;
-  strictSubtopicCoverage: boolean;
-  minSubtopicCoverageRatio: number;
   generationStrategy?: GenerationStrategy;
 };
 
