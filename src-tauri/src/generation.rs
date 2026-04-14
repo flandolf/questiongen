@@ -119,9 +119,6 @@ impl GenerationService {
         &self,
         selected: Option<&Vec<String>>,
         produced: Vec<Option<String>>,
-        strict: bool,
-        requested_ratio: Option<f32>,
-        question_count: usize,
         latex_issue_examples: Vec<String>,
     ) -> Option<GenerationQualityDiagnostics> {
         let selected_raw = selected?;
@@ -156,36 +153,11 @@ impl GenerationService {
             .cloned()
             .collect();
 
-        let min_ratio = {
-            if selected_unique.is_empty() {
-                1.0
-            } else {
-                let feasible =
-                    (question_count as f32 / selected_unique.len() as f32).clamp(0.0, 1.0);
-                let base = requested_ratio
-                    .unwrap_or(if strict { 1.0 } else { 0.7 })
-                    .clamp(0.0, 1.0);
-                if strict {
-                    feasible
-                } else {
-                    base.min(feasible)
-                }
-            }
-        };
-
-        let ratio = if selected_unique.is_empty() {
-            1.0
-        } else {
-            covered.len() as f32 / selected_unique.len() as f32
-        };
-
         Some(GenerationQualityDiagnostics {
             selected_subtopics: selected_unique,
             covered_subtopics: covered,
             uncovered_subtopics: uncovered,
             out_of_scope_subtopics: out_of_scope,
-            subtopic_coverage_ratio: ratio,
-            min_subtopic_coverage_ratio: min_ratio,
             latex_issue_count: latex_issue_examples.len(),
             latex_issue_examples,
         })
@@ -287,7 +259,6 @@ impl GenerationService {
         let tech_mode = self.resolve_tech_mode(request.tech_mode.as_deref());
         let include_exam_context = request.include_exam_context.unwrap_or(false);
         let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
-        let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
         let (distinctness_threshold, per_question_distinctness_threshold) =
             self.diversity_thresholds(request.diversity_strictness.as_deref());
 
@@ -381,38 +352,9 @@ impl GenerationService {
         self.apply_tech_override(&mut payload.questions, tech_mode);
 
         let latex_issue_examples = self.collect_latex_issues(&payload.questions, false);
-        let mut quality_diagnostics = self.build_subtopic_diagnostics(
-            selected_subs,
-            payload
-                .questions
-                .iter()
-                .map(|q| q.subtopic.clone())
-                .collect(),
-            strict_subtopic_coverage,
-            request.min_subtopic_coverage_ratio,
-            request.question_count,
-            latex_issue_examples.clone(),
-        );
 
         if strict_latex_validation && !latex_issue_examples.is_empty() {
             return Err(AppError::new("VALIDATION_ERROR", format!("Generated output failed strict LaTeX validation ({} issue(s)); first issue: {}", latex_issue_examples.len(), latex_issue_examples[0])));
-        }
-
-        if strict_subtopic_coverage {
-            if let Some(diag) = &quality_diagnostics {
-                if diag.subtopic_coverage_ratio + 0.0001 < diag.min_subtopic_coverage_ratio {
-                    return Err(AppError::new("VALIDATION_ERROR", format!("Generated output did not meet subtopic coverage target ({:.0}% < {:.0}%). Missing: {}", diag.subtopic_coverage_ratio * 100.0, diag.min_subtopic_coverage_ratio * 100.0, diag.uncovered_subtopics.join(", "))));
-                }
-                if !diag.out_of_scope_subtopics.is_empty() {
-                    return Err(AppError::new(
-                        "VALIDATION_ERROR",
-                        format!(
-                            "Generated output used out-of-scope subtopics: {}",
-                            diag.out_of_scope_subtopics.join(", ")
-                        ),
-                    ));
-                }
-            }
         }
 
         if !payload.questions.is_empty() {
@@ -596,16 +538,13 @@ impl GenerationService {
         }
 
         let final_latex_issues = self.collect_latex_issues(&payload.questions, false);
-        quality_diagnostics = self.build_subtopic_diagnostics(
+        let quality_diagnostics = self.build_subtopic_diagnostics(
             selected_subs,
             payload
                 .questions
                 .iter()
                 .map(|q| q.subtopic.clone())
                 .collect(),
-            strict_subtopic_coverage,
-            request.min_subtopic_coverage_ratio,
-            request.question_count,
             final_latex_issues,
         );
 
@@ -672,7 +611,6 @@ impl GenerationService {
         let tech_mode = self.resolve_tech_mode(request.tech_mode.as_deref());
         let include_exam_context = request.include_exam_context.unwrap_or(false);
         let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
-        let strict_subtopic_coverage = request.strict_subtopic_coverage.unwrap_or(false);
         let (distinctness_threshold, per_question_distinctness_threshold) =
             self.diversity_thresholds(request.diversity_strictness.as_deref());
 
@@ -766,38 +704,9 @@ impl GenerationService {
         self.apply_tech_override(&mut payload.questions, tech_mode);
 
         let latex_issue_examples = self.collect_latex_issues(&payload.questions, true);
-        let mut quality_diagnostics = self.build_subtopic_diagnostics(
-            selected_subs,
-            payload
-                .questions
-                .iter()
-                .map(|q| q.subtopic.clone())
-                .collect(),
-            strict_subtopic_coverage,
-            request.min_subtopic_coverage_ratio,
-            request.question_count,
-            latex_issue_examples.clone(),
-        );
 
         if strict_latex_validation && !latex_issue_examples.is_empty() {
             return Err(AppError::new("VALIDATION_ERROR", format!("Generated output failed strict LaTeX validation ({} issue(s)); first issue: {}", latex_issue_examples.len(), latex_issue_examples[0])));
-        }
-
-        if strict_subtopic_coverage {
-            if let Some(diag) = &quality_diagnostics {
-                if diag.subtopic_coverage_ratio + 0.0001 < diag.min_subtopic_coverage_ratio {
-                    return Err(AppError::new("VALIDATION_ERROR", format!("Generated output did not meet subtopic coverage target ({:.0}% < {:.0}%). Missing: {}", diag.subtopic_coverage_ratio * 100.0, diag.min_subtopic_coverage_ratio * 100.0, diag.uncovered_subtopics.join(", "))));
-                }
-                if !diag.out_of_scope_subtopics.is_empty() {
-                    return Err(AppError::new(
-                        "VALIDATION_ERROR",
-                        format!(
-                            "Generated output used out-of-scope subtopics: {}",
-                            diag.out_of_scope_subtopics.join(", ")
-                        ),
-                    ));
-                }
-            }
         }
 
         let texts: Vec<String> = payload
@@ -953,16 +862,13 @@ impl GenerationService {
         }
 
         let final_latex_issues = self.collect_latex_issues(&payload.questions, true);
-        quality_diagnostics = self.build_subtopic_diagnostics(
+        let quality_diagnostics = self.build_subtopic_diagnostics(
             selected_subs,
             payload
                 .questions
                 .iter()
                 .map(|q| q.subtopic.clone())
                 .collect(),
-            strict_subtopic_coverage,
-            request.min_subtopic_coverage_ratio,
-            request.question_count,
             final_latex_issues,
         );
 

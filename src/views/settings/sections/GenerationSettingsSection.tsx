@@ -40,16 +40,6 @@ export function GenerationSettingsSection() {
   const setStrictLatexValidation = useAppStore(
     (s) => s.setStrictLatexValidation,
   );
-  const strictSubtopicCoverage = useAppStore((s) => s.strictSubtopicCoverage);
-  const setStrictSubtopicCoverage = useAppStore(
-    (s) => s.setStrictSubtopicCoverage,
-  );
-  const minSubtopicCoverageRatio = useAppStore(
-    (s) => s.minSubtopicCoverageRatio,
-  );
-  const setMinSubtopicCoverageRatio = useAppStore(
-    (s) => s.setMinSubtopicCoverageRatio,
-  );
   const generationStrategy = useAppStore((s) => s.generationStrategy);
   const setGenerationStrategy = useAppStore((s) => s.setGenerationStrategy);
   const shuffleSubtopics = useAppStore((s) => s.shuffleSubtopics);
@@ -387,75 +377,6 @@ export function GenerationSettingsSection() {
               checked={shuffleQuestions}
               onCheckedChange={setShuffleQuestions}
             />
-          </div>
-
-          <div>
-            <div className='flex items-center justify-between'>
-              <div>
-                <div className='flex items-center gap-1.5'>
-                  <p className='text-sm font-medium'>
-                    Strict Subtopic Coverage
-                  </p>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className='max-w-xs text-sm'>
-                          Ensures the generator prioritises the specific
-                          subtopics you've selected.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <p className='text-xs text-muted-foreground mt-0.5'>
-                  {strictSubtopicCoverage
-                    ? 'Generator will prioritise selected subtopics.'
-                    : 'Subtopic coverage is flexible.'}
-                </p>
-              </div>
-              <Switch
-                checked={strictSubtopicCoverage}
-                onCheckedChange={setStrictSubtopicCoverage}
-              />
-            </div>
-
-            <div className='mt-3'>
-              <div className='flex items-center justify-between mb-1'>
-                <div className='flex items-center gap-1.5'>
-                  <p className='text-sm font-medium'>
-                    Minimum Subtopic Coverage
-                  </p>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className='max-w-xs text-sm'>
-                          The minimum percentage of selected subtopics that must
-                          be covered in the generated set.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <span className='text-sm font-semibold'>
-                  {Math.round(minSubtopicCoverageRatio * 100)}%
-                </span>
-              </div>
-              <Slider
-                min={40}
-                max={100}
-                step={5}
-                value={[Math.round(minSubtopicCoverageRatio * 100)]}
-                onValueChange={(val) =>
-                  setMinSubtopicCoverageRatio(val[0] / 100)
-                }
-              />
-            </div>
           </div>
         </div>
       </Card>

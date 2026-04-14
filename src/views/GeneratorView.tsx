@@ -161,8 +161,6 @@ export function GeneratorView() {
   const [diversityStrictness, setDiversityStrictness] =
     useState<DiversityStrictness>('moderate');
   const [strictLatexValidation, setStrictLatexValidation] = useState(true);
-  const [strictSubtopicCoverage, setStrictSubtopicCoverage] = useState(true);
-  const [minSubtopicCoverageRatio, setMinSubtopicCoverageRatio] = useState(0.6);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
     Record<string, string>
@@ -1967,8 +1965,6 @@ export function GeneratorView() {
                     customFocusArea: getCustomFocusArea(),
                     avoidSimilarQuestions,
                     strictLatexValidation,
-                    strictSubtopicCoverage,
-                    minSubtopicCoverageRatio,
                     diversityStrictness,
                     priorQuestionPrompts: avoidSimilarQuestions
                       ? getRecentSameTopicQuestionPrompts('multiple-choice')
@@ -2060,8 +2056,6 @@ export function GeneratorView() {
                       customFocusArea: getCustomFocusArea(),
                       avoidSimilarQuestions,
                       strictLatexValidation,
-                      strictSubtopicCoverage,
-                      minSubtopicCoverageRatio,
                       diversityStrictness,
                       priorQuestionPrompts: avoidSimilarQuestions
                         ? getRecentSameTopicQuestionPrompts('multiple-choice')
@@ -2208,8 +2202,6 @@ export function GeneratorView() {
     includeExamContext,
     avoidSimilarQuestions,
     strictLatexValidation,
-    strictSubtopicCoverage,
-    minSubtopicCoverageRatio,
     diversityStrictness,
     getRecentSameTopicQuestionPrompts,
     aiDifficultyScalingEnabled,
@@ -2728,8 +2720,6 @@ export function GeneratorView() {
     setCustomFocusArea('');
     setDiversityStrictness('moderate');
     setStrictLatexValidation(true);
-    setStrictSubtopicCoverage(true);
-    setMinSubtopicCoverageRatio(0.6);
     resetStopwatch();
     useTutorStore.getState().clearAllSessions();
     setBatchProgress([]);
@@ -2904,10 +2894,6 @@ export function GeneratorView() {
           onSetDiversityStrictness={setDiversityStrictness}
           strictLatexValidation={strictLatexValidation}
           onSetStrictLatexValidation={setStrictLatexValidation}
-          strictSubtopicCoverage={strictSubtopicCoverage}
-          onSetStrictSubtopicCoverage={setStrictSubtopicCoverage}
-          minSubtopicCoverageRatio={minSubtopicCoverageRatio}
-          onSetMinSubtopicCoverageRatio={setMinSubtopicCoverageRatio}
           difficulty={difficulty}
           onSetDifficulty={setDifficulty}
           questionCount={questionCount}

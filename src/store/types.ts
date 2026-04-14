@@ -76,8 +76,6 @@ export interface AppState {
   // ── Generation flags ─────────────────────────────────────────────────────
   diversityStrictness: 'lenient' | 'moderate' | 'strict';
   strictLatexValidation: boolean;
-  strictSubtopicCoverage: boolean;
-  minSubtopicCoverageRatio: number;
   shuffleSubtopics: boolean;
   shuffleQuestions: boolean;
   generationStrategy: GenerationStrategy;
@@ -212,8 +210,6 @@ export interface AppActions {
   // Generation flags
   setDiversityStrictness: (level: 'lenient' | 'moderate' | 'strict') => void;
   setStrictLatexValidation: (enabled: boolean) => void;
-  setStrictSubtopicCoverage: (enabled: boolean) => void;
-  setMinSubtopicCoverageRatio: (ratio: number) => void;
   setShuffleSubtopics: (enabled: boolean) => void;
   setShuffleQuestions: (enabled: boolean) => void;
   setGenerationStrategy: (strategy: GenerationStrategy) => void;

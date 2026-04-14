@@ -5,8 +5,6 @@ export type GenerationQualityDiagnostics = {
   coveredSubtopics: string[];
   uncoveredSubtopics: string[];
   outOfScopeSubtopics: string[];
-  subtopicCoverageRatio: number;
-  minSubtopicCoverageRatio: number;
   latexIssueCount: number;
   latexIssueExamples: string[];
 };

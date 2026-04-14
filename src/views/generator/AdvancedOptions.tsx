@@ -135,10 +135,6 @@ export type AdvancedOptionsGroupProps = {
   onSetDiversityStrictness: (value: DiversityStrictness) => void;
   strictLatexValidation: boolean;
   onSetStrictLatexValidation: (enabled: boolean) => void;
-  strictSubtopicCoverage: boolean;
-  onSetStrictSubtopicCoverage: (enabled: boolean) => void;
-  minSubtopicCoverageRatio: number;
-  onSetMinSubtopicCoverageRatio: (ratio: number) => void;
 };
 
 export function AdvancedOptionsGroup({

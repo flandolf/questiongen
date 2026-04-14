@@ -174,7 +174,9 @@ export const SessionHeader = memo(function SessionHeader({
 
   const recommendedSeconds =
     typeof minutesPerMark === 'number' && Number.isFinite(minutesPerMark)
-      ? Math.round(minutesPerMark * safeMarks * (type === 'written' ? 1 : 0.8) * 60)
+      ? Math.round(
+          minutesPerMark * safeMarks * (type === 'written' ? 1 : 0.8) * 60,
+        )
       : undefined;
 
   return (

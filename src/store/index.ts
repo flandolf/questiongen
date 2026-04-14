@@ -97,8 +97,6 @@ const defaultState: AppState = {
   difficultyThresholds: { increase: 85, decrease: 70 },
   diversityStrictness: 'moderate',
   strictLatexValidation: true,
-  strictSubtopicCoverage: true,
-  minSubtopicCoverageRatio: 0.6,
   shuffleSubtopics: false,
   shuffleQuestions: false,
   generationStrategy: 'multi-pass',
@@ -320,10 +318,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setDiversityStrictness: (diversityStrictness) => set({ diversityStrictness }),
   setStrictLatexValidation: (strictLatexValidation) =>
     set({ strictLatexValidation }),
-  setStrictSubtopicCoverage: (strictSubtopicCoverage) =>
-    set({ strictSubtopicCoverage }),
-  setMinSubtopicCoverageRatio: (minSubtopicCoverageRatio) =>
-    set({ minSubtopicCoverageRatio }),
   setShuffleSubtopics: (shuffleSubtopics) => set({ shuffleSubtopics }),
   setShuffleQuestions: (shuffleQuestions) => set({ shuffleQuestions }),
   setGenerationStrategy: (generationStrategy) => set({ generationStrategy }),
@@ -346,8 +340,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       difficultyThresholds: defaultState.difficultyThresholds,
       diversityStrictness: defaultState.diversityStrictness,
       strictLatexValidation: defaultState.strictLatexValidation,
-      strictSubtopicCoverage: defaultState.strictSubtopicCoverage,
-      minSubtopicCoverageRatio: defaultState.minSubtopicCoverageRatio,
       shuffleSubtopics: defaultState.shuffleSubtopics,
       shuffleQuestions: defaultState.shuffleQuestions,
       generationStrategy: defaultState.generationStrategy,
@@ -456,8 +448,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
         questionMode: s.questionMode,
         diversityStrictness: s.diversityStrictness,
         strictLatexValidation: s.strictLatexValidation,
-        strictSubtopicCoverage: s.strictSubtopicCoverage,
-        minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
         generationStrategy: s.generationStrategy,
       };
       const writtenSession: PersistedWrittenSession = {
@@ -533,8 +523,6 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
       questionMode: s.questionMode,
       diversityStrictness: s.diversityStrictness,
       strictLatexValidation: s.strictLatexValidation,
-      strictSubtopicCoverage: s.strictSubtopicCoverage,
-      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
       generationStrategy: s.generationStrategy,
     };
     const mcSession: PersistedMcSession = {

@@ -22,6 +22,7 @@ import type {
   StreakData,
   StudentAnswerImage,
   StudyGoals,
+  TimeAllocation,
   TimeAllocationConfig,
   WrittenAnswerAnalytics,
 } from '../types';
@@ -81,8 +82,6 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   difficultyThresholds: { increase: 85, decrease: 70 },
   diversityStrictness: 'moderate',
   strictLatexValidation: true,
-  strictSubtopicCoverage: true,
-  minSubtopicCoverageRatio: 0.6,
   generationStrategy: 'multi-pass',
 };
 
@@ -453,19 +452,6 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
       typeof data.strictLatexValidation === 'boolean'
         ? data.strictLatexValidation
         : DEFAULT_PREFERENCES.strictLatexValidation,
-    strictSubtopicCoverage:
-      typeof data.strictSubtopicCoverage === 'boolean'
-        ? data.strictSubtopicCoverage
-        : DEFAULT_PREFERENCES.strictSubtopicCoverage,
-    minSubtopicCoverageRatio:
-      typeof data.minSubtopicCoverageRatio === 'number'
-        ? clampWholeNumber(
-            data.minSubtopicCoverageRatio,
-            DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
-            0,
-            1,
-          )
-        : DEFAULT_PREFERENCES.minSubtopicCoverageRatio,
     generationStrategy: isGenerationStrategy(data.generationStrategy)
       ? data.generationStrategy
       : DEFAULT_PREFERENCES.generationStrategy,
@@ -1251,12 +1237,7 @@ function normalizeTimeAllocations(raw: unknown): TimeAllocationConfig {
     return DEFAULT_TIME_ALLOCATIONS;
   }
 
-  const result: Array<{
-    difficulty: string;
-    questionMode?: string;
-    minutesPerQuestion: number;
-    marksPerQuestion: number;
-  }> = [];
+  const result: TimeAllocationConfig = [];
   const validDifficulties = new Set([
     'Essential Skills',
     'Easy',
@@ -1271,38 +1252,34 @@ function normalizeTimeAllocations(raw: unknown): TimeAllocationConfig {
     }
 
     const difficulty = asString(item.difficulty);
-    const minutesPerQuestion = asFiniteNumber(item.minutesPerQuestion);
-    const marksPerQuestion = asFiniteNumber(item.marksPerQuestion);
-
-    // Check for required fields
-    if (
-      !difficulty ||
-      minutesPerQuestion === null ||
-      minutesPerQuestion === undefined ||
-      marksPerQuestion === null ||
-      marksPerQuestion === undefined
-    ) {
+    if (!isDifficulty(difficulty) || !validDifficulties.has(difficulty)) {
       continue;
     }
 
-    // Validate that difficulty is one of the valid options
-    if (!validDifficulties.has(difficulty)) {
+    // Try to get minutesPerMark directly
+    let minutesPerMark = asFiniteNumber(item.minutesPerMark);
+
+    // Fallback to legacy minutesPerQuestion / marksPerQuestion
+    if (minutesPerMark === undefined) {
+      const minutesPerQuestion = asFiniteNumber(item.minutesPerQuestion);
+      const marksPerQuestion = asFiniteNumber(item.marksPerQuestion);
+
+      if (
+        minutesPerQuestion !== undefined &&
+        marksPerQuestion !== undefined &&
+        marksPerQuestion > 0
+      ) {
+        minutesPerMark = minutesPerQuestion / marksPerQuestion;
+      }
+    }
+
+    if (minutesPerMark === undefined) {
       continue;
     }
 
-    if (!isDifficulty(difficulty)) {
-      continue;
-    }
-
-    const allocationObj: {
-      difficulty: typeof difficulty;
-      minutesPerQuestion: number;
-      marksPerQuestion: number;
-      questionMode?: QuestionMode;
-    } = {
+    const allocationObj: TimeAllocation = {
       difficulty,
-      minutesPerQuestion,
-      marksPerQuestion,
+      minutesPerMark,
     };
 
     const questionMode = asString(item.questionMode);
@@ -1313,7 +1290,5 @@ function normalizeTimeAllocations(raw: unknown): TimeAllocationConfig {
     result.push(allocationObj);
   }
 
-  return (
-    result.length > 0 ? result : DEFAULT_TIME_ALLOCATIONS
-  ) as TimeAllocationConfig;
+  return result.length > 0 ? result : DEFAULT_TIME_ALLOCATIONS;
 }

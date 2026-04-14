@@ -59,8 +59,6 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       difficultyThresholds: s.difficultyThresholds,
       diversityStrictness: s.diversityStrictness,
       strictLatexValidation: s.strictLatexValidation,
-      strictSubtopicCoverage: s.strictSubtopicCoverage,
-      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
       generationStrategy: s.generationStrategy,
     },
     writtenSession: {
@@ -142,8 +140,6 @@ function mapPreferences(s: PersistedAppState): Partial<AppState> {
     aiDifficultyScalingEnabled: p.aiDifficultyScalingEnabled ?? true,
     diversityStrictness: p.diversityStrictness ?? 'moderate',
     strictLatexValidation: p.strictLatexValidation ?? true,
-    strictSubtopicCoverage: p.strictSubtopicCoverage ?? true,
-    minSubtopicCoverageRatio: p.minSubtopicCoverageRatio ?? 0.6,
     generationStrategy: p.generationStrategy ?? 'multi-pass',
     difficultyThresholds: p.difficultyThresholds ?? {
       increase: 85,

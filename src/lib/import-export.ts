@@ -95,8 +95,6 @@ export interface ImportExportState {
   mcTimer: PersistedAppState['mcTimer'];
   diversityStrictness: DiversityStrictness;
   strictLatexValidation: boolean;
-  strictSubtopicCoverage: boolean;
-  minSubtopicCoverageRatio: number;
   timeAllocations: PersistedAppState['timeAllocations'];
 }
 
@@ -508,8 +506,6 @@ function buildExportSnapshot(
       difficultyThresholds: s.difficultyThresholds,
       diversityStrictness: s.diversityStrictness,
       strictLatexValidation: s.strictLatexValidation,
-      strictSubtopicCoverage: s.strictSubtopicCoverage,
-      minSubtopicCoverageRatio: s.minSubtopicCoverageRatio,
     },
     writtenSession: {
       questions: s.questions,
