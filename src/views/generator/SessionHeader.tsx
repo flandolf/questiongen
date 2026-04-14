@@ -168,7 +168,9 @@ export const SessionHeader = memo(function SessionHeader({
   const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
 
   const recommendedSeconds = difficultyAllocation
-    ? difficultyAllocation.minutesPerMark * (questionMarks ?? maxMarks ?? 1) * (type === 'written' ? 1 : 0.8)
+    ? difficultyAllocation.minutesPerMark *
+      (questionMarks ?? maxMarks ?? 1) *
+      (type === 'written' ? 1 : 0.8)
     : undefined;
 
   return (
