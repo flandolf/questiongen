@@ -332,16 +332,14 @@ const ScorePill = memo(function ScorePill({
   awarded: number;
   max: number;
 }) {
-  const isCorrect = awarded >= max;
+  const pct = max > 0 ? awarded / max : 0;
   return (
     <span
-      className={`inline-flex items-center gap-1.5  px-2.5 py-1 rounded-sm text-[11px] leading-none ${
-        isCorrect
-          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-          : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300'
-      }`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[11px] leading-none ${scoreColorBgClass(
+        pct,
+      )}`}
     >
-      {isCorrect ? (
+      {pct >= 0.9 ? (
         <CheckCircle2 className='w-3 h-3 shrink-0' />
       ) : (
         <XCircle className='w-3 h-3 shrink-0' />
@@ -545,14 +543,12 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   onExport: () => void;
   isSyncEnabled: boolean;
 }) {
-  const score = item.markResponse.scoreOutOf10;
   const pct =
     item.markResponse.maxMarks > 0
       ? Math.round(
           (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100,
         )
       : 0;
-  const colorClass = scoreColorBgClass(score / 10);
 
   return (
     <Card
@@ -596,11 +592,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
 
           {/* Right: score + actions */}
           <div className='flex items-center gap-1.5 shrink-0'>
-            <span
-              className={`font-bold px-2.5 py-1 rounded-sm text-[11px] leading-none ${colorClass}`}
-            >
-              {score}/10
-            </span>
+            <ScorePill
+              awarded={item.markResponse.achievedMarks}
+              max={item.markResponse.maxMarks}
+            />
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
             <button
               type='button'
