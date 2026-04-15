@@ -11,7 +11,6 @@ import {
 } from '../lib/app-utils';
 import { useTheme } from './theme-provider';
 
-
 type MarkdownMathProps = {
   content: string;
 };

@@ -107,7 +107,6 @@ fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> Canonicali
         return CanonicalizeResult::Mapped(matched.to_string());
     }
 
-    const SIMILARITY_THRESHOLD: f64 = 0.6;
     let mut best_score = 0.0f64;
     let mut best_match: Option<&str> = None;
     let mut tie_count = 0usize;
@@ -118,13 +117,19 @@ fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> Canonicali
             best_score = score;
             best_match = Some(canonical);
             tie_count = 1;
-        } else if (score - best_score).abs() <= 0.001 && score >= SIMILARITY_THRESHOLD {
+        } else if (score - best_score).abs() <= 0.001
+            && score.is_finite()
+            && score > crate::cleanup::AUTO_MAP_CONFIDENCE_THRESHOLD
+        {
             tie_count += 1;
         }
     }
 
     if let Some(matched) = best_match {
-        if best_score >= SIMILARITY_THRESHOLD && tie_count == 1 {
+        if best_score.is_finite()
+            && best_score > crate::cleanup::AUTO_MAP_CONFIDENCE_THRESHOLD
+            && tie_count == 1
+        {
             return CanonicalizeResult::Mapped(matched.to_string());
         }
     }
