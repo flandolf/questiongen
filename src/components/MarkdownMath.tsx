@@ -11,14 +11,6 @@ import {
 } from '../lib/app-utils';
 import { useTheme } from './theme-provider';
 
-type MathJaxRuntime = {
-  typesetPromise?: (elements?: Element[]) => Promise<void>;
-  typesetClear?: (elements?: Element[]) => void;
-};
-
-function getMathJaxRuntime(): MathJaxRuntime | undefined {
-  return window.MathJax as MathJaxRuntime | undefined;
-}
 
 type MarkdownMathProps = {
   content: string;
@@ -259,27 +251,58 @@ export const MarkdownMath = memo(function MarkdownMath({
     };
 
     const typeset = () => {
+      // 1. Restore protected math placeholders after markdown rendering.
       restorePlaceholders();
 
-      const runtime = getMathJaxRuntime();
-      if (typeof runtime?.typesetPromise !== 'function') {
-        return;
-      }
+      const runtime = window.MathJax;
+      if (!runtime) return;
 
-      if (typeof runtime.typesetClear === 'function') {
-        runtime.typesetClear([container]);
-      }
+      // 2. Typesetting logic
+      const performTypeset = () => {
+        if (typeof runtime.typesetPromise !== 'function') return;
 
-      void runtime.typesetPromise([container]);
+        // Clear existing MathJax state for this container to avoid "doubling"
+        // or stale rendering if the content changed but kept some math.
+        if (typeof runtime.typesetClear === 'function') {
+          try {
+            runtime.typesetClear([container]);
+          } catch (e) {
+            console.warn('MathJax typesetClear failed:', e);
+          }
+        }
+
+        // Trigger typesetting and catch errors to prevent promise rejection
+        // from bubbling up to React's error boundary.
+        runtime.typesetPromise([container]).catch((err) => {
+          console.error('MathJax typesetPromise error:', err);
+        });
+      };
+
+      // 3. Ensure MathJax is fully initialized before typesetting.
+      // MathJax 4 uses startup.promise to indicate readiness.
+      if (runtime.startup?.promise) {
+        runtime.startup.promise.then(performTypeset).catch((err) => {
+          console.error('MathJax startup promise error:', err);
+          // Try to perform typeset anyway as a fallback
+          performTypeset();
+        });
+      } else {
+        // Fallback for when startup.promise is missing (should not happen in v4)
+        performTypeset();
+      }
     };
 
-    if (typeof getMathJaxRuntime()?.typesetPromise === 'function') {
-      typeset();
-      return;
+    // If MathJax is already available, typeset immediately.
+    // We check for typesetPromise specifically as it indicates the component is ready.
+    if (typeof window.MathJax?.typesetPromise === 'function') {
+      // Use requestAnimationFrame to ensure the DOM has updated after restorePlaceholders
+      // before MathJax starts scanning it.
+      const rafId = requestAnimationFrame(typeset);
+      return () => cancelAnimationFrame(rafId);
     }
 
+    // Otherwise, wait for the loader to signal readiness.
     window.addEventListener('mathjax:ready', typeset);
-
     return () => {
       window.removeEventListener('mathjax:ready', typeset);
     };
