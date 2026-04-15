@@ -260,6 +260,7 @@ fn escape_unescaped_percent(content: &str) -> String {
 }
 
 fn repair_math_typos(text: &str) -> String {
+    let text = repair_backspace_latex_prefixes(text);
     let text = text.replace("\\fty", "\\infty");
 
     const COMMANDS: &[&str] = &[
@@ -299,6 +300,53 @@ fn repair_math_typos(text: &str) -> String {
     }
 
     out.push_str(rest);
+    out
+}
+
+fn repair_backspace_latex_prefixes(text: &str) -> String {
+    const COMMANDS: &[&str] = &[
+        "beta",
+        "bar",
+        "bf",
+        "begin",
+        "binom",
+        "big",
+        "Big",
+        "bigg",
+        "Bigg",
+        "bot",
+        "bullet",
+        "bmod",
+        "bowtie",
+        "backslash",
+        "bmatrix",
+        "bmathbb",
+    ];
+
+    let mut out = String::with_capacity(text.len() + 2);
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if chars[i] == '\u{0008}' {
+            let rest: String = chars[i + 1..].iter().collect();
+            if let Some(command) = COMMANDS.iter().find(|command| rest.starts_with(**command)) {
+                let next_idx = i + 1 + command.len();
+                if next_idx >= len || !chars[next_idx].is_ascii_alphabetic() {
+                    out.push('\\');
+                    out.push('b');
+                    out.push_str(command);
+                    i += 1 + command.len();
+                    continue;
+                }
+            }
+        }
+
+        out.push(chars[i]);
+        i += 1;
+    }
+
     out
 }
 
@@ -672,6 +720,7 @@ pub fn latex_issues_for_text(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::text_clean::clean_field;
 
     #[test]
     fn lexer_extracts_math_correctly() {
@@ -747,5 +796,10 @@ mod tests {
     fn latex_issue_detector_accepts_valid_hline_row_breaks() {
         let issues = latex_issues_for_text(r"\begin{array}{c|c} x & 1 \\ \hline y & 2 \end{array}");
         assert!(issues.is_empty(), "unexpected issues: {issues:?}");
+    }
+
+    #[test]
+    fn repair_backspace_control_character_before_binom() {
+        assert_eq!(clean_field("P(X)=\u{0008}inom{4}{2}"), r"P(X)=\binom{4}{2}");
     }
 }

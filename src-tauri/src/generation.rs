@@ -1,3 +1,4 @@
+use crate::catalog;
 use crate::constants;
 use crate::difficulty;
 use crate::envelope::normalise_envelope;
@@ -18,11 +19,181 @@ use crate::prompts;
 use crate::quality;
 use crate::schemas;
 use crate::text_clean::{clean_field, sanitize_for_api};
+use std::collections::HashSet;
 use std::time::Instant;
 use tauri::Emitter;
 
 pub struct GenerationService {
     app: tauri::AppHandle,
+}
+
+struct PreparedGenerationInputs {
+    topics: Vec<String>,
+    subtopics: Option<Vec<String>>,
+    custom_focus_area: Option<String>,
+    prior_question_prompts: Option<Vec<String>>,
+    average_marks: Option<u8>,
+}
+
+fn normalize_unique_strings(values: &[String]) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut cleaned = Vec::new();
+
+    for value in values {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let key = trimmed.to_ascii_lowercase();
+        if seen.insert(key) {
+            cleaned.push(trimmed.to_string());
+        }
+    }
+
+    cleaned
+}
+
+fn normalize_optional_text(value: Option<&String>) -> Option<String> {
+    value
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+}
+
+fn validate_and_prepare_generation_inputs(
+    topics: &[String],
+    subtopics: Option<&Vec<String>>,
+    custom_focus_area: Option<&String>,
+    prior_question_prompts: Option<&Vec<String>>,
+    average_marks: Option<u8>,
+) -> CommandResult<PreparedGenerationInputs> {
+    let topics = normalize_unique_strings(topics);
+    if topics.is_empty() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Select at least one topic.",
+        ));
+    }
+
+    let catalog_topics: HashSet<String> = catalog::topic_names()
+        .into_iter()
+        .map(|t| t.to_ascii_lowercase())
+        .collect();
+    let unknown_topics: Vec<String> = topics
+        .iter()
+        .filter(|topic| !catalog_topics.contains(&topic.to_ascii_lowercase()))
+        .cloned()
+        .collect();
+    if !unknown_topics.is_empty() {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            format!("Unknown topic(s): {}.", unknown_topics.join(", ")),
+        ));
+    }
+
+    let subtopics: Option<Vec<String>> = subtopics
+        .map(|items| normalize_unique_strings(items))
+        .filter(|s| !s.is_empty());
+    if let Some(ref selected_subtopics) = subtopics {
+        let selected_topics: HashSet<String> =
+            topics.iter().map(|t| t.to_ascii_lowercase()).collect();
+        let allowed_subtopics: HashSet<String> = catalog::all_topics()
+            .iter()
+            .filter(|topic| selected_topics.contains(&topic.name.to_ascii_lowercase()))
+            .flat_map(|topic| topic.subtopics.iter())
+            .map(|subtopic| subtopic.name.to_ascii_lowercase())
+            .collect();
+
+        let unknown_subtopics: Vec<String> = selected_subtopics
+            .iter()
+            .filter(|subtopic| !allowed_subtopics.contains(&subtopic.to_ascii_lowercase()))
+            .cloned()
+            .collect();
+
+        if !unknown_subtopics.is_empty() {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!(
+                    "Unknown subtopic(s) for the selected topic(s): {}.",
+                    unknown_subtopics.join(", ")
+                ),
+            ));
+        }
+    }
+
+    if let Some(marks) = average_marks {
+        if marks == 0 || marks > constants::MAX_MARKS_PER_QUESTION {
+            return Err(AppError::new(
+                "VALIDATION_ERROR",
+                format!(
+                    "Average marks per question must be 1–{}.",
+                    constants::MAX_MARKS_PER_QUESTION
+                ),
+            ));
+        }
+    }
+
+    Ok(PreparedGenerationInputs {
+        topics,
+        subtopics,
+        custom_focus_area: normalize_optional_text(custom_focus_area),
+        prior_question_prompts: prior_question_prompts
+            .map(|prompts| normalize_unique_strings(prompts))
+            .filter(|prompts| !prompts.is_empty()),
+        average_marks,
+    })
+}
+
+fn estimate_completion_budget(
+    question_count: usize,
+    average_marks: u8,
+    difficulty: &str,
+    include_exam_context: bool,
+    topic_count: usize,
+    subtopic_count: usize,
+    prior_question_count: usize,
+    has_custom_focus_area: bool,
+    avoid_similar_questions: bool,
+) -> u32 {
+    let base_per_question = match average_marks {
+        1..=3 => 1800,
+        4..=7 => 2500,
+        8..=15 => 3500,
+        16..=30 => 4500,
+        _ => 3000,
+    };
+
+    let difficulty_multiplier = match difficulty.to_ascii_lowercase().as_str() {
+        "essential skills" => 0.85,
+        "easy" => 0.95,
+        "medium" => 1.0,
+        "hard" => 1.15,
+        "extreme" => 1.3,
+        _ => 1.0,
+    };
+
+    let topic_multiplier = 1.0 + (topic_count.saturating_sub(1).min(3) as f32 * 0.05);
+    let subtopic_multiplier = if subtopic_count == 0 {
+        1.0
+    } else {
+        1.0 + (subtopic_count.min(6) as f32 * 0.04)
+    };
+    let prior_example_multiplier = 1.0 + (prior_question_count.min(6) as f32 * 0.02);
+    let custom_focus_multiplier = if has_custom_focus_area { 1.08 } else { 1.0 };
+    let similarity_multiplier = if avoid_similar_questions { 1.05 } else { 1.0 };
+    let pdf_overhead = if include_exam_context { 1200 } else { 0 };
+
+    let estimated = question_count as f32
+        * base_per_question as f32
+        * difficulty_multiplier
+        * topic_multiplier
+        * subtopic_multiplier
+        * prior_example_multiplier
+        * custom_focus_multiplier
+        * similarity_multiplier;
+
+    (estimated as u32 + pdf_overhead + 2000).clamp(3000, 64_000)
 }
 
 impl GenerationService {
@@ -36,31 +207,23 @@ impl GenerationService {
         average_marks: u8,
         difficulty: &str,
         include_exam_context: bool,
+        topic_count: usize,
+        subtopic_count: usize,
+        prior_question_count: usize,
+        has_custom_focus_area: bool,
+        avoid_similar_questions: bool,
     ) -> u32 {
-        let base_per_question = match average_marks {
-            1..=3 => 1800,
-            4..=7 => 2500,
-            8..=15 => 3500,
-            16..=30 => 4500,
-            _ => 3000,
-        };
-
-        let difficulty_multiplier = match difficulty.to_ascii_lowercase().as_str() {
-            "essential skills" => 0.85,
-            "easy" => 0.95,
-            "medium" => 1.0,
-            "hard" => 1.15,
-            "extreme" => 1.3,
-            _ => 1.0,
-        };
-
-        let pdf_overhead = if include_exam_context { 1000 } else { 0 };
-        let total = (question_count as u32
-            * (base_per_question as f32 * difficulty_multiplier) as u32)
-            + pdf_overhead
-            + 2000;
-
-        total.clamp(3000, 64_000)
+        estimate_completion_budget(
+            question_count,
+            average_marks,
+            difficulty,
+            include_exam_context,
+            topic_count,
+            subtopic_count,
+            prior_question_count,
+            has_custom_focus_area,
+            avoid_similar_questions,
+        )
     }
 
     pub fn emit_generation_status(&self, payload: serde_json::Value) {
@@ -254,8 +417,23 @@ impl GenerationService {
         }
         self.validate_params(&request.api_key, &request.model)?;
 
+        let prepared = validate_and_prepare_generation_inputs(
+            &request.topics,
+            request.subtopics.as_ref(),
+            request.custom_focus_area.as_ref(),
+            request.prior_question_prompts.as_ref(),
+            request.average_marks_per_question,
+        )?;
+        let PreparedGenerationInputs {
+            topics,
+            subtopics,
+            custom_focus_area,
+            prior_question_prompts,
+            average_marks,
+        } = prepared;
+
         let started = Instant::now();
-        let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
+        let selected_subs = subtopics.as_ref();
         let tech_mode = self.resolve_tech_mode(request.tech_mode.as_deref());
         let include_exam_context = request.include_exam_context.unwrap_or(false);
         let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
@@ -269,7 +447,7 @@ impl GenerationService {
             request.recent_difficulty.as_deref(),
         );
 
-        let average_marks = request.average_marks_per_question.unwrap_or(10);
+        let average_marks = average_marks.unwrap_or(10);
         let total_marks = average_marks as usize * request.question_count;
 
         self.emit_generation_status(serde_json::json!({
@@ -279,16 +457,16 @@ impl GenerationService {
 
         let prompt_builder = prompts::UserPromptBuilder {
             count: request.question_count,
-            topics: request.topics.clone(),
+            topics: topics.clone(),
             difficulty: adjusted_difficulty.clone(),
             average_marks: Some(average_marks),
-            subtopics: request.subtopics.clone(),
-            custom_focus_area: request.custom_focus_area.clone(),
+            subtopics: subtopics.clone(),
+            custom_focus_area: custom_focus_area.clone(),
             tech_mode: tech_mode.to_string(),
             include_exam_context,
             avoid_similar_questions: request.avoid_similar_questions.unwrap_or(false),
             shuffle_subtopics: request.shuffle_subtopics.unwrap_or(false),
-            prior_question_prompts: request.prior_question_prompts.clone(),
+            prior_question_prompts: prior_question_prompts.clone(),
         };
         let prompt = prompt_builder.build_written();
 
@@ -305,6 +483,11 @@ impl GenerationService {
             average_marks,
             &adjusted_difficulty,
             include_exam_context,
+            topics.len(),
+            subtopics.as_ref().map_or(0, Vec::len),
+            prior_question_prompts.as_ref().map_or(0, Vec::len),
+            custom_focus_area.is_some(),
+            request.avoid_similar_questions.unwrap_or(false),
         );
 
         let stats_result = get_model_stats(request.api_key.clone(), request.model.clone()).await;
@@ -313,11 +496,11 @@ impl GenerationService {
 
         let user_content = if include_exam_context {
             let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
-            parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
-            parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
+            parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
+            parts.extend(pdf::build_report_file_parts(&self.app, &topics));
             let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
                 selected_subs,
-                request.custom_focus_area.as_deref(),
+                custom_focus_area.as_deref(),
                 request.shuffle_subtopics.unwrap_or(false),
             ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
@@ -347,7 +530,7 @@ impl GenerationService {
         }));
 
         let mut payload: WrittenQuestionsPayload = self.parse_payload(&result.content)?;
-        normalization::normalise_written(&mut payload.questions, &request.topics, selected_subs);
+        normalization::normalise_written(&mut payload.questions, &topics, selected_subs);
         normalization::validate_written(&payload.questions, request.question_count)?;
         self.apply_tech_override(&mut payload.questions, tech_mode);
 
@@ -420,14 +603,14 @@ impl GenerationService {
                 self.emit_generation_status(serde_json::json!({ "mode": "written", "stage": "regenerating-duplicates", "message": format!("Regenerating to improve diversity (attempt {})...", attempts), "attempt": attempts + 1 }));
                 let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
                 let adaptive_note = prompts::adaptive_quality_note(&metrics);
-                let regen_intro = format!("Regenerate {count} written-response questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count, topics = sanitize_for_api(&request.topics.join(", ")), difficulty = adjusted_difficulty);
+                let regen_intro = format!("Regenerate {count} written-response questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count, topics = sanitize_for_api(&topics.join(", ")), difficulty = adjusted_difficulty);
 
                 let new_user_content = if include_exam_context {
                     let mut parts =
                         vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
-                    parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
-                    parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
-                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref(), request.shuffle_subtopics.unwrap_or(false))) }));
+                    parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
+                    parts.extend(pdf::build_report_file_parts(&self.app, &topics));
+                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, custom_focus_area.as_deref(), request.shuffle_subtopics.unwrap_or(false))) }));
                     let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
                         selected_subs,
                         request.question_count,
@@ -436,7 +619,7 @@ impl GenerationService {
                         parts.push(serde_json::json!({ "type": "text", "text": synth }));
                     }
                     let methods_note =
-                        prompts::math_methods_exam1_tech_free_note(&request.topics, tech_mode);
+                        prompts::math_methods_exam1_tech_free_note(&topics, tech_mode);
                     if !methods_note.is_empty() {
                         parts.push(serde_json::json!({ "type": "text", "text": methods_note }));
                     }
@@ -464,7 +647,7 @@ impl GenerationService {
                         p.push_str(&adaptive_note);
                     }
                     let methods_note =
-                        prompts::math_methods_exam1_tech_free_note(&request.topics, tech_mode);
+                        prompts::math_methods_exam1_tech_free_note(&topics, tech_mode);
                     if !methods_note.is_empty() {
                         p.push_str("\n\n");
                         p.push_str(methods_note);
@@ -491,7 +674,7 @@ impl GenerationService {
                     {
                         normalization::normalise_written(
                             &mut new_payload.questions,
-                            &request.topics,
+                            &topics,
                             selected_subs,
                         );
                         if normalization::validate_written(
@@ -606,8 +789,23 @@ impl GenerationService {
         }
         self.validate_params(&request.api_key, &request.model)?;
 
+        let prepared = validate_and_prepare_generation_inputs(
+            &request.topics,
+            request.subtopics.as_ref(),
+            request.custom_focus_area.as_ref(),
+            request.prior_question_prompts.as_ref(),
+            request.average_marks_per_question,
+        )?;
+        let PreparedGenerationInputs {
+            topics,
+            subtopics,
+            custom_focus_area,
+            prior_question_prompts,
+            average_marks: _,
+        } = prepared;
+
         let started = Instant::now();
-        let selected_subs = request.subtopics.as_ref().filter(|s| !s.is_empty());
+        let selected_subs = subtopics.as_ref();
         let tech_mode = self.resolve_tech_mode(request.tech_mode.as_deref());
         let include_exam_context = request.include_exam_context.unwrap_or(false);
         let strict_latex_validation = request.strict_latex_validation.unwrap_or(false);
@@ -628,16 +826,16 @@ impl GenerationService {
 
         let prompt_builder = prompts::UserPromptBuilder {
             count: request.question_count,
-            topics: request.topics.clone(),
+            topics: topics.clone(),
             difficulty: adjusted_difficulty.clone(),
             average_marks: None,
-            subtopics: request.subtopics.clone(),
-            custom_focus_area: request.custom_focus_area.clone(),
+            subtopics: subtopics.clone(),
+            custom_focus_area: custom_focus_area.clone(),
             tech_mode: tech_mode.to_string(),
             include_exam_context,
             avoid_similar_questions: request.avoid_similar_questions.unwrap_or(false),
             shuffle_subtopics: request.shuffle_subtopics.unwrap_or(false),
-            prior_question_prompts: request.prior_question_prompts.clone(),
+            prior_question_prompts: prior_question_prompts.clone(),
         };
         let prompt = prompt_builder.build_mc();
 
@@ -655,6 +853,11 @@ impl GenerationService {
                 3,
                 &adjusted_difficulty,
                 include_exam_context,
+                topics.len(),
+                subtopics.as_ref().map_or(0, Vec::len),
+                prior_question_prompts.as_ref().map_or(0, Vec::len),
+                custom_focus_area.is_some(),
+                request.avoid_similar_questions.unwrap_or(false),
             )
             .saturating_mul(3)
             / 4;
@@ -665,11 +868,11 @@ impl GenerationService {
 
         let user_content = if include_exam_context {
             let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
-            parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
-            parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
+            parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
+            parts.extend(pdf::build_report_file_parts(&self.app, &topics));
             let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
                 selected_subs,
-                request.custom_focus_area.as_deref(),
+                custom_focus_area.as_deref(),
                 request.shuffle_subtopics.unwrap_or(false),
             ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
@@ -699,7 +902,7 @@ impl GenerationService {
         }));
 
         let mut payload: McQuestionsPayload = self.parse_payload(&result.content)?;
-        normalization::normalise_mc(&mut payload.questions, &request.topics, selected_subs);
+        normalization::normalise_mc(&mut payload.questions, &topics, selected_subs);
         normalization::validate_mc(&payload.questions, request.question_count)?;
         self.apply_tech_override(&mut payload.questions, tech_mode);
 
@@ -749,14 +952,14 @@ impl GenerationService {
                 self.emit_generation_status(serde_json::json!({ "mode": "multiple-choice", "stage": "regenerating-duplicates", "message": format!("Regenerating to improve diversity (attempt {})...", attempts), "attempt": attempts + 1 }));
                 let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
                 let adaptive_note = prompts::adaptive_quality_note(&metrics);
-                let regen_intro = format!("Regenerate {count} multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count, topics = sanitize_for_api(&request.topics.join(", ")), difficulty = adjusted_difficulty);
+                let regen_intro = format!("Regenerate {count} multiple-choice questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count, topics = sanitize_for_api(&topics.join(", ")), difficulty = adjusted_difficulty);
 
                 let new_user_content = if include_exam_context {
                     let mut parts =
                         vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
-                    parts.extend(pdf::build_exam_file_parts(&self.app, &request.topics));
-                    parts.extend(pdf::build_report_file_parts(&self.app, &request.topics));
-                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, request.custom_focus_area.as_deref(), request.shuffle_subtopics.unwrap_or(false))) }));
+                    parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
+                    parts.extend(pdf::build_report_file_parts(&self.app, &topics));
+                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, custom_focus_area.as_deref(), request.shuffle_subtopics.unwrap_or(false))) }));
                     let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
                         selected_subs,
                         request.question_count,
@@ -809,7 +1012,7 @@ impl GenerationService {
                     {
                         normalization::normalise_mc(
                             &mut new_payload.questions,
-                            &request.topics,
+                            &topics,
                             selected_subs,
                         );
                         if normalization::validate_mc(
@@ -1269,5 +1472,53 @@ impl QuestionWithMarkdown for McQuestion {
     }
     fn get_explanation(&self) -> Option<&str> {
         Some(&self.explanation_markdown)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{estimate_completion_budget, validate_and_prepare_generation_inputs};
+
+    #[test]
+    fn prepare_generation_inputs_trims_and_deduplicates() {
+        let topics = vec![
+            " Chemistry ".to_string(),
+            "chemistry".to_string(),
+            "Mathematical Methods".to_string(),
+        ];
+        let custom_focus_area = Some("  Focus area  ".to_string());
+        let prior_prompts = vec![
+            " First prompt ".to_string(),
+            "first prompt".to_string(),
+            "Second prompt".to_string(),
+            "   ".to_string(),
+        ];
+
+        let prepared = validate_and_prepare_generation_inputs(
+            &topics,
+            None,
+            custom_focus_area.as_ref(),
+            Some(&prior_prompts),
+            Some(10),
+        )
+        .expect("valid inputs");
+
+        assert_eq!(prepared.topics, vec!["Chemistry", "Mathematical Methods"]);
+        assert_eq!(prepared.custom_focus_area.as_deref(), Some("Focus area"));
+        assert_eq!(
+            prepared.prior_question_prompts,
+            Some(vec![
+                "First prompt".to_string(),
+                "Second prompt".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn estimate_completion_budget_scales_with_context() {
+        let base = estimate_completion_budget(5, 10, "Medium", false, 1, 0, 0, false, false);
+        let contextual = estimate_completion_budget(5, 10, "Medium", true, 3, 4, 3, true, true);
+
+        assert!(contextual > base);
     }
 }
