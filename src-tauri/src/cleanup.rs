@@ -6,6 +6,8 @@ use crate::schemas;
 use crate::text_clean::sanitize_for_api;
 use std::collections::{HashMap, HashSet};
 
+pub(crate) const AUTO_MAP_CONFIDENCE_THRESHOLD: f64 = 0.85;
+
 pub struct CleanupService;
 
 impl CleanupService {
@@ -134,5 +136,15 @@ impl CleanupService {
             mapping = Self::validate_and_filter_mappings(raw_mappings, canonical, &mapping);
         }
         Ok(mapping)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AUTO_MAP_CONFIDENCE_THRESHOLD;
+
+    #[test]
+    fn high_confidence_threshold_is_strictly_above_eighty_five_percent() {
+        assert!((AUTO_MAP_CONFIDENCE_THRESHOLD - 0.85).abs() < f64::EPSILON);
     }
 }

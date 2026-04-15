@@ -180,7 +180,7 @@ export const SessionHeader = memo(function SessionHeader({
       : undefined;
 
   return (
-    <div className='sticky top-0 bg-background/90 backdrop-blur-md'>
+    <div className='sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border'>
       {/* Session progress bar at very top */}
       <div className='h-1 w-full bg-muted/30'>
         <div

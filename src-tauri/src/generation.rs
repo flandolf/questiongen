@@ -145,6 +145,7 @@ fn validate_and_prepare_generation_inputs(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn estimate_completion_budget(
     question_count: usize,
     average_marks: u8,
@@ -200,7 +201,7 @@ impl GenerationService {
     pub fn new(app: tauri::AppHandle) -> Self {
         Self { app }
     }
-
+    #[allow(clippy::too_many_arguments)]
     pub fn calculate_optimal_max_tokens(
         &self,
         question_count: usize,
