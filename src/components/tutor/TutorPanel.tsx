@@ -487,6 +487,7 @@ export function TutorPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [sketchDataUrl, setSketchDataUrl] = useState<string | undefined>(undefined);
 
   const session = sessions[questionId];
   const messages = useMemo(() => session?.messages || [], [session]);
@@ -530,8 +531,39 @@ export function TutorPanel({
   ) => {
     void (async () => {
       try {
-        const textToCopy =
-          type === 'text' ? content.replace(/[$#*`]/g, '') : content;
+        let textToCopy = content;
+
+        if (type === 'text') {
+          // Convert Markdown to plain text by removing markdown syntax while preserving content
+          textToCopy = content
+            // Remove code blocks
+            .replace(/```[\s\S]*?```/g, (match) => {
+              return match.replace(/```\w*\n?|\n?```/g, '').trim();
+            })
+            // Remove inline code backticks but keep content
+            .replace(/`([^`]+)`/g, '$1')
+            // Remove bold/italic markers but keep content
+            .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/___([^_]+)___/g, '$1')
+            .replace(/__([^_]+)__/g, '$1')
+            .replace(/_([^_]+)_/g, '$1')
+            // Remove headers but keep content
+            .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+            // Remove links but keep text
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            // Remove images
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+            // Remove blockquote markers
+            .replace(/^>\s+/gm, '')
+            // Remove horizontal rules
+            .replace(/^[-*_]{3,}$/gm, '')
+            // Clean up LaTeX delimiters (keep the math content)
+            .replace(/\$\$([^$]+)\$\$/g, '$1')
+            .replace(/\$([^$]+)\$/g, '$1');
+        }
+
         await navigator.clipboard.writeText(textToCopy);
         setCopiedId(`${id}-${type}`);
         toast.success(`Copied as ${type === 'text' ? 'plain text' : 'Markdown'}`);
@@ -579,31 +611,62 @@ export function TutorPanel({
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
+  const wasAtBottomRef = useRef(true);
+
   useEffect(() => {
     const scrollArea = scrollAreaRef.current?.querySelector(
       '[data-radix-scroll-area-viewport]',
     );
     if (!scrollArea) return;
 
-    const isAtBottom =
-      scrollArea.scrollHeight - scrollArea.scrollTop <=
-      scrollArea.clientHeight + 100;
+    const checkIfAtBottom = () => {
+      const isAtBottom =
+        scrollArea.scrollHeight - scrollArea.scrollTop <=
+        scrollArea.clientHeight + 100;
+      return isAtBottom;
+    };
 
-    if (isAtBottom || isGenerating) {
-      scrollToBottom(isGenerating ? 'auto' : 'smooth');
-    } else if (messages.length > 0) {
+    // Store whether we were at bottom before streaming started
+    if (!isGenerating) {
+      wasAtBottomRef.current = checkIfAtBottom();
+    }
+
+    // Only auto-scroll during generation if user was already at bottom
+    if (isGenerating && wasAtBottomRef.current) {
+      scrollToBottom('auto');
+    } else if (!isGenerating && wasAtBottomRef.current) {
+      scrollToBottom('smooth');
+    } else if (messages.length > 0 && !checkIfAtBottom()) {
       setShowScrollButton(true);
     }
   }, [messages, streamedContent, isGenerating]);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const isAtBottom =
-      target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
-    if (isAtBottom && showScrollButton) {
-      setShowScrollButton(false);
-    }
-  };
+  useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    ) as HTMLElement | null;
+
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const isAtBottom =
+        viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 50;
+
+      if (isAtBottom && showScrollButton) {
+        setShowScrollButton(false);
+      }
+
+      // Update wasAtBottomRef when user scrolls manually
+      if (!isGenerating) {
+        wasAtBottomRef.current = isAtBottom;
+      }
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  }, [showScrollButton, isGenerating]);
 
   // Setup SSE listener for streaming tokens
   useEffect(() => {
@@ -661,21 +724,44 @@ export function TutorPanel({
     };
   }, [sketchSessionKey]);
 
+  // Load sketch preview when includeSketch becomes true
+  useEffect(() => {
+    if (includeSketch && sketchSessionKey) {
+      void (async () => {
+        try {
+          const dataUrl = await getSketchpadDataUrl(sketchSessionKey);
+          setSketchDataUrl(dataUrl);
+        } catch (error) {
+          console.error('Failed to load sketch preview:', error);
+          setSketchDataUrl(undefined);
+        }
+      })();
+    } else {
+      setSketchDataUrl(undefined);
+    }
+  }, [includeSketch, sketchSessionKey]);
+
   // eslint-disable-next-line complexity
-  const handleSend = async (overrideValue?: string, isDiagnostic = false) => {
+  const handleSend = async (
+    overrideValue?: string,
+    isDiagnostic = false,
+    skipAddingUserMessage = false,
+  ) => {
     const finalInputValue = overrideValue ?? inputValue;
     if (!finalInputValue.trim() || isGenerating) return;
 
     const userMessageContent = finalInputValue;
     if (!overrideValue) setInputValue('');
 
-    // Add user message to store
-    addMessage(questionId, {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: userMessageContent,
-      createdAt: Date.now(),
-    });
+    // Add user message to store (unless we're regenerating)
+    if (!skipAddingUserMessage) {
+      addMessage(questionId, {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userMessageContent,
+        createdAt: Date.now(),
+      });
+    }
 
     setIsGenerating(true);
     setStreamedContent('');
@@ -857,10 +943,7 @@ export function TutorPanel({
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role !== 'assistant') return;
 
-    // Remove the last assistant message
-    removeLastMessage(questionId);
-
-    // Find the last user message to repeat the request
+    // Find the last user message before removing anything
     const userMessages = messages.filter((m) => m.role === 'user');
     if (userMessages.length === 0) return;
 
@@ -871,10 +954,21 @@ export function TutorPanel({
       lastUserMsg.content ===
       'Please check my work and let me know if I made any errors.';
 
-    // We need to temporarily remove the user message as well because handleSend will re-add it
+    // Remove the last assistant message
     removeLastMessage(questionId);
 
-    await handleSend(lastUserMsg.content, isDiagnostic);
+    // Remove the last user message as well
+    removeLastMessage(questionId);
+
+    // Re-add the user message and send (using skipAddingUserMessage flag to avoid double-adding)
+    addMessage(questionId, {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: lastUserMsg.content,
+      createdAt: Date.now(),
+    });
+
+    await handleSend(lastUserMsg.content, isDiagnostic, true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -943,7 +1037,6 @@ export function TutorPanel({
             <ScrollArea
               ref={scrollAreaRef}
               className='flex-1 min-h-0 p-2 bg-muted/5 relative'
-              onScrollCapture={handleScroll}
             >
               <div className='space-y-2'>
                 {messages.length === 0 && !isGenerating && (
@@ -1182,7 +1275,15 @@ export function TutorPanel({
                   {includeSketch && (
                     <div className='relative group'>
                       <div className='w-12 h-12 rounded-md border border-border bg-white overflow-hidden flex items-center justify-center'>
-                        <PencilRuler className='h-5 w-5 text-muted-foreground/40' />
+                        {sketchDataUrl ? (
+                          <img
+                            src={sketchDataUrl}
+                            alt='Sketch preview'
+                            className='w-full h-full object-cover'
+                          />
+                        ) : (
+                          <PencilRuler className='h-5 w-5 text-muted-foreground/40' />
+                        )}
                       </div>
                       <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
                         <span className='text-[8px] font-bold text-primary uppercase'>

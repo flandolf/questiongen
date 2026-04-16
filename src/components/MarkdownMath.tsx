@@ -225,6 +225,7 @@ export const MarkdownMath = memo(function MarkdownMath({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -288,15 +289,18 @@ export const MarkdownMath = memo(function MarkdownMath({
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
 
       if (isStreaming) {
         // When streaming, debounce typesetting to reduce flashing.
         // 160ms is roughly 10 frames, giving a balance between responsiveness and stability.
         timeoutRef.current = setTimeout(() => {
-          requestAnimationFrame(typeset);
+          rafRef.current = requestAnimationFrame(typeset);
         }, 160);
       } else {
-        requestAnimationFrame(typeset);
+        rafRef.current = requestAnimationFrame(typeset);
       }
     };
 
@@ -310,11 +314,13 @@ export const MarkdownMath = memo(function MarkdownMath({
       return () => {
         window.removeEventListener('mathjax:ready', handleReady);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
       };
     }
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [shielded, isStreaming]);
 
