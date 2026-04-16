@@ -52,6 +52,10 @@ export interface AppState {
   localBackupFolderPath: string;
   localBackupIntervalMinutes: number;
   theme: string;
+  customThemeSeedColor: string;
+  globalRounding: 'sm' | 'md' | 'lg' | 'xl';
+  interfaceFont: string;
+  headingFont: string;
   tutorPersona: string;
   tutorModel: string;
 
@@ -159,6 +163,10 @@ export interface AppActions {
   setLocalBackupFolderPath: (path: string) => void;
   setLocalBackupIntervalMinutes: (minutes: number) => void;
   setTheme: (theme: string) => void;
+  setCustomThemeSeedColor: (color: string) => void;
+  setGlobalRounding: (rounding: 'sm' | 'md' | 'lg' | 'xl') => void;
+  setInterfaceFont: (font: string) => void;
+  setHeadingFont: (font: string) => void;
   setTutorPersona: (persona: string) => void;
   setTutorModel: (model: string) => void;
 
