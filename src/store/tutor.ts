@@ -36,6 +36,7 @@ export interface TutorActions {
     questionId: string,
     overrides: { model?: string; persona?: string },
   ) => void;
+  removeLastMessage: (questionId: string) => void;
   clearSession: (questionId: string) => void;
   clearAllSessions: () => void;
   setIsGenerating: (isGenerating: boolean) => void;
@@ -92,6 +93,21 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
             ...session,
             modelOverride: overrides.model ?? session.modelOverride,
             personaOverride: overrides.persona ?? session.personaOverride,
+          },
+        },
+      };
+    }),
+
+  removeLastMessage: (questionId) =>
+    set((state) => {
+      const session = state.sessions[questionId];
+      if (!session || session.messages.length === 0) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [questionId]: {
+            ...session,
+            messages: session.messages.slice(0, -1),
           },
         },
       };
