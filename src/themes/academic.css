@@ -52,7 +52,7 @@
 
   --font-sans: var(--interface-font, 'Manrope Variable'), sans-serif;
   --font-serif:
-    'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', P052, serif;
+    'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', p052, serif;
   --font-mono: var(--mono-font, 'JetBrains Mono Variable'), monospace;
 
   --shadow-2xs: 0px 1px 2px 0px oklch(0 0 0 / 0.02);
