@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 import { AppProvider } from './AppContext';
 import { FirebaseSyncProvider } from './context/FirebaseSyncContext';
+import { useAppearanceSettings } from './hooks/useAppearanceSettings';
 import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
 import { useAppStore } from './store';
 
@@ -166,6 +167,7 @@ function AppRoutes() {
 
 export default function App() {
   useTextSizeCssVars();
+  useAppearanceSettings();
 
   useEffect(() => {
     void ensureMathJaxLoaded();

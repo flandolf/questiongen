@@ -54,6 +54,10 @@ export type PersistedSettings = {
   tutorPersona?: string;
   /** Model ID for the AI Tutor */
   tutorModel?: string;
+  customThemeSeedColor?: string;
+  globalRounding?: 'sm' | 'md' | 'lg' | 'xl';
+  interfaceFont?: string;
+  headingFont?: string;
   shuffleSubtopics?: boolean;
   shuffleQuestions?: boolean;
 };

@@ -16,6 +16,7 @@ export const themes = [
   { name: 'midnight', path: '@/themes/midnight.css', label: 'Midnight' },
   { name: 'sunset', path: '@/themes/sunset.css', label: 'Sunset' },
   { name: 'slate', path: '@/themes/slate.css', label: 'Slate' },
+  { name: 'custom', path: '', label: 'Custom' },
 ] as const satisfies readonly DesignTheme[];
 
 const cssLoaders = import.meta.glob('/src/themes/*.css');
@@ -57,12 +58,14 @@ export async function applyDesignTheme(name: string): Promise<string> {
     return DEFAULT_THEME_NAME;
   }
 
-  const loaderPath = toLoaderPath(theme.path);
-  const loader = cssLoaders[loaderPath];
+  if (theme.path) {
+    const loaderPath = toLoaderPath(theme.path);
+    const loader = cssLoaders[loaderPath];
 
-  if (loader && !loadedThemePaths.has(loaderPath)) {
-    await loader();
-    loadedThemePaths.add(loaderPath);
+    if (loader && !loadedThemePaths.has(loaderPath)) {
+      await loader();
+      loadedThemePaths.add(loaderPath);
+    }
   }
 
   document.documentElement.setAttribute('data-design-theme', resolvedName);

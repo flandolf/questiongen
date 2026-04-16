@@ -28,19 +28,21 @@ describe('AppStore', () => {
   });
 
   it('should update selected topics', () => {
-    useAppStore.getState().setSelectedTopics(['Math']);
-    expect(useAppStore.getState().selectedTopics).toEqual(['Math']);
+    useAppStore.getState().setSelectedTopics(['Mathematical Methods']);
+    expect(useAppStore.getState().selectedTopics).toEqual([
+      'Mathematical Methods',
+    ]);
   });
 
   it('should add log entries', () => {
-    useAppStore.getState().addLog({ message: 'test log', type: 'info' });
+    useAppStore.getState().addLog({ message: 'test log', level: 'info' });
     const logs = useAppStore.getState().logs;
     expect(logs).toHaveLength(1);
     expect(logs[0].message).toBe('test log');
   });
 
   it('should clear logs', () => {
-    useAppStore.getState().addLog({ message: 'test log', type: 'info' });
+    useAppStore.getState().addLog({ message: 'test log', level: 'info' });
     useAppStore.getState().clearLogs();
     expect(useAppStore.getState().logs).toHaveLength(0);
   });
