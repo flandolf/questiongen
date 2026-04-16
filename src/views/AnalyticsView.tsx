@@ -21,7 +21,9 @@ import {
   PolarRadiusAxis,
   Radar,
   RadarChart,
+  ResponsiveContainer,
   Sector,
+  Treemap,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -116,6 +118,58 @@ const CustomPieShape = memo(function CustomPieShape(
         FOCUS_AREA_COLORS[(props.index ?? 0) % FOCUS_AREA_COLORS.length]
       }
     />
+  );
+});
+
+interface TreemapContentProps {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  name: string;
+  accuracy: number;
+}
+
+const CustomTreemapContent = memo(function CustomTreemapContent(
+  props: unknown,
+) {
+  const { x, y, width, height, name, accuracy } = props as TreemapContentProps;
+
+  // Use accuracy to determine color
+  const getFill = (acc: number) => {
+    if (acc >= 75) return 'hsl(158 64% 52% / 0.8)';
+    if (acc >= 50) return 'hsl(34 100% 50% / 0.8)';
+    return 'hsl(340 82% 52% / 0.8)';
+  };
+
+  if (width < 40 || height < 20) return null;
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        style={{
+          fill: getFill(accuracy),
+          stroke: 'hsl(var(--background))',
+          strokeWidth: 2,
+        }}
+      />
+      <text
+        x={x + width / 2}
+        y={y + height / 2}
+        textAnchor='middle'
+        dominantBaseline='middle'
+        fill='white'
+        fontSize={Math.min(width / 6, 12)}
+        fontWeight='600'
+        className='pointer-events-none'
+      >
+        {name}
+      </text>
+    </g>
   );
 });
 
@@ -381,6 +435,38 @@ export function AnalyticsView() {
       }))
       .sort((a, b) => b.value - a.value);
   }, [allAttempts, subjectFilter]);
+
+  const treemapData = useMemo(() => {
+    const topicMap = new Map<string, { name: string; children: { name: string; size: number; accuracy: number }[] }>();
+
+    for (const attempt of allAttempts) {
+      if (!topicMap.has(attempt.topic)) {
+        topicMap.set(attempt.topic, { name: attempt.topic, children: [] });
+      }
+      const topic = topicMap.get(attempt.topic)!;
+      const subtopicName = attempt.subtopic || 'Unspecified';
+      let subtopic = topic.children.find((c) => c.name === subtopicName);
+      if (!subtopic) {
+        subtopic = { name: subtopicName, size: 0, accuracy: 0 };
+        topic.children.push(subtopic);
+      }
+      subtopic.size += 1;
+      // We'll calculate actual accuracy after the loop
+    }
+
+    // Second pass to calculate accuracy
+    for (const topic of topicMap.values()) {
+      for (const subtopic of topic.children) {
+        const attempts = allAttempts.filter(
+          (a) => a.topic === topic.name && (a.subtopic || 'Unspecified') === subtopic.name,
+        );
+        const correct = attempts.filter((a) => a.isCorrect).length;
+        subtopic.accuracy = (correct / attempts.length) * 100;
+      }
+    }
+
+    return Array.from(topicMap.values());
+  }, [allAttempts]);
 
   const subjectSpreadData = useMemo(() => {
     const counts = new Map<string, number>();
@@ -805,6 +891,24 @@ export function AnalyticsView() {
                   })}
                 </div>
               )}
+            </div>
+          </Card>
+
+          <Card className='p-6'>
+            <SectionHeading
+              title='Performance Treemap'
+              description='Subject and subtopic distribution by volume.'
+            />
+            <div className='h-80 mt-4 bg-muted/20 rounded-lg overflow-hidden border border-border/40'>
+              <ResponsiveContainer width="100%" height="100%">
+                <Treemap
+                  data={treemapData}
+                  dataKey="size"
+                  aspectRatio={4 / 3}
+                  stroke="#fff"
+                  content={<CustomTreemapContent />}
+                />
+              </ResponsiveContainer>
             </div>
           </Card>
 

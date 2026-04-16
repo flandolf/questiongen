@@ -2998,6 +2998,11 @@ export function GeneratorView() {
             onNext={handleNextWrittenQuestion}
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
+            onSaveDraft={() => {
+              saveCurrentSet();
+              toast.success('Session draft saved');
+            }}
+            questions={questions}
             onTogglePause={togglePause}
             onResetTimer={resetCurrentQuestionTimer}
           />
@@ -3101,6 +3106,11 @@ export function GeneratorView() {
             onNext={handleNextMcQuestion}
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
+            onSaveDraft={() => {
+              saveCurrentSet();
+              toast.success('Session draft saved');
+            }}
+            questions={mcQuestions}
             onTogglePause={togglePause}
             onResetTimer={resetCurrentQuestionTimer}
           />
