@@ -446,9 +446,13 @@ fn repair_common_math_spacing(s: &str) -> String {
             if let Some(next_char) = out[next_char_pos..].chars().next() {
                 if next_char.is_ascii_alphabetic() {
                     out.insert(next_char_pos, ' ');
+                    i = next_char_pos + 1; // inserted ASCII space
+                } else {
+                    i = next_char_pos + next_char.len_utf8(); // stay on UTF-8 boundary
                 }
+            } else {
+                i = out.len();
             }
-            i = actual_pos + cmd.len() + 1;
             if i >= out.len() {
                 break;
             }
