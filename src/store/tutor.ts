@@ -103,6 +103,7 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
       const session = state.sessions[questionId];
       if (!session || session.messages.length === 0) return state;
       return {
+        totalMessagesCount: Math.max(0, state.totalMessagesCount - 1),
         sessions: {
           ...state.sessions,
           [questionId]: {
