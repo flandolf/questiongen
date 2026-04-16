@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { cn, isDeepEqual, getTodayKey, getDayKey } from '../utils';
+import { describe, expect, it } from 'vitest';
+
+import { cn, getDayKey, getTodayKey, isDeepEqual } from '../utils';
 
 describe('utils', () => {
   describe('cn', () => {

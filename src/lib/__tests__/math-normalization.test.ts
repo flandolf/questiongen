@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { shieldMathForMarkdown, restoreMathPlaceholders } from '../math-normalization';
 
 describe('math-normalization', () => {
