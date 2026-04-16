@@ -1,6 +1,6 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -92,10 +92,25 @@ export function GroupedSubtopicSelector({
         units.add(group.unit);
       }
     }
-    // If nothing selected, maybe expand the first unit by default?
-    // Let's leave it as is to match previous behavior
     return units;
   });
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredGroups = useMemo(() => {
+    if (!searchTerm.trim()) return groups;
+    const lowerSearch = searchTerm.toLowerCase();
+    return groups
+      .map((group) => ({
+        ...group,
+        subtopics: group.subtopics.filter(
+          (s) =>
+            toCanonicalSubtopicName(s).toLowerCase().includes(lowerSearch) ||
+            group.aos.toLowerCase().includes(lowerSearch),
+        ),
+      }))
+      .filter((group) => group.subtopics.length > 0);
+  }, [groups, searchTerm]);
 
   const toggleSelectAllInUnit = (unit: string) => {
     const unitGroups = groups.filter((g) => g.unit === unit);
@@ -148,22 +163,48 @@ export function GroupedSubtopicSelector({
     [groups],
   );
 
-  const visibleGroups = useMemo(
-    () => groups.filter((group) => selectedUnits.has(group.unit)),
-    [groups, selectedUnits],
-  );
+  const visibleGroups = useMemo(() => {
+    if (searchTerm.trim()) return filteredGroups;
+    return groups.filter((group) => selectedUnits.has(group.unit));
+  }, [groups, selectedUnits, searchTerm, filteredGroups]);
+
+  const unitsWithMatches = useMemo(() => {
+    if (!searchTerm.trim()) return new Set(units);
+    return new Set(filteredGroups.map((g) => g.unit));
+  }, [filteredGroups, searchTerm, units]);
 
   return (
     <div className='flex flex-col gap-8 w-full'>
       <div className='flex flex-col gap-5'>
-        <div className='flex items-center gap-3'>
+        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
           <h3 className='text-sm font-bold text-foreground'>{label}</h3>
+          <div className='relative w-full sm:w-64'>
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground' />
+            <input
+              type='text'
+              placeholder='Search subtopics...'
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className='w-full h-9 pl-9 pr-8 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all'
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className='absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+              >
+                <X className='h-3.5 w-3.5' />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* High-density Unit Selector Cards */}
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
           {units.map((unit) => {
-            const isActive = selectedUnits.has(unit);
+            const hasMatches = unitsWithMatches.has(unit);
+            if (!hasMatches && searchTerm.trim()) return null;
+
+            const isActive = searchTerm.trim() || selectedUnits.has(unit);
             const unitGroups = groups.filter((g) => g.unit === unit);
             const totalSubs = unitGroups.reduce(
               (sum, g) => sum + g.subtopics.length,
