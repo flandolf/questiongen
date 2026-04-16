@@ -13,6 +13,7 @@ import { useTheme } from './theme-provider';
 
 type MarkdownMathProps = {
   content: string;
+  isStreaming?: boolean;
 };
 
 const Mermaid = ({ chart }: { chart: string }) => {
@@ -214,6 +215,7 @@ const components: Components = {
 
 export const MarkdownMath = memo(function MarkdownMath({
   content,
+  isStreaming = false,
 }: MarkdownMathProps) {
   const normalized = useMemo(() => normalizeMathDelimiters(content), [content]);
   const shielded = useMemo(
@@ -222,6 +224,7 @@ export const MarkdownMath = memo(function MarkdownMath({
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -260,16 +263,6 @@ export const MarkdownMath = memo(function MarkdownMath({
       const performTypeset = () => {
         if (typeof runtime.typesetPromise !== 'function') return;
 
-        // Clear existing MathJax state for this container to avoid "doubling"
-        // or stale rendering if the content changed but kept some math.
-        if (typeof runtime.typesetClear === 'function') {
-          try {
-            runtime.typesetClear([container]);
-          } catch (e) {
-            console.warn('MathJax typesetClear failed:', e);
-          }
-        }
-
         // Trigger typesetting and catch errors to prevent promise rejection
         // from bubbling up to React's error boundary.
         runtime.typesetPromise([container]).catch((err) => {
@@ -291,21 +284,39 @@ export const MarkdownMath = memo(function MarkdownMath({
       }
     };
 
-    // If MathJax is already available, typeset immediately.
-    // We check for typesetPromise specifically as it indicates the component is ready.
+    const scheduleTypeset = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      if (isStreaming) {
+        // When streaming, debounce typesetting to reduce flashing.
+        // 160ms is roughly 10 frames, giving a balance between responsiveness and stability.
+        timeoutRef.current = setTimeout(() => {
+          requestAnimationFrame(typeset);
+        }, 160);
+      } else {
+        requestAnimationFrame(typeset);
+      }
+    };
+
+    // If MathJax is already available, schedule typeset.
     if (typeof window.MathJax?.typesetPromise === 'function') {
-      // Use requestAnimationFrame to ensure the DOM has updated after restorePlaceholders
-      // before MathJax starts scanning it.
-      const rafId = requestAnimationFrame(typeset);
-      return () => cancelAnimationFrame(rafId);
+      scheduleTypeset();
+    } else {
+      // Otherwise, wait for the loader to signal readiness.
+      const handleReady = () => scheduleTypeset();
+      window.addEventListener('mathjax:ready', handleReady);
+      return () => {
+        window.removeEventListener('mathjax:ready', handleReady);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      };
     }
 
-    // Otherwise, wait for the loader to signal readiness.
-    window.addEventListener('mathjax:ready', typeset);
     return () => {
-      window.removeEventListener('mathjax:ready', typeset);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [shielded]);
+  }, [shielded, isStreaming]);
 
   return (
     <div
