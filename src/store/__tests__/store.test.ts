@@ -1,11 +1,11 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import { useAppStore } from '../index';
 
 describe('AppStore', () => {
   beforeEach(() => {
     // Reset store to default state if possible, or use a fresh store
     // Since Zustand stores are singletons in this setup, we might need to manually reset
-    const store = useAppStore.getState();
     // Manual reset of some key properties for testing
     useAppStore.setState({
         apiKey: '',

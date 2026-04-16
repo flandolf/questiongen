@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { scoreColorClass, scoreColorBgClass, scoreRingColor, scoreLabel } from '../score-utils';
+
+import { scoreColorClass, scoreLabel } from '../score-utils';
 
 describe('score-utils', () => {
   describe('scoreColorClass', () => {
