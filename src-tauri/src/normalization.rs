@@ -230,4 +230,94 @@ mod tests {
             assert_eq!(fix_prompt_newlines(input), expected);
         }
     }
+
+    #[test]
+    fn test_normalise_written() {
+        let mut questions = vec![GeneratedQuestion {
+            id: "".to_string(),
+            topic: " Math Methods ".to_string(),
+            subtopic: Some(" calculus ".to_string()),
+            prompt_markdown: "Solve this. [2 marks](a) Next part.".to_string(),
+            max_marks: 2,
+            chart_data: None,
+        }];
+        let selected_topics = vec!["Mathematical Methods".to_string()];
+
+        normalise_written(&mut questions, &selected_topics, None);
+
+        assert_eq!(questions[0].id, "q1");
+        assert_eq!(questions[0].topic, "Mathematical Methods");
+        assert_eq!(questions[0].subtopic, Some("calculus".to_string()));
+        assert_eq!(
+            questions[0].prompt_markdown,
+            "Solve this. [2 marks]\n(a) Next part."
+        );
+    }
+
+    #[test]
+    fn test_validate_written_success() {
+        let questions = vec![GeneratedQuestion {
+            id: "q1".to_string(),
+            topic: "Topic".to_string(),
+            subtopic: None,
+            prompt_markdown: "Prompt [1 mark]".to_string(),
+            max_marks: 1,
+            chart_data: None,
+        }];
+        assert!(validate_written(&questions, 1).is_ok());
+    }
+
+    #[test]
+    fn test_validate_written_fails_on_disallowed_instructions() {
+        let questions = vec![GeneratedQuestion {
+            id: "q1".to_string(),
+            topic: "Topic".to_string(),
+            subtopic: None,
+            prompt_markdown: "Prompt using integration by parts [1 mark]".to_string(),
+            max_marks: 1,
+            chart_data: None,
+        }];
+        let result = validate_written(&questions, 1);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "VALIDATION_ERROR");
+    }
+
+    #[test]
+    fn test_normalise_mc() {
+        let mut questions = vec![McQuestion {
+            id: "".to_string(),
+            topic: "Topic".to_string(),
+            subtopic: None,
+            prompt_markdown: "Prompt".to_string(),
+            options: vec![
+                crate::models::McOption {
+                    label: "b".to_string(),
+                    text: "opt b".to_string(),
+                },
+                crate::models::McOption {
+                    label: "a".to_string(),
+                    text: "opt a".to_string(),
+                },
+                crate::models::McOption {
+                    label: "d".to_string(),
+                    text: "opt d".to_string(),
+                },
+                crate::models::McOption {
+                    label: "c".to_string(),
+                    text: "opt c".to_string(),
+                },
+            ],
+            correct_answer: " a ".to_string(),
+            explanation_markdown: " Explanation ".to_string(),
+            chart_data: None,
+        }];
+
+        normalise_mc(&mut questions, &["Topic".to_string()], None);
+
+        assert_eq!(questions[0].id, "mc1");
+        assert_eq!(questions[0].options[0].label, "A");
+        assert_eq!(questions[0].options[1].label, "B");
+        assert_eq!(questions[0].correct_answer, "A");
+        assert_eq!(questions[0].explanation_markdown, "Explanation");
+    }
 }
