@@ -7,6 +7,7 @@ import { useAppStore } from '@/store';
 import { applyDesignTheme } from '@/themes/designThemes';
 
 import { Header } from './Header';
+import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import Titlebar from './Titlebar';
 
 export function Layout() {
@@ -30,6 +31,7 @@ export function Layout() {
       <main className='flex-1 min-h-0 min-w-0 overflow-y-auto'>
         <Outlet />
       </main>
+      <KeyboardShortcutsOverlay />
     </div>
   );
 }

@@ -73,11 +73,59 @@ pub struct OpenRouterResult {
 
 /// Unified OpenRouter caller.
 pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<OpenRouterResult> {
-    if config.stream {
-        call_openrouter_streaming(config).await
-    } else {
-        call_openrouter_non_streaming(config).await
+    let mut last_error = None;
+    let max_retries = 2;
+
+    for attempt in 0..=max_retries {
+        if attempt > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
+        }
+
+        let result = if config.stream {
+            // Re-cloning for retry if needed
+            let mut retry_config = OpenRouterRequestConfig {
+                api_key: config.api_key.clone(),
+                model: config.model.clone(),
+                system_prompt: config.system_prompt.clone(),
+                user_content: config.user_content.clone(),
+                response_format: config.response_format.clone(),
+                max_tokens: config.max_tokens,
+                plugins: config.plugins.clone(),
+                stream: config.stream,
+                app: config.app.clone(),
+            };
+            call_openrouter_streaming(retry_config).await
+        } else {
+            let mut retry_config = OpenRouterRequestConfig {
+                api_key: config.api_key.clone(),
+                model: config.model.clone(),
+                system_prompt: config.system_prompt.clone(),
+                user_content: config.user_content.clone(),
+                response_format: config.response_format.clone(),
+                max_tokens: config.max_tokens,
+                plugins: config.plugins.clone(),
+                stream: config.stream,
+                app: config.app.clone(),
+            };
+            call_openrouter_non_streaming(retry_config).await
+        };
+
+        match result {
+            Ok(res) => return Ok(res),
+            Err(e) => {
+                let msg = e.message.to_lowercase();
+                // Only retry on network errors or transient API errors
+                if msg.contains("network") || msg.contains("timeout") || msg.contains("429") || msg.contains("500") || msg.contains("502") || msg.contains("503") || msg.contains("504") {
+                    last_error = Some(e);
+                    continue;
+                } else {
+                    return Err(e);
+                }
+            }
+        }
     }
+
+    Err(last_error.unwrap_or_else(|| AppError::new("UNKNOWN_ERROR", "Multiple retries failed")))
 }
 
 async fn call_openrouter_non_streaming(

@@ -356,14 +356,18 @@ const ScorePill = memo(function ScorePill({
 const McEntryCard = memo(function McEntryCard({
   item,
   isExpanded,
+  isSelected,
   onToggle,
+  onSelect,
   onDelete,
   onExport,
   isSyncEnabled,
 }: {
   item: { kind: 'mc' } & McHistoryEntry;
   isExpanded: boolean;
+  isSelected: boolean;
   onToggle: () => void;
+  onSelect: () => void;
   onDelete: () => void;
   onExport: () => void;
   isSyncEnabled: boolean;
@@ -375,12 +379,28 @@ const McEntryCard = memo(function McEntryCard({
   return (
     <Card
       className={`overflow-hidden border transition-all duration-200 hover:shadow-lg 
+        ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}
         bg-muted/40 dark:bg-muted/20 border-border/80 dark:border-border/70
         ${isExpanded ? 'shadow-lg border-violet-700/40 dark:border-violet-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <CardHeader className='px-4 py-2 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+            className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+          />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
             <div
@@ -531,14 +551,18 @@ const McEntryCard = memo(function McEntryCard({
 const WrittenEntryCard = memo(function WrittenEntryCard({
   item,
   isExpanded,
+  isSelected,
   onToggle,
+  onSelect,
   onDelete,
   onExport,
   isSyncEnabled,
 }: {
   item: { kind: 'written' } & QuestionHistoryEntry;
   isExpanded: boolean;
+  isSelected: boolean;
   onToggle: () => void;
+  onSelect: () => void;
   onDelete: () => void;
   onExport: () => void;
   isSyncEnabled: boolean;
@@ -553,12 +577,28 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   return (
     <Card
       className={`overflow-hidden border transition-all duration-200 hover:shadow-lg 
+        ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}
         bg-muted/30 dark:bg-muted/20 border-border/80 dark:border-border/70
         ${isExpanded ? 'shadow-lg border-sky-700/40 dark:border-sky-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <CardHeader className='px-4 py-3 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
+            className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+          />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
             <AccuracyArc pct={pct} />
@@ -745,14 +785,18 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
 const HistoryEntryCard = memo(function HistoryEntryCard({
   item,
   isExpanded,
+  isSelected,
   onToggle,
+  onSelect,
   onDelete,
   onExport,
   isSyncEnabled,
 }: {
   item: AnyEntry;
   isExpanded: boolean;
+  isSelected: boolean;
   onToggle: () => void;
+  onSelect: () => void;
   onDelete: () => void;
   onExport: () => void;
   isSyncEnabled: boolean;
@@ -762,7 +806,9 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
       <McEntryCard
         item={item}
         isExpanded={isExpanded}
+        isSelected={isSelected}
         onToggle={onToggle}
+        onSelect={onSelect}
         onDelete={onDelete}
         onExport={onExport}
         isSyncEnabled={isSyncEnabled}
@@ -773,7 +819,9 @@ const HistoryEntryCard = memo(function HistoryEntryCard({
     <WrittenEntryCard
       item={item}
       isExpanded={isExpanded}
+      isSelected={isSelected}
       onToggle={onToggle}
+      onSelect={onSelect}
       onDelete={onDelete}
       onExport={onExport}
       isSyncEnabled={isSyncEnabled}
@@ -829,6 +877,9 @@ export function HistoryView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [expandedEntryKeys, setExpandedEntryKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [selectedEntryKeys, setSelectedEntryKeys] = useState<Set<string>>(
     () => new Set(),
   );
 
@@ -970,6 +1021,40 @@ export function HistoryView() {
     });
   }, []);
 
+  const toggleEntrySelected = useCallback((entryKey: string) => {
+    setSelectedEntryKeys((cur) => {
+      const next = new Set(cur);
+      if (next.has(entryKey)) {
+        next.delete(entryKey);
+      } else {
+        next.add(entryKey);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBulkDelete = useCallback(() => {
+    const count = selectedEntryKeys.size;
+    if (count === 0) return;
+    setConfirmOpen(true);
+    setConfirmMessage(`Remove ${count} selected history entries? This cannot be undone.`);
+  }, [selectedEntryKeys]);
+
+  const performBulkDeleteConfirmed = useCallback(() => {
+    selectedEntryKeys.forEach((key) => {
+      const [kind, id] = key.split('-');
+      if (kind === 'written') {
+        deleteQuestionHistoryEntry(id);
+      } else if (kind === 'mc') {
+        deleteMcHistoryEntry(id);
+      }
+    });
+    setSelectedEntryKeys(new Set());
+    setConfirmOpen(false);
+    setConfirmMessage(null);
+    toast.success('Selected entries removed');
+  }, [selectedEntryKeys, deleteQuestionHistoryEntry, deleteMcHistoryEntry]);
+
   function performSingleDeleteConfirmed() {
     if (!pendingDeleteEntry) return;
     if (pendingDeleteEntry.kind === 'written') {
@@ -996,12 +1081,17 @@ export function HistoryView() {
   }
 
   function performClearConfirmed() {
+    if (confirmMessage?.includes('selected')) {
+      performBulkDeleteConfirmed();
+      return;
+    }
     clearQuestionHistory();
     clearMcHistory();
     setSubjectFilter(null);
     setModeFilter('all');
     setSearchQuery('');
     setExpandedEntryKeys(new Set());
+    setSelectedEntryKeys(new Set());
     setConfirmOpen(false);
     setConfirmMessage(null);
     toast.success('History cleared');
@@ -1066,6 +1156,35 @@ export function HistoryView() {
 
       {/* ── Stats bar ── */}
       <StatsBar entries={combined} />
+
+      {selectedEntryKeys.size > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold">
+              {selectedEntryKeys.size} items selected
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedEntryKeys(new Set())}
+              className="text-xs h-7"
+            >
+              Clear selection
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              className="gap-2 h-8"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Selected
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ── Search + filter toolbar ── */}
       <div className='flex flex-col gap-2'>
@@ -1285,7 +1404,9 @@ export function HistoryView() {
                   <HistoryEntryCard
                     item={item}
                     isExpanded={expandedEntryKeys.has(entryKey)}
+                    isSelected={selectedEntryKeys.has(entryKey)}
                     onToggle={() => toggleEntryExpanded(entryKey)}
+                    onSelect={() => toggleEntrySelected(entryKey)}
                     onDelete={() => {
                       setPendingDeleteEntry(item);
                       setDeleteConfirmOpen(true);
