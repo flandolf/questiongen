@@ -741,7 +741,7 @@ export function TutorPanel({
     }
   }, [includeSketch, sketchSessionKey]);
 
-  // eslint-disable-next-line complexity
+
   const handleSend = async (
     overrideValue?: string,
     isDiagnostic = false,

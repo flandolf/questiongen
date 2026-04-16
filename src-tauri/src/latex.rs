@@ -201,6 +201,9 @@ fn heal_math_node(inner: &str) -> String {
     // Repair tabular row breaks
     inner = repair_tabular_row_breaks(&inner);
 
+    // Repair common math function typos and spacing
+    inner = repair_common_math_spacing(&inner);
+
     // Ensure literal percentages in math render correctly in MathJax.
     inner = escape_unescaped_percent(&inner);
 
@@ -428,6 +431,29 @@ fn repair_fractions(text: &str) -> String {
         i += 1;
     }
 
+    out
+}
+
+fn repair_common_math_spacing(s: &str) -> String {
+    let mut out = s.to_string();
+    // Ensure space after common commands if followed by a letter
+    let commands = ["\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\lim"];
+    for cmd in commands {
+        let mut i = 0;
+        while let Some(pos) = out[i..].find(cmd) {
+            let actual_pos = i + pos;
+            let next_char_pos = actual_pos + cmd.len();
+            if let Some(next_char) = out[next_char_pos..].chars().next() {
+                if next_char.is_ascii_alphabetic() {
+                    out.insert(next_char_pos, ' ');
+                }
+            }
+            i = actual_pos + cmd.len() + 1;
+            if i >= out.len() {
+                break;
+            }
+        }
+    }
     out
 }
 

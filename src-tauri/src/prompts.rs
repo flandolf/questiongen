@@ -90,6 +90,28 @@ pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> Str
     )
 }
 
+pub fn subject_specific_guidance(topics: &[String]) -> String {
+    let mut s = String::new();
+    for topic in topics {
+        let low = topic.to_lowercase();
+        if low.contains("chemistry") {
+            s.push_str("\nVCE CHEMISTRY RULES:\n\
+                - Focus on VCAA key knowledge (e.g., green chemistry principles, stoichiometry, analytical techniques).\n\
+                - Always provide states of matter in chemical equations where appropriate.\n\
+                - Use correct IUPAC nomenclature.");
+        } else if low.contains("physical education") {
+            s.push_str("\nVCE PHYSICAL EDUCATION RULES:\n\
+                - Focus on biomechanical principles, energy systems, and training programs.\n\
+                - Ensure scenarios relate to VCE relevant sports and exercise contexts.");
+        } else if low.contains("biology") {
+            s.push_str("\nVCE BIOLOGY RULES:\n\
+                - Focus on molecular biology, genetics, and immunity.\n\
+                - Use precise biological terminology as per VCAA study design.");
+        }
+    }
+    s
+}
+
 pub fn topic_notes(topics: &[String], _selected_subs: Option<&Vec<String>>) -> String {
     let mut s = String::new();
     for topic_name in topics {
@@ -99,6 +121,7 @@ pub fn topic_notes(topics: &[String], _selected_subs: Option<&Vec<String>>) -> S
             s.push_str(guidance);
         }
     }
+    s.push_str(&subject_specific_guidance(topics));
     s
 }
 

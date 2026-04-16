@@ -631,14 +631,21 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
 
   needsSaveBeforeLoad: (id) => {
     const s = get();
-    return (
-      (s.questionMode === 'written'
+    const currentId =
+      s.questionMode === 'written'
+        ? s.activeWrittenSavedSetId
+        : s.activeMcSavedSetId;
+    if (currentId === id) return false;
+
+    const hasQuestions =
+      s.questionMode === 'written'
         ? s.questions.length > 0
-        : s.mcQuestions.length > 0) &&
-      (s.questionMode === 'written'
-        ? s.activeWrittenSavedSetId !== id
-        : s.activeMcSavedSetId !== id)
-    );
+        : s.mcQuestions.length > 0;
+    if (!hasQuestions) return false;
+
+    // Check if the current session has any progress compared to what's already in history
+    // (This is a simplified check)
+    return true;
   },
   deleteSavedSet: (id) => {
     set((s) => ({
