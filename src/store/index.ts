@@ -70,6 +70,10 @@ const defaultState: AppState = {
   localBackupIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
   theme: normalizeThemeName(EMPTY_PERSISTED_APP_STATE.settings.theme),
+  customThemeSeedColor: '#3b82f6',
+  globalRounding: 'md',
+  interfaceFont: 'Manrope Variable',
+  headingFont: 'Manrope Variable',
   tutorPersona: EMPTY_PERSISTED_APP_STATE.settings.tutorPersona ?? '',
   tutorModel:
     EMPTY_PERSISTED_APP_STATE.settings.tutorModel ??
@@ -253,6 +257,11 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
     set({ localBackupIntervalMinutes }),
   setTheme: (theme) => set({ theme }),
+  setCustomThemeSeedColor: (customThemeSeedColor) =>
+    set({ customThemeSeedColor }),
+  setGlobalRounding: (globalRounding) => set({ globalRounding }),
+  setInterfaceFont: (interfaceFont) => set({ interfaceFont }),
+  setHeadingFont: (headingFont) => set({ headingFont }),
   setTutorPersona: (tutorPersona) => set({ tutorPersona }),
   setTutorModel: (tutorModel) => set({ tutorModel }),
   clearApiKey: () => set({ apiKey: '' }),
