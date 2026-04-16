@@ -5,9 +5,15 @@ import path from 'path';
 
 const host = process.env.TAURI_DEV_HOST;
 
+/// <reference types="vitest" />
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

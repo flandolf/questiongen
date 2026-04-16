@@ -304,3 +304,58 @@ pub fn analyze_batch_quality_issues(metrics: &[QuestionQualityMetrics]) -> (bool
         (true, issues.join(" "))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jaccard_similarity() {
+        let mut a = HashSet::new();
+        a.insert("apple".to_string());
+        a.insert("banana".to_string());
+
+        let mut b = HashSet::new();
+        b.insert("banana".to_string());
+        b.insert("cherry".to_string());
+
+        // Intersection: 1 (banana), Union: 3 (apple, banana, cherry)
+        assert_eq!(jaccard(&a, &b), 1.0 / 3.0);
+    }
+
+    #[test]
+    fn test_extract_primary_command_verb() {
+        assert_eq!(extract_primary_command_verb("Calculate the value"), "calculate");
+        assert_eq!(extract_primary_command_verb("Please find x"), "find");
+        assert_eq!(extract_primary_command_verb("No verb here"), "other");
+    }
+
+    #[test]
+    fn test_compute_mark_allocation_variance() {
+        let marks = vec![2, 2, 2, 2];
+        assert_eq!(compute_mark_allocation_variance(&marks), 0.0);
+
+        let marks2 = vec![1, 5];
+        // Mean = 3. Variance = ((1-3)^2 + (5-3)^2)/2 = (4+4)/2 = 4. StdDev = 2.
+        // min(2/10, 1.0) = 0.2
+        assert!((compute_mark_allocation_variance(&marks2) - 0.2).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_detect_scaffold_pattern() {
+        assert_eq!(detect_scaffold_pattern("Solve this."), "single-part");
+        assert_eq!(detect_scaffold_pattern("(a) part one (b) part two"), "multi-part-2");
+    }
+
+    #[test]
+    fn test_score_batch() {
+        let prompts = vec![
+            "Calculate x.".to_string(),
+            "Determine y.".to_string(),
+        ];
+        let (metrics, summary) = score_batch(&prompts);
+        assert_eq!(metrics.len(), 2);
+        assert!(summary.distinctness_avg.is_some());
+        assert!(summary.command_verb_diversity.is_some());
+    }
+}

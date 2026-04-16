@@ -141,10 +141,46 @@ impl CleanupService {
 
 #[cfg(test)]
 mod tests {
-    use super::AUTO_MAP_CONFIDENCE_THRESHOLD;
+    use super::{CleanupService, AUTO_MAP_CONFIDENCE_THRESHOLD};
+    use std::collections::HashMap;
 
     #[test]
     fn high_confidence_threshold_is_strictly_above_eighty_five_percent() {
         assert!((AUTO_MAP_CONFIDENCE_THRESHOLD - 0.85).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_auto_map_exact() {
+        let unknowns = vec!["Unknown1".to_string(), "Unknown2".to_string()];
+        let canonical = vec!["unknown1".to_string(), "Canonical2".to_string()];
+        let (mapping, remaining) = CleanupService::auto_map_exact(&unknowns, &canonical);
+
+        assert_eq!(mapping.len(), 1);
+        assert_eq!(mapping["Unknown1"], "unknown1");
+        assert_eq!(remaining, vec!["Unknown2"]);
+    }
+
+    #[test]
+    fn test_validate_and_filter_mappings() {
+        let raw = vec![
+            ("u1".to_string(), "c1".to_string()),
+            ("u2".to_string(), "invalid".to_string()),
+        ];
+        let canonical = vec!["c1".to_string(), "c2".to_string()];
+        let existing = HashMap::new();
+
+        let result = CleanupService::validate_and_filter_mappings(raw, &canonical, &existing);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result["u1"], "c1");
+        assert!(!result.contains_key("u2"));
+    }
+
+    #[test]
+    fn test_parse_cleanup_mappings() {
+        let raw = r#"{"mappings": [{"unknown": "u1", "canonical": "c1"}]}"#;
+        let result = CleanupService::parse_cleanup_mappings(raw).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, "u1");
+        assert_eq!(result[0].1, "c1");
     }
 }
