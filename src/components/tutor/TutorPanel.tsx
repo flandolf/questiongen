@@ -6,12 +6,18 @@ import {
   Activity,
   Brain,
   Check,
+  ChevronDown,
+  ClipboardCheck,
   Copy,
   Download,
+  Eraser,
+  FileText,
+  Info,
   Loader2,
   Maximize2,
   Minimize2,
   PencilRuler,
+  RefreshCcw,
   Send,
   Sparkles,
   Trash2,
@@ -155,6 +161,7 @@ const TutorHeader = ({
   updateSessionOverrides,
   clearSession,
   handleExportTranscript,
+  studentAnswer,
 }: {
   modelName: string;
   totalTokensSession: number;
@@ -171,20 +178,31 @@ const TutorHeader = ({
   ) => void;
   clearSession: (qid: string) => void;
   handleExportTranscript: () => void;
+  studentAnswer?: string;
 }) => (
-  <div className='flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30 backdrop-blur-sm'>
+  <div
+    className={cn(
+      'flex items-center justify-between border-b border-border bg-muted/30 backdrop-blur-sm shrink-0',
+      isCompact ? 'px-3 py-1.5' : 'px-4 py-2.5',
+    )}
+  >
     <div className='flex items-center gap-2'>
       {!isCompact && (
         <div className='bg-primary/10 p-1.5 rounded-lg'>
           <Sparkles className='h-4 w-4 text-primary' />
         </div>
       )}
-      <div>
-        <h3 className='font-bold text-sm flex items-center gap-1.5'>
+      <div className='min-w-0'>
+        <h3 className='font-bold text-sm flex items-center gap-1.5 truncate'>
           {!isCompact && 'AI Tutor'}
           <Popover>
             <PopoverTrigger asChild>
-              <button className='text-[10px] font-medium text-muted-foreground px-1.5 py-0.5 bg-muted rounded border border-border/50 hover:bg-muted/80 transition-colors'>
+              <button
+                className={cn(
+                  'font-medium text-muted-foreground bg-muted rounded border border-border/50 hover:bg-muted/80 transition-colors truncate',
+                  isCompact ? 'text-[9px] px-1 py-0' : 'text-[10px] px-1.5 py-0.5',
+                )}
+              >
                 {modelName || 'Select Model'}
               </button>
             </PopoverTrigger>
@@ -253,18 +271,53 @@ const TutorHeader = ({
             </PopoverContent>
           </Popover>
         </h3>
-        <p className='text-[10px] text-muted-foreground font-medium'>
-          {totalTokensSession > 0
-            ? `${totalTokensSession.toLocaleString()} tokens (~$${totalCostSession.toFixed(4)})`
-            : 'Always here to help'}
-        </p>
+        {!isCompact && (
+          <div className='flex items-center gap-2'>
+            <p className='text-[10px] text-muted-foreground font-medium'>
+              {totalTokensSession > 0
+                ? `${totalTokensSession.toLocaleString()} tokens (~$${totalCostSession.toFixed(4)})`
+                : 'Always here to help'}
+            </p>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className='text-muted-foreground hover:text-primary transition-colors'>
+                  <Info className='h-3 w-3' />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className='w-64 p-3 text-[11px] space-y-2'>
+                <h4 className='font-bold flex items-center gap-1.5'>
+                  <Brain className='h-3.5 w-3.5' />
+                  Session Context
+                </h4>
+                <div className='space-y-1 text-muted-foreground'>
+                  <div className='flex items-center justify-between'>
+                    <span>Question Text</span>
+                    <Check className='h-3 w-3 text-green-500' />
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span>Your Answer</span>
+                    {studentAnswer ? (
+                      <Check className='h-3 w-3 text-green-500' />
+                    ) : (
+                      <span className='text-[9px] uppercase'>None</span>
+                    )}
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span>Formula Sheet</span>
+                    <Check className='h-3 w-3 text-green-500' />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
       </div>
     </div>
     <div className='flex items-center gap-1'>
       <Button
         variant='ghost'
         size='icon'
-        className='h-8 w-8 rounded-full hover:bg-muted'
+        className={cn('rounded-full hover:bg-muted', isCompact ? 'h-6 w-6' : 'h-8 w-8')}
         onClick={() => {
           toggleCompact();
         }}
@@ -273,31 +326,33 @@ const TutorHeader = ({
         }
       >
         {isCompact ? (
-          <Maximize2 className='h-4 w-4' />
+          <Maximize2 className='h-3.5 w-3.5' />
         ) : (
           <Minimize2 className='h-4 w-4' />
         )}
       </Button>
+      {!isCompact && (
+        <Button
+          variant='ghost'
+          size='icon'
+          className='h-8 w-8 rounded-full hover:bg-muted'
+          onClick={() => {
+            handleExportTranscript();
+          }}
+          title='Export Transcript'
+        >
+          <Download className='h-4 w-4' />
+        </Button>
+      )}
       <Button
         variant='ghost'
         size='icon'
-        className='h-8 w-8 rounded-full hover:bg-muted'
-        onClick={() => {
-          handleExportTranscript();
-        }}
-        title='Export Transcript'
-      >
-        <Download className='h-4 w-4' />
-      </Button>
-      <Button
-        variant='ghost'
-        size='icon'
-        className='h-8 w-8 rounded-full hover:bg-muted'
+        className={cn('rounded-full hover:bg-muted', isCompact ? 'h-6 w-6' : 'h-8 w-8')}
         onClick={() => {
           setIsOpen(false);
         }}
       >
-        <X className='h-4 w-4' />
+        <X className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       </Button>
     </div>
   </div>
@@ -306,21 +361,25 @@ const TutorHeader = ({
 const MessageItem = ({
   msg,
   copiedId,
+  isCompact,
   handleCopyMessage,
 }: {
   msg: { id: string; role: string; content: string };
   copiedId: string | null;
-  handleCopyMessage: (id: string, content: string) => void;
+  isCompact: boolean;
+  handleCopyMessage: (id: string, content: string, type?: 'text' | 'md') => void;
 }) => (
   <div
     className={cn(
-      'flex flex-col max-w-[85%] space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300 group relative',
+      'flex flex-col space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300 group relative',
+      isCompact ? 'max-w-[92%]' : 'max-w-[85%]',
       msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start',
     )}
   >
     <div
       className={cn(
-        'px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm',
+        'rounded-2xl leading-relaxed shadow-sm',
+        isCompact ? 'px-3 py-1.5 text-[12px]' : 'px-4 py-2.5 text-[13px]',
         msg.role === 'user'
           ? 'bg-primary text-primary-foreground rounded-tr-none'
           : 'bg-card text-foreground rounded-tl-none border border-border/50',
@@ -337,17 +396,30 @@ const MessageItem = ({
       </div>
 
       {msg.role === 'assistant' && (
-        <button
-          onClick={() => handleCopyMessage(msg.id, msg.content)}
-          className='absolute -right-8 top-1 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded-md text-muted-foreground'
-          title='Copy message'
-        >
-          {copiedId === msg.id ? (
-            <Check className='h-3.5 w-3.5 text-green-500' />
-          ) : (
-            <Copy className='h-3.5 w-3.5' />
-          )}
-        </button>
+        <div className='absolute -right-10 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+          <button
+            onClick={() => handleCopyMessage(msg.id, msg.content, 'text')}
+            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors'
+            title='Copy as text'
+          >
+            {copiedId === `${msg.id}-text` ? (
+              <ClipboardCheck className='h-3.5 w-3.5 text-green-500' />
+            ) : (
+              <Copy className='h-3.5 w-3.5' />
+            )}
+          </button>
+          <button
+            onClick={() => handleCopyMessage(msg.id, msg.content, 'md')}
+            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors'
+            title='Copy as Markdown'
+          >
+            {copiedId === `${msg.id}-md` ? (
+              <ClipboardCheck className='h-3.5 w-3.5 text-green-500' />
+            ) : (
+              <FileText className='h-3.5 w-3.5' />
+            )}
+          </button>
+        </div>
       )}
     </div>
   </div>
@@ -369,6 +441,7 @@ export function TutorPanel({
     toggleCompact,
     sessions,
     addMessage,
+    removeLastMessage,
     updateSessionOverrides,
     clearSession,
     isGenerating,
@@ -389,6 +462,7 @@ export function TutorPanel({
       toggleCompact: s.toggleCompact,
       sessions: s.sessions,
       addMessage: s.addMessage,
+      removeLastMessage: s.removeLastMessage,
       updateSessionOverrides: s.updateSessionOverrides,
       clearSession: s.clearSession,
       isGenerating: s.isGenerating,
@@ -409,8 +483,11 @@ export function TutorPanel({
   const [sketchStatus, setSketchStatus] = useState<
     'idle' | 'processing' | 'sending' | 'none'
   >('idle');
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [sketchDataUrl, setSketchDataUrl] = useState<string | undefined>(undefined);
 
   const session = sessions[questionId];
   const messages = useMemo(() => session?.messages || [], [session]);
@@ -447,12 +524,49 @@ export function TutorPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCopyMessage = (id: string, content: string) => {
+  const handleCopyMessage = (
+    id: string,
+    content: string,
+    type: 'text' | 'md' = 'text',
+  ) => {
     void (async () => {
       try {
-        await navigator.clipboard.writeText(content);
-        setCopiedId(id);
-        toast.success('Message copied to clipboard');
+        let textToCopy = content;
+
+        if (type === 'text') {
+          // Convert Markdown to plain text by removing markdown syntax while preserving content
+          textToCopy = content
+            // Remove code blocks
+            .replace(/```[\s\S]*?```/g, (match) => {
+              return match.replace(/```\w*\n?|\n?```/g, '').trim();
+            })
+            // Remove inline code backticks but keep content
+            .replace(/`([^`]+)`/g, '$1')
+            // Remove bold/italic markers but keep content
+            .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/___([^_]+)___/g, '$1')
+            .replace(/__([^_]+)__/g, '$1')
+            .replace(/_([^_]+)_/g, '$1')
+            // Remove headers but keep content
+            .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+            // Remove links but keep text
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            // Remove images
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+            // Remove blockquote markers
+            .replace(/^>\s+/gm, '')
+            // Remove horizontal rules
+            .replace(/^[-*_]{3,}$/gm, '')
+            // Clean up LaTeX delimiters (keep the math content)
+            .replace(/\$\$([^$]+)\$\$/g, '$1')
+            .replace(/\$([^$]+)\$/g, '$1');
+        }
+
+        await navigator.clipboard.writeText(textToCopy);
+        setCopiedId(`${id}-${type}`);
+        toast.success(`Copied as ${type === 'text' ? 'plain text' : 'Markdown'}`);
         setTimeout(() => setCopiedId(null), 2000);
       } catch (error) {
         console.error('Failed to copy message:', error);
@@ -492,10 +606,67 @@ export function TutorPanel({
     })();
   };
 
-  // Scroll to bottom when messages or stream changes
+  // Smart Scroll logic
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  const wasAtBottomRef = useRef(true);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamedContent]);
+    const scrollArea = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    );
+    if (!scrollArea) return;
+
+    const checkIfAtBottom = () => {
+      const isAtBottom =
+        scrollArea.scrollHeight - scrollArea.scrollTop <=
+        scrollArea.clientHeight + 100;
+      return isAtBottom;
+    };
+
+    // Store whether we were at bottom before streaming started
+    if (!isGenerating) {
+      wasAtBottomRef.current = checkIfAtBottom();
+    }
+
+    // Only auto-scroll during generation if user was already at bottom
+    if (isGenerating && wasAtBottomRef.current) {
+      scrollToBottom('auto');
+    } else if (!isGenerating && wasAtBottomRef.current) {
+      scrollToBottom('smooth');
+    } else if (messages.length > 0 && !checkIfAtBottom()) {
+      setShowScrollButton(true);
+    }
+  }, [messages, streamedContent, isGenerating]);
+
+  useEffect(() => {
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    ) as HTMLElement | null;
+
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const isAtBottom =
+        viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 50;
+
+      if (isAtBottom && showScrollButton) {
+        setShowScrollButton(false);
+      }
+
+      // Update wasAtBottomRef when user scrolls manually
+      if (!isGenerating) {
+        wasAtBottomRef.current = isAtBottom;
+      }
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  }, [showScrollButton, isGenerating]);
 
   // Setup SSE listener for streaming tokens
   useEffect(() => {
@@ -553,21 +724,44 @@ export function TutorPanel({
     };
   }, [sketchSessionKey]);
 
+  // Load sketch preview when includeSketch becomes true
+  useEffect(() => {
+    if (includeSketch && sketchSessionKey) {
+      void (async () => {
+        try {
+          const dataUrl = await getSketchpadDataUrl(sketchSessionKey);
+          setSketchDataUrl(dataUrl);
+        } catch (error) {
+          console.error('Failed to load sketch preview:', error);
+          setSketchDataUrl(undefined);
+        }
+      })();
+    } else {
+      setSketchDataUrl(undefined);
+    }
+  }, [includeSketch, sketchSessionKey]);
+
   // eslint-disable-next-line complexity
-  const handleSend = async (overrideValue?: string, isDiagnostic = false) => {
+  const handleSend = async (
+    overrideValue?: string,
+    isDiagnostic = false,
+    skipAddingUserMessage = false,
+  ) => {
     const finalInputValue = overrideValue ?? inputValue;
     if (!finalInputValue.trim() || isGenerating) return;
 
     const userMessageContent = finalInputValue;
     if (!overrideValue) setInputValue('');
 
-    // Add user message to store
-    addMessage(questionId, {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: userMessageContent,
-      createdAt: Date.now(),
-    });
+    // Add user message to store (unless we're regenerating)
+    if (!skipAddingUserMessage) {
+      addMessage(questionId, {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userMessageContent,
+        createdAt: Date.now(),
+      });
+    }
 
     setIsGenerating(true);
     setStreamedContent('');
@@ -743,6 +937,40 @@ export function TutorPanel({
     );
   };
 
+  const handleRegenerate = async () => {
+    if (messages.length === 0 || isGenerating) return;
+
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role !== 'assistant') return;
+
+    // Find the last user message before removing anything
+    const userMessages = messages.filter((m) => m.role === 'user');
+    if (userMessages.length === 0) return;
+
+    const lastUserMsg = userMessages[userMessages.length - 1];
+
+    // Check if the user message was a diagnostic request
+    const isDiagnostic =
+      lastUserMsg.content ===
+      'Please check my work and let me know if I made any errors.';
+
+    // Remove the last assistant message
+    removeLastMessage(questionId);
+
+    // Remove the last user message as well
+    removeLastMessage(questionId);
+
+    // Re-add the user message and send (using skipAddingUserMessage flag to avoid double-adding)
+    addMessage(questionId, {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: lastUserMsg.content,
+      createdAt: Date.now(),
+    });
+
+    await handleSend(lastUserMsg.content, isDiagnostic, true);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -802,13 +1030,17 @@ export function TutorPanel({
               updateSessionOverrides={updateSessionOverrides}
               clearSession={clearSession}
               handleExportTranscript={handleExportTranscript}
+              studentAnswer={studentAnswer}
             />
 
             {/* Chat Area */}
-            <ScrollArea className='flex-1 min-h-0 p-2 bg-muted/5'>
+            <ScrollArea
+              ref={scrollAreaRef}
+              className='flex-1 min-h-0 p-2 bg-muted/5 relative'
+            >
               <div className='space-y-2'>
                 {messages.length === 0 && !isGenerating && (
-                  <div className='flex flex-col items-center justify-center text-center mt-10 space-y-2 px-4'>
+                  <div className='flex flex-col items-center justify-center text-center mt-10 space-y-4 px-4'>
                     <div className='bg-primary/5 p-2 rounded-full'>
                       <Brain
                         className={`text-primary/40 ${!isCompact ? 'h-6 w-6' : 'h-4 w-4'}`}
@@ -821,55 +1053,107 @@ export function TutorPanel({
                         core concepts of this question.
                       </p>
                     </div>
+                    {!isGenerating && (
+                      <div className='flex flex-wrap justify-center gap-1.5 pt-2'>
+                        {[
+                          'Give me a hint',
+                          'Explain this concept',
+                          'Check my steps',
+                        ].map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            onClick={() => void handleSend(suggestion)}
+                            className='text-[10px] px-2.5 py-1 rounded-full bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-colors'
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {messages.map((msg) => (
-                  <MessageItem
-                    key={msg.id}
-                    msg={msg}
-                    copiedId={copiedId}
-                    handleCopyMessage={handleCopyMessage}
-                  />
+                {messages.map((msg, idx) => (
+                  <div key={msg.id} className='relative group/msg'>
+                    <MessageItem
+                      msg={msg}
+                      copiedId={copiedId}
+                      isCompact={isCompact}
+                      handleCopyMessage={handleCopyMessage}
+                    />
+                    {msg.role === 'assistant' &&
+                      idx === messages.length - 1 &&
+                      !isGenerating && (
+                        <button
+                          onClick={() => void handleRegenerate()}
+                          className={cn(
+                            'absolute -bottom-6 left-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary px-2 py-1',
+                          )}
+                        >
+                          <RefreshCcw className='h-3 w-3' />
+                          Regenerate
+                        </button>
+                      )}
+                    {msg.role === 'assistant' && idx === messages.length - 1 && (
+                      <div className='h-6' />
+                    )}
+                  </div>
                 ))}
 
                 {/* Streaming chunk */}
                 {isGenerating && (
-                  <div className='flex flex-col max-w-[85%] mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300'>
-                    <div className='px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15'>
+                  <div
+                    className={cn(
+                      'flex flex-col mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300',
+                      isCompact ? 'max-w-[92%]' : 'max-w-[85%]',
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'rounded-2xl leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15',
+                        isCompact ? 'px-3 py-1.5 text-[12px]' : 'px-4 py-2.5 text-[13px]',
+                      )}
+                    >
                       {streamedContent ? (
-                        <MarkdownMath content={streamedContent} />
+                        <MarkdownMath content={streamedContent} isStreaming />
                       ) : (
-                        <div className='flex gap-1 py-1'>
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 1,
-                              times: [0, 0.5, 1],
-                            }}
-                            className='h-1.5 w-1.5 bg-primary/40 rounded-full'
-                          />
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 1,
-                              delay: 0.2,
-                              times: [0, 0.5, 1],
-                            }}
-                            className='h-1.5 w-1.5 bg-primary/40 rounded-full'
-                          />
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{
-                              repeat: Infinity,
-                              duration: 1,
-                              delay: 0.4,
-                              times: [0, 0.5, 1],
-                            }}
-                            className='h-1.5 w-1.5 bg-primary/40 rounded-full'
-                          />
+                        <div className='flex flex-col gap-2 py-1'>
+                          <div className='flex gap-1'>
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                              transition={{
+                                repeat: Infinity,
+                                duration: 1,
+                                times: [0, 0.5, 1],
+                              }}
+                              className='h-1.5 w-1.5 bg-primary rounded-full'
+                            />
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                              transition={{
+                                repeat: Infinity,
+                                duration: 1,
+                                delay: 0.2,
+                                times: [0, 0.5, 1],
+                              }}
+                              className='h-1.5 w-1.5 bg-primary rounded-full'
+                            />
+                            <motion.div
+                              animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                              transition={{
+                                repeat: Infinity,
+                                duration: 1,
+                                delay: 0.4,
+                                times: [0, 0.5, 1],
+                              }}
+                              className='h-1.5 w-1.5 bg-primary rounded-full'
+                            />
+                          </div>
+                          <span className='text-[10px] text-muted-foreground animate-pulse font-medium'>
+                            {sketchStatus === 'sending'
+                              ? 'Uploading work...'
+                              : 'AI Tutor is thinking...'}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -877,11 +1161,39 @@ export function TutorPanel({
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              <AnimatePresence>
+                {showScrollButton && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className='absolute bottom-4 right-4 z-10'
+                  >
+                    <Button
+                      size='icon'
+                      variant='secondary'
+                      className='h-8 w-8 rounded-full shadow-lg border border-border'
+                      onClick={() => {
+                        scrollToBottom();
+                        setShowScrollButton(false);
+                      }}
+                    >
+                      <ChevronDown className='h-4 w-4' />
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </ScrollArea>
 
             {/* Input Area */}
-            <div className='p-2 border-t border-border bg-card'>
-              <div className='flex items-center justify-between mb-1 px-1'>
+            <div className={cn('border-t border-border bg-card shrink-0', isCompact ? 'p-1.5' : 'p-2')}>
+              <div
+                className={cn(
+                  'flex items-center justify-between px-1',
+                  isCompact ? 'mb-0.5' : 'mb-1',
+                )}
+              >
                 {sketchSessionKey && (
                   <div className='flex items-center space-x-2'>
                     <Checkbox
@@ -890,25 +1202,48 @@ export function TutorPanel({
                       onCheckedChange={(checked) =>
                         setIncludeSketch(checked === true)
                       }
+                      className={isCompact ? 'h-3 w-3' : ''}
                     />
                     <Label
                       htmlFor='include-sketch'
-                      className='text-[11px] text-muted-foreground font-medium cursor-pointer'
+                      className={cn(
+                        'text-muted-foreground font-medium cursor-pointer',
+                        isCompact ? 'text-[9px]' : 'text-[11px]',
+                      )}
                     >
-                      Include Sketchpad
+                      Include Sketch
                     </Label>
                   </div>
                 )}
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={handleDiagnosticRequest}
-                  disabled={isGenerating}
-                  className='h-6 px-2 text-[10px] text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1.5'
-                >
-                  <Activity className='h-3 w-3' />
-                  Check my work
-                </Button>
+                <div className='flex items-center gap-1'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => clearSession(questionId)}
+                    disabled={isGenerating || messages.length === 0}
+                    className={cn(
+                      'text-muted-foreground hover:text-destructive hover:bg-destructive/5 flex items-center gap-1',
+                      isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
+                    )}
+                    title='Clear Chat'
+                  >
+                    <Eraser className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+                    Clear
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={handleDiagnosticRequest}
+                    disabled={isGenerating}
+                    className={cn(
+                      'text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1',
+                      isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
+                    )}
+                  >
+                    <Activity className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+                    Check work
+                  </Button>
+                </div>
               </div>
               <AnimatePresence>
                 {sketchStatus !== 'idle' && sketchStatus !== 'none' && (
@@ -916,7 +1251,10 @@ export function TutorPanel({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className='flex items-center gap-2 mb-2 px-1 text-[10px] text-muted-foreground overflow-hidden'
+                    className={cn(
+                      'flex items-center gap-2 px-1 text-muted-foreground overflow-hidden',
+                      isCompact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]',
+                    )}
                   >
                     {sketchStatus === 'processing' ? (
                       <>
@@ -932,22 +1270,78 @@ export function TutorPanel({
                   </motion.div>
                 )}
               </AnimatePresence>
+              {(includeSketch || image?.dataUrl) && (
+                <div className='flex gap-2 mb-2 px-1'>
+                  {includeSketch && (
+                    <div className='relative group'>
+                      <div className='w-12 h-12 rounded-md border border-border bg-white overflow-hidden flex items-center justify-center'>
+                        {sketchDataUrl ? (
+                          <img
+                            src={sketchDataUrl}
+                            alt='Sketch preview'
+                            className='w-full h-full object-cover'
+                          />
+                        ) : (
+                          <PencilRuler className='h-5 w-5 text-muted-foreground/40' />
+                        )}
+                      </div>
+                      <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
+                        <span className='text-[8px] font-bold text-primary uppercase'>
+                          Sketch
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setIncludeSketch(false)}
+                        className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
+                      >
+                        <X className='h-2.5 w-2.5' />
+                      </button>
+                    </div>
+                  )}
+                  {image?.dataUrl && (
+                    <div className='relative group'>
+                      <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
+                        <img
+                          src={image.dataUrl}
+                          alt='Attachment'
+                          className='w-full h-full object-cover'
+                        />
+                      </div>
+                      <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+                        <span className='text-[8px] font-bold text-primary uppercase'>
+                          Image
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className='relative flex items-end gap-2'>
                 <Textarea
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder='Ask for a hint...'
-                  className='min-h-11 max-h-30 pr-12 resize-none py-3 px-4 text-xs rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20'
+                  className={cn(
+                    'max-h-30 resize-none rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20',
+                    isCompact
+                      ? 'min-h-9 py-2 px-3 text-[11px] pr-10'
+                      : 'min-h-11 py-3 px-4 text-xs pr-12',
+                  )}
                   disabled={isGenerating}
                 />
                 <Button
                   size='icon'
-                  className='absolute right-1.5 bottom-1.5 h-8 w-8 rounded-lg transition-all duration-200'
+                  className={cn(
+                    'absolute transition-all duration-200',
+                    isCompact
+                      ? 'right-1 bottom-1 h-7 w-7 rounded-md'
+                      : 'right-1.5 bottom-1.5 h-8 w-8 rounded-lg',
+                  )}
                   onClick={() => void handleSend()}
                   disabled={!inputValue.trim() || isGenerating}
                 >
-                  <Send className='h-4 w-4' />
+                  <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
                 </Button>
               </div>
             </div>
