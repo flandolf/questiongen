@@ -37,6 +37,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { PageContainer, PageHeader } from '@/components/layout/primitives';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 
 import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
@@ -209,11 +210,10 @@ function ExpandableCardSection({
   return (
     <div
       ref={ref}
-      className={`overflow-hidden transition-all duration-300 ease-in-out ${
-        isExpanded
-          ? 'opacity-100 mt-3'
-          : 'opacity-0 max-h-0 mt-0 pointer-events-none'
-      }`}
+      className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded
+        ? 'opacity-100 mt-3'
+        : 'opacity-0 max-h-0 mt-0 pointer-events-none'
+        }`}
     >
       {children}
     </div>
@@ -239,11 +239,10 @@ const ToggleButton = memo(function ToggleButton({
     <button
       type='button'
       onClick={onToggle}
-      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px]  transition-all duration-150 border ${
-        isExpanded
-          ? 'bg-primary/10 text-primary border-primary/20'
-          : 'text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40'
-      }`}
+      className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-[11px]  transition-all duration-150 border ${isExpanded
+        ? 'bg-primary/10 text-primary border-primary/20'
+        : 'text-muted-foreground hover:text-foreground border-border/40 hover:border-border hover:bg-muted/40'
+        }`}
     >
       {isExpanded ? (
         <>
@@ -390,7 +389,6 @@ const McEntryCard = memo(function McEntryCard({
   return (
     <Card
       className={`overflow-hidden border transition-all duration-200 hover:shadow-lg 
-        ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}
         bg-muted/40 dark:bg-muted/20 border-border/80 dark:border-border/70
         ${isExpanded ? 'shadow-lg border-violet-700/40 dark:border-violet-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
@@ -407,24 +405,18 @@ const McEntryCard = memo(function McEntryCard({
     >
       <CardHeader className='px-4 py-2 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
-          <input
-            type='checkbox'
+          <Checkbox
             checked={isSelected}
-            onChange={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
+            onCheckedChange={onSelect}
             aria-label={accessibleLabel}
-            className='mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer'
           />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
             <div
-              className={`mt-0.5 shrink-0 w-7 h-7 rounded-sm flex items-center justify-center ${
-                isCorrect
-                  ? 'bg-emerald-100 dark:bg-emerald-950/50'
-                  : 'bg-red-100 dark:bg-red-950/50'
-              }`}
+              className={`mt-0.5 shrink-0 w-7 h-7 rounded-sm flex items-center justify-center ${isCorrect
+                ? 'bg-emerald-100 dark:bg-emerald-950/50'
+                : 'bg-red-100 dark:bg-red-950/50'
+                }`}
             >
               {isCorrect ? (
                 <CheckCircle2 className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
@@ -493,11 +485,10 @@ const McEntryCard = memo(function McEntryCard({
           <span>
             Selected{' '}
             <strong
-              className={` ${
-                item.selectedAnswer === item.question.correctAnswer
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
-              }`}
+              className={` ${item.selectedAnswer === item.question.correctAnswer
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-red-600 dark:text-red-400'
+                }`}
             >
               {item.selectedAnswer}
             </strong>
@@ -533,13 +524,12 @@ const McEntryCard = memo(function McEntryCard({
                 return (
                   <div key={opt.label} className={cls}>
                     <span
-                      className={` shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${
-                        isCorrOpt
-                          ? 'bg-emerald-500 text-white'
-                          : isChosen
-                            ? 'bg-red-500 text-white'
-                            : 'bg-muted text-muted-foreground'
-                      }`}
+                      className={` shrink-0 w-5 h-5 flex items-center justify-center rounded-sm text-[11px] mt-0.5 ${isCorrOpt
+                        ? 'bg-emerald-500 text-white'
+                        : isChosen
+                          ? 'bg-red-500 text-white'
+                          : 'bg-muted text-muted-foreground'
+                        }`}
                     >
                       {opt.label}
                     </span>
@@ -589,15 +579,14 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   const pct =
     item.markResponse.maxMarks > 0
       ? Math.round(
-          (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100,
-        )
+        (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100,
+      )
       : 0;
   const accessibleLabel = `Select history item ${item.question.topic}${item.question.subtopic ? ` - ${item.question.subtopic}` : ''} from ${getRelativeTime(item.createdAt)}`;
 
   return (
     <Card
       className={`overflow-hidden border transition-all duration-200 hover:shadow-lg 
-        ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}
         bg-muted/30 dark:bg-muted/20 border-border/80 dark:border-border/70
         ${isExpanded ? 'shadow-lg border-sky-700/40 dark:border-sky-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
@@ -614,15 +603,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
     >
       <CardHeader className='px-4 py-3 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
-          <input
-            type='checkbox'
+          <Checkbox
             checked={isSelected}
-            onChange={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
+            onCheckedChange={onSelect}
             aria-label={accessibleLabel}
-            className='mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer'
           />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
@@ -705,13 +689,12 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           <span>{item.markResponse.vcaaMarkingScheme.length} criteria</span>
           <span className='text-border'>·</span>
           <span
-            className={`font-semibold ${
-              pct >= 75
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : pct >= 50
-                  ? 'text-amber-600 dark:text-amber-400'
-                  : 'text-red-600 dark:text-red-400'
-            }`}
+            className={`font-semibold ${pct >= 75
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : pct >= 50
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-red-600 dark:text-red-400'
+              }`}
           >
             {item.markResponse.achievedMarks}/{item.markResponse.maxMarks} marks
           </span>
@@ -771,11 +754,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-3 justify-between rounded-sm border px-3 py-2.5 text-sm transition-colors ${
-                        isFullMarks
-                          ? 'border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20'
-                          : 'border-border/30 bg-card'
-                      }`}
+                      className={`flex gap-3 justify-between rounded-sm border px-3 py-2.5 text-sm transition-colors ${isFullMarks
+                        ? 'border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20'
+                        : 'border-border/30 bg-card'
+                        }`}
                     >
                       <div className='flex-1 space-y-1.5 min-w-0'>
                         <MarkdownMath content={criterion.criterion} />
@@ -786,11 +768,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                         )}
                       </div>
                       <span
-                        className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-sm ${
-                          isFullMarks
-                            ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
+                        className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-sm ${isFullMarks
+                          ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-muted text-muted-foreground'
+                          }`}
                       >
                         {criterion.achievedMarks}/{criterion.maxMarks}
                       </span>
@@ -1244,11 +1225,10 @@ export function HistoryView() {
           <button
             type='button'
             onClick={() => setShowFilters((p) => !p)}
-            className={`flex items-center gap-1.5 px-3 h-9 rounded-sm border text-sm font-medium transition-all ${
-              showFilters || hasActiveFilters
-                ? 'bg-primary/10 border-primary/30 text-primary'
-                : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/40'
-            }`}
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-sm border text-sm font-medium transition-all ${showFilters || hasActiveFilters
+              ? 'bg-primary/10 border-primary/30 text-primary'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
           >
             <SlidersHorizontal className='h-3.5 w-3.5' />
             Filters
@@ -1294,11 +1274,10 @@ export function HistoryView() {
                     key={mode}
                     type='button'
                     onClick={() => setModeFilter(mode)}
-                    className={`px-3 py-1.5 text-xs rounded-sm font-medium transition-all duration-150 ${
-                      modeFilter === mode
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }`}
+                    className={`px-3 py-1.5 text-xs rounded-sm font-medium transition-all duration-150 ${modeFilter === mode
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
                   >
                     {mode === 'all'
                       ? 'All'
@@ -1319,11 +1298,10 @@ export function HistoryView() {
                 <button
                   type='button'
                   onClick={() => handleSubjectBadgeClick(null)}
-                  className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${
-                    activeSubject === null
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                  }`}
+                  className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${activeSubject === null
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                    }`}
                 >
                   All topics
                 </button>
@@ -1332,11 +1310,10 @@ export function HistoryView() {
                     key={subject}
                     type='button'
                     onClick={() => handleSubjectBadgeClick(subject)}
-                    className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${
-                      activeSubject === subject
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                    }`}
+                    className={`px-2.5 py-1 text-xs rounded-sm border font-medium transition-all ${activeSubject === subject
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      }`}
                   >
                     {subject}{' '}
                     <span className='opacity-60'>

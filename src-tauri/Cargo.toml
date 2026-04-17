@@ -1,6 +1,6 @@
 [package]
 name = "questiongen"
-version = "3.4.12"
+version = "3.4.15"
 description = "A tool to generate questions from text using AI models."
 authors = ["flandolf"]
 edition = "2021"
@@ -45,4 +45,5 @@ overflow-checks = false
 
 [profile.release]
 strip = "debuginfo"
+codegen-units = 16
 lto = "thin"
