@@ -41,19 +41,24 @@ pub struct QuestionsPayload<Q> {
     pub questions: Vec<Q>,
 }
 
-fn normalize_unique_strings(values: &[String]) -> Vec<String> {
+fn normalize_unique_strings(values: &[String], is_subtopic: bool) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut cleaned = Vec::new();
 
     for value in values {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
+        let stripped = if is_subtopic {
+            crate::topic_normalize::strip_subtopic_scope(value)
+        } else {
+            value.trim().to_string()
+        };
+
+        if stripped.is_empty() {
             continue;
         }
 
-        let key = trimmed.to_ascii_lowercase();
+        let key = stripped.to_ascii_lowercase();
         if seen.insert(key) {
-            cleaned.push(trimmed.to_string());
+            cleaned.push(stripped);
         }
     }
 
@@ -75,7 +80,7 @@ fn validate_and_prepare_generation_inputs(
     average_marks: Option<u8>,
     question_count: usize,
 ) -> CommandResult<PreparedGenerationInputs> {
-    let topics = normalize_unique_strings(topics);
+    let topics = normalize_unique_strings(topics, false);
     if topics.is_empty() {
         return Err(AppError::new(
             "VALIDATION_ERROR",
@@ -110,7 +115,7 @@ fn validate_and_prepare_generation_inputs(
     }
 
     let subtopics: Option<Vec<String>> = subtopics
-        .map(|items| normalize_unique_strings(items))
+        .map(|items| normalize_unique_strings(items, true))
         .filter(|s| !s.is_empty());
     if let Some(ref selected_subtopics) = subtopics {
         let selected_topics: HashSet<String> =
@@ -156,7 +161,7 @@ fn validate_and_prepare_generation_inputs(
         subtopics,
         custom_focus_area: normalize_optional_text(custom_focus_area),
         prior_question_prompts: prior_question_prompts
-            .map(|prompts| normalize_unique_strings(prompts))
+            .map(|prompts| normalize_unique_strings(prompts, false))
             .filter(|prompts| !prompts.is_empty()),
         average_marks,
     })
@@ -371,7 +376,7 @@ impl GenerationService {
     where
         Q: NormalizableQuestion + Clone + serde::Serialize + for<'de> serde::Deserialize<'de>,
     {
-        let topics = normalize_unique_strings(request.topics());
+        let topics = normalize_unique_strings(request.topics(), false);
         let prepared = validate_and_prepare_generation_inputs(
             &topics,
             request.subtopics(),
@@ -1477,6 +1482,10 @@ mod tests {
             "chemistry".to_string(),
             "Mathematical Methods".to_string(),
         ];
+        let subtopics = vec![
+            "Graphing Circular Functions@@unit3-functions#12".to_string(),
+            "Graphing Circular Functions".to_string(),
+        ];
         let custom_focus_area = Some("  Focus area  ".to_string());
         let prior_prompts = vec![
             " First prompt ".to_string(),
@@ -1487,7 +1496,7 @@ mod tests {
 
         let prepared = validate_and_prepare_generation_inputs(
             &topics,
-            None,
+            Some(&subtopics),
             custom_focus_area.as_ref(),
             Some(&prior_prompts),
             Some(10),
@@ -1496,6 +1505,10 @@ mod tests {
         .expect("valid inputs");
 
         assert_eq!(prepared.topics, vec!["Chemistry", "Mathematical Methods"]);
+        assert_eq!(
+            prepared.subtopics,
+            Some(vec!["Graphing Circular Functions".to_string()])
+        );
         assert_eq!(prepared.custom_focus_area.as_deref(), Some("Focus area"));
         assert_eq!(
             prepared.prior_question_prompts,

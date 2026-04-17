@@ -148,17 +148,6 @@ static TOPIC_INDEX: Lazy<HashMap<String, usize>> = Lazy::new(|| {
         .collect()
 });
 
-/// Lowercased subtopic name -> (topic_index, subtopic_index)
-static SUBTOPIC_INDEX: Lazy<HashMap<String, (usize, usize)>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-    for (ti, topic) in CATALOG.iter().enumerate() {
-        for (si, sub) in topic.subtopics.iter().enumerate() {
-            m.insert(sub.name.to_lowercase(), (ti, si));
-        }
-    }
-    m
-});
-
 // ─── Public accessors ─────────────────────────────────────────────────────────
 
 pub fn all_topics() -> &'static [TopicEntry] {
@@ -204,9 +193,4 @@ pub fn find_subtopic(topic_name: &str, subtopic_name: &str) -> Option<&'static S
         .subtopics
         .iter()
         .find(|s| s.name.eq_ignore_ascii_case(subtopic_name))
-}
-
-/// All canonical subtopic names (lowercased) across all topics.
-pub fn all_subtopic_names_lower() -> Vec<&'static str> {
-    SUBTOPIC_INDEX.keys().map(|s| s.as_str()).collect()
 }
