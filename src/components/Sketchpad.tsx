@@ -23,6 +23,7 @@ import {
   useState,
 } from 'react';
 
+import { ColorPicker } from '@/components/color-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -72,7 +73,6 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   paintBackground,
-  PALETTE,
   PALM_REJECTION,
   PEN_ONLY_STORAGE_KEY,
   STORAGE_KEY,
@@ -2267,14 +2267,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       </div>
     );
 
-    const activeColorPalette = Array.from(
-      new Set([currentColor, ...recentColors]),
-    ).slice(0, 3);
-    while (activeColorPalette.length < 3) {
-      const fallback = PALETTE.find((c) => !activeColorPalette.includes(c));
-      if (fallback) activeColorPalette.push(fallback);
-    }
-
     const settingsFooter = (
       <Card className='flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-card pointer-events-auto'>
         <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
@@ -2454,32 +2446,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           <Separator orientation='vertical' className='h-8 mx-1' />
 
           <div className='flex items-center gap-3 px-2'>
-            <div className='flex items-center gap-2'>
-              {activeColorPalette.map((c, i) => (
-                <button
-                  key={`${c}-${i}`}
-                  onClick={() => setColor(c)}
-                  className={cn(
-                    'w-7 h-7 rounded-full border-2 transition-all',
-                    currentColor === c && activeTool !== 'eraser'
-                      ? 'border-primary scale-110 shadow-md ring-4 ring-primary/20'
-                      : 'border-background hover:scale-110',
-                  )}
-                  style={{ background: c }}
-                />
-              ))}
-              <div className='relative w-7 h-7 rounded-full overflow-hidden border border-border shadow-sm hover:scale-110 transition-all'>
-                <input
-                  type='color'
-                  value={currentColor}
-                  onChange={(e) => {
-                    setColor(e.target.value);
-                    addRecentColor(e.target.value);
-                  }}
-                  className='absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer'
-                />
-              </div>
-            </div>
+            <ColorPicker
+              value={currentColor}
+              onChange={(nextColor) => {
+                setColor(nextColor);
+                addRecentColor(nextColor);
+              }}
+              swatches={Array.from(new Set([currentColor, ...recentColors]))}
+              label='Sketch color'
+              triggerClassName='h-9 w-44 rounded-xl'
+              contentClassName='w-80'
+            />
             <Separator orientation='vertical' className='h-8 mx-1' />
             <Tooltip>
               <TooltipTrigger asChild>
