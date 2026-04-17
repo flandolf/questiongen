@@ -1,4 +1,13 @@
-import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  deleteDoc,
+  doc,
+  type DocumentData,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+  writeBatch,
+} from 'firebase/firestore';
+import debounce from 'lodash.debounce';
 
 import { removeUndefined } from '@/lib/app-utils';
 import type {
@@ -163,45 +172,47 @@ export async function deleteSavedSet(id: string) {
 }
 
 /**
- * Update the user's study goals and streak data under `users/{uid}/settings/goals`.
+ * Update the user's study goals and streak data under `users/{uid}/settings/profile`.
  * Performs a merge so only provided fields are updated.
+ * Debounced to reduce writes during rapid slider movements.
  *
  * @param goals - The new study goals to persist.
  * @param streakData - The associated streak data to persist.
  */
-export async function updateStudyGoals(
-  goals: StudyGoals,
-  streakData: StreakData,
-) {
-  const uid = getUid();
-  if (!uid) return;
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/settings`, 'goals'),
-      removeUndefined({
-        studyGoals: goals,
-        streakData: streakData,
-        updatedAt: serverTimestamp(),
-      }),
-      { merge: true },
-    );
-  } catch (error) {
-    console.error('[Sync] Failed to update study goals:', error);
-  }
-}
+export const updateStudyGoals = debounce(
+  async (goals: StudyGoals, streakData: StreakData) => {
+    const uid = getUid();
+    if (!uid) return;
+    try {
+      await setDoc(
+        doc(db, `users/${uid}/settings`, 'profile'),
+        removeUndefined({
+          studyGoals: goals,
+          streakData: streakData,
+          updatedAt: serverTimestamp(),
+        }),
+        { merge: true },
+      );
+    } catch (error) {
+      console.error('[Sync] Failed to update study goals:', error);
+    }
+  },
+  1500,
+);
 
 /**
- * Update the user's presets under `users/{uid}/settings/presets`.
+ * Update the user's presets under `users/{uid}/settings/profile`.
  * Uses merge to avoid overwriting other settings.
+ * Debounced to reduce writes.
  *
  * @param presets - Array of `Preset` objects to persist.
  */
-export async function updatePresets(presets: Preset[]) {
+export const updatePresets = debounce(async (presets: Preset[]) => {
   const uid = getUid();
   if (!uid) return;
   try {
     await setDoc(
-      doc(db, `users/${uid}/settings`, 'presets'),
+      doc(db, `users/${uid}/settings`, 'profile'),
       removeUndefined({
         presets,
         updatedAt: serverTimestamp(),
@@ -211,20 +222,21 @@ export async function updatePresets(presets: Preset[]) {
   } catch (error) {
     console.error('[Sync] Failed to update presets:', error);
   }
-}
+}, 1500);
 
 /**
- * Update the stored API key for the user under `users/{uid}/settings/main`.
- * Uses `merge: true` to preserve other main settings.
+ * Update the stored API key for the user under `users/{uid}/settings/profile`.
+ * Uses `merge: true` to preserve other settings.
+ * Debounced to reduce writes.
  *
  * @param apiKey - The API key string to persist.
  */
-export async function updateApiKey(apiKey: string) {
+export const updateApiKey = debounce(async (apiKey: string) => {
   const uid = getUid();
   if (!uid) return;
   try {
     await setDoc(
-      doc(db, `users/${uid}/settings`, 'main'),
+      doc(db, `users/${uid}/settings`, 'profile'),
       removeUndefined({
         apiKey,
         updatedAt: serverTimestamp(),
@@ -233,6 +245,64 @@ export async function updateApiKey(apiKey: string) {
     );
   } catch (error) {
     console.error('[Sync] Failed to update API key:', error);
+  }
+}, 1500);
+
+/**
+ * Migrates old settings documents (main, goals, presets) to the consolidated 'profile' document.
+ * This should be called once when the user logs in.
+ */
+export async function migrateSettings() {
+  const uid = getUid();
+  if (!uid) return;
+
+  const profileRef = doc(db, `users/${uid}/settings`, 'profile');
+  const profileSnap = await getDoc(profileRef);
+
+  // If profile already exists, we assume migration is done (or it's a new user)
+  if (profileSnap.exists()) return;
+
+  console.info('[Sync] Starting settings migration to consolidated profile...');
+
+  const mainRef = doc(db, `users/${uid}/settings`, 'main');
+  const goalsRef = doc(db, `users/${uid}/settings`, 'goals');
+  const presetsRef = doc(db, `users/${uid}/settings`, 'presets');
+
+  const [mainSnap, goalsSnap, presetsSnap] = await Promise.all([
+    getDoc(mainRef),
+    getDoc(goalsRef),
+    getDoc(presetsRef),
+  ]);
+
+  if (!mainSnap.exists() && !goalsSnap.exists() && !presetsSnap.exists()) {
+    return;
+  }
+
+  const batch = writeBatch(db);
+  const combinedData: DocumentData = {
+    updatedAt: serverTimestamp(),
+  };
+
+  if (mainSnap.exists()) {
+    Object.assign(combinedData, mainSnap.data());
+    batch.delete(mainRef);
+  }
+  if (goalsSnap.exists()) {
+    Object.assign(combinedData, goalsSnap.data());
+    batch.delete(goalsRef);
+  }
+  if (presetsSnap.exists()) {
+    Object.assign(combinedData, presetsSnap.data());
+    batch.delete(presetsRef);
+  }
+
+  batch.set(profileRef, combinedData);
+
+  try {
+    await batch.commit();
+    console.info('[Sync] Settings migration successful.');
+  } catch (error) {
+    console.error('[Sync] Settings migration failed:', error);
   }
 }
 
