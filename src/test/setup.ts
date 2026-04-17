@@ -18,7 +18,7 @@ vi.mock('@tauri-apps/plugin-opener', () => ({
 }));
 
 // Mock Firebase mutations to avoid initializing Firebase in tests
-vi.mock('@/context/modules/sync-v3/mutations', () => ({
+vi.mock('@/context/modules/sync/mutations', () => ({
   deleteMcHistoryEntry: vi.fn(),
   deleteQuestionHistoryEntry: vi.fn(),
   deleteSavedSet: vi.fn(),

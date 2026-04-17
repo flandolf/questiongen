@@ -622,6 +622,7 @@ function normalizeQuestionHistoryEntry(
   }
 
   const createdAt = asString(data.createdAt) || new Date(0).toISOString();
+  const updatedAt = asString(data.updatedAt) || createdAt;
   const fallbackId = deterministicId('qh', {
     createdAt,
     questionId: question.id,
@@ -630,8 +631,8 @@ function normalizeQuestionHistoryEntry(
     uploadedAnswer: asString(data.uploadedAnswer),
     workedSolutionMarkdown: asString(data.workedSolutionMarkdown),
   });
-  const createdAtMs = Date.parse(createdAt);
-  const fallbackLastModified = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+  const updatedAtMs = Date.parse(updatedAt);
+  const fallbackLastModified = Number.isFinite(updatedAtMs) ? updatedAtMs : 0;
 
   return {
     id: asString(data.id) || fallbackId,
@@ -672,6 +673,7 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
   }
 
   const createdAt = asString(data.createdAt) || new Date(0).toISOString();
+  const updatedAt = asString(data.updatedAt) || createdAt;
   const fallbackId = deterministicId('mch', {
     createdAt,
     questionId: question.id,
@@ -680,8 +682,8 @@ function normalizeMcHistoryEntry(raw: unknown): McHistoryEntry | null {
     selectedAnswer: asString(data.selectedAnswer),
     correct: Boolean(data.correct),
   });
-  const createdAtMs = Date.parse(createdAt);
-  const fallbackLastModified = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+  const updatedAtMs = Date.parse(updatedAt);
+  const fallbackLastModified = Number.isFinite(updatedAtMs) ? updatedAtMs : 0;
 
   return {
     type: 'multiple-choice',

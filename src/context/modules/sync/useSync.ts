@@ -7,7 +7,10 @@ import {
 import {
   collection,
   doc,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -60,7 +63,7 @@ function mergeById<T extends { id: string; lastModified?: number }>(
   return result;
 }
 
-export interface UseSyncV3Return {
+export interface UseSyncReturn {
   user: FirebaseUser | null;
   isLoading: boolean;
   isSyncing: boolean;
@@ -75,7 +78,7 @@ export interface UseSyncV3Return {
   disableSync: () => Promise<void>;
 }
 
-export function useSyncV3(): UseSyncV3Return {
+export function useSync(): UseSyncReturn {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -120,9 +123,13 @@ export function useSyncV3(): UseSyncV3Return {
       setSyncStatus('syncing');
 
       try {
-        // 1. Question History
+        // 1. Question History - Limit to 100 most recent
         const qhUnsub = onSnapshot(
-          collection(db, `users/${uid}/questionHistory`),
+          query(
+            collection(db, `users/${uid}/questionHistory`),
+            orderBy('updatedAt', 'desc'),
+            limit(100),
+          ),
           { includeMetadataChanges: true },
           (snapshot) => {
             console.info(
@@ -134,24 +141,20 @@ export function useSyncV3(): UseSyncV3Return {
               ...e,
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
             }));
+
+            // Calculate the horizon (oldest updatedAt in this batch) to avoid deleting local items
+            // that are simply older than the current sync limit.
+            const horizon =
+              history.length > 0
+                ? Math.min(...history.map((h) => h.lastModified ?? 0))
+                : 0;
+
             const local = useAppStore.getState().questionHistory;
-            /**
-             * Custom hook that manages Firebase-based sync for app state.
-             *
-             * Responsibilities:
-             * - Observe Firebase auth state and set up Firestore listeners for the
-             *   current user (question history, MC history, saved sets, settings).
-             * - Merge remote and local data using `mergeById` and the app store.
-             * - Provide helpers to enable/disable sync (sign-in / sign-up and sign-out).
-             *
-             * The hook returns the current Firebase user, connection/sync status flags,
-             * and `enableSync`/`disableSync` functions for UI-driven authentication.
-             *
-             * @returns {UseSyncV3Return} sync state and control functions.
-             */
             useAppStore.setState({
               questionHistory: mergeById(local, history, {
-                preserveLocalOnly: (entry) => entry.isUploaded === false,
+                preserveLocalOnly: (entry) =>
+                  entry.isUploaded === false ||
+                  (entry.lastModified ?? 0) < horizon,
               }),
             });
           },
@@ -164,14 +167,13 @@ export function useSyncV3(): UseSyncV3Return {
           },
         );
 
-        // 2. MC History
+        // 2. MC History - Limit to 100 most recent
         const mchUnsub = onSnapshot(
-          /**
-           * Push local, not-yet-uploaded history entries to Firestore.
-           * Relies on `saveQuestionHistoryEntry` and `saveMcHistoryEntry` which
-           * themselves handle network/offline behavior via Firestore SDK.
-           */
-          collection(db, `users/${uid}/mcHistory`),
+          query(
+            collection(db, `users/${uid}/mcHistory`),
+            orderBy('updatedAt', 'desc'),
+            limit(100),
+          ),
           { includeMetadataChanges: true },
           (snapshot) => {
             console.info(
@@ -183,16 +185,20 @@ export function useSyncV3(): UseSyncV3Return {
               ...e,
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
             }));
+
+            const horizon =
+              history.length > 0
+                ? Math.min(...history.map((h) => h.lastModified ?? 0))
+                : 0;
+
             const local = useAppStore.getState().mcHistory;
             useAppStore.setState({
               mcHistory: mergeById(local, history, {
-                preserveLocalOnly: (entry) => entry.isUploaded === false,
+                preserveLocalOnly: (entry) =>
+                  entry.isUploaded === false ||
+                  (entry.lastModified ?? 0) < horizon,
               }),
             });
-            /**
-             * Attach Firestore snapshot listeners for the given user id.
-             * Incoming snapshots are normalized and merged with local app state.
-             */
           },
           (error) => {
             console.error('[FirebaseSync] MC history listener error:', error);
@@ -200,9 +206,13 @@ export function useSyncV3(): UseSyncV3Return {
           },
         );
 
-        // 2.5 Generation History
+        // 2.5 Generation History - Limit to 100
         const ghUnsub = onSnapshot(
-          collection(db, `users/${uid}/generationHistory`),
+          query(
+            collection(db, `users/${uid}/generationHistory`),
+            orderBy('updatedAt', 'desc'),
+            limit(100),
+          ),
           { includeMetadataChanges: true },
           (snapshot) => {
             console.info(
@@ -214,10 +224,18 @@ export function useSyncV3(): UseSyncV3Return {
               ...e,
               isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
             }));
+
+            const horizon =
+              history.length > 0
+                ? Math.min(...history.map((h) => h.lastModified ?? 0))
+                : 0;
+
             const local = useAppStore.getState().generationHistory;
             useAppStore.setState({
               generationHistory: mergeById(local, history, {
-                preserveLocalOnly: (entry) => entry.isUploaded === false,
+                preserveLocalOnly: (entry) =>
+                  entry.isUploaded === false ||
+                  (entry.lastModified ?? 0) < horizon,
               }),
             });
           },

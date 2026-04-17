@@ -10,7 +10,7 @@ import {
   saveQuestionHistoryEntry as v3SaveQuestionHistoryEntry,
   saveSavedSet as v3SaveSavedSet,
   updateStudyGoals,
-} from '@/context/modules/sync-v3/mutations';
+} from '@/context/modules/sync/mutations';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { createCard, isDue, reviewCard } from '@/lib/spaced-repetition';
 import { getTodayKey } from '@/lib/utils';
