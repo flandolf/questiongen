@@ -472,6 +472,7 @@ impl GenerationService {
                 selected_subs,
                 custom_focus_area.as_deref(),
                 request.shuffle_subtopics(),
+                request.question_count(),
             ));
             parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
             serde_json::Value::Array(parts)
@@ -551,7 +552,7 @@ impl GenerationService {
                         vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
                     parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
                     parts.extend(pdf::build_report_file_parts(&self.app, &topics));
-                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, custom_focus_area.as_deref(), request.shuffle_subtopics())) }));
+                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, custom_focus_area.as_deref(), request.shuffle_subtopics(), request.question_count())) }));
                     let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
                         selected_subs,
                         request.question_count(),
@@ -580,8 +581,11 @@ impl GenerationService {
                         "{}\n\n{}\n\n{}\n\n{}",
                         regen_intro,
                         sanitize_for_api(&prompts::subtopics_note(
+                            &topics,
                             selected_subs,
-                            request.shuffle_subtopics()
+                            request.shuffle_subtopics(),
+                            &adjusted_difficulty,
+                            tech_mode
                         )),
                         synth,
                         diversity_note

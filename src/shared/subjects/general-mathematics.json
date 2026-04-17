@@ -1,0 +1,425 @@
+{
+  "name": "General Mathematics",
+  "icon": "Calculator",
+  "examPdfs": ["2025-GeneralMaths1.pdf", "2025-GeneralMaths2.pdf"],
+  "reportPdfs": [
+    "2025-GeneralMaths1-Report.pdf",
+    "2025-GeneralMaths2-Report.pdf"
+  ],
+  "examGuidance": "General Mathematics questions should be set in practical, real-world contexts. Use VCE command verbs and apply questions to everyday financial, statistical, geometric and network situations. For technology-active items, assume access to CAS or approved calculator with numerical, graphical, financial and statistical functionality. For Units 1 and 2, all assessment is school-based; for Units 3 and 4, align tasks to the Application task and modelling or problem-solving task formats. Round answers to the number of decimal places or significant figures specified. Avoid requiring algebraic proof; focus on interpretation, modelling and calculation in context. Always define variables and state units in solutions.",
+  "out_of_scope": [
+    "Calculus (differentiation and integration)",
+    "Complex numbers",
+    "Vectors and vector calculus",
+    "Formal algebraic proofs",
+    "Non-standard probability distributions beyond the Normal model",
+    "Differential equations"
+  ],
+  "subtopics": [
+    {
+      "name": "Investigating and Comparing Data Distributions",
+      "technique_notes": {
+        "core_concepts": "Create questions where students classify data as categorical (nominal, ordinal) or numerical (discrete, continuous). Include tasks to construct and interpret frequency tables, bar charts, histograms, stem plots, and dot plots. Require calculation of summary statistics: mean, median, range, IQR, and standard deviation. Always include the five-number summary and boxplots, applying the $1.5 \\times \\text{IQR}$ rule to identify outliers. Design comparative tasks using back-to-back stem plots or parallel boxplots to compare centre and spread across multiple groups.",
+        "exam_style_guidelines": "Require correct statistical terminology, clear working, and interpretation in context. Always include the five-number summary and boxplots, applying the $1.5 \\times \\text{IQR}$ rule to identify outliers.",
+        "anti_prompts": [
+          "Do not mix data types without defining them",
+          "Avoid statistics that are not required by the study design"
+        ],
+        "tech_free_rules": "Use small datasets and hand-calculable summary statistics.",
+        "tech_active_rules": "Use larger datasets and require interpretation of distribution shape (symmetry/skewness), spread, and outliers."
+      },
+      "complexity_levers": {
+        "easy": "Classify a dataset and calculate basic summary statistics.",
+        "hard": "Compare two groups using boxplots and identify outliers.",
+        "extreme": "Interpret multiple distributions and justify differences in shape, centre, and spread."
+      },
+      "group": "unit1-Data-analysis-probability-and-statistics"
+    },
+    {
+      "name": "Arithmetic and Geometric Sequences",
+      "technique_notes": {
+        "core_concepts": "Design questions using first-order linear recurrence relations of the form $u_{n+1} = u_n + d$ (arithmetic) and $u_{n+1} = Ru_n$ (geometric). Include tasks to generate terms, deduce the explicit rule $u_n$, and investigate sequence behaviour (increasing, decreasing, oscillating). Use these to model growth and decay in contexts like simple interest, straight-line or unit-cost depreciation, and reducing heights of a bouncing ball.",
+        "exam_style_guidelines": "Always require students to state the recurrence relation and initial value $u_0$.",
+        "anti_prompts": [
+          "Avoid requiring complex algebraic proofs for n-th term rules",
+          "Do not mix arithmetic and geometric growth in a single recurrence relation without clear context"
+        ],
+        "tech_free_rules": "Keep $n$ small or ensure the explicit rule is easily solvable.",
+        "tech_active_rules": "Allow use of spreadsheets or sequence functionality to find long-term behaviour."
+      },
+      "complexity_levers": {
+        "easy": "Generate the first few terms of a simple arithmetic or geometric sequence from a recurrence relation.",
+        "hard": "Determine the recurrence relation and the explicit rule for a sequence from a worded financial context (e.g., unit-cost depreciation).",
+        "extreme": "Investigate and justify the long-term behaviour of a sequence or find the number of iterations required to reach a specific salvage value."
+      },
+      "group": "unit1-algebra-number-and-structure"
+    },
+    {
+      "name": "Consumer Mathematics",
+      "technique_notes": {
+        "core_concepts": "Construct problems involving percentage increase/decrease, mark-ups, discounts, and GST calculations. Include tasks on the impact of inflation on costs and purchasing power over time. Use the unitary method to solve for unknown quantities in financial contexts. Compare purchase options including cash, credit cards, personal loans, and buy now/pay later schemes.",
+        "exam_style_guidelines": "Always require students to show clear steps in multi-stage calculations.",
+        "anti_prompts": [
+          "Avoid complex interest calculations that belong in the Financial Modelling module"
+        ],
+        "tech_free_rules": "Use 'friendly' percentages (e.g., 10%, 25%, 150%).",
+        "tech_active_rules": "Include realistic tax rates and varying compounding periods."
+      },
+      "complexity_levers": {
+        "easy": "Calculate a final price after a single percentage discount or GST application.",
+        "hard": "Compare two different purchase options (e.g., credit card vs personal loan) considering total interest paid.",
+        "extreme": "Analyze the effect of multi-year inflation on the real value of an investment or purchasing power."
+      },
+      "group": "unit1-algebra-number-and-structure"
+    },
+    {
+      "name": "Linear Functions and Equations",
+      "technique_notes": {
+        "core_concepts": "Create questions using the linear function $y = a + bx$, requiring interpretation of $a$ (initial value) and $b$ (rate of change) in context. Include tasks to graph linear relations $Ax + By = C$, find intercepts and gradients, and solve simultaneous linear equations in two variables. Progress from simple algebraic solving to formulated models from worded descriptions.",
+        "exam_style_guidelines": "Always require exact coordinates for intercepts and clearly stated units for the gradient.",
+        "anti_prompts": [
+          "Do not use non-linear models",
+          "Avoid systems of equations with more than two variables"
+        ],
+        "tech_free_rules": "Restrict to integer or simple rational coefficients.",
+        "tech_active_rules": "Use data-driven contexts requiring a line of best fit."
+      },
+      "complexity_levers": {
+        "easy": "Find the gradient and y-intercept from a linear rule and sketch the graph.",
+        "hard": "Formulate and solve a pair of simultaneous linear equations from a worded problem.",
+        "extreme": "Interpret the meaning of the intersection point of two linear models in a real-world context and determine its sensitivity to parameter changes."
+      },
+      "group": "unit1-functions-relations-and-graphs"
+    },
+    {
+      "name": "Piecewise and Step Graphs",
+      "technique_notes": {
+        "core_concepts": "Design questions involving line segment and step graphs to model practical situations such as tax scales, utility charges, and shipping costs. Include tasks to identify the domain of each piece, calculate values at boundary points, and interpret the meaning of horizontal segments (no change) versus sloped segments (constant rate).",
+        "exam_style_guidelines": "Always use correct notation for intervals (e.g., $x \\in [0, 20000]$).",
+        "anti_prompts": [
+          "Avoid using discontinuous points without clear open/closed circle notation",
+          "Do not require calculus-based continuity proofs"
+        ],
+        "tech_free_rules": "Provide the graph and ask for qualitative or simple quantitative interpretation.",
+        "tech_active_rules": "Require the construction of the piecewise rule from a table of rates."
+      },
+      "complexity_levers": {
+        "easy": "Calculate a value from a given step graph (e.g., postage cost for a specific weight).",
+        "hard": "Construct a piecewise linear rule to model a tiered pricing structure (e.g., electricity bills).",
+        "extreme": "Analyze and compare two different piecewise models to find the point where one becomes more cost-effective than the other."
+      },
+      "group": "unit1-functions-relations-and-graphs"
+    },
+    {
+      "name": "Matrices and Applications",
+      "technique_notes": {
+        "core_concepts": "Create tasks involving matrix operations: addition, subtraction, scalar multiplication, and matrix multiplication. Include identification of matrix order and types (row, column, square, zero, identity). Use matrices to store and display information like social networks or road systems (communication matrices) and round-robin results (dominance matrices). Require students to solve systems of linear equations using the inverse matrix method $X = A^{-1}B$.",
+        "exam_style_guidelines": "Always verify that matrix dimensions are compatible before operations.",
+        "anti_prompts": [
+          "Do not require manual calculation of 3x3 inverses",
+          "Avoid matrices with non-numeric entries unless specifically defined"
+        ],
+        "tech_free_rules": "Restrict multiplication to small matrices ($2 \\times 2$ or $1 \\times 3$).",
+        "tech_active_rules": "Include powers of matrices to determine indirect links in networks."
+      },
+      "complexity_levers": {
+        "easy": "Perform basic matrix addition or scalar multiplication.",
+        "hard": "Set up and solve a system of linear equations using the inverse matrix method.",
+        "extreme": "Construct and interpret a dominance matrix for a tournament and use $D+D^2$ to rank players."
+      },
+      "group": "unit1-discrete-mathematics"
+    },
+    {
+      "name": "Transition Matrices",
+      "technique_notes": {
+        "core_concepts": "Design questions using first-order linear matrix recurrence relations $S_{n+1} = T S_n$ to model population movement or market share. Include tasks to construct the transition matrix $T$ from a diagram or table, generate subsequent state matrices, and identify the equilibrium state matrix informally. Extend to populations with culling or restocking using $S_{n+1} = T S_n + B$.",
+        "exam_style_guidelines": "Always require students to interpret the elements of the state matrix in the context of the problem.",
+        "anti_prompts": ["Avoid complex steady-state proofs using eigenvalues"],
+        "tech_free_rules": "Limit to two states and 1-2 iterations.",
+        "tech_active_rules": "Investigate long-term trends and the effect of different starting states."
+      },
+      "complexity_levers": {
+        "easy": "Represent population movement between two towns as a transition matrix.",
+        "hard": "Calculate the state matrix after 3 iterations and interpret the result in context.",
+        "extreme": "Determine the equilibrium state matrix and explain its meaning for long-term population distribution."
+      },
+      "group": "unit1-discrete-mathematics"
+    },
+    {
+      "name": "Investigating Relationships between Two Numerical Variables",
+      "technique_notes": {
+        "core_concepts": "Create bivariate data questions involving scatterplots. Require students to identify response and explanatory variables and describe associations in terms of direction, form, and strength. Include tasks to fit a line of good fit by eye and use it to make predictions. Discuss the issues of interpolation versus extrapolation and the distinction between association and causation.",
+        "exam_style_guidelines": "Always require students to justify their description of strength (weak, moderate, strong) based on the visual spread of points.",
+        "anti_prompts": [
+          "Do not assume causation from correlation",
+          "Avoid requiring Pearson's r calculation by hand for large datasets"
+        ],
+        "tech_free_rules": "Provide the scatterplot; focus on qualitative interpretation.",
+        "tech_active_rules": "Require construction of scatterplot from data and fitting a trend line."
+      },
+      "complexity_levers": {
+        "easy": "Identify the explanatory and response variables and describe the association shown in a scatterplot.",
+        "hard": "Fit a line of best fit by eye, determine its equation, and use it for interpolation.",
+        "extreme": "Discuss the reliability of a prediction made using extrapolation and justify why association does not imply causation."
+      },
+      "group": "unit2-Data-analysis-probability-and-statistics"
+    },
+    {
+      "name": "Graphs and Networks",
+      "technique_notes": {
+        "core_concepts": "Develop questions on the terminology of graphs: edges, loops, vertices, degree, and isomorphism. Include tasks to describe planar graphs using Euler’s formula $V + F - E = 2$. Require identification of walks, trails, paths, cycles, and circuits in practical applications (e.g., mail delivery, garbage collection).",
+        "exam_style_guidelines": "Always check for connectivity before applying network theorems.",
+        "anti_prompts": [
+          "Avoid complex isomorphism proofs",
+          "Do not use non-planar graphs for Euler's formula questions"
+        ],
+        "tech_free_rules": "Use small graphs (up to 6 vertices).",
+        "tech_active_rules": "Use adjacency matrices to calculate the number of paths of length n between vertices."
+      },
+      "complexity_levers": {
+        "easy": "Identify vertices, edges, and the degree of each vertex in a simple graph.",
+        "hard": "Apply Euler's formula to find the number of faces in a planar graph representation of a network.",
+        "extreme": "Identify Eulerian and Hamiltonian paths in a complex graph and explain their significance for a routing problem."
+      },
+      "group": "unit2-discrete-mathematics"
+    },
+    {
+      "name": "Network Optimization",
+      "technique_notes": {
+        "core_concepts": "Construct problems involving weighted graphs. Include tasks to find the shortest path between vertices by inspection and to determine the minimum spanning tree (MST) using greedy algorithms like Prim’s algorithm. Apply these to minimal connector problems (e.g., laying cables, building roads).",
+        "exam_style_guidelines": "Always show the steps of the algorithm used, especially for MST.",
+        "anti_prompts": [
+          "Avoid requiring Kruskal's algorithm unless Prim's is specifically excluded"
+        ],
+        "tech_free_rules": "Restrict to graphs where the shortest path is easily found by comparison.",
+        "tech_active_rules": "Provide larger networks and require the total weight of the MST."
+      },
+      "complexity_levers": {
+        "easy": "Find the shortest path between two vertices in a small weighted graph by inspection.",
+        "hard": "Apply Prim's algorithm to find the minimum spanning tree for a network of 6-8 vertices.",
+        "extreme": "Solve a minimal connector problem for a complex real-world scenario and justify the choice of algorithm."
+      },
+      "group": "unit2-discrete-mathematics"
+    },
+    {
+      "name": "Variation and Modelling",
+      "technique_notes": {
+        "core_concepts": "Design questions involving direct variation ($y = kx^n$) and inverse variation ($y = k/x^n$). Include the use of logarithmic (base 10) scales to represent quantities over multiple orders of magnitude. Task students with transforming non-linear data to linearity using $x^2$, $1/x$, or $\\log_{10} x$ transformations.",
+        "exam_style_guidelines": "Always require solving for the constant of variation $k$ and stating the final model.",
+        "anti_prompts": [
+          "Avoid using base e for variation unless specified",
+          "Do not mix variation types without clear instruction"
+        ],
+        "tech_free_rules": "Use $n=1, 2$ or $-1$.",
+        "tech_active_rules": "Include real-world data requiring transformation before fitting a least-squares line."
+      },
+      "complexity_levers": {
+        "easy": "Solve a direct variation problem to find y given x and k.",
+        "hard": "Determine the constant of variation k for an inverse square relation and use the model to make a prediction.",
+        "extreme": "Linearise a non-linear dataset using a log-log plot and find the values of k and n for the power model $y = kx^n$."
+      },
+      "group": "unit2-functions-relations-and-graphs"
+    },
+    {
+      "name": "Space, Measurement and Trigonometry",
+      "technique_notes": {
+        "core_concepts": "Create problems involving perimeter, area, volume, and surface area of composite shapes and solids (spheres, cylinders, pyramids, prisms). Include applications of Pythagoras’ theorem in 3D and the use of sine and cosine rules for non-right-angled triangles. Task students with navigation problems using three-figure bearings.",
+        "exam_style_guidelines": "Always apply scale factors $k, k^2, k^3$ to similar objects.",
+        "anti_prompts": [
+          "Avoid requiring complex proofs of geometric theorems",
+          "Do not use radian measure unless specifically asked"
+        ],
+        "tech_free_rules": "Use exact values and simple surds.",
+        "tech_active_rules": "Require rounding to specific decimal places and include the ambiguous case of the sine rule."
+      },
+      "complexity_levers": {
+        "easy": "Calculate the volume of a composite solid made of a cylinder and a cone.",
+        "hard": "Solve a 3D navigation problem using bearings and the cosine rule.",
+        "extreme": "Determine the surface area and volume of a similar object given a scale factor and the original dimensions, then justify the $k^2$ and $k^3$ relationships."
+      },
+      "group": "unit2-space-and-measurement"
+    },
+    {
+      "name": "Data Distributions and the Normal Model",
+      "technique_notes": {
+        "core_concepts": "Develop questions on the normal model for bell-shaped distributions. Require students to apply the 68-95-99.7% rule to estimate percentages and give meaning to standard deviation. Include tasks to calculate and interpret standardised z-scores to compare values from different distributions.",
+        "exam_style_guidelines": "Always distinguish between sample statistics and population parameters.",
+        "anti_prompts": [
+          "Avoid non-normal distributions",
+          "Do not require integration to find probabilities"
+        ],
+        "tech_free_rules": "Use values that fall exactly on 1, 2, or 3 standard deviations from the mean.",
+        "tech_active_rules": "Use the cumulative distribution function to find probabilities for any z value."
+      },
+      "complexity_levers": {
+        "easy": "Use the 68-95-99.7% rule to find the percentage of data within one standard deviation of the mean.",
+        "hard": "Calculate and compare z-scores for two individuals from different populations to determine which value is more extreme.",
+        "extreme": "Find the value of x that corresponds to a specific percentile in a normal distribution using technology."
+      },
+      "group": "unit3-Data-analysis-probability-and-statistics"
+    },
+    {
+      "name": "Investigating and Modelling Linear Associations",
+      "technique_notes": {
+        "core_concepts": "Construct bivariate analysis questions focusing on the least squares line $y = a + bx$. Require calculation and interpretation of Pearson’s correlation coefficient r and the coefficient of determination $r^2$. Include tasks to perform residual analysis (calculating $y - \\hat{y}$ and plotting) to check for linearity. Task students with transforming non-linear data using square, log, or reciprocal transformations.",
+        "exam_style_guidelines": "Always interpret the slope and intercept in the context of the variables.",
+        "anti_prompts": [
+          "Do not confuse correlation with causation",
+          "Avoid manual calculation of r for more than 5 data points"
+        ],
+        "tech_free_rules": "Focus on interpreting given regression outputs.",
+        "tech_active_rules": "Require the full regression output including $r, r^2$, and the equation."
+      },
+      "complexity_levers": {
+        "easy": "Interpret the slope and y-intercept of a least squares regression line in context.",
+        "hard": "Perform a residual analysis to determine if a linear model is appropriate for a given dataset.",
+        "extreme": "Apply a log-y transformation to non-linear data, find the new regression line, and use it to make a prediction in the original units."
+      },
+      "group": "unit3-Data-analysis-probability-and-statistics"
+    },
+    {
+      "name": "Investigating and Modelling Time Series Data",
+      "technique_notes": {
+        "core_concepts": "Design time series questions to identify trend, seasonality, and irregular fluctuations. Include smoothing techniques: moving means (with centring for even numbers of points) and moving medians. Task students with calculating seasonal indices, deseasonalising data, fitting a trend line, and forecasting (including re-seasonalising).",
+        "exam_style_guidelines": "Always discuss the limitations of extrapolation in time series models.",
+        "anti_prompts": [
+          "Avoid complex spectral analysis",
+          "Do not require manual smoothing for more than 12 points"
+        ],
+        "tech_free_rules": "Use small datasets for manual smoothing calculations.",
+        "tech_active_rules": "Use large datasets and require seasonal adjustment of the entire series."
+      },
+      "complexity_levers": {
+        "easy": "Identify trend and seasonality in a given time series plot.",
+        "hard": "Deseasonalise a set of data using seasonal indices and fit a least squares trend line.",
+        "extreme": "Forecast a future value using a seasonally adjusted model and then re-seasonalise the result; justify the use of the model."
+      },
+      "group": "unit3-Data-analysis-probability-and-statistics"
+    },
+    {
+      "name": "Depreciation and Compound Interest",
+      "technique_notes": {
+        "core_concepts": "Create financial questions using recurrence relations to model flat-rate, unit-cost, and reducing-balance depreciation. Include tasks to compare simple and compound interest investments. Require students to calculate effective interest rates to compare loans with different compounding periods.",
+        "exam_style_guidelines": "Always state the rule for the future value after n periods.",
+        "anti_prompts": [
+          "Avoid mixing different depreciation types in a single recurrence relation without clear separation"
+        ],
+        "tech_free_rules": "Focus on the first few periods.",
+        "tech_active_rules": "Use the rule to find the value after many years or the time required to reach a salvage value."
+      },
+      "complexity_levers": {
+        "easy": "Calculate the value of an asset after 2 years using flat-rate depreciation.",
+        "hard": "Compare the total interest earned on two investments with different compounding frequencies using effective interest rates.",
+        "extreme": "Determine the time required for an asset to reach its salvage value using reducing-balance depreciation and justify the result."
+      },
+      "group": "unit3-Recursion-and-financial-modelling"
+    },
+    {
+      "name": "Reducing Balance Loans and Annuities",
+      "technique_notes": {
+        "core_concepts": "Design problems on the amortisation of reducing balance loans and annuities using recurrence relations and financial solver technology. Include tasks to construct and interpret amortisation tables (payment, interest, principal reduction, balance). Cover perpetuities as a special case where the balance remains constant.",
+        "exam_style_guidelines": "Always investigate the impact of changing interest rates or repayment amounts on the total interest paid and time to repay.",
+        "anti_prompts": [
+          "Avoid manual amortisation table construction for more than 4 lines"
+        ],
+        "tech_free_rules": "Analyze given amortisation table extracts.",
+        "tech_active_rules": "Assume use of a TVM solver for complex variables like N, I, PV, PMT, FV."
+      },
+      "complexity_levers": {
+        "easy": "Identify the interest paid in the first month from a given amortisation table.",
+        "hard": "Use a financial solver to find the monthly repayment for a 25-year home loan.",
+        "extreme": "Calculate the effect of making a lump sum repayment of $20,000 halfway through a loan's term on the total interest saved."
+      },
+      "group": "unit3-Recursion-and-financial-modelling"
+    },
+    {
+      "name": "Matrix Arithmetic and Advanced Applications",
+      "technique_notes": {
+        "core_concepts": "Develop questions on advanced matrix types (diagonal, symmetric, binary, permutation) and the transpose of a matrix. Include tasks to calculate the determinant and inverse of 2x2 matrices and solve matrix equations. Apply matrices to round-robin tournaments (dominance) and communication networks.",
+        "exam_style_guidelines": "Always check for the existence of an inverse ($\\Delta \\neq 0$).",
+        "anti_prompts": ["Avoid manual calculation of 3x3 determinants"],
+        "tech_free_rules": "Focus on 2x2 algebra and simple ranking systems.",
+        "tech_active_rules": "Use higher-order matrices to model complex structural relationships."
+      },
+      "complexity_levers": {
+        "easy": "Find the transpose of a 2x3 matrix.",
+        "hard": "Calculate the inverse of a 2x2 matrix and use it to solve a matrix equation AX=B.",
+        "extreme": "Use a permutation matrix to reorder a state vector and explain its application in a scheduling context."
+      },
+      "group": "unit4-matrices"
+    },
+    {
+      "name": "Transition Matrices and Leslie Matrices",
+      "technique_notes": {
+        "core_concepts": "Construct questions using matrix recurrence $S_{n+1} = T S_n$ and $S_{n+1} = T S_n + B$ (culling/restocking). Include Leslie matrices to model population growth based on age cohorts (eggs, juveniles, adults). Task students with identifying regular transition matrices and their equilibrium state.",
+        "exam_style_guidelines": "Always require students to interpret the state vector components at each iteration.",
+        "anti_prompts": [
+          "Avoid complex stability analysis beyond finding the long-run growth rate"
+        ],
+        "tech_free_rules": "Use 2x2 matrices for manual iterations.",
+        "tech_active_rules": "Use power of matrices to find long-run trends and investigate the stability of the population growth rate."
+      },
+      "complexity_levers": {
+        "easy": "Identify the meaning of the entries in a Leslie matrix for a three-stage population model.",
+        "hard": "Calculate the population distribution after 5 years using a Leslie matrix and technology.",
+        "extreme": "Determine the long-term growth rate of a population and find the culling rate required to maintain a constant population size."
+      },
+      "group": "unit4-matrices"
+    },
+    {
+      "name": "Path and Flow Analysis",
+      "technique_notes": {
+        "core_concepts": "Design network problems focusing on Eulerian trails/circuits and Hamiltonian paths/cycles. Include flow networks where students identify source, sink, and edge capacities. Task students with using the maximum-flow minimum-cut theorem to determine the capacity of a network.",
+        "exam_style_guidelines": "Always require showing the cut that determines the minimum capacity.",
+        "anti_prompts": [
+          "Avoid networks with multiple sources/sinks unless they can be simplified"
+        ],
+        "tech_free_rules": "Use small networks where all paths can be checked.",
+        "tech_active_rules": "Use complex networks representing water, data, or traffic flow."
+      },
+      "complexity_levers": {
+        "easy": "Identify the capacity of a specific cut in a flow network.",
+        "hard": "Apply the maximum-flow minimum-cut theorem to find the maximum flow through a network with 8-10 edges.",
+        "extreme": "Propose an increase in capacity for one edge to maximize the total network flow and justify the choice using residual capacities."
+      },
+      "group": "unit4-networks-and-decision-mathematics"
+    },
+    {
+      "name": "Shortest Paths and Matching",
+      "technique_notes": {
+        "core_concepts": "Create problems using Dijkstra’s algorithm to find the shortest path from a start vertex to all others. Include matching problems using bipartite graphs and the Hungarian algorithm to find the optimum assignment (minimising cost or time).",
+        "exam_style_guidelines": "Always show the steps of the Hungarian algorithm (row reduction, column reduction, covering zeros, adjustment).",
+        "anti_prompts": [
+          "Avoid requiring manual Dijkstra's for more than 8 vertices"
+        ],
+        "tech_free_rules": "Restrict matching to 3x3 or 4x4 matrices.",
+        "tech_active_rules": "Apply Dijkstra’s to large-scale transport networks."
+      },
+      "complexity_levers": {
+        "easy": "Solve a simple assignment problem using a bipartite graph by inspection.",
+        "hard": "Apply the Hungarian algorithm to a 4x4 cost matrix to find the optimal assignment.",
+        "extreme": "Use Dijkstra's algorithm to find the shortest path in a complex network and explain how a change in edge weight affects the result."
+      },
+      "group": "unit4-networks-and-decision-mathematics"
+    },
+    {
+      "name": "Scheduling and Critical Path Analysis",
+      "technique_notes": {
+        "core_concepts": "Construct activity networks from precedence tables, including dummy activities where necessary. Task students with forward and backward scanning to determine earliest start times (EST), latest start times (LST), and float times. Identify the critical path and the minimum completion time for the project. Include 'crashing' tasks to reduce completion time.",
+        "exam_style_guidelines": "Always require a clearly labelled activity-on-edge (AoE) diagram.",
+        "anti_prompts": [
+          "Avoid Activity-on-Node diagrams if AoE is the standard",
+          "Do not require crashing more than two activities simultaneously by hand"
+        ],
+        "tech_free_rules": "Focus on small networks (up to 8 activities).",
+        "tech_active_rules": "Evaluate the cost-benefit of crashing specific activities on the critical path."
+      },
+      "complexity_levers": {
+        "easy": "Identify the critical path from a given activity network with EST and LST values.",
+        "hard": "Construct an AoE diagram from a precedence table and perform a full forward and backward scan.",
+        "extreme": "Determine the minimum project completion time after crashing activities within a given budget and identify the new critical path."
+      },
+      "group": "unit4-networks-and-decision-mathematics"
+    }
+  ]
+}

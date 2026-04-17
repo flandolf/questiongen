@@ -1,0 +1,264 @@
+{
+  "name": "Chemistry",
+  "icon": "FlaskConical",
+  "examPdfs": ["2025-Chemistry.pdf"],
+  "reportPdfs": ["2025-Chemistry-report.pdf"],
+  "examGuidance": "Render every chemical formula and ionic species in LaTeX using \\text{}: e.g., $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. Use VCE command verbs (calculate, explain, deduce, justify). All chemical equations must be balanced and include state symbols: $(s), (l), (g), (aq)$. Thermochemical equations must include $\\Delta H$ in $kJ \\text{ mol}^{-1}$. Stoichiometry problems should require significant figure awareness (typically 3 sig figs). Use standard IUPAC naming for organic molecules. Refer to the VCAA Chemistry Data Book for standard values (molar masses, specific heat capacities, electrochemical series). Confine questions to the VCE Chemistry Study Design (2024–2027).",
+  "out_of_scope": [
+    "Quantum mechanics beyond subshell notation",
+    "Orbital hybridization theory (sp3, etc.)",
+    "Naming organic molecules > 8 carbons",
+    "Complex reaction mechanisms (e.g., SN1/SN2 details)",
+    "Nuclear chemistry beyond basic radioisotope application",
+    "Calculation of pH for weak acids/bases (Ka not required for VCE General Chemistry)"
+  ],
+  "subtopics": [
+    {
+      "name": "Elements and the Periodic Table",
+      "technique_notes": {
+        "core_concepts": "Trends in electronegativity, first ionization energy, and atomic radius across periods and down groups using core charge and shielding effects. Electronic configuration using subshell notation.",
+        "exam_style_guidelines": "Link chemical properties directly to subshell configuration ($1s^2, 2s^2...$). Include sustainability focus by asking about 'critical' elements and their positions in the periodic table.",
+        "anti_prompts": [
+          "Do not ask for rote recall of atomic numbers",
+          "Avoid naming transition metal exceptions unless specifically relevant to shielding"
+        ],
+        "tech_free_rules": "Focus on qualitative explanations and trend predictions based on core charge.",
+        "tech_active_rules": "Use data for 'critical elements' to justify extraction difficulties based on group properties."
+      },
+      "complexity_levers": {
+        "easy": "Identify the trend in atomic radius across Period 3.",
+        "hard": "Explain why the first ionization energy of Oxygen is lower than Nitrogen, referencing subshell repulsion.",
+        "extreme": "Analyze the sustainability and extraction chemistry of a specific 'critical element' (e.g., Indium) in the context of Period 6 trends and core charge."
+      },
+      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+    },
+    {
+      "name": "Molecular Structure and Intermolecular Forces",
+      "technique_notes": {
+        "core_concepts": "Lewis (electron dot) structures, VSEPR geometry (linear, bent, pyramidal, tetrahedral), polarity, and intermolecular forces (dispersion, dipole-dipole, hydrogen bonding).",
+        "exam_style_guidelines": "Require drawing of Lewis structures. Link molecular symmetry and bond dipoles to overall polarity. Correlate forces with boiling points and solubility.",
+        "anti_prompts": [
+          "Do not use molecules with expanded octets (e.g., SF6)",
+          "Avoid lone-pair effects on angles beyond general 'V-shaped' or 'pyramidal' descriptions"
+        ],
+        "tech_free_rules": "Stick to molecules with 1-3 central atoms.",
+        "tech_active_rules": "Compare physical properties of larger organic isomers using technology to find data."
+      },
+      "complexity_levers": {
+        "easy": "Draw the Lewis structure for $\\text{CH}_4$ and name its shape.",
+        "hard": "Explain why $\\text{NH}_3$ has a higher boiling point than $\\text{PH}_3$, referencing specific intermolecular forces.",
+        "extreme": "Predict the solubility of a complex drug molecule in water versus hexane based on its functional groups and overall polarity."
+      },
+      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+    },
+    {
+      "name": "Metallic and Ionic Bonding",
+      "technique_notes": {
+        "core_concepts": "Metallic lattices (sea of delocalized electrons), ionic lattices (electrostatic attraction). Properties (malleability, conductivity, brittleness, melting points). Reactivity series.",
+        "exam_style_guidelines": "Explain properties based on the lattice model. Use full ionic equations for precipitation. Predict spontaneity using the reactivity series.",
+        "anti_prompts": [
+          "Do not ask for specific alloy percentages",
+          "Avoid complex crystal systems like HCP/FCC"
+        ],
+        "tech_free_rules": "Focus on 1:1 or 1:2 ionic ratios for equations.",
+        "tech_active_rules": "Analyze the industrial extraction of metals using reactivity data."
+      },
+      "complexity_levers": {
+        "easy": "Explain why metals are good conductors of electricity.",
+        "hard": "Write a balanced ionic equation for the reaction between $\\text{AgNO}_3(aq)$ and $\\text{NaCl}(aq)$.",
+        "extreme": "Justify the use of annealing or quenching to modify the properties of a specific steel alloy based on lattice changes."
+      },
+      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+    },
+    {
+      "name": "Chemical Quantities and Stoichiometry",
+      "technique_notes": {
+        "core_concepts": "The mole ($n$), Avogadro's constant, molar mass, percentage composition, empirical/molecular formulas. Limiting reagents and yield.",
+        "exam_style_guidelines": "Require use of $n=m/M$ and $n=N/N_A$. Always ask for significant figures in final answers. Include atom economy for sustainability.",
+        "anti_prompts": [
+          "Do not use non-integer atomic masses (use Data Book values)",
+          "Avoid overly tedious 5-step mass-to-mass calculations without conceptual context"
+        ],
+        "tech_free_rules": "Use integer or 0.5-based molar masses (e.g., C=12, H=1, Cu=63.5).",
+        "tech_active_rules": "Perform limiting reagent analysis on complex multi-reactant industrial processes."
+      },
+      "complexity_levers": {
+        "easy": "Calculate the number of moles in 10g of $\\text{NaOH}$.",
+        "hard": "Determine the empirical formula of a compound that is 40% C, 6.7% H, and 53.3% O by mass.",
+        "extreme": "Calculate the percentage yield and atom economy for a multi-stage synthesis where one reactant is in 15% excess."
+      },
+      "group": "unit1-How-are-materials-quantified-and-classified?"
+    },
+    {
+      "name": "Organic Chemistry: Naming and Isomerism",
+      "technique_notes": {
+        "core_concepts": "IUPAC naming (alkanes, alkenes, alcohols, carboxylic acids, haloalkanes, esters, aldehydes, ketones, amines, amides). Structural and stereoisomers (cis/trans).",
+        "exam_style_guidelines": "Prioritize skeletal and semi-structural formulas. Limit to 8 carbons in the longest chain. Distinguish between primary, secondary, and tertiary alcohols/haloalkanes.",
+        "anti_prompts": [
+          "Do not name aromatic compounds beyond simple benzene derivatives",
+          "Avoid naming complex bicyclic molecules"
+        ],
+        "tech_free_rules": "Focus on molecules with 1-2 functional groups.",
+        "tech_active_rules": "Identify isomers for larger chains (C6-C8) using technology."
+      },
+      "complexity_levers": {
+        "easy": "Name the molecule $\\text{CH}_3\\text{CH}_2\\text{OH}$ using IUPAC rules.",
+        "hard": "Draw and name all structural isomers of $\\text{C}_4\\text{H}_9\\text{Cl}$.",
+        "extreme": "Deduce the structure of an ester from its IUPAC name 'pentyl propanoate' and its parent alcohol and acid."
+      },
+      "group": "unit1-How-are-materials-quantified-and-classified?"
+    },
+    {
+      "name": "Sustainability and Green Chemistry",
+      "technique_notes": {
+        "core_concepts": "The 12 principles of Green Chemistry (atom economy, renewable feedstocks, catalysts, waste prevention). Circular economy vs linear models.",
+        "exam_style_guidelines": "Evaluate a given industrial process against specific Green Chemistry principles. Justify the use of catalysts or bio-based solvents.",
+        "anti_prompts": [
+          "Do not ask for a rote list of all 12 principles",
+          "Avoid generic 'pollution is bad' answers; require chemical justification"
+        ],
+        "tech_free_rules": "Compare two simple reactions based on atom economy.",
+        "tech_active_rules": "Analyze a full lifecycle assessment (LCA) for a plastic product."
+      },
+      "complexity_levers": {
+        "easy": "Identify one principle of Green Chemistry applied in a given scenario.",
+        "hard": "Compare the atom economy of two different synthetic routes to produce Ibuprofen.",
+        "extreme": "Evaluate a 'circular economy' proposal for recycling Lithium-ion batteries, identifying the chemical challenges in the 'closing the loop' phase."
+      },
+      "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
+    },
+    {
+      "name": "Water and Acid-Base Chemistry",
+      "technique_notes": {
+        "core_concepts": "Hydrogen bonding in water, specific heat capacity ($q=mc\\Delta T$). Bronsted-Lowry theory (proton transfer), conjugate pairs, pH, amphiprotic species.",
+        "exam_style_guidelines": "Calculate energy changes in aqueous solutions. Identify conjugate acid-base pairs. Calculate pH for strong acids/bases using $\\text{pH} = -\\log_{10}[\\text{H}^+]$.",
+        "anti_prompts": [
+          "Do not require Ka/Kb calculations",
+          "Avoid non-standard temperature pH calculations (stick to 25 deg C)"
+        ],
+        "tech_free_rules": "Calculate pH for $[H^+]$ values that are powers of 10.",
+        "tech_active_rules": "Analyze buffer systems in the blood (qualitative focus)."
+      },
+      "complexity_levers": {
+        "easy": "Define an acid according to the Bronsted-Lowry theory.",
+        "hard": "Calculate the pH of a 0.025 M solution of $\\text{Ba(OH)}_2$.",
+        "extreme": "Explain how the high specific heat capacity of water influences the stability of aquatic ecosystems during rapid atmospheric temperature changes."
+      },
+      "group": "unit2-How-do-chemicals-interact-with-water?"
+    },
+    {
+      "name": "Redox Chemistry and Volumetric Analysis",
+      "technique_notes": {
+        "core_concepts": "Oxidation numbers, half-equations (acidic conditions), electrochemical series. Titrations (standard solutions, concordant titers, indicators, equivalence vs end point).",
+        "exam_style_guidelines": "Assign oxidation numbers to identify redox species. Balance full redox equations. Solve multi-step titration stoichiometry. Use Data Book for $E^0$ values.",
+        "anti_prompts": [
+          "Do not balance redox in basic conditions (unless specifically requested for advanced items)",
+          "Avoid non-concordant titers in calculations"
+        ],
+        "tech_free_rules": "Stick to simple 1:1 or 1:2 titration ratios.",
+        "tech_active_rules": "Perform back-titration calculations for complex samples like aspirin or fertilizer."
+      },
+      "complexity_levers": {
+        "easy": "Identify the oxidation number of Cr in $\\text{K}_2\\text{Cr}_2\\text{O}_7$.",
+        "hard": "Balance the half-equation for the reduction of $\\text{MnO}_4^-$ to $\\text{Mn}^{2+}$ in acidic solution.",
+        "extreme": "Deduce the concentration of ethanol in wine using a redox titration with dichromate, accounting for all dilution steps."
+      },
+      "group": "unit2-How-are-chemicals-measured-and-analysed?"
+    },
+    {
+      "name": "Energy from Fuels and Thermodynamics",
+      "technique_notes": {
+        "core_concepts": "Exothermic vs endothermic reactions, enthalpy changes ($\\Delta H$). Combustion of fossil fuels and biofuels (biogas, biodiesel, bioethanol). Enthalpy of combustion.",
+        "exam_style_guidelines": "Write balanced thermochemical equations with states and $\\Delta H$. Calculate $\\Delta H$ using $q=mc\\Delta T$ and $n=m/M$. Compare fuels based on energy per gram/mole.",
+        "anti_prompts": [
+          "Do not use non-standard units for enthalpy (stick to kJ/mol)",
+          "Avoid Hess's Law cycles (unless integrated into a larger problem)"
+        ],
+        "tech_free_rules": "Use integer values for $\\Delta T$ and masses.",
+        "tech_active_rules": "Compare the carbon neutrality of biodiesel vs petrodiesel through lifecycle analysis."
+      },
+      "complexity_levers": {
+        "easy": "State whether the combustion of methane is exothermic or endothermic.",
+        "hard": "Calculate the enthalpy of combustion of ethanol in $kJ \\text{ mol}^{-1}$ given experimental calorimetry data.",
+        "extreme": "Compare the energy density (kJ/g) and sustainability of hydrogen fuel vs octane, considering both production and combustion products."
+      },
+      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
+    },
+    {
+      "name": "Equilibrium and Rates of Reaction",
+      "technique_notes": {
+        "core_concepts": "Collision theory, activation energy, Maxwell-Boltzmann distribution. Reversible reactions, $K_c$ and $Q$. Le Chatelier's Principle. Catalysts.",
+        "exam_style_guidelines": "Use Le Chatelier to predict shifts (temp, conc, pressure). Explain rate changes using collision theory. Calculate $K_c$ from equilibrium concentrations.",
+        "anti_prompts": [
+          "Do not use ICE tables for cubic or higher-order equations in tech-free",
+          "Avoid confusing 'yield' (equilibrium) with 'rate' (kinetics)"
+        ],
+        "tech_free_rules": "Predict equilibrium shifts qualitatively.",
+        "tech_active_rules": "Calculate $K_c$ values and determine the direction of net reaction using $Q$."
+      },
+      "complexity_levers": {
+        "easy": "Explain how increasing temperature affects the rate of a chemical reaction.",
+        "hard": "Predict the effect of decreasing the volume of the reaction vessel on the equilibrium yield of $\\text{NH}_3$ in the Haber process.",
+        "extreme": "Calculate the equilibrium concentration of all species in the reaction $\\text{H}_2 + \\text{I}_2 \\rightleftharpoons 2\\text{HI}$ given initial concentrations and $K_c$."
+      },
+      "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
+    },
+    {
+      "name": "Electrochemical and Electrolytic Cells",
+      "technique_notes": {
+        "core_concepts": "Galvanic cells (spontaneous), Fuel cells, Electrolytic cells (non-spontaneous). Faraday's Laws ($Q=It, n(e^-)=Q/F$). Operating principles (electrodes, electrolytes, salt bridges).",
+        "exam_style_guidelines": "Draw and label cells. Identify electron flow and ion movement. Predict products using the electrochemical series. Apply Faraday's Laws to calculate mass/time.",
+        "anti_prompts": [
+          "Do not use $E^0$ values from memory (use Data Book)",
+          "Avoid non-standard conditions for $E^0$ calculations unless specified"
+        ],
+        "tech_free_rules": "Identify anode and cathode for simple galvanic cells.",
+        "tech_active_rules": "Calculate the time required to plate a specific mass of silver using Faraday's Laws."
+      },
+      "complexity_levers": {
+        "easy": "Identify the function of a salt bridge in a galvanic cell.",
+        "hard": "Predict the products of the electrolysis of 1.0 M $\\text{CuSO}_4(aq)$ using inert electrodes.",
+        "extreme": "Determine the efficiency of a hydrogen fuel cell given the volume of gas consumed and the current produced over a set time."
+      },
+      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
+    },
+    {
+      "name": "Instrumental Analysis of Organic Compounds",
+      "technique_notes": {
+        "core_concepts": "Infrared (IR) spectroscopy (functional groups), Mass Spectrometry (molecular ion, fragmentation), NMR ($^1H$ and $^{13}C$) - shifts, splitting, integration.",
+        "exam_style_guidelines": "Deduce structure from a set of spectra. Use Data Book for absorption bands and chemical shifts. Identify $n+1$ splitting patterns.",
+        "anti_prompts": [
+          "Do not ask for interpretation of NMR coupling constants (J-values)",
+          "Avoid overly complex mass spec fragmentation patterns beyond the molecular ion"
+        ],
+        "tech_free_rules": "Identify functional groups from IR spectra.",
+        "tech_active_rules": "Fully deduce the structure of an unknown C4-C6 organic compound from combined IR, MS, and NMR data."
+      },
+      "complexity_levers": {
+        "easy": "Identify the presence of a carbonyl group ($C=O$) in an IR spectrum.",
+        "hard": "Explain the splitting pattern (e.g., triplet) in a $^1H$ NMR spectrum of ethanol.",
+        "extreme": "Deduce the structure of an unknown compound with the molecular formula $\\text{C}_4\\text{H}_8\\text{O}_2$ using IR (strong peak at $1740 cm^{-1}$) and $^1H$ NMR data."
+      },
+      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
+    },
+    {
+      "name": "Food Chemistry and Medicinal Action",
+      "technique_notes": {
+        "core_concepts": "Macronutrients (proteins, carbohydrates, lipids). Metabolism (enzymes, hydrolysis, condensation). Energy values. Medicinal action (enzyme inhibition, lock-and-key).",
+        "exam_style_guidelines": "Write equations for the hydrolysis of starch or triglycerides. Calculate energy content from calorimetry. Explain how aspirin or other medicines interact with enzymes.",
+        "anti_prompts": [
+          "Do not ask for complex biochemical cycles (Krebs, etc.)",
+          "Avoid medical questions without a clear chemical basis"
+        ],
+        "tech_free_rules": "Calculate energy content using $q = mc\\Delta T$ for simple food samples.",
+        "tech_active_rules": "Compare the glycemic index of different carbohydrates based on their structural complexity."
+      },
+      "complexity_levers": {
+        "easy": "Identify the linkage formed in a condensation reaction between two amino acids.",
+        "hard": "Calculate the energy content in $kJ/g$ for a food sample given calorimetry data and a known calibration constant.",
+        "extreme": "Explain the molecular mechanism of competitive enzyme inhibition and how it is used in the design of specific pharmaceutical drugs."
+      },
+      "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
+    }
+  ]
+}
