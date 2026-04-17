@@ -93,12 +93,6 @@ export function normalizeMarkResponse(
       ? questionMaxMarks
       : clampWholeNumber(data.maxMarks, 10, 1, 30);
   const achievedMarks = clampWholeNumber(data.achievedMarks, 0, 0, maxMarks);
-  const scoreOutOf10 = clampWholeNumber(
-    data.scoreOutOf10,
-    Math.round((achievedMarks / maxMarks) * 10),
-    0,
-    10,
-  );
   const vcaaMarkingScheme = Array.isArray(data.vcaaMarkingScheme)
     ? data.vcaaMarkingScheme.map((item) => ({
         criterion: item.criterion || 'Criterion',
@@ -112,7 +106,6 @@ export function normalizeMarkResponse(
     verdict: data.verdict || 'Unrated',
     achievedMarks,
     maxMarks,
-    scoreOutOf10,
     vcaaMarkingScheme,
     comparisonToSolutionMarkdown:
       data.comparisonToSolutionMarkdown ||

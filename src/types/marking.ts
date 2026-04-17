@@ -9,7 +9,6 @@ export type MarkAnswerResponse = {
   verdict: string;
   achievedMarks: number;
   maxMarks: number;
-  scoreOutOf10: number;
   vcaaMarkingScheme: MarkingCriterion[];
   comparisonToSolutionMarkdown: string;
   feedbackMarkdown: string;

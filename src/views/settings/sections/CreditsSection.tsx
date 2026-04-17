@@ -58,7 +58,7 @@ export function CreditsSection() {
   return (
     <AnimatedSection className='space-y-6'>
       {/* Credit balance */}
-      <div className='flex items-start justify-between'>
+      <div key='header' className='flex items-start justify-between'>
         <div>
           <h2 className='text-lg font-semibold tracking-tight'>
             Account Credits
@@ -84,9 +84,12 @@ export function CreditsSection() {
           Refresh
         </Button>
       </div>
-      {creditsError && <ErrorBanner message={creditsError} />}
+      {creditsError && (
+        <ErrorBanner key='error-banner' message={creditsError} />
+      )}
       {!credits && !creditsLoading && !creditsError && (
         <EmptyState
+          key='empty-state'
           message={
             apiKey
               ? 'Click refresh to load credit info.'
@@ -95,14 +98,14 @@ export function CreditsSection() {
         />
       )}
       {creditsLoading && (
-        <div className='space-y-2'>
+        <div key='loading-skeleton' className='space-y-2'>
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className='h-10 rounded-lg bg-muted animate-pulse' />
           ))}
         </div>
       )}
       {credits && !creditsLoading && (
-        <div className='space-y-4'>
+        <div key='credits-display' className='space-y-4'>
           <Card className='p-5 space-y-3'>
             <div className='flex items-center justify-between text-sm'>
               <span className='font-medium'>Credit usage</span>
@@ -156,10 +159,10 @@ export function CreditsSection() {
         </div>
       )}
 
-      <Divider />
+      <Divider key='divider' />
 
       {/* Daily usage section */}
-      <div>
+      <div key='daily-usage'>
         <div className='mb-4'>
           <h2 className='text-base font-semibold tracking-tight flex items-center gap-2'>
             <Calendar className='h-4 w-4 text-muted-foreground' />

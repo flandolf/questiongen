@@ -50,10 +50,14 @@ export function GenerationSettingsSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='header'
         title='Generation Settings'
         description='Configure default options for question generation.'
       />
-      <Card className='flex items-center justify-between p-4'>
+      <Card
+        key='avoid-similar'
+        className='flex items-center justify-between p-4'
+      >
         <div className='flex flex-col gap-0.5'>
           <div className='flex items-center gap-1.5'>
             <p className='text-sm font-medium'>Avoid Similar Questions</p>
@@ -88,7 +92,10 @@ export function GenerationSettingsSection() {
           {avoidSimilarQuestions ? 'Disable' : 'Enable'}
         </Button>
       </Card>
-      <Card className='flex flex-row items-center justify-between p-4'>
+      <Card
+        key='difficulty-scaling'
+        className='flex flex-row items-center justify-between p-4'
+      >
         <div className='flex flex-col gap-0.5'>
           <div className='flex items-center gap-1.5'>
             <p className='text-sm font-medium'>AI Difficulty Scaling</p>
@@ -126,7 +133,7 @@ export function GenerationSettingsSection() {
         </Button>
       </Card>
       {aiDifficultyScalingEnabled && (
-        <Card className='flex flex-col p-4'>
+        <Card key='difficulty-thresholds' className='flex flex-col p-4'>
           <div className='flex items-center justify-between mb-1'>
             <div className='flex items-center gap-1'>
               <p>Difficulty Thresholds</p>
@@ -197,7 +204,7 @@ export function GenerationSettingsSection() {
           </div>
         </Card>
       )}
-      <Card className='flex flex-col p-4'>
+      <Card key='generation-flags' className='flex flex-col p-4'>
         <SectionHeader
           title='Generation Flags'
           description='Global generation defaults.'

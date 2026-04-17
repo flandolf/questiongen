@@ -213,8 +213,6 @@ pub struct MarkAnswerResponse {
     #[serde(default)]
     pub max_marks: u8,
     #[serde(default)]
-    pub score_out_of_10: u8,
-    #[serde(default)]
     pub vcaa_marking_scheme: Vec<MarkingCriterion>,
     #[serde(default)]
     pub comparison_to_solution_markdown: String,

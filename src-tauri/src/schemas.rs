@@ -79,7 +79,7 @@ pub fn marking_format(model: &str) -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
-        "required": ["verdict","achievedMarks","maxMarks","scoreOutOf10",
+        "required": ["verdict","achievedMarks","maxMarks",
                      "vcaaMarkingScheme","comparisonToSolutionMarkdown",
                      "feedbackMarkdown","workedSolutionMarkdown",
                      "exemplarResponseMarkdown","mcOptionExplanations"],
@@ -87,7 +87,6 @@ pub fn marking_format(model: &str) -> serde_json::Value {
             "verdict":       { "type": "string" },
             "achievedMarks": { "type": "integer", "minimum": 0 },
             "maxMarks":      { "type": "integer", "minimum": 1 },
-            "scoreOutOf10":  { "type": "integer", "minimum": 0, "maximum": 10 },
             "vcaaMarkingScheme": {
                 "type": "array",
                 "items": {
