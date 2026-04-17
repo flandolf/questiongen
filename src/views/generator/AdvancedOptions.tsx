@@ -15,19 +15,13 @@ import {
 import { cn } from '@/lib/utils';
 import {
   BIOLOGY_SUBTOPIC_GROUPS,
-  type BiologySubtopic,
   CHEMISTRY_SUBTOPIC_GROUPS,
-  type ChemistrySubtopic,
   type DiversityStrictness,
   GENERAL_MATHEMATICS_SUBTOPIC_GROUPS,
-  type GeneralMathematicsSubtopic,
   MATH_METHODS_SUBTOPIC_GROUPS,
-  type MathMethodsSubtopic,
   PE_SUBTOPIC_GROUPS,
-  type PhysicalEducationSubtopic,
   type QuestionMode,
   SPECIALIST_MATH_SUBTOPIC_GROUPS,
-  type SpecialistMathSubtopic,
   type TechMode,
   type Topic,
   toScopedSubtopicGroups,
@@ -104,28 +98,8 @@ export type AdvancedOptionsGroupProps = {
   onSetAverageMarksPerQuestion: (marks: number) => void;
   selectedTopics: Topic[];
   hasSubtopicSection: boolean;
-  mathMethodsSubtopics: MathMethodsSubtopic[];
-  onToggleMathMethodsSubtopic: (
-    sub: MathMethodsSubtopic | MathMethodsSubtopic[],
-  ) => void;
-  specialistMathSubtopics: SpecialistMathSubtopic[];
-  onToggleSpecialistMathSubtopic: (
-    sub: SpecialistMathSubtopic | SpecialistMathSubtopic[],
-  ) => void;
-  chemistrySubtopics: ChemistrySubtopic[];
-  onToggleChemistrySubtopic: (
-    sub: ChemistrySubtopic | ChemistrySubtopic[],
-  ) => void;
-  physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  onTogglePhysicalEducationSubtopic: (
-    sub: PhysicalEducationSubtopic | PhysicalEducationSubtopic[],
-  ) => void;
-  biologySubtopics: BiologySubtopic[];
-  onToggleBiologySubtopic: (sub: BiologySubtopic | BiologySubtopic[]) => void;
-  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
-  onToggleGeneralMathematicsSubtopic: (
-    sub: GeneralMathematicsSubtopic | GeneralMathematicsSubtopic[],
-  ) => void;
+  selectedSubtopics: Record<string, string[]>;
+  onToggleSubtopic: (topic: Topic, sub: string | string[]) => void;
   hasAnyMathTopic: boolean;
   techMode: TechMode;
   onSetTechMode: (mode: TechMode) => void;
@@ -143,24 +117,33 @@ export function AdvancedOptionsGroup({
   onSetAverageMarksPerQuestion,
   selectedTopics,
   hasSubtopicSection,
-  mathMethodsSubtopics,
-  onToggleMathMethodsSubtopic,
-  specialistMathSubtopics,
-  onToggleSpecialistMathSubtopic,
-  chemistrySubtopics,
-  onToggleChemistrySubtopic,
-  physicalEducationSubtopics,
-  biologySubtopics,
-  onToggleBiologySubtopic,
-  generalMathematicsSubtopics,
-  onToggleGeneralMathematicsSubtopic,
-  onTogglePhysicalEducationSubtopic,
+  selectedSubtopics,
+  onToggleSubtopic,
   hasAnyMathTopic,
   techMode,
   onSetTechMode,
   customFocusArea,
   onSetCustomFocusArea,
 }: AdvancedOptionsGroupProps) {
+  const getSubtopicGroups = (topic: Topic) => {
+    switch (topic) {
+      case 'Mathematical Methods':
+        return MATH_METHODS_SCOPED_SUBTOPIC_GROUPS;
+      case 'Specialist Mathematics':
+        return SPECIALIST_MATH_SUBTOPIC_GROUPS;
+      case 'Chemistry':
+        return CHEMISTRY_SUBTOPIC_GROUPS;
+      case 'Physical Education':
+        return PE_SUBTOPIC_GROUPS;
+      case 'Biology':
+        return BIOLOGY_SUBTOPIC_GROUPS;
+      case 'General Mathematics':
+        return GENERAL_MATHEMATICS_SUBTOPIC_GROUPS;
+      default:
+        return [];
+    }
+  };
+
   return (
     <div className='flex flex-col gap-5 w-full'>
       {/* Session Size & Marks Row */}
@@ -306,72 +289,15 @@ export function AdvancedOptionsGroup({
             </span>
           </SectionLabel>
           <div className='flex flex-col gap-6'>
-            {selectedTopics.includes('Mathematical Methods') && (
+            {selectedTopics.map((topic) => (
               <GroupedSubtopicSelector
-                label='Mathematical Methods'
-                groups={MATH_METHODS_SCOPED_SUBTOPIC_GROUPS}
-                selected={mathMethodsSubtopics}
-                onToggle={
-                  onToggleMathMethodsSubtopic as (s: string | string[]) => void
-                }
+                key={topic}
+                label={topic}
+                groups={getSubtopicGroups(topic)}
+                selected={selectedSubtopics[topic] || []}
+                onToggle={(sub) => onToggleSubtopic(topic, sub)}
               />
-            )}
-            {selectedTopics.includes('Specialist Mathematics') && (
-              <GroupedSubtopicSelector
-                label='Specialist Mathematics'
-                groups={SPECIALIST_MATH_SUBTOPIC_GROUPS}
-                selected={specialistMathSubtopics}
-                onToggle={
-                  onToggleSpecialistMathSubtopic as (
-                    s: string | string[],
-                  ) => void
-                }
-              />
-            )}
-            {selectedTopics.includes('Chemistry') && (
-              <GroupedSubtopicSelector
-                label='Chemistry'
-                groups={CHEMISTRY_SUBTOPIC_GROUPS}
-                selected={chemistrySubtopics}
-                onToggle={
-                  onToggleChemistrySubtopic as (s: string | string[]) => void
-                }
-              />
-            )}
-            {selectedTopics.includes('Physical Education') && (
-              <GroupedSubtopicSelector
-                label='Physical Education'
-                groups={PE_SUBTOPIC_GROUPS}
-                selected={physicalEducationSubtopics}
-                onToggle={
-                  onTogglePhysicalEducationSubtopic as (
-                    s: string | string[],
-                  ) => void
-                }
-              />
-            )}
-            {selectedTopics.includes('Biology') && (
-              <GroupedSubtopicSelector
-                label='Biology'
-                groups={BIOLOGY_SUBTOPIC_GROUPS}
-                selected={biologySubtopics}
-                onToggle={
-                  onToggleBiologySubtopic as (s: string | string[]) => void
-                }
-              />
-            )}
-            {selectedTopics.includes('General Mathematics') && (
-              <GroupedSubtopicSelector
-                label='General Mathematics'
-                groups={GENERAL_MATHEMATICS_SUBTOPIC_GROUPS}
-                selected={generalMathematicsSubtopics}
-                onToggle={
-                  onToggleGeneralMathematicsSubtopic as (
-                    s: string | string[],
-                  ) => void
-                }
-              />
-            )}
+            ))}
           </div>
         </div>
       )}

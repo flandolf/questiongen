@@ -56,12 +56,7 @@ export interface ImportExportState {
   difficulty: PersistedAppState['preferences']['difficulty'];
   techMode: PersistedAppState['preferences']['techMode'];
   avoidSimilarQuestions: boolean;
-  mathMethodsSubtopics: PersistedAppState['preferences']['mathMethodsSubtopics'];
-  specialistMathSubtopics: PersistedAppState['preferences']['specialistMathSubtopics'];
-  chemistrySubtopics: PersistedAppState['preferences']['chemistrySubtopics'];
-  physicalEducationSubtopics: PersistedAppState['preferences']['physicalEducationSubtopics'];
-  biologySubtopics: PersistedAppState['preferences']['biologySubtopics'];
-  generalMathematicsSubtopics: PersistedAppState['preferences']['generalMathematicsSubtopics'];
+  selectedSubtopics: Record<string, string[]>;
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: PersistedAppState['preferences']['questionMode'];
@@ -412,11 +407,7 @@ export function mergeImportedState(
   merged.difficulty = imported.preferences.difficulty;
   merged.techMode = imported.preferences.techMode;
   merged.avoidSimilarQuestions = imported.preferences.avoidSimilarQuestions;
-  merged.mathMethodsSubtopics = imported.preferences.mathMethodsSubtopics;
-  merged.specialistMathSubtopics = imported.preferences.specialistMathSubtopics;
-  merged.chemistrySubtopics = imported.preferences.chemistrySubtopics;
-  merged.physicalEducationSubtopics =
-    imported.preferences.physicalEducationSubtopics;
+  merged.selectedSubtopics = imported.preferences.selectedSubtopics;
   merged.questionCount = imported.preferences.questionCount;
   merged.averageMarksPerQuestion = imported.preferences.averageMarksPerQuestion;
   merged.questionMode = imported.preferences.questionMode;
@@ -493,12 +484,7 @@ function buildExportSnapshot(
       difficulty: s.difficulty,
       techMode: s.techMode,
       avoidSimilarQuestions: s.avoidSimilarQuestions,
-      mathMethodsSubtopics: s.mathMethodsSubtopics,
-      specialistMathSubtopics: s.specialistMathSubtopics,
-      chemistrySubtopics: s.chemistrySubtopics,
-      physicalEducationSubtopics: s.physicalEducationSubtopics,
-      biologySubtopics: s.biologySubtopics,
-      generalMathematicsSubtopics: s.generalMathematicsSubtopics,
+      selectedSubtopics: s.selectedSubtopics,
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,

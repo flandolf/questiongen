@@ -1,12 +1,4 @@
-import type {
-  BiologySubtopic,
-  ChemistrySubtopic,
-  GeneralMathematicsSubtopic,
-  MathMethodsSubtopic,
-  PhysicalEducationSubtopic,
-  SpecialistMathSubtopic,
-  Topic,
-} from './catalog';
+import type { Topic } from './catalog';
 import type { Difficulty, QuestionMode, TechMode } from './generator';
 
 export type StudyGoals = {
@@ -39,12 +31,7 @@ export type PresetPreferences = {
   selectedTopics: Topic[];
   difficulty: Difficulty;
   techMode: TechMode;
-  mathMethodsSubtopics?: MathMethodsSubtopic[];
-  specialistMathSubtopics?: SpecialistMathSubtopic[];
-  chemistrySubtopics?: ChemistrySubtopic[];
-  physicalEducationSubtopics?: PhysicalEducationSubtopic[];
-  biologySubtopics?: BiologySubtopic[];
-  generalMathematicsSubtopics?: GeneralMathematicsSubtopic[];
+  selectedSubtopics?: Record<string, string[]>;
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;

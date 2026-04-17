@@ -1,9 +1,6 @@
 import type {
   BatchTopicProgress,
-  BiologySubtopic,
-  ChemistrySubtopic,
   Difficulty,
-  GeneralMathematicsSubtopic,
   GeneratedQuestion,
   GenerationRecord,
   GenerationStatusEvent,
@@ -12,18 +9,16 @@ import type {
   GenerationTelemetry,
   LogEntry,
   MarkAnswerResponse,
-  MathMethodsSubtopic,
   McHistoryEntry,
   McQuestion,
   PersistedAppState,
-  PhysicalEducationSubtopic,
   Preset,
+  PresetPreferences,
   QuestionHistoryEntry,
   QuestionMode,
   ReviewQuality,
   SavedQuestionSet,
   SpacedRepetitionCard,
-  SpecialistMathSubtopic,
   StreakData,
   StudentAnswerImage,
   StudyGoals,
@@ -66,12 +61,7 @@ export interface AppState {
   difficulty: Difficulty;
   techMode: TechMode;
   avoidSimilarQuestions: boolean;
-  mathMethodsSubtopics: MathMethodsSubtopic[];
-  specialistMathSubtopics: SpecialistMathSubtopic[];
-  chemistrySubtopics: ChemistrySubtopic[];
-  physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  biologySubtopics: BiologySubtopic[];
-  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
+  selectedSubtopics: Record<string, string[]>;
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
@@ -182,36 +172,11 @@ export interface AppActions {
   setDifficulty: (level: Difficulty) => void;
   setTechMode: (mode: TechMode) => void;
   setAvoidSimilarQuestions: (enabled: boolean) => void;
-  setMathMethodsSubtopics: (
-    subtopics:
-      | MathMethodsSubtopic[]
-      | ((prev: MathMethodsSubtopic[]) => MathMethodsSubtopic[]),
+  setSelectedSubtopics: (
+    topic: Topic,
+    subtopics: string[] | ((prev: string[]) => string[]),
   ) => void;
-  setSpecialistMathSubtopics: (
-    subtopics:
-      | SpecialistMathSubtopic[]
-      | ((prev: SpecialistMathSubtopic[]) => SpecialistMathSubtopic[]),
-  ) => void;
-  setChemistrySubtopics: (
-    subtopics:
-      | ChemistrySubtopic[]
-      | ((prev: ChemistrySubtopic[]) => ChemistrySubtopic[]),
-  ) => void;
-  setPhysicalEducationSubtopics: (
-    subtopics:
-      | PhysicalEducationSubtopic[]
-      | ((prev: PhysicalEducationSubtopic[]) => PhysicalEducationSubtopic[]),
-  ) => void;
-  setBiologySubtopics: (
-    subtopics:
-      | BiologySubtopic[]
-      | ((prev: BiologySubtopic[]) => BiologySubtopic[]),
-  ) => void;
-  setGeneralMathematicsSubtopics: (
-    subtopics:
-      | GeneralMathematicsSubtopic[]
-      | ((prev: GeneralMathematicsSubtopic[]) => GeneralMathematicsSubtopic[]),
-  ) => void;
+  toggleSubtopic: (topic: Topic, subtopic: string | string[]) => void;
   setQuestionCount: (count: number) => void;
   setAverageMarksPerQuestion: (marks: number) => void;
   setQuestionMode: (mode: QuestionMode) => void;
@@ -229,6 +194,7 @@ export interface AppActions {
   setShuffleSubtopics: (enabled: boolean) => void;
   setShuffleQuestions: (enabled: boolean) => void;
   setGenerationStrategy: (strategy: GenerationStrategy) => void;
+  applyPreferences: (prefs: Partial<PresetPreferences>) => void;
   resetPreferences: () => void;
 
   // Written session

@@ -13,15 +13,10 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type {
-  BiologySubtopic,
-  ChemistrySubtopic,
   Difficulty,
-  GeneralMathematicsSubtopic,
-  MathMethodsSubtopic,
-  PhysicalEducationSubtopic,
   Preset,
+  PresetPreferences,
   QuestionMode,
-  SpecialistMathSubtopic,
   TechMode,
   Topic,
 } from '@/types';
@@ -30,16 +25,20 @@ type PresetSectionProps = {
   selectedTopics: Topic[];
   difficulty: Difficulty;
   techMode: TechMode;
-  mathMethodsSubtopics: MathMethodsSubtopic[];
-  specialistMathSubtopics: SpecialistMathSubtopic[];
-  chemistrySubtopics: ChemistrySubtopic[];
-  physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  biologySubtopics: BiologySubtopic[];
-  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
+  selectedSubtopics: Record<string, string[]>;
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
 };
+
+interface LegacyPresetPreferences extends PresetPreferences {
+  mathMethodsSubtopics?: string[];
+  specialistMathSubtopics?: string[];
+  chemistrySubtopics?: string[];
+  physicalEducationSubtopics?: string[];
+  biologySubtopics?: string[];
+  generalMathematicsSubtopics?: string[];
+}
 
 const DIFFICULTY_META: Record<
   Difficulty,
@@ -81,12 +80,7 @@ export function PresetSection({
   selectedTopics,
   difficulty,
   techMode,
-  mathMethodsSubtopics,
-  specialistMathSubtopics,
-  chemistrySubtopics,
-  physicalEducationSubtopics,
-  biologySubtopics,
-  generalMathematicsSubtopics,
+  selectedSubtopics,
   questionCount,
   averageMarksPerQuestion,
   questionMode,
@@ -95,26 +89,7 @@ export function PresetSection({
   const addPreset = useAppStore((s) => s.addPreset);
   const updatePreset = useAppStore((s) => s.updatePreset);
   const deletePreset = useAppStore((s) => s.deletePreset);
-  const setDifficulty = useAppStore((s) => s.setDifficulty);
-  const setTechMode = useAppStore((s) => s.setTechMode);
-  const setSelectedTopics = useAppStore((s) => s.setSelectedTopics);
-  const setMathMethodsSubtopics = useAppStore((s) => s.setMathMethodsSubtopics);
-  const setSpecialistMathSubtopics = useAppStore(
-    (s) => s.setSpecialistMathSubtopics,
-  );
-  const setChemistrySubtopics = useAppStore((s) => s.setChemistrySubtopics);
-  const setPhysicalEducationSubtopics = useAppStore(
-    (s) => s.setPhysicalEducationSubtopics,
-  );
-  const setBiologySubtopics = useAppStore((s) => s.setBiologySubtopics);
-  const setGeneralMathematicsSubtopics = useAppStore(
-    (s) => s.setGeneralMathematicsSubtopics,
-  );
-  const setQuestionCount = useAppStore((s) => s.setQuestionCount);
-  const setAverageMarksPerQuestion = useAppStore(
-    (s) => s.setAverageMarksPerQuestion,
-  );
-  const setQuestionMode = useAppStore((s) => s.setQuestionMode);
+  const applyPreferences = useAppStore((s) => s.applyPreferences);
 
   const [presetName, setPresetName] = useState('');
   const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
@@ -145,8 +120,7 @@ export function PresetSection({
     else if (e.key === 'Escape') setRenamingPresetId(null);
   };
 
-  const buildCurrentPreferences = () => {
-    const topicSet = new Set(selectedTopics);
+  const buildCurrentPreferences = (): PresetPreferences => {
     return {
       selectedTopics,
       difficulty,
@@ -154,18 +128,7 @@ export function PresetSection({
       questionCount,
       averageMarksPerQuestion,
       questionMode,
-      ...(topicSet.has('Mathematical Methods') ? { mathMethodsSubtopics } : {}),
-      ...(topicSet.has('Specialist Mathematics')
-        ? { specialistMathSubtopics }
-        : {}),
-      ...(topicSet.has('Chemistry') ? { chemistrySubtopics } : {}),
-      ...(topicSet.has('Physical Education')
-        ? { physicalEducationSubtopics }
-        : {}),
-      ...(topicSet.has('Biology') ? { biologySubtopics } : {}),
-      ...(topicSet.has('General Mathematics')
-        ? { generalMathematicsSubtopics }
-        : {}),
+      selectedSubtopics,
     };
   };
 
@@ -176,7 +139,11 @@ export function PresetSection({
     const existing = presets.find((p) => p.name === name);
     const prefs = buildCurrentPreferences();
     if (existing) {
-      updatePreset({ ...existing, preferences: prefs, updatedAt: now });
+      updatePreset({
+        ...existing,
+        preferences: prefs,
+        updatedAt: now,
+      });
     } else {
       addPreset({
         id: `preset-${Date.now()}`,
@@ -191,18 +158,35 @@ export function PresetSection({
 
   const handleLoadPreset = (preset: Preset) => {
     const p = preset.preferences;
-    setSelectedTopics([...p.selectedTopics]);
-    setDifficulty(p.difficulty);
-    setTechMode(p.techMode);
-    setMathMethodsSubtopics([...(p.mathMethodsSubtopics ?? [])]);
-    setSpecialistMathSubtopics([...(p.specialistMathSubtopics ?? [])]);
-    setChemistrySubtopics([...(p.chemistrySubtopics ?? [])]);
-    setPhysicalEducationSubtopics([...(p.physicalEducationSubtopics ?? [])]);
-    setBiologySubtopics([...(p.biologySubtopics ?? [])]);
-    setGeneralMathematicsSubtopics([...(p.generalMathematicsSubtopics ?? [])]);
-    setQuestionCount(p.questionCount);
-    setAverageMarksPerQuestion(p.averageMarksPerQuestion);
-    setQuestionMode(p.questionMode);
+
+    // Process subtopics (including legacy migration)
+    const finalSubtopics: Record<string, string[]> = p.selectedSubtopics
+      ? { ...p.selectedSubtopics }
+      : {};
+
+    if (!p.selectedSubtopics) {
+      const legacy = p as LegacyPresetPreferences;
+      if (legacy.mathMethodsSubtopics)
+        finalSubtopics['Mathematical Methods'] = legacy.mathMethodsSubtopics;
+      if (legacy.specialistMathSubtopics)
+        finalSubtopics['Specialist Mathematics'] =
+          legacy.specialistMathSubtopics;
+      if (legacy.chemistrySubtopics)
+        finalSubtopics['Chemistry'] = legacy.chemistrySubtopics;
+      if (legacy.physicalEducationSubtopics)
+        finalSubtopics['Physical Education'] =
+          legacy.physicalEducationSubtopics;
+      if (legacy.biologySubtopics)
+        finalSubtopics['Biology'] = legacy.biologySubtopics;
+      if (legacy.generalMathematicsSubtopics)
+        finalSubtopics['General Mathematics'] =
+          legacy.generalMathematicsSubtopics;
+    }
+
+    applyPreferences({
+      ...p,
+      selectedSubtopics: finalSubtopics,
+    });
   };
 
   const handleUpdatePreset = (preset: Preset) => {

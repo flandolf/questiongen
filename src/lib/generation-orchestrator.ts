@@ -31,22 +31,7 @@ export const getCanGenerate = (s: AppState) =>
   !s.isGenerating;
 
 function getSubtopicsForTopic(topic: Topic, store: AppState): string[] {
-  switch (topic) {
-    case 'Mathematical Methods':
-      return store.mathMethodsSubtopics;
-    case 'Specialist Mathematics':
-      return store.specialistMathSubtopics;
-    case 'Chemistry':
-      return store.chemistrySubtopics;
-    case 'Physical Education':
-      return store.physicalEducationSubtopics;
-    case 'Biology':
-      return store.biologySubtopics;
-    case 'General Mathematics':
-      return store.generalMathematicsSubtopics;
-    default:
-      return [];
-  }
+  return store.selectedSubtopics[topic] || [];
 }
 
 function updateBatchEntry(idx: number, update: Partial<BatchTopicProgress>) {

@@ -39,18 +39,12 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import {
   type BatchTopicProgress,
-  type BiologySubtopic,
-  type ChemistrySubtopic,
   type Difficulty,
   type DiversityStrictness,
-  type GeneralMathematicsSubtopic,
   type GenerationStatusEvent,
   type GenerationSubCallProgress,
   type GenerationTelemetry,
-  type MathMethodsSubtopic,
-  type PhysicalEducationSubtopic,
   type QuestionMode,
-  type SpecialistMathSubtopic,
   type TechMode,
   toCanonicalSubtopicName,
   type Topic,
@@ -148,28 +142,8 @@ type SetupPanelProps = {
   onSetQuestionMode: (mode: QuestionMode) => void;
   selectedTopics: Topic[];
   onToggleTopic: (topic: Topic) => void;
-  mathMethodsSubtopics: MathMethodsSubtopic[];
-  onToggleMathMethodsSubtopic: (
-    sub: MathMethodsSubtopic | MathMethodsSubtopic[],
-  ) => void;
-  specialistMathSubtopics: SpecialistMathSubtopic[];
-  onToggleSpecialistMathSubtopic: (
-    sub: SpecialistMathSubtopic | SpecialistMathSubtopic[],
-  ) => void;
-  chemistrySubtopics: ChemistrySubtopic[];
-  onToggleChemistrySubtopic: (
-    sub: ChemistrySubtopic | ChemistrySubtopic[],
-  ) => void;
-  physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  onTogglePhysicalEducationSubtopic: (
-    sub: PhysicalEducationSubtopic | PhysicalEducationSubtopic[],
-  ) => void;
-  biologySubtopics: BiologySubtopic[];
-  onToggleBiologySubtopic: (sub: BiologySubtopic | BiologySubtopic[]) => void;
-  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
-  onToggleGeneralMathematicsSubtopic: (
-    sub: GeneralMathematicsSubtopic | GeneralMathematicsSubtopic[],
-  ) => void;
+  selectedSubtopics: Record<string, string[]>;
+  onToggleSubtopic: (topic: Topic, sub: string | string[]) => void;
   techMode: TechMode;
   onSetTechMode: (mode: TechMode) => void;
   customFocusArea: string;
@@ -214,18 +188,8 @@ function SetupPanelImpl({
   onSetQuestionMode,
   selectedTopics,
   onToggleTopic,
-  mathMethodsSubtopics,
-  onToggleMathMethodsSubtopic,
-  specialistMathSubtopics,
-  onToggleSpecialistMathSubtopic,
-  chemistrySubtopics,
-  onToggleChemistrySubtopic,
-  physicalEducationSubtopics,
-  onTogglePhysicalEducationSubtopic,
-  biologySubtopics,
-  onToggleBiologySubtopic,
-  generalMathematicsSubtopics,
-  onToggleGeneralMathematicsSubtopic,
+  selectedSubtopics,
+  onToggleSubtopic,
   techMode,
   onSetTechMode,
   customFocusArea,
@@ -267,38 +231,18 @@ function SetupPanelImpl({
   const hasAnyMathTopic = selectedTopics.some(
     (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics',
   );
-  const hasSubtopicSection =
-    selectedTopics.includes('Mathematical Methods') ||
-    selectedTopics.includes('Specialist Mathematics') ||
-    selectedTopics.includes('Chemistry') ||
-    selectedTopics.includes('Physical Education') ||
-    selectedTopics.includes('Biology') ||
-    selectedTopics.includes('General Mathematics');
+  const hasSubtopicSection = selectedTopics.length > 0;
 
   const showBatchTimeline = batchProgress.length > 1;
 
-  const selectedSubtopics = useMemo(
+  const flatSelectedSubtopics = useMemo(
     () =>
       Array.from(
         new Set(
-          [
-            ...mathMethodsSubtopics,
-            ...specialistMathSubtopics,
-            ...chemistrySubtopics,
-            ...physicalEducationSubtopics,
-            ...biologySubtopics,
-            ...generalMathematicsSubtopics,
-          ].map(toCanonicalSubtopicName),
+          Object.values(selectedSubtopics).flat().map(toCanonicalSubtopicName),
         ),
       ),
-    [
-      mathMethodsSubtopics,
-      specialistMathSubtopics,
-      chemistrySubtopics,
-      physicalEducationSubtopics,
-      biologySubtopics,
-      generalMathematicsSubtopics,
-    ],
+    [selectedSubtopics],
   );
 
   useEffect(() => {
@@ -334,7 +278,7 @@ function SetupPanelImpl({
       questionMode,
       techMode,
       averageMarksPerQuestion,
-      selectedSubtopics.length > 0 ? selectedSubtopics : undefined,
+      flatSelectedSubtopics.length > 0 ? flatSelectedSubtopics : undefined,
       customFocusArea.trim() || undefined,
       promptPricePerToken ?? undefined,
       completionPricePerToken ?? undefined,
@@ -351,7 +295,7 @@ function SetupPanelImpl({
     customFocusArea,
     promptPricePerToken,
     completionPricePerToken,
-    selectedSubtopics,
+    flatSelectedSubtopics,
     generationStrategy,
   ]);
 
@@ -633,12 +577,7 @@ function SetupPanelImpl({
                 selectedTopics={selectedTopics}
                 difficulty={difficulty}
                 techMode={techMode}
-                mathMethodsSubtopics={mathMethodsSubtopics}
-                specialistMathSubtopics={specialistMathSubtopics}
-                chemistrySubtopics={chemistrySubtopics}
-                physicalEducationSubtopics={physicalEducationSubtopics}
-                biologySubtopics={biologySubtopics}
-                generalMathematicsSubtopics={generalMathematicsSubtopics}
+                selectedSubtopics={selectedSubtopics}
                 questionCount={questionCount}
                 averageMarksPerQuestion={averageMarksPerQuestion}
                 questionMode={questionMode}
@@ -650,22 +589,8 @@ function SetupPanelImpl({
               onSetAverageMarksPerQuestion={onSetAverageMarksPerQuestion}
               selectedTopics={selectedTopics}
               hasSubtopicSection={hasSubtopicSection}
-              mathMethodsSubtopics={mathMethodsSubtopics}
-              onToggleMathMethodsSubtopic={onToggleMathMethodsSubtopic}
-              specialistMathSubtopics={specialistMathSubtopics}
-              onToggleSpecialistMathSubtopic={onToggleSpecialistMathSubtopic}
-              chemistrySubtopics={chemistrySubtopics}
-              onToggleChemistrySubtopic={onToggleChemistrySubtopic}
-              physicalEducationSubtopics={physicalEducationSubtopics}
-              onTogglePhysicalEducationSubtopic={
-                onTogglePhysicalEducationSubtopic
-              }
-              biologySubtopics={biologySubtopics}
-              onToggleBiologySubtopic={onToggleBiologySubtopic}
-              generalMathematicsSubtopics={generalMathematicsSubtopics}
-              onToggleGeneralMathematicsSubtopic={
-                onToggleGeneralMathematicsSubtopic
-              }
+              selectedSubtopics={selectedSubtopics}
+              onToggleSubtopic={onToggleSubtopic}
               hasAnyMathTopic={hasAnyMathTopic}
               techMode={techMode}
               onSetTechMode={onSetTechMode}
