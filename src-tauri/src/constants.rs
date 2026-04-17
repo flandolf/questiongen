@@ -42,6 +42,7 @@ pub const DISALLOWED_METHOD_INSTRUCTIONS: &[&str] = &[
     "apply a",
     "use differentiation to",
     "use integration to",
+    "integration by parts",
     "use the graph",
     "transform the graph",
     "obtain new",

@@ -281,10 +281,16 @@ fn repair_math_typos(text: &str) -> String {
     while let Some(pos) = rest.find(r"\b") {
         out.push_str(&rest[..pos]);
         let after_b = &rest[pos + 2..];
-        if let Some(command) = COMMANDS
-            .iter()
-            .find(|command| after_b.starts_with(**command))
-        {
+        if let Some(command) = COMMANDS.iter().find(|cmd| {
+            if !after_b.starts_with(**cmd) {
+                return false;
+            }
+            let end = cmd.len();
+            if end < after_b.len() && after_b.as_bytes()[end].is_ascii_alphabetic() {
+                return false;
+            }
+            true
+        }) {
             let b_prefixed_is_valid = COMMANDS
                 .iter()
                 .any(|candidate| *candidate == format!("b{command}"));
@@ -326,30 +332,13 @@ fn repair_backspace_latex_prefixes(text: &str) -> String {
         "bmathbb",
     ];
 
-    let mut out = String::with_capacity(text.len() + 2);
-    let chars: Vec<char> = text.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
-
-    while i < len {
-        if chars[i] == '\u{0008}' {
-            let rest: String = chars[i + 1..].iter().collect();
-            if let Some(command) = COMMANDS.iter().find(|command| rest.starts_with(**command)) {
-                let next_idx = i + 1 + command.len();
-                if next_idx >= len || !chars[next_idx].is_ascii_alphabetic() {
-                    out.push('\\');
-                    out.push('b');
-                    out.push_str(command);
-                    i += 1 + command.len();
-                    continue;
-                }
-            }
-        }
-
-        out.push(chars[i]);
-        i += 1;
+    let mut out = text.to_string();
+    for cmd in COMMANDS {
+        let suffix = &cmd[1..];
+        let bad = format!("\u{0008}{}", suffix);
+        let good = format!("\\{}", cmd);
+        out = out.replace(&bad, &good);
     }
-
     out
 }
 
