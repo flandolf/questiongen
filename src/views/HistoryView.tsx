@@ -407,11 +407,6 @@ const McEntryCard = memo(function McEntryCard({
     >
       <CardHeader className='px-4 py-2 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onSelect}
-            aria-label={accessibleLabel}
-          />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
             <div
@@ -478,6 +473,11 @@ const McEntryCard = memo(function McEntryCard({
             >
               <Trash2 className='h-3.5 w-3.5' />
             </button>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onSelect}
+              aria-label={accessibleLabel}
+            />
           </div>
         </div>
       </CardHeader>
@@ -608,11 +608,6 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
     >
       <CardHeader className='px-4 py-3 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onSelect}
-            aria-label={accessibleLabel}
-          />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
             <AccuracyArc pct={pct} />
@@ -670,6 +665,11 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             >
               <Trash2 className='h-3.5 w-3.5' />
             </button>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onSelect}
+              aria-label={accessibleLabel}
+            />
           </div>
         </div>
       </CardHeader>

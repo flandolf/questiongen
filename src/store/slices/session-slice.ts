@@ -40,6 +40,7 @@ export interface SessionSlice {
 
   batchProgress: BatchTopicProgress[];
   generationSubCallProgress: GenerationSubCallProgress | null;
+  streamTexts: Record<string, string>;
 
   // Timer v2
   writtenTimer: AppState['writtenTimer'];
@@ -82,6 +83,10 @@ export interface SessionSlice {
   ) => void;
   setGenerationSubCallProgress: (
     progress: GenerationSubCallProgress | null,
+  ) => void;
+  setStreamText: (
+    text: string | ((prev: string) => string),
+    topic?: string,
   ) => void;
 
   setWrittenTimer: (state: AppState['writtenTimer']) => void;
@@ -133,6 +138,7 @@ export const createSessionSlice: StateCreator<
 
   batchProgress: [],
   generationSubCallProgress: null,
+  streamTexts: {},
 
   writtenTimer: null,
   mcTimer: null,
@@ -191,6 +197,18 @@ export const createSessionSlice: StateCreator<
     set((s) => ({ batchProgress: resolve(update, s.batchProgress) })),
   setGenerationSubCallProgress: (generationSubCallProgress) =>
     set({ generationSubCallProgress }),
+  setStreamText: (update, topic) =>
+    set((s) => {
+      const key = topic || 'default';
+      const prev = s.streamTexts[key] || '';
+      const next = typeof update === 'function' ? update(prev) : update;
+      return {
+        streamTexts: {
+          ...s.streamTexts,
+          [key]: next,
+        },
+      };
+    }),
 
   setWrittenTimer: (writtenTimer) => set({ writtenTimer }),
   setMcTimer: (mcTimer) => set({ mcTimer }),

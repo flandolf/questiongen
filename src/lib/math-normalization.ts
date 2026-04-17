@@ -18,24 +18,29 @@ export type ShieldedMath = {
   placeholders: Array<readonly [token: string, value: string]>;
 };
 
-const MATH_TOKEN_PREFIX = 'QG_MATH_TOKEN_START_';
-const MATH_TOKEN_SUFFIX = '_QG_MATH_TOKEN_END';
+export const MATH_TOKEN_PREFIX = '`QGMATH_TOKEN_';
+export const MATH_TOKEN_SUFFIX = '`';
 
 function createMathToken(index: number): string {
   return `${MATH_TOKEN_PREFIX}${index}${MATH_TOKEN_SUFFIX}`;
 }
 
-// Replace $...$ and $$...$$ blocks with placeholders so markdown parsers
-// cannot consume backslashes inside LaTeX commands.
 /**
  * Replace inline/display LaTeX math blocks ($...$ / $$...$$) with opaque
  * placeholder tokens so Markdown parsers do not consume or alter LaTeX
  * sequences. Returns the transformed markdown and the list of placeholders.
  *
+ * If isStreaming is true, it will attempt to close unclosed math blocks
+ * at the end of the content to prevent markdown mangling.
+ *
  * @param content - Original markdown containing LaTeX math
+ * @param isStreaming - Whether the content is currently being streamed
  */
 // eslint-disable-next-line complexity
-export function shieldMathForMarkdown(content: string): ShieldedMath {
+export function shieldMathForMarkdown(
+  content: string,
+  isStreaming = false,
+): ShieldedMath {
   const placeholders: Array<readonly [string, string]> = [];
   const out: string[] = [];
   const chars = Array.from(content);
@@ -61,6 +66,7 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
     ) {
       out.push('`', '`', '`');
       i += 3;
+      let closed = false;
       while (i < len) {
         if (
           chars[i] === '`' &&
@@ -70,10 +76,14 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
         ) {
           out.push('`', '`', '`');
           i += 3;
+          closed = true;
           break;
         }
         out.push(chars[i]);
         i++;
+      }
+      if (!closed && isStreaming) {
+        out.push('\n```'); // Auto-close streaming code block
       }
       continue;
     }
@@ -82,10 +92,12 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
     if (ch === '`') {
       out.push('`');
       i++;
+      let closed = false;
       while (i < len) {
         if (chars[i] === '`') {
           out.push('`');
           i++;
+          closed = true;
           break;
         }
         if (chars[i] === '\\' && i + 1 < len) {
@@ -95,6 +107,9 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
         }
         out.push(chars[i]);
         i++;
+      }
+      if (!closed && isStreaming) {
+        out.push('`'); // Auto-close streaming inline code
       }
       continue;
     }
@@ -132,8 +147,18 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
     }
 
     if (!found) {
-      out.push(...chars.slice(start));
-      break;
+      if (isStreaming) {
+        // Auto-close unclosed math block during streaming
+        const value =
+          chars.slice(start, len).join('') + (isDisplay ? '$$' : '$');
+        const token = createMathToken(placeholders.length);
+        placeholders.push([token, value]);
+        out.push(token);
+        break;
+      } else {
+        out.push(...chars.slice(start));
+        break;
+      }
     }
 
     const value = chars.slice(start, i).join('');
@@ -146,23 +171,4 @@ export function shieldMathForMarkdown(content: string): ShieldedMath {
     markdown: out.join(''),
     placeholders,
   };
-}
-
-export function restoreMathPlaceholders(
-  text: string,
-  placeholders: ReadonlyArray<readonly [token: string, value: string]>,
-): string {
-  /**
-   * Restore math placeholder tokens back to their original LaTeX fragments.
-   * @param text - Markdown text containing tokens
-   * @param placeholders - Array of [token, value] pairs to restore
-   * @returns Restored markdown with LaTeX fragments reinserted
-   */
-  let output = text;
-  for (const [token, value] of placeholders) {
-    if (output.includes(token)) {
-      output = output.split(token).join(value);
-    }
-  }
-  return output;
 }

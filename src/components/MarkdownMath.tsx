@@ -6,7 +6,6 @@ import remarkGfm from 'remark-gfm';
 
 import {
   normalizeMathDelimiters,
-  restoreMathPlaceholders,
   shieldMathForMarkdown,
 } from '../lib/app-utils';
 import { useTheme } from './theme-provider';
@@ -15,6 +14,69 @@ type MarkdownMathProps = {
   content: string;
   isStreaming?: boolean;
 };
+
+const MathNode = memo(
+  ({
+    latex,
+    isStreaming,
+    isDisplay = false,
+  }: {
+    latex: string;
+    isStreaming?: boolean;
+    isDisplay?: boolean;
+  }) => {
+    const containerRef = useRef<HTMLSpanElement>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Reset to raw LaTeX so MathJax has something to find and typeset.
+      // We wrap it in a span to keep the DOM predictable.
+      container.innerHTML = `<span>${latex}</span>`;
+
+      const performTypeset = () => {
+        const runtime = window.MathJax;
+        if (!runtime || typeof runtime.typesetPromise !== 'function') return;
+
+        runtime
+          .typesetPromise([container])
+          .then(() => {
+            // Once typeset, remove the streaming-only styling
+            if (container) container.classList.remove('opacity-70');
+          })
+          .catch((err) => {
+            console.error('MathJax typeset error:', err);
+          });
+      };
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      if (isStreaming) {
+        container.classList.add('opacity-70');
+        // During streaming, debounce typesetting to avoid excessive layout shifts
+        timeoutRef.current = setTimeout(performTypeset, 150);
+      } else {
+        container.classList.remove('opacity-70');
+        performTypeset();
+      }
+
+      return () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      };
+    }, [latex, isStreaming]);
+
+    return (
+      <span
+        ref={containerRef}
+        className={`math-node min-w-[1ch] ${isDisplay ? 'block w-full my-3' : 'inline-block'}`}
+      />
+    );
+  },
+);
+
+MathNode.displayName = 'MathNode';
 
 const Mermaid = ({ chart }: { chart: string }) => {
   const { theme } = useTheme();
@@ -57,23 +119,23 @@ const Mermaid = ({ chart }: { chart: string }) => {
 
         const fallbacks: Record<string, string> = isDarkMode
           ? {
-              '--background': '#0a0a0a',
-              '--foreground': '#ffffff',
-              '--primary': '#3b82f6',
-              '--muted-foreground': '#a1a1aa',
-              '--card': '#1a1a1a',
-              '--chart-2': '#e11d48',
-              '--chart-3': '#f59e0b',
-            }
+            '--background': '#0a0a0a',
+            '--foreground': '#ffffff',
+            '--primary': '#3b82f6',
+            '--muted-foreground': '#a1a1aa',
+            '--card': '#1a1a1a',
+            '--chart-2': '#e11d48',
+            '--chart-3': '#f59e0b',
+          }
           : {
-              '--background': '#ffffff',
-              '--foreground': '#0a0a0a',
-              '--primary': '#2563eb',
-              '--muted-foreground': '#71717a',
-              '--card': '#ffffff',
-              '--chart-2': '#e11d48',
-              '--chart-3': '#f59e0b',
-            };
+            '--background': '#ffffff',
+            '--foreground': '#0a0a0a',
+            '--primary': '#2563eb',
+            '--muted-foreground': '#71717a',
+            '--card': '#ffffff',
+            '--chart-2': '#e11d48',
+            '--chart-3': '#f59e0b',
+          };
 
         return fallbacks[varName] || '#888888';
       }
@@ -192,148 +254,68 @@ const Mermaid = ({ chart }: { chart: string }) => {
   );
 };
 
-const components: Components = {
-  code(props) {
-    const { className, children, node: _node, ...rest } = props;
-    const match = /language-mermaid/.exec(className || '');
-    if (match) {
-      let chart = '';
-      if (typeof children === 'string') {
-        chart = children;
-      } else if (Array.isArray(children)) {
-        chart = children.map((c) => (typeof c === 'string' ? c : '')).join('');
-      }
-      return <Mermaid chart={chart.replace(/\n$/, '')} />;
-    }
-    return (
-      <code className={className} {...rest}>
-        {children}
-      </code>
-    );
-  },
-};
-
 export const MarkdownMath = memo(function MarkdownMath({
   content,
   isStreaming = false,
 }: MarkdownMathProps) {
   const normalized = useMemo(() => normalizeMathDelimiters(content), [content]);
   const shielded = useMemo(
-    () => shieldMathForMarkdown(normalized),
-    [normalized],
+    () => shieldMathForMarkdown(normalized, isStreaming),
+    [normalized, isStreaming],
   );
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rafRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const components: Components = useMemo(
+    () => ({
+      code(props) {
+        const { className, children, node: _node, ...rest } = props;
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
+        if (
+          typeof children === 'string' &&
+          children.startsWith('QGMATH_TOKEN_')
+        ) {
+          const index = parseInt(children.replace('QGMATH_TOKEN_', ''), 10);
+          const placeholder = shielded.placeholders[index];
+          if (placeholder) {
+            const latex = placeholder[1];
+            const trimmed = latex.trim();
+            const isDisplay =
+              trimmed.startsWith('$$') && trimmed.endsWith('$$');
 
-    // Restore protected math placeholders after markdown rendering.
-    const restorePlaceholders = () => {
-      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-      let current = walker.nextNode();
-      while (current) {
-        const textNode = current as Text;
-        const originalText = textNode.textContent;
-        if (originalText) {
-          const restoredText = restoreMathPlaceholders(
-            originalText,
-            shielded.placeholders,
-          );
-          if (restoredText !== originalText) {
-            textNode.textContent = restoredText;
+            return (
+              <MathNode
+                latex={latex}
+                isStreaming={isStreaming}
+                isDisplay={isDisplay}
+              />
+            );
           }
         }
-        current = walker.nextNode();
-      }
-    };
 
-    const typeset = () => {
-      // 1. Restore protected math placeholders after markdown rendering.
-      restorePlaceholders();
-
-      const runtime = window.MathJax;
-      if (!runtime) return;
-
-      // 2. Typesetting logic
-      const performTypeset = () => {
-        if (typeof runtime.typesetPromise !== 'function') return;
-
-        // Trigger typesetting and catch errors to prevent promise rejection
-        // from bubbling up to React's error boundary.
-        runtime.typesetPromise([container]).catch((err) => {
-          console.error('MathJax typesetPromise error:', err);
-        });
-      };
-
-      // 3. Ensure MathJax is fully initialized before typesetting.
-      // MathJax 4 uses startup.promise to indicate readiness.
-      if (runtime.startup?.promise) {
-        runtime.startup.promise.then(performTypeset).catch((err) => {
-          console.error('MathJax startup promise error:', err);
-          // Try to perform typeset anyway as a fallback
-          performTypeset();
-        });
-      } else {
-        // Fallback for when startup.promise is missing (should not happen in v4)
-        performTypeset();
-      }
-    };
-
-    const scheduleTypeset = () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-
-      if (isStreaming) {
-        // When streaming, debounce typesetting to reduce flashing.
-        // 160ms is roughly 10 frames, giving a balance between responsiveness and stability.
-        timeoutRef.current = setTimeout(() => {
-          rafRef.current = requestAnimationFrame(typeset);
-        }, 160);
-      } else {
-        rafRef.current = requestAnimationFrame(typeset);
-      }
-    };
-
-    // If MathJax is already available, schedule typeset.
-    if (typeof window.MathJax?.typesetPromise === 'function') {
-      scheduleTypeset();
-    } else {
-      // Otherwise, wait for the loader to signal readiness.
-      const handleReady = () => scheduleTypeset();
-      window.addEventListener('mathjax:ready', handleReady);
-      return () => {
-        window.removeEventListener('mathjax:ready', handleReady);
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      };
-    }
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [shielded, isStreaming]);
+        const match = /language-mermaid/.exec(className || '');
+        if (match) {
+          let chart = '';
+          if (typeof children === 'string') {
+            chart = children;
+          } else if (Array.isArray(children)) {
+            chart = children
+              .map((c) => (typeof c === 'string' ? c : ''))
+              .join('');
+          }
+          return <Mermaid chart={chart.replace(/\n$/, '')} />;
+        }
+        return (
+          <code className={className} {...rest}>
+            {children}
+          </code>
+        );
+      },
+    }),
+    [shielded.placeholders, isStreaming],
+  );
 
   return (
-    <div
-      ref={containerRef}
-      className='prose prose-base dark:prose-invert max-w-none font-normal'
-    >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={components}
-        key={shielded.markdown}
-      >
+    <div className='prose prose-base dark:prose-invert max-w-none font-normal'>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {shielded.markdown}
       </ReactMarkdown>
     </div>

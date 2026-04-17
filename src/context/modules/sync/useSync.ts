@@ -89,6 +89,12 @@ export function useSync(): UseSyncReturn {
 
   const unsubscribesRef = useRef<Unsubscribe[]>([]);
   const activeUidRef = useRef<string | null>(null);
+  const lastSnapshotSizesRef = useRef({
+    questionHistory: -1,
+    mcHistory: -1,
+    generationHistory: -1,
+    savedSets: -1,
+  });
 
   const cleanupListeners = useCallback(() => {
     unsubscribesRef.current.forEach((unsub) => unsub());
@@ -122,6 +128,12 @@ export function useSync(): UseSyncReturn {
     (uid: string) => {
       cleanupListeners();
       setSyncStatus('syncing');
+      lastSnapshotSizesRef.current = {
+        questionHistory: -1,
+        mcHistory: -1,
+        generationHistory: -1,
+        savedSets: -1,
+      };
 
       try {
         // 1. Question History - Limit to 100 most recent
@@ -131,11 +143,15 @@ export function useSync(): UseSyncReturn {
             orderBy('updatedAt', 'desc'),
             limit(100),
           ),
-          { includeMetadataChanges: true },
           (snapshot) => {
-            console.info(
-              `[FirebaseSync] Received snapshot for ${snapshot.size} question history entries.`,
-            );
+            if (
+              lastSnapshotSizesRef.current.questionHistory !== snapshot.size
+            ) {
+              console.info(
+                `[FirebaseSync] Received snapshot for ${snapshot.size} question history entries.`,
+              );
+              lastSnapshotSizesRef.current.questionHistory = snapshot.size;
+            }
             const history = normalizeQuestionHistory(
               snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
@@ -175,11 +191,13 @@ export function useSync(): UseSyncReturn {
             orderBy('updatedAt', 'desc'),
             limit(100),
           ),
-          { includeMetadataChanges: true },
           (snapshot) => {
-            console.info(
-              `[FirebaseSync] Received snapshot for ${snapshot.size} MC history entries.`,
-            );
+            if (lastSnapshotSizesRef.current.mcHistory !== snapshot.size) {
+              console.info(
+                `[FirebaseSync] Received snapshot for ${snapshot.size} MC history entries.`,
+              );
+              lastSnapshotSizesRef.current.mcHistory = snapshot.size;
+            }
             const history = normalizeMcHistory(
               snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
@@ -214,11 +232,15 @@ export function useSync(): UseSyncReturn {
             orderBy('updatedAt', 'desc'),
             limit(100),
           ),
-          { includeMetadataChanges: true },
           (snapshot) => {
-            console.info(
-              `[FirebaseSync] Received snapshot for ${snapshot.size} generation history entries.`,
-            );
+            if (
+              lastSnapshotSizesRef.current.generationHistory !== snapshot.size
+            ) {
+              console.info(
+                `[FirebaseSync] Received snapshot for ${snapshot.size} generation history entries.`,
+              );
+              lastSnapshotSizesRef.current.generationHistory = snapshot.size;
+            }
             const history = normalizeGenerationHistory(
               snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
             ).map((e, idx) => ({
@@ -252,11 +274,13 @@ export function useSync(): UseSyncReturn {
         // 3. Saved Sets
         const ssUnsub = onSnapshot(
           collection(db, `users/${uid}/savedSets`),
-          { includeMetadataChanges: true },
           (snapshot) => {
-            console.info(
-              `[FirebaseSync] Received snapshot for ${snapshot.size} saved sets.`,
-            );
+            if (lastSnapshotSizesRef.current.savedSets !== snapshot.size) {
+              console.info(
+                `[FirebaseSync] Received snapshot for ${snapshot.size} saved sets.`,
+              );
+              lastSnapshotSizesRef.current.savedSets = snapshot.size;
+            }
             const sets = snapshot.docs
               .map((d) => normalizeSavedSet({ id: d.id, ...d.data() }))
               .filter((s): s is NonNullable<typeof s> => s !== null);

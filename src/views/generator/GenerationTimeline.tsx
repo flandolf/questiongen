@@ -219,7 +219,14 @@ function GenerationTokenStream({
       streamRef.current.scrollTop = streamRef.current.scrollHeight;
   }, [streamText]);
 
-  if (!(currentStage === 'generating' || (isDone && streamText))) return null;
+  if (
+    !(
+      currentStage === 'generating' ||
+      currentStage === 'parsing' ||
+      (isDone && streamText)
+    )
+  )
+    return null;
 
   return (
     <div
@@ -231,9 +238,10 @@ function GenerationTokenStream({
       ) : (
         <span className='opacity-40'>Waiting for tokens…</span>
       )}
-      {isGenerating && currentStage === 'generating' && (
-        <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
-      )}
+      {isGenerating &&
+        (currentStage === 'generating' || currentStage === 'parsing') && (
+          <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
+        )}
     </div>
   );
 }
@@ -359,6 +367,7 @@ export function GenerationTimeline({
   );
 }
 
+// eslint-disable-next-line complexity
 export function BatchTimeline({
   entries,
   generationSubCallProgress,
@@ -504,19 +513,21 @@ export function BatchTimeline({
         />
       )}
 
-      {activeEntry?.stage === 'generating' && (
-        <div
-          ref={streamRef}
-          className='max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all'
-        >
-          {streamText ? (
-            streamText
-          ) : (
-            <span className='opacity-40'>Waiting for tokens…</span>
-          )}
-          <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
-        </div>
-      )}
+      {activeEntry &&
+        (activeEntry.stage === 'generating' ||
+          activeEntry.stage === 'parsing') && (
+          <div
+            ref={streamRef}
+            className='max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all'
+          >
+            {streamText ? (
+              streamText
+            ) : (
+              <span className='opacity-40'>Waiting for tokens…</span>
+            )}
+            <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
+          </div>
+        )}
 
       <div className='flex items-center gap-2 pt-0.5 border-t border-border/40'>
         <div className='flex-1 h-1 rounded-full bg-border overflow-hidden'>

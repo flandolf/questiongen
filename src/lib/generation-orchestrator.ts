@@ -125,6 +125,8 @@ async function generateTopicQuestions(
         questionMode === 'written'
           ? 'generate_questions'
           : 'generate_mc_questions';
+
+      store.setStreamText('', topic); // Clear for single pass
       const response = await invoke<
         GenerateQuestionsResponse | GenerateMcQuestionsResponse
       >(invokeTarget, {
@@ -168,6 +170,8 @@ async function generateTopicQuestions(
           questionMode === 'written'
             ? 'generate_questions'
             : 'generate_mc_questions';
+
+        store.setStreamText('', topic); // Clear for each focus area pass
         const response = await invoke<
           GenerateQuestionsResponse | GenerateMcQuestionsResponse
         >(invokeTarget, {
@@ -325,16 +329,19 @@ export async function generateQuestionsOrchestrator() {
 
   try {
     const results = await Promise.all(
-      selectedTopics.map((topic, i) =>
-        generateTopicQuestions(
+      selectedTopics.map((topic, i) => {
+        // Clear stream text for each new topic pass
+        store.setStreamText('', topic);
+
+        return generateTopicQuestions(
           topic,
           counts[i],
           i,
           isMultiTopic,
           generationSeed,
           store,
-        ),
-      ),
+        );
+      }),
     );
 
     const { allQuestions, totalTelemetry, failedTopics } = processResults(

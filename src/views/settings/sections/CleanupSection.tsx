@@ -247,6 +247,7 @@ function DataLabel({
 
 // ─── Manual Fix Panel ─────────────────────────────────────────────────────────
 
+// eslint-disable-next-line complexity
 function ManualFixPanel({
   unknownItems,
   canonicalOptions,
@@ -1096,6 +1097,7 @@ function AutoAuditCard({
 
 // ─── Main Section ─────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line complexity
 export function CleanupSection() {
   const {
     apiKey,

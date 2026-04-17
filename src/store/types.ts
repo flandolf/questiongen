@@ -112,6 +112,7 @@ export interface AppState {
 
   batchProgress: BatchTopicProgress[];
   generationSubCallProgress: GenerationSubCallProgress | null;
+  streamTexts: Record<string, string>;
 
   // ── Spaced repetition ─────────────────────────────────────────────────────
   spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
@@ -270,6 +271,10 @@ export interface AppActions {
   ) => void;
   setGenerationSubCallProgress: (
     progress: GenerationSubCallProgress | null,
+  ) => void;
+  setStreamText: (
+    text: string | ((prev: string) => string),
+    topic?: string,
   ) => void;
 
   // Saved sets

@@ -8,7 +8,6 @@ import {
   Pause,
   Play,
   RefreshCw,
-  Save,
   Trash2,
 } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
@@ -55,7 +54,6 @@ type SessionHeaderProps = {
   onNext: () => void;
   onDelete: () => void;
   onExit: () => void;
-  onSaveDraft?: () => void;
   questions?: (GeneratedQuestion | McQuestion)[];
   onRegenerate?: () => void;
   onTogglePause?: () => void;
@@ -238,7 +236,6 @@ export const SessionHeader = memo(function SessionHeader({
   onDelete,
   onExit,
   onRegenerate,
-  onSaveDraft,
   questions,
   onTogglePause,
   onResetTimer,
@@ -322,27 +319,6 @@ export const SessionHeader = memo(function SessionHeader({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
-          {onSaveDraft && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={onSaveDraft}
-                    aria-label='Save draft'
-                    className='h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10'
-                  >
-                    <Save className='w-3.5 h-3.5' />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side='bottom' className='z-50'>
-                  <p>Save draft & continue</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
 
           {onRegenerate && (
             <TooltipProvider>

@@ -29,6 +29,7 @@ export type GenerationStatusEvent = {
 
 export type GenerationTokenEvent = {
   text: string;
+  topic?: string;
 };
 
 export interface BatchTopicProgress {

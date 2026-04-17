@@ -850,7 +850,7 @@ const TutorStreamingChunk = ({
         )}
       >
         {streamedContent ? (
-          <MarkdownMath content={streamedContent} isStreaming />
+          <MarkdownMath content={streamedContent + ' ▋'} isStreaming />
         ) : (
           <div className='flex flex-col gap-2 py-1'>
             <div className='flex gap-1'>
@@ -1339,13 +1339,28 @@ export function TutorPanel({
     };
   }, [showScrollButton, isGenerating]);
 
-  // Setup SSE listener for streaming tokens
+  // Setup SSE listener for streaming tokens with throttling
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
+    let buffer = '';
+    let throttleTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const flushBuffer = () => {
+      if (buffer) {
+        appendStreamedContent(buffer);
+        buffer = '';
+      }
+      throttleTimeout = null;
+    };
 
     listen<{ text: string }>('tutor-generation-token', (event) => {
-      appendStreamedContent(event.payload.text);
+      buffer += event.payload.text;
+
+      if (!throttleTimeout) {
+        // Flush every 50ms for smooth 20fps updates
+        throttleTimeout = setTimeout(flushBuffer, 50);
+      }
     })
       .then((fn) => {
         if (cancelled) fn();
@@ -1356,6 +1371,7 @@ export function TutorPanel({
     return () => {
       cancelled = true;
       unlisten?.();
+      if (throttleTimeout) clearTimeout(throttleTimeout);
     };
   }, [appendStreamedContent]);
 
