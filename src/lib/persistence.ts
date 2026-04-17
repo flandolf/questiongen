@@ -69,12 +69,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   difficulty: 'Medium',
   techMode: 'tech-active',
   avoidSimilarQuestions: false,
-  mathMethodsSubtopics: [],
-  specialistMathSubtopics: [],
-  chemistrySubtopics: [],
-  physicalEducationSubtopics: [],
-  biologySubtopics: [],
-  generalMathematicsSubtopics: [],
+  selectedSubtopics: {},
   questionCount: 1,
   averageMarksPerQuestion: 3,
   questionMode: 'written',
@@ -367,6 +362,49 @@ function normalizeSyncSettings(data: Record<string, unknown>) {
   };
 }
 
+function migrateLegacySubtopics(
+  data: Record<string, unknown>,
+): Record<string, string[]> {
+  const selectedSubtopics: Record<string, string[]> = {};
+  if (Array.isArray(data.mathMethodsSubtopics)) {
+    selectedSubtopics['Mathematical Methods'] = filterStringLiterals(
+      data.mathMethodsSubtopics,
+      MATH_METHODS_SUBTOPICS,
+    );
+  }
+  if (Array.isArray(data.specialistMathSubtopics)) {
+    selectedSubtopics['Specialist Mathematics'] = filterStringLiterals(
+      data.specialistMathSubtopics,
+      SPECIALIST_MATH_SUBTOPICS,
+    );
+  }
+  if (Array.isArray(data.chemistrySubtopics)) {
+    selectedSubtopics['Chemistry'] = filterStringLiterals(
+      data.chemistrySubtopics,
+      CHEMISTRY_SUBTOPICS,
+    );
+  }
+  if (Array.isArray(data.physicalEducationSubtopics)) {
+    selectedSubtopics['Physical Education'] = filterStringLiterals(
+      data.physicalEducationSubtopics,
+      PHYSICAL_EDUCATION_SUBTOPICS,
+    );
+  }
+  if (Array.isArray(data.biologySubtopics)) {
+    selectedSubtopics['Biology'] = filterStringLiterals(
+      data.biologySubtopics,
+      BIOLOGY_SUBTOPICS,
+    );
+  }
+  if (Array.isArray(data.generalMathematicsSubtopics)) {
+    selectedSubtopics['General Mathematics'] = filterStringLiterals(
+      data.generalMathematicsSubtopics,
+      GENERAL_MATHEMATICS_SUBTOPICS,
+    );
+  }
+  return selectedSubtopics;
+}
+
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
   const diversityStrictness: DiversityStrictness =
@@ -376,6 +414,21 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
       ? data.diversityStrictness
       : DEFAULT_PREFERENCES.diversityStrictness;
 
+  const avoidSimilarQuestions = Boolean(data.avoidSimilarQuestions);
+
+  let selectedSubtopics: Record<string, string[]> = {};
+  if (isRecord(data.selectedSubtopics)) {
+    for (const [topic, subs] of Object.entries(data.selectedSubtopics)) {
+      if (Array.isArray(subs)) {
+        selectedSubtopics[topic] = subs.filter(
+          (s): s is string => typeof s === 'string',
+        );
+      }
+    }
+  } else {
+    selectedSubtopics = migrateLegacySubtopics(data);
+  }
+
   return {
     selectedTopics: filterStringLiterals(data.selectedTopics, TOPICS),
     difficulty: isDifficulty(data.difficulty)
@@ -384,31 +437,8 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     techMode: isTechMode(data.techMode)
       ? data.techMode
       : DEFAULT_PREFERENCES.techMode,
-    avoidSimilarQuestions: Boolean(data.avoidSimilarQuestions),
-    mathMethodsSubtopics: filterStringLiterals(
-      data.mathMethodsSubtopics,
-      MATH_METHODS_SUBTOPICS,
-    ),
-    specialistMathSubtopics: filterStringLiterals(
-      data.specialistMathSubtopics,
-      SPECIALIST_MATH_SUBTOPICS,
-    ),
-    chemistrySubtopics: filterStringLiterals(
-      data.chemistrySubtopics,
-      CHEMISTRY_SUBTOPICS,
-    ),
-    physicalEducationSubtopics: filterStringLiterals(
-      data.physicalEducationSubtopics,
-      PHYSICAL_EDUCATION_SUBTOPICS,
-    ),
-    biologySubtopics: filterStringLiterals(
-      data.biologySubtopics,
-      BIOLOGY_SUBTOPICS,
-    ),
-    generalMathematicsSubtopics: filterStringLiterals(
-      data.generalMathematicsSubtopics,
-      GENERAL_MATHEMATICS_SUBTOPICS,
-    ),
+    avoidSimilarQuestions,
+    selectedSubtopics,
     questionCount: clampWholeNumber(
       data.questionCount,
       DEFAULT_PREFERENCES.questionCount,

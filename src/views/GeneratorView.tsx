@@ -44,6 +44,7 @@ import type {
   McAttemptKind,
   McHistoryEntry,
   McQuestion,
+  PresetPreferences,
   QuestionHistoryEntry,
   StudentAnswerImage,
   Topic,
@@ -145,22 +146,12 @@ export function GeneratorView() {
   const {
     selectedTopics,
     setSelectedTopics,
+    selectedSubtopics,
+    toggleSubtopic,
     difficulty,
     setDifficulty,
     techMode,
     setTechMode,
-    mathMethodsSubtopics,
-    setMathMethodsSubtopics,
-    specialistMathSubtopics,
-    setSpecialistMathSubtopics,
-    chemistrySubtopics,
-    setChemistrySubtopics,
-    physicalEducationSubtopics,
-    setPhysicalEducationSubtopics,
-    biologySubtopics,
-    setBiologySubtopics,
-    generalMathematicsSubtopics,
-    setGeneralMathematicsSubtopics,
     questionCount,
     setQuestionCount,
     averageMarksPerQuestion,
@@ -460,51 +451,45 @@ export function GeneratorView() {
     const topic = params.get('topic');
     const subtopic = params.get('subtopic');
     if (topic && TOPICS.includes(topic as Topic)) {
-      setSelectedTopics([topic as Topic]);
+      const prefs: Partial<PresetPreferences> = {
+        selectedTopics: [topic as Topic],
+      };
       if (subtopic) {
         if (
           topic === 'Mathematical Methods' &&
           MATH_METHODS_SUBTOPICS.includes(subtopic)
         ) {
-          setMathMethodsSubtopics([subtopic]);
+          prefs.selectedSubtopics = { [topic]: [subtopic] };
         } else if (
           topic === 'Specialist Mathematics' &&
           SPECIALIST_MATH_SUBTOPICS.includes(subtopic)
         ) {
-          setSpecialistMathSubtopics([subtopic]);
+          prefs.selectedSubtopics = { [topic]: [subtopic] };
         } else if (
           topic === 'Chemistry' &&
           CHEMISTRY_SUBTOPICS.includes(subtopic)
         ) {
-          setChemistrySubtopics([subtopic]);
+          prefs.selectedSubtopics = { [topic]: [subtopic] };
         } else if (
           topic === 'Biology' &&
           BIOLOGY_SUBTOPICS.includes(subtopic)
         ) {
-          setBiologySubtopics([subtopic]);
+          prefs.selectedSubtopics = { [topic]: [subtopic] };
         } else if (
           topic === 'General Mathematics' &&
           GENERAL_MATHEMATICS_SUBTOPICS.includes(subtopic)
         ) {
-          setGeneralMathematicsSubtopics([subtopic]);
+          prefs.selectedSubtopics = { [topic]: [subtopic] };
         } else if (
           topic === 'Physical Education' &&
           PHYSICAL_EDUCATION_SUBTOPICS.includes(subtopic)
         ) {
-          setPhysicalEducationSubtopics([subtopic]);
+          prefs.selectedSubtopics = { [topic]: [subtopic] };
         }
       }
+      appStore.applyPreferences(prefs);
     }
-  }, [
-    location.search,
-    setSelectedTopics,
-    setMathMethodsSubtopics,
-    setSpecialistMathSubtopics,
-    setChemistrySubtopics,
-    setBiologySubtopics,
-    setGeneralMathematicsSubtopics,
-    setPhysicalEducationSubtopics,
-  ]);
+  }, [location.search, appStore]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -1435,22 +1420,6 @@ export function GeneratorView() {
     ],
   );
 
-  const toggleSubtopics = useCallback(
-    <T extends string>(setter: (update: T[] | ((prev: T[]) => T[])) => void) =>
-      (sub: T | T[]) => {
-        setter((prev: T[]) => {
-          const subs = Array.isArray(sub) ? sub : [sub];
-          let next = [...prev];
-          for (const s of subs) {
-            if (next.includes(s)) next = next.filter((i: T) => i !== s);
-            else next.push(s);
-          }
-          return next;
-        });
-      },
-    [],
-  );
-
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (showSetup) {
@@ -1460,24 +1429,8 @@ export function GeneratorView() {
         onSetQuestionMode={setQuestionMode}
         selectedTopics={selectedTopics}
         onToggleTopic={toggleTopic}
-        mathMethodsSubtopics={mathMethodsSubtopics}
-        onToggleMathMethodsSubtopic={toggleSubtopics(setMathMethodsSubtopics)}
-        specialistMathSubtopics={specialistMathSubtopics}
-        onToggleSpecialistMathSubtopic={toggleSubtopics(
-          setSpecialistMathSubtopics,
-        )}
-        chemistrySubtopics={chemistrySubtopics}
-        onToggleChemistrySubtopic={toggleSubtopics(setChemistrySubtopics)}
-        physicalEducationSubtopics={physicalEducationSubtopics}
-        onTogglePhysicalEducationSubtopic={toggleSubtopics(
-          setPhysicalEducationSubtopics,
-        )}
-        biologySubtopics={biologySubtopics}
-        onToggleBiologySubtopic={toggleSubtopics(setBiologySubtopics)}
-        generalMathematicsSubtopics={generalMathematicsSubtopics}
-        onToggleGeneralMathematicsSubtopic={toggleSubtopics(
-          setGeneralMathematicsSubtopics,
-        )}
+        selectedSubtopics={selectedSubtopics}
+        onToggleSubtopic={toggleSubtopic}
         techMode={techMode}
         onSetTechMode={setTechMode}
         customFocusArea={customFocusArea}

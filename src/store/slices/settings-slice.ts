@@ -39,12 +39,7 @@ export interface SettingsSlice {
   difficulty: AppState['difficulty'];
   techMode: AppState['techMode'];
   avoidSimilarQuestions: boolean;
-  mathMethodsSubtopics: AppState['mathMethodsSubtopics'];
-  specialistMathSubtopics: AppState['specialistMathSubtopics'];
-  chemistrySubtopics: AppState['chemistrySubtopics'];
-  physicalEducationSubtopics: AppState['physicalEducationSubtopics'];
-  biologySubtopics: AppState['biologySubtopics'];
-  generalMathematicsSubtopics: AppState['generalMathematicsSubtopics'];
+  selectedSubtopics: Record<string, string[]>;
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: AppState['questionMode'];
@@ -93,12 +88,8 @@ export interface SettingsSlice {
   setDifficulty: AppActions['setDifficulty'];
   setTechMode: AppActions['setTechMode'];
   setAvoidSimilarQuestions: AppActions['setAvoidSimilarQuestions'];
-  setMathMethodsSubtopics: AppActions['setMathMethodsSubtopics'];
-  setSpecialistMathSubtopics: AppActions['setSpecialistMathSubtopics'];
-  setChemistrySubtopics: AppActions['setChemistrySubtopics'];
-  setPhysicalEducationSubtopics: AppActions['setPhysicalEducationSubtopics'];
-  setBiologySubtopics: AppActions['setBiologySubtopics'];
-  setGeneralMathematicsSubtopics: AppActions['setGeneralMathematicsSubtopics'];
+  setSelectedSubtopics: AppActions['setSelectedSubtopics'];
+  toggleSubtopic: AppActions['toggleSubtopic'];
   setQuestionCount: AppActions['setQuestionCount'];
   setAverageMarksPerQuestion: AppActions['setAverageMarksPerQuestion'];
   setQuestionMode: AppActions['setQuestionMode'];
@@ -111,6 +102,7 @@ export interface SettingsSlice {
   setShuffleSubtopics: AppActions['setShuffleSubtopics'];
   setShuffleQuestions: AppActions['setShuffleQuestions'];
   setGenerationStrategy: AppActions['setGenerationStrategy'];
+  applyPreferences: AppActions['applyPreferences'];
   resetPreferences: () => void;
 }
 
@@ -160,16 +152,7 @@ export const createSettingsSlice: StateCreator<
   techMode: EMPTY_PERSISTED_APP_STATE.preferences.techMode,
   avoidSimilarQuestions:
     EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
-  mathMethodsSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
-  specialistMathSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
-  chemistrySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
-  physicalEducationSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
-  biologySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.biologySubtopics,
-  generalMathematicsSubtopics:
-    EMPTY_PERSISTED_APP_STATE.preferences.generalMathematicsSubtopics,
+  selectedSubtopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedSubtopics,
   questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
   averageMarksPerQuestion:
     EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,
@@ -244,29 +227,30 @@ export const createSettingsSlice: StateCreator<
   setTechMode: (techMode) => set({ techMode }),
   setAvoidSimilarQuestions: (avoidSimilarQuestions) =>
     set({ avoidSimilarQuestions }),
-  setMathMethodsSubtopics: (update) =>
+  setSelectedSubtopics: (topic, update) =>
     set((s) => ({
-      mathMethodsSubtopics: resolve(update, s.mathMethodsSubtopics),
+      selectedSubtopics: {
+        ...s.selectedSubtopics,
+        [topic]: resolve(update, s.selectedSubtopics[topic] || []),
+      },
     })),
-  setSpecialistMathSubtopics: (update) =>
-    set((s) => ({
-      specialistMathSubtopics: resolve(update, s.specialistMathSubtopics),
-    })),
-  setChemistrySubtopics: (update) =>
-    set((s) => ({ chemistrySubtopics: resolve(update, s.chemistrySubtopics) })),
-  setPhysicalEducationSubtopics: (update) =>
-    set((s) => ({
-      physicalEducationSubtopics: resolve(update, s.physicalEducationSubtopics),
-    })),
-  setBiologySubtopics: (update) =>
-    set((s) => ({ biologySubtopics: resolve(update, s.biologySubtopics) })),
-  setGeneralMathematicsSubtopics: (update) =>
-    set((s) => ({
-      generalMathematicsSubtopics: resolve(
-        update,
-        s.generalMathematicsSubtopics,
-      ),
-    })),
+  toggleSubtopic: (topic, sub) =>
+    set((s) => {
+      const current = s.selectedSubtopics[topic] || [];
+      const subs = Array.isArray(sub) ? sub : [sub];
+      const next = [...current];
+      subs.forEach((item) => {
+        const idx = next.indexOf(item);
+        if (idx > -1) next.splice(idx, 1);
+        else next.push(item);
+      });
+      return {
+        selectedSubtopics: {
+          ...s.selectedSubtopics,
+          [topic]: next,
+        },
+      };
+    }),
   setQuestionCount: (questionCount) => set({ questionCount }),
   setAverageMarksPerQuestion: (averageMarksPerQuestion) =>
     set({ averageMarksPerQuestion }),
@@ -284,6 +268,27 @@ export const createSettingsSlice: StateCreator<
   setShuffleSubtopics: (shuffleSubtopics) => set({ shuffleSubtopics }),
   setShuffleQuestions: (shuffleQuestions) => set({ shuffleQuestions }),
   setGenerationStrategy: (generationStrategy) => set({ generationStrategy }),
+  applyPreferences: (prefs) =>
+    set(() => {
+      const next: Partial<AppState> = {};
+      if (prefs.selectedTopics !== undefined)
+        next.selectedTopics = prefs.selectedTopics;
+      if (prefs.difficulty !== undefined) next.difficulty = prefs.difficulty;
+      if (prefs.techMode !== undefined) next.techMode = prefs.techMode;
+      if (prefs.questionCount !== undefined)
+        next.questionCount = prefs.questionCount;
+      if (prefs.averageMarksPerQuestion !== undefined)
+        next.averageMarksPerQuestion = prefs.averageMarksPerQuestion;
+      if (prefs.questionMode !== undefined)
+        next.questionMode = prefs.questionMode;
+
+      // Atomic replacement to avoid "ghost" state from previous selections
+      if (prefs.selectedSubtopics !== undefined) {
+        next.selectedSubtopics = prefs.selectedSubtopics;
+      }
+
+      return next;
+    }),
   resetPreferences: () =>
     set({
       selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -291,17 +296,7 @@ export const createSettingsSlice: StateCreator<
       techMode: EMPTY_PERSISTED_APP_STATE.preferences.techMode,
       avoidSimilarQuestions:
         EMPTY_PERSISTED_APP_STATE.preferences.avoidSimilarQuestions,
-      mathMethodsSubtopics:
-        EMPTY_PERSISTED_APP_STATE.preferences.mathMethodsSubtopics,
-      specialistMathSubtopics:
-        EMPTY_PERSISTED_APP_STATE.preferences.specialistMathSubtopics,
-      chemistrySubtopics:
-        EMPTY_PERSISTED_APP_STATE.preferences.chemistrySubtopics,
-      physicalEducationSubtopics:
-        EMPTY_PERSISTED_APP_STATE.preferences.physicalEducationSubtopics,
-      biologySubtopics: EMPTY_PERSISTED_APP_STATE.preferences.biologySubtopics,
-      generalMathematicsSubtopics:
-        EMPTY_PERSISTED_APP_STATE.preferences.generalMathematicsSubtopics,
+      selectedSubtopics: {},
       questionCount: EMPTY_PERSISTED_APP_STATE.preferences.questionCount,
       averageMarksPerQuestion:
         EMPTY_PERSISTED_APP_STATE.preferences.averageMarksPerQuestion,

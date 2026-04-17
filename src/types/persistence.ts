@@ -1,12 +1,4 @@
-import type {
-  BiologySubtopic,
-  ChemistrySubtopic,
-  GeneralMathematicsSubtopic,
-  MathMethodsSubtopic,
-  PhysicalEducationSubtopic,
-  SpecialistMathSubtopic,
-  Topic,
-} from './catalog';
+import type { Topic } from './catalog';
 import type {
   Difficulty,
   DiversityStrictness,
@@ -67,12 +59,7 @@ export type PersistedGeneratorPreferences = {
   difficulty: Difficulty;
   techMode: TechMode;
   avoidSimilarQuestions: boolean;
-  mathMethodsSubtopics: MathMethodsSubtopic[];
-  specialistMathSubtopics: SpecialistMathSubtopic[];
-  chemistrySubtopics: ChemistrySubtopic[];
-  physicalEducationSubtopics: PhysicalEducationSubtopic[];
-  biologySubtopics: BiologySubtopic[];
-  generalMathematicsSubtopics: GeneralMathematicsSubtopic[];
+  selectedSubtopics: Record<string, string[]>;
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
