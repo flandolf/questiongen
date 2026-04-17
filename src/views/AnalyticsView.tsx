@@ -142,7 +142,7 @@ const CustomTreemapContent = memo(function CustomTreemapContent(
     return 'hsl(340 82% 52% / 0.8)';
   };
 
-  if (width < 40 || height < 20) return null;
+  const showLabel = width >= 40 && height >= 20;
 
   return (
     <g>
@@ -157,18 +157,20 @@ const CustomTreemapContent = memo(function CustomTreemapContent(
           strokeWidth: 2,
         }}
       />
-      <text
-        x={x + width / 2}
-        y={y + height / 2}
-        textAnchor='middle'
-        dominantBaseline='middle'
-        fill='white'
-        fontSize={Math.min(width / 6, 12)}
-        fontWeight='600'
-        className='pointer-events-none'
-      >
-        {name}
-      </text>
+      {showLabel && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          textAnchor='middle'
+          dominantBaseline='middle'
+          fill='white'
+          fontSize={Math.min(width / 6, 12)}
+          fontWeight='600'
+          className='pointer-events-none'
+        >
+          {name}
+        </text>
+      )}
     </g>
   );
 });
@@ -437,31 +439,61 @@ export function AnalyticsView() {
   }, [allAttempts, subjectFilter]);
 
   const treemapData = useMemo(() => {
-    const topicMap = new Map<string, { name: string; children: { name: string; size: number; accuracy: number }[] }>();
+    const topicMap = new Map<
+      string,
+      {
+        name: string;
+        children: { name: string; size: number; accuracy: number }[];
+        total: number;
+        correct: number;
+        accuracy: number;
+      }
+    >();
 
     for (const attempt of allAttempts) {
       if (!topicMap.has(attempt.topic)) {
-        topicMap.set(attempt.topic, { name: attempt.topic, children: [] });
+        topicMap.set(attempt.topic, {
+          name: attempt.topic,
+          children: [],
+          total: 0,
+          correct: 0,
+          accuracy: 0,
+        });
       }
       const topic = topicMap.get(attempt.topic)!;
       const subtopicName = attempt.subtopic || 'Unspecified';
+
       let subtopic = topic.children.find((c) => c.name === subtopicName);
       if (!subtopic) {
         subtopic = { name: subtopicName, size: 0, accuracy: 0 };
         topic.children.push(subtopic);
       }
+
       subtopic.size += 1;
-      // We'll calculate actual accuracy after the loop
+      topic.total += 1;
+      if (attempt.isCorrect) {
+        topic.correct += 1;
+      }
     }
 
-    // Second pass to calculate accuracy
+    // Track per-subtopic correct counts in another map for single-pass O(N)
+    const subtopicCorrectMap = new Map<string, number>();
+    for (const attempt of allAttempts) {
+      if (attempt.isCorrect) {
+        const key = `${attempt.topic}|${attempt.subtopic || 'Unspecified'}`;
+        subtopicCorrectMap.set(key, (subtopicCorrectMap.get(key) ?? 0) + 1);
+      }
+    }
+
+    // Calculate accuracy for all topics and subtopics
     for (const topic of topicMap.values()) {
-      for (const subtopic of topic.children) {
-        const attempts = allAttempts.filter(
-          (a) => a.topic === topic.name && (a.subtopic || 'Unspecified') === subtopic.name,
-        );
-        const correct = attempts.filter((a) => a.isCorrect).length;
-        subtopic.accuracy = (correct / attempts.length) * 100;
+      topic.accuracy =
+        topic.total > 0 ? (topic.correct / topic.total) * 100 : 0;
+
+      for (const sub of topic.children) {
+        const subCorrect =
+          subtopicCorrectMap.get(`${topic.name}|${sub.name}`) ?? 0;
+        sub.accuracy = sub.size > 0 ? (subCorrect / sub.size) * 100 : 0;
       }
     }
 

@@ -344,6 +344,7 @@ export function GeneratorView() {
     setIsMarking,
     errorMessage,
     setErrorMessage,
+    isKeyboardShortcutsOpen,
   } = useGenerationStatus();
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
@@ -2807,6 +2808,7 @@ export function GeneratorView() {
       }
 
       if (e.key === 'Escape') {
+        if (isKeyboardShortcutsOpen) return;
         e.preventDefault();
         handleStartOver();
         return;
@@ -2825,6 +2827,7 @@ export function GeneratorView() {
     handlePrevMc,
     handleStartOver,
     handleSubmitForMarking,
+    isKeyboardShortcutsOpen,
   ]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -2999,8 +3002,10 @@ export function GeneratorView() {
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
             onSaveDraft={() => {
-              saveCurrentSet();
-              toast.success('Session draft saved');
+              const res = saveCurrentSet();
+              if (res) {
+                toast.success('Session draft saved');
+              }
             }}
             questions={questions}
             onTogglePause={togglePause}
@@ -3107,8 +3112,10 @@ export function GeneratorView() {
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
             onSaveDraft={() => {
-              saveCurrentSet();
-              toast.success('Session draft saved');
+              const res = saveCurrentSet();
+              if (res) {
+                toast.success('Session draft saved');
+              }
             }}
             questions={mcQuestions}
             onTogglePause={togglePause}

@@ -17,6 +17,17 @@ impl AppError {
             message: message.into(),
         }
     }
+
+    pub fn is_transient(&self) -> bool {
+        let msg = self.message.to_lowercase();
+        msg.contains("network")
+            || msg.contains("timeout")
+            || msg.contains("429")
+            || msg.contains("500")
+            || msg.contains("502")
+            || msg.contains("503")
+            || msg.contains("504")
+    }
 }
 
 impl From<genanki_rs::Error> for AppError {
