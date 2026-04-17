@@ -40,6 +40,7 @@ type McAnswerCardProps = {
   onImageDrop: (files: File[]) => void;
   onImageRemove: () => void;
   renderSketchpadInline?: boolean;
+  sketchSessionKey?: string;
 };
 
 type McSketchpadPanelProps = {
@@ -128,6 +129,7 @@ export const McAnswerCard = memo(function McAnswerCard({
   onImageDrop,
   onImageRemove,
   renderSketchpadInline = true,
+  sketchSessionKey,
 }: McAnswerCardProps) {
   const answered = Boolean(selectedAnswer);
   const isCorrect = selectedAnswer === correctAnswer;
@@ -137,6 +139,7 @@ export const McAnswerCard = memo(function McAnswerCard({
     <div className='space-y-4 flex flex-col h-full'>
       {isSketchpadOpen && renderSketchpadInline && (
         <McSketchpadPanel
+          sketchSessionKey={sketchSessionKey}
           image={image}
           onImageDrop={onImageDrop}
           onImageRemove={onImageRemove}

@@ -437,6 +437,35 @@ pub fn cleanup_system_prompt() -> &'static str {
      - Do NOT include markdown fences, explanations, or any text outside the JSON."
 }
 
+pub fn marking_prompt(
+    topic: &str,
+    subtopic: &str,
+    question: &str,
+    max_marks: u8,
+    answer: &str,
+    report_preamble: &str,
+) -> String {
+    format!(
+        "Topic: {topic}\nSubtopic: {subtopic}\nQuestion ({max} marks):\n{question}\n\n\
+         Student answer:\n{answer}\n\n\
+         MARKING INSTRUCTIONS:\n\
+         - Apply VCAA criterion-based marking strictly.\n\
+         - Do not award marks for correct answers without correct supporting working or reasoning (except for questions that are purely answer-only).\n\
+         - Do not credit vague restatements of the question as explanation.\n\
+         - For 'hence' sub-parts: the student must use the result from the immediately preceding part.\n\
+         - For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n\
+         - For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n\
+         - Produce one criterion per mark (or group closely related marks where natural).\n\
+         - The workedSolution must show every step a student would need to write to receive full marks.{report_preamble}",
+        topic = topic,
+        subtopic = subtopic,
+        question = question,
+        max = max_marks,
+        answer = answer,
+        report_preamble = report_preamble
+    )
+}
+
 pub struct UserPromptBuilder {
     pub count: usize,
     pub topics: Vec<String>,

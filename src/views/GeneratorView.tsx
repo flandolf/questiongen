@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { X, XCircle } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -12,60 +12,40 @@ import {
   useMultipleChoiceSession,
   useWrittenSession,
 } from '@/AppContext';
-import { isEditableTarget } from '@/components/layout/KeyboardShortcutsOverlay';
 import { MarkdownMath } from '@/components/MarkdownMath';
-import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
 import {
   fileToDataUrl,
-  formatDurationMs,
   normalizeMarkResponse,
   readBackendError,
 } from '@/lib/app-utils';
 import { deleteImage, uploadImageDataUrl } from '@/lib/firebase-storage';
 import {
-  buildSubtopicCalls,
-  distributeQuestions,
-  preprocessMcQuestions,
-  shuffleMcQuestionOptions,
-  shuffleWithSeed,
-} from '@/lib/generator-batch';
+  generateQuestionsOrchestrator,
+  getCanGenerate,
+} from '@/lib/generation-orchestrator';
 import {
   countWords,
   generateEntryId,
   getDifficultyBadgeClasses,
   hashStringForSeed,
   isMathTopic,
-  rekeyMc,
-  rekeyWritten,
   removeKey,
 } from '@/lib/generator-helpers';
-import { applyBatchQualityChecks } from '@/lib/question-cache';
 import { useAppStore } from '@/store';
 import { useTutorStore } from '@/store/tutor';
 import type {
-  BatchTopicProgress,
-  BiologySubtopic,
-  ChemistrySubtopic,
-  DiversityStrictness,
-  GeneralMathematicsSubtopic,
   GeneratedQuestion,
-  GenerateMcQuestionsResponse,
-  GenerateQuestionsResponse,
-  GenerationStatusEvent,
-  GenerationSubCallProgress,
-  GenerationTelemetry,
   GenerationTokenEvent,
-  MathMethodsSubtopic,
+  MarkAnswerResponse,
+  MarkingCriterion,
   McAttemptKind,
   McHistoryEntry,
   McQuestion,
-  PhysicalEducationSubtopic,
   QuestionHistoryEntry,
-  SpecialistMathSubtopic,
   StudentAnswerImage,
   Topic,
   WrittenAttemptKind,
@@ -74,16 +54,13 @@ import {
   BIOLOGY_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
   GENERAL_MATHEMATICS_SUBTOPICS,
-  MATH_METHODS_SUBTOPIC_GROUPS,
   MATH_METHODS_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
   SPECIALIST_MATH_SUBTOPICS,
-  toCanonicalSubtopicName,
   TOPICS,
-  toScopedSubtopicGroups,
 } from '@/types';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
-import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
+import { McAnswerCard } from '@/views/generator/McAnswerCard';
 import { SetupPanel } from '@/views/generator/SetupPanel';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
 
@@ -92,8 +69,6 @@ import { SessionHeader } from './generator/SessionHeader';
 import { WrittenAnswerCard } from './generator/WrittenAnswerCard';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const MC_MAX_EXPLANATION_WORDS = 300;
 
 function buildSketchpadSessionKey(
   mode: 'written' | 'multiple-choice',
@@ -117,40 +92,9 @@ function buildSketchpadSessionKey(
   return `sketch-${mode}-${question.id}-${hash}`;
 }
 
-function syncTimerPauseDuringMarking(
-  timer: { isPaused: boolean; togglePause: () => void },
-  isMarking: boolean,
-  wasMarking: boolean,
-  wasPausedBeforeMarking: boolean,
-) {
-  if (isMarking) {
-    if (!wasMarking) {
-      const nextWasPausedBeforeMarking = timer.isPaused;
-      if (!timer.isPaused) {
-        timer.togglePause();
-      }
-      return nextWasPausedBeforeMarking;
-    }
-
-    if (!timer.isPaused) {
-      timer.togglePause();
-    }
-    return wasPausedBeforeMarking;
-  }
-
-  if (wasMarking) {
-    if (!wasPausedBeforeMarking && timer.isPaused) {
-      timer.togglePause();
-    }
-    return false;
-  }
-
-  return wasPausedBeforeMarking;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
-/* eslint-disable complexity */
+// eslint-disable-next-line complexity
 export function GeneratorView() {
   const location = useLocation();
   const { user } = useFirebaseSyncContext();
@@ -158,19 +102,12 @@ export function GeneratorView() {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
-  const [customFocusArea, setCustomFocusArea] = useState('');
-  const [diversityStrictness, setDiversityStrictness] =
-    useState<DiversityStrictness>('moderate');
-  const [strictLatexValidation, setStrictLatexValidation] = useState(true);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
     Record<string, string>
   >({});
   const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] =
     useState<Record<string, string>>({});
-  const [mcMarkAppealByQuestionId, setMcMarkAppealByQuestionId] = useState<
-    Record<string, string>
-  >({});
   const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] =
     useState<Record<string, string>>({});
   const [
@@ -195,32 +132,22 @@ export function GeneratorView() {
 
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
   const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
-  const [mcImagesByQuestionId, setMcImagesByQuestionId] = useState<
-    Record<string, StudentAnswerImage>
-  >({});
-
-  const [batchProgress, setBatchProgress] = useState<BatchTopicProgress[]>([]);
-  const [generationSubCallProgress, setGenerationSubCallProgress] =
-    useState<GenerationSubCallProgress | null>(null);
 
   const {
     apiKey,
-    model,
     markingModel,
     useSeparateMarkingModel,
     imageMarkingModel,
     useSeparateImageMarkingModel,
-    includeExamContext,
-    shuffleSubtopics,
-    shuffleQuestions,
   } = useAppSettings();
+
+  const appStore = useAppStore();
+
   const {
     selectedTopics,
     setSelectedTopics,
     difficulty,
     setDifficulty,
-    avoidSimilarQuestions,
-    setAvoidSimilarQuestions,
     techMode,
     setTechMode,
     mathMethodsSubtopics,
@@ -241,62 +168,23 @@ export function GeneratorView() {
     setAverageMarksPerQuestion,
     questionMode,
     setQuestionMode,
-    aiDifficultyScalingEnabled,
+    customFocusArea,
+    setCustomFocusArea,
+    avoidSimilarQuestions,
+    setAvoidSimilarQuestions,
+    diversityStrictness,
+    setDiversityStrictness,
+    strictLatexValidation,
+    setStrictLatexValidation,
     generationStrategy,
     resetPreferences,
   } = useAppPreferences();
-
-  const scopedMathMethodsGroups = useMemo(
-    () => toScopedSubtopicGroups(MATH_METHODS_SUBTOPIC_GROUPS),
-    [],
-  );
-  const scopedMathMethodsByCanonical = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const group of scopedMathMethodsGroups) {
-      for (const subtopic of group.subtopics) {
-        const canonical = toCanonicalSubtopicName(subtopic);
-        map.set(canonical, [...(map.get(canonical) ?? []), subtopic]);
-      }
-    }
-    return map;
-  }, [scopedMathMethodsGroups]);
-
-  useEffect(() => {
-    if (!mathMethodsSubtopics.some((subtopic) => !subtopic.includes('@@'))) {
-      return;
-    }
-    const usedScoped = new Set<string>();
-    const next = mathMethodsSubtopics.map((subtopic) => {
-      if (subtopic.includes('@@')) {
-        usedScoped.add(subtopic);
-        return subtopic;
-      }
-      const candidates = scopedMathMethodsByCanonical.get(subtopic) ?? [];
-      const available = candidates.find(
-        (candidate) => !usedScoped.has(candidate),
-      );
-      const mapped = available ?? candidates[0] ?? subtopic;
-      usedScoped.add(mapped);
-      return mapped;
-    });
-    if (
-      next.length !== mathMethodsSubtopics.length ||
-      next.some((value, index) => value !== mathMethodsSubtopics[index])
-    ) {
-      setMathMethodsSubtopics(next);
-    }
-  }, [
-    mathMethodsSubtopics,
-    scopedMathMethodsByCanonical,
-    setMathMethodsSubtopics,
-  ]);
 
   const {
     questions,
     setQuestions,
     activeQuestionIndex,
     setActiveQuestionIndex,
-    setWrittenQuestionPresentedAtById,
     answersByQuestionId,
     setAnswersByQuestionId,
     imagesByQuestionId,
@@ -307,11 +195,9 @@ export function GeneratorView() {
     addQuestionHistoryEntry,
     updateQuestionHistoryEntry,
     deleteQuestionHistoryEntry,
-    setWrittenRawModelOutput,
-    writtenGenerationTelemetry,
-    setWrittenGenerationTelemetry,
     activeWrittenSavedSetId,
     setActiveWrittenSavedSetId,
+    writtenGenerationTelemetry,
   } = useWrittenSession();
 
   const {
@@ -319,40 +205,29 @@ export function GeneratorView() {
     setMcQuestions,
     activeMcQuestionIndex,
     setActiveMcQuestionIndex,
-    setMcQuestionPresentedAtById,
     mcAnswersByQuestionId,
     setMcAnswersByQuestionId,
     mcHistory,
     addMcHistoryEntry,
     updateMcHistoryEntry,
     deleteMcHistoryEntry,
-    setMcRawModelOutput,
-    mcGenerationTelemetry,
-    setMcGenerationTelemetry,
     activeMcSavedSetId,
     setActiveMcSavedSetId,
+    mcGenerationTelemetry,
   } = useMultipleChoiceSession();
 
   const {
-    saveCurrentSet,
     isGenerating,
-    setIsGenerating,
     generationStatus,
-    setGenerationStatus,
     generationStartedAt,
-    setGenerationStartedAt,
     isMarking,
     setIsMarking,
-    errorMessage,
     setErrorMessage,
-    isKeyboardShortcutsOpen,
+    batchProgress,
+    generationSubCallProgress,
   } = useGenerationStatus();
 
-  const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
   const deleteSavedSet = useAppStore((s) => s.deleteSavedSet);
-
-  const wasPausedBeforeMarkingRef = useRef({ written: false, mc: false });
-  const previousIsMarkingRef = useRef(isMarking);
 
   const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -361,9 +236,7 @@ export function GeneratorView() {
     null | 'written' | 'mc'
   >(null);
 
-  const [streamText, setStreamText] = useState('');
-  const [lastSessionTelemetry, setLastSessionTelemetry] =
-    useState<GenerationTelemetry | null>(null);
+  const [, setStreamText] = useState('');
 
   const writtenTimer = useTimer(questions, activeQuestionIndex, 'written');
   const mcTimer = useTimer(mcQuestions, activeMcQuestionIndex, 'mc');
@@ -390,12 +263,6 @@ export function GeneratorView() {
   const activeMcQuestion = mcQuestions[activeMcQuestionIndex];
   const activeMcAnswer = activeMcQuestion
     ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? '')
-    : '';
-  const activeMcQuestionImage = activeMcQuestion
-    ? mcImagesByQuestionId[activeMcQuestion.id]
-    : undefined;
-  const activeMcMarkAppeal = activeMcQuestion
-    ? (mcMarkAppealByQuestionId[activeMcQuestion.id] ?? '')
     : '';
   const activeMcAwardedMarks = activeMcQuestion
     ? mcAwardedMarksByQuestionId[activeMcQuestion.id]
@@ -431,48 +298,6 @@ export function GeneratorView() {
     [mcAwardedMarksByQuestionId],
   );
 
-  const recentAverageScore = useMemo(() => {
-    if (questionMode === 'written') {
-      const completedQuestions = questions.filter(
-        (q) => feedbackByQuestionId[q.id],
-      );
-      if (completedQuestions.length === 0) return undefined;
-      const totalMarks = completedQuestions.reduce(
-        (sum, q) => sum + q.maxMarks,
-        0,
-      );
-      if (totalMarks === 0) return undefined;
-      const achievedMarks = completedQuestions.reduce(
-        (sum, q) => sum + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
-        0,
-      );
-      return (achievedMarks / totalMarks) * 100;
-    }
-
-    const answeredQuestions = mcQuestions.filter(
-      (q) => mcAnswersByQuestionId[q.id],
-    );
-    if (answeredQuestions.length === 0) return undefined;
-    const achievedMarks = answeredQuestions.reduce(
-      (sum, q) =>
-        sum +
-        getMcAwardedMarks(
-          q.id,
-          mcAnswersByQuestionId[q.id] ?? '',
-          q.correctAnswer,
-        ),
-      0,
-    );
-    return (achievedMarks / answeredQuestions.length) * 100;
-  }, [
-    questionMode,
-    questions,
-    feedbackByQuestionId,
-    mcQuestions,
-    mcAnswersByQuestionId,
-    getMcAwardedMarks,
-  ]);
-
   const markModel = (() => {
     if (
       activeQuestionImage &&
@@ -489,7 +314,7 @@ export function GeneratorView() {
     ) {
       return markingModel;
     }
-    return model;
+    return appStore.model;
   })();
 
   const showSetup =
@@ -497,21 +322,7 @@ export function GeneratorView() {
       ? questions.length === 0
       : mcQuestions.length === 0;
 
-  const canGenerate =
-    selectedTopics.length > 0 &&
-    apiKey.trim().length > 0 &&
-    model.trim().length > 0 &&
-    questionCount >= 1 &&
-    questionCount <= 20 &&
-    !isGenerating;
-
-  const canSubmitAnswer =
-    Boolean(activeQuestion) &&
-    (activeQuestionAnswer.trim().length > 0 || Boolean(activeQuestionImage)) &&
-    apiKey.trim().length > 0 &&
-    markModel.trim().length > 0 &&
-    !isMarking &&
-    !activeFeedback;
+  const canGenerate = getCanGenerate(appStore);
 
   const completedCount = useMemo(
     () => questions.filter((q) => feedbackByQuestionId[q.id]).length,
@@ -545,31 +356,37 @@ export function GeneratorView() {
     return mcQuestions.map((q) => q.id).join('|');
   }, [questionMode, questions, mcQuestions]);
 
-  const writtenAccuracyPercent = useMemo(() => {
-    if (!isWrittenSetComplete) return null;
-    const total = questions.reduce((s, q) => s + q.maxMarks, 0);
-    if (total === 0) return 0;
-    return (
-      (questions.reduce(
-        (s, q) => s + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
-        0,
-      ) /
-        total) *
-      100
-    );
-  }, [feedbackByQuestionId, isWrittenSetComplete, questions]);
-
-  const mcAccuracyPercent = useMemo(() => {
-    if (!isMcSetComplete || mcQuestions.length === 0) return null;
-    const achieved = mcQuestions.reduce((s, q) => {
-      const sel = mcAnswersByQuestionId[q.id];
-      return sel ? s + getMcAwardedMarks(q.id, sel, q.correctAnswer) : s;
-    }, 0);
-    return (achieved / mcQuestions.length) * 100;
-  }, [isMcSetComplete, mcAnswersByQuestionId, mcQuestions, getMcAwardedMarks]);
-
-  const completionAccuracyPercent =
-    questionMode === 'written' ? writtenAccuracyPercent : mcAccuracyPercent;
+  const completionAccuracyPercent = useMemo(() => {
+    if (questionMode === 'written') {
+      if (!isWrittenSetComplete) return 0;
+      const total = questions.reduce((s, q) => s + q.maxMarks, 0);
+      if (total === 0) return 0;
+      return (
+        (questions.reduce(
+          (s, q) => s + (feedbackByQuestionId[q.id]?.achievedMarks ?? 0),
+          0,
+        ) /
+          total) *
+        100
+      );
+    } else {
+      if (!isMcSetComplete || mcQuestions.length === 0) return 0;
+      const achieved = mcQuestions.reduce((s, q) => {
+        const sel = mcAnswersByQuestionId[q.id];
+        return sel ? s + getMcAwardedMarks(q.id, sel, q.correctAnswer) : s;
+      }, 0);
+      return (achieved / mcQuestions.length) * 100;
+    }
+  }, [
+    questionMode,
+    questions,
+    mcQuestions,
+    feedbackByQuestionId,
+    mcAnswersByQuestionId,
+    isWrittenSetComplete,
+    isMcSetComplete,
+    getMcAwardedMarks,
+  ]);
 
   const sessionWrittenResults = useMemo(() => {
     return questions
@@ -586,11 +403,13 @@ export function GeneratorView() {
           achieved: fb.achievedMarks,
           max: fb.maxMarks,
           wordCount: answer.split(/\s+/).filter(Boolean).length,
-          criterionBreakdown: fb.vcaaMarkingScheme?.map((c) => ({
-            criterion: c.criterion,
-            achieved: c.achievedMarks,
-            available: c.maxMarks,
-          })),
+          criterionBreakdown: fb.vcaaMarkingScheme?.map(
+            (c: MarkingCriterion) => ({
+              criterion: c.criterion,
+              achieved: c.achievedMarks,
+              available: c.maxMarks,
+            }),
+          ),
         };
       });
   }, [questions, feedbackByQuestionId, answersByQuestionId]);
@@ -611,31 +430,6 @@ export function GeneratorView() {
   }, [mcQuestions, mcAnswersByQuestionId, getMcAwardedMarks]);
 
   const activeTimer = questionMode === 'written' ? writtenTimer : mcTimer;
-  const formattedSessionTime = activeTimer.formattedSessionTime;
-
-  const [generationElapsedMs, setGenerationElapsedMs] = useState(0);
-
-  useEffect(() => {
-    if (!generationStartedAt || !isGenerating) {
-      setGenerationElapsedMs(0);
-      return;
-    }
-    const tick = () => setGenerationElapsedMs(Date.now() - generationStartedAt);
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [generationStartedAt, isGenerating]);
-
-  const generationFormattedElapsedTime =
-    generationStartedAt && isGenerating
-      ? formatDurationMs(generationElapsedMs)
-      : '';
-
-  const formattedElapsedTime =
-    isGenerating && generationStartedAt
-      ? generationFormattedElapsedTime
-      : formattedSessionTime;
-  const completionFormattedElapsedTime = formattedSessionTime;
 
   useEffect(() => {
     setShowCompletionScreen(false);
@@ -700,8 +494,16 @@ export function GeneratorView() {
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [
+    location.search,
+    setSelectedTopics,
+    setMathMethodsSubtopics,
+    setSpecialistMathSubtopics,
+    setChemistrySubtopics,
+    setBiologySubtopics,
+    setGeneralMathematicsSubtopics,
+    setPhysicalEducationSubtopics,
+  ]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -709,9 +511,12 @@ export function GeneratorView() {
     (value: string) => {
       if (!activeQuestion) return;
       const questionId = activeQuestion.id;
-      setAnswersByQuestionId((prev) => ({ ...prev, [questionId]: value }));
+      setAnswersByQuestionId((prev: Record<string, string>) => ({
+        ...prev,
+        [questionId]: value,
+      }));
       if (value.trim().length > 0) {
-        setWrittenResponseEnteredAtById((prev) =>
+        setWrittenResponseEnteredAtById((prev: Record<string, number>) =>
           prev[questionId] !== undefined
             ? prev
             : { ...prev, [questionId]: Date.now() },
@@ -732,11 +537,13 @@ export function GeneratorView() {
 
       void fileToDataUrl(file)
         .then(async (dataUrl) => {
-          setImagesByQuestionId((prev) => ({
-            ...prev,
-            [questionId]: { id: imageId, dataUrl, timestamp },
-          }));
-          setWrittenResponseEnteredAtById((prev) =>
+          setImagesByQuestionId(
+            (prev: Record<string, StudentAnswerImage | undefined>) => ({
+              ...prev,
+              [questionId]: { id: imageId, dataUrl, timestamp },
+            }),
+          );
+          setWrittenResponseEnteredAtById((prev: Record<string, number>) =>
             prev[questionId] !== undefined
               ? prev
               : { ...prev, [questionId]: Date.now() },
@@ -749,16 +556,18 @@ export function GeneratorView() {
                 questionId,
                 imageId,
               );
-              setImagesByQuestionId((prev) => ({
-                ...prev,
-                [questionId]: {
-                  id: imageId,
-                  dataUrl,
-                  storagePath,
-                  downloadUrl,
-                  timestamp,
-                },
-              }));
+              setImagesByQuestionId(
+                (prev: Record<string, StudentAnswerImage | undefined>) => ({
+                  ...prev,
+                  [questionId]: {
+                    id: imageId,
+                    dataUrl,
+                    storagePath,
+                    downloadUrl,
+                    timestamp,
+                  },
+                }),
+              );
             } catch (error) {
               console.error('Firebase upload failed:', error);
               toast.error('Failed to upload image to cloud storage.');
@@ -784,13 +593,16 @@ export function GeneratorView() {
     if (currentImage?.storagePath) {
       void deleteImage(currentImage.storagePath).catch(console.error);
     }
-    setImagesByQuestionId((prev) => removeKey(prev, activeQuestion.id));
+    setImagesByQuestionId(
+      (prev: Record<string, StudentAnswerImage | undefined>) =>
+        removeKey(prev, activeQuestion.id),
+    );
   }, [activeQuestion, imagesByQuestionId, setImagesByQuestionId]);
 
   const handleAppealChange = useCallback(
     (value: string) => {
       if (!activeQuestion) return;
-      setMarkAppealByQuestionId((prev) => ({
+      setMarkAppealByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [activeQuestion.id]: value,
       }));
@@ -801,7 +613,7 @@ export function GeneratorView() {
   const handleOverrideInputChange = useCallback(
     (value: string) => {
       if (!activeQuestion) return;
-      setMarkOverrideInputByQuestionId((prev) => ({
+      setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [activeQuestion.id]: value,
       }));
@@ -809,21 +621,10 @@ export function GeneratorView() {
     [activeQuestion, setMarkOverrideInputByQuestionId],
   );
 
-  const handleMcAppealChange = useCallback(
-    (value: string) => {
-      if (!activeMcQuestion) return;
-      setMcMarkAppealByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: value,
-      }));
-    },
-    [activeMcQuestion, setMcMarkAppealByQuestionId],
-  );
-
   const handleMcOverrideInputChange = useCallback(
     (value: string) => {
       if (!activeMcQuestion) return;
-      setMcMarkOverrideInputByQuestionId((prev) => ({
+      setMcMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [activeMcQuestion.id]: value,
       }));
@@ -837,40 +638,11 @@ export function GeneratorView() {
   }, [writtenTimer, mcTimer]);
 
   useEffect(() => {
-    const wasMarking = previousIsMarkingRef.current;
-    previousIsMarkingRef.current = isMarking;
-
-    if (questionMode === 'written') {
-      wasPausedBeforeMarkingRef.current.written = syncTimerPauseDuringMarking(
-        writtenTimer,
-        isMarking,
-        wasMarking,
-        wasPausedBeforeMarkingRef.current.written,
-      );
-    } else if (questionMode === 'multiple-choice') {
-      wasPausedBeforeMarkingRef.current.mc = syncTimerPauseDuringMarking(
-        mcTimer,
-        isMarking,
-        wasMarking,
-        wasPausedBeforeMarkingRef.current.mc,
-      );
+    if (isMarking) {
+      if (!writtenTimer.isPaused) writtenTimer.togglePause();
+      if (!mcTimer.isPaused) mcTimer.togglePause();
     }
-  }, [
-    isMarking,
-    questionMode,
-    writtenTimer.isPaused,
-    writtenTimer.togglePause,
-    mcTimer.isPaused,
-    mcTimer.togglePause,
-    writtenTimer,
-    mcTimer,
-  ]);
-
-  const resetStopwatch = useCallback(() => {
-    setGenerationStartedAt(null);
-    writtenTimer.reset();
-    mcTimer.reset();
-  }, [writtenTimer, mcTimer, setGenerationStartedAt]);
+  }, [isMarking, writtenTimer, mcTimer]);
 
   const togglePause = useCallback(() => {
     if (questionMode === 'written') writtenTimer.togglePause();
@@ -889,119 +661,11 @@ export function GeneratorView() {
     (topic: Topic) => {
       setSelectedTopics(
         selectedTopics.includes(topic)
-          ? selectedTopics.filter((t) => t !== topic)
+          ? selectedTopics.filter((t: Topic) => t !== topic)
           : [...selectedTopics, topic],
       );
     },
     [selectedTopics, setSelectedTopics],
-  );
-
-  const toggleMathMethodsSubtopic = useCallback(
-    (sub: MathMethodsSubtopic | MathMethodsSubtopic[]) => {
-      const subs = Array.isArray(sub) ? sub : [sub];
-      setMathMethodsSubtopics((prev) => {
-        let next = [...prev];
-        for (const s of subs) {
-          if (next.includes(s)) {
-            next = next.filter((item) => item !== s);
-          } else {
-            next.push(s);
-          }
-        }
-        return next;
-      });
-    },
-    [setMathMethodsSubtopics],
-  );
-
-  const toggleSpecialistMathSubtopic = useCallback(
-    (sub: SpecialistMathSubtopic | SpecialistMathSubtopic[]) => {
-      const subs = Array.isArray(sub) ? sub : [sub];
-      setSpecialistMathSubtopics((prev) => {
-        let next = [...prev];
-        for (const s of subs) {
-          if (next.includes(s)) {
-            next = next.filter((item) => item !== s);
-          } else {
-            next.push(s);
-          }
-        }
-        return next;
-      });
-    },
-    [setSpecialistMathSubtopics],
-  );
-
-  const toggleChemistrySubtopic = useCallback(
-    (sub: ChemistrySubtopic | ChemistrySubtopic[]) => {
-      const subs = Array.isArray(sub) ? sub : [sub];
-      setChemistrySubtopics((prev) => {
-        let next = [...prev];
-        for (const s of subs) {
-          if (next.includes(s)) {
-            next = next.filter((item) => item !== s);
-          } else {
-            next.push(s);
-          }
-        }
-        return next;
-      });
-    },
-    [setChemistrySubtopics],
-  );
-
-  const togglePhysicalEducationSubtopic = useCallback(
-    (sub: PhysicalEducationSubtopic | PhysicalEducationSubtopic[]) => {
-      const subs = Array.isArray(sub) ? sub : [sub];
-      setPhysicalEducationSubtopics((prev) => {
-        let next = [...prev];
-        for (const s of subs) {
-          if (next.includes(s)) {
-            next = next.filter((item) => item !== s);
-          } else {
-            next.push(s);
-          }
-        }
-        return next;
-      });
-    },
-    [setPhysicalEducationSubtopics],
-  );
-
-  const toggleBiologySubtopic = useCallback(
-    (sub: BiologySubtopic | BiologySubtopic[]) => {
-      const subs = Array.isArray(sub) ? sub : [sub];
-      setBiologySubtopics((prev) => {
-        let next = [...prev];
-        for (const s of subs) {
-          if (next.includes(s)) {
-            next = next.filter((item) => item !== s);
-          } else {
-            next.push(s);
-          }
-        }
-        return next;
-      });
-    },
-    [setBiologySubtopics],
-  );
-
-  const toggleGeneralMathematicsSubtopic = useCallback(
-    (sub: GeneralMathematicsSubtopic | GeneralMathematicsSubtopic[]) => {
-      const subs = Array.isArray(sub) ? sub : [sub];
-      setGeneralMathematicsSubtopics((prev) => {
-        let next = [...prev];
-        for (const s of subs) {
-          if (next.includes(s)) {
-            next = next.filter((item) => item !== s);
-          } else {
-            next.push(s);
-          }
-        }
-        return next;
-      });
-    },
-    [setGeneralMathematicsSubtopics],
   );
 
   const dismissKeyboardHint = useCallback(() => {
@@ -1030,7 +694,7 @@ export function GeneratorView() {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
     void listen<GenerationTokenEvent>('generation-token', (event) => {
-      setStreamText((prev) => prev + event.payload.text);
+      setStreamText(event.payload.text);
     }).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
@@ -1040,32 +704,6 @@ export function GeneratorView() {
       unlisten?.();
     };
   }, []);
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-    void listen<GenerationStatusEvent>('generation-status', (event) => {
-      setGenerationStatus(event.payload);
-      setBatchProgress((prev) => {
-        const activeIdx = prev.findIndex((e) => e.status === 'active');
-        if (activeIdx === -1) return prev;
-        const next = [...prev];
-        next[activeIdx] = {
-          ...next[activeIdx],
-          stage: event.payload.stage,
-          message: event.payload.message,
-        };
-        return next;
-      });
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [setGenerationStatus]);
 
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
@@ -1133,74 +771,14 @@ export function GeneratorView() {
 
   const getWrittenAttemptSequence = useCallback(
     (qId: string) =>
-      questionHistory.filter((e) => e.question.id === qId).length + 1,
+      questionHistory.filter((e: QuestionHistoryEntry) => e.question.id === qId)
+        .length + 1,
     [questionHistory],
   );
   const getMcAttemptSequence = useCallback(
-    (qId: string) => mcHistory.filter((e) => e.question.id === qId).length + 1,
+    (qId: string) =>
+      mcHistory.filter((e: McHistoryEntry) => e.question.id === qId).length + 1,
     [mcHistory],
-  );
-
-  const getSubtopicsForTopic = useCallback(
-    (topic: Topic): string[] => {
-      switch (topic) {
-        case 'Mathematical Methods':
-          return Array.from(
-            new Set(
-              mathMethodsSubtopics.map((sub) => toCanonicalSubtopicName(sub)),
-            ),
-          );
-        case 'Specialist Mathematics':
-          return specialistMathSubtopics.map((sub) =>
-            toCanonicalSubtopicName(sub),
-          );
-        case 'Chemistry':
-          return chemistrySubtopics.map((sub) => toCanonicalSubtopicName(sub));
-        case 'Physical Education':
-          return physicalEducationSubtopics.map((sub) =>
-            toCanonicalSubtopicName(sub),
-          );
-        case 'Biology':
-          return biologySubtopics.map((sub) => toCanonicalSubtopicName(sub));
-        case 'General Mathematics':
-          return generalMathematicsSubtopics.map((sub) =>
-            toCanonicalSubtopicName(sub),
-          );
-        default:
-          return [];
-      }
-    },
-    [
-      mathMethodsSubtopics,
-      specialistMathSubtopics,
-      chemistrySubtopics,
-      physicalEducationSubtopics,
-      biologySubtopics,
-      generalMathematicsSubtopics,
-    ],
-  );
-
-  const getCustomFocusArea = useCallback(() => {
-    const v = customFocusArea.trim();
-    return v.length > 0 ? v : undefined;
-  }, [customFocusArea]);
-
-  const getRecentSameTopicQuestionPrompts = useCallback(
-    (mode: 'written' | 'multiple-choice') => {
-      const topicSet = new Set(selectedTopics);
-      const seen = new Set<string>();
-      const prompts: string[] = [];
-      for (const entry of mode === 'written' ? questionHistory : mcHistory) {
-        if (!topicSet.has(entry.question.topic as Topic)) continue;
-        const p = entry.question.promptMarkdown.trim();
-        if (!p || seen.has(p)) continue;
-        seen.add(p);
-        prompts.push(p);
-        if (prompts.length >= 6) break;
-      }
-      return prompts;
-    },
-    [selectedTopics, questionHistory, mcHistory],
   );
 
   const appendMcHistoryEntry = useCallback(
@@ -1226,7 +804,7 @@ export function GeneratorView() {
         awardedMarks,
         maxMarks: 1,
         generationTelemetry: mcGenerationTelemetry ?? undefined,
-        difficulty,
+        difficulty: difficulty,
         analytics: {
           attemptKind,
           attemptSequence: getMcAttemptSequence(question.id),
@@ -1238,12 +816,11 @@ export function GeneratorView() {
         },
       };
       addMcHistoryEntry(entry);
-      setMcHistoryEntryIdByQuestionId((prev) => ({
+      setMcHistoryEntryIdByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [question.id]: entry.id,
       }));
 
-      // Add to spaced repetition
       useAppStore
         .getState()
         .reviewSpacedCard(question.id, awardedMarks >= 1 ? 4 : 1);
@@ -1254,7 +831,6 @@ export function GeneratorView() {
       difficulty,
       getMcAttemptSequence,
       addMcHistoryEntry,
-      setMcHistoryEntryIdByQuestionId,
     ],
   );
 
@@ -1276,23 +852,12 @@ export function GeneratorView() {
         lastModified: now,
       };
       updateMcHistoryEntry(updatedEntry);
-      setMcHistoryEntryIdByQuestionId((prev) => ({
-        ...prev,
-        [questionId]: entry.id,
-      }));
     },
-    [
-      mcHistoryEntryIdByQuestionId,
-      updateMcHistoryEntry,
-      setMcHistoryEntryIdByQuestionId,
-    ],
+    [mcHistoryEntryIdByQuestionId, updateMcHistoryEntry],
   );
 
   const updateLatestWrittenHistoryEntry = useCallback(
-    (
-      questionId: string,
-      response: ReturnType<typeof normalizeMarkResponse>,
-    ) => {
+    (questionId: string, response: MarkAnswerResponse) => {
       const now = Date.now();
       const latestQuestionHistory = useAppStore.getState().questionHistory;
       const trackedEntryId = writtenHistoryEntryIdByQuestionId[questionId];
@@ -1311,22 +876,14 @@ export function GeneratorView() {
         lastModified: now,
       };
       updateQuestionHistoryEntry(updatedEntry);
-      setWrittenHistoryEntryIdByQuestionId((prev) => ({
-        ...prev,
-        [questionId]: entry.id,
-      }));
     },
-    [
-      writtenHistoryEntryIdByQuestionId,
-      updateQuestionHistoryEntry,
-      setWrittenHistoryEntryIdByQuestionId,
-    ],
+    [writtenHistoryEntryIdByQuestionId, updateQuestionHistoryEntry],
   );
 
   const appendWrittenHistoryEntry = useCallback(
     (
       question: GeneratedQuestion,
-      response: ReturnType<typeof normalizeMarkResponse>,
+      response: MarkAnswerResponse,
       options?: {
         uploadedAnswerOverride?: string;
         uploadedAnswerImageOverride?: StudentAnswerImage;
@@ -1354,7 +911,7 @@ export function GeneratorView() {
         workedSolutionMarkdown: response.workedSolutionMarkdown,
         markResponse: response,
         generationTelemetry: writtenGenerationTelemetry ?? undefined,
-        difficulty,
+        difficulty: difficulty,
         analytics: {
           attemptKind: options?.attemptKind ?? 'initial',
           attemptSequence: getWrittenAttemptSequence(question.id),
@@ -1366,12 +923,11 @@ export function GeneratorView() {
         },
       };
       addQuestionHistoryEntry(entry);
-      setWrittenHistoryEntryIdByQuestionId((prev) => ({
+      setWrittenHistoryEntryIdByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [question.id]: entry.id,
       }));
 
-      // Add to spaced repetition
       const isCorrect =
         response.verdict?.toLowerCase() === 'correct' ||
         (response.maxMarks > 0 && response.achievedMarks >= response.maxMarks);
@@ -1385,28 +941,38 @@ export function GeneratorView() {
       difficulty,
       getWrittenAttemptSequence,
       addQuestionHistoryEntry,
-      setWrittenHistoryEntryIdByQuestionId,
     ],
   );
 
   const performConfirmedCancel = useCallback(() => {
     if (pendingCancelType === 'written' && activeQuestion) {
       const id = activeQuestion.id;
-      const next = questions.filter((q) => q.id !== id);
+      const next = questions.filter((q: GeneratedQuestion) => q.id !== id);
       setQuestions(next);
       setActiveWrittenSavedSetId(null);
       setShowCompletionScreen(false);
       setActiveQuestionIndex(
         Math.min(activeQuestionIndex, Math.max(0, next.length - 1)),
       );
-      setWrittenQuestionPresentedAtById((p) => removeKey(p, id));
-      setAnswersByQuestionId((p) => removeKey(p, id));
-      setImagesByQuestionId((p) => removeKey(p, id));
-      setFeedbackByQuestionId((p) => removeKey(p, id));
-      setMarkAppealByQuestionId((p) => removeKey(p, id));
-      setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
-      setWrittenHistoryEntryIdByQuestionId((p) => removeKey(p, id));
-      setWrittenResponseEnteredAtById((p) => removeKey(p, id));
+      setAnswersByQuestionId((p: Record<string, string>) => removeKey(p, id));
+      setImagesByQuestionId(
+        (p: Record<string, StudentAnswerImage | undefined>) => removeKey(p, id),
+      );
+      setFeedbackByQuestionId((p: Record<string, MarkAnswerResponse>) =>
+        removeKey(p, id),
+      );
+      setMarkAppealByQuestionId((p: Record<string, string>) =>
+        removeKey(p, id),
+      );
+      setMarkOverrideInputByQuestionId((p: Record<string, string>) =>
+        removeKey(p, id),
+      );
+      setWrittenHistoryEntryIdByQuestionId((p: Record<string, string>) =>
+        removeKey(p, id),
+      );
+      setWrittenResponseEnteredAtById((p: Record<string, number>) =>
+        removeKey(p, id),
+      );
       const writtenHistoryEntryId = writtenHistoryEntryIdByQuestionId[id];
       if (writtenHistoryEntryId) {
         deleteQuestionHistoryEntry(writtenHistoryEntryId);
@@ -1416,20 +982,23 @@ export function GeneratorView() {
     }
     if (pendingCancelType === 'mc' && activeMcQuestion) {
       const id = activeMcQuestion.id;
-      const next = mcQuestions.filter((q) => q.id !== id);
+      const next = mcQuestions.filter((q: McQuestion) => q.id !== id);
       setMcQuestions(next);
       setActiveMcSavedSetId(null);
       setShowCompletionScreen(false);
       setActiveMcQuestionIndex(
         Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)),
       );
-      setMcQuestionPresentedAtById((p) => removeKey(p, id));
-      setMcAnswersByQuestionId((p) => removeKey(p, id));
-      setMcMarkAppealByQuestionId((p) => removeKey(p, id));
-      setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
-      setMcHistoryEntryIdByQuestionId((p) => removeKey(p, id));
-      setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
-      setMcImagesByQuestionId((p) => removeKey(p, id));
+      setMcAnswersByQuestionId((p: Record<string, string>) => removeKey(p, id));
+      setMcMarkOverrideInputByQuestionId((p: Record<string, string>) =>
+        removeKey(p, id),
+      );
+      setMcHistoryEntryIdByQuestionId((p: Record<string, string>) =>
+        removeKey(p, id),
+      );
+      setMcAwardedMarksByQuestionId((p: Record<string, number>) =>
+        removeKey(p, id),
+      );
       const mcHistoryEntryId = mcHistoryEntryIdByQuestionId[id];
       if (mcHistoryEntryId) {
         deleteMcHistoryEntry(mcHistoryEntryId);
@@ -1453,804 +1022,32 @@ export function GeneratorView() {
     setActiveWrittenSavedSetId,
     setActiveMcSavedSetId,
     setActiveQuestionIndex,
-    setWrittenQuestionPresentedAtById,
     setAnswersByQuestionId,
     setImagesByQuestionId,
     setFeedbackByQuestionId,
-    setMarkAppealByQuestionId,
-    setMarkOverrideInputByQuestionId,
-    setWrittenHistoryEntryIdByQuestionId,
-    setWrittenResponseEnteredAtById,
     writtenHistoryEntryIdByQuestionId,
     deleteQuestionHistoryEntry,
     writtenTimer,
     setMcQuestions,
     setActiveMcQuestionIndex,
-    setMcQuestionPresentedAtById,
     setMcAnswersByQuestionId,
-    setMcMarkAppealByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-    setMcHistoryEntryIdByQuestionId,
-    setMcAwardedMarksByQuestionId,
     deleteMcHistoryEntry,
     mcHistoryEntryIdByQuestionId,
     mcTimer,
     setErrorMessage,
+    setMarkAppealByQuestionId,
+    setMarkOverrideInputByQuestionId,
+    setWrittenHistoryEntryIdByQuestionId,
+    setWrittenResponseEnteredAtById,
+    setMcMarkOverrideInputByQuestionId,
+    setMcAwardedMarksByQuestionId,
   ]);
-
-  const initBatchProgress = useCallback(
-    (topics: Topic[], counts: number[]): BatchTopicProgress[] =>
-      topics.map((topic, i) => ({
-        topic,
-        questionCount: counts[i],
-        status: 'waiting' as const,
-        stage: undefined,
-        message: undefined,
-        errorMessage: undefined,
-      })),
-    [],
-  );
-
-  const setBatchEntryActive = useCallback(
-    (idx: number, topic: Topic) => {
-      const topicSubtopics = getSubtopicsForTopic(topic);
-      const hasFocus = topicSubtopics.length > 0;
-      setBatchProgress((prev) => {
-        const next = [...prev];
-        next[idx] = {
-          ...next[idx],
-          status: 'active',
-          stage: 'allocating_subtopics',
-          message: hasFocus
-            ? 'Picking focus subtopics locally (seeded)…'
-            : 'Planning question mix locally…',
-          errorMessage: undefined,
-        };
-        return next;
-      });
-      setStreamText('');
-    },
-    [getSubtopicsForTopic],
-  );
-
-  const setBatchEntryDone = useCallback((idx: number) => {
-    setBatchProgress((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], status: 'done', stage: 'completed' };
-      return next;
-    });
-  }, []);
-
-  const setBatchEntryError = useCallback((idx: number, message: string) => {
-    setBatchProgress((prev) => {
-      const next = [...prev];
-      next[idx] = { ...next[idx], status: 'error', errorMessage: message };
-      return next;
-    });
-  }, []);
 
   const handleGenerateQuestions = useCallback(async () => {
-    if (!canGenerate) return;
     startStopwatch();
     useTutorStore.getState().clearAllSessions();
-    setErrorMessage(null);
-    setLastFailedAction(null);
-    setStreamText('');
-    setGenerationSubCallProgress(null);
-    const generationSeed =
-      ((Date.now() & 0x7fffffff) ^ Math.floor(Math.random() * 0x7fffffff)) >>>
-      0;
-    const counts = distributeQuestions(selectedTopics, questionCount);
-    const firstActiveIdx = selectedTopics.findIndex((_, j) => counts[j] > 0);
-    const firstAllocTopic =
-      firstActiveIdx >= 0 ? selectedTopics[firstActiveIdx] : selectedTopics[0];
-    const firstHasFocus =
-      firstAllocTopic && getSubtopicsForTopic(firstAllocTopic).length > 0;
-    setGenerationStatus({
-      mode: 'written',
-      stage: 'allocating_subtopics',
-      message: firstHasFocus
-        ? 'Picking focus subtopics locally (seeded)…'
-        : 'Planning question mix locally…',
-      attempt: 1,
-    });
-    setIsGenerating(true);
-    setGenerationStartedAt(Date.now());
-    const isMultiTopic = selectedTopics.length > 1;
-    if (isMultiTopic)
-      setBatchProgress(initBatchProgress(selectedTopics, counts));
-    else setBatchProgress([]);
-
-    try {
-      let allQuestions: GeneratedQuestion[] = [];
-      const totalTelemetry = {
-        durationMs: 0,
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCostUsd: 0,
-        distinctnessAvg: 0,
-        multiStepDepthAvg: 0,
-        qualityDiagnostics: undefined as
-          | GenerationTelemetry['qualityDiagnostics']
-          | undefined,
-      };
-      let distinctnessWeight = 0;
-      let multiStepDepthWeight = 0;
-      const failedTopics: string[] = [];
-
-      const results = await Promise.all(
-        selectedTopics.map(async (topic, i) => {
-          const count = counts[i];
-          if (count === 0) {
-            if (isMultiTopic) setBatchEntryDone(i);
-            return { questions: [], telemetry: null };
-          }
-          if (isMultiTopic) setBatchEntryActive(i, topic);
-          try {
-            const topicSubtopics = getSubtopicsForTopic(topic);
-            let topicQuestions: GeneratedQuestion[] = [];
-            const topicTelemetry = {
-              durationMs: 0,
-              promptTokens: 0,
-              completionTokens: 0,
-              totalTokens: 0,
-              estimatedCostUsd: 0,
-              distinctnessAvg: 0,
-              multiStepDepthAvg: 0,
-              qualityDiagnostics: undefined as
-                | GenerationTelemetry['qualityDiagnostics']
-                | undefined,
-              questionCount: 0,
-            };
-
-            if (generationStrategy === 'single-pass') {
-              if (!isMultiTopic) {
-                setGenerationStatus({
-                  mode: 'written',
-                  stage: 'generating',
-                  message: 'Generating questions...',
-                  attempt: 1,
-                });
-              }
-              const shuffledSubtopics = shuffleWithSeed(
-                topicSubtopics,
-                generationSeed + i * 17,
-              );
-              const response = await invoke<GenerateQuestionsResponse>(
-                'generate_questions',
-                {
-                  request: {
-                    topics: [topic],
-                    difficulty,
-                    questionCount: count,
-                    averageMarksPerQuestion,
-                    model,
-                    apiKey,
-                    techMode,
-                    includeExamContext,
-                    subtopics: shuffledSubtopics,
-                    shuffleSubtopics: true,
-                    customFocusArea: getCustomFocusArea(),
-                  },
-                },
-              );
-              topicQuestions = response.questions;
-              topicTelemetry.durationMs = response.durationMs || 0;
-              topicTelemetry.promptTokens = response.promptTokens || 0;
-              topicTelemetry.completionTokens = response.completionTokens || 0;
-              topicTelemetry.totalTokens = response.totalTokens || 0;
-              topicTelemetry.estimatedCostUsd = response.estimatedCostUsd || 0;
-              topicTelemetry.distinctnessAvg =
-                (response.distinctnessAvg || 0) * response.questions.length;
-              topicTelemetry.multiStepDepthAvg =
-                (response.multiStepDepthAvg || 0) * response.questions.length;
-              topicTelemetry.qualityDiagnostics = response.qualityDiagnostics;
-              topicTelemetry.questionCount = response.questions.length;
-              addGenerationRecord({
-                id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                timestamp: new Date().toISOString(),
-                inputs: {
-                  topic,
-                  difficulty,
-                  questionCount: response.questions.length,
-                  questionMode: 'written',
-                  techMode,
-                  generationStrategy: 'multi-pass',
-                  averageMarksPerQuestion,
-                  subtopics: shuffledSubtopics,
-                  customFocusArea: getCustomFocusArea(),
-                },
-                outputs: {
-                  durationMs: response.durationMs,
-                  promptTokens: response.promptTokens,
-                  completionTokens: response.completionTokens,
-                  totalTokens: response.totalTokens,
-                  estimatedCostUsd: response.estimatedCostUsd,
-                },
-              });
-            } else {
-              const subCalls = buildSubtopicCalls(
-                topicSubtopics,
-                count,
-                [topic],
-                {
-                  seed: generationSeed + i * 1009,
-                  combineForSmallBatches: true,
-                  minSubtopicsPerQuestion: 2,
-                  maxSubtopicsPerQuestion: 3,
-                },
-              );
-              if (!isMultiTopic) {
-                const hasFocus = topicSubtopics.length > 0;
-                setGenerationStatus({
-                  mode: 'written',
-                  stage: 'allocating_subtopics',
-                  message: hasFocus
-                    ? 'Picking focus subtopics locally (seeded)…'
-                    : 'Planning question mix locally…',
-                  attempt: 1,
-                });
-              }
-              for (let si = 0; si < subCalls.length; si++) {
-                const call = subCalls[si];
-                if (call.count === 0) continue;
-                if (subCalls.length > 1) {
-                  setGenerationSubCallProgress({
-                    current: si + 1,
-                    total: subCalls.length,
-                  });
-                }
-                const response = await invoke<GenerateQuestionsResponse>(
-                  'generate_questions',
-                  {
-                    request: {
-                      topics: [topic],
-                      difficulty,
-                      questionCount: call.count,
-                      averageMarksPerQuestion,
-                      model,
-                      apiKey,
-                      techMode,
-                      includeExamContext,
-                      subtopics: call.subtopics,
-                      shuffleSubtopics,
-                      customFocusArea: getCustomFocusArea(),
-                    },
-                  },
-                );
-                topicQuestions = topicQuestions.concat(response.questions);
-                topicTelemetry.durationMs += response.durationMs || 0;
-                topicTelemetry.promptTokens += response.promptTokens || 0;
-                topicTelemetry.completionTokens +=
-                  response.completionTokens || 0;
-                topicTelemetry.totalTokens += response.totalTokens || 0;
-                topicTelemetry.estimatedCostUsd +=
-                  response.estimatedCostUsd || 0;
-                topicTelemetry.distinctnessAvg +=
-                  (response.distinctnessAvg || 0) * response.questions.length;
-                topicTelemetry.multiStepDepthAvg +=
-                  (response.multiStepDepthAvg || 0) * response.questions.length;
-                if (response.qualityDiagnostics)
-                  topicTelemetry.qualityDiagnostics =
-                    response.qualityDiagnostics;
-                topicTelemetry.questionCount += response.questions.length;
-                addGenerationRecord({
-                  id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  timestamp: new Date().toISOString(),
-                  inputs: {
-                    topic,
-                    difficulty,
-                    questionCount: response.questions.length,
-                    questionMode: 'multiple-choice',
-                    techMode,
-                    averageMarksPerQuestion,
-                    subtopics: topicSubtopics,
-                    customFocusArea: getCustomFocusArea(),
-                  },
-                  outputs: {
-                    durationMs: response.durationMs || 0,
-                    promptTokens: response.promptTokens,
-                    completionTokens: response.completionTokens,
-                    totalTokens: response.totalTokens,
-                    estimatedCostUsd: response.estimatedCostUsd,
-                    distinctnessAvg: response.distinctnessAvg,
-                    multiStepDepthAvg: response.multiStepDepthAvg,
-                  },
-                });
-              }
-              setGenerationSubCallProgress(null);
-            }
-            if (isMultiTopic) setBatchEntryDone(i);
-            return { questions: topicQuestions, telemetry: topicTelemetry };
-          } catch (topicError) {
-            failedTopics.push(topic);
-            setGenerationSubCallProgress(null);
-            if (isMultiTopic)
-              setBatchEntryError(i, readBackendError(topicError));
-            else throw topicError;
-            return { questions: [], telemetry: null };
-          }
-        }),
-      );
-
-      for (const res of results) {
-        if (!res.telemetry) continue;
-        allQuestions = allQuestions.concat(res.questions);
-        totalTelemetry.durationMs += res.telemetry.durationMs;
-        totalTelemetry.promptTokens += res.telemetry.promptTokens;
-        totalTelemetry.completionTokens += res.telemetry.completionTokens;
-        totalTelemetry.totalTokens += res.telemetry.totalTokens;
-        totalTelemetry.estimatedCostUsd += res.telemetry.estimatedCostUsd;
-        totalTelemetry.distinctnessAvg += res.telemetry.distinctnessAvg;
-        totalTelemetry.multiStepDepthAvg += res.telemetry.multiStepDepthAvg;
-        if (res.telemetry.qualityDiagnostics)
-          totalTelemetry.qualityDiagnostics = res.telemetry.qualityDiagnostics;
-        distinctnessWeight += res.telemetry.questionCount;
-        multiStepDepthWeight += res.telemetry.questionCount;
-      }
-
-      if (allQuestions.length === 0)
-        throw new Error('No questions were generated. Please try again.');
-      if (allQuestions.length > 0) {
-        totalTelemetry.distinctnessAvg =
-          distinctnessWeight > 0
-            ? totalTelemetry.distinctnessAvg / distinctnessWeight
-            : 0;
-        totalTelemetry.multiStepDepthAvg =
-          multiStepDepthWeight > 0
-            ? totalTelemetry.multiStepDepthAvg / multiStepDepthWeight
-            : 0;
-      }
-      if (failedTopics.length > 0)
-        setErrorMessage(
-          `Failed to generate questions for: ${failedTopics.join(', ')}. Other subjects loaded successfully.`,
-        );
-
-      const cleaned = applyBatchQualityChecks(rekeyWritten(allQuestions));
-      let finalQuestions = cleaned.cleanedQuestions;
-      if (shuffleQuestions) {
-        finalQuestions = shuffleWithSeed(finalQuestions, generationSeed + 99);
-      }
-      setQuestions(finalQuestions);
-      setWrittenRawModelOutput('');
-      setWrittenGenerationTelemetry(totalTelemetry);
-      setLastSessionTelemetry(totalTelemetry);
-      setActiveQuestionIndex(0);
-      setWrittenQuestionPresentedAtById({});
-      setWrittenResponseEnteredAtById({});
-      setWrittenHistoryEntryIdByQuestionId({});
-      setAnswersByQuestionId({});
-      setImagesByQuestionId({});
-      setFeedbackByQuestionId({});
-      toast.success(`${cleaned.cleanedQuestions.length} questions generated`);
-    } catch (error) {
-      resetStopwatch();
-      setGenerationStatus({
-        mode: 'written',
-        stage: 'failed',
-        message: 'Generation failed.',
-        attempt: generationStatus?.attempt ?? 1,
-      });
-      setErrorMessage(readBackendError(error));
-      setLastFailedAction('generate-written');
-    } finally {
-      setGenerationSubCallProgress(null);
-      setIsGenerating(false);
-    }
-  }, [
-    canGenerate,
-    startStopwatch,
-    selectedTopics,
-    questionCount,
-    getCustomFocusArea,
-    generationStrategy,
-    difficulty,
-    averageMarksPerQuestion,
-    model,
-    apiKey,
-    techMode,
-    includeExamContext,
-    addGenerationRecord,
-    setQuestions,
-    setWrittenRawModelOutput,
-    setWrittenGenerationTelemetry,
-    setActiveQuestionIndex,
-    setWrittenQuestionPresentedAtById,
-    setWrittenResponseEnteredAtById,
-    setWrittenHistoryEntryIdByQuestionId,
-    setAnswersByQuestionId,
-    setImagesByQuestionId,
-    setFeedbackByQuestionId,
-    resetStopwatch,
-    setGenerationStatus,
-    setErrorMessage,
-    setIsGenerating,
-    setBatchProgress,
-    generationStatus?.attempt,
-    setGenerationStartedAt,
-    initBatchProgress,
-    setBatchEntryActive,
-    setBatchEntryDone,
-    setBatchEntryError,
-    getSubtopicsForTopic,
-    shuffleSubtopics,
-    shuffleQuestions,
-  ]);
-
-  const handleGenerateMcQuestions = useCallback(async () => {
-    if (!canGenerate) return;
-    startStopwatch();
-    useTutorStore.getState().clearAllSessions();
-    setErrorMessage(null);
-    setLastFailedAction(null);
-    setStreamText('');
-    setGenerationSubCallProgress(null);
-    const generationSeed =
-      ((Date.now() & 0x7fffffff) ^ Math.floor(Math.random() * 0x7fffffff)) >>>
-      0;
-    const counts = distributeQuestions(selectedTopics, questionCount);
-    const firstActiveIdxMc = selectedTopics.findIndex((_, j) => counts[j] > 0);
-    const firstAllocTopicMc =
-      firstActiveIdxMc >= 0
-        ? selectedTopics[firstActiveIdxMc]
-        : selectedTopics[0];
-    const firstHasFocusMc =
-      firstAllocTopicMc && getSubtopicsForTopic(firstAllocTopicMc).length > 0;
-    setGenerationStatus({
-      mode: 'multiple-choice',
-      stage: 'allocating_subtopics',
-      message: firstHasFocusMc
-        ? 'Picking focus subtopics locally (seeded)…'
-        : 'Planning question mix locally…',
-      attempt: 1,
-    });
-    setIsGenerating(true);
-    setGenerationStartedAt(Date.now());
-    const isMultiTopic = selectedTopics.length > 1;
-    if (isMultiTopic)
-      setBatchProgress(initBatchProgress(selectedTopics, counts));
-    else setBatchProgress([]);
-
-    try {
-      let allQuestions: McQuestion[] = [];
-      const totalTelemetry = {
-        durationMs: 0,
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimatedCostUsd: 0,
-        distinctnessAvg: 0,
-        multiStepDepthAvg: 0,
-        qualityDiagnostics: undefined as
-          | GenerationTelemetry['qualityDiagnostics']
-          | undefined,
-      };
-      let distinctnessWeight = 0;
-      let multiStepDepthWeight = 0;
-      const failedTopics: string[] = [];
-
-      const resultsMc = await Promise.all(
-        selectedTopics.map(async (topic, i) => {
-          const count = counts[i];
-          if (count === 0) {
-            if (isMultiTopic) setBatchEntryDone(i);
-            return { questions: [], telemetry: null };
-          }
-          if (isMultiTopic) setBatchEntryActive(i, topic);
-          try {
-            const topicSubtopics = getSubtopicsForTopic(topic);
-            let topicQuestions: McQuestion[] = [];
-            const topicTelemetry = {
-              durationMs: 0,
-              promptTokens: 0,
-              completionTokens: 0,
-              totalTokens: 0,
-              estimatedCostUsd: 0,
-              distinctnessAvg: 0,
-              multiStepDepthAvg: 0,
-              qualityDiagnostics: undefined as
-                | GenerationTelemetry['qualityDiagnostics']
-                | undefined,
-              questionCount: 0,
-            };
-
-            if (generationStrategy === 'single-pass') {
-              if (!isMultiTopic) {
-                setGenerationStatus({
-                  mode: 'multiple-choice',
-                  stage: 'generating',
-                  message: 'Generating questions...',
-                  attempt: 1,
-                });
-              }
-              const shuffledSubtopics = shuffleWithSeed(
-                topicSubtopics,
-                generationSeed + i * 19,
-              );
-              const response = await invoke<GenerateMcQuestionsResponse>(
-                'generate_mc_questions',
-                {
-                  request: {
-                    topics: [topic],
-                    difficulty,
-                    questionCount: count,
-                    model,
-                    apiKey,
-                    techMode,
-                    includeExamContext,
-                    subtopics: shuffledSubtopics,
-                    shuffleSubtopics: true,
-                    customFocusArea: getCustomFocusArea(),
-                    avoidSimilarQuestions,
-                    strictLatexValidation,
-                    diversityStrictness,
-                    priorQuestionPrompts: avoidSimilarQuestions
-                      ? getRecentSameTopicQuestionPrompts('multiple-choice')
-                      : [],
-                    aiDifficultyScalingEnabled,
-                    recentAverageScore,
-                    recentDifficulty: difficulty,
-                  },
-                },
-              );
-              topicQuestions = response.questions;
-              topicTelemetry.durationMs = response.durationMs || 0;
-              topicTelemetry.promptTokens = response.promptTokens || 0;
-              topicTelemetry.completionTokens = response.completionTokens || 0;
-              topicTelemetry.totalTokens = response.totalTokens || 0;
-              topicTelemetry.estimatedCostUsd = response.estimatedCostUsd || 0;
-              topicTelemetry.distinctnessAvg =
-                (response.distinctnessAvg || 0) * response.questions.length;
-              topicTelemetry.multiStepDepthAvg =
-                (response.multiStepDepthAvg || 0) * response.questions.length;
-              topicTelemetry.qualityDiagnostics = response.qualityDiagnostics;
-              topicTelemetry.questionCount = response.questions.length;
-              addGenerationRecord({
-                id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                timestamp: new Date().toISOString(),
-                inputs: {
-                  topic,
-                  difficulty,
-                  questionCount: response.questions.length,
-                  questionMode: 'multiple-choice',
-                  techMode,
-                  generationStrategy: 'multi-pass',
-                  averageMarksPerQuestion,
-                  subtopics: shuffledSubtopics,
-                  customFocusArea: getCustomFocusArea(),
-                },
-                outputs: {
-                  durationMs: response.durationMs,
-                  promptTokens: response.promptTokens,
-                  completionTokens: response.completionTokens,
-                  totalTokens: response.totalTokens,
-                  estimatedCostUsd: response.estimatedCostUsd,
-                },
-              });
-            } else {
-              const subCalls = buildSubtopicCalls(
-                topicSubtopics,
-                count,
-                [topic],
-                {
-                  seed: generationSeed + i * 1009,
-                  combineForSmallBatches: true,
-                  minSubtopicsPerQuestion: 2,
-                  maxSubtopicsPerQuestion: 3,
-                },
-              );
-              if (!isMultiTopic) {
-                const hasFocus = topicSubtopics.length > 0;
-                setGenerationStatus({
-                  mode: 'multiple-choice',
-                  stage: 'allocating_subtopics',
-                  message: hasFocus
-                    ? 'Picking focus subtopics locally (seeded)…'
-                    : 'Planning question mix locally…',
-                  attempt: 1,
-                });
-              }
-              for (let si = 0; si < subCalls.length; si++) {
-                const call = subCalls[si];
-                if (call.count === 0) continue;
-                if (subCalls.length > 1) {
-                  setGenerationSubCallProgress({
-                    current: si + 1,
-                    total: subCalls.length,
-                  });
-                }
-                const response = await invoke<GenerateMcQuestionsResponse>(
-                  'generate_mc_questions',
-                  {
-                    request: {
-                      topics: [topic],
-                      difficulty,
-                      questionCount: call.count,
-                      model,
-                      apiKey,
-                      techMode,
-                      includeExamContext,
-                      subtopics: call.subtopics,
-                      customFocusArea: getCustomFocusArea(),
-                      avoidSimilarQuestions,
-                      strictLatexValidation,
-                      diversityStrictness,
-                      priorQuestionPrompts: avoidSimilarQuestions
-                        ? getRecentSameTopicQuestionPrompts('multiple-choice')
-                        : [],
-                      aiDifficultyScalingEnabled,
-                      recentAverageScore,
-                      recentDifficulty: difficulty,
-                    },
-                  },
-                );
-                const adjusted = (response.questions || []).map((q) =>
-                  shuffleMcQuestionOptions(q),
-                );
-                topicQuestions = topicQuestions.concat(adjusted);
-                topicTelemetry.durationMs += response.durationMs || 0;
-                topicTelemetry.promptTokens += response.promptTokens || 0;
-                topicTelemetry.completionTokens +=
-                  response.completionTokens || 0;
-                topicTelemetry.totalTokens += response.totalTokens || 0;
-                topicTelemetry.estimatedCostUsd +=
-                  response.estimatedCostUsd || 0;
-                topicTelemetry.distinctnessAvg +=
-                  (response.distinctnessAvg || 0) * response.questions.length;
-                topicTelemetry.multiStepDepthAvg +=
-                  (response.multiStepDepthAvg || 0) * response.questions.length;
-                if (response.qualityDiagnostics)
-                  topicTelemetry.qualityDiagnostics =
-                    response.qualityDiagnostics;
-                topicTelemetry.questionCount += response.questions.length;
-                addGenerationRecord({
-                  id: `gen-${topic}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  timestamp: new Date().toISOString(),
-                  inputs: {
-                    topic,
-                    difficulty,
-                    questionCount: call.count,
-                    questionMode: 'multiple-choice',
-                    techMode,
-                    generationStrategy: 'multi-pass',
-                    averageMarksPerQuestion,
-                    subtopics: call.subtopics,
-                  },
-                  outputs: {
-                    durationMs: response.durationMs || 0,
-                    promptTokens: response.promptTokens,
-                    completionTokens: response.completionTokens,
-                    totalTokens: response.totalTokens,
-                    estimatedCostUsd: response.estimatedCostUsd,
-                    distinctnessAvg: response.distinctnessAvg,
-                    multiStepDepthAvg: response.multiStepDepthAvg,
-                  },
-                });
-              }
-              setGenerationSubCallProgress(null);
-            }
-            if (isMultiTopic) setBatchEntryDone(i);
-            return { questions: topicQuestions, telemetry: topicTelemetry };
-          } catch (topicError) {
-            failedTopics.push(topic);
-            setGenerationSubCallProgress(null);
-            if (isMultiTopic)
-              setBatchEntryError(i, readBackendError(topicError));
-            else throw topicError;
-            return { questions: [], telemetry: null };
-          }
-        }),
-      );
-
-      for (const res of resultsMc) {
-        if (!res.telemetry) continue;
-        allQuestions = allQuestions.concat(res.questions);
-        totalTelemetry.durationMs += res.telemetry.durationMs;
-        totalTelemetry.promptTokens += res.telemetry.promptTokens;
-        totalTelemetry.completionTokens += res.telemetry.completionTokens;
-        totalTelemetry.totalTokens += res.telemetry.totalTokens;
-        totalTelemetry.estimatedCostUsd += res.telemetry.estimatedCostUsd;
-        totalTelemetry.distinctnessAvg += res.telemetry.distinctnessAvg;
-        totalTelemetry.multiStepDepthAvg += res.telemetry.multiStepDepthAvg;
-        if (res.telemetry.qualityDiagnostics)
-          totalTelemetry.qualityDiagnostics = res.telemetry.qualityDiagnostics;
-        distinctnessWeight += res.telemetry.questionCount;
-        multiStepDepthWeight += res.telemetry.questionCount;
-      }
-
-      if (allQuestions.length === 0)
-        throw new Error('No questions were generated. Please try again.');
-      if (allQuestions.length > 0) {
-        totalTelemetry.distinctnessAvg =
-          distinctnessWeight > 0
-            ? totalTelemetry.distinctnessAvg / distinctnessWeight
-            : 0;
-        totalTelemetry.multiStepDepthAvg =
-          multiStepDepthWeight > 0
-            ? totalTelemetry.multiStepDepthAvg / multiStepDepthWeight
-            : 0;
-      }
-      if (failedTopics.length > 0)
-        setErrorMessage(
-          `Failed to generate questions for: ${failedTopics.join(', ')}. Other subjects loaded successfully.`,
-        );
-
-      const preprocessed = preprocessMcQuestions(rekeyMc(allQuestions));
-      let finalMcQuestions = preprocessed;
-      if (shuffleQuestions) {
-        finalMcQuestions = shuffleWithSeed(preprocessed, generationSeed + 99);
-      }
-      setMcQuestions(finalMcQuestions);
-      setMcRawModelOutput('');
-      setMcGenerationTelemetry(totalTelemetry);
-      setLastSessionTelemetry(totalTelemetry);
-      setActiveMcQuestionIndex(0);
-      setMcQuestionPresentedAtById({});
-      setMcAnswersByQuestionId({});
-      setMcMarkAppealByQuestionId({});
-      setMcMarkOverrideInputByQuestionId({});
-      setMcHistoryEntryIdByQuestionId({});
-      setMcAwardedMarksByQuestionId({});
-      toast.success(`${preprocessed.length} MC questions generated`);
-    } catch (error) {
-      resetStopwatch();
-      setGenerationStatus({
-        mode: 'multiple-choice',
-        stage: 'failed',
-        message: 'Generation failed.',
-        attempt: generationStatus?.attempt ?? 1,
-      });
-      setErrorMessage(readBackendError(error));
-      setLastFailedAction('generate-mc');
-    } finally {
-      setGenerationSubCallProgress(null);
-      setIsGenerating(false);
-    }
-  }, [
-    canGenerate,
-    startStopwatch,
-    selectedTopics,
-    questionCount,
-    getCustomFocusArea,
-    generationStrategy,
-    difficulty,
-    model,
-    apiKey,
-    techMode,
-    includeExamContext,
-    avoidSimilarQuestions,
-    strictLatexValidation,
-    diversityStrictness,
-    getRecentSameTopicQuestionPrompts,
-    aiDifficultyScalingEnabled,
-    recentAverageScore,
-    addGenerationRecord,
-    setMcQuestions,
-    setMcRawModelOutput,
-    setMcGenerationTelemetry,
-    setActiveMcQuestionIndex,
-    setMcQuestionPresentedAtById,
-    setMcAnswersByQuestionId,
-    setMcMarkAppealByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-    setMcHistoryEntryIdByQuestionId,
-    setMcAwardedMarksByQuestionId,
-    resetStopwatch,
-    setGenerationStatus,
-    setErrorMessage,
-    setIsGenerating,
-    setBatchProgress,
-    generationStatus?.attempt,
-    setGenerationStartedAt,
-    initBatchProgress,
-    setBatchEntryActive,
-    setBatchEntryDone,
-    setBatchEntryError,
-    getSubtopicsForTopic,
-    averageMarksPerQuestion,
-    shuffleQuestions,
-  ]);
+    await generateQuestionsOrchestrator();
+  }, [startStopwatch]);
 
   const handleSubmitForMarking = useCallback(
     async (payload?: { image?: StudentAnswerImage }) => {
@@ -2258,13 +1055,14 @@ export function GeneratorView() {
       const effectiveImage = payload?.image ?? activeQuestionImage;
       const hasAnswerContent =
         activeQuestionAnswer.trim().length > 0 || Boolean(effectiveImage);
-      const canSubmitNow =
-        hasAnswerContent &&
-        apiKey.trim().length > 0 &&
-        markModel.trim().length > 0 &&
-        !isMarking &&
-        !activeFeedback;
-      if (!canSubmitNow) return;
+      if (
+        !hasAnswerContent ||
+        !apiKey.trim() ||
+        !markModel.trim() ||
+        isMarking ||
+        activeFeedback
+      )
+        return;
       setErrorMessage(null);
       setIsMarking(true);
       setLastFailedAction(null);
@@ -2272,10 +1070,12 @@ export function GeneratorView() {
         let finalImage = effectiveImage;
         if (payload?.image) {
           finalImage = payload.image;
-          setImagesByQuestionId((prev) => ({
-            ...prev,
-            [activeQuestion.id]: finalImage,
-          }));
+          setImagesByQuestionId(
+            (prev: Record<string, StudentAnswerImage | undefined>) => ({
+              ...prev,
+              [activeQuestion.id]: finalImage,
+            }),
+          );
           if (user) {
             try {
               const { storagePath, downloadUrl } = await uploadImageDataUrl(
@@ -2284,10 +1084,12 @@ export function GeneratorView() {
                 finalImage.id,
               );
               finalImage = { ...finalImage, storagePath, downloadUrl };
-              setImagesByQuestionId((prev) => ({
-                ...prev,
-                [activeQuestion.id]: finalImage,
-              }));
+              setImagesByQuestionId(
+                (prev: Record<string, StudentAnswerImage | undefined>) => ({
+                  ...prev,
+                  [activeQuestion.id]: finalImage,
+                }),
+              );
             } catch (error) {
               console.error('Firebase upload failed:', error);
             }
@@ -2310,11 +1112,11 @@ export function GeneratorView() {
           rawResponse,
           activeQuestion.maxMarks,
         );
-        setFeedbackByQuestionId((prev) => ({
+        setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
           ...prev,
           [activeQuestion.id]: response,
         }));
-        setMarkOverrideInputByQuestionId((prev) => ({
+        setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
           ...prev,
           [activeQuestion.id]: String(response.achievedMarks),
         }));
@@ -2360,16 +1162,7 @@ export function GeneratorView() {
   const handleArgueForMark = useCallback(async () => {
     if (!activeQuestion || !activeFeedback) return;
     const appealText = activeMarkAppeal.trim();
-    if (!appealText) {
-      setErrorMessage('Enter your argument before requesting a re-mark.');
-      return;
-    }
-    if (!apiKey.trim() || !markModel.trim()) {
-      setErrorMessage(
-        'Configure API key and model before requesting a re-mark.',
-      );
-      return;
-    }
+    if (!appealText || !apiKey.trim() || !markModel.trim()) return;
     setErrorMessage(null);
     setIsMarking(true);
     setLastFailedAction(null);
@@ -2395,11 +1188,11 @@ export function GeneratorView() {
         rawResponse,
         activeQuestion.maxMarks,
       );
-      setFeedbackByQuestionId((prev) => ({
+      setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
         ...prev,
         [activeQuestion.id]: response,
       }));
-      setMarkOverrideInputByQuestionId((prev) => ({
+      setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [activeQuestion.id]: String(response.achievedMarks),
       }));
@@ -2436,10 +1229,7 @@ export function GeneratorView() {
   const handleOverrideMark = useCallback(() => {
     if (!activeQuestion || !activeFeedback) return;
     const parsed = Number(activeOverrideInput);
-    if (!Number.isFinite(parsed)) {
-      setErrorMessage('Enter a whole number to override the mark.');
-      return;
-    }
+    if (!Number.isFinite(parsed)) return;
     const clamped = Math.max(
       0,
       Math.min(activeFeedback.maxMarks, Math.round(parsed)),
@@ -2456,11 +1246,11 @@ export function GeneratorView() {
             : 'Overridden',
     };
     setErrorMessage(null);
-    setFeedbackByQuestionId((prev) => ({
+    setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
       ...prev,
       [activeQuestion.id]: updated,
     }));
-    setMarkOverrideInputByQuestionId((prev) => ({
+    setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
       ...prev,
       [activeQuestion.id]: String(clamped),
     }));
@@ -2473,21 +1263,92 @@ export function GeneratorView() {
     setErrorMessage,
     setFeedbackByQuestionId,
     updateLatestWrittenHistoryEntry,
+    setMarkOverrideInputByQuestionId,
+  ]);
+
+  const handleMcAnswer = useCallback(
+    (selectedLabel: string) => {
+      if (!activeMcQuestion || isReviewingCompletedSet) return;
+      const existingAnswer = mcAnswersByQuestionId[activeMcQuestion.id];
+      if (existingAnswer) return;
+      const responseEnteredAtMs = Date.now();
+      const awardedMarks =
+        selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
+      setMcAnswersByQuestionId((prev: Record<string, string>) => ({
+        ...prev,
+        [activeMcQuestion.id]: selectedLabel,
+      }));
+      setMcAwardedMarksByQuestionId((prev: Record<string, number>) => ({
+        ...prev,
+        [activeMcQuestion.id]: awardedMarks,
+      }));
+      appendMcHistoryEntry(
+        activeMcQuestion,
+        selectedLabel,
+        awardedMarks,
+        'initial',
+        responseEnteredAtMs,
+      );
+      mcTimer.markAnswered(activeMcQuestion.id);
+      useAppStore.getState().recordCompletion('multiple-choice');
+      if (awardedMarks >= 1) {
+        toast.success('Correct!');
+      } else {
+        toast.error(
+          `Incorrect. The correct answer was ${activeMcQuestion.correctAnswer}.`,
+        );
+      }
+    },
+    [
+      activeMcQuestion,
+      isReviewingCompletedSet,
+      mcAnswersByQuestionId,
+      appendMcHistoryEntry,
+      mcTimer,
+      setMcAnswersByQuestionId,
+      setMcAwardedMarksByQuestionId,
+    ],
+  );
+
+  const handleMcOverrideMark = useCallback(() => {
+    if (!activeMcQuestion) return;
+    const parsed = Number(activeMcOverrideInput);
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.max(0, Math.min(1, Math.round(parsed)));
+    setMcAwardedMarksByQuestionId((prev: Record<string, number>) => ({
+      ...prev,
+      [activeMcQuestion.id]: clamped,
+    }));
+    setMcMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
+      ...prev,
+      [activeMcQuestion.id]: String(clamped),
+    }));
+    updateLatestMcHistoryEntryMark(activeMcQuestion.id, clamped);
+    toast.message(`Mark overridden to ${clamped}/1`);
+  }, [
+    activeMcQuestion,
+    activeMcOverrideInput,
+    updateLatestMcHistoryEntryMark,
+    setMcAwardedMarksByQuestionId,
+    setMcMarkOverrideInputByQuestionId,
   ]);
 
   const handleOverrideCriterion = useCallback(
     (idx: number, achievedMarks: number, rationale: string) => {
       if (!activeQuestion || !activeFeedback) return;
-      const nextScheme = activeFeedback.vcaaMarkingScheme.map((it, i) =>
-        i === idx ? { ...it, achievedMarks, rationale } : it,
+      const nextScheme = activeFeedback.vcaaMarkingScheme.map(
+        (it: MarkingCriterion, i: number) =>
+          i === idx ? { ...it, achievedMarks, rationale } : it,
       );
       const totalAchieved = nextScheme.reduce(
-        (s, c) => s + (Number.isFinite(c.achievedMarks) ? c.achievedMarks : 0),
+        (s: number, c: MarkingCriterion) =>
+          s + (Number.isFinite(c.achievedMarks) ? c.achievedMarks : 0),
         0,
       );
       const totalMax =
         nextScheme.reduce(
-          (s, c) => s + (Number.isFinite(c.maxMarks) ? c.maxMarks : 0),
+          (s: number, c: MarkingCriterion) =>
+            s + (Number.isFinite(c.maxMarks) ? c.maxMarks : 0),
           0,
         ) || activeFeedback.maxMarks;
       const nextFeedback = {
@@ -2503,11 +1364,12 @@ export function GeneratorView() {
               ? 'Incorrect'
               : 'Overridden',
       };
-      setFeedbackByQuestionId((prev) => ({
+      setErrorMessage(null);
+      setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
         ...prev,
         [activeQuestion.id]: nextFeedback,
       }));
-      setMarkOverrideInputByQuestionId((prev) => ({
+      setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
         ...prev,
         [activeQuestion.id]: String(nextFeedback.achievedMarks),
       }));
@@ -2517,773 +1379,365 @@ export function GeneratorView() {
       activeQuestion,
       activeFeedback,
       setFeedbackByQuestionId,
-      setMarkOverrideInputByQuestionId,
       updateLatestWrittenHistoryEntry,
+      setErrorMessage,
+      setMarkOverrideInputByQuestionId,
     ],
   );
 
-  const handleMcAnswer = useCallback(
-    (selectedLabel: string) => {
-      if (!activeMcQuestion || isReviewingCompletedSet) return;
-      const existingAnswer = mcAnswersByQuestionId[activeMcQuestion.id];
-      if (existingAnswer) return;
-      const responseEnteredAtMs = Date.now();
-      const awardedMarks =
-        selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
-      setMcAnswersByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: selectedLabel,
-      }));
-      setMcAwardedMarksByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: awardedMarks,
-      }));
-      setMcMarkOverrideInputByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: String(awardedMarks),
-      }));
-      appendMcHistoryEntry(
-        activeMcQuestion,
-        selectedLabel,
-        awardedMarks,
-        'initial',
-        responseEnteredAtMs,
-      );
-      mcTimer.markAnswered(activeMcQuestion.id);
-      useAppStore.getState().recordCompletion('multiple-choice');
-    },
-    [
-      activeMcQuestion,
-      isReviewingCompletedSet,
-      mcAnswersByQuestionId,
-      setMcAnswersByQuestionId,
-      setMcAwardedMarksByQuestionId,
-      setMcMarkOverrideInputByQuestionId,
-      appendMcHistoryEntry,
-      mcTimer,
-    ],
-  );
-
-  const handleMcImageDrop = useCallback(
-    (files: File[]) => {
-      if (!activeMcQuestion) return;
-      const file = files[0];
-      if (!file) return;
-      const questionId = activeMcQuestion.id;
-      const imageId = crypto.randomUUID();
-      const timestamp = new Date().toISOString();
-      void fileToDataUrl(file)
-        .then(async (dataUrl) => {
-          setMcImagesByQuestionId((prev) => ({
-            ...prev,
-            [questionId]: { id: imageId, dataUrl, timestamp },
-          }));
-          if (user) {
-            try {
-              const { storagePath, downloadUrl } = await uploadImageDataUrl(
-                dataUrl,
-                questionId,
-                imageId,
-              );
-              setMcImagesByQuestionId((prev) => ({
-                ...prev,
-                [questionId]: {
-                  id: imageId,
-                  dataUrl,
-                  storagePath,
-                  downloadUrl,
-                  timestamp,
-                },
-              }));
-            } catch (error) {
-              console.error('Firebase upload failed:', error);
-            }
+  const toggleSubtopics = useCallback(
+    <T extends string>(setter: (update: T[] | ((prev: T[]) => T[])) => void) =>
+      (sub: T | T[]) => {
+        setter((prev: T[]) => {
+          const subs = Array.isArray(sub) ? sub : [sub];
+          let next = [...prev];
+          for (const s of subs) {
+            if (next.includes(s)) next = next.filter((i: T) => i !== s);
+            else next.push(s);
           }
-        })
-        .catch(() =>
-          setErrorMessage('Unable to read the selected image file.'),
-        );
-    },
-    [activeMcQuestion, user, setErrorMessage],
+          return next;
+        });
+      },
+    [],
   );
 
-  const handleMcImageRemove = useCallback(() => {
-    if (!activeMcQuestion) return;
-    const currentImage = mcImagesByQuestionId[activeMcQuestion.id];
-    if (currentImage?.storagePath) {
-      void deleteImage(currentImage.storagePath).catch(console.error);
-    }
-    setMcImagesByQuestionId((prev) => removeKey(prev, activeMcQuestion.id));
-  }, [activeMcQuestion, mcImagesByQuestionId]);
+  // ── Render ─────────────────────────────────────────────────────────────────
 
-  const buildMcMarkingPrompt = useCallback((question: McQuestion) => {
-    if (!question) return '';
-    return `${question.promptMarkdown}\n\nOptions:\n${question.options.map((o) => `${o.label}. ${o.text}`).join('\n')}`;
-  }, []);
+  if (showSetup) {
+    return (
+      <SetupPanel
+        questionMode={questionMode}
+        onSetQuestionMode={setQuestionMode}
+        selectedTopics={selectedTopics}
+        onToggleTopic={toggleTopic}
+        mathMethodsSubtopics={mathMethodsSubtopics}
+        onToggleMathMethodsSubtopic={toggleSubtopics(setMathMethodsSubtopics)}
+        specialistMathSubtopics={specialistMathSubtopics}
+        onToggleSpecialistMathSubtopic={toggleSubtopics(
+          setSpecialistMathSubtopics,
+        )}
+        chemistrySubtopics={chemistrySubtopics}
+        onToggleChemistrySubtopic={toggleSubtopics(setChemistrySubtopics)}
+        physicalEducationSubtopics={physicalEducationSubtopics}
+        onTogglePhysicalEducationSubtopic={toggleSubtopics(
+          setPhysicalEducationSubtopics,
+        )}
+        biologySubtopics={biologySubtopics}
+        onToggleBiologySubtopic={toggleSubtopics(setBiologySubtopics)}
+        generalMathematicsSubtopics={generalMathematicsSubtopics}
+        onToggleGeneralMathematicsSubtopic={toggleSubtopics(
+          setGeneralMathematicsSubtopics,
+        )}
+        techMode={techMode}
+        onSetTechMode={setTechMode}
+        customFocusArea={customFocusArea}
+        onSetCustomFocusArea={setCustomFocusArea}
+        diversityStrictness={diversityStrictness}
+        onSetDiversityStrictness={setDiversityStrictness}
+        strictLatexValidation={strictLatexValidation}
+        onSetStrictLatexValidation={setStrictLatexValidation}
+        difficulty={difficulty}
+        onSetDifficulty={setDifficulty}
+        questionCount={questionCount}
+        onSetQuestionCount={setQuestionCount}
+        averageMarksPerQuestion={averageMarksPerQuestion}
+        onSetAverageMarksPerQuestion={setAverageMarksPerQuestion}
+        avoidSimilarQuestions={avoidSimilarQuestions}
+        onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
+        hasApiKey={Boolean(apiKey)}
+        canGenerate={canGenerate}
+        isGenerating={isGenerating}
+        isPaused={activeTimer.isPaused}
+        onTogglePause={togglePause}
+        generationStatus={generationStatus}
+        generationStartedAt={generationStartedAt}
+        formattedElapsedTime={activeTimer.formattedSessionTime}
+        onGenerate={() => void handleGenerateQuestions()}
+        onStartOver={resetPreferences}
+        batchProgress={batchProgress}
+        generationStrategy={generationStrategy}
+        generationSubCallProgress={generationSubCallProgress}
+      />
+    );
+  }
 
-  const handleArgueForMcMark = useCallback(async () => {
-    if (!activeMcQuestion || !activeMcAnswer) return;
-    const appealText = activeMcMarkAppeal.trim();
-    if (!appealText || !apiKey.trim() || !markModel.trim()) {
-      setErrorMessage('Ensure argument and configuration are ready.');
-      return;
-    }
-    setErrorMessage(null);
-    setIsMarking(true);
-    try {
-      const responseEnteredAtMs = Date.now();
-      const selectedOptionText =
-        activeMcQuestion.options.find((o) => o.label === activeMcAnswer)
-          ?.text ?? '';
-      const arguedAnswer = [
-        `Student selected option ${activeMcAnswer}: ${selectedOptionText}`,
-        `Student argument for marks:\n${appealText}`,
-      ]
-        .filter((p) => p.trim())
-        .join('\n\n');
-      const rawResponse = await invoke<unknown>('mark_answer', {
-        request: {
-          question: {
-            id: activeMcQuestion.id,
-            topic: activeMcQuestion.topic,
-            subtopic: activeMcQuestion.subtopic,
-            promptMarkdown: buildMcMarkingPrompt(activeMcQuestion),
-            maxMarks: 1,
-            techAllowed: Boolean(activeMcQuestion.techAllowed),
-          },
-          studentAnswer: arguedAnswer,
-          model: markModel,
-          apiKey,
-        },
-      });
-      const response = normalizeMarkResponse(rawResponse, 1);
-      const awardedMarks = Math.max(0, Math.min(1, response.achievedMarks));
-      setMcAwardedMarksByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: awardedMarks,
-      }));
-      setMcMarkOverrideInputByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: String(awardedMarks),
-      }));
-      appendMcHistoryEntry(
-        activeMcQuestion,
-        activeMcAnswer,
-        awardedMarks,
-        'appeal',
-        responseEnteredAtMs,
-      );
-    } catch (error) {
-      setErrorMessage(readBackendError(error));
-    } finally {
-      setIsMarking(false);
-    }
-  }, [
-    activeMcQuestion,
-    activeMcAnswer,
-    activeMcMarkAppeal,
-    apiKey,
-    markModel,
-    setErrorMessage,
-    setIsMarking,
-    setMcAwardedMarksByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-    appendMcHistoryEntry,
-    buildMcMarkingPrompt,
-  ]);
-
-  const handleOverrideMcMark = useCallback(() => {
-    if (!activeMcQuestion || !activeMcAnswer) return;
-    const parsed = Number(activeMcOverrideInput);
-    if (!Number.isFinite(parsed)) {
-      setErrorMessage('Enter a whole number to override the mark.');
-      return;
-    }
-    const clamped = Math.max(0, Math.min(1, Math.round(parsed)));
-    setErrorMessage(null);
-    setMcAwardedMarksByQuestionId((prev) => ({
-      ...prev,
-      [activeMcQuestion.id]: clamped,
-    }));
-    setMcMarkOverrideInputByQuestionId((prev) => ({
-      ...prev,
-      [activeMcQuestion.id]: String(clamped),
-    }));
-    if (clamped === 1) {
-      const updated = [...mcQuestions];
-      updated[activeMcQuestionIndex] = {
-        ...updated[activeMcQuestionIndex],
-        correctAnswer: activeMcAnswer,
-      };
-      setMcQuestions(updated);
-    }
-    updateLatestMcHistoryEntryMark(activeMcQuestion.id, clamped);
-  }, [
-    activeMcQuestion,
-    activeMcAnswer,
-    activeMcOverrideInput,
-    setErrorMessage,
-    setMcAwardedMarksByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-    mcQuestions,
-    activeMcQuestionIndex,
-    setMcQuestions,
-    updateLatestMcHistoryEntryMark,
-  ]);
-
-  const handleStartOver = useCallback(() => {
-    if (questionMode === 'written' && questions.length > 0) saveCurrentSet();
-    else if (questionMode === 'multiple-choice' && mcQuestions.length > 0)
-      saveCurrentSet();
-    resetPreferences();
-    setCustomFocusArea('');
-    setDiversityStrictness('moderate');
-    setStrictLatexValidation(true);
-    resetStopwatch();
-    useTutorStore.getState().clearAllSessions();
-    setBatchProgress([]);
-    setStreamText('');
-    setGenerationStatus(null);
-    setGenerationStartedAt(null);
-    setQuestions([]);
-    setWrittenRawModelOutput('');
-    setWrittenGenerationTelemetry(null);
-    setActiveQuestionIndex(0);
-    setWrittenQuestionPresentedAtById({});
-    setWrittenResponseEnteredAtById({});
-    setWrittenHistoryEntryIdByQuestionId({});
-    setAnswersByQuestionId({});
-    setImagesByQuestionId({});
-    setFeedbackByQuestionId({});
-    setMcQuestions([]);
-    setMcRawModelOutput('');
-    setMcGenerationTelemetry(null);
-    setActiveMcQuestionIndex(0);
-    setMcQuestionPresentedAtById({});
-    setMcAnswersByQuestionId({});
-    setMcMarkAppealByQuestionId({});
-    setMcMarkOverrideInputByQuestionId({});
-    setMcHistoryEntryIdByQuestionId({});
-    setMcAwardedMarksByQuestionId({});
-  }, [
-    questionMode,
-    questions.length,
-    mcQuestions.length,
-    saveCurrentSet,
-    resetStopwatch,
-    setActiveMcQuestionIndex,
-    setActiveQuestionIndex,
-    setAnswersByQuestionId,
-    setFeedbackByQuestionId,
-    setGenerationStartedAt,
-    setGenerationStatus,
-    setImagesByQuestionId,
-    setMcAnswersByQuestionId,
-    setMcGenerationTelemetry,
-    setMcQuestionPresentedAtById,
-    setMcQuestions,
-    setMcRawModelOutput,
-    setQuestions,
-    setWrittenGenerationTelemetry,
-    setWrittenQuestionPresentedAtById,
-    setWrittenRawModelOutput,
-    setWrittenResponseEnteredAtById,
-    setMcMarkAppealByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-    setMcAwardedMarksByQuestionId,
-    resetPreferences,
-  ]);
-
-  const isInSession = !showSetup && !showCompletionScreen;
-
-  useEffect(() => {
-    if (!isInSession) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target as EventTarget)) return;
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        if (questionMode === 'written' && canSubmitAnswer && !isMarking) {
-          void handleSubmitForMarking();
+  if (showCompletionScreen) {
+    return (
+      <CompletionScreen
+        questionMode={questionMode}
+        difficulty={difficulty}
+        accuracyPercent={completionAccuracyPercent}
+        formattedElapsedTime={activeTimer.formattedSessionTime}
+        completedCount={
+          questionMode === 'written' ? completedCount : mcCompletedCount
         }
-        return;
-      }
+        totalCount={
+          questionMode === 'written' ? questions.length : mcQuestions.length
+        }
+        onReview={() => setShowCompletionScreen(false)}
+        onStartOver={() => {
+          if (questionMode === 'written') setQuestions([]);
+          else setMcQuestions([]);
+        }}
+        sessionWrittenResults={sessionWrittenResults}
+        sessionMcResults={sessionMcResults}
+      />
+    );
+  }
 
-      if (e.key === 'ArrowRight' || e.key === 'n') {
-        e.preventDefault();
-        if (questionMode === 'written') handleNextWrittenQuestion();
-        else handleNextMcQuestion();
-        return;
-      }
-
-      if (e.key === 'ArrowLeft' || e.key === 'p') {
-        e.preventDefault();
-        if (questionMode === 'written') handlePrevWritten();
-        else handlePrevMc();
-        return;
-      }
-
-      if (e.key === 'Escape') {
-        if (isKeyboardShortcutsOpen) return;
-        e.preventDefault();
-        handleStartOver();
-        return;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    isInSession,
-    questionMode,
-    canSubmitAnswer,
-    isMarking,
-    handleNextWrittenQuestion,
-    handleNextMcQuestion,
-    handlePrevWritten,
-    handlePrevMc,
-    handleStartOver,
-    handleSubmitForMarking,
-    isKeyboardShortcutsOpen,
-  ]);
-
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className='min-h-full w-full flex flex-col gap-6 animate-in fade-in duration-500'>
-      {errorMessage && (
-        <div
-          role='alert'
-          aria-live='assertive'
-          className='mx-6 mt-6 bg-destructive/15 border border-destructive/30 text-destructive px-5 py-4 rounded-sm text-sm flex items-center gap-3 shadow-sm'
-        >
-          <XCircle className='w-5 h-5 shrink-0' />
-          <p className='font-medium flex-1'>{errorMessage}</p>
-          <div className='flex items-center gap-3'>
-            {lastFailedAction && (
-              <button
-                type='button'
-                onClick={() => {
-                  if (lastFailedAction === 'generate-written')
-                    void handleGenerateQuestions();
-                  else if (lastFailedAction === 'generate-mc')
-                    void handleGenerateMcQuestions();
-                  else if (lastFailedAction === 'mark-written')
-                    void handleSubmitForMarking();
-                  setLastFailedAction(null);
-                }}
-                className='text-sm font-semibold hover:underline'
-              >
-                Retry
-              </button>
-            )}
-            <button
-              type='button'
-              onClick={() => setErrorMessage(null)}
-              className='p-1 hover:bg-destructive/20 rounded-full transition-colors'
-              aria-label='Dismiss error'
-            >
-              <X className='w-4 h-4' />
-            </button>
-          </div>
-        </div>
-      )}
+    <div className='flex flex-col h-full overflow-hidden bg-background'>
+      <SessionHeader
+        type={questionMode === 'written' ? 'written' : 'mc'}
+        questionIndex={
+          questionMode === 'written'
+            ? activeQuestionIndex
+            : activeMcQuestionIndex
+        }
+        totalQuestions={
+          questionMode === 'written' ? questions.length : mcQuestions.length
+        }
+        completedCount={
+          questionMode === 'written' ? completedCount : mcCompletedCount
+        }
+        topic={
+          questionMode === 'written'
+            ? activeQuestion?.topic
+            : activeMcQuestion?.topic
+        }
+        difficulty={difficulty}
+        maxMarks={questionMode === 'written' ? activeQuestion?.maxMarks : 1}
+        techAllowed={
+          questionMode === 'written'
+            ? activeQuestion?.techAllowed
+            : activeMcQuestion?.techAllowed
+        }
+        isMathTopic={isMathTopic(
+          questionMode === 'written'
+            ? activeQuestion?.topic
+            : activeMcQuestion?.topic,
+        )}
+        isAtLast={
+          questionMode === 'written'
+            ? isAtLastWrittenQuestion
+            : isAtLastMcQuestion
+        }
+        canAdvance={
+          questionMode === 'written' ? canAdvanceWritten : canAdvanceMc
+        }
+        generationStartedAt={generationStartedAt}
+        telemetry={null}
+        isPaused={activeTimer.isPaused}
+        onTogglePause={togglePause}
+        onResetTimer={resetCurrentQuestionTimer}
+        onPrev={questionMode === 'written' ? handlePrevWritten : handlePrevMc}
+        onNext={
+          questionMode === 'written'
+            ? handleNextWrittenQuestion
+            : handleNextMcQuestion
+        }
+        onDelete={
+          questionMode === 'written'
+            ? handleCancelWrittenQuestion
+            : handleCancelMcQuestion
+        }
+        onExit={() => {
+          activeTimer.complete();
+          setShowCompletionScreen(true);
+        }}
+        getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+        questions={questionMode === 'written' ? questions : mcQuestions}
+      />
 
-      {showSetup ? (
-        <SetupPanel
-          questionMode={questionMode}
-          onSetQuestionMode={setQuestionMode}
-          selectedTopics={selectedTopics}
-          onToggleTopic={toggleTopic}
-          mathMethodsSubtopics={mathMethodsSubtopics}
-          onToggleMathMethodsSubtopic={toggleMathMethodsSubtopic}
-          specialistMathSubtopics={specialistMathSubtopics}
-          onToggleSpecialistMathSubtopic={toggleSpecialistMathSubtopic}
-          chemistrySubtopics={chemistrySubtopics}
-          onToggleChemistrySubtopic={toggleChemistrySubtopic}
-          physicalEducationSubtopics={physicalEducationSubtopics}
-          onTogglePhysicalEducationSubtopic={togglePhysicalEducationSubtopic}
-          biologySubtopics={biologySubtopics}
-          onToggleBiologySubtopic={toggleBiologySubtopic}
-          generalMathematicsSubtopics={generalMathematicsSubtopics}
-          onToggleGeneralMathematicsSubtopic={toggleGeneralMathematicsSubtopic}
-          techMode={techMode}
-          onSetTechMode={setTechMode}
-          customFocusArea={customFocusArea}
-          onSetCustomFocusArea={setCustomFocusArea}
-          diversityStrictness={diversityStrictness}
-          onSetDiversityStrictness={setDiversityStrictness}
-          strictLatexValidation={strictLatexValidation}
-          onSetStrictLatexValidation={setStrictLatexValidation}
-          difficulty={difficulty}
-          onSetDifficulty={setDifficulty}
-          questionCount={questionCount}
-          onSetQuestionCount={setQuestionCount}
-          averageMarksPerQuestion={averageMarksPerQuestion}
-          onSetAverageMarksPerQuestion={setAverageMarksPerQuestion}
-          avoidSimilarQuestions={avoidSimilarQuestions}
-          onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
-          hasApiKey={Boolean(apiKey)}
-          canGenerate={canGenerate}
-          isGenerating={isGenerating}
-          isPaused={activeTimer.isPaused}
-          onTogglePause={togglePause}
-          generationStatus={generationStatus}
-          generationStartedAt={generationStartedAt}
-          formattedElapsedTime={formattedElapsedTime}
-          onGenerate={() => {
-            if (questionMode === 'written') void handleGenerateQuestions();
-            else void handleGenerateMcQuestions();
-          }}
-          onStartOver={handleStartOver}
-          lastGenerationTelemetry={lastSessionTelemetry}
-          streamText={streamText}
-          batchProgress={batchProgress}
-          generationSubCallProgress={generationSubCallProgress}
-          generationStrategy={generationStrategy}
-        />
-      ) : showCompletionScreen && isSetComplete ? (
-        <CompletionScreen
-          questionMode={questionMode}
-          difficulty={difficulty}
-          accuracyPercent={completionAccuracyPercent ?? 0}
-          formattedElapsedTime={completionFormattedElapsedTime}
-          completedCount={
-            questionMode === 'written' ? completedCount : mcCompletedCount
-          }
-          totalCount={
-            questionMode === 'written' ? questions.length : mcQuestions.length
-          }
-          onReview={() => setShowCompletionScreen(false)}
-          onStartOver={handleStartOver}
-          perQuestionTiming={
+      <div className='flex-1 min-h-0 overflow-hidden relative'>
+        <QuestionSplitLayout
+          mode={questionMode === 'written' ? 'written' : 'mc'}
+          sketchpadActive={
             questionMode === 'written'
-              ? questions.map((q) => {
-                  const t = writtenTimer.getQuestionTiming(q.id);
-                  return t
-                    ? {
-                        questionId: q.id,
-                        timeUsedSeconds: t.elapsedSeconds,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      }
-                    : {
-                        questionId: q.id,
-                        timeUsedSeconds: 0,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      };
-                })
-              : mcQuestions.map((q) => {
-                  const t = mcTimer.getQuestionTiming(q.id);
-                  return t
-                    ? {
-                        questionId: q.id,
-                        timeUsedSeconds: t.elapsedSeconds,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      }
-                    : {
-                        questionId: q.id,
-                        timeUsedSeconds: 0,
-                        timeLimitSeconds: 0,
-                        finishedEarly: false,
-                      };
-                })
+              ? writtenSketchpadActive
+              : mcSketchpadActive
           }
-          sessionWrittenResults={sessionWrittenResults}
-          sessionMcResults={sessionMcResults}
-        />
-      ) : questionMode === 'written' ? (
-        <div className='flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500'>
-          <SessionHeader
-            type='written'
-            questionIndex={activeQuestionIndex}
-            totalQuestions={questions.length}
-            completedCount={completedCount}
-            topic={activeQuestion?.topic}
-            difficulty={difficulty}
-            maxMarks={activeQuestion?.maxMarks}
-            techAllowed={activeQuestion?.techAllowed}
-            isMathTopic={isMathTopic(activeQuestion?.topic)}
-            isAtLast={isAtLastWrittenQuestion}
-            canAdvance={canAdvanceWritten}
-            generationStartedAt={generationStartedAt}
-            telemetry={writtenGenerationTelemetry}
-            questionTimeSeconds={writtenTimer.currentQuestionElapsed}
-            isPaused={writtenTimer.isPaused}
-            isQuestionWarning={writtenTimer.isCurrentQuestionWarning}
-            questionMarks={writtenTimer.currentQuestionMarks}
-            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-            onPrev={handlePrevWritten}
-            onNext={handleNextWrittenQuestion}
-            onDelete={handleCancelWrittenQuestion}
-            onExit={handleStartOver}
-            onSaveDraft={() => {
-              const res = saveCurrentSet();
-              if (res) {
-                toast.success('Session draft saved');
-              }
-            }}
-            questions={questions}
-            onTogglePause={togglePause}
-            onResetTimer={resetCurrentQuestionTimer}
-          />
-          {showKeyboardHint && (
-            <div className='flex items-center justify-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground'>
-              <span>
-                Tip: Use{' '}
-                <kbd className='px-1 py-0.5 rounded bg-background border text-[10px] font-mono'>
-                  ←
-                </kbd>{' '}
-                <kbd className='px-1 py-0.5 rounded bg-background border text-[10px] font-mono'>
-                  →
-                </kbd>{' '}
-                to navigate,{' '}
-                <kbd className='px-1 py-0.5 rounded bg-background border text-[10px] font-mono'>
-                  Ctrl+Enter
-                </kbd>{' '}
-                to submit
-              </span>
-              <button
-                onClick={dismissKeyboardHint}
-                className='text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {activeQuestion && (
-            <div className='flex-1 overflow-y-auto'>
-              <div className='mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8'>
-                {activeFeedback ? (
-                  <div className='min-w-0 pb-10'>
-                    <WrittenFeedbackPanel
-                      questionId={activeQuestion.id}
-                      promptMarkdown={activeQuestion.promptMarkdown}
-                      answer={activeQuestionAnswer}
-                      image={activeQuestionImage}
-                      feedback={activeFeedback}
-                      appealText={activeMarkAppeal}
-                      overrideInput={activeOverrideInput}
-                      isMarking={isMarking}
-                      distinctness={activeQuestion.distinctnessScore}
-                      multiStepDepth={activeQuestion.multiStepDepth}
-                      onAppealChange={handleAppealChange}
-                      onOverrideInputChange={handleOverrideInputChange}
-                      onArgueForMark={() => void handleArgueForMark()}
-                      onApplyOverride={handleOverrideMark}
-                      onCriterionChange={handleOverrideCriterion}
-                    />
+          leftSlot={
+            questionMode === 'written' ? (
+              <div className='space-y-6'>
+                <div className='flex items-center justify-between'>
+                  <div className='flex items-center gap-2'>
+                    <span
+                      className={`px-2 py-0.5 text-xs font-medium border rounded-full ${getDifficultyBadgeClasses(difficulty)}`}
+                    >
+                      {difficulty}
+                    </span>
+                    {activeQuestion.subtopic && (
+                      <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>
+                        {activeQuestion.subtopic}
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <QuestionSplitLayout
-                    mode='written'
-                    sketchpadActive={writtenSketchpadActive}
-                    leftSlot={
-                      <MarkdownMath content={activeQuestion.promptMarkdown} />
-                    }
-                    rightSlot={
-                      <WrittenAnswerCard
-                        questionId={activeQuestion.id}
-                        sketchSessionKey={activeWrittenSketchSessionKey}
-                        answer={activeQuestionAnswer}
-                        image={activeQuestionImage}
-                        isMarking={isMarking}
-                        canSubmit={canSubmitAnswer}
-                        onAnswerChange={handleWrittenAnswerChange}
-                        onImageDrop={handleWrittenImageDrop}
-                        onImageRemove={handleWrittenImageRemove}
-                        onSubmit={handleSubmitForMarking}
-                        onSketchpadActiveChange={setWrittenSketchpadActive}
-                      />
-                    }
+                  <span className='text-sm font-semibold text-primary'>
+                    [{activeQuestion.maxMarks}{' '}
+                    {activeQuestion.maxMarks === 1 ? 'mark' : 'marks'}]
+                  </span>
+                </div>
+                <div className='prose dark:prose-invert max-w-none'>
+                  <MarkdownMath content={activeQuestion.promptMarkdown} />
+                </div>
+              </div>
+            ) : (
+              <div className='space-y-6'>
+                <div className='flex items-center justify-between'>
+                  <div className='flex items-center gap-2'>
+                    <span
+                      className={`px-2 py-0.5 text-xs font-medium border rounded-full ${getDifficultyBadgeClasses(difficulty)}`}
+                    >
+                      {difficulty}
+                    </span>
+                    {activeMcQuestion.subtopic && (
+                      <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>
+                        {activeMcQuestion.subtopic}
+                      </span>
+                    )}
+                  </div>
+                  <span className='text-sm font-semibold text-primary'>
+                    [1 mark]
+                  </span>
+                </div>
+                <div className='prose dark:prose-invert max-w-none'>
+                  <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                </div>
+              </div>
+            )
+          }
+          rightSlot={
+            questionMode === 'written' ? (
+              <div className='space-y-6 h-full flex flex-col'>
+                <WrittenAnswerCard
+                  questionId={activeQuestion.id}
+                  answer={activeQuestionAnswer}
+                  image={activeQuestionImage}
+                  onAnswerChange={handleWrittenAnswerChange}
+                  onImageDrop={handleWrittenImageDrop}
+                  onImageRemove={handleWrittenImageRemove}
+                  onSubmit={(p) => void handleSubmitForMarking(p)}
+                  isMarking={isMarking}
+                  canSubmit={!activeFeedback && !isMarking}
+                  sketchSessionKey={activeWrittenSketchSessionKey}
+                  onSketchpadActiveChange={setWrittenSketchpadActive}
+                />
+
+                {activeFeedback && (
+                  <WrittenFeedbackPanel
+                    questionId={activeQuestion.id}
+                    promptMarkdown={activeQuestion.promptMarkdown}
+                    answer={activeQuestionAnswer}
+                    image={activeQuestionImage}
+                    feedback={activeFeedback}
+                    appealText={activeMarkAppeal}
+                    onAppealChange={handleAppealChange}
+                    onArgueForMark={() => void handleArgueForMark()}
+                    overrideInput={activeOverrideInput}
+                    onOverrideInputChange={handleOverrideInputChange}
+                    onApplyOverride={handleOverrideMark}
+                    onCriterionChange={handleOverrideCriterion}
+                    isMarking={isMarking}
                   />
                 )}
+
+                <div className='flex justify-between items-center pt-4 mt-auto'>
+                  <Button
+                    variant='outline'
+                    onClick={handlePrevWritten}
+                    disabled={activeQuestionIndex === 0}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={handleNextWrittenQuestion}
+                    disabled={!canAdvanceWritten}
+                  >
+                    {isAtLastWrittenQuestion ? 'Finish' : 'Next Question'}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className='flex min-h-full flex-col animate-in slide-in-from-bottom-4 duration-500'>
-          <SessionHeader
-            type='mc'
-            questionIndex={activeMcQuestionIndex}
-            totalQuestions={mcQuestions.length}
-            completedCount={mcCompletedCount}
-            topic={activeMcQuestion?.topic}
-            difficulty={difficulty}
-            maxMarks={1}
-            techAllowed={Boolean(activeMcQuestion?.techAllowed)}
-            isMathTopic={isMathTopic(activeMcQuestion?.topic)}
-            isAtLast={isAtLastMcQuestion}
-            canAdvance={canAdvanceMc}
-            generationStartedAt={generationStartedAt}
-            telemetry={mcGenerationTelemetry}
-            questionTimeSeconds={mcTimer.currentQuestionElapsed}
-            isPaused={mcTimer.isPaused}
-            isQuestionWarning={mcTimer.isCurrentQuestionWarning}
-            questionMarks={mcTimer.currentQuestionMarks}
-            getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-            onPrev={handlePrevMc}
-            onNext={handleNextMcQuestion}
-            onDelete={handleCancelMcQuestion}
-            onExit={handleStartOver}
-            onSaveDraft={() => {
-              const res = saveCurrentSet();
-              if (res) {
-                toast.success('Session draft saved');
-              }
-            }}
-            questions={mcQuestions}
-            onTogglePause={togglePause}
-            onResetTimer={resetCurrentQuestionTimer}
-          />
-          {activeMcQuestion && (
-            <div className='flex-1 overflow-y-auto'>
-              <div className='mx-auto w-full max-w-8xl px-4 sm:px-6 lg:px-8 xl:px-12 py-4 sm:py-6 lg:py-8'>
-                <QuestionSplitLayout
-                  mode='mc'
-                  sketchpadActive={mcSketchpadActive}
-                  leftSlot={
-                    <div className='space-y-5'>
-                      <div className='p-6 bg-muted/20 rounded-md space-y-2'>
-                        <h1 className='text-xl font-bold'>
-                          Question {activeMcQuestionIndex + 1}
-                        </h1>
-                        <MarkdownMath
-                          content={activeMcQuestion.promptMarkdown}
-                        />
-                      </div>
-                      {countWords(activeMcQuestion.explanationMarkdown) >
-                        MC_MAX_EXPLANATION_WORDS && (
-                        <div className='rounded-[20px] border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-100/90'>
-                          <strong className='font-semibold'>Warning:</strong>{' '}
-                          Explanation is{' '}
-                          {countWords(activeMcQuestion.explanationMarkdown)}{' '}
-                          words (max {MC_MAX_EXPLANATION_WORDS}).
-                        </div>
-                      )}
-                    </div>
+            ) : (
+              <div className='space-y-6 h-full flex flex-col'>
+                <McAnswerCard
+                  options={activeMcQuestion.options}
+                  selectedAnswer={activeMcAnswer}
+                  correctAnswer={activeMcQuestion.correctAnswer}
+                  onSelectAnswer={handleMcAnswer}
+                  explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                  isSketchpadOpen={mcSketchpadActive}
+                  onToggleSketchpad={() =>
+                    setMcSketchpadActive(!mcSketchpadActive)
                   }
-                  rightSlot={
-                    mcSketchpadActive ? (
-                      <div className='flex flex-col space-y-4'>
-                        <McSketchpadPanel
-                          questionId={activeMcQuestion?.id}
-                          sketchSessionKey={activeMcSketchSessionKey}
-                          image={mcImagesByQuestionId[activeMcQuestion.id]}
-                          onImageDrop={handleMcImageDrop}
-                          onImageRemove={handleMcImageRemove}
-                        />
-                        <Button
-                          variant='outline'
-                          onClick={() => setMcSketchpadActive(false)}
-                        >
-                          <X className='w-4 h-4 mr-2' /> Hide Sketchpad
-                        </Button>
-                      </div>
-                    ) : (
-                      <McAnswerCard
-                        options={activeMcQuestion.options}
-                        correctAnswer={activeMcQuestion.correctAnswer}
-                        explanationMarkdown={
-                          activeMcQuestion.explanationMarkdown
-                        }
-                        selectedAnswer={activeMcAnswer}
-                        awardedMarks={activeMcAwardedMarks}
-                        appealText={activeMcMarkAppeal}
-                        overrideInput={activeMcOverrideInput}
-                        isMarking={isMarking}
-                        image={mcImagesByQuestionId[activeMcQuestion.id]}
-                        onSelectAnswer={handleMcAnswer}
-                        onAppealChange={handleMcAppealChange}
-                        onOverrideInputChange={handleMcOverrideInputChange}
-                        onArgueForMark={() => void handleArgueForMcMark()}
-                        onApplyOverride={handleOverrideMcMark}
-                        isSketchpadOpen={mcSketchpadActive}
-                        onToggleSketchpad={() =>
-                          setMcSketchpadActive((prev) => !prev)
-                        }
-                        onImageDrop={handleMcImageDrop}
-                        onImageRemove={handleMcImageRemove}
-                      />
-                    )
-                  }
+                  sketchSessionKey={activeMcSketchSessionKey}
+                  awardedMarks={activeMcAwardedMarks}
+                  appealText=''
+                  overrideInput={activeMcOverrideInput}
+                  onAppealChange={() => {}}
+                  onOverrideInputChange={handleMcOverrideInputChange}
+                  onArgueForMark={() => {}}
+                  onApplyOverride={handleMcOverrideMark}
+                  isMarking={isMarking}
+                  onImageDrop={() => {}}
+                  onImageRemove={() => {}}
                 />
+
+                <div className='flex justify-between items-center pt-4 mt-auto'>
+                  <Button
+                    variant='outline'
+                    onClick={handlePrevMc}
+                    disabled={activeMcQuestionIndex === 0}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={handleNextMcQuestion}
+                    disabled={!canAdvanceMc}
+                  >
+                    {isAtLastMcQuestion ? 'Finish' : 'Next Question'}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {isInSession && showKeyboardHint && (
-        <div className='fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-sm bg-foreground/90 text-background text-[11px] font-medium shadow-lg backdrop-blur-sm'>
-          <span>Tip: Use</span>
-          <kbd className='px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono'>
-            ←
-          </kbd>
-          <kbd className='px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono'>
-            →
-          </kbd>
-          <span>to navigate,</span>
-          <kbd className='px-1.5 py-0.5 rounded bg-background/20 text-[10px] font-mono'>
-            Esc
-          </kbd>
-          <span>to exit</span>
-          <button
-            type='button'
-            onClick={() => {
-              setShowKeyboardHint(false);
-              try {
-                localStorage.setItem('keyboard-hint-dismissed', '1');
-              } catch {
-                console.error(
-                  'Failed to save keyboard hint dismissal to localStorage',
-                );
-              }
-            }}
-            className='ml-2 text-background/60 hover:text-background cursor-pointer'
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {isInSession && (
-        <TutorPanel
-          questionId={activeQuestion?.id || activeMcQuestion?.id || ''}
-          contextPrompt={
-            activeQuestion?.promptMarkdown ||
-            activeMcQuestion?.promptMarkdown ||
-            ''
-          }
-          studentAnswer={
-            questionMode === 'written' ? activeQuestionAnswer : activeMcAnswer
-          }
-          image={
-            questionMode === 'written'
-              ? activeQuestionImage
-              : activeMcQuestionImage
-          }
-          sketchSessionKey={
-            questionMode === 'written'
-              ? activeWrittenSketchSessionKey
-              : activeMcSketchSessionKey
+            )
           }
         />
-      )}
+
+        {showKeyboardHint && (
+          <div className='absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm animate-in fade-in slide-in-from-bottom-4'>
+            <span>
+              Press{' '}
+              <kbd className='font-sans border px-1.5 py-0.5 rounded bg-white/20'>
+                ?
+              </kbd>{' '}
+              for shortcuts
+            </span>
+            <button
+              onClick={dismissKeyboardHint}
+              className='hover:text-white/70'
+            >
+              <X className='h-4 w-4' />
+            </button>
+          </div>
+        )}
+      </div>
 
       <ConfirmModal
         open={confirmOpen}
-        title='Remove question'
-        description={confirmMessage ?? undefined}
-        confirmText='Remove'
-        cancelText='Keep'
+        onCancel={() => setConfirmOpen(false)}
+        title='Remove Question?'
+        description={confirmMessage || ''}
         onConfirm={performConfirmedCancel}
-        onCancel={() => {
-          setConfirmOpen(false);
-          setPendingCancelType(null);
-          setConfirmMessage(null);
-        }}
+        confirmText='Remove'
+      />
+
+      <ConfirmModal
+        open={confirmOpen && Boolean(lastFailedAction)}
+        onCancel={() => setLastFailedAction(null)}
+        title='Generation Failed'
+        description='The generation request timed out or was interrupted. Would you like to retry the same parameters?'
+        onConfirm={() => void handleGenerateQuestions()}
+        confirmText='Retry'
       />
     </div>
   );

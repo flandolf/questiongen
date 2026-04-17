@@ -138,13 +138,6 @@ pub struct GenerateQuestionsRequest {
     pub recent_difficulty: Option<String>,
 }
 
-/// Deserialised directly from the model's JSON output.
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WrittenQuestionsPayload {
-    pub questions: Vec<GeneratedQuestion>,
-}
-
 /// Returned to the frontend (includes fields we compute locally).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -425,13 +418,6 @@ pub struct McQuestion {
     pub verb_diversity_count: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scaffold_pattern: Option<String>,
-}
-
-/// Deserialised directly from the model's JSON output.
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct McQuestionsPayload {
-    pub questions: Vec<McQuestion>,
 }
 
 /// Returned to the frontend (includes fields we compute locally).
