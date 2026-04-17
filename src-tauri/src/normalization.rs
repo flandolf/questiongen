@@ -236,10 +236,14 @@ mod tests {
         let mut questions = vec![GeneratedQuestion {
             id: "".to_string(),
             topic: " Math Methods ".to_string(),
-            subtopic: Some(" calculus ".to_string()),
+            subtopic: Some(" Totally Unique Subtopic ".to_string()),
             prompt_markdown: "Solve this. [2 marks](a) Next part.".to_string(),
             max_marks: 2,
-            chart_data: None,
+            tech_allowed: true,
+            distinctness_score: None,
+            multi_step_depth: None,
+            verb_diversity_count: None,
+            scaffold_pattern: None,
         }];
         let selected_topics = vec!["Mathematical Methods".to_string()];
 
@@ -247,7 +251,10 @@ mod tests {
 
         assert_eq!(questions[0].id, "q1");
         assert_eq!(questions[0].topic, "Mathematical Methods");
-        assert_eq!(questions[0].subtopic, Some("calculus".to_string()));
+        assert_eq!(
+            questions[0].subtopic,
+            Some("Totally Unique Subtopic".to_string())
+        );
         assert_eq!(
             questions[0].prompt_markdown,
             "Solve this. [2 marks]\n(a) Next part."
@@ -262,7 +269,11 @@ mod tests {
             subtopic: None,
             prompt_markdown: "Prompt [1 mark]".to_string(),
             max_marks: 1,
-            chart_data: None,
+            tech_allowed: true,
+            distinctness_score: None,
+            multi_step_depth: None,
+            verb_diversity_count: None,
+            scaffold_pattern: None,
         }];
         assert!(validate_written(&questions, 1).is_ok());
     }
@@ -275,7 +286,11 @@ mod tests {
             subtopic: None,
             prompt_markdown: "Prompt using integration by parts [1 mark]".to_string(),
             max_marks: 1,
-            chart_data: None,
+            tech_allowed: true,
+            distinctness_score: None,
+            multi_step_depth: None,
+            verb_diversity_count: None,
+            scaffold_pattern: None,
         }];
         let result = validate_written(&questions, 1);
         assert!(result.is_err());
@@ -309,7 +324,11 @@ mod tests {
             ],
             correct_answer: " a ".to_string(),
             explanation_markdown: " Explanation ".to_string(),
-            chart_data: None,
+            tech_allowed: true,
+            distinctness_score: None,
+            multi_step_depth: None,
+            verb_diversity_count: None,
+            scaffold_pattern: None,
         }];
 
         normalise_mc(&mut questions, &["Topic".to_string()], None);
