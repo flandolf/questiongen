@@ -277,6 +277,7 @@ export const SessionHeader = memo(function SessionHeader({
                     variant='ghost'
                     size='sm'
                     onClick={onSaveDraft}
+                    aria-label='Save draft'
                     className='h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10'
                   >
                     <Save className='w-3.5 h-3.5' />
@@ -335,7 +336,14 @@ export const SessionHeader = memo(function SessionHeader({
                     <Button
                       variant='ghost'
                       size='sm'
-                      onClick={() => void exportToPdf(`${topic || 'Exam'} - ${difficulty}`, questions, type === 'written' ? 'written' : 'multiple-choice')}
+                      onClick={() =>
+                        void exportToPdf(
+                          `${topic || 'Exam'} - ${difficulty}`,
+                          questions,
+                          type === 'written' ? 'written' : 'multiple-choice',
+                        )
+                      }
+                      aria-label='Export session'
                       className='h-9 w-9 p-0 rounded-full'
                     >
                       <FileText className='w-3.5 h-3.5' />

@@ -92,23 +92,46 @@ pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> Str
 
 pub fn subject_specific_guidance(topics: &[String]) -> String {
     let mut s = String::new();
+    let mut chemistry_flag = false;
+    let mut physical_education_flag = false;
+    let mut biology_flag = false;
+
     for topic in topics {
         let low = topic.to_lowercase();
         if low.contains("chemistry") {
-            s.push_str("\nVCE CHEMISTRY RULES:\n\
-                - Focus on VCAA key knowledge (e.g., green chemistry principles, stoichiometry, analytical techniques).\n\
-                - Always provide states of matter in chemical equations where appropriate.\n\
-                - Use correct IUPAC nomenclature.");
-        } else if low.contains("physical education") {
-            s.push_str("\nVCE PHYSICAL EDUCATION RULES:\n\
-                - Focus on biomechanical principles, energy systems, and training programs.\n\
-                - Ensure scenarios relate to VCE relevant sports and exercise contexts.");
-        } else if low.contains("biology") {
-            s.push_str("\nVCE BIOLOGY RULES:\n\
-                - Focus on molecular biology, genetics, and immunity.\n\
-                - Use precise biological terminology as per VCAA study design.");
+            chemistry_flag = true;
+        }
+        if low.contains("physical education") {
+            physical_education_flag = true;
+        }
+        if low.contains("biology") {
+            biology_flag = true;
         }
     }
+
+    if chemistry_flag {
+        s.push_str(
+            "\nVCE CHEMISTRY RULES:\n\
+            - Focus on VCAA key knowledge (e.g., green chemistry principles, stoichiometry, analytical techniques).\n\
+            - Always provide states of matter in chemical equations where appropriate.\n\
+            - Use correct IUPAC nomenclature.",
+        );
+    }
+    if physical_education_flag {
+        s.push_str(
+            "\nVCE PHYSICAL EDUCATION RULES:\n\
+            - Focus on biomechanical principles, energy systems, and training programs.\n\
+            - Ensure scenarios relate to VCE relevant sports and exercise contexts.",
+        );
+    }
+    if biology_flag {
+        s.push_str(
+            "\nVCE BIOLOGY RULES:\n\
+            - Focus on molecular biology, genetics, and immunity.\n\
+            - Use precise biological terminology as per VCAA study design.",
+        );
+    }
+
     s
 }
 
@@ -553,5 +576,36 @@ mod tests {
         let other_topics = vec!["Chemistry".to_string()];
         let other_note = math_methods_exam1_tech_free_note(&other_topics, "tech-free");
         assert!(other_note.is_empty());
+    }
+
+    #[test]
+    fn test_subject_specific_guidance_single_subject() {
+        let topics = vec!["Chemistry".to_string()];
+        let guidance = subject_specific_guidance(&topics);
+        assert!(guidance.contains("VCE CHEMISTRY RULES:"));
+        assert!(!guidance.contains("VCE BIOLOGY RULES:"));
+    }
+
+    #[test]
+    fn test_subject_specific_guidance_multiple_subjects() {
+        let topics = vec!["Chemistry".to_string(), "Biology".to_string()];
+        let guidance = subject_specific_guidance(&topics);
+        assert!(guidance.contains("VCE CHEMISTRY RULES:"));
+        assert!(guidance.contains("VCE BIOLOGY RULES:"));
+    }
+
+    #[test]
+    fn test_subject_specific_guidance_no_match() {
+        let topics = vec!["Mathematical Methods".to_string()];
+        let guidance = subject_specific_guidance(&topics);
+        assert!(guidance.is_empty());
+    }
+
+    #[test]
+    fn test_subject_specific_guidance_deduplication() {
+        let topics = vec!["Chemistry".to_string(), "Advanced Chemistry".to_string()];
+        let guidance = subject_specific_guidance(&topics);
+        let chem_count = guidance.matches("VCE CHEMISTRY RULES:").count();
+        assert_eq!(chem_count, 1);
     }
 }

@@ -1,6 +1,8 @@
-import { AnimatePresence,motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Command, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+
+import { useGenerationStatus } from '@/AppContext';
 
 const SHORTCUTS = [
   { key: '← / P', label: 'Previous Question', category: 'Navigation' },
@@ -10,13 +12,33 @@ const SHORTCUTS = [
   { key: '?', label: 'Show / Hide Shortcuts', category: 'General' },
 ];
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toUpperCase();
+  const editableSelectors = [
+    'INPUT',
+    'TEXTAREA',
+    'SELECT',
+    'BUTTON',
+    '[contenteditable="true"]',
+  ];
+  return (
+    editableSelectors.includes(tagName) ||
+    target.isContentEditable ||
+    Boolean(target.closest('[contenteditable="true"]'))
+  );
+}
+
 export function KeyboardShortcutsOverlay() {
-  const [isOpen, setIsOpen] = useState(false);
+  const {
+    isKeyboardShortcutsOpen: isOpen,
+    setIsKeyboardShortcutsOpen: setIsOpen,
+  } = useGenerationStatus();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '?' && (e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-        setIsOpen((prev) => !prev);
+      if (e.key === '?' && !isEditableTarget(e.target)) {
+        setIsOpen(!isOpen);
       }
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
@@ -25,7 +47,7 @@ export function KeyboardShortcutsOverlay() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, setIsOpen]);
 
   return (
     <AnimatePresence>
@@ -42,6 +64,9 @@ export function KeyboardShortcutsOverlay() {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="keyboard-shortcuts-title"
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl z-[10000] p-6"
           >
             <div className="flex items-center justify-between mb-6">
@@ -49,10 +74,11 @@ export function KeyboardShortcutsOverlay() {
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Command className="w-5 h-5 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold">Keyboard Shortcuts</h2>
+                <h2 id="keyboard-shortcuts-title" className="text-lg font-semibold">Keyboard Shortcuts</h2>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
+                aria-label="Close keyboard shortcuts"
                 className="p-1 hover:bg-muted rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />

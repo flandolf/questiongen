@@ -436,7 +436,8 @@ fn repair_fractions(text: &str) -> String {
 
 fn repair_common_math_spacing(s: &str) -> String {
     let mut out = s.to_string();
-    // Ensure space after common commands if followed by a letter
+    // Ensure space after common commands if followed by a non-alphabetic character (e.g., \sin(x) -> \sin (x))
+    // Skip if followed by a letter to avoid corrupting longer commands like \sinh or \limsup
     let commands = ["\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\lim"];
     for cmd in commands {
         let mut i = 0;
@@ -444,9 +445,9 @@ fn repair_common_math_spacing(s: &str) -> String {
             let actual_pos = i + pos;
             let next_char_pos = actual_pos + cmd.len();
             if let Some(next_char) = out[next_char_pos..].chars().next() {
-                if next_char.is_ascii_alphabetic() {
+                if !next_char.is_ascii_alphabetic() && !next_char.is_whitespace() {
                     out.insert(next_char_pos, ' ');
-                    i = next_char_pos + 1; // inserted ASCII space
+                    i = next_char_pos + 1; // Advance past the newly inserted space
                 } else {
                     i = next_char_pos + next_char.len_utf8(); // stay on UTF-8 boundary
                 }

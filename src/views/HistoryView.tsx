@@ -375,6 +375,7 @@ const McEntryCard = memo(function McEntryCard({
   const awarded = item.awardedMarks ?? (item.correct ? 1 : 0);
   const max = item.maxMarks ?? 1;
   const isCorrect = awarded >= max;
+  const accessibleLabel = `Select history item ${item.question.topic}${item.question.subtopic ? ` - ${item.question.subtopic}` : ''} from ${getRelativeTime(item.createdAt)}`;
 
   return (
     <Card
@@ -384,6 +385,15 @@ const McEntryCard = memo(function McEntryCard({
         ${isExpanded ? 'shadow-lg border-violet-700/40 dark:border-violet-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
       onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (
+          target.closest(
+            'input,button,a,textarea,select,summary,[role="button"]',
+          )
+        ) {
+          return;
+        }
+
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           onSelect();
@@ -399,6 +409,7 @@ const McEntryCard = memo(function McEntryCard({
               e.stopPropagation();
               onSelect();
             }}
+            aria-label={accessibleLabel}
             className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
           />
           {/* Left: topic + meta */}
@@ -445,7 +456,10 @@ const McEntryCard = memo(function McEntryCard({
           </div>
 
           {/* Right: score + actions */}
-          <div className='flex items-center gap-1.5 shrink-0'>
+          <div
+            className='flex items-center gap-1.5 shrink-0'
+            onClick={(e) => e.stopPropagation()}
+          >
             <ScorePill awarded={awarded} max={max} />
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
             <button
@@ -573,6 +587,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100,
         )
       : 0;
+  const accessibleLabel = `Select history item ${item.question.topic}${item.question.subtopic ? ` - ${item.question.subtopic}` : ''} from ${getRelativeTime(item.createdAt)}`;
 
   return (
     <Card
@@ -582,6 +597,15 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
         ${isExpanded ? 'shadow-lg border-sky-700/40 dark:border-sky-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
       onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (
+          target.closest(
+            'input,button,a,textarea,select,summary,[role="button"]',
+          )
+        ) {
+          return;
+        }
+
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           onSelect();
@@ -597,6 +621,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
               e.stopPropagation();
               onSelect();
             }}
+            aria-label={accessibleLabel}
             className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
           />
           {/* Left: topic + meta */}
@@ -631,7 +656,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           </div>
 
           {/* Right: score + actions */}
-          <div className='flex items-center gap-1.5 shrink-0'>
+          <div
+            className='flex items-center gap-1.5 shrink-0'
+            onClick={(e) => e.stopPropagation()}
+          >
             <ScorePill
               awarded={item.markResponse.achievedMarks}
               max={item.markResponse.maxMarks}
@@ -889,6 +917,9 @@ export function HistoryView() {
     null,
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMode, setConfirmMode] = useState<
+    'clear' | 'bulkDelete' | 'other'
+  >('other');
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
 
   const subjectCounts = useMemo(() => {
@@ -1036,8 +1067,8 @@ export function HistoryView() {
   const handleBulkDelete = useCallback(() => {
     const count = selectedEntryKeys.size;
     if (count === 0) return;
+    setConfirmMode('bulkDelete');
     setConfirmOpen(true);
-    setConfirmMessage(`Remove ${count} selected history entries? This cannot be undone.`);
   }, [selectedEntryKeys]);
 
   const performBulkDeleteConfirmed = useCallback(() => {
@@ -1062,9 +1093,15 @@ export function HistoryView() {
     } else {
       deleteMcHistoryEntry(pendingDeleteEntry.id);
     }
+    const thatKey = `${pendingDeleteEntry.kind}-${pendingDeleteEntry.id}`;
     setExpandedEntryKeys((cur) => {
       const next = new Set(cur);
-      next.delete(`${pendingDeleteEntry.kind}-${pendingDeleteEntry.id}`);
+      next.delete(thatKey);
+      return next;
+    });
+    setSelectedEntryKeys((cur) => {
+      const next = new Set(cur);
+      next.delete(thatKey);
       return next;
     });
     setPendingDeleteEntry(null);
@@ -1073,15 +1110,12 @@ export function HistoryView() {
   }
 
   function handleClear() {
-    const total = questionHistory.length + mcHistory.length;
+    setConfirmMode('clear');
     setConfirmOpen(true);
-    setConfirmMessage(
-      `Clear all ${total} history entries? Saved sets will be kept.`,
-    );
   }
 
   function performClearConfirmed() {
-    if (confirmMessage?.includes('selected')) {
+    if (confirmMode === 'bulkDelete') {
       performBulkDeleteConfirmed();
       return;
     }
@@ -1424,9 +1458,15 @@ export function HistoryView() {
       {/* ── Modals ── */}
       <ConfirmModal
         open={confirmOpen}
-        title='Clear History'
-        description={confirmMessage ?? undefined}
-        confirmText='Clear'
+        title={
+          confirmMode === 'clear' ? 'Clear History' : 'Remove Selected Entries'
+        }
+        description={
+          confirmMode === 'clear'
+            ? `Clear all ${questionHistory.length + mcHistory.length} history entries? Saved sets will be kept.`
+            : `Remove ${selectedEntryKeys.size} selected history entries? This cannot be undone.`
+        }
+        confirmText={confirmMode === 'clear' ? 'Clear' : 'Remove'}
         cancelText='Cancel'
         onConfirm={performClearConfirmed}
         onCancel={() => {
