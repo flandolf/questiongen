@@ -3,9 +3,9 @@ import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
   initializeFirestore,
-  memoryLocalCache,
   persistentLocalCache,
   persistentMultipleTabManager,
+  persistentSingleTabManager,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -34,34 +34,18 @@ const isTauriRuntime =
 
 /**
  * Firebase initialization helper: configures app, auth, firestore and
- * storage. Uses a memory-backed Firestore cache when running inside Tauri.
+ * storage. Uses a persistent Firestore cache.
  */
-
-if (isTauriRuntime) {
-  try {
-    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith('firestore_')) {
-        window.localStorage.removeItem(key);
-      }
-    }
-  } catch (error) {
-    console.warn(
-      '[Firebase] Failed to clear Firestore localStorage keys',
-      error,
-    );
-  }
-}
 
 const db = (() => {
   try {
     return initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
-      localCache: isTauriRuntime
-        ? memoryLocalCache()
-        : persistentLocalCache({
-            tabManager: persistentMultipleTabManager(),
-          }),
+      localCache: persistentLocalCache({
+        tabManager: isTauriRuntime
+          ? persistentSingleTabManager(undefined)
+          : persistentMultipleTabManager(),
+      }),
     });
   } catch (error) {
     console.warn(

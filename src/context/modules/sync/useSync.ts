@@ -26,6 +26,7 @@ import type { Preset, StreakData, StudyGoals } from '@/types';
 
 import { auth, db } from '../firebase-init';
 import {
+  migrateSettings,
   saveGenerationRecord,
   saveMcHistoryEntry,
   saveQuestionHistoryEntry,
@@ -268,58 +269,32 @@ export function useSync(): UseSyncReturn {
           },
         );
 
-        // 4. Settings - Main
-        const settingsMainUnsub = onSnapshot(
-          doc(db, `users/${uid}/settings`, 'main'),
+        // 4. Consolidated Settings (replacing main, goals, presets)
+        const settingsUnsub = onSnapshot(
+          doc(db, `users/${uid}/settings`, 'profile'),
           (snapshot) => {
-            console.info('[FirebaseSync] Received main settings snapshot.');
-            if (snapshot.exists()) {
-              const data = snapshot.data() as { apiKey?: string };
-              if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
-            }
-          },
-          (error) => {
-            console.error(
-              '[FirebaseSync] Main settings listener error:',
-              error,
-            );
-            setSyncStatus('error');
-          },
-        );
-
-        // 5. Settings - Goals
-        const settingsGoalsUnsub = onSnapshot(
-          doc(db, `users/${uid}/settings`, 'goals'),
-          (snapshot) => {
+            console.info('[FirebaseSync] Received settings profile snapshot.');
             if (snapshot.exists()) {
               const data = snapshot.data() as {
+                apiKey?: string;
                 studyGoals?: StudyGoals;
                 streakData?: StreakData;
+                presets?: Preset[];
               };
+              if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
               if (data?.studyGoals)
                 useAppStore.setState({ studyGoals: data.studyGoals });
               if (data?.streakData)
                 useAppStore.setState({ streakData: data.streakData });
-            }
-          },
-          (error) => {
-            console.error('[FirebaseSync] Goals listener error:', error);
-            setSyncStatus('error');
-          },
-        );
-
-        // 6. Settings - Presets
-        const settingsPresetsUnsub = onSnapshot(
-          doc(db, `users/${uid}/settings`, 'presets'),
-          (snapshot) => {
-            if (snapshot.exists()) {
-              const data = snapshot.data() as { presets?: Preset[] };
               if (data?.presets)
                 useAppStore.setState({ presets: data.presets });
             }
           },
           (error) => {
-            console.error('[FirebaseSync] Presets listener error:', error);
+            console.error(
+              '[FirebaseSync] Settings profile listener error:',
+              error,
+            );
             setSyncStatus('error');
           },
         );
@@ -329,10 +304,11 @@ export function useSync(): UseSyncReturn {
           mchUnsub,
           ghUnsub,
           ssUnsub,
-          settingsMainUnsub,
-          settingsGoalsUnsub,
-          settingsPresetsUnsub,
+          settingsUnsub,
         ];
+
+        // Trigger migration of old settings if needed
+        void migrateSettings();
 
         // After setting up listeners, trigger a one-time sync up of any pending local data
         syncUpPendingData();
