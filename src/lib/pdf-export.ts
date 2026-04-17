@@ -1,6 +1,17 @@
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 import { toast } from 'sonner';
 
 import type { GeneratedQuestion, McQuestion } from '@/types';
+
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export function exportToPdf(
   title: string,
@@ -8,24 +19,61 @@ export function exportToPdf(
   _questionMode: 'written' | 'multiple-choice',
 ) {
   try {
-    // For now, since we don't have a native PDF generator yet,
-    // we'll implement a "Print to PDF" approach using the browser's print functionality
-    // but with a nicely formatted print-only stylesheet.
-
-    // In a real production app with Rust backend, we'd call a native command.
-    // Let's create a print-only container, populate it, and call window.print().
-
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Could not open print window. Please check your pop-up blocker.');
+      toast.error(
+        'Could not open print window. Please check your pop-up blocker.',
+      );
       return;
     }
+
+    const escapedTitle = escapeHtml(title);
+
+    const renderMarkdown = (md: string) => {
+      return DOMPurify.sanitize(marked.parse(md) as string);
+    };
 
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>${title}</title>
+        <title>${escapedTitle}</title>
+        <meta charset="UTF-8">
+        <script>
+          window.MathJax = {
+            tex: {
+              inlineMath: [['$', '$']],
+              displayMath: [['$$', '$$']],
+              packages: {'[+]': ['ams', 'textmacros']}
+            },
+            loader: {load: ['[tex]/ams', '[tex]/textmacros']},
+            startup: {
+              typeset: true,
+              ready: () => {
+                window.MathJax.startup.defaultReady();
+                window.MathJax.startup.promise.then(() => {
+                  // Small delay to ensure rendering finished before print dialog
+                  setTimeout(() => {
+                    window.print();
+                  }, 500);
+                });
+              }
+            }
+          };
+
+          // Fallback if MathJax fails to load or typeset
+          const fallbackId = setTimeout(() => {
+             console.warn('MathJax print fallback triggered');
+             window.print();
+          }, 5000);
+
+          window.addEventListener('load', () => {
+            if (window.MathJax?.startup?.promise) {
+              window.MathJax.startup.promise.then(() => clearTimeout(fallbackId));
+            }
+          });
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js" id="MathJax-script"></script>
         <style>
           @media print {
             @page { margin: 2cm; }
@@ -44,38 +92,44 @@ export function exportToPdf(
         </style>
       </head>
       <body>
-        <h1>${title}</h1>
+        <h1>${escapedTitle}</h1>
         <div class="meta">
           Generated via QuestionGen · ${new Date().toLocaleDateString()} · ${questions.length} Questions
         </div>
-        ${questions.map((q, i) => `
+        ${questions
+          .map(
+            (q, i) => `
           <div class="question">
             <div class="question-header">
               <span>Question ${i + 1}</span>
-              ${'maxMarks' in q ? `<span class="marks">[${q.maxMarks} marks]</span>` : ''}
+              ${'maxMarks' in q ? `<span class="marks">[${escapeHtml(String(q.maxMarks))} marks]</span>` : ''}
             </div>
-            <div class="prompt">${q.promptMarkdown}</div>
-            ${'options' in q ? `
+            <div class="prompt">${renderMarkdown(q.promptMarkdown)}</div>
+            ${
+              'options' in q
+                ? `
               <div class="options">
-                ${q.options.map(opt => `
+                ${q.options
+                  .map(
+                    (opt) => `
                   <div class="option">
-                    <strong>${opt.label}.</strong> ${opt.text}
+                    <strong>${escapeHtml(opt.label)}.</strong> ${renderMarkdown(opt.text)}
                   </div>
-                `).join('')}
+                `,
+                  )
+                  .join('')}
               </div>
-            ` : `
+            `
+                : `
               <div style="height: 100px; border: 1px dashed #ccc; margin-top: 0.5cm; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 9pt;">
                 Response area
               </div>
-            `}
+            `
+            }
           </div>
-        `).join('')}
-        <script>
-          window.onload = () => {
-            window.print();
-            // window.close();
-          };
-        </script>
+        `,
+          )
+          .join('')}
       </body>
       </html>
     `;

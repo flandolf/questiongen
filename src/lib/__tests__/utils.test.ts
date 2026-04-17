@@ -30,7 +30,9 @@ describe('utils', () => {
     });
 
     it('returns true for equal objects', () => {
-      expect(isDeepEqual({ a: 1, b: { c: 2 } }, { a: 1, b: { c: 2 } })).toBe(true);
+      expect(isDeepEqual({ a: 1, b: { c: 2 } }, { a: 1, b: { c: 2 } })).toBe(
+        true,
+      );
     });
 
     it('returns false for unequal objects', () => {

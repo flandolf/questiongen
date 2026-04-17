@@ -8,6 +8,7 @@ use std::collections::HashMap;
 pub struct AppError {
     pub code: &'static str,
     pub message: String,
+    pub status: Option<u16>,
 }
 
 impl AppError {
@@ -15,7 +16,26 @@ impl AppError {
         Self {
             code,
             message: message.into(),
+            status: None,
         }
+    }
+
+    pub fn with_status(mut self, status: u16) -> Self {
+        self.status = Some(status);
+        self
+    }
+
+    pub fn is_transient(&self) -> bool {
+        if let Some(status) = self.status {
+            if status == 429 || (500..600).contains(&status) {
+                return true;
+            }
+        }
+
+        // Fallback for non-HTTP errors or explicit codes
+        matches!(self.code, "NETWORK_ERROR" | "TIMEOUT_ERROR")
+            || self.message.to_lowercase().contains("timeout")
+            || self.message.to_lowercase().contains("network")
     }
 }
 

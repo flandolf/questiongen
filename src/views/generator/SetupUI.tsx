@@ -113,7 +113,10 @@ export function GroupedSubtopicSelector({
   }, [groups, searchTerm]);
 
   const toggleSelectAllInUnit = (unit: string) => {
-    const unitGroups = groups.filter((g) => g.unit === unit);
+    // When searching, only affect visible subtopics in this unit.
+    const unitGroups = (searchTerm.trim() ? filteredGroups : groups).filter(
+      (g) => g.unit === unit,
+    );
     const allSubtopics = unitGroups.flatMap((g) => g.subtopics);
 
     const toSelect = allSubtopics.filter((s) => !selected.includes(s));
@@ -185,11 +188,14 @@ export function GroupedSubtopicSelector({
               placeholder='Search subtopics...'
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label='Search subtopics'
               className='w-full h-9 pl-9 pr-8 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all'
             />
             {searchTerm && (
               <button
+                type='button'
                 onClick={() => setSearchTerm('')}
+                aria-label='Clear search'
                 className='absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
               >
                 <X className='h-3.5 w-3.5' />

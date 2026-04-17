@@ -12,6 +12,7 @@ import {
   useMultipleChoiceSession,
   useWrittenSession,
 } from '@/AppContext';
+import { isEditableTarget } from '@/components/layout/KeyboardShortcutsOverlay';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { Button } from '@/components/ui/button';
@@ -344,6 +345,7 @@ export function GeneratorView() {
     setIsMarking,
     errorMessage,
     setErrorMessage,
+    isKeyboardShortcutsOpen,
   } = useGenerationStatus();
 
   const addGenerationRecord = useAppStore((s) => s.addGenerationRecord);
@@ -1006,6 +1008,23 @@ export function GeneratorView() {
     setShowKeyboardHint(false);
     localStorage.setItem('keyboard-hint-dismissed', '1');
   }, [setShowKeyboardHint]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    void listen('generation-reset', () => {
+      setStreamText('');
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    });
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -2780,9 +2799,7 @@ export function GeneratorView() {
   useEffect(() => {
     if (!isInSession) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      const isEditable = (e.target as HTMLElement)?.isContentEditable;
-      if (tag === 'TEXTAREA' || tag === 'INPUT' || isEditable) return;
+      if (isEditableTarget(e.target as EventTarget)) return;
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
@@ -2807,6 +2824,7 @@ export function GeneratorView() {
       }
 
       if (e.key === 'Escape') {
+        if (isKeyboardShortcutsOpen) return;
         e.preventDefault();
         handleStartOver();
         return;
@@ -2825,6 +2843,7 @@ export function GeneratorView() {
     handlePrevMc,
     handleStartOver,
     handleSubmitForMarking,
+    isKeyboardShortcutsOpen,
   ]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -2999,8 +3018,10 @@ export function GeneratorView() {
             onDelete={handleCancelWrittenQuestion}
             onExit={handleStartOver}
             onSaveDraft={() => {
-              saveCurrentSet();
-              toast.success('Session draft saved');
+              const res = saveCurrentSet();
+              if (res) {
+                toast.success('Session draft saved');
+              }
             }}
             questions={questions}
             onTogglePause={togglePause}
@@ -3107,8 +3128,10 @@ export function GeneratorView() {
             onDelete={handleCancelMcQuestion}
             onExit={handleStartOver}
             onSaveDraft={() => {
-              saveCurrentSet();
-              toast.success('Session draft saved');
+              const res = saveCurrentSet();
+              if (res) {
+                toast.success('Session draft saved');
+              }
             }}
             questions={mcQuestions}
             onTogglePause={togglePause}

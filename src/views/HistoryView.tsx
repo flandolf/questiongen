@@ -74,6 +74,16 @@ interface ExportAnkiResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const INTERACTIVE_DESCENDANT_SELECTOR =
+  'input,button,a,textarea,select,summary,[role="button"]';
+
+function isInteractiveDescendant(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    !!target.closest(INTERACTIVE_DESCENDANT_SELECTOR)
+  );
+}
+
 function getEntryScore(item: AnyEntry): number {
   if (item.kind === 'written') {
     return (
@@ -375,6 +385,7 @@ const McEntryCard = memo(function McEntryCard({
   const awarded = item.awardedMarks ?? (item.correct ? 1 : 0);
   const max = item.maxMarks ?? 1;
   const isCorrect = awarded >= max;
+  const accessibleLabel = `Select history item ${item.question.topic}${item.question.subtopic ? ` - ${item.question.subtopic}` : ''} from ${getRelativeTime(item.createdAt)}`;
 
   return (
     <Card
@@ -384,6 +395,10 @@ const McEntryCard = memo(function McEntryCard({
         ${isExpanded ? 'shadow-lg border-violet-700/40 dark:border-violet-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
       onClick={(e) => {
+        if (isInteractiveDescendant(e.target)) {
+          return;
+        }
+
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           onSelect();
@@ -393,13 +408,14 @@ const McEntryCard = memo(function McEntryCard({
       <CardHeader className='px-4 py-2 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
           <input
-            type="checkbox"
+            type='checkbox'
             checked={isSelected}
             onChange={(e) => {
               e.stopPropagation();
               onSelect();
             }}
-            className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            aria-label={accessibleLabel}
+            className='mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer'
           />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
@@ -445,7 +461,10 @@ const McEntryCard = memo(function McEntryCard({
           </div>
 
           {/* Right: score + actions */}
-          <div className='flex items-center gap-1.5 shrink-0'>
+          <div
+            className='flex items-center gap-1.5 shrink-0'
+            onClick={(e) => e.stopPropagation()}
+          >
             <ScorePill awarded={awarded} max={max} />
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
             <button
@@ -573,6 +592,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100,
         )
       : 0;
+  const accessibleLabel = `Select history item ${item.question.topic}${item.question.subtopic ? ` - ${item.question.subtopic}` : ''} from ${getRelativeTime(item.createdAt)}`;
 
   return (
     <Card
@@ -582,6 +602,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
         ${isExpanded ? 'shadow-lg border-sky-700/40 dark:border-sky-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
       onClick={(e) => {
+        if (isInteractiveDescendant(e.target)) {
+          return;
+        }
+
         if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           onSelect();
@@ -591,13 +615,14 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
       <CardHeader className='px-4 py-3 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
           <input
-            type="checkbox"
+            type='checkbox'
             checked={isSelected}
             onChange={(e) => {
               e.stopPropagation();
               onSelect();
             }}
-            className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            aria-label={accessibleLabel}
+            className='mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer'
           />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
@@ -631,7 +656,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
           </div>
 
           {/* Right: score + actions */}
-          <div className='flex items-center gap-1.5 shrink-0'>
+          <div
+            className='flex items-center gap-1.5 shrink-0'
+            onClick={(e) => e.stopPropagation()}
+          >
             <ScorePill
               awarded={item.markResponse.achievedMarks}
               max={item.markResponse.maxMarks}
@@ -889,7 +917,9 @@ export function HistoryView() {
     null,
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const [confirmMode, setConfirmMode] = useState<'clear' | 'bulkDelete'>(
+    'bulkDelete',
+  );
 
   const subjectCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -1036,8 +1066,8 @@ export function HistoryView() {
   const handleBulkDelete = useCallback(() => {
     const count = selectedEntryKeys.size;
     if (count === 0) return;
+    setConfirmMode('bulkDelete');
     setConfirmOpen(true);
-    setConfirmMessage(`Remove ${count} selected history entries? This cannot be undone.`);
   }, [selectedEntryKeys]);
 
   const performBulkDeleteConfirmed = useCallback(() => {
@@ -1051,7 +1081,6 @@ export function HistoryView() {
     });
     setSelectedEntryKeys(new Set());
     setConfirmOpen(false);
-    setConfirmMessage(null);
     toast.success('Selected entries removed');
   }, [selectedEntryKeys, deleteQuestionHistoryEntry, deleteMcHistoryEntry]);
 
@@ -1062,9 +1091,15 @@ export function HistoryView() {
     } else {
       deleteMcHistoryEntry(pendingDeleteEntry.id);
     }
+    const thatKey = `${pendingDeleteEntry.kind}-${pendingDeleteEntry.id}`;
     setExpandedEntryKeys((cur) => {
       const next = new Set(cur);
-      next.delete(`${pendingDeleteEntry.kind}-${pendingDeleteEntry.id}`);
+      next.delete(thatKey);
+      return next;
+    });
+    setSelectedEntryKeys((cur) => {
+      const next = new Set(cur);
+      next.delete(thatKey);
       return next;
     });
     setPendingDeleteEntry(null);
@@ -1073,28 +1108,24 @@ export function HistoryView() {
   }
 
   function handleClear() {
-    const total = questionHistory.length + mcHistory.length;
+    setConfirmMode('clear');
     setConfirmOpen(true);
-    setConfirmMessage(
-      `Clear all ${total} history entries? Saved sets will be kept.`,
-    );
   }
 
   function performClearConfirmed() {
-    if (confirmMessage?.includes('selected')) {
+    if (confirmMode === 'bulkDelete') {
       performBulkDeleteConfirmed();
-      return;
+    } else if (confirmMode === 'clear') {
+      clearQuestionHistory();
+      clearMcHistory();
+      setSubjectFilter(null);
+      setModeFilter('all');
+      setSearchQuery('');
+      setExpandedEntryKeys(new Set());
+      setSelectedEntryKeys(new Set());
+      setConfirmOpen(false);
+      toast.success('History cleared');
     }
-    clearQuestionHistory();
-    clearMcHistory();
-    setSubjectFilter(null);
-    setModeFilter('all');
-    setSearchQuery('');
-    setExpandedEntryKeys(new Set());
-    setSelectedEntryKeys(new Set());
-    setConfirmOpen(false);
-    setConfirmMessage(null);
-    toast.success('History cleared');
   }
 
   function clearAllFilters() {
@@ -1158,28 +1189,28 @@ export function HistoryView() {
       <StatsBar entries={combined} />
 
       {selectedEntryKeys.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">
+        <div className='flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2'>
+          <div className='flex items-center gap-3'>
+            <span className='text-sm font-semibold'>
               {selectedEntryKeys.size} items selected
             </span>
             <Button
-              variant="ghost"
-              size="sm"
+              variant='ghost'
+              size='sm'
               onClick={() => setSelectedEntryKeys(new Set())}
-              className="text-xs h-7"
+              className='text-xs h-7'
             >
               Clear selection
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className='flex items-center gap-2'>
             <Button
-              variant="destructive"
-              size="sm"
+              variant='destructive'
+              size='sm'
               onClick={handleBulkDelete}
-              className="gap-2 h-8"
+              className='gap-2 h-8'
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className='h-3.5 w-3.5' />
               Delete Selected
             </Button>
           </div>
@@ -1424,14 +1455,19 @@ export function HistoryView() {
       {/* ── Modals ── */}
       <ConfirmModal
         open={confirmOpen}
-        title='Clear History'
-        description={confirmMessage ?? undefined}
-        confirmText='Clear'
+        title={
+          confirmMode === 'clear' ? 'Clear History' : 'Remove Selected Entries'
+        }
+        description={
+          confirmMode === 'clear'
+            ? `Clear all ${questionHistory.length + mcHistory.length} history entries? Saved sets will be kept.`
+            : `Remove ${selectedEntryKeys.size} selected history entries? This cannot be undone.`
+        }
+        confirmText={confirmMode === 'clear' ? 'Clear' : 'Remove'}
         cancelText='Cancel'
         onConfirm={performClearConfirmed}
         onCancel={() => {
           setConfirmOpen(false);
-          setConfirmMessage(null);
         }}
       />
 
