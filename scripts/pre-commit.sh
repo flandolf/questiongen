@@ -20,6 +20,9 @@ bun run lint:fix
 echo "✅ Running typecheck..."
 bun run typecheck
 
+echo "🔍 Running tests..."
+bun run test:run
+
 echo "💅 Formatting code with Prettier..."
 bun run prettier
 
@@ -33,8 +36,5 @@ echo "🔍 Running cargo check..."
 cargo check --manifest-path ./src-tauri/Cargo.toml
 
 echo "🎉 All pre-commit checks passed!"
-
-echo "📦 Bumping version code..."
-bun run scripts/version.ts
 
 echo "✅ Pre-commit script completed successfully!"

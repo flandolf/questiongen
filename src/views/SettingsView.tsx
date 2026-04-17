@@ -140,7 +140,7 @@ export function SettingsView() {
   const [activeSection, setActiveSection] = useState<Section>('api');
 
   return (
-    <div className='flex h-full min-h-0 bg-background/50 backdrop-blur-3xl'>
+    <div className='flex h-full min-h-0 backdrop-blur-3xl'>
       <nav className='w-64 shrink-0 border-r border-border/50 flex flex-col py-6 px-3 overflow-y-auto overflow-x-hidden bg-muted/20'>
         <div className='flex flex-col gap-8'>
           {SIDEBAR_CATEGORIES.map((category) => (
@@ -234,7 +234,7 @@ export function SettingsView() {
         </div>
       </nav>
 
-      <main className='flex-1 min-w-0 overflow-y-auto bg-background/30'>
+      <main className='flex-1 min-w-0 overflow-y-auto'>
         <div className='max-w-4xl mx-auto p-12'>
           <AnimatePresence mode='wait'>
             <motion.div
