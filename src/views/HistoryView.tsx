@@ -408,14 +408,14 @@ const McEntryCard = memo(function McEntryCard({
       <CardHeader className='px-4 py-2 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
           <input
-            type="checkbox"
+            type='checkbox'
             checked={isSelected}
             onChange={(e) => {
               e.stopPropagation();
               onSelect();
             }}
             aria-label={accessibleLabel}
-            className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            className='mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer'
           />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
@@ -615,14 +615,14 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
       <CardHeader className='px-4 py-3 border-b border-border/40'>
         <div className='flex items-start justify-between gap-3'>
           <input
-            type="checkbox"
+            type='checkbox'
             checked={isSelected}
             onChange={(e) => {
               e.stopPropagation();
               onSelect();
             }}
             aria-label={accessibleLabel}
-            className="mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+            className='mt-2 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer'
           />
           {/* Left: topic + meta */}
           <div className='flex items-start gap-3 min-w-0 flex-1'>
@@ -920,7 +920,6 @@ export function HistoryView() {
   const [confirmMode, setConfirmMode] = useState<'clear' | 'bulkDelete'>(
     'bulkDelete',
   );
-  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
 
   const subjectCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -1082,7 +1081,6 @@ export function HistoryView() {
     });
     setSelectedEntryKeys(new Set());
     setConfirmOpen(false);
-    setConfirmMessage(null);
     toast.success('Selected entries removed');
   }, [selectedEntryKeys, deleteQuestionHistoryEntry, deleteMcHistoryEntry]);
 
@@ -1126,7 +1124,6 @@ export function HistoryView() {
       setExpandedEntryKeys(new Set());
       setSelectedEntryKeys(new Set());
       setConfirmOpen(false);
-      setConfirmMessage(null);
       toast.success('History cleared');
     }
   }
@@ -1192,28 +1189,28 @@ export function HistoryView() {
       <StatsBar entries={combined} />
 
       {selectedEntryKeys.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">
+        <div className='flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2'>
+          <div className='flex items-center gap-3'>
+            <span className='text-sm font-semibold'>
               {selectedEntryKeys.size} items selected
             </span>
             <Button
-              variant="ghost"
-              size="sm"
+              variant='ghost'
+              size='sm'
               onClick={() => setSelectedEntryKeys(new Set())}
-              className="text-xs h-7"
+              className='text-xs h-7'
             >
               Clear selection
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className='flex items-center gap-2'>
             <Button
-              variant="destructive"
-              size="sm"
+              variant='destructive'
+              size='sm'
               onClick={handleBulkDelete}
-              className="gap-2 h-8"
+              className='gap-2 h-8'
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className='h-3.5 w-3.5' />
               Delete Selected
             </Button>
           </div>
@@ -1471,7 +1468,6 @@ export function HistoryView() {
         onConfirm={performClearConfirmed}
         onCancel={() => {
           setConfirmOpen(false);
-          setConfirmMessage(null);
         }}
       />
 

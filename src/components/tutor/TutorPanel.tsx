@@ -200,7 +200,9 @@ const TutorHeader = ({
               <button
                 className={cn(
                   'font-medium text-muted-foreground bg-muted rounded border border-border/50 hover:bg-muted/80 transition-colors truncate',
-                  isCompact ? 'text-[9px] px-1 py-0' : 'text-[10px] px-1.5 py-0.5',
+                  isCompact
+                    ? 'text-[9px] px-1 py-0'
+                    : 'text-[10px] px-1.5 py-0.5',
                 )}
               >
                 {modelName || 'Select Model'}
@@ -317,7 +319,10 @@ const TutorHeader = ({
       <Button
         variant='ghost'
         size='icon'
-        className={cn('rounded-full hover:bg-muted', isCompact ? 'h-6 w-6' : 'h-8 w-8')}
+        className={cn(
+          'rounded-full hover:bg-muted',
+          isCompact ? 'h-6 w-6' : 'h-8 w-8',
+        )}
         onClick={() => {
           toggleCompact();
         }}
@@ -347,7 +352,10 @@ const TutorHeader = ({
       <Button
         variant='ghost'
         size='icon'
-        className={cn('rounded-full hover:bg-muted', isCompact ? 'h-6 w-6' : 'h-8 w-8')}
+        className={cn(
+          'rounded-full hover:bg-muted',
+          isCompact ? 'h-6 w-6' : 'h-8 w-8',
+        )}
         onClick={() => {
           setIsOpen(false);
         }}
@@ -367,7 +375,11 @@ const MessageItem = ({
   msg: { id: string; role: string; content: string };
   copiedId: string | null;
   isCompact: boolean;
-  handleCopyMessage: (id: string, content: string, type?: 'text' | 'md') => void;
+  handleCopyMessage: (
+    id: string,
+    content: string,
+    type?: 'text' | 'md',
+  ) => void;
 }) => (
   <div
     className={cn(
@@ -423,6 +435,691 @@ const MessageItem = ({
       )}
     </div>
   </div>
+);
+
+const TutorEmptyState = ({
+  isCompact,
+  onSuggestion,
+}: {
+  isCompact: boolean;
+  onSuggestion: (s: string) => void;
+}) => (
+  <div className='flex flex-col items-center justify-center text-center mt-10 space-y-4 px-4'>
+    <div className='bg-primary/5 p-2 rounded-full'>
+      <Brain
+        className={`text-primary/40 ${!isCompact ? 'h-6 w-6' : 'h-4 w-4'}`}
+      />
+    </div>
+    <div className='space-y-1'>
+      <p className='text-xs font-semibold'>Ask for guidance</p>
+      <p className='text-[11px] text-muted-foreground leading-relaxed'>
+        I can provide hints, check your working, or explain the core concepts of
+        this question.
+      </p>
+    </div>
+    <div className='flex flex-wrap justify-center gap-1.5 pt-2'>
+      {['Give me a hint', 'Explain this concept', 'Check my steps'].map(
+        (suggestion) => (
+          <button
+            key={suggestion}
+            onClick={() => onSuggestion(suggestion)}
+            className='text-[10px] px-2.5 py-1 rounded-full bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-colors'
+          >
+            {suggestion}
+          </button>
+        ),
+      )}
+    </div>
+  </div>
+);
+
+async function copyToClipboard(
+  content: string,
+  type: 'text' | 'md' = 'text',
+): Promise<string> {
+  let textToCopy = content;
+
+  if (type === 'text') {
+    // Convert Markdown to plain text by removing markdown syntax while preserving content
+    textToCopy = content
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, (match) => {
+        return match.replace(/```\w*\n?|\n?```/g, '').trim();
+      })
+      // Remove inline code backticks but keep content
+      .replace(/`([^`]+)`/g, '$1')
+      // Remove bold/italic markers but keep content
+      .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/___([^_]+)___/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      // Remove headers but keep content
+      .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+      // Remove links but keep text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove images
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+      // Remove blockquote markers
+      .replace(/^>\s+/gm, '')
+      // Remove horizontal rules
+      .replace(/^[-*_]{3,}$/gm, '')
+      // Clean up LaTeX delimiters (keep the math content)
+      .replace(/\$\$([^$]+)\$\$/g, '$1')
+      .replace(/\$([^$]+)\$/g, '$1');
+  }
+
+  await navigator.clipboard.writeText(textToCopy);
+  return type;
+}
+
+async function performTutorChat(params: {
+  activeModel: string;
+  activePersona: string;
+  contextPrompt: string;
+  studentAnswer?: string;
+  userMessageContent: string;
+  messages: { role: string; content: string }[];
+  image?: StudentAnswerImage;
+  sketchpadDataUrl?: string;
+  apiKey: string;
+  isDiagnostic: boolean;
+}) {
+  const {
+    activeModel,
+    activePersona,
+    contextPrompt,
+    studentAnswer,
+    userMessageContent,
+    messages,
+    image,
+    sketchpadDataUrl,
+    apiKey,
+    isDiagnostic,
+  } = params;
+
+  // Build full conversation history for the API
+  const apiMessages: TutorApiMessage[] = [];
+
+  const basePersona =
+    activePersona ||
+    'You are a helpful VCE tutor. Guide the student step-by-step using the Socratic method. Do not give away the final answer immediately.';
+  const formattingInstructions =
+    '\n\nIMPORTANT FORMATTING RULES:\n- Format math expressions using LaTeX.\n- Use single $...$ delimiters for inline math (e.g., $x^2 + y^2 = r^2$).\n- Use double $$...$$ delimiters for block/display math.\n- Format your response using Markdown (bold, italic, bullet points, etc.).';
+
+  // 1. Combined System Message (Persona + Formatting + Question Context)
+  let systemContent = basePersona + formattingInstructions;
+  systemContent += `\n\n--- QUESTION CONTEXT ---\n${contextPrompt}`;
+  if (studentAnswer) {
+    systemContent += `\n\n--- STUDENT'S WRITTEN ANSWER ---\n${studentAnswer}`;
+  }
+  if (image?.dataUrl || sketchpadDataUrl) {
+    systemContent +=
+      '\n\n--- VISUAL CONTEXT ---\nThe student has provided images/sketches. Use these to understand their working and provide targeted feedback.';
+  }
+
+  if (isDiagnostic) {
+    systemContent +=
+      '\n\n--- DIAGNOSTIC MODE ---\nThe student is requesting an error diagnosis. Carefully analyze their working and specifically point out where they might have gone wrong, but still try to guide them rather than just giving the fix.';
+  }
+
+  apiMessages.push({
+    role: 'system',
+    content: systemContent,
+  });
+
+  // 2. Conversation History
+  messages.forEach((m) => {
+    apiMessages.push({
+      role: m.role as 'system' | 'user' | 'assistant',
+      content: m.content,
+    });
+  });
+
+  // 3. New User Message with Images
+  const userContentParts: TutorApiContentPart[] = [
+    { type: 'text', text: userMessageContent },
+  ];
+
+  if (image?.dataUrl) {
+    userContentParts.push({
+      type: 'image_url',
+      image_url: { url: image.dataUrl },
+    });
+  }
+
+  if (sketchpadDataUrl) {
+    userContentParts.push({
+      type: 'image_url',
+      image_url: { url: sketchpadDataUrl },
+    });
+  }
+
+  apiMessages.push({
+    role: 'user',
+    content: userContentParts,
+  });
+
+  // Call backend
+  return await invoke<TutorChatResponse>('tutor_chat', {
+    request: {
+      messages: apiMessages,
+      model: activeModel,
+      apiKey: apiKey,
+      diagnostic: isDiagnostic,
+    },
+  });
+}
+
+const TutorChatArea = ({
+  messages,
+  isGenerating,
+  isCompact,
+  streamedContent,
+  sketchStatus,
+  copiedId,
+  showScrollButton,
+  scrollAreaRef,
+  messagesEndRef,
+  handleCopyMessage,
+  handleRegenerate,
+  handleSend,
+  scrollToBottom,
+  setShowScrollButton,
+}: {
+  messages: { id: string; role: string; content: string; createdAt: number }[];
+  isGenerating: boolean;
+  isCompact: boolean;
+  streamedContent: string;
+  sketchStatus: string;
+  copiedId: string | null;
+  showScrollButton: boolean;
+  scrollAreaRef: React.RefObject<HTMLDivElement | null>;
+  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  handleCopyMessage: (
+    id: string,
+    content: string,
+    type?: 'text' | 'md',
+  ) => void;
+  handleRegenerate: () => void;
+  handleSend: (suggestion: string) => void;
+  scrollToBottom: () => void;
+  setShowScrollButton: (show: boolean) => void;
+}) => (
+  <ScrollArea
+    ref={scrollAreaRef}
+    className='flex-1 min-h-0 p-2 bg-muted/5 relative'
+  >
+    <div className='space-y-2'>
+      {messages.length === 0 && !isGenerating && (
+        <TutorEmptyState
+          isCompact={isCompact}
+          onSuggestion={(s) => void handleSend(s)}
+        />
+      )}
+
+      <TutorMessageList
+        messages={messages}
+        isCompact={isCompact}
+        isGenerating={isGenerating}
+        copiedId={copiedId}
+        handleCopyMessage={handleCopyMessage}
+        handleRegenerate={handleRegenerate}
+      />
+
+      {/* Streaming chunk */}
+      <TutorStreamingChunk
+        isGenerating={isGenerating}
+        isCompact={isCompact}
+        streamedContent={streamedContent}
+        sketchStatus={sketchStatus}
+      />
+      <div ref={messagesEndRef} />
+    </div>
+
+    <TutorScrollButton
+      show={showScrollButton}
+      onClick={() => {
+        scrollToBottom();
+        setShowScrollButton(false);
+      }}
+    />
+  </ScrollArea>
+);
+
+const TutorInputArea = ({
+  isCompact,
+  isGenerating,
+  inputValue,
+  includeSketch,
+  sketchSessionKey,
+  sketchStatus,
+  sketchDataUrl,
+  image,
+  messages,
+  questionId,
+  setInputValue,
+  setIncludeSketch,
+  handleSend,
+  handleKeyDown,
+  handleDiagnosticRequest,
+  clearSession,
+}: {
+  isCompact: boolean;
+  isGenerating: boolean;
+  inputValue: string;
+  includeSketch: boolean;
+  sketchSessionKey?: string;
+  sketchStatus: string;
+  sketchDataUrl?: string;
+  image?: StudentAnswerImage;
+  messages: unknown[];
+  questionId: string;
+  setInputValue: (v: string) => void;
+  setIncludeSketch: (v: boolean) => void;
+  handleSend: () => void;
+  handleKeyDown: (e: React.KeyboardEvent) => void;
+  handleDiagnosticRequest: () => void;
+  clearSession: (qid: string) => void;
+}) => (
+  <div
+    className={cn(
+      'border-t border-border bg-card shrink-0',
+      isCompact ? 'p-1.5' : 'p-2',
+    )}
+  >
+    <div
+      className={cn(
+        'flex items-center justify-between px-1',
+        isCompact ? 'mb-0.5' : 'mb-1',
+      )}
+    >
+      {sketchSessionKey && (
+        <div className='flex items-center space-x-2'>
+          <Checkbox
+            id='include-sketch'
+            checked={includeSketch}
+            onCheckedChange={(checked) => setIncludeSketch(checked === true)}
+            className={isCompact ? 'h-3 w-3' : ''}
+          />
+          <Label
+            htmlFor='include-sketch'
+            className={cn(
+              'text-muted-foreground font-medium cursor-pointer',
+              isCompact ? 'text-[9px]' : 'text-[11px]',
+            )}
+          >
+            Include Sketch
+          </Label>
+        </div>
+      )}
+      <div className='flex items-center gap-1'>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={() => clearSession(questionId)}
+          disabled={isGenerating || messages.length === 0}
+          className={cn(
+            'text-muted-foreground hover:text-destructive hover:bg-destructive/5 flex items-center gap-1',
+            isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
+          )}
+          title='Clear Chat'
+        >
+          <Eraser className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+          Clear
+        </Button>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={handleDiagnosticRequest}
+          disabled={isGenerating}
+          className={cn(
+            'text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1',
+            isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
+          )}
+        >
+          <Activity className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+          Check work
+        </Button>
+      </div>
+    </div>
+    <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
+    <TutorAttachmentPreview
+      includeSketch={includeSketch}
+      sketchDataUrl={sketchDataUrl}
+      image={image}
+      setIncludeSketch={setIncludeSketch}
+    />
+    <div className='relative flex items-end gap-2'>
+      <Textarea
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder='Ask for a hint...'
+        className={cn(
+          'max-h-30 resize-none rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20',
+          isCompact
+            ? 'min-h-9 py-2 px-3 text-[11px] pr-10'
+            : 'min-h-11 py-3 px-4 text-xs pr-12',
+        )}
+        disabled={isGenerating}
+      />
+      <Button
+        size='icon'
+        className={cn(
+          'absolute transition-all duration-200',
+          isCompact
+            ? 'right-1 bottom-1 h-7 w-7 rounded-md'
+            : 'right-1.5 bottom-1.5 h-8 w-8 rounded-lg',
+        )}
+        onClick={() => void handleSend()}
+        disabled={!inputValue.trim() || isGenerating}
+      >
+        <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+      </Button>
+    </div>
+  </div>
+);
+
+const TutorStreamingChunk = ({
+  isGenerating,
+  isCompact,
+  streamedContent,
+  sketchStatus,
+}: {
+  isGenerating: boolean;
+  isCompact: boolean;
+  streamedContent: string;
+  sketchStatus: string;
+}) => {
+  if (!isGenerating) return null;
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300',
+        isCompact ? 'max-w-[92%]' : 'max-w-[85%]',
+      )}
+    >
+      <div
+        className={cn(
+          'rounded-2xl leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15',
+          isCompact ? 'px-3 py-1.5 text-[12px]' : 'px-4 py-2.5 text-[13px]',
+        )}
+      >
+        {streamedContent ? (
+          <MarkdownMath content={streamedContent} isStreaming />
+        ) : (
+          <div className='flex flex-col gap-2 py-1'>
+            <div className='flex gap-1'>
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1,
+                  times: [0, 0.5, 1],
+                }}
+                className='h-1.5 w-1.5 bg-primary rounded-full'
+              />
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1,
+                  times: [0, 0.5, 1],
+                  delay: 0.2,
+                }}
+                className='h-1.5 w-1.5 bg-primary rounded-full'
+              />
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1,
+                  times: [0, 0.5, 1],
+                  delay: 0.4,
+                }}
+                className='h-1.5 w-1.5 bg-primary rounded-full'
+              />
+            </div>
+            <span className='text-[10px] text-muted-foreground animate-pulse font-medium'>
+              {sketchStatus === 'sending'
+                ? 'Uploading work...'
+                : 'AI Tutor is thinking...'}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const TutorMessageList = ({
+  messages,
+  isCompact,
+  isGenerating,
+  copiedId,
+  handleCopyMessage,
+  handleRegenerate,
+}: {
+  messages: { id: string; role: string; content: string; createdAt: number }[];
+  isCompact: boolean;
+  isGenerating: boolean;
+  copiedId: string | null;
+  handleCopyMessage: (
+    id: string,
+    content: string,
+    type?: 'text' | 'md',
+  ) => void;
+  handleRegenerate: () => void;
+}) => (
+  <>
+    {messages.map((msg, idx) => (
+      <div key={msg.id} className='relative group/msg'>
+        <MessageItem
+          msg={msg}
+          copiedId={copiedId}
+          isCompact={isCompact}
+          handleCopyMessage={handleCopyMessage}
+        />
+        {msg.role === 'assistant' &&
+          idx === messages.length - 1 &&
+          !isGenerating && (
+            <button
+              onClick={() => void handleRegenerate()}
+              className={cn(
+                'absolute -bottom-6 left-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary px-2 py-1',
+              )}
+            >
+              <RefreshCcw className='h-3 w-3' />
+              Regenerate
+            </button>
+          )}
+        {msg.role === 'assistant' && idx === messages.length - 1 && (
+          <div className='h-6' />
+        )}
+      </div>
+    ))}
+  </>
+);
+
+async function getSketchpadImage(
+  sketchSessionKey: string,
+): Promise<string | undefined> {
+  return await new Promise<string | undefined>((resolve) => {
+    let resolved = false;
+
+    const handler = (e: Event) => {
+      if (resolved) return;
+      resolved = true;
+      window.removeEventListener('tutor-sketch-response', handler);
+      const customEvent = e as CustomEvent<{ dataUrl?: string }>;
+      resolve(customEvent.detail.dataUrl);
+    };
+    window.addEventListener('tutor-sketch-response', handler);
+
+    window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
+
+    // Fallback to local storage if Sketchpad component is unmounted or doesn't respond
+    setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      window.removeEventListener('tutor-sketch-response', handler);
+      console.warn(
+        '[Tutor] Sketchpad did not respond in time, falling back to local storage',
+      );
+      getSketchpadDataUrl(sketchSessionKey)
+        .then(resolve)
+        .catch(() => resolve(undefined));
+    }, 500);
+  });
+}
+
+const TutorScrollButton = ({
+  show,
+  onClick,
+}: {
+  show: boolean;
+  onClick: () => void;
+}) => (
+  <AnimatePresence>
+    {show && (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.8 }}
+        className='absolute bottom-4 right-4 z-10'
+      >
+        <Button
+          size='icon'
+          variant='secondary'
+          className='h-8 w-8 rounded-full shadow-lg border border-border'
+          onClick={onClick}
+        >
+          <ChevronDown className='h-4 w-4' />
+        </Button>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+function calculateTutorMetrics(result: TutorChatResponse) {
+  const promptTokens = Number(result.promptTokens ?? result.prompt_tokens);
+  const completionTokens = Number(
+    result.completionTokens ?? result.completion_tokens,
+  );
+  const directTotalTokens = Number(result.totalTokens ?? result.total_tokens);
+  const fallbackTotalTokens =
+    (Number.isFinite(promptTokens) ? promptTokens : 0) +
+    (Number.isFinite(completionTokens) ? completionTokens : 0);
+  const totalTokens = Number.isFinite(directTotalTokens)
+    ? directTotalTokens
+    : fallbackTotalTokens;
+
+  const directCost = Number(
+    result.estimatedCostUsd ?? result.estimated_cost_usd,
+  );
+  const cost = Number.isFinite(directCost)
+    ? directCost
+    : totalTokens * 0.000005;
+
+  return { totalTokens, cost };
+}
+
+const TutorAttachmentPreview = ({
+  includeSketch,
+  sketchDataUrl,
+  image,
+  setIncludeSketch,
+}: {
+  includeSketch: boolean;
+  sketchDataUrl?: string;
+  image?: StudentAnswerImage;
+  setIncludeSketch: (v: boolean) => void;
+}) => {
+  if (!includeSketch && !image?.dataUrl) return null;
+
+  return (
+    <div className='flex gap-2 mb-2 px-1'>
+      {includeSketch && (
+        <div className='relative group'>
+          <div className='w-12 h-12 rounded-md border border-border bg-white overflow-hidden flex items-center justify-center'>
+            {sketchDataUrl ? (
+              <img
+                src={sketchDataUrl}
+                alt='Sketch preview'
+                className='w-full h-full object-cover'
+              />
+            ) : (
+              <PencilRuler className='h-5 w-5 text-muted-foreground/40' />
+            )}
+          </div>
+          <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
+            <span className='text-[8px] font-bold text-primary uppercase'>
+              Sketch
+            </span>
+          </div>
+          <button
+            onClick={() => setIncludeSketch(false)}
+            className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
+          >
+            <X className='h-2.5 w-2.5' />
+          </button>
+        </div>
+      )}
+      {image?.dataUrl && (
+        <div className='relative group'>
+          <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
+            <img
+              src={image.dataUrl}
+              alt='Attachment'
+              className='w-full h-full object-cover'
+            />
+          </div>
+          <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+            <span className='text-[8px] font-bold text-primary uppercase'>
+              Image
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TutorSketchStatus = ({
+  sketchStatus,
+  isCompact,
+}: {
+  sketchStatus: string;
+  isCompact: boolean;
+}) => (
+  <AnimatePresence>
+    {sketchStatus !== 'idle' && sketchStatus !== 'none' && (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{ opacity: 0, height: 0 }}
+        className={cn(
+          'flex items-center gap-2 px-1 text-muted-foreground overflow-hidden',
+          isCompact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]',
+        )}
+      >
+        {sketchStatus === 'processing' ? (
+          <>
+            <Loader2 className='h-3 w-3 animate-spin text-primary/60' />
+            <span>Rasterizing sketchpad...</span>
+          </>
+        ) : (
+          <>
+            <PencilRuler className='h-3 w-3 text-primary/60' />
+            <span>Uploading sketchpad content...</span>
+          </>
+        )}
+      </motion.div>
+    )}
+  </AnimatePresence>
 );
 
 export function TutorPanel({
@@ -487,7 +1184,9 @@ export function TutorPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [sketchDataUrl, setSketchDataUrl] = useState<string | undefined>(undefined);
+  const [sketchDataUrl, setSketchDataUrl] = useState<string | undefined>(
+    undefined,
+  );
 
   const session = sessions[questionId];
   const messages = useMemo(() => session?.messages || [], [session]);
@@ -531,42 +1230,11 @@ export function TutorPanel({
   ) => {
     void (async () => {
       try {
-        let textToCopy = content;
-
-        if (type === 'text') {
-          // Convert Markdown to plain text by removing markdown syntax while preserving content
-          textToCopy = content
-            // Remove code blocks
-            .replace(/```[\s\S]*?```/g, (match) => {
-              return match.replace(/```\w*\n?|\n?```/g, '').trim();
-            })
-            // Remove inline code backticks but keep content
-            .replace(/`([^`]+)`/g, '$1')
-            // Remove bold/italic markers but keep content
-            .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
-            .replace(/\*\*([^*]+)\*\*/g, '$1')
-            .replace(/\*([^*]+)\*/g, '$1')
-            .replace(/___([^_]+)___/g, '$1')
-            .replace(/__([^_]+)__/g, '$1')
-            .replace(/_([^_]+)_/g, '$1')
-            // Remove headers but keep content
-            .replace(/^#{1,6}\s+(.+)$/gm, '$1')
-            // Remove links but keep text
-            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-            // Remove images
-            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-            // Remove blockquote markers
-            .replace(/^>\s+/gm, '')
-            // Remove horizontal rules
-            .replace(/^[-*_]{3,}$/gm, '')
-            // Clean up LaTeX delimiters (keep the math content)
-            .replace(/\$\$([^$]+)\$\$/g, '$1')
-            .replace(/\$([^$]+)\$/g, '$1');
-        }
-
-        await navigator.clipboard.writeText(textToCopy);
+        await copyToClipboard(content, type);
         setCopiedId(`${id}-${type}`);
-        toast.success(`Copied as ${type === 'text' ? 'plain text' : 'Markdown'}`);
+        toast.success(
+          `Copied as ${type === 'text' ? 'plain text' : 'Markdown'}`,
+        );
         setTimeout(() => setCopiedId(null), 2000);
       } catch (error) {
         console.error('Failed to copy message:', error);
@@ -650,7 +1318,8 @@ export function TutorPanel({
 
     const handleScroll = () => {
       const isAtBottom =
-        viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 50;
+        viewport.scrollHeight - viewport.scrollTop <=
+        viewport.clientHeight + 50;
 
       if (isAtBottom && showScrollButton) {
         setShowScrollButton(false);
@@ -741,7 +1410,6 @@ export function TutorPanel({
     }
   }, [includeSketch, sketchSessionKey]);
 
-
   const handleSend = async (
     overrideValue?: string,
     isDiagnostic = false,
@@ -772,34 +1440,8 @@ export function TutorPanel({
       setSketchStatus('processing');
       let sketchpadDataUrl: string | undefined = undefined;
 
-      if (includeSketch) {
-        sketchpadDataUrl = await new Promise<string | undefined>((resolve) => {
-          let resolved = false;
-
-          const handler = (e: Event) => {
-            if (resolved) return;
-            resolved = true;
-            window.removeEventListener('tutor-sketch-response', handler);
-            const customEvent = e as CustomEvent<{ dataUrl?: string }>;
-            resolve(customEvent.detail.dataUrl);
-          };
-          window.addEventListener('tutor-sketch-response', handler);
-
-          window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
-
-          // Fallback to local storage if Sketchpad component is unmounted or doesn't respond
-          setTimeout(() => {
-            if (resolved) return;
-            resolved = true;
-            window.removeEventListener('tutor-sketch-response', handler);
-            console.warn(
-              '[Tutor] Sketchpad did not respond in time, falling back to local storage',
-            );
-            getSketchpadDataUrl(sketchSessionKey)
-              .then(resolve)
-              .catch(() => resolve(undefined));
-          }, 500);
-        });
+      if (includeSketch && sketchSessionKey) {
+        sketchpadDataUrl = await getSketchpadImage(sketchSessionKey);
       }
 
       if (sketchpadDataUrl) {
@@ -808,76 +1450,17 @@ export function TutorPanel({
         setSketchStatus('none');
       }
 
-      // Build full conversation history for the API
-      const apiMessages: TutorApiMessage[] = [];
-
-      const basePersona =
-        activePersona ||
-        'You are a helpful VCE tutor. Guide the student step-by-step using the Socratic method. Do not give away the final answer immediately.';
-      const formattingInstructions =
-        '\n\nIMPORTANT FORMATTING RULES:\n- Format math expressions using LaTeX.\n- Use single $...$ delimiters for inline math (e.g., $x^2 + y^2 = r^2$).\n- Use double $$...$$ delimiters for block/display math.\n- Format your response using Markdown (bold, italic, bullet points, etc.).';
-
-      // 1. Combined System Message (Persona + Formatting + Question Context)
-      let systemContent = basePersona + formattingInstructions;
-      systemContent += `\n\n--- QUESTION CONTEXT ---\n${contextPrompt}`;
-      if (studentAnswer) {
-        systemContent += `\n\n--- STUDENT'S WRITTEN ANSWER ---\n${studentAnswer}`;
-      }
-      if (image?.dataUrl || sketchpadDataUrl) {
-        systemContent +=
-          '\n\n--- VISUAL CONTEXT ---\nThe student has provided images/sketches. Use these to understand their working and provide targeted feedback.';
-      }
-
-      if (isDiagnostic) {
-        systemContent +=
-          '\n\n--- DIAGNOSTIC MODE ---\nThe student is requesting an error diagnosis. Carefully analyze their working and specifically point out where they might have gone wrong, but still try to guide them rather than just giving the fix.';
-      }
-
-      apiMessages.push({
-        role: 'system',
-        content: systemContent,
-      });
-
-      // 2. Conversation History
-      messages.forEach((m) => {
-        apiMessages.push({
-          role: m.role,
-          content: m.content,
-        });
-      });
-
-      // 3. New User Message with Images
-      const userContentParts: TutorApiContentPart[] = [
-        { type: 'text', text: userMessageContent },
-      ];
-
-      if (image?.dataUrl) {
-        userContentParts.push({
-          type: 'image_url',
-          image_url: { url: image.dataUrl },
-        });
-      }
-
-      if (sketchpadDataUrl) {
-        userContentParts.push({
-          type: 'image_url',
-          image_url: { url: sketchpadDataUrl },
-        });
-      }
-
-      apiMessages.push({
-        role: 'user',
-        content: userContentParts,
-      });
-
-      // Call backend
-      const result = await invoke<TutorChatResponse>('tutor_chat', {
-        request: {
-          messages: apiMessages,
-          model: activeModel,
-          apiKey: apiKey,
-          diagnostic: isDiagnostic,
-        },
+      const result = await performTutorChat({
+        activeModel,
+        activePersona,
+        contextPrompt,
+        studentAnswer,
+        userMessageContent,
+        messages,
+        image,
+        sketchpadDataUrl,
+        apiKey,
+        isDiagnostic,
       });
 
       // Add assistant message to store
@@ -889,26 +1472,7 @@ export function TutorPanel({
       });
 
       // Update metrics
-      const promptTokens = Number(result.promptTokens ?? result.prompt_tokens);
-      const completionTokens = Number(
-        result.completionTokens ?? result.completion_tokens,
-      );
-      const directTotalTokens = Number(
-        result.totalTokens ?? result.total_tokens,
-      );
-      const fallbackTotalTokens =
-        (Number.isFinite(promptTokens) ? promptTokens : 0) +
-        (Number.isFinite(completionTokens) ? completionTokens : 0);
-      const totalTokens = Number.isFinite(directTotalTokens)
-        ? directTotalTokens
-        : fallbackTotalTokens;
-
-      const directCost = Number(
-        result.estimatedCostUsd ?? result.estimated_cost_usd,
-      );
-      const cost = Number.isFinite(directCost)
-        ? directCost
-        : totalTokens * 0.000005;
+      const { totalTokens, cost } = calculateTutorMetrics(result);
 
       updateMetrics(totalTokens, cost);
       console.log(`[Tutor] Success. Tokens: ${totalTokens}, Cost: $${cost}`);
@@ -1034,317 +1598,48 @@ export function TutorPanel({
             />
 
             {/* Chat Area */}
-            <ScrollArea
-              ref={scrollAreaRef}
-              className='flex-1 min-h-0 p-2 bg-muted/5 relative'
-            >
-              <div className='space-y-2'>
-                {messages.length === 0 && !isGenerating && (
-                  <div className='flex flex-col items-center justify-center text-center mt-10 space-y-4 px-4'>
-                    <div className='bg-primary/5 p-2 rounded-full'>
-                      <Brain
-                        className={`text-primary/40 ${!isCompact ? 'h-6 w-6' : 'h-4 w-4'}`}
-                      />
-                    </div>
-                    <div className='space-y-1'>
-                      <p className='text-xs font-semibold'>Ask for guidance</p>
-                      <p className='text-[11px] text-muted-foreground leading-relaxed'>
-                        I can provide hints, check your working, or explain the
-                        core concepts of this question.
-                      </p>
-                    </div>
-                    {!isGenerating && (
-                      <div className='flex flex-wrap justify-center gap-1.5 pt-2'>
-                        {[
-                          'Give me a hint',
-                          'Explain this concept',
-                          'Check my steps',
-                        ].map((suggestion) => (
-                          <button
-                            key={suggestion}
-                            onClick={() => void handleSend(suggestion)}
-                            className='text-[10px] px-2.5 py-1 rounded-full bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-colors'
-                          >
-                            {suggestion}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {messages.map((msg, idx) => (
-                  <div key={msg.id} className='relative group/msg'>
-                    <MessageItem
-                      msg={msg}
-                      copiedId={copiedId}
-                      isCompact={isCompact}
-                      handleCopyMessage={handleCopyMessage}
-                    />
-                    {msg.role === 'assistant' &&
-                      idx === messages.length - 1 &&
-                      !isGenerating && (
-                        <button
-                          onClick={() => void handleRegenerate()}
-                          className={cn(
-                            'absolute -bottom-6 left-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary px-2 py-1',
-                          )}
-                        >
-                          <RefreshCcw className='h-3 w-3' />
-                          Regenerate
-                        </button>
-                      )}
-                    {msg.role === 'assistant' && idx === messages.length - 1 && (
-                      <div className='h-6' />
-                    )}
-                  </div>
-                ))}
-
-                {/* Streaming chunk */}
-                {isGenerating && (
-                  <div
-                    className={cn(
-                      'flex flex-col mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300',
-                      isCompact ? 'max-w-[92%]' : 'max-w-[85%]',
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'rounded-2xl leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15',
-                        isCompact ? 'px-3 py-1.5 text-[12px]' : 'px-4 py-2.5 text-[13px]',
-                      )}
-                    >
-                      {streamedContent ? (
-                        <MarkdownMath content={streamedContent} isStreaming />
-                      ) : (
-                        <div className='flex flex-col gap-2 py-1'>
-                          <div className='flex gap-1'>
-                            <motion.div
-                              animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                              transition={{
-                                repeat: Infinity,
-                                duration: 1,
-                                times: [0, 0.5, 1],
-                              }}
-                              className='h-1.5 w-1.5 bg-primary rounded-full'
-                            />
-                            <motion.div
-                              animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                              transition={{
-                                repeat: Infinity,
-                                duration: 1,
-                                delay: 0.2,
-                                times: [0, 0.5, 1],
-                              }}
-                              className='h-1.5 w-1.5 bg-primary rounded-full'
-                            />
-                            <motion.div
-                              animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                              transition={{
-                                repeat: Infinity,
-                                duration: 1,
-                                delay: 0.4,
-                                times: [0, 0.5, 1],
-                              }}
-                              className='h-1.5 w-1.5 bg-primary rounded-full'
-                            />
-                          </div>
-                          <span className='text-[10px] text-muted-foreground animate-pulse font-medium'>
-                            {sketchStatus === 'sending'
-                              ? 'Uploading work...'
-                              : 'AI Tutor is thinking...'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              <AnimatePresence>
-                {showScrollButton && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className='absolute bottom-4 right-4 z-10'
-                  >
-                    <Button
-                      size='icon'
-                      variant='secondary'
-                      className='h-8 w-8 rounded-full shadow-lg border border-border'
-                      onClick={() => {
-                        scrollToBottom();
-                        setShowScrollButton(false);
-                      }}
-                    >
-                      <ChevronDown className='h-4 w-4' />
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </ScrollArea>
+            <TutorChatArea
+              messages={messages}
+              isGenerating={isGenerating}
+              isCompact={isCompact}
+              streamedContent={streamedContent}
+              sketchStatus={sketchStatus}
+              copiedId={copiedId}
+              showScrollButton={showScrollButton}
+              scrollAreaRef={scrollAreaRef}
+              messagesEndRef={messagesEndRef}
+              handleCopyMessage={handleCopyMessage}
+              handleRegenerate={() => {
+                void handleRegenerate();
+              }}
+              handleSend={(s) => {
+                void handleSend(s);
+              }}
+              scrollToBottom={scrollToBottom}
+              setShowScrollButton={setShowScrollButton}
+            />
 
             {/* Input Area */}
-            <div className={cn('border-t border-border bg-card shrink-0', isCompact ? 'p-1.5' : 'p-2')}>
-              <div
-                className={cn(
-                  'flex items-center justify-between px-1',
-                  isCompact ? 'mb-0.5' : 'mb-1',
-                )}
-              >
-                {sketchSessionKey && (
-                  <div className='flex items-center space-x-2'>
-                    <Checkbox
-                      id='include-sketch'
-                      checked={includeSketch}
-                      onCheckedChange={(checked) =>
-                        setIncludeSketch(checked === true)
-                      }
-                      className={isCompact ? 'h-3 w-3' : ''}
-                    />
-                    <Label
-                      htmlFor='include-sketch'
-                      className={cn(
-                        'text-muted-foreground font-medium cursor-pointer',
-                        isCompact ? 'text-[9px]' : 'text-[11px]',
-                      )}
-                    >
-                      Include Sketch
-                    </Label>
-                  </div>
-                )}
-                <div className='flex items-center gap-1'>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => clearSession(questionId)}
-                    disabled={isGenerating || messages.length === 0}
-                    className={cn(
-                      'text-muted-foreground hover:text-destructive hover:bg-destructive/5 flex items-center gap-1',
-                      isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
-                    )}
-                    title='Clear Chat'
-                  >
-                    <Eraser className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-                    Clear
-                  </Button>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={handleDiagnosticRequest}
-                    disabled={isGenerating}
-                    className={cn(
-                      'text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1',
-                      isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
-                    )}
-                  >
-                    <Activity className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-                    Check work
-                  </Button>
-                </div>
-              </div>
-              <AnimatePresence>
-                {sketchStatus !== 'idle' && sketchStatus !== 'none' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className={cn(
-                      'flex items-center gap-2 px-1 text-muted-foreground overflow-hidden',
-                      isCompact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]',
-                    )}
-                  >
-                    {sketchStatus === 'processing' ? (
-                      <>
-                        <Loader2 className='h-3 w-3 animate-spin text-primary/60' />
-                        <span>Rasterizing sketchpad...</span>
-                      </>
-                    ) : (
-                      <>
-                        <PencilRuler className='h-3 w-3 text-primary/60' />
-                        <span>Uploading sketchpad content...</span>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              {(includeSketch || image?.dataUrl) && (
-                <div className='flex gap-2 mb-2 px-1'>
-                  {includeSketch && (
-                    <div className='relative group'>
-                      <div className='w-12 h-12 rounded-md border border-border bg-white overflow-hidden flex items-center justify-center'>
-                        {sketchDataUrl ? (
-                          <img
-                            src={sketchDataUrl}
-                            alt='Sketch preview'
-                            className='w-full h-full object-cover'
-                          />
-                        ) : (
-                          <PencilRuler className='h-5 w-5 text-muted-foreground/40' />
-                        )}
-                      </div>
-                      <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
-                        <span className='text-[8px] font-bold text-primary uppercase'>
-                          Sketch
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => setIncludeSketch(false)}
-                        className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
-                      >
-                        <X className='h-2.5 w-2.5' />
-                      </button>
-                    </div>
-                  )}
-                  {image?.dataUrl && (
-                    <div className='relative group'>
-                      <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
-                        <img
-                          src={image.dataUrl}
-                          alt='Attachment'
-                          className='w-full h-full object-cover'
-                        />
-                      </div>
-                      <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
-                        <span className='text-[8px] font-bold text-primary uppercase'>
-                          Image
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className='relative flex items-end gap-2'>
-                <Textarea
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder='Ask for a hint...'
-                  className={cn(
-                    'max-h-30 resize-none rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20',
-                    isCompact
-                      ? 'min-h-9 py-2 px-3 text-[11px] pr-10'
-                      : 'min-h-11 py-3 px-4 text-xs pr-12',
-                  )}
-                  disabled={isGenerating}
-                />
-                <Button
-                  size='icon'
-                  className={cn(
-                    'absolute transition-all duration-200',
-                    isCompact
-                      ? 'right-1 bottom-1 h-7 w-7 rounded-md'
-                      : 'right-1.5 bottom-1.5 h-8 w-8 rounded-lg',
-                  )}
-                  onClick={() => void handleSend()}
-                  disabled={!inputValue.trim() || isGenerating}
-                >
-                  <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-                </Button>
-              </div>
-            </div>
+            <TutorInputArea
+              isCompact={isCompact}
+              isGenerating={isGenerating}
+              inputValue={inputValue}
+              includeSketch={includeSketch}
+              sketchSessionKey={sketchSessionKey}
+              sketchStatus={sketchStatus}
+              sketchDataUrl={sketchDataUrl}
+              image={image}
+              messages={messages}
+              questionId={questionId}
+              setInputValue={setInputValue}
+              setIncludeSketch={setIncludeSketch}
+              handleSend={() => {
+                void handleSend();
+              }}
+              handleKeyDown={handleKeyDown}
+              handleDiagnosticRequest={handleDiagnosticRequest}
+              clearSession={clearSession}
+            />
           </motion.div>
         )}
       </AnimatePresence>

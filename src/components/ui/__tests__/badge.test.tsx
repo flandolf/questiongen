@@ -11,13 +11,13 @@ describe('Badge', () => {
   });
 
   it('renders correctly with secondary variant', () => {
-    render(<Badge variant="secondary">Secondary Badge</Badge>);
+    render(<Badge variant='secondary'>Secondary Badge</Badge>);
     const badge = screen.getByText('Secondary Badge');
     expect(badge).toHaveAttribute('data-variant', 'secondary');
   });
 
   it('applies custom className', () => {
-    render(<Badge className="custom-class">Custom Badge</Badge>);
+    render(<Badge className='custom-class'>Custom Badge</Badge>);
     const badge = screen.getByText('Custom Badge');
     expect(badge).toHaveClass('custom-class');
   });

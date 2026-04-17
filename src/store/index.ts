@@ -140,6 +140,7 @@ const defaultState: AppState = {
   generationStartedAt: null,
   isMarking: false,
   errorMessage: null,
+  isKeyboardShortcutsOpen: false,
   spacedRepetitionCards: {},
   studyGoals: {
     dailyQuestionGoal: 10,
@@ -405,6 +406,8 @@ export const useAppStore = create<AppState & AppActions>()((set, get) => ({
   setGenerationStartedAt: (generationStartedAt) => set({ generationStartedAt }),
   setIsMarking: (isMarking) => set({ isMarking }),
   setErrorMessage: (errorMessage) => set({ errorMessage }),
+  setIsKeyboardShortcutsOpen: (isKeyboardShortcutsOpen) =>
+    set({ isKeyboardShortcutsOpen }),
 
   saveCurrentSet: () => {
     const s = get();
