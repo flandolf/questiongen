@@ -443,7 +443,10 @@ export function AnalyticsView() {
       string,
       {
         name: string;
-        childrenMap: Map<string, { name: string; size: number; correct: number }>;
+        childrenMap: Map<
+          string,
+          { name: string; size: number; correct: number }
+        >;
         total: number;
         correct: number;
       }
@@ -921,12 +924,12 @@ export function AnalyticsView() {
               description='Subject and subtopic distribution by volume.'
             />
             <div className='h-80 mt-4 bg-muted/20 rounded-lg overflow-hidden border border-border/40'>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width='100%' height='100%'>
                 <Treemap
                   data={treemapData}
-                  dataKey="size"
+                  dataKey='size'
                   aspectRatio={4 / 3}
-                  stroke="#fff"
+                  stroke='#fff'
                   content={<CustomTreemapContent />}
                 />
               </ResponsiveContainer>

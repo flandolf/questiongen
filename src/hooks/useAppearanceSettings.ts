@@ -43,15 +43,35 @@ export function useAppearanceSettings() {
       });
     } else {
       const m3Keys = [
-        '--background', '--foreground', '--card', '--card-foreground',
-        '--popover', '--popover-foreground', '--primary', '--primary-foreground',
-        '--secondary', '--secondary-foreground', '--muted', '--muted-foreground',
-        '--accent', '--accent-foreground', '--destructive', '--destructive-foreground',
-        '--border', '--input', '--ring', '--sidebar', '--sidebar-foreground',
-        '--sidebar-primary', '--sidebar-primary-foreground', '--sidebar-accent',
-        '--sidebar-accent-foreground', '--sidebar-border', '--sidebar-ring'
+        '--background',
+        '--foreground',
+        '--card',
+        '--card-foreground',
+        '--popover',
+        '--popover-foreground',
+        '--primary',
+        '--primary-foreground',
+        '--secondary',
+        '--secondary-foreground',
+        '--muted',
+        '--muted-foreground',
+        '--accent',
+        '--accent-foreground',
+        '--destructive',
+        '--destructive-foreground',
+        '--border',
+        '--input',
+        '--ring',
+        '--sidebar',
+        '--sidebar-foreground',
+        '--sidebar-primary',
+        '--sidebar-primary-foreground',
+        '--sidebar-accent',
+        '--sidebar-accent-foreground',
+        '--sidebar-border',
+        '--sidebar-ring',
       ];
-      m3Keys.forEach(key => root.style.removeProperty(key));
+      m3Keys.forEach((key) => root.style.removeProperty(key));
     }
 
     // Apply Rounding
