@@ -52,6 +52,19 @@ export function ThemeProvider({
     theme,
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme);
+
+      // Update ui-prefs for the synchronous injector script
+      try {
+        const stored = localStorage.getItem('questiongen-ui-prefs');
+        const prefs = stored
+          ? (JSON.parse(stored) as Record<string, string>)
+          : {};
+        prefs.mode = theme;
+        localStorage.setItem('questiongen-ui-prefs', JSON.stringify(prefs));
+      } catch {
+        // Ignore parsing errors
+      }
+
       setTheme(theme);
     },
   };

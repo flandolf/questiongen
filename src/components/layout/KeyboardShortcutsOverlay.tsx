@@ -96,7 +96,7 @@ export function KeyboardShortcutsOverlay() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
-            className='fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999]'
+            className='fixed inset-0 bg-background/80 backdrop-blur-sm z-99'
           />
           <motion.div
             ref={dialogRef}
@@ -107,7 +107,7 @@ export function KeyboardShortcutsOverlay() {
             role='dialog'
             aria-modal='true'
             aria-labelledby='keyboard-shortcuts-title'
-            className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl z-[10000] p-6 outline-none'
+            className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl z-100 p-6 outline-none'
           >
             <div className='flex items-center justify-between mb-6'>
               <div className='flex items-center gap-2'>
@@ -154,7 +154,7 @@ export function KeyboardShortcutsOverlay() {
                                     +
                                   </span>
                                 )}
-                                <kbd className='min-w-[24px] h-6 px-1.5 flex items-center justify-center bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm'>
+                                <kbd className='min-w-6 h-6 px-1.5 flex items-center justify-center bg-muted border border-border rounded text-[10px] font-mono font-bold shadow-sm'>
                                   {part}
                                 </kbd>
                               </div>

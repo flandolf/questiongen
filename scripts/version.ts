@@ -1,11 +1,19 @@
 #!/usr/bin/env bun
 
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+declare const Bun: {
+  argv: string[];
+  file(path: string | URL): {
+    text(): Promise<string>;
+    json(): Promise<unknown>;
+  };
+  write(path: string | URL, data: string): Promise<number>;
+};
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const rootDir = join(__dirname, '..');
+const rootDir = new URL('../', import.meta.url);
+
+function fromRoot(...segments: string[]): URL {
+  return new URL(segments.join('/'), rootDir);
+}
 
 interface Version {
   major: number;
@@ -25,6 +33,7 @@ function formatVersion(v: Version): string {
 function bumpVersion(
   current: Version,
   type: 'major' | 'minor' | 'patch' | 'custom',
+  customVersion?: string,
 ): Version {
   switch (type) {
     case 'major':
@@ -38,87 +47,92 @@ function bumpVersion(
         patch: current.patch + 1,
       };
     case 'custom':
-      const custom = process.argv[3];
-      if (!custom) {
-        console.error('Custom version not provided');
-        process.exit(1);
+      if (!customVersion) {
+        throw new Error('Custom version not provided');
       }
-      return parseVersion(custom);
+      return parseVersion(customVersion);
     default:
       throw new Error(`Unknown bump type: ${type}`);
   }
 }
 
-function setVersion(version: Version): void {
-  const versionStr = formatVersion(version);
-  updatePackageJson(versionStr);
-  updateCargoToml(versionStr);
-  updateTauriConfJson(versionStr);
-  updateSettingsView(versionStr);
+async function readJson<T>(path: string | URL): Promise<T> {
+  return (await Bun.file(path).json()) as T;
 }
 
-function readJson(path: string): any {
-  return JSON.parse(readFileSync(path, 'utf-8'));
+async function writeJson(path: string | URL, data: unknown): Promise<void> {
+  await Bun.write(path, JSON.stringify(data, null, 2) + '\n');
 }
 
-function writeJson(path: string, data: any): void {
-  writeFileSync(path, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+interface PackageJson {
+  version: string;
+  [key: string]: unknown;
 }
 
-function updatePackageJson(version: string): void {
-  const pkg = readJson(join(rootDir, 'package.json'));
+async function updatePackageJson(version: string): Promise<void> {
+  const packageJsonPath = fromRoot('package.json');
+  const pkg = await readJson<PackageJson>(packageJsonPath);
   pkg.version = version;
-  writeJson(join(rootDir, 'package.json'), pkg);
+  await writeJson(packageJsonPath, pkg);
   console.log(`package.json: ${pkg.version}`);
 }
 
-function updateCargoToml(version: string): void {
-  const content = readFileSync(
-    join(rootDir, 'src-tauri', 'Cargo.toml'),
-    'utf-8',
-  );
+async function updateCargoToml(version: string): Promise<void> {
+  const cargoTomlPath = fromRoot('src-tauri', 'Cargo.toml');
+  const content = await Bun.file(cargoTomlPath).text();
   const updated = content.replace(
     /^version = "[\d.]+"$/m,
     `version = "${version}"`,
   );
-  writeFileSync(join(rootDir, 'src-tauri', 'Cargo.toml'), updated, 'utf-8');
+  await Bun.write(cargoTomlPath, updated);
   console.log(`src-tauri/Cargo.toml: ${version}`);
 }
 
-function updateTauriConfJson(version: string): void {
-  const conf = readJson(join(rootDir, 'src-tauri', 'tauri.conf.json'));
+interface TauriConfig {
+  version: string;
+  [key: string]: unknown;
+}
+
+async function updateTauriConfJson(version: string): Promise<void> {
+  const tauriConfigPath = fromRoot('src-tauri', 'tauri.conf.json');
+  const conf = await readJson<TauriConfig>(
+    tauriConfigPath,
+  );
   conf.version = version;
-  writeJson(join(rootDir, 'src-tauri', 'tauri.conf.json'), conf);
+  await writeJson(tauriConfigPath, conf);
   console.log(`src-tauri/tauri.conf.json: ${version}`);
 }
 
-function updateSettingsView(version: string): void {
-  const content = readFileSync(
-    join(rootDir, 'src', 'views', 'settings', 'types.ts'),
-    'utf-8',
-  );
+async function updateSettingsView(version: string): Promise<void> {
+  const settingsPath = fromRoot('src', 'views', 'settings', 'types.ts');
+  const content = await Bun.file(settingsPath).text();
   const updated = content.replace(
     /export const APP_VERSION = '[\d.]+';/,
     `export const APP_VERSION = '${version}';`,
   );
-  writeFileSync(
-    join(rootDir, 'src', 'views', 'settings', 'types.ts'),
-    updated,
-    'utf-8',
-  );
+  await Bun.write(settingsPath, updated);
   console.log(`src/views/settings/types.ts: ${version}`);
 }
 
-const args = process.argv.slice(2);
-const bumpType = (args[0] as 'major' | 'minor' | 'patch' | 'custom') || 'patch';
+async function main(): Promise<void> {
+  const args = Bun.argv.slice(2);
+  const bumpType =
+    (args[0] as 'major' | 'minor' | 'patch' | 'custom') || 'patch';
+  const customVersion = args[1];
 
-const currentPkg = readJson(join(rootDir, 'package.json'));
-const current = parseVersion(currentPkg.version);
-const next = bumpVersion(current, bumpType);
-const versionStr = formatVersion(next);
+  const currentPkg = await readJson<PackageJson>(fromRoot('package.json'));
+  const current = parseVersion(currentPkg.version);
+  const next = bumpVersion(current, bumpType, customVersion);
+  const versionStr = formatVersion(next);
 
-console.log(`Bumping version: ${formatVersion(current)} → ${versionStr}\n`);
+  console.log(`Bumping version: ${formatVersion(current)} → ${versionStr}\n`);
 
-setVersion(next);
+  await updatePackageJson(versionStr);
+  await updateCargoToml(versionStr);
+  await updateTauriConfJson(versionStr);
+  await updateSettingsView(versionStr);
 
-console.log('\nVersion updated successfully.');
+  console.log('\nVersion updated successfully.');
+}
+
+await main();

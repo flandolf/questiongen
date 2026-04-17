@@ -70,6 +70,20 @@ export function useAppearanceSettings() {
         '--sidebar-accent-foreground',
         '--sidebar-border',
         '--sidebar-ring',
+        '--tracking-normal',
+        '--tracking-tight',
+        '--tracking-wide',
+        '--tracking-tighter',
+        '--tracking-wider',
+        '--tracking-widest',
+        '--shadow-2xs',
+        '--shadow-xs',
+        '--shadow-sm',
+        '--shadow',
+        '--shadow-md',
+        '--shadow-lg',
+        '--shadow-xl',
+        '--shadow-2xl',
       ];
       m3Keys.forEach((key) => root.style.removeProperty(key));
     }

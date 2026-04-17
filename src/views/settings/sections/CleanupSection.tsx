@@ -1440,22 +1440,6 @@ export function CleanupSection() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: var(--border);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: var(--muted-foreground);
-        }
-      `}</style>
     </div>
   );
 }

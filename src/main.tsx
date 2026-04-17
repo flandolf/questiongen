@@ -1,4 +1,5 @@
 import './themes/fonts.css';
+import './themes/index.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -8,8 +9,6 @@ import { ThemeProvider } from './components/theme-provider';
 import { initLogger } from './lib/logger';
 
 initLogger();
-
-document.documentElement.setAttribute('data-design-theme', 'claude');
 
 if (/Android/i.test(window.navigator.userAgent)) {
   document.documentElement.classList.add('platform-android');

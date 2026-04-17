@@ -1,6 +1,11 @@
 #!/bin/zsh
 
-export CARGO_BUILD_JOBS=16
+export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-$(sysctl -n hw.ncpu)}
+
+if [[ $1 != "-c" ]]; then
+    echo "📦 Bumping version code..."
+    bun run scripts/version.ts
+fi
 
 if [[ $1 == "-c" ]]; then
     ditto "src-tauri/target/release/bundle/macos/questiongen.app" "/Applications/questiongen.app"
