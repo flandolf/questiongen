@@ -761,8 +761,12 @@ export function GeneratorView() {
       setShowCompletionScreen(true);
     } else {
       // Uncompleted session - save and return to setup
+      const activeSavedSetId =
+        questionMode === 'written'
+          ? activeWrittenSavedSetId
+          : activeMcSavedSetId;
       const savedId = appStore.saveCurrentSet();
-      if (savedId) {
+      if (savedId && !activeSavedSetId) {
         toast.success("Session saved for later in 'Saved Sets'");
       }
 
@@ -790,6 +794,8 @@ export function GeneratorView() {
     activeTimer,
     appStore,
     questionMode,
+    activeWrittenSavedSetId,
+    activeMcSavedSetId,
     setQuestions,
     setActiveQuestionIndex,
     setAnswersByQuestionId,

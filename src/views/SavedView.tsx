@@ -156,11 +156,10 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                         </span>
                         <Badge
                           variant='secondary'
-                          className={`shrink-0 text-xs ${
-                            isWritten
+                          className={`shrink-0 text-xs ${isWritten
                               ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
                               : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
-                          }`}
+                            }`}
                         >
                           {isWritten ? 'Written' : 'Multiple Choice'}
                         </Badge>
@@ -255,15 +254,14 @@ const VirtualizedSavedSetList = memo(function VirtualizedSavedSetList({
                       />
                     </div>
                     <p
-                      className={`text-xs text-right font-medium ${
-                        completedCount === 0
+                      className={`text-xs text-right font-medium ${completedCount === 0
                           ? 'text-muted-foreground/60 italic'
                           : completedCount === questionCount
                             ? isWritten
                               ? 'text-sky-600 dark:text-sky-400'
                               : 'text-violet-600 dark:text-violet-400'
                             : 'text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       {progressLabel}
                     </p>
@@ -430,7 +428,7 @@ export function SavedView() {
       />
 
       <Toolbar>
-        <div className='relative flex-1 min-w-[160px] max-w-xs'>
+        <div className='relative flex-1 min-w-40 max-w-xs'>
           <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none' />
           <input
             type='text'
