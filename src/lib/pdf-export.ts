@@ -1,4 +1,4 @@
-import { DOMPurify } from 'dompurify';
+import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { toast } from 'sonner';
 
@@ -39,7 +39,6 @@ export function exportToPdf(
       <head>
         <title>${escapedTitle}</title>
         <meta charset="UTF-8">
-        <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js" id="MathJax-script" async></script>
         <script>
           window.MathJax = {
             tex: {
@@ -61,7 +60,20 @@ export function exportToPdf(
               }
             }
           };
+
+          // Fallback if MathJax fails to load or typeset
+          const fallbackId = setTimeout(() => {
+             console.warn('MathJax print fallback triggered');
+             window.print();
+          }, 5000);
+
+          window.addEventListener('load', () => {
+            if (window.MathJax?.startup?.promise) {
+              window.MathJax.startup.promise.then(() => clearTimeout(fallbackId));
+            }
+          });
         </script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js" id="MathJax-script"></script>
         <style>
           @media print {
             @page { margin: 2cm; }

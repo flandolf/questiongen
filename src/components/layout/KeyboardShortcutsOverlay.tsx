@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Command, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useGenerationStatus } from '@/AppContext';
 
@@ -12,7 +12,7 @@ const SHORTCUTS = [
   { key: '?', label: 'Show / Hide Shortcuts', category: 'General' },
 ];
 
-function isEditableTarget(target: EventTarget | null): boolean {
+export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tagName = target.tagName.toUpperCase();
   const editableSelectors = [
@@ -35,13 +35,51 @@ export function KeyboardShortcutsOverlay() {
     setIsKeyboardShortcutsOpen: setIsOpen,
   } = useGenerationStatus();
 
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      dialogRef.current?.focus();
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '?' && !isEditableTarget(e.target)) {
         setIsOpen(!isOpen);
       }
-      if (e.key === 'Escape' && isOpen) {
+
+      if (!isOpen) return;
+
+      if (e.key === 'Escape') {
         setIsOpen(false);
+      }
+
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusableElements = dialogRef.current.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[
+          focusableElements.length - 1
+        ] as HTMLElement;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
 
@@ -61,13 +99,15 @@ export function KeyboardShortcutsOverlay() {
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999]"
           />
           <motion.div
+            ref={dialogRef}
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="keyboard-shortcuts-title"
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl z-[10000] p-6"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border shadow-2xl rounded-2xl z-[10000] p-6 outline-none"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">

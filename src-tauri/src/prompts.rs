@@ -608,4 +608,25 @@ mod tests {
         let chem_count = guidance.matches("VCE CHEMISTRY RULES:").count();
         assert_eq!(chem_count, 1);
     }
+
+    #[test]
+    fn test_subject_specific_guidance_physical_education() {
+        let topics = vec!["Physical Education".to_string()];
+        let guidance = subject_specific_guidance(&topics);
+        assert!(guidance.contains("VCE PHYSICAL EDUCATION RULES:"));
+    }
+
+    #[test]
+    fn test_subject_specific_guidance_multi_match_and_dedup() {
+        let topics = vec![
+            "Chemistry".to_string(),
+            "Physical Education".to_string(),
+            "Physical Education (Specialist)".to_string(),
+        ];
+        let guidance = subject_specific_guidance(&topics);
+        assert!(guidance.contains("VCE CHEMISTRY RULES:"));
+        assert!(guidance.contains("VCE PHYSICAL EDUCATION RULES:"));
+        let pe_count = guidance.matches("VCE PHYSICAL EDUCATION RULES:").count();
+        assert_eq!(pe_count, 1);
+    }
 }

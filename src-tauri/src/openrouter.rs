@@ -168,7 +168,8 @@ async fn call_openrouter_non_streaming(
         return Err(AppError::new(
             "OPENROUTER_ERROR",
             format!("OpenRouter request failed ({status}): {body}"),
-        ));
+        )
+        .with_status(status.as_u16()));
     }
 
     let parsed: OpenRouterResponse = response
@@ -250,8 +251,8 @@ async fn call_openrouter_streaming(
         .await
         .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
 
-    if !response.status().is_success() {
-        let status = response.status();
+    let status = response.status();
+    if !status.is_success() {
         let body = response
             .text()
             .await
@@ -259,7 +260,8 @@ async fn call_openrouter_streaming(
         return Err(AppError::new(
             "OPENROUTER_ERROR",
             format!("OpenRouter request failed ({status}): {body}"),
-        ));
+        )
+        .with_status(status.as_u16()));
     }
 
     let mut stream = response.bytes_stream();
