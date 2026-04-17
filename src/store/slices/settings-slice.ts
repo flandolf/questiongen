@@ -1,9 +1,6 @@
 import type { StateCreator } from 'zustand';
 
-import {
-  updateApiKey,
-  updatePresets,
-} from '@/context/modules/sync-v3/mutations';
+import { updateApiKey, updatePresets } from '@/context/modules/sync/mutations';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 
 import { normalizeThemeName, resolve } from '../helpers';

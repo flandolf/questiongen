@@ -27,7 +27,7 @@ import { auth, db } from '../firebase-init';
 export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
   const uid = getUid();
   if (!uid) {
-    console.warn('[SyncV3] No UID available to save question history entry');
+    console.warn('[Sync] No UID available to save question history entry');
     return;
   }
   try {
@@ -40,7 +40,7 @@ export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
       }),
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to save question history entry:', error);
+    console.error('[Sync] Failed to save question history entry:', error);
   }
 }
 
@@ -64,7 +64,7 @@ export async function deleteQuestionHistoryEntry(id: string) {
 export async function saveMcHistoryEntry(entry: McHistoryEntry) {
   const uid = getUid();
   if (!uid) {
-    console.warn('[SyncV3] No UID available to save MC history entry');
+    console.warn('[Sync] No UID available to save MC history entry');
     return;
   }
   try {
@@ -77,7 +77,7 @@ export async function saveMcHistoryEntry(entry: McHistoryEntry) {
       }),
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to save MC history entry:', error);
+    console.error('[Sync] Failed to save MC history entry:', error);
   }
 }
 
@@ -101,7 +101,7 @@ export async function deleteMcHistoryEntry(id: string) {
 export async function saveGenerationRecord(entry: GenerationRecord) {
   const uid = getUid();
   if (!uid) {
-    console.warn('[SyncV3] No UID available to save generation record');
+    console.warn('[Sync] No UID available to save generation record');
     return;
   }
   try {
@@ -114,7 +114,7 @@ export async function saveGenerationRecord(entry: GenerationRecord) {
       }),
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to save generation record:', error);
+    console.error('[Sync] Failed to save generation record:', error);
   }
 }
 
@@ -147,7 +147,7 @@ export async function saveSavedSet(entry: SavedQuestionSet) {
       }),
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to save saved set:', error);
+    console.error('[Sync] Failed to save saved set:', error);
   }
 }
 
@@ -186,7 +186,7 @@ export async function updateStudyGoals(
       { merge: true },
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to update study goals:', error);
+    console.error('[Sync] Failed to update study goals:', error);
   }
 }
 
@@ -209,7 +209,7 @@ export async function updatePresets(presets: Preset[]) {
       { merge: true },
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to update presets:', error);
+    console.error('[Sync] Failed to update presets:', error);
   }
 }
 
@@ -232,7 +232,7 @@ export async function updateApiKey(apiKey: string) {
       { merge: true },
     );
   } catch (error) {
-    console.error('[SyncV3] Failed to update API key:', error);
+    console.error('[Sync] Failed to update API key:', error);
   }
 }
 

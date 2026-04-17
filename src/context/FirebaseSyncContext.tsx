@@ -1,15 +1,15 @@
 import React, { createContext, useContext } from 'react';
 
-import { useSyncV3, type UseSyncV3Return } from './modules/sync-v3/useSyncV3';
+import { useSync, type UseSyncReturn } from './modules/sync/useSync';
 
-const FirebaseSyncContext = createContext<UseSyncV3Return | null>(null);
+const FirebaseSyncContext = createContext<UseSyncReturn | null>(null);
 
 export function FirebaseSyncProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const firebaseSync = useSyncV3();
+  const firebaseSync = useSync();
 
   /**
    * Provides Firebase sync functionality (listeners, auth helpers) to the
@@ -23,7 +23,7 @@ export function FirebaseSyncProvider({
   );
 }
 
-export function useFirebaseSyncContext(): UseSyncV3Return {
+export function useFirebaseSyncContext(): UseSyncReturn {
   const value = useContext(FirebaseSyncContext);
 
   if (!value) {
