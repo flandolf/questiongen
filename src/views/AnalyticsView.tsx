@@ -142,7 +142,7 @@ const CustomTreemapContent = memo(function CustomTreemapContent(
     return 'hsl(340 82% 52% / 0.8)';
   };
 
-  if (width < 40 || height < 20) return null;
+  const showLabel = width >= 40 && height >= 20;
 
   return (
     <g>
@@ -157,18 +157,20 @@ const CustomTreemapContent = memo(function CustomTreemapContent(
           strokeWidth: 2,
         }}
       />
-      <text
-        x={x + width / 2}
-        y={y + height / 2}
-        textAnchor='middle'
-        dominantBaseline='middle'
-        fill='white'
-        fontSize={Math.min(width / 6, 12)}
-        fontWeight='600'
-        className='pointer-events-none'
-      >
-        {name}
-      </text>
+      {showLabel && (
+        <text
+          x={x + width / 2}
+          y={y + height / 2}
+          textAnchor='middle'
+          dominantBaseline='middle'
+          fill='white'
+          fontSize={Math.min(width / 6, 12)}
+          fontWeight='600'
+          className='pointer-events-none'
+        >
+          {name}
+        </text>
+      )}
     </g>
   );
 });
@@ -437,35 +439,57 @@ export function AnalyticsView() {
   }, [allAttempts, subjectFilter]);
 
   const treemapData = useMemo(() => {
-    const topicMap = new Map<string, { name: string; children: { name: string; size: number; accuracy: number }[] }>();
+    const topicMap = new Map<
+      string,
+      {
+        name: string;
+        childrenMap: Map<
+          string,
+          { name: string; size: number; correct: number }
+        >;
+        total: number;
+        correct: number;
+      }
+    >();
 
     for (const attempt of allAttempts) {
       if (!topicMap.has(attempt.topic)) {
-        topicMap.set(attempt.topic, { name: attempt.topic, children: [] });
+        topicMap.set(attempt.topic, {
+          name: attempt.topic,
+          childrenMap: new Map(),
+          total: 0,
+          correct: 0,
+        });
       }
       const topic = topicMap.get(attempt.topic)!;
       const subtopicName = attempt.subtopic || 'Unspecified';
-      let subtopic = topic.children.find((c) => c.name === subtopicName);
-      if (!subtopic) {
-        subtopic = { name: subtopicName, size: 0, accuracy: 0 };
-        topic.children.push(subtopic);
-      }
-      subtopic.size += 1;
-      // We'll calculate actual accuracy after the loop
-    }
 
-    // Second pass to calculate accuracy
-    for (const topic of topicMap.values()) {
-      for (const subtopic of topic.children) {
-        const attempts = allAttempts.filter(
-          (a) => a.topic === topic.name && (a.subtopic || 'Unspecified') === subtopic.name,
-        );
-        const correct = attempts.filter((a) => a.isCorrect).length;
-        subtopic.accuracy = (correct / attempts.length) * 100;
+      if (!topic.childrenMap.has(subtopicName)) {
+        topic.childrenMap.set(subtopicName, {
+          name: subtopicName,
+          size: 0,
+          correct: 0,
+        });
+      }
+      const sub = topic.childrenMap.get(subtopicName)!;
+
+      sub.size += 1;
+      topic.total += 1;
+      if (attempt.isCorrect) {
+        sub.correct += 1;
+        topic.correct += 1;
       }
     }
 
-    return Array.from(topicMap.values());
+    return Array.from(topicMap.values()).map((topic) => ({
+      name: topic.name,
+      accuracy: topic.total > 0 ? (topic.correct / topic.total) * 100 : 0,
+      children: Array.from(topic.childrenMap.values()).map((sub) => ({
+        name: sub.name,
+        size: sub.size,
+        accuracy: sub.size > 0 ? (sub.correct / sub.size) * 100 : 0,
+      })),
+    }));
   }, [allAttempts]);
 
   const subjectSpreadData = useMemo(() => {
@@ -900,12 +924,12 @@ export function AnalyticsView() {
               description='Subject and subtopic distribution by volume.'
             />
             <div className='h-80 mt-4 bg-muted/20 rounded-lg overflow-hidden border border-border/40'>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width='100%' height='100%'>
                 <Treemap
                   data={treemapData}
-                  dataKey="size"
+                  dataKey='size'
                   aspectRatio={4 / 3}
-                  stroke="#fff"
+                  stroke='#fff'
                   content={<CustomTreemapContent />}
                 />
               </ResponsiveContainer>

@@ -21,7 +21,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { Difficulty, GeneratedQuestion, GenerationTelemetry, McQuestion } from '@/types';
+import type {
+  Difficulty,
+  GeneratedQuestion,
+  GenerationTelemetry,
+  McQuestion,
+} from '@/types';
 
 import { formatDurationMs } from '../../lib/app-utils';
 import { exportToPdf } from '../../lib/pdf-export';
@@ -139,6 +144,76 @@ function TimerDisplay({
   );
 }
 
+const SessionProgressBar = ({
+  progressPct,
+  progressBarColor,
+}: {
+  progressPct: number;
+  progressBarColor: string;
+}) => (
+  <div className='h-1 w-full bg-muted/30'>
+    <div
+      className={`h-full ${progressBarColor} transition-all duration-500 ease-out`}
+      style={{ width: `${progressPct}%` }}
+    />
+  </div>
+);
+
+const SessionNavigationLeft = ({
+  onExit,
+  questionIndex,
+  totalQuestions,
+  questionTimeSeconds,
+  isPaused,
+  isQuestionWarning,
+  recommendedSeconds,
+  onTogglePause,
+  onResetTimer,
+  completedCount,
+}: {
+  onExit: () => void;
+  questionIndex: number;
+  totalQuestions: number;
+  questionTimeSeconds?: number;
+  isPaused?: boolean;
+  isQuestionWarning?: boolean;
+  recommendedSeconds?: number;
+  onTogglePause?: () => void;
+  onResetTimer?: () => void;
+  completedCount: number;
+}) => (
+  <div className='flex min-w-0 items-center gap-3'>
+    <Button
+      variant='ghost'
+      size='sm'
+      onClick={onExit}
+      className='gap-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 h-9'
+    >
+      <Flag className='w-4 h-4' /> End Session
+    </Button>
+    <div className='h-4 w-px bg-border hidden sm:block' />
+    <div className='hidden sm:flex items-center gap-2 text-sm font-medium'>
+      <span className='text-foreground'>Q {questionIndex + 1}</span>
+      <span className='text-muted-foreground'>of {totalQuestions}</span>
+    </div>
+    {questionTimeSeconds !== undefined && (
+      <TimerDisplay
+        questionTimeSeconds={questionTimeSeconds}
+        isPaused={isPaused}
+        isQuestionWarning={isQuestionWarning}
+        recommendedSeconds={recommendedSeconds}
+        onTogglePause={onTogglePause}
+        onResetTimer={onResetTimer}
+      />
+    )}
+    {completedCount > 0 && completedCount < totalQuestions && (
+      <span className='text-[10px] text-muted-foreground tabular-nums hidden sm:inline'>
+        ({completedCount} answered)
+      </span>
+    )}
+  </div>
+);
+
 export const SessionHeader = memo(function SessionHeader({
   type,
   questionIndex,
@@ -188,46 +263,25 @@ export const SessionHeader = memo(function SessionHeader({
 
   return (
     <div className='sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border'>
-      {/* Session progress bar at very top */}
-      <div className='h-1 w-full bg-muted/30'>
-        <div
-          className={`h-full ${progressBarColor} transition-all duration-500 ease-out`}
-          style={{ width: `${progressPct}%` }}
-        />
-      </div>
+      <SessionProgressBar
+        progressPct={progressPct}
+        progressBarColor={progressBarColor}
+      />
 
       {/* Navigation row */}
       <div className='px-4 py-2 flex flex-wrap items-center justify-between gap-3'>
-        <div className='flex min-w-0 items-center gap-3'>
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={onExit}
-            className='gap-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 h-9'
-          >
-            <Flag className='w-4 h-4' /> End Session
-          </Button>
-          <div className='h-4 w-px bg-border hidden sm:block' />
-          <div className='hidden sm:flex items-center gap-2 text-sm font-medium'>
-            <span className='text-foreground'>Q {questionIndex + 1}</span>
-            <span className='text-muted-foreground'>of {totalQuestions}</span>
-          </div>
-          {questionTimeSeconds !== undefined && (
-            <TimerDisplay
-              questionTimeSeconds={questionTimeSeconds}
-              isPaused={isPaused}
-              isQuestionWarning={isQuestionWarning}
-              recommendedSeconds={recommendedSeconds}
-              onTogglePause={onTogglePause}
-              onResetTimer={onResetTimer}
-            />
-          )}
-          {completedCount > 0 && completedCount < totalQuestions && (
-            <span className='text-[10px] text-muted-foreground tabular-nums hidden sm:inline'>
-              ({completedCount} answered)
-            </span>
-          )}
-        </div>
+        <SessionNavigationLeft
+          onExit={onExit}
+          questionIndex={questionIndex}
+          totalQuestions={totalQuestions}
+          questionTimeSeconds={questionTimeSeconds}
+          isPaused={isPaused}
+          isQuestionWarning={isQuestionWarning}
+          recommendedSeconds={recommendedSeconds}
+          onTogglePause={onTogglePause}
+          onResetTimer={onResetTimer}
+          completedCount={completedCount}
+        />
 
         <div className='flex items-center gap-2 ml-auto'>
           <InfoBadges
@@ -277,6 +331,7 @@ export const SessionHeader = memo(function SessionHeader({
                     variant='ghost'
                     size='sm'
                     onClick={onSaveDraft}
+                    aria-label='Save draft'
                     className='h-9 w-9 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10'
                   >
                     <Save className='w-3.5 h-3.5' />
@@ -335,7 +390,14 @@ export const SessionHeader = memo(function SessionHeader({
                     <Button
                       variant='ghost'
                       size='sm'
-                      onClick={() => void exportToPdf(`${topic || 'Exam'} - ${difficulty}`, questions, type === 'written' ? 'written' : 'multiple-choice')}
+                      onClick={() =>
+                        void exportToPdf(
+                          `${topic || 'Exam'} - ${difficulty}`,
+                          questions,
+                          type === 'written' ? 'written' : 'multiple-choice',
+                        )
+                      }
+                      aria-label='Export session'
                       className='h-9 w-9 p-0 rounded-full'
                     >
                       <FileText className='w-3.5 h-3.5' />

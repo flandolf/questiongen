@@ -115,6 +115,7 @@ export interface AppState {
   generationStartedAt: number | null;
   isMarking: boolean;
   errorMessage: string | null;
+  isKeyboardShortcutsOpen: boolean;
 
   // ── Spaced repetition ─────────────────────────────────────────────────────
   spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
@@ -287,6 +288,7 @@ export interface AppActions {
   setGenerationStartedAt: (startedAt: number | null) => void;
   setIsMarking: (is: boolean) => void;
   setErrorMessage: (msg: string | null) => void;
+  setIsKeyboardShortcutsOpen: (isOpen: boolean) => void;
 
   // Saved sets
   saveCurrentSet: () => string | null;

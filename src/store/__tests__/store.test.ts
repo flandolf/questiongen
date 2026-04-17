@@ -8,11 +8,11 @@ describe('AppStore', () => {
     // Since Zustand stores are singletons in this setup, we might need to manually reset
     // Manual reset of some key properties for testing
     useAppStore.setState({
-        apiKey: '',
-        model: 'gpt-4o',
-        questions: [],
-        mcQuestions: [],
-        selectedTopics: [],
+      apiKey: '',
+      model: 'gpt-4o',
+      questions: [],
+      mcQuestions: [],
+      selectedTopics: [],
     });
   });
 

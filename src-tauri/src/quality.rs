@@ -325,7 +325,10 @@ mod tests {
 
     #[test]
     fn test_extract_primary_command_verb() {
-        assert_eq!(extract_primary_command_verb("Calculate the value"), "calculate");
+        assert_eq!(
+            extract_primary_command_verb("Calculate the value"),
+            "calculate"
+        );
         assert_eq!(extract_primary_command_verb("Please find x"), "find");
         assert_eq!(extract_primary_command_verb("No verb here"), "other");
     }
@@ -344,15 +347,15 @@ mod tests {
     #[test]
     fn test_detect_scaffold_pattern() {
         assert_eq!(detect_scaffold_pattern("Solve this."), "single-part");
-        assert_eq!(detect_scaffold_pattern("(a) part one (b) part two"), "multi-part-2");
+        assert_eq!(
+            detect_scaffold_pattern("(a) part one (b) part two"),
+            "multi-part-2"
+        );
     }
 
     #[test]
     fn test_score_batch() {
-        let prompts = vec![
-            "Calculate x.".to_string(),
-            "Determine y.".to_string(),
-        ];
+        let prompts = vec!["Calculate x.".to_string(), "Determine y.".to_string()];
         let (metrics, summary) = score_batch(&prompts);
         assert_eq!(metrics.len(), 2);
         assert!(summary.distinctness_avg.is_some());

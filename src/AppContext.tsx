@@ -172,6 +172,8 @@ export function useAppContext() {
       setIsMarking: s.setIsMarking,
       errorMessage: s.errorMessage,
       setErrorMessage: s.setErrorMessage,
+      isKeyboardShortcutsOpen: s.isKeyboardShortcutsOpen,
+      setIsKeyboardShortcutsOpen: s.setIsKeyboardShortcutsOpen,
       clearApiKey: s.clearApiKey,
       theme: s.theme,
       setTheme: s.setTheme,
@@ -197,6 +199,8 @@ export function useGenerationStatus() {
       setIsMarking: s.setIsMarking,
       errorMessage: s.errorMessage,
       setErrorMessage: s.setErrorMessage,
+      isKeyboardShortcutsOpen: s.isKeyboardShortcutsOpen,
+      setIsKeyboardShortcutsOpen: s.setIsKeyboardShortcutsOpen,
     })),
   );
 }

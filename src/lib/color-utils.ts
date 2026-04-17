@@ -1,5 +1,4 @@
-import type {
-  DynamicScheme} from '@material/material-color-utilities';
+import type { DynamicScheme } from '@material/material-color-utilities';
 import {
   argbFromHex,
   Hct,
