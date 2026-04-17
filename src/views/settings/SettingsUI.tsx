@@ -64,10 +64,11 @@ export function AnimatedSection({
 
   const itemVariants = isAndroid
     ? {
-        hidden: { opacity: 0, y: 10 },
+        hidden: { opacity: 0, y: 10, z: 0 },
         visible: {
           opacity: 1,
           y: 0,
+          z: 0,
           transition: { duration: 0.3, ease: 'easeOut' as const },
         },
       }
@@ -79,11 +80,16 @@ export function AnimatedSection({
       initial='hidden'
       animate='visible'
       className={className}
+      style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
     >
       {React.Children.map(children, (child, index) => {
         if (!React.isValidElement(child)) return child;
         return (
-          <motion.div key={child.key ?? index} variants={itemVariants}>
+          <motion.div
+            key={child.key ?? index}
+            variants={itemVariants}
+            style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
+          >
             {child}
           </motion.div>
         );

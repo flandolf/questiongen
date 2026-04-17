@@ -336,6 +336,7 @@ export function ModelsSection() {
     <AnimatedSection className='space-y-6'>
       {searchOpen && (
         <ModelSearchPanel
+          key='model-search-panel'
           target={searchTarget}
           apiKey={settings.apiKey}
           onClose={() => setSearchOpen(false)}
@@ -343,12 +344,13 @@ export function ModelsSection() {
         />
       )}
 
-      <section className='space-y-3'>
+      <section key='gen-model-section' className='space-y-3'>
         <SectionHeader
+          key='gen-model-header'
           title='Generation Model'
           description='Used to generate questions.'
         />
-        <FieldGroup label='Model' htmlFor='model-select'>
+        <FieldGroup key='gen-model-field' label='Model' htmlFor='model-select'>
           <ModelSelectRow
             id='model-select'
             value={localModel}
@@ -364,6 +366,7 @@ export function ModelsSection() {
         </FieldGroup>
         {showCustom && (
           <CustomModelInput
+            key='gen-model-custom'
             id='custom-model-id'
             label='Custom Model ID'
             value={customId}
@@ -376,10 +379,11 @@ export function ModelsSection() {
         )}
       </section>
 
-      <Divider />
+      <Divider key='divider-1' />
 
-      <section>
+      <section key='marking-model-section'>
         <SectionHeader
+          key='marking-model-header'
           title='Marking Model'
           description='Optional separate model for grading.'
         />
@@ -390,8 +394,12 @@ export function ModelsSection() {
           label='Use a separate marking model'
         />
         {localUseSeparateMarkingModel && (
-          <div className='space-y-3'>
-            <FieldGroup label='Marking model' htmlFor='marking-model-select'>
+          <div key='marking-model-container' className='space-y-3'>
+            <FieldGroup
+              key='marking-model-field'
+              label='Marking model'
+              htmlFor='marking-model-select'
+            >
               <ModelSelectRow
                 id='marking-model-select'
                 value={localMarkingModel}
@@ -407,6 +415,7 @@ export function ModelsSection() {
             </FieldGroup>
             {showCustomMarking && (
               <CustomModelInput
+                key='marking-model-custom'
                 id='custom-marking-model-id'
                 label='Custom Marking Model ID'
                 value={customMarkingId}
@@ -421,10 +430,11 @@ export function ModelsSection() {
         )}
       </section>
 
-      <Divider />
+      <Divider key='divider-2' />
 
-      <section>
+      <section key='image-marking-model-section'>
         <SectionHeader
+          key='image-marking-model-header'
           title='Image Marking Model'
           description='Optional separate vision model for marking uploaded answers.'
         />
@@ -435,8 +445,9 @@ export function ModelsSection() {
           label='Use a separate image marking model'
         />
         {localUseSeparateImageMarkingModel && (
-          <div className='space-y-3 mt-3'>
+          <div key='image-marking-model-container' className='space-y-3 mt-3'>
             <FieldGroup
+              key='image-marking-model-field'
               label='Image marking model'
               htmlFor='image-marking-model-select'
             >
@@ -456,6 +467,7 @@ export function ModelsSection() {
             </FieldGroup>
             {showCustomImageMarking && (
               <CustomModelInput
+                key='image-marking-model-custom'
                 id='custom-image-marking-model-id'
                 label='Custom Image Marking Model ID'
                 value={customImageMarkingId}
@@ -470,14 +482,19 @@ export function ModelsSection() {
         )}
       </section>
 
-      <Divider />
+      <Divider key='divider-3' />
 
-      <section className='space-y-3'>
+      <section key='tutor-model-section' className='space-y-3'>
         <SectionHeader
+          key='tutor-model-header'
           title='Tutor Model'
           description='Model used for the AI chat panel.'
         />
-        <FieldGroup label='Tutor model' htmlFor='tutor-model-select'>
+        <FieldGroup
+          key='tutor-model-field'
+          label='Tutor model'
+          htmlFor='tutor-model-select'
+        >
           <ModelSelectRow
             id='tutor-model-select'
             value={localTutorModel}
@@ -493,6 +510,7 @@ export function ModelsSection() {
         </FieldGroup>
         {showCustomTutor && (
           <CustomModelInput
+            key='tutor-model-custom'
             id='custom-tutor-model-id'
             label='Custom Tutor Model ID'
             value={customTutorId}
@@ -505,10 +523,11 @@ export function ModelsSection() {
         )}
       </section>
 
-      <Divider />
+      <Divider key='divider-4' />
 
-      <section>
+      <section key='exam-context-section'>
         <SectionHeader
+          key='exam-context-header'
           title='Exam Context'
           description='Attach previous exam PDFs as style context when generating questions.'
         />
@@ -521,9 +540,10 @@ export function ModelsSection() {
         />
       </section>
 
-      <Divider />
+      <Divider key='divider-5' />
 
       <LiveStatsSection
+        key='live-stats-section'
         stats={stats}
         apiKey={settings.apiKey}
         models={currentModelConfig}

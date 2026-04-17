@@ -284,7 +284,6 @@ in `src-tauri/src/openrouter.rs`.
     "verdict",
     "achievedMarks",
     "maxMarks",
-    "scoreOutOf10",
     "vcaaMarkingScheme",
     "comparisonToSolutionMarkdown",
     "feedbackMarkdown",
@@ -299,7 +298,6 @@ in `src-tauri/src/openrouter.rs`.
     "verdict": { "type": "string" },
     "achievedMarks": { "type": "integer", "minimum": 0 },
     "maxMarks": { "type": "integer", "minimum": 1 },
-    "scoreOutOf10": { "type": "integer", "minimum": 0, "maximum": 10 },
     "vcaaMarkingScheme": {
       "type": "array",
       "items": {

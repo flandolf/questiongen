@@ -1154,14 +1154,6 @@ impl GenerationService {
             }
         }
 
-        if parsed.max_marks > 0 {
-            parsed.score_out_of_10 =
-                ((parsed.achieved_marks as f32 / parsed.max_marks as f32) * 10.0).round() as u8;
-            parsed.score_out_of_10 = parsed.score_out_of_10.min(10);
-        } else {
-            parsed.score_out_of_10 = 0;
-        }
-
         parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);
         parsed.worked_solution_markdown = clean_field(&parsed.worked_solution_markdown);
         parsed.comparison_to_solution_markdown =

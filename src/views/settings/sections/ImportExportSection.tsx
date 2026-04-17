@@ -178,28 +178,35 @@ export function ImportExportSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='header'
         title='Import / Export'
         description='Backup your data locally or restore from a previous export.'
       />
 
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner key='error-banner' message={error} />}
 
       {success && (
-        <div className='flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2'>
+        <div
+          key='success-banner'
+          className='flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2'
+        >
           <CheckCircle2 className='h-4 w-4 shrink-0' />
           {success}
         </div>
       )}
 
       {!supportsFolderBackups && (
-        <p className='text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2'>
+        <p
+          key='android-notice'
+          className='text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2'
+        >
           Scheduled backups, saving to a chosen folder, and importing from that
           folder are available on desktop. On Android and in the browser, use
           Export and Choose File below.
         </p>
       )}
 
-      <Card className='p-4 space-y-3'>
+      <Card key='export-card' className='p-4 space-y-3'>
         <div className='flex items-center gap-2'>
           <HardDriveDownload className='h-4 w-4 text-muted-foreground' />
           <p className='text-sm font-medium'>Export Data</p>
@@ -231,20 +238,19 @@ export function ImportExportSection() {
         </Button>
       </Card>
 
+      {supportsFolderBackups && <Divider key='folder-divider' />}
       {supportsFolderBackups && (
-        <>
-          <Divider />
-          <LocalBackupFolderCard
-            onError={notifyError}
-            onSuccess={notifySuccess}
-            onPreparedImport={beginImportPreview}
-          />
-        </>
+        <LocalBackupFolderCard
+          key='folder-backup-card'
+          onError={notifyError}
+          onSuccess={notifySuccess}
+          onPreparedImport={beginImportPreview}
+        />
       )}
 
-      <Divider />
+      <Divider key='import-divider' />
 
-      <Card className='p-4 space-y-3'>
+      <Card key='import-card' className='p-4 space-y-3'>
         <div className='flex items-center gap-2'>
           <HardDriveUpload className='h-4 w-4 text-muted-foreground' />
           <p className='text-sm font-medium'>Import Data</p>

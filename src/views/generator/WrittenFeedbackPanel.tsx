@@ -140,10 +140,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
             <div
               className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${scoreColor}`}
             >
-              {feedback.scoreOutOf10}
+              {feedback.achievedMarks}
             </div>
             <div className='text-base sm:text-lg font-medium text-muted-foreground'>
-              / 10
+              / {feedback.maxMarks}
             </div>
           </div>
           <div className='flex items-center gap-3 mt-1'>

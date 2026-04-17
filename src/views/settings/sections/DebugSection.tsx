@@ -10,10 +10,14 @@ export function DebugSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='header'
         title='Debug Mode'
         description='Developer tools for inspecting LLM payloads.'
       />
-      <Card className='flex items-center justify-between p-4'>
+      <Card
+        key='debug-toggle'
+        className='flex items-center justify-between p-4'
+      >
         <div>
           <p className='text-sm font-medium'>Debug Mode</p>
           <p className='text-xs text-muted-foreground mt-0.5'>

@@ -21,10 +21,12 @@ export function ApiSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='header'
         title='OpenRouter API Key'
         description='Required for question generation, marking, and account info.'
       />
       <FieldGroup
+        key='api-key-field'
         label='API Key'
         htmlFor='api-key'
         hint='Stored locally — never leaves your device except to OpenRouter.'
@@ -53,7 +55,7 @@ export function ApiSection() {
           </button>
         </div>
       </FieldGroup>
-      <div className='flex items-center gap-3'>
+      <div key='actions' className='flex items-center gap-3'>
         <Button onClick={handleSaveKey} className='gap-2'>
           {keySaved ? (
             <CheckCircle2 className='h-4 w-4' />

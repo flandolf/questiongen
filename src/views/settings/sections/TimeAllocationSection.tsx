@@ -100,7 +100,7 @@ export function TimeAllocationSection() {
 
   return (
     <AnimatedSection className='space-y-6'>
-      <div className='relative'>
+      <div key='header-container' className='relative'>
         <SectionHeader
           title='Time Allocation'
           description='Configure the expected time allocation for each difficulty level.'
@@ -128,9 +128,13 @@ export function TimeAllocationSection() {
 
         return (
           <Card key={difficulty} className='p-5 space-y-4'>
-            <div className='flex flex-wrap items-center justify-between gap-4'>
+            <div
+              key='card-header'
+              className='flex flex-wrap items-center justify-between gap-4'
+            >
               <div className='flex items-center gap-3'>
                 <div
+                  key='difficulty-icon'
                   className={cn(
                     'p-2 rounded-xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 shrink-0',
                     config.bg,
@@ -139,14 +143,17 @@ export function TimeAllocationSection() {
                 >
                   {config.icon}
                 </div>
-                <div>
+                <div key='difficulty-label'>
                   <h3 className='text-sm font-bold tracking-tight text-foreground/90'>
                     {difficulty}
                   </h3>
                 </div>
               </div>
 
-              <div className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/50 shadow-sm shrink-0'>
+              <div
+                key='timer-badge'
+                className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/50 shadow-sm shrink-0'
+              >
                 <Timer className='size-3 text-primary/60' />
                 <span className='text-xs font-mono font-bold tabular-nums text-primary'>
                   {allocation.minutesPerMark.toFixed(2)}
@@ -157,8 +164,9 @@ export function TimeAllocationSection() {
               </div>
             </div>
 
-            <div className='relative pt-4 pb-1'>
+            <div key='slider-container' className='relative pt-4 pb-1'>
               <Slider
+                key='allocation-slider'
                 min={0.1}
                 max={5}
                 step={0.1}
@@ -168,7 +176,7 @@ export function TimeAllocationSection() {
                 }
                 className='**:[[role=slider]]:size-4 **:[[role=slider]]:border-primary **:[[role=slider]]:bg-background **:[[role=slider]]:ring-offset-background'
               />
-              <div className='flex justify-between mt-2'>
+              <div key='slider-ticks' className='flex justify-between mt-2'>
                 {[0, 1, 2, 3, 4, 5].map((tick) => (
                   <span
                     key={tick}

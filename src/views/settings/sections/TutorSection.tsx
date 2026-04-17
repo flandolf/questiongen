@@ -11,10 +11,14 @@ export function TutorSection() {
   return (
     <AnimatedSection className='space-y-6 w-full'>
       <SectionHeader
+        key='header'
         title='AI Tutor'
         description='Configure the persona and behavior of the AI Tutor.'
       />
-      <div className='space-y-4 flex flex-col items-start w-full'>
+      <div
+        key='tutor-config-container'
+        className='space-y-4 flex flex-col items-start w-full'
+      >
         <div className='space-y-4 w-full'>
           <div className='space-y-2'>
             <SectionHeader

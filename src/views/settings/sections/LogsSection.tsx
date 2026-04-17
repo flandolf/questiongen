@@ -173,7 +173,7 @@ export function LogsSection() {
 
   return (
     <AnimatedSection className='space-y-6'>
-      <div className='flex items-center justify-between'>
+      <div key='header-container' className='flex items-center justify-between'>
         <SectionHeader
           title='System Logs'
           description='Real-time diagnostic information, sync events, and generation payloads.'
@@ -221,7 +221,7 @@ export function LogsSection() {
         </div>
       </div>
 
-      <div className='space-y-4'>
+      <div key='logs-container' className='space-y-4'>
         <div className='flex flex-wrap items-center gap-4'>
           <div className='flex-1 min-w-50'>
             <InputGroup>

@@ -97,12 +97,16 @@ export function SyncSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='header'
         title='Cloud Sync'
         description='Your data is automatically synced to the cloud in realtime using Firestore.'
       />
 
       {!isOnline && (
-        <div className='flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-400'>
+        <div
+          key='offline-alert'
+          className='flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm text-amber-700 dark:text-amber-400'
+        >
           <AlertCircle className='h-4 w-4 shrink-0 mt-0.5' />
           <div>
             <span className='font-semibold'>You are offline.</span> Cloud sync
@@ -111,7 +115,7 @@ export function SyncSection() {
         </div>
       )}
 
-      <Card className='p-5 space-y-4'>
+      <Card key='sync-card' className='p-5 space-y-4'>
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-3'>
             <div
@@ -313,7 +317,7 @@ export function SyncSection() {
       </Card>
 
       {isSignedIn && (
-        <Card className='p-5'>
+        <Card key='sync-details' className='p-5'>
           <h3 className='text-sm font-medium mb-3'>Sync Details</h3>
           <ul className='space-y-2 text-sm text-muted-foreground'>
             <li className='flex items-center gap-2'>

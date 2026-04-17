@@ -419,12 +419,17 @@ function ManualFixPanel({
     return groups;
   }, [subtopicGroups, canonicalOptions]);
 
+  const isAndroid =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
   if (resultCount !== null) {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        key='success-message'
+        initial={{ opacity: 0, scale: 0.95, z: 0 }}
+        animate={{ opacity: 1, scale: 1, z: 0 }}
         className='p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex flex-col items-center justify-center text-center space-y-3'
+        style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
       >
         <div className='h-12 w-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500'>
           <CheckCircle2 className='h-6 w-6' />
@@ -449,7 +454,7 @@ function ManualFixPanel({
   }
 
   return (
-    <div className='space-y-4'>
+    <div key='main-panel' className='space-y-4'>
       {/* Control Bar */}
       <div className='flex flex-wrap items-center gap-3 p-3 bg-muted/30 border border-border rounded-lg'>
         <div className='relative flex-1 min-w-60'>
@@ -530,9 +535,11 @@ function ManualFixPanel({
       {/* Auto-fill Suggestions */}
       {Object.keys(bestMatches).length > 0 && unresolvedCount > 0 && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+          key='suggestions-banner'
+          initial={{ opacity: 0, y: -10, z: 0 }}
+          animate={{ opacity: 1, y: 0, z: 0 }}
           className='flex items-center justify-between p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg'
+          style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
         >
           <div className='flex items-center gap-2 text-blue-600 dark:text-blue-400'>
             <Sparkles className='h-4 w-4' />
@@ -556,10 +563,12 @@ function ManualFixPanel({
       <AnimatePresence>
         {bulkMode && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            key='bulk-toolbar'
+            initial={{ height: 0, opacity: 0, z: 0 }}
+            animate={{ height: 'auto', opacity: 1, z: 0 }}
+            exit={{ height: 0, opacity: 0, z: 0 }}
             className='overflow-hidden'
+            style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
           >
             <div className='p-3 bg-secondary/50 border border-border rounded-lg flex flex-wrap items-center gap-3'>
               <div className='flex items-center gap-2 mr-auto'>
@@ -613,10 +622,12 @@ function ManualFixPanel({
       <AnimatePresence>
         {showPreview && previewMapping.length > 0 && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            key='preview-panel'
+            initial={{ height: 0, opacity: 0, z: 0 }}
+            animate={{ height: 'auto', opacity: 1, z: 0 }}
+            exit={{ height: 0, opacity: 0, z: 0 }}
             className='overflow-hidden'
+            style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
           >
             <div className='p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2'>
               <div className='flex items-center justify-between mb-2'>
@@ -672,8 +683,8 @@ function ManualFixPanel({
             return (
               <motion.div
                 layout
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: -10, z: 0 }}
+                animate={{ opacity: 1, x: 0, z: 0 }}
                 transition={{ delay: idx * 0.02 }}
                 key={item}
                 className={cn(
@@ -682,6 +693,9 @@ function ManualFixPanel({
                     ? 'bg-blue-500/5 border-blue-500/30'
                     : 'bg-background border-border hover:border-muted-foreground/30 hover:shadow-sm',
                 )}
+                style={
+                  isAndroid ? { willChange: 'opacity, transform' } : undefined
+                }
               >
                 <div className='flex items-center gap-3'>
                   {bulkMode && (
@@ -811,11 +825,16 @@ function HealthDashboard({
   hasUnknownTopics: boolean;
   hasUnknownSubtopics: boolean;
 }) {
+  const isAndroid =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
   return (
     <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
       <motion.div
+        key='health-score-card'
         layout
         className='lg:col-span-2 p-6 rounded-2xl border border-border bg-linear-to-br from-background to-muted/20 relative overflow-hidden group shadow-sm'
+        style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
       >
         <div className='absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity'>
           <Database className='h-32 w-32 rotate-12' />
@@ -844,8 +863,9 @@ function HealthDashboard({
           <div className='space-y-2'>
             <div className='h-3 w-full bg-muted rounded-full overflow-hidden border border-border p-0.5'>
               <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${scan.healthScore}%` }}
+                key='health-progress-bar'
+                initial={{ width: 0, z: 0 }}
+                animate={{ width: `${scan.healthScore}%`, z: 0 }}
                 className={cn(
                   'h-full rounded-full shadow-sm',
                   scan.healthScore > 90
@@ -854,6 +874,9 @@ function HealthDashboard({
                       ? 'bg-amber-500'
                       : 'bg-destructive',
                 )}
+                style={
+                  isAndroid ? { willChange: 'width, transform' } : undefined
+                }
               />
             </div>
             <div className='flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
@@ -865,7 +888,10 @@ function HealthDashboard({
           </div>
 
           <div className='grid grid-cols-2 gap-4'>
-            <div className='p-3 rounded-xl bg-background/50 border border-border'>
+            <div
+              key='topics-stats'
+              className='p-3 rounded-xl bg-background/50 border border-border'
+            >
               <div className='text-[10px] font-bold text-muted-foreground uppercase mb-1'>
                 Topics
               </div>
@@ -881,7 +907,10 @@ function HealthDashboard({
                 <span className='text-xs text-muted-foreground'>unknown</span>
               </div>
             </div>
-            <div className='p-3 rounded-xl bg-background/50 border border-border'>
+            <div
+              key='subtopics-stats'
+              className='p-3 rounded-xl bg-background/50 border border-border'
+            >
               <div className='text-[10px] font-bold text-muted-foreground uppercase mb-1'>
                 Subtopics
               </div>
@@ -901,7 +930,12 @@ function HealthDashboard({
         </div>
       </motion.div>
 
-      <div className='p-6 rounded-2xl border border-border bg-card flex flex-col justify-between h-full shadow-sm'>
+      <motion.div
+        key='audit-summary-card'
+        layout
+        className='p-6 rounded-2xl border border-border bg-card flex flex-col justify-between h-full shadow-sm'
+        style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
+      >
         <div className='space-y-4'>
           <div className='flex items-center gap-2 text-amber-500'>
             <AlertTriangle className='h-4 w-4' />
@@ -919,7 +953,10 @@ function HealthDashboard({
             multiple-choice records.
           </p>
           {!hasUnknowns ? (
-            <div className='p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-3'>
+            <div
+              key='all-valid'
+              className='p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-3'
+            >
               <div className='h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0'>
                 <CheckCircle2 className='h-4 w-4' />
               </div>
@@ -928,7 +965,7 @@ function HealthDashboard({
               </span>
             </div>
           ) : (
-            <div className='space-y-3'>
+            <div key='has-unknowns' className='space-y-3'>
               <p className='text-[11px] text-muted-foreground'>
                 Detected{' '}
                 <span className='font-mono font-bold text-amber-600 dark:text-amber-400'>
@@ -949,7 +986,7 @@ function HealthDashboard({
           <RefreshCw className='h-3 w-3' />
           Rescan Database
         </Button>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -1002,7 +1039,10 @@ function AutoAuditCard({
 
       <div className='min-h-25 flex flex-col justify-center'>
         {result ? (
-          <div className='p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3'>
+          <div
+            key='success-panel'
+            className='p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-3'
+          >
             <div className='flex items-center gap-2 text-emerald-600 dark:text-emerald-400'>
               <CheckCircle2 className='h-4 w-4' />
               <span className='text-xs font-bold'>
@@ -1027,7 +1067,7 @@ function AutoAuditCard({
             </div>
           </div>
         ) : (
-          <div className='space-y-4'>
+          <div key='audit-panel' className='space-y-4'>
             <p className='text-xs text-muted-foreground leading-relaxed italic'>
               The AI will analyze the unknown labels and map them to the closest
               VCAA specifications.
@@ -1078,6 +1118,9 @@ export function CleanupSection() {
   const [subtopicError, setSubtopicError] = useState<string | null>(null);
   const [subtopicResult, setSubtopicResult] =
     useState<SubtopicCleanupResult | null>(null);
+
+  const isAndroid =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 
   const scan = useMemo((): ScanResult => {
     const topicSet = new Set<string>();
@@ -1271,11 +1314,13 @@ export function CleanupSection() {
   return (
     <div className='space-y-8 pb-12'>
       <SectionHeader
+        key='header'
         title='Data Cleanup & Normalisation'
         description='Audit and sync your question metadata against official study design specifications.'
       />
 
       <HealthDashboard
+        key='health-dashboard'
         scan={scan}
         hasUnknowns={hasUnknowns}
         hasUnknownTopics={hasUnknownTopics}
@@ -1285,16 +1330,25 @@ export function CleanupSection() {
       <AnimatePresence>
         {hasUnknowns && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            key='conditional-unknowns'
+            initial={{ opacity: 0, y: 20, z: 0 }}
+            animate={{ opacity: 1, y: 0, z: 0 }}
             className='space-y-8'
+            style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
           >
-            <Divider />
+            <Divider key='cleanup-divider' />
 
-            <div className='w-full'>
-              <div className='flex flex-wrap items-center justify-between gap-4 mb-6'>
-                <div className='flex items-center bg-muted/50 p-1 rounded-xl border border-border shadow-inner'>
+            <div key='cleanup-tabs-container' className='w-full'>
+              <div
+                key='cleanup-tabs-header'
+                className='flex flex-wrap items-center justify-between gap-4 mb-6'
+              >
+                <div
+                  key='tab-switcher'
+                  className='flex items-center bg-muted/50 p-1 rounded-xl border border-border shadow-inner'
+                >
                   <button
+                    key='auto-tab-btn'
                     onClick={() => setActiveTab('auto')}
                     className={cn(
                       'rounded-lg px-6 h-9 gap-2 flex items-center transition-all duration-200',
@@ -1314,6 +1368,7 @@ export function CleanupSection() {
                     </span>
                   </button>
                   <button
+                    key='manual-tab-btn'
                     onClick={() => setActiveTab('manual')}
                     className={cn(
                       'rounded-lg px-6 h-9 gap-2 flex items-center transition-all duration-200',
@@ -1335,7 +1390,10 @@ export function CleanupSection() {
                 </div>
 
                 {activeTab === 'auto' && (
-                  <div className='flex items-center gap-4 bg-muted/30 px-4 py-1.5 rounded-xl border border-border'>
+                  <div
+                    key='engine-selector'
+                    className='flex items-center gap-4 bg-muted/30 px-4 py-1.5 rounded-xl border border-border'
+                  >
                     <span className='text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap'>
                       Engine
                     </span>
@@ -1350,17 +1408,23 @@ export function CleanupSection() {
                 )}
               </div>
 
-              <div className='min-h-100'>
+              <div key='tab-content-container' className='min-h-100'>
                 <AnimatePresence mode='wait'>
                   {activeTab === 'auto' ? (
                     <motion.div
                       key='auto'
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
+                      initial={{ opacity: 0, x: -10, z: 0 }}
+                      animate={{ opacity: 1, x: 0, z: 0 }}
+                      exit={{ opacity: 0, x: 10, z: 0 }}
                       className='grid grid-cols-1 md:grid-cols-2 gap-8 outline-none'
+                      style={
+                        isAndroid
+                          ? { willChange: 'opacity, transform' }
+                          : undefined
+                      }
                     >
                       <AutoAuditCard
+                        key='topic-audit-card'
                         title='Topic Normalization'
                         subtitle='High-level category alignment'
                         icon={Settings2}
@@ -1373,6 +1437,7 @@ export function CleanupSection() {
                         iconClass='bg-amber-500/10 text-amber-500 border-amber-500/20'
                       />
                       <AutoAuditCard
+                        key='subtopic-audit-card'
                         title='Subtopic Refinement'
                         subtitle='Granular study design mapping'
                         icon={Wand2}
@@ -1388,13 +1453,18 @@ export function CleanupSection() {
                   ) : (
                     <motion.div
                       key='manual'
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
+                      initial={{ opacity: 0, x: 10, z: 0 }}
+                      animate={{ opacity: 1, x: 0, z: 0 }}
+                      exit={{ opacity: 0, x: -10, z: 0 }}
                       className='grid grid-cols-1 gap-12 outline-none'
+                      style={
+                        isAndroid
+                          ? { willChange: 'opacity, transform' }
+                          : undefined
+                      }
                     >
                       {hasUnknownTopics && !topicResult && (
-                        <div className='space-y-4'>
+                        <div key='topic-scrubbing' className='space-y-4'>
                           <div className='flex items-center gap-3'>
                             <div className='h-1.5 w-1.5 rounded-full bg-amber-500' />
                             <h4 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground'>
@@ -1402,6 +1472,7 @@ export function CleanupSection() {
                             </h4>
                           </div>
                           <ManualFixPanel
+                            key='topic-manual-panel'
                             unknownItems={scan.unknownTopics}
                             canonicalOptions={CANONICAL_TOPICS}
                             mappingKind='topic'
@@ -1411,7 +1482,7 @@ export function CleanupSection() {
                       )}
 
                       {hasUnknownSubtopics && !subtopicResult && (
-                        <div className='space-y-4'>
+                        <div key='subtopic-scrubbing' className='space-y-4'>
                           <div className='flex items-center gap-3'>
                             <div className='h-1.5 w-1.5 rounded-full bg-blue-500' />
                             <h4 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground'>
@@ -1419,6 +1490,7 @@ export function CleanupSection() {
                             </h4>
                           </div>
                           <ManualFixPanel
+                            key='subtopic-manual-panel'
                             unknownItems={scan.unknownSubtopics}
                             canonicalOptions={CANONICAL_SUBTOPICS}
                             mappingKind='subtopic'

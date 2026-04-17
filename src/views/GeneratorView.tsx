@@ -1278,7 +1278,6 @@ export function GeneratorView() {
     const updated = {
       ...activeFeedback,
       achievedMarks: clamped,
-      scoreOutOf10: Math.round((clamped / activeFeedback.maxMarks) * 10),
       verdict:
         clamped === activeFeedback.maxMarks
           ? 'Correct'
@@ -1397,7 +1396,6 @@ export function GeneratorView() {
         vcaaMarkingScheme: nextScheme,
         achievedMarks: totalAchieved,
         maxMarks: totalMax,
-        scoreOutOf10: Math.round((totalAchieved / Math.max(1, totalMax)) * 10),
         verdict:
           totalAchieved === totalMax
             ? 'Correct'

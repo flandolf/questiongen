@@ -11,11 +11,12 @@ export function GoalsSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='header'
         title='Study Goals'
         description='Set daily targets and track your study streaks.'
       />
       {/* Streak stats */}
-      <Card className='p-4'>
+      <Card key='streak-stats' className='p-4'>
         <div className='flex items-center justify-between'>
           <div>
             <p className='text-sm font-medium'>Current streak</p>
@@ -33,7 +34,7 @@ export function GoalsSection() {
           </div>
         </div>
       </Card>
-      <Card className='p-4 space-y-4'>
+      <Card key='daily-question-goal' className='p-4 space-y-4'>
         <div>
           <p className='text-sm font-medium'>Daily question goal</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -54,7 +55,7 @@ export function GoalsSection() {
           </span>
         </div>
       </Card>
-      <Card className='p-4 space-y-4'>
+      <Card key='daily-written-goal' className='p-4 space-y-4'>
         <div>
           <p className='text-sm font-medium'>Daily written goal</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -75,7 +76,7 @@ export function GoalsSection() {
           </span>
         </div>
       </Card>
-      <Card className='p-4 space-y-4'>
+      <Card key='daily-mc-goal' className='p-4 space-y-4'>
         <div>
           <p className='text-sm font-medium'>Daily MC goal</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -96,7 +97,7 @@ export function GoalsSection() {
           </span>
         </div>
       </Card>
-      <Card className='p-4 space-y-4'>
+      <Card key='weekly-streak-goal' className='p-4 space-y-4'>
         <div>
           <p className='text-sm font-medium'>Weekly streak goal</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
