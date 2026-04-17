@@ -13,7 +13,6 @@ import {
   useWrittenSession,
 } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
-import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
@@ -198,6 +197,7 @@ export function GeneratorView() {
     activeWrittenSavedSetId,
     setActiveWrittenSavedSetId,
     writtenGenerationTelemetry,
+    setWrittenQuestionPresentedAtById,
   } = useWrittenSession();
 
   const {
@@ -214,6 +214,7 @@ export function GeneratorView() {
     activeMcSavedSetId,
     setActiveMcSavedSetId,
     mcGenerationTelemetry,
+    setMcQuestionPresentedAtById,
   } = useMultipleChoiceSession();
 
   const {
@@ -768,6 +769,55 @@ export function GeneratorView() {
     setPendingCancelType('mc');
     setConfirmOpen(true);
   }, [activeMcQuestion, activeMcQuestionIndex]);
+
+  const handleExitSession = useCallback(() => {
+    if (isSetComplete) {
+      activeTimer.complete();
+      setShowCompletionScreen(true);
+    } else {
+      // Uncompleted session - save and return to setup
+      const savedId = appStore.saveCurrentSet();
+      if (savedId) {
+        toast.success("Session saved for later in 'Saved Sets'");
+      }
+
+      // Clear session state to return to SetupPanel
+      if (questionMode === 'written') {
+        setQuestions([]);
+        setActiveQuestionIndex(0);
+        setAnswersByQuestionId({});
+        setImagesByQuestionId({});
+        setFeedbackByQuestionId({});
+        setWrittenQuestionPresentedAtById({});
+        setActiveWrittenSavedSetId(null);
+      } else {
+        setMcQuestions([]);
+        setActiveMcQuestionIndex(0);
+        setMcAnswersByQuestionId({});
+        setMcQuestionPresentedAtById({});
+        setActiveMcSavedSetId(null);
+      }
+      activeTimer.reset();
+      setShowCompletionScreen(false);
+    }
+  }, [
+    isSetComplete,
+    activeTimer,
+    appStore,
+    questionMode,
+    setQuestions,
+    setActiveQuestionIndex,
+    setAnswersByQuestionId,
+    setImagesByQuestionId,
+    setFeedbackByQuestionId,
+    setActiveWrittenSavedSetId,
+    setWrittenQuestionPresentedAtById,
+    setMcQuestions,
+    setActiveMcQuestionIndex,
+    setMcAnswersByQuestionId,
+    setMcQuestionPresentedAtById,
+    setActiveMcSavedSetId,
+  ]);
 
   const getWrittenAttemptSequence = useCallback(
     (qId: string) =>
@@ -1541,15 +1591,16 @@ export function GeneratorView() {
             ? handleCancelWrittenQuestion
             : handleCancelMcQuestion
         }
-        onExit={() => {
-          activeTimer.complete();
-          setShowCompletionScreen(true);
+        onExit={handleExitSession}
+        onSaveDraft={() => {
+          const id = appStore.saveCurrentSet();
+          if (id) toast.success("Draft saved to 'Saved Sets'");
         }}
         getDifficultyBadgeClasses={getDifficultyBadgeClasses}
         questions={questionMode === 'written' ? questions : mcQuestions}
       />
 
-      <div className='flex-1 min-h-0 overflow-hidden relative'>
+      <div className='flex-1 min-h-0 overflow-hidden relative p-6'>
         <QuestionSplitLayout
           mode={questionMode === 'written' ? 'written' : 'mc'}
           sketchpadActive={
@@ -1559,28 +1610,8 @@ export function GeneratorView() {
           }
           leftSlot={
             questionMode === 'written' ? (
-              <div className='space-y-6'>
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-2'>
-                    <span
-                      className={`px-2 py-0.5 text-xs font-medium border rounded-full ${getDifficultyBadgeClasses(difficulty)}`}
-                    >
-                      {difficulty}
-                    </span>
-                    {activeQuestion.subtopic && (
-                      <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>
-                        {activeQuestion.subtopic}
-                      </span>
-                    )}
-                  </div>
-                  <span className='text-sm font-semibold text-primary'>
-                    [{activeQuestion.maxMarks}{' '}
-                    {activeQuestion.maxMarks === 1 ? 'mark' : 'marks'}]
-                  </span>
-                </div>
-                <div className='prose dark:prose-invert max-w-none'>
-                  <MarkdownMath content={activeQuestion.promptMarkdown} />
-                </div>
+              <div className='prose dark:prose-invert max-w-none'>
+                <MarkdownMath content={activeQuestion.promptMarkdown} />
               </div>
             ) : (
               <div className='space-y-6'>
@@ -1641,22 +1672,6 @@ export function GeneratorView() {
                     isMarking={isMarking}
                   />
                 )}
-
-                <div className='flex justify-between items-center pt-4 mt-auto'>
-                  <Button
-                    variant='outline'
-                    onClick={handlePrevWritten}
-                    disabled={activeQuestionIndex === 0}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    onClick={handleNextWrittenQuestion}
-                    disabled={!canAdvanceWritten}
-                  >
-                    {isAtLastWrittenQuestion ? 'Finish' : 'Next Question'}
-                  </Button>
-                </div>
               </div>
             ) : (
               <div className='space-y-6 h-full flex flex-col'>
@@ -1682,22 +1697,6 @@ export function GeneratorView() {
                   onImageDrop={() => {}}
                   onImageRemove={() => {}}
                 />
-
-                <div className='flex justify-between items-center pt-4 mt-auto'>
-                  <Button
-                    variant='outline'
-                    onClick={handlePrevMc}
-                    disabled={activeMcQuestionIndex === 0}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    onClick={handleNextMcQuestion}
-                    disabled={!canAdvanceMc}
-                  >
-                    {isAtLastMcQuestion ? 'Finish' : 'Next Question'}
-                  </Button>
-                </div>
               </div>
             )
           }

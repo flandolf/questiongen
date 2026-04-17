@@ -20,9 +20,18 @@ fn subtopic_to_subject() -> &'static HashMap<String, String> {
     })
 }
 
-fn all_canonical_subtopics() -> &'static [&'static str] {
-    static SUBS: OnceLock<Vec<&'static str>> = OnceLock::new();
-    SUBS.get_or_init(crate::catalog::all_subtopic_names_lower)
+fn subtopic_index() -> &'static HashMap<String, String> {
+    static INDEX: OnceLock<HashMap<String, String>> = OnceLock::new();
+    INDEX.get_or_init(|| {
+        let catalog = crate::catalog::all_topics();
+        let mut m = HashMap::new();
+        for topic in catalog {
+            for sub in &topic.subtopics {
+                m.insert(sub.name.to_lowercase(), sub.name.clone());
+            }
+        }
+        m
+    })
 }
 
 fn levenshtein(a: &str, b: &str) -> usize {
@@ -69,37 +78,42 @@ fn similarity_score(a: &str, b: &str) -> f64 {
 
 #[derive(Debug)]
 enum CanonicalizeResult {
-    AlreadyCanonical,
     Mapped(String),
     NoMatch,
 }
 
+pub fn strip_subtopic_scope(value: &str) -> String {
+    if let Some(pos) = value.find("@@") {
+        value[..pos].trim().to_string()
+    } else {
+        value.trim().to_string()
+    }
+}
+
 fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> CanonicalizeResult {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
+    let stripped = strip_subtopic_scope(value);
+    if stripped.is_empty() {
         return sole_subtopic
             .map(|s| CanonicalizeResult::Mapped(s.to_string()))
             .unwrap_or(CanonicalizeResult::NoMatch);
     }
 
-    let lower = trimmed.to_ascii_lowercase();
-    let all_subs = all_canonical_subtopics();
+    let lower = stripped.to_ascii_lowercase();
+    let index = subtopic_index();
 
-    for &canonical in all_subs {
-        if canonical == lower {
-            return CanonicalizeResult::AlreadyCanonical;
-        }
+    if let Some(canonical) = index.get(&lower) {
+        return CanonicalizeResult::Mapped(canonical.clone());
     }
 
     let mut best_containment: Option<&str> = None;
-    for &canonical in all_subs {
-        if lower.contains(canonical) || canonical.contains(&lower) {
-            if let Some(current) = best_containment {
-                if canonical.len() > current.len() {
-                    best_containment = Some(canonical);
+    for (lower_canonical, original) in index {
+        if lower.contains(lower_canonical) || lower_canonical.contains(&lower) {
+            if let Some(current_best) = best_containment {
+                if original.len() > index.get(&current_best.to_lowercase()).unwrap().len() {
+                    best_containment = Some(original);
                 }
             } else {
-                best_containment = Some(canonical);
+                best_containment = Some(original);
             }
         }
     }
@@ -111,11 +125,11 @@ fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> Canonicali
     let mut best_match: Option<&str> = None;
     let mut tie_count = 0usize;
 
-    for &canonical in all_subs {
-        let score = similarity_score(&lower, canonical);
+    for (lower_canonical, original) in index {
+        let score = similarity_score(&lower, lower_canonical);
         if score > best_score + 0.001 {
             best_score = score;
-            best_match = Some(canonical);
+            best_match = Some(original);
             tie_count = 1;
         } else if (score - best_score).abs() <= 0.001
             && score.is_finite()
@@ -189,7 +203,6 @@ pub fn normalise_topic_and_subtopic(
 
     if let Some(ref current) = subtopic.clone() {
         match canonicalize_subtopic(current, sole_subtopic) {
-            CanonicalizeResult::AlreadyCanonical => {}
             CanonicalizeResult::Mapped(canonical) => {
                 *subtopic = Some(canonical);
             }
@@ -244,6 +257,19 @@ mod tests {
         normalise_topic_and_subtopic(&mut topic, &mut subtopic, &selected_topics, None);
 
         assert_eq!(topic, "Mathematical Methods");
-        assert_eq!(subtopic.as_deref(), Some("functions and function notation"));
+        assert_eq!(subtopic.as_deref(), Some("Functions and Function Notation"));
+    }
+
+    #[test]
+    fn strips_scoped_subtopic_during_normalization() {
+        let mut topic = "Mathematical Methods".to_string();
+        let mut subtopic = Some("Graphing Circular Functions@@unit3-functions#12".to_string());
+        let selected_topics = vec!["Mathematical Methods".to_string()];
+
+        normalise_topic_and_subtopic(&mut topic, &mut subtopic, &selected_topics, None);
+
+        assert_eq!(topic, "Mathematical Methods");
+        // It should match "Graphing Circular Functions" in the catalog
+        assert_eq!(subtopic.as_deref(), Some("Graphing Circular Functions"));
     }
 }
