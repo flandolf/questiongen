@@ -32,39 +32,12 @@ vi.mock('@/context/modules/sync/mutations', () => ({
 }));
 
 // Mock persistence to avoid tauri/fs calls
-vi.mock('@/lib/persistence', () => ({
-  EMPTY_PERSISTED_APP_STATE: {
-    settings: {
-      apiKey: '',
-      model: 'gpt-4o',
-      markingModel: 'gpt-4o',
-      debugMode: false,
-      theme: 'system',
-    },
-    preferences: {
-      selectedTopics: [],
-      difficulty: 'Medium',
-      techMode: 'tech-active',
-      questionCount: 5,
-      questionMode: 'written',
-    },
-    writtenSession: {
-      questions: [],
-      activeQuestionIndex: 0,
-      presentedAtByQuestionId: {},
-      answersByQuestionId: {},
-      imagesByQuestionId: {},
-      feedbackByQuestionId: {},
-    },
-    mcSession: {
-      questions: [],
-      activeQuestionIndex: 0,
-      presentedAtByQuestionId: {},
-      answersByQuestionId: {},
-    },
-    questionHistory: [],
-    mcHistory: [],
-    savedSets: [],
-  },
-  loadPersistedAppState: vi.fn().mockResolvedValue({}),
-}));
+vi.mock('@/lib/persistence', async (importOriginal) => {
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    loadPersistedAppState: vi.fn().mockResolvedValue({}),
+    savePersistedAppState: vi.fn().mockResolvedValue(undefined),
+  };
+});

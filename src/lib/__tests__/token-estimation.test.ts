@@ -2,7 +2,7 @@
  * Tests for Token Estimation utilities.
  * Verifies persistence of regression coefficients and accuracy of token/cost estimates.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   estimateTokensAndCost,
@@ -10,32 +10,26 @@ import {
   persistLogRegressionCoefficients,
 } from '../token-estimation';
 
-describe('token-estimation', () => {
-  beforeAll(() => {
-    // Mock localStorage if it doesn't exist (e.g. in Bun test environment)
-    if (typeof window === 'undefined') {
-      const store: Record<string, string> = {};
-      const mockWindow = {
-        localStorage: {
-          getItem: (key: string) => store[key] || null,
-          setItem: (key: string, value: string) => {
-            store[key] = value;
-          },
-          removeItem: (key: string) => {
-            delete store[key];
-          },
-          clear: () => {
-            for (const key in store) delete store[key];
-          },
-        },
-      };
-      Object.defineProperty(globalThis, 'window', {
-        value: mockWindow,
-        writable: true,
-      });
-    }
-  });
+// Mock localStorage before importing the module under test
+const store: Record<string, string> = {};
+const mockLocalStorage = {
+  getItem: vi.fn((key: string) => store[key] || null),
+  setItem: vi.fn((key: string, value: string) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn((key: string) => {
+    delete store[key];
+  }),
+  clear: vi.fn(() => {
+    for (const key in store) delete store[key];
+  }),
+  length: 0,
+  key: vi.fn((_index: number) => null),
+};
+vi.stubGlobal('localStorage', mockLocalStorage);
+vi.stubGlobal('window', { localStorage: mockLocalStorage });
 
+describe('token-estimation', () => {
   describe('persistence', () => {
     it('should save and load regression coefficients from localStorage', () => {
       const mockCoeffs = {
