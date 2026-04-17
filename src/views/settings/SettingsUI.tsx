@@ -64,13 +64,13 @@ export function AnimatedSection({
 
   const itemVariants = isAndroid
     ? {
-      hidden: { opacity: 0, y: 10 },
-      visible: {
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.3, ease: 'easeOut' as const },
-      },
-    }
+        hidden: { opacity: 0, y: 10 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.3, ease: 'easeOut' as const },
+        },
+      }
     : STAGGER_ITEM_VARIANTS;
 
   return (
@@ -238,13 +238,13 @@ export function ModelSelectRow({
   const extraEntry =
     !isKnown && value && value !== 'custom'
       ? [
-        {
-          id: value,
-          name: value.includes('/')
-            ? value.split('/').slice(1).join('/')
-            : value,
-        },
-      ]
+          {
+            id: value,
+            name: value.includes('/')
+              ? value.split('/').slice(1).join('/')
+              : value,
+          },
+        ]
       : [];
   const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
 

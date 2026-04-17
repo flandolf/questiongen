@@ -95,9 +95,7 @@ interface TauriConfig {
 
 async function updateTauriConfJson(version: string): Promise<void> {
   const tauriConfigPath = fromRoot('src-tauri', 'tauri.conf.json');
-  const conf = await readJson<TauriConfig>(
-    tauriConfigPath,
-  );
+  const conf = await readJson<TauriConfig>(tauriConfigPath);
   conf.version = version;
   await writeJson(tauriConfigPath, conf);
   console.log(`src-tauri/tauri.conf.json: ${version}`);
@@ -135,4 +133,4 @@ async function main(): Promise<void> {
   console.log('\nVersion updated successfully.');
 }
 
-await main();
+main();

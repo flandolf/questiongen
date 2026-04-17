@@ -1,7 +1,7 @@
+import { ColorPicker } from '@/components/color-picker';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -71,7 +71,10 @@ export function AppearanceSection() {
         </div>
         <ModeToggle />
       </Card>
-      <Card key='design-theme' className='flex items-center justify-between p-4'>
+      <Card
+        key='design-theme'
+        className='flex items-center justify-between p-4'
+      >
         <div>
           <p className='text-sm font-medium'>Design theme</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -113,21 +116,20 @@ export function AppearanceSection() {
               Primary color for the custom theme.
             </p>
           </div>
-          <div className='flex items-center gap-2'>
-            <span className='text-xs font-mono text-muted-foreground uppercase'>
-              {customThemeSeedColor}
-            </span>
-            <Input
-              type='color'
-              value={customThemeSeedColor}
-              onChange={(e) => setCustomThemeSeedColor(e.target.value)}
-              className='w-12 h-8 p-1 cursor-pointer'
-            />
-          </div>
+          <ColorPicker
+            value={customThemeSeedColor}
+            onChange={setCustomThemeSeedColor}
+            label='Seed color'
+            triggerClassName='w-44'
+            contentClassName='w-80'
+          />
         </Card>
       )}
 
-      <Card key='interface-rounding' className='flex items-center justify-between p-4'>
+      <Card
+        key='interface-rounding'
+        className='flex items-center justify-between p-4'
+      >
         <div>
           <p className='text-sm font-medium'>Interface rounding</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -149,7 +151,10 @@ export function AppearanceSection() {
         </ButtonGroup>
       </Card>
 
-      <Card key='interface-font' className='flex items-center justify-between p-4'>
+      <Card
+        key='interface-font'
+        className='flex items-center justify-between p-4'
+      >
         <div>
           <p className='text-sm font-medium'>Interface font</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -170,7 +175,10 @@ export function AppearanceSection() {
         </Select>
       </Card>
 
-      <Card key='heading-font' className='flex items-center justify-between p-4'>
+      <Card
+        key='heading-font'
+        className='flex items-center justify-between p-4'
+      >
         <div>
           <p className='text-sm font-medium'>Heading font</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
