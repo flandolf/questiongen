@@ -461,6 +461,7 @@ const TutorEmptyState = ({
       {['Give me a hint', 'Explain this concept', 'Check my steps'].map(
         (suggestion) => (
           <button
+            aria-label={`Send suggestion: ${suggestion}`}
             key={suggestion}
             onClick={() => onSuggestion(suggestion)}
             className='text-[10px] px-2.5 py-1 rounded-full bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-colors'
@@ -714,7 +715,7 @@ const TutorInputArea = ({
   sketchStatus: string;
   sketchDataUrl?: string;
   image?: StudentAnswerImage;
-  messages: unknown[];
+  messages: readonly { id: string }[];
   questionId: string;
   setInputValue: (v: string) => void;
   setIncludeSketch: (v: boolean) => void;
@@ -1061,6 +1062,7 @@ const TutorAttachmentPreview = ({
             </span>
           </div>
           <button
+            aria-label='Remove sketch from attachments'
             onClick={() => setIncludeSketch(false)}
             className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
           >
