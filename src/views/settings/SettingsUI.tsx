@@ -58,6 +58,21 @@ export function AnimatedSection({
   children: React.ReactNode;
   className?: string;
 }) {
+  const isAndroid =
+    typeof document !== 'undefined' &&
+    document.documentElement.classList.contains('platform-android');
+
+  const itemVariants = isAndroid
+    ? {
+      hidden: { opacity: 0, y: 10 },
+      visible: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.3, ease: 'easeOut' as const },
+      },
+    }
+    : STAGGER_ITEM_VARIANTS;
+
   return (
     <motion.div
       variants={STAGGER_CONTAINER_VARIANTS}
@@ -65,10 +80,12 @@ export function AnimatedSection({
       animate='visible'
       className={className}
     >
-      {React.Children.map(children, (child) => {
+      {React.Children.map(children, (child, index) => {
         if (!React.isValidElement(child)) return child;
         return (
-          <motion.div variants={STAGGER_ITEM_VARIANTS}>{child}</motion.div>
+          <motion.div key={child.key ?? index} variants={itemVariants}>
+            {child}
+          </motion.div>
         );
       })}
     </motion.div>
@@ -221,13 +238,13 @@ export function ModelSelectRow({
   const extraEntry =
     !isKnown && value && value !== 'custom'
       ? [
-          {
-            id: value,
-            name: value.includes('/')
-              ? value.split('/').slice(1).join('/')
-              : value,
-          },
-        ]
+        {
+          id: value,
+          name: value.includes('/')
+            ? value.split('/').slice(1).join('/')
+            : value,
+        },
+      ]
       : [];
   const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
 

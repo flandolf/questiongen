@@ -58,10 +58,11 @@ export function AppearanceSection() {
   return (
     <AnimatedSection className='space-y-6'>
       <SectionHeader
+        key='appearance-header'
         title='Appearance'
         description='Customize the look and feel of the application.'
       />
-      <Card className='flex items-center justify-between p-4'>
+      <Card key='color-theme' className='flex items-center justify-between p-4'>
         <div>
           <p className='text-sm font-medium'>Color theme</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -70,7 +71,7 @@ export function AppearanceSection() {
         </div>
         <ModeToggle />
       </Card>
-      <Card className='flex items-center justify-between p-4'>
+      <Card key='design-theme' className='flex items-center justify-between p-4'>
         <div>
           <p className='text-sm font-medium'>Design theme</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -102,7 +103,10 @@ export function AppearanceSection() {
       </Card>
 
       {theme === 'custom' && (
-        <Card className='flex items-center justify-between p-4'>
+        <Card
+          key='custom-theme-seed'
+          className='flex items-center justify-between p-4'
+        >
           <div>
             <p className='text-sm font-medium'>Seed color</p>
             <p className='text-xs text-muted-foreground mt-0.5'>
@@ -123,7 +127,7 @@ export function AppearanceSection() {
         </Card>
       )}
 
-      <Card className='flex items-center justify-between p-4'>
+      <Card key='interface-rounding' className='flex items-center justify-between p-4'>
         <div>
           <p className='text-sm font-medium'>Interface rounding</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -145,7 +149,7 @@ export function AppearanceSection() {
         </ButtonGroup>
       </Card>
 
-      <Card className='flex items-center justify-between p-4'>
+      <Card key='interface-font' className='flex items-center justify-between p-4'>
         <div>
           <p className='text-sm font-medium'>Interface font</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -153,7 +157,7 @@ export function AppearanceSection() {
           </p>
         </div>
         <Select value={interfaceFont} onValueChange={setInterfaceFont}>
-          <SelectTrigger className='w-[180px]'>
+          <SelectTrigger className='w-45'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -166,7 +170,7 @@ export function AppearanceSection() {
         </Select>
       </Card>
 
-      <Card className='flex items-center justify-between p-4'>
+      <Card key='heading-font' className='flex items-center justify-between p-4'>
         <div>
           <p className='text-sm font-medium'>Heading font</p>
           <p className='text-xs text-muted-foreground mt-0.5'>
@@ -174,7 +178,7 @@ export function AppearanceSection() {
           </p>
         </div>
         <Select value={headingFont} onValueChange={setHeadingFont}>
-          <SelectTrigger className='w-[180px]'>
+          <SelectTrigger className='w-45'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -188,6 +192,7 @@ export function AppearanceSection() {
       </Card>
 
       <FieldGroup
+        key='question-text-size'
         label='Question text size'
         htmlFor='question-text-size'
         hint='Adjust the font size used for question prompt text.'
@@ -217,6 +222,7 @@ export function AppearanceSection() {
         </div>
       </FieldGroup>
       <FieldGroup
+        key='response-text-size'
         label='Response text size'
         htmlFor='response-text-size'
         hint='Adjust the font size used for AI response and feedback text.'
