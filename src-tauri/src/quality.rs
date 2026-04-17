@@ -54,7 +54,10 @@ pub struct QuestionQualityMetrics {
 
 /// Score a batch of prompt texts with multi-dimensional quality metrics.
 /// Returns per-item metrics with comprehensive QualitySummary.
-pub fn score_batch(prompt_texts: &[String]) -> (Vec<QuestionQualityMetrics>, QualitySummary) {
+pub fn score_batch(
+    prompt_texts: &[String],
+    mark_values: Option<&[u8]>,
+) -> (Vec<QuestionQualityMetrics>, QualitySummary) {
     if prompt_texts.is_empty() {
         return (
             vec![],
@@ -108,11 +111,13 @@ pub fn score_batch(prompt_texts: &[String]) -> (Vec<QuestionQualityMetrics>, Qua
     let avg_distinctness = round(metrics.iter().map(|m| m.distinctness).sum::<f32>() / count);
     let avg_depth = round(metrics.iter().map(|m| m.depth).sum::<f32>() / count);
 
+    let mark_allocation_variance = mark_values.map(compute_mark_allocation_variance);
+
     let summary = QualitySummary {
         distinctness_avg: Some(avg_distinctness),
         multi_step_depth_avg: Some(avg_depth),
         command_verb_diversity: Some(verb_diversity),
-        mark_allocation_variance: None,
+        mark_allocation_variance,
     };
 
     (metrics, summary)
@@ -356,7 +361,7 @@ mod tests {
     #[test]
     fn test_score_batch() {
         let prompts = vec!["Calculate x.".to_string(), "Determine y.".to_string()];
-        let (metrics, summary) = score_batch(&prompts);
+        let (metrics, summary) = score_batch(&prompts, None);
         assert_eq!(metrics.len(), 2);
         assert!(summary.distinctness_avg.is_some());
         assert!(summary.command_verb_diversity.is_some());

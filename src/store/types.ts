@@ -1,4 +1,5 @@
 import type {
+  BatchTopicProgress,
   BiologySubtopic,
   ChemistrySubtopic,
   Difficulty,
@@ -7,6 +8,7 @@ import type {
   GenerationRecord,
   GenerationStatusEvent,
   GenerationStrategy,
+  GenerationSubCallProgress,
   GenerationTelemetry,
   LogEntry,
   MarkAnswerResponse,
@@ -73,6 +75,7 @@ export interface AppState {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
+  customFocusArea: string;
 
   // ── AI Difficulty Scaling ──────────────────────────────────────────────────
   aiDifficultyScalingEnabled: boolean;
@@ -116,6 +119,9 @@ export interface AppState {
   isMarking: boolean;
   errorMessage: string | null;
   isKeyboardShortcutsOpen: boolean;
+
+  batchProgress: BatchTopicProgress[];
+  generationSubCallProgress: GenerationSubCallProgress | null;
 
   // ── Spaced repetition ─────────────────────────────────────────────────────
   spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
@@ -209,6 +215,7 @@ export interface AppActions {
   setQuestionCount: (count: number) => void;
   setAverageMarksPerQuestion: (marks: number) => void;
   setQuestionMode: (mode: QuestionMode) => void;
+  setCustomFocusArea: (area: string) => void;
 
   // AI Difficulty Scaling
   setAiDifficultyScalingEnabled: (enabled: boolean) => void;
@@ -289,6 +296,15 @@ export interface AppActions {
   setIsMarking: (is: boolean) => void;
   setErrorMessage: (msg: string | null) => void;
   setIsKeyboardShortcutsOpen: (isOpen: boolean) => void;
+
+  setBatchProgress: (
+    progress:
+      | BatchTopicProgress[]
+      | ((prev: BatchTopicProgress[]) => BatchTopicProgress[]),
+  ) => void;
+  setGenerationSubCallProgress: (
+    progress: GenerationSubCallProgress | null,
+  ) => void;
 
   // Saved sets
   saveCurrentSet: () => string | null;
