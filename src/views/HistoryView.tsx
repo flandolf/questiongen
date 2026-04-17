@@ -74,6 +74,16 @@ interface ExportAnkiResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const INTERACTIVE_DESCENDANT_SELECTOR =
+  'input,button,a,textarea,select,summary,[role="button"]';
+
+function isInteractiveDescendant(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    !!target.closest(INTERACTIVE_DESCENDANT_SELECTOR)
+  );
+}
+
 function getEntryScore(item: AnyEntry): number {
   if (item.kind === 'written') {
     return (
@@ -385,12 +395,7 @@ const McEntryCard = memo(function McEntryCard({
         ${isExpanded ? 'shadow-lg border-violet-700/40 dark:border-violet-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
       onClick={(e) => {
-        const target = e.target as HTMLElement;
-        if (
-          target.closest(
-            'input,button,a,textarea,select,summary,[role="button"]',
-          )
-        ) {
+        if (isInteractiveDescendant(e.target)) {
           return;
         }
 
@@ -597,12 +602,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
         ${isExpanded ? 'shadow-lg border-sky-700/40 dark:border-sky-400/30' : 'shadow border-border/80 dark:border-border/70'}
       `}
       onClick={(e) => {
-        const target = e.target as HTMLElement;
-        if (
-          target.closest(
-            'input,button,a,textarea,select,summary,[role="button"]',
-          )
-        ) {
+        if (isInteractiveDescendant(e.target)) {
           return;
         }
 
@@ -917,9 +917,9 @@ export function HistoryView() {
     null,
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmMode, setConfirmMode] = useState<
-    'clear' | 'bulkDelete' | 'other'
-  >('other');
+  const [confirmMode, setConfirmMode] = useState<'clear' | 'bulkDelete'>(
+    'bulkDelete',
+  );
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
 
   const subjectCounts = useMemo(() => {
@@ -1117,18 +1117,18 @@ export function HistoryView() {
   function performClearConfirmed() {
     if (confirmMode === 'bulkDelete') {
       performBulkDeleteConfirmed();
-      return;
+    } else if (confirmMode === 'clear') {
+      clearQuestionHistory();
+      clearMcHistory();
+      setSubjectFilter(null);
+      setModeFilter('all');
+      setSearchQuery('');
+      setExpandedEntryKeys(new Set());
+      setSelectedEntryKeys(new Set());
+      setConfirmOpen(false);
+      setConfirmMessage(null);
+      toast.success('History cleared');
     }
-    clearQuestionHistory();
-    clearMcHistory();
-    setSubjectFilter(null);
-    setModeFilter('all');
-    setSearchQuery('');
-    setExpandedEntryKeys(new Set());
-    setSelectedEntryKeys(new Set());
-    setConfirmOpen(false);
-    setConfirmMessage(null);
-    toast.success('History cleared');
   }
 
   function clearAllFilters() {

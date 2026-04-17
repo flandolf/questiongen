@@ -443,10 +443,9 @@ export function AnalyticsView() {
       string,
       {
         name: string;
-        children: { name: string; size: number; accuracy: number }[];
+        childrenMap: Map<string, { name: string; size: number; correct: number }>;
         total: number;
         correct: number;
-        accuracy: number;
       }
     >();
 
@@ -454,50 +453,40 @@ export function AnalyticsView() {
       if (!topicMap.has(attempt.topic)) {
         topicMap.set(attempt.topic, {
           name: attempt.topic,
-          children: [],
+          childrenMap: new Map(),
           total: 0,
           correct: 0,
-          accuracy: 0,
         });
       }
       const topic = topicMap.get(attempt.topic)!;
       const subtopicName = attempt.subtopic || 'Unspecified';
 
-      let subtopic = topic.children.find((c) => c.name === subtopicName);
-      if (!subtopic) {
-        subtopic = { name: subtopicName, size: 0, accuracy: 0 };
-        topic.children.push(subtopic);
+      if (!topic.childrenMap.has(subtopicName)) {
+        topic.childrenMap.set(subtopicName, {
+          name: subtopicName,
+          size: 0,
+          correct: 0,
+        });
       }
+      const sub = topic.childrenMap.get(subtopicName)!;
 
-      subtopic.size += 1;
+      sub.size += 1;
       topic.total += 1;
       if (attempt.isCorrect) {
+        sub.correct += 1;
         topic.correct += 1;
       }
     }
 
-    // Track per-subtopic correct counts in another map for single-pass O(N)
-    const subtopicCorrectMap = new Map<string, number>();
-    for (const attempt of allAttempts) {
-      if (attempt.isCorrect) {
-        const key = `${attempt.topic}|${attempt.subtopic || 'Unspecified'}`;
-        subtopicCorrectMap.set(key, (subtopicCorrectMap.get(key) ?? 0) + 1);
-      }
-    }
-
-    // Calculate accuracy for all topics and subtopics
-    for (const topic of topicMap.values()) {
-      topic.accuracy =
-        topic.total > 0 ? (topic.correct / topic.total) * 100 : 0;
-
-      for (const sub of topic.children) {
-        const subCorrect =
-          subtopicCorrectMap.get(`${topic.name}|${sub.name}`) ?? 0;
-        sub.accuracy = sub.size > 0 ? (subCorrect / sub.size) * 100 : 0;
-      }
-    }
-
-    return Array.from(topicMap.values());
+    return Array.from(topicMap.values()).map((topic) => ({
+      name: topic.name,
+      accuracy: topic.total > 0 ? (topic.correct / topic.total) * 100 : 0,
+      children: Array.from(topic.childrenMap.values()).map((sub) => ({
+        name: sub.name,
+        size: sub.size,
+        accuracy: sub.size > 0 ? (sub.correct / sub.size) * 100 : 0,
+      })),
+    }));
   }, [allAttempts]);
 
   const subjectSpreadData = useMemo(() => {
