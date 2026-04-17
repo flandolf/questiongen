@@ -65,6 +65,8 @@
   --tracking-widest: calc(var(--tracking-normal) + 0.1em);
 }
 
+@import './themes/index.css';
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -1,5 +1,5 @@
+import './App.css';
 import './themes/fonts.css';
-import './themes/index.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
