@@ -495,7 +495,7 @@ impl GenerationService {
                 max_tokens,
             )
             .with_plugins(plugins.clone())
-            .with_stream(self.app.clone()),
+            .with_stream(self.app.clone(), topics.first().map(|s| s.to_string())),
         )
         .await?;
 
@@ -619,7 +619,7 @@ impl GenerationService {
                         max_tokens,
                     )
                     .with_plugins(plugins.clone())
-                    .with_stream(self.app.clone()),
+                    .with_stream(self.app.clone(), topics.first().map(|s| s.to_string())),
                 )
                 .await;
                 if let Ok(r) = retry_result {

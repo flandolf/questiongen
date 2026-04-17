@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { scoreColorClass, scoreRingColor } from '@/lib/score-utils';
+import { scoreColorClass } from '@/lib/score-utils';
 import type { MarkAnswerResponse, StudentAnswerImage } from '@/types';
 
 type WrittenFeedbackPanelProps = {
@@ -26,6 +26,7 @@ type WrittenFeedbackPanelProps = {
   answer: string;
   image: StudentAnswerImage | undefined;
   feedback: MarkAnswerResponse;
+  markingDurationMs?: number;
   appealText: string;
   overrideInput: string;
   isMarking: boolean;
@@ -44,65 +45,13 @@ type WrittenFeedbackPanelProps = {
   ) => void;
 };
 
-// Polished SVG Ring with smoother animations and monospaced typography
-function ScoreRing({ achieved, max }: { achieved: number; max: number }) {
-  const pct = max > 0 ? achieved / max : 0;
-  const color = scoreRingColor(pct * 100);
-  const r = 32;
-  const circ = 2 * Math.PI * r;
-  const dash = circ * pct;
-
-  return (
-    <div className='relative flex items-center justify-center w-20 h-20 shrink-0'>
-      <svg
-        className='absolute inset-0 -rotate-90'
-        width='80'
-        height='80'
-        viewBox='0 0 80 80'
-      >
-        <circle
-          cx='40'
-          cy='40'
-          r={r}
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='4'
-          className='text-muted/20'
-        />
-        <circle
-          cx='40'
-          cy='40'
-          r={r}
-          fill='none'
-          stroke={color}
-          strokeWidth='4'
-          strokeDasharray={`${dash} ${circ}`}
-          strokeLinecap='round'
-          style={{
-            transition: 'stroke-dasharray 1s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        />
-      </svg>
-      <div className='flex flex-col items-center leading-none mt-1'>
-        <span
-          className='text-2xl font-black font-mono tracking-tighter'
-          style={{ color }}
-        >
-          {achieved}
-        </span>
-        <span className='text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mt-1'>
-          /{max}
-        </span>
-      </div>
-    </div>
-  );
-}
-
+// eslint-disable-next-line complexity
 export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   promptMarkdown,
   answer,
   image,
   feedback,
+  markingDurationMs,
   appealText,
   overrideInput,
   isMarking,
@@ -121,17 +70,20 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   const scoreColor = scoreColorClass(pct);
   const verdict = feedback.verdict?.toLowerCase();
   const isCorrect = verdict === 'correct';
+  const markingDurationLabel =
+    markingDurationMs !== undefined
+      ? `${(markingDurationMs / 1000).toFixed(1)}s`
+      : undefined;
 
   const [showExemplar, setShowExemplar] = useState(false);
   const [aiFeedbackOpen, setAiFeedbackOpen] = useState(true);
 
   return (
-    <Card className='shadow-sm border-border/40 overflow-hidden bg-background'>
+    <Card className='shadow-sm border-border/40 overflow-hidden bg-background h-full min-h-0 flex flex-col'>
       {/* HEADER BANNER - Sticky for persistent score context */}
       <div
         className={`sticky top-0 z-10 flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-4 border-b border-border/40`}
       >
-        <ScoreRing achieved={feedback.achievedMarks} max={feedback.maxMarks} />
         <div className='flex-1 min-w-0 space-y-1'>
           <div className='text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground'>
             Evaluation Result
@@ -163,14 +115,16 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               )}
               {feedback.verdict}
             </div>
-            <span className='text-xs font-medium text-muted-foreground hidden sm:inline'>
-              {feedback.achievedMarks}/{feedback.maxMarks} raw
-            </span>
+            {markingDurationLabel && (
+              <div className='inline-flex items-center gap-1.5 rounded-md border border-border/40 bg-muted/30 px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground'>
+                Marked in {markingDurationLabel}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <CardContent className='p-0'>
+      <CardContent className='p-0 flex-1 min-h-0 overflow-y-auto'>
         <div className='px-4 sm:px-6 py-5 space-y-7'>
           <UnifiedQuestionPromptCard
             promptMarkdown={promptMarkdown}
@@ -363,9 +317,9 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                         <div
                           className={`ml-7 pl-3 border-l-2 ${isFullMarks ? 'border-emerald-500/40' : isPartial ? 'border-amber-500/40' : 'border-border/40'}`}
                         >
-                          <p className='text-xs text-muted-foreground italic'>
+                          <div className='text-xs text-muted-foreground italic'>
                             <MarkdownMath content={item.rationale} />
-                          </p>
+                          </div>
                         </div>
                       )}
                     </div>

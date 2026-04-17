@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { type ComponentType, lazy, Suspense, useEffect } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/layout/Layout';
@@ -15,6 +15,22 @@ const MATHJAX_CDN_URL =
   'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
 const MATHJAX_SCRIPT_ID = 'mathjax-script';
 let mathJaxLoaderPromise: Promise<void> | null = null;
+
+async function importWithRetry<T extends ComponentType<unknown>>(
+  loader: () => Promise<{ default: T }>,
+  retries = 1,
+): Promise<{ default: T }> {
+  try {
+    return await loader();
+  } catch (error) {
+    if (retries <= 0) {
+      throw error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    return importWithRetry(loader, retries - 1);
+  }
+}
 
 function ensureMathJaxLoaded(): Promise<void> {
   if (typeof window === 'undefined') {
@@ -98,23 +114,37 @@ function ensureMathJaxLoaded(): Promise<void> {
 }
 
 const GeneratorView = lazy(() =>
-  import('./views/GeneratorView').then((m) => ({ default: m.GeneratorView })),
+  importWithRetry(() =>
+    import('./views/GeneratorView').then((m) => ({ default: m.GeneratorView })),
+  ),
 );
 const HistoryView = lazy(() =>
-  import('./views/HistoryView').then((m) => ({ default: m.HistoryView })),
+  importWithRetry(() =>
+    import('./views/HistoryView').then((m) => ({ default: m.HistoryView })),
+  ),
 );
 const AnalyticsView = lazy(() =>
-  import('./views/AnalyticsView').then((m) => ({ default: m.AnalyticsView })),
+  importWithRetry(() =>
+    import('./views/AnalyticsView').then((m) => ({ default: m.AnalyticsView })),
+  ),
 );
 const SavedView = lazy(() =>
-  import('./views/SavedView').then((m) => ({ default: m.SavedView })),
+  importWithRetry(() =>
+    import('./views/SavedView').then((m) => ({ default: m.SavedView })),
+  ),
 );
 const SettingsView = lazy(() =>
-  import('./views/SettingsView').then((m) => ({ default: m.SettingsView })),
+  importWithRetry(() =>
+    import('./views/SettingsView').then((m) => ({ default: m.SettingsView })),
+  ),
 );
-const WrongQuestionView = lazy(() => import('./views/WrongQuestionView'));
+const WrongQuestionView = lazy(() =>
+  importWithRetry(() => import('./views/WrongQuestionView')),
+);
 const NotFound = lazy(() =>
-  import('./views/NotFound').then((m) => ({ default: m.NotFound })),
+  importWithRetry(() =>
+    import('./views/NotFound').then((m) => ({ default: m.NotFound })),
+  ),
 );
 
 function RouteFallback() {

@@ -27,6 +27,7 @@ pub struct OpenRouterRequestConfig {
     pub plugins: serde_json::Value,
     pub stream: bool,
     pub app: Option<tauri::AppHandle>,
+    pub topic: Option<String>,
 }
 
 impl OpenRouterRequestConfig {
@@ -48,6 +49,7 @@ impl OpenRouterRequestConfig {
             plugins: serde_json::json!([{ "id": "response-healing" }]),
             stream: false,
             app: None,
+            topic: None,
         }
     }
 
@@ -56,9 +58,10 @@ impl OpenRouterRequestConfig {
         self
     }
 
-    pub fn with_stream(mut self, app: tauri::AppHandle) -> Self {
+    pub fn with_stream(mut self, app: tauri::AppHandle, topic: Option<String>) -> Self {
         self.stream = true;
         self.app = Some(app);
+        self.topic = topic;
         self
     }
 }
@@ -93,10 +96,14 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 plugins: config.plugins.clone(),
                 stream: config.stream,
                 app: config.app.clone(),
+                topic: config.topic.clone(),
             };
             if attempt > 0 {
                 if let Some(ref app) = retry_config.app {
-                    let _ = app.emit("generation-reset", serde_json::json!({}));
+                    let _ = app.emit(
+                        "generation-reset",
+                        serde_json::json!({ "topic": retry_config.topic }),
+                    );
                 }
             }
             call_openrouter_streaming(retry_config).await
@@ -111,6 +118,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 plugins: config.plugins.clone(),
                 stream: config.stream,
                 app: config.app.clone(),
+                topic: config.topic.clone(),
             };
             call_openrouter_non_streaming(retry_config).await
         };
@@ -271,6 +279,7 @@ async fn call_openrouter_streaming(
     let mut done = false;
 
     let app = config.app;
+    let topic = config.topic;
 
     while let Some(chunk) = stream.next().await {
         let chunk =
@@ -318,7 +327,10 @@ async fn call_openrouter_streaming(
                                             if let Some(ref app) = app {
                                                 let _ = app.emit(
                                                     "generation-token",
-                                                    serde_json::json!({ "text": text }),
+                                                    serde_json::json!({
+                                                        "text": text,
+                                                        "topic": topic
+                                                    }),
                                                 );
                                             }
                                         }
@@ -350,7 +362,10 @@ async fn call_openrouter_streaming(
                                         if let Some(ref app) = app {
                                             let _ = app.emit(
                                                 "generation-token",
-                                                serde_json::json!({ "text": text }),
+                                                serde_json::json!({
+                                                    "text": text,
+                                                    "topic": topic
+                                                }),
                                             );
                                         }
                                     }

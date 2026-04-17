@@ -392,6 +392,8 @@ export function useGenerationStatus() {
       setBatchProgress: s.setBatchProgress,
       generationSubCallProgress: s.generationSubCallProgress,
       setGenerationSubCallProgress: s.setGenerationSubCallProgress,
+      streamTexts: s.streamTexts,
+      setStreamText: s.setStreamText,
     })),
   );
 }

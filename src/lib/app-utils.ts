@@ -2,7 +2,6 @@ import type { BackendError, MarkAnswerResponse } from '../types';
 
 export {
   normalizeMathDelimiters,
-  restoreMathPlaceholders,
   shieldMathForMarkdown,
 } from './math-normalization';
 export {

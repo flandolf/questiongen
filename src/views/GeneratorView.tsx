@@ -13,6 +13,7 @@ import {
   useWrittenSession,
 } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
+import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
@@ -60,7 +61,7 @@ import {
   TOPICS,
 } from '@/types';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
-import { McAnswerCard } from '@/views/generator/McAnswerCard';
+import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
 import { SetupPanel } from '@/views/generator/SetupPanel';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
 
@@ -75,9 +76,9 @@ function buildSketchpadSessionKey(
   question:
     | Pick<GeneratedQuestion, 'id' | 'topic' | 'subtopic' | 'promptMarkdown'>
     | Pick<
-        McQuestion,
-        'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
-      >,
+      McQuestion,
+      'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
+    >,
 ): string {
   const signature = [
     mode,
@@ -102,6 +103,7 @@ export function GeneratorView() {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
+  const [_showMarkingScreen, setShowMarkingScreen] = useState(false);
 
   const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
     Record<string, string>
@@ -119,6 +121,10 @@ export function GeneratorView() {
   const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<
     Record<string, number>
   >({});
+  const [
+    writtenMarkingDurationMsByQuestionId,
+    setWrittenMarkingDurationMsByQuestionId,
+  ] = useState<Record<string, number>>({});
   const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] =
     useState<Record<string, number>>({});
 
@@ -217,7 +223,13 @@ export function GeneratorView() {
     setErrorMessage,
     batchProgress,
     generationSubCallProgress,
+    streamTexts,
+    setStreamText,
   } = useGenerationStatus();
+
+  const aggregatedStreamText = useMemo(() => {
+    return Object.values(streamTexts as Record<string, string>).filter(Boolean).join('\n\n');
+  }, [streamTexts]);
 
   const deleteSavedSet = useAppStore((s) => s.deleteSavedSet);
 
@@ -228,10 +240,12 @@ export function GeneratorView() {
     null | 'written' | 'mc'
   >(null);
 
-  const [, setStreamText] = useState('');
-
   const writtenTimer = useTimer(questions, activeQuestionIndex, 'written');
   const mcTimer = useTimer(mcQuestions, activeMcQuestionIndex, 'mc');
+  const writtenTimerIsPaused = writtenTimer.isPaused;
+  const toggleWrittenTimerPause = writtenTimer.togglePause;
+  const mcTimerIsPaused = mcTimer.isPaused;
+  const toggleMcTimerPause = mcTimer.togglePause;
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -422,10 +436,24 @@ export function GeneratorView() {
   }, [mcQuestions, mcAnswersByQuestionId, getMcAwardedMarks]);
 
   const activeTimer = questionMode === 'written' ? writtenTimer : mcTimer;
+  const activeTutorQuestionId = activeQuestion?.id ?? activeMcQuestion?.id;
+  const activeTutorContextPrompt =
+    questionMode === 'written'
+      ? (activeQuestion?.promptMarkdown ?? '')
+      : (activeMcQuestion?.promptMarkdown ?? '');
+  const activeTutorStudentAnswer =
+    questionMode === 'written' ? activeQuestionAnswer : activeMcAnswer;
+  const activeTutorImage =
+    questionMode === 'written' ? activeQuestionImage : undefined;
+  const activeTutorSketchSessionKey =
+    questionMode === 'written'
+      ? activeWrittenSketchSessionKey
+      : activeMcSketchSessionKey;
 
   useEffect(() => {
     setShowCompletionScreen(false);
     setHasShownCompletionScreen(false);
+    setShowMarkingScreen(false);
   }, [completionSetKey]);
 
   useEffect(() => {
@@ -625,10 +653,16 @@ export function GeneratorView() {
 
   useEffect(() => {
     if (isMarking) {
-      if (!writtenTimer.isPaused) writtenTimer.togglePause();
-      if (!mcTimer.isPaused) mcTimer.togglePause();
+      if (!writtenTimerIsPaused) toggleWrittenTimerPause();
+      if (!mcTimerIsPaused) toggleMcTimerPause();
     }
-  }, [isMarking, writtenTimer, mcTimer]);
+  }, [
+    isMarking,
+    writtenTimerIsPaused,
+    toggleWrittenTimerPause,
+    mcTimerIsPaused,
+    toggleMcTimerPause,
+  ]);
 
   const togglePause = useCallback(() => {
     if (questionMode === 'written') writtenTimer.togglePause();
@@ -663,8 +697,8 @@ export function GeneratorView() {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
 
-    void listen('generation-reset', () => {
-      setStreamText('');
+    void listen<{ topic?: string }>('generation-reset', (event) => {
+      setStreamText('', event.payload.topic);
     }).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
@@ -674,13 +708,16 @@ export function GeneratorView() {
       cancelled = true;
       unlisten?.();
     };
-  }, []);
+  }, [setStreamText]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
     void listen<GenerationTokenEvent>('generation-token', (event) => {
-      setStreamText(event.payload.text);
+      setStreamText(
+        (prev: string) => prev + event.payload.text,
+        event.payload.topic,
+      );
     }).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
@@ -689,7 +726,7 @@ export function GeneratorView() {
       cancelled = true;
       unlisten?.();
     };
-  }, []);
+  }, [setStreamText]);
 
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
@@ -756,6 +793,7 @@ export function GeneratorView() {
   }, [activeMcQuestion, activeMcQuestionIndex]);
 
   const handleExitSession = useCallback(() => {
+    setShowMarkingScreen(false);
     if (isSetComplete) {
       activeTimer.complete();
       setShowCompletionScreen(true);
@@ -883,8 +921,8 @@ export function GeneratorView() {
       const entry = trackedEntryId
         ? latestMcHistory.find((e: McHistoryEntry) => e.id === trackedEntryId)
         : latestMcHistory.find(
-            (e: McHistoryEntry) => e.question.id === questionId,
-          );
+          (e: McHistoryEntry) => e.question.id === questionId,
+        );
       if (!entry) return;
       const updatedEntry = {
         ...entry,
@@ -904,11 +942,11 @@ export function GeneratorView() {
       const trackedEntryId = writtenHistoryEntryIdByQuestionId[questionId];
       const entry = trackedEntryId
         ? latestQuestionHistory.find(
-            (e: QuestionHistoryEntry) => e.id === trackedEntryId,
-          )
+          (e: QuestionHistoryEntry) => e.id === trackedEntryId,
+        )
         : latestQuestionHistory.find(
-            (e: QuestionHistoryEntry) => e.question.id === questionId,
-          );
+          (e: QuestionHistoryEntry) => e.question.id === questionId,
+        );
       if (!entry) return;
       const updatedEntry = {
         ...entry,
@@ -1086,9 +1124,32 @@ export function GeneratorView() {
 
   const handleGenerateQuestions = useCallback(async () => {
     startStopwatch();
+    setStreamText('');
     useTutorStore.getState().clearAllSessions();
     await generateQuestionsOrchestrator();
-  }, [startStopwatch]);
+  }, [startStopwatch, setStreamText]);
+
+  const resolveWrittenMarkImage = useCallback(
+    async (
+      questionId: string,
+      image: StudentAnswerImage | undefined,
+    ): Promise<StudentAnswerImage | undefined> => {
+      if (!image) return undefined;
+      if (!user) return image;
+      try {
+        const { storagePath, downloadUrl } = await uploadImageDataUrl(
+          image.dataUrl,
+          questionId,
+          image.id,
+        );
+        return { ...image, storagePath, downloadUrl };
+      } catch (error) {
+        console.error('Firebase upload failed:', error);
+        return image;
+      }
+    },
+    [user],
+  );
 
   const handleSubmitForMarking = useCallback(
     async (payload?: { image?: StudentAnswerImage }) => {
@@ -1106,6 +1167,7 @@ export function GeneratorView() {
         return;
       setErrorMessage(null);
       setIsMarking(true);
+      setShowMarkingScreen(true);
       setLastFailedAction(null);
       try {
         let finalImage = effectiveImage;
@@ -1117,24 +1179,16 @@ export function GeneratorView() {
               [activeQuestion.id]: finalImage,
             }),
           );
-          if (user) {
-            try {
-              const { storagePath, downloadUrl } = await uploadImageDataUrl(
-                finalImage.dataUrl,
-                activeQuestion.id,
-                finalImage.id,
-              );
-              finalImage = { ...finalImage, storagePath, downloadUrl };
-              setImagesByQuestionId(
-                (prev: Record<string, StudentAnswerImage | undefined>) => ({
-                  ...prev,
-                  [activeQuestion.id]: finalImage,
-                }),
-              );
-            } catch (error) {
-              console.error('Firebase upload failed:', error);
-            }
-          }
+          finalImage = await resolveWrittenMarkImage(
+            activeQuestion.id,
+            finalImage,
+          );
+          setImagesByQuestionId(
+            (prev: Record<string, StudentAnswerImage | undefined>) => ({
+              ...prev,
+              [activeQuestion.id]: finalImage,
+            }),
+          );
         }
         const responseEnteredAtMs =
           writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
@@ -1153,6 +1207,10 @@ export function GeneratorView() {
           rawResponse,
           activeQuestion.maxMarks,
         );
+        setWrittenMarkingDurationMsByQuestionId((prev) => ({
+          ...prev,
+          [activeQuestion.id]: markingLatencyMs,
+        }));
         setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
           ...prev,
           [activeQuestion.id]: response,
@@ -1191,12 +1249,13 @@ export function GeneratorView() {
       setErrorMessage,
       setIsMarking,
       setImagesByQuestionId,
-      user,
       writtenResponseEnteredAtById,
       setFeedbackByQuestionId,
       setMarkOverrideInputByQuestionId,
+      setWrittenMarkingDurationMsByQuestionId,
       appendWrittenHistoryEntry,
       writtenTimer,
+      resolveWrittenMarkImage,
     ],
   );
 
@@ -1206,6 +1265,7 @@ export function GeneratorView() {
     if (!appealText || !apiKey.trim() || !markModel.trim()) return;
     setErrorMessage(null);
     setIsMarking(true);
+    setShowMarkingScreen(true);
     setLastFailedAction(null);
     try {
       const responseEnteredAtMs = Date.now();
@@ -1251,6 +1311,7 @@ export function GeneratorView() {
       setLastFailedAction('mark-written');
     } finally {
       setIsMarking(false);
+      setShowMarkingScreen(true);
     }
   }, [
     activeQuestion,
@@ -1464,6 +1525,7 @@ export function GeneratorView() {
         batchProgress={batchProgress}
         generationStrategy={generationStrategy}
         generationSubCallProgress={generationSubCallProgress}
+        streamText={aggregatedStreamText}
       />
     );
   }
@@ -1493,7 +1555,7 @@ export function GeneratorView() {
   }
 
   return (
-    <div className='flex flex-col h-full overflow-hidden bg-background'>
+    <div className='flex flex-col h-full overflow-auto bg-background'>
       <SessionHeader
         type={questionMode === 'written' ? 'written' : 'mc'}
         questionIndex={
@@ -1549,88 +1611,109 @@ export function GeneratorView() {
             : handleCancelMcQuestion
         }
         onExit={handleExitSession}
-        onSaveDraft={() => {
-          const id = appStore.saveCurrentSet();
-          if (id) toast.success("Draft saved to 'Saved Sets'");
-        }}
         getDifficultyBadgeClasses={getDifficultyBadgeClasses}
         questions={questionMode === 'written' ? questions : mcQuestions}
       />
 
-      <div className='flex-1 min-h-0 overflow-hidden relative p-6'>
-        <QuestionSplitLayout
-          mode={questionMode === 'written' ? 'written' : 'mc'}
-          sketchpadActive={
-            questionMode === 'written'
-              ? writtenSketchpadActive
-              : mcSketchpadActive
-          }
-          leftSlot={
-            questionMode === 'written' ? (
+      <div className='flex-1 min-h-0 overflow-auto relative p-6'>
+        {questionMode === 'written' && activeFeedback ? (
+          <div className='mx-auto flex h-full w-full max-w-6xl'>
+            <WrittenFeedbackPanel
+              questionId={activeQuestion.id}
+              promptMarkdown={activeQuestion.promptMarkdown}
+              answer={activeQuestionAnswer}
+              image={activeQuestionImage}
+              feedback={activeFeedback}
+              markingDurationMs={
+                writtenMarkingDurationMsByQuestionId[activeQuestion.id]
+              }
+              appealText={activeMarkAppeal}
+              onAppealChange={handleAppealChange}
+              onArgueForMark={() => void handleArgueForMark()}
+              overrideInput={activeOverrideInput}
+              onOverrideInputChange={handleOverrideInputChange}
+              onApplyOverride={handleOverrideMark}
+              onCriterionChange={handleOverrideCriterion}
+              isMarking={isMarking}
+            />
+          </div>
+        ) : questionMode === 'written' ? (
+          <QuestionSplitLayout
+            mode='written'
+            sketchpadActive={writtenSketchpadActive}
+            leftSlot={
               <div className='prose dark:prose-invert max-w-none'>
                 <MarkdownMath content={activeQuestion.promptMarkdown} />
               </div>
-            ) : (
+            }
+            rightSlot={
+              <WrittenAnswerCard
+                questionId={activeQuestion.id}
+                answer={activeQuestionAnswer}
+                image={activeQuestionImage}
+                onAnswerChange={handleWrittenAnswerChange}
+                onImageDrop={handleWrittenImageDrop}
+                onImageRemove={handleWrittenImageRemove}
+                onSubmit={(p) => void handleSubmitForMarking(p)}
+                isMarking={isMarking}
+                canSubmit={!activeFeedback && !isMarking}
+                sketchSessionKey={activeWrittenSketchSessionKey}
+                onSketchpadActiveChange={setWrittenSketchpadActive}
+              />
+            }
+          />
+        ) : mcSketchpadActive ? (
+          <QuestionSplitLayout
+            mode='mc'
+            sketchpadActive={mcSketchpadActive}
+            leftSlot={
               <div className='space-y-6'>
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-2'>
-                    <span
-                      className={`px-2 py-0.5 text-xs font-medium border rounded-full ${getDifficultyBadgeClasses(difficulty)}`}
-                    >
-                      {difficulty}
-                    </span>
-                    {activeMcQuestion.subtopic && (
-                      <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>
-                        {activeMcQuestion.subtopic}
-                      </span>
-                    )}
-                  </div>
-                  <span className='text-sm font-semibold text-primary'>
-                    [1 mark]
-                  </span>
-                </div>
                 <div className='prose dark:prose-invert max-w-none'>
                   <MarkdownMath content={activeMcQuestion.promptMarkdown} />
                 </div>
-              </div>
-            )
-          }
-          rightSlot={
-            questionMode === 'written' ? (
-              <div className='space-y-6 h-full flex flex-col'>
-                <WrittenAnswerCard
-                  questionId={activeQuestion.id}
-                  answer={activeQuestionAnswer}
-                  image={activeQuestionImage}
-                  onAnswerChange={handleWrittenAnswerChange}
-                  onImageDrop={handleWrittenImageDrop}
-                  onImageRemove={handleWrittenImageRemove}
-                  onSubmit={(p) => void handleSubmitForMarking(p)}
+                <McAnswerCard
+                  options={activeMcQuestion.options}
+                  selectedAnswer={activeMcAnswer}
+                  correctAnswer={activeMcQuestion.correctAnswer}
+                  onSelectAnswer={handleMcAnswer}
+                  explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                  isSketchpadOpen={mcSketchpadActive}
+                  onToggleSketchpad={() =>
+                    setMcSketchpadActive(!mcSketchpadActive)
+                  }
+                  sketchSessionKey={activeMcSketchSessionKey}
+                  awardedMarks={activeMcAwardedMarks}
+                  appealText=''
+                  overrideInput={activeMcOverrideInput}
+                  onAppealChange={() => { }}
+                  onOverrideInputChange={handleMcOverrideInputChange}
+                  onArgueForMark={() => { }}
+                  onApplyOverride={handleMcOverrideMark}
                   isMarking={isMarking}
-                  canSubmit={!activeFeedback && !isMarking}
-                  sketchSessionKey={activeWrittenSketchSessionKey}
-                  onSketchpadActiveChange={setWrittenSketchpadActive}
+                  onImageDrop={() => { }}
+                  onImageRemove={() => { }}
+                  renderSketchpadInline={false}
                 />
-
-                {activeFeedback && (
-                  <WrittenFeedbackPanel
-                    questionId={activeQuestion.id}
-                    promptMarkdown={activeQuestion.promptMarkdown}
-                    answer={activeQuestionAnswer}
-                    image={activeQuestionImage}
-                    feedback={activeFeedback}
-                    appealText={activeMarkAppeal}
-                    onAppealChange={handleAppealChange}
-                    onArgueForMark={() => void handleArgueForMark()}
-                    overrideInput={activeOverrideInput}
-                    onOverrideInputChange={handleOverrideInputChange}
-                    onApplyOverride={handleOverrideMark}
-                    onCriterionChange={handleOverrideCriterion}
-                    isMarking={isMarking}
-                  />
-                )}
               </div>
-            ) : (
+            }
+            rightSlot={
+              <McSketchpadPanel
+                sketchSessionKey={activeMcSketchSessionKey}
+                onImageDrop={() => { }}
+                onImageRemove={() => { }}
+              />
+            }
+          />
+        ) : (
+          <QuestionSplitLayout
+            mode='mc'
+            sketchpadActive={mcSketchpadActive}
+            leftSlot={
+              <div className='prose dark:prose-invert max-w-none'>
+                <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+              </div>
+            }
+            rightSlot={
               <div className='space-y-6 h-full flex flex-col'>
                 <McAnswerCard
                   options={activeMcQuestion.options}
@@ -1646,18 +1729,18 @@ export function GeneratorView() {
                   awardedMarks={activeMcAwardedMarks}
                   appealText=''
                   overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => {}}
+                  onAppealChange={() => { }}
                   onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => {}}
+                  onArgueForMark={() => { }}
                   onApplyOverride={handleMcOverrideMark}
                   isMarking={isMarking}
-                  onImageDrop={() => {}}
-                  onImageRemove={() => {}}
+                  onImageDrop={() => { }}
+                  onImageRemove={() => { }}
                 />
               </div>
-            )
-          }
-        />
+            }
+          />
+        )}
 
         {showKeyboardHint && (
           <div className='absolute bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm animate-in fade-in slide-in-from-bottom-4'>
@@ -1695,6 +1778,16 @@ export function GeneratorView() {
         onConfirm={() => void handleGenerateQuestions()}
         confirmText='Retry'
       />
+
+      {activeTutorQuestionId && (
+        <TutorPanel
+          questionId={activeTutorQuestionId}
+          contextPrompt={activeTutorContextPrompt}
+          studentAnswer={activeTutorStudentAnswer}
+          image={activeTutorImage}
+          sketchSessionKey={activeTutorSketchSessionKey}
+        />
+      )}
     </div>
   );
 }
