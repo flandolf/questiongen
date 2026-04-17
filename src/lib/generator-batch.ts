@@ -47,11 +47,14 @@ export function buildSubtopicCalls(
 
   const minSubtopicsPerQuestion = Math.max(
     1,
-    Math.min(shuffledSubs.length, options.minSubtopicsPerQuestion ?? 2),
+    Math.min(shuffledSubs.length, options.minSubtopicsPerQuestion ?? 1),
   );
   const maxSubtopicsPerQuestion = Math.max(
     minSubtopicsPerQuestion,
-    Math.min(shuffledSubs.length, options.maxSubtopicsPerQuestion ?? 3),
+    Math.min(
+      shuffledSubs.length,
+      total <= 3 ? 1 : (options.maxSubtopicsPerQuestion ?? 3),
+    ),
   );
 
   if (total <= subtopics.length) {

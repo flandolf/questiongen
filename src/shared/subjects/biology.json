@@ -1,0 +1,207 @@
+{
+  "name": "Biology",
+  "icon": "Dna",
+  "examPdfs": ["2025-Biology.pdf"],
+  "reportPdfs": ["2025-Biology-report.pdf"],
+  "examGuidance": "Use VCE command verbs (identify, describe, explain, compare, evaluate) and standard biological terminology. Questions must be set in authentic contexts, requiring students to apply concepts to novel scenarios, interpret experimental data (including identifying errors, uncertainties, and outliers), and justify conclusions with evidence. Always specify units and define variables in experimental responses. Confine questions to the VCE Biology Study Design (2022–2026). Ensure mathematical components (e.g., genetic crosses, rate calculations) align with VCAA expected levels.",
+  "out_of_scope": [
+    "Intermediate steps of Krebs Cycle or Calvin Cycle not specified in the Study Design",
+    "Detailed chemical structures of specific amino acids or nucleotides beyond general components",
+    "Non-human primate evolution beyond the hominin line (e.g., detailed lemur or tarsier phylogeny)",
+    "Specific drug brand names or proprietary medical technologies not mentioned in the Study Design",
+    "Plant hormones beyond those explicitly listed in the VCAA study design",
+    "Complex mathematical modeling of population genetics beyond simple allele frequency changes"
+  ],
+  "subtopics": [
+    {
+      "name": "How do cells function?",
+      "technique_notes": {
+        "core_concepts": "Focus on the plasma membrane as a semi-permeable boundary, the role of organelles in protein synthesis and transport, and the requirements for cellular survival (enzymes, photosynthesis, and respiration).",
+        "exam_style_guidelines": "Use authentic biological contexts. Require students to explain cause-and-effect relationships, particularly regarding how environmental factors (temp, pH, concentration) affect enzyme activity or cellular processes.",
+        "anti_prompts": [
+          "Do not ask for simple recall of organelle names without function",
+          "Avoid contexts that do not connect to the study design"
+        ],
+        "tech_free_rules": "Use clear scenarios with manageable data sets and explicit variables.",
+        "tech_active_rules": "Allow larger datasets or experimental output where interpretation benefits from technology/graphing tools."
+      },
+      "complexity_levers": {
+        "easy": "Identify a cell structure or describe a basic process like osmosis in a standard context.",
+        "hard": "Predict and explain the effect of a specific inhibitor on an enzyme-controlled pathway using experimental data.",
+        "extreme": "Apply cellular concepts to a novel mutation affecting protein secretion and justify the cascading effects on organismal function."
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "How do plant and animal systems function?",
+      "technique_notes": {
+        "core_concepts": "Compare and contrast the structure and function of specialized cells and systems (circulatory, digestive, excretory in animals; vascular in plants). Focus on homeostasis and the stimulus-response model.",
+        "exam_style_guidelines": "Require comparative explanation and explicit links between structure and function. Use feedback loop diagrams for homeostasis questions.",
+        "anti_prompts": [
+          "Do not ask for unrelated anatomy lists",
+          "Avoid comparisons without a clear biological purpose"
+        ],
+        "tech_free_rules": "Keep data tables small and comparisons direct.",
+        "tech_active_rules": "Use multi-factor contexts (e.g., exercise and dehydration) where technology helps model the homeostatic response."
+      },
+      "complexity_levers": {
+        "easy": "Identify one component of a stimulus-response model in a given scenario.",
+        "hard": "Analyze the impact of a malfunctioning organ (e.g., kidney) on the maintenance of a stable internal environment.",
+        "extreme": "Compare homeostatic mechanisms across different species and justify their evolutionary advantage in specific environments."
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "How do scientific investigations develop understanding?",
+      "technique_notes": {
+        "core_concepts": "Evaluation of research design, including independent, dependent, and controlled variables. Analysis of qualitative and quantitative data, including precision, accuracy, reliability, and validity.",
+        "exam_style_guidelines": "Use experimental scenarios that require evaluation of methodology. Ask students to identify sources of error (systematic vs random) and suggest improvements.",
+        "anti_prompts": [
+          "Do not ask for definitions of 'variable' without context",
+          "Avoid questions that cannot be justified with the provided data"
+        ],
+        "tech_free_rules": "Use concise datasets and clearly described methodologies.",
+        "tech_active_rules": "Allow analysis of complex datasets or multiple sources to evaluate competing research claims."
+      },
+      "complexity_levers": {
+        "easy": "Identify the independent and dependent variables in a simple experiment description.",
+        "hard": "Evaluate the validity of a conclusion based on identified confounding variables or lack of controls.",
+        "extreme": "Redesign a flawed experimental procedure to improve the precision and accuracy of the results, justifying each change."
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "How is inheritance explained?",
+      "technique_notes": {
+        "core_concepts": "Mechanisms of genetic inheritance (dominance, co-dominance, sex-linkage). Cell cycle, apoptosis, and the importance of stem cells. Pedigree analysis and probability of offspring genotypes.",
+        "exam_style_guidelines": "Require explicit genotype-phenotype reasoning. Use standard VCAA pedigree symbols and nomenclature.",
+        "anti_prompts": [
+          "Do not use non-VCAA pedigree symbols",
+          "Avoid pedigree questions that allow for multiple valid inheritance patterns without enough evidence"
+        ],
+        "tech_free_rules": "Use simple Mendelian examples and manageable pedigree patterns (3 generations max).",
+        "tech_active_rules": "Allow more complex pedigree scenarios or multi-trait contexts where technology can help calculate probabilities."
+      },
+      "complexity_levers": {
+        "easy": "Predict the phenotype of offspring from a simple monohybrid cross.",
+        "hard": "Determine the mode of inheritance from a pedigree and calculate the probability of the next child being affected.",
+        "extreme": "Explain the biological consequences of non-disjunction during meiosis and its impact on the resulting phenotype in a novel context."
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "How do inherited adaptations impact on diversity?",
+      "technique_notes": {
+        "core_concepts": "Biological importance of genetic diversity. Adaptations (structural, physiological, behavioral) and their survival value. Interdependencies between species (symbiosis, keystone species).",
+        "exam_style_guidelines": "Link specific adaptations to survival in a defined environment. Use the term 'selective advantage' appropriately.",
+        "anti_prompts": [
+          "Do not ask for lists of adaptations without environmental context",
+          "Avoid anthropomorphising organisms (e.g., 'the plant wants to survive')"
+        ],
+        "tech_free_rules": "Focus on clear, single-species adaptation scenarios.",
+        "tech_active_rules": "Model population shifts in response to environmental change using larger datasets."
+      },
+      "complexity_levers": {
+        "easy": "Classify a given adaptation as structural, physiological, or behavioral.",
+        "hard": "Explain how a specific adaptation provides a selective advantage in a changing environment.",
+        "extreme": "Analyze the impact of removing a keystone species from an ecosystem and justify the resulting changes in biodiversity."
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "How do humans use science to explore bioethical issues?",
+      "technique_notes": {
+        "core_concepts": "Application of ethical frameworks (consequentialism, duty-based, virtue-based) and principles (integrity, justice, beneficence, non-maleficence, respect) to biological scenarios.",
+        "exam_style_guidelines": "Require students to evaluate an issue from multiple perspectives using specific VCAA ethical terminology.",
+        "anti_prompts": [
+          "Do not ask for personal opinions",
+          "Avoid scenarios that do not have a clear biological or biotechnological basis"
+        ],
+        "tech_free_rules": "Focus on the application of a single ethical principle to a scenario.",
+        "tech_active_rules": "Evaluate complex, multi-stakeholder bioethical dilemmas using digital research/simulation tools."
+      },
+      "complexity_levers": {
+        "easy": "Identify an ethical concern related to a specific biotechnological advancement.",
+        "hard": "Evaluate a bioethical issue using two different ethical frameworks and compare the conclusions.",
+        "extreme": "Justify a position on a contemporary bioethical issue (e.g., CRISPR in humans) by balancing multiple competing ethical principles."
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Role of nucleic acids and proteins",
+      "technique_notes": {
+        "core_concepts": "DNA and RNA structure. The genetic code as universal and degenerate. Gene expression (transcription, RNA processing, translation). The proteome. DNA manipulation: CRISPR-Cas9, PCR, gel electrophoresis, recombinant plasmids.",
+        "exam_style_guidelines": "Require step-by-step explanation of molecular processes. Use clear diagrams of DNA manipulation techniques. Emphasize the role of specific enzymes (polymerase, ligase, endonucleases).",
+        "anti_prompts": [
+          "Do not skip the RNA processing step in eukaryotes",
+          "Avoid over-complicating the Cas9 mechanism beyond the guide RNA and 'molecular scissors' analogy"
+        ],
+        "tech_free_rules": "Focus on the basic steps of protein synthesis and DNA manipulation logic.",
+        "tech_active_rules": "Analyze DNA sequences or electropherograms to identify individuals or confirm successful transformations."
+      },
+      "complexity_levers": {
+        "easy": "Identify the difference between an exon and an intron.",
+        "hard": "Explain how a specific point mutation in a promoter region would affect the synthesis of a protein.",
+        "extreme": "Design a step-by-step procedure to create a transgenic organism, including the specific tools and methods used to verify success."
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Regulation of biochemical pathways",
+      "technique_notes": {
+        "core_concepts": "Photosynthesis (light-dependent and light-independent stages). Cellular respiration (glycolysis, Krebs cycle, electron transport chain). Factors affecting rates. The role of Rubisco and adaptations (C4, CAM). Anaerobic fermentation.",
+        "exam_style_guidelines": "Focus on inputs, outputs, and locations of each stage. Use chemical equations (word or balanced). Link biochemical efficiency to environmental conditions and food security.",
+        "anti_prompts": [
+          "Do not require naming of all Krebs cycle intermediates",
+          "Avoid questions on the light-independent stage that ignore the requirement for ATP/NADPH from the first stage"
+        ],
+        "tech_free_rules": "Use standard rate-of-reaction graphs for interpretation.",
+        "tech_active_rules": "Model crop yield predictions based on modified Rubisco activity or varying atmospheric CO2 levels."
+      },
+      "complexity_levers": {
+        "easy": "Identify the main inputs and outputs of glycolysis.",
+        "hard": "Explain why C4 plants have a competitive advantage over C3 plants in hot, dry environments.",
+        "extreme": "Analyze data from a respirometer experiment and justify the change in respiration rate based on shifting from aerobic to anaerobic pathways."
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "How do organisms respond to pathogens?",
+      "technique_notes": {
+        "core_concepts": "Innate immunity (barriers, inflammation, phagocytes). Adaptive immunity (humoral and cell-mediated). Antigens, antibodies, and MHC markers. Vaccinations and herd immunity. Immunotherapies (monoclonal antibodies).",
+        "exam_style_guidelines": "Require clear distinction between self and non-self. Explain the role of memory cells in long-term immunity. Use scenarios involving the spread of infectious disease.",
+        "anti_prompts": [
+          "Do not confuse antibodies with antigens",
+          "Avoid skipping the role of the lymphatic system in the immune response"
+        ],
+        "tech_free_rules": "Focus on the logic of the immune response steps.",
+        "tech_active_rules": "Analyze epidemiological data to predict the impact of varying vaccination rates on population immunity."
+      },
+      "complexity_levers": {
+        "easy": "Identify the physical barriers in the human innate immune system.",
+        "hard": "Contrast the roles of B cells and T cells in the adaptive immune response following a viral infection.",
+        "extreme": "Evaluate the use of monoclonal antibodies as a targeted treatment for specific cancers, justifying the mechanism of action."
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "How are species related over time?",
+      "technique_notes": {
+        "core_concepts": "Changes in allele frequencies (natural selection, gene flow, genetic drift). Speciation (allopatric, sympatric). Evidence for evolution (fossil record, molecular homology). Hominin evolution (trends in skull anatomy, tool use, bipedalism).",
+        "exam_style_guidelines": "Require students to apply the 4-step natural selection model (variation, selection pressure, differential survival, inheritance). Use phylogenetic trees for interpreting relatedness.",
+        "anti_prompts": [
+          "Do not use Lamarckian explanations (e.g., 'giraffes stretched their necks so they got longer')",
+          "Avoid confusing 'hominid' with 'hominin'"
+        ],
+        "tech_free_rules": "Interpret simple phylogenetic trees and fossil succession scenarios.",
+        "tech_active_rules": "Analyze DNA sequence alignment data to determine the time since divergence for different species."
+      },
+      "complexity_levers": {
+        "easy": "Identify a selection pressure in a given evolutionary scenario.",
+        "hard": "Explain how allopatric speciation could occur in a population separated by a newly formed mountain range.",
+        "extreme": "Critically analyze the evidence for the 'Out of Africa' hypothesis vs the 'Multiregional' hypothesis using both fossil and DNA evidence."
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    }
+  ]
+}

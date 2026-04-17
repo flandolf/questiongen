@@ -1,0 +1,984 @@
+{
+  "name": "Physical Education",
+  "icon": "Dumbbell",
+  "examPdfs": ["2025-PhysicalEducation.pdf"],
+  "reportPdfs": ["2025-PhysEd-report.pdf"],
+  "examGuidance": "VCAA Physical Education questions focus on qualitative analysis, evaluation, and justification. While simple formulas (F=ma, VO2 max) are used, responses should be in prose (paragraphs/bullet points). Use VCE command verbs: define, identify, explain, apply, analyze, evaluate, and justify. Connect physiological and biomechanical principles to specific sporting scenarios. Data interpretation (graphs/tables) is common. Focus on yield, rate, and duration for energy systems, and avoid in-depth biochemical pathways or advanced anatomy beyond what's in the Study Design.",
+  "out_of_scope": [
+    "In-depth anatomy (naming every bone/muscle)",
+    "Coaching strategies for elite professional teams (focus on community/VCAA contexts)",
+    "Biochemical pathways of ATP resynthesis (focus on yield/rate/duration)",
+    "Physics of movement beyond basic biomechanical principles",
+    "Sports medicine/injury rehabilitation protocols"
+  ],
+  "subtopics": [
+    {
+      "name": "Movement Skill Classification: Fundamental, Sport-Specific, Open/Closed, Gross/Fine",
+      "technique_notes": {
+        "core_concepts": "Classify skills across multiple continuums simultaneously (gross/fine, open/closed, discrete/serial/continuous). Justify using environmental predictability and muscle group size.",
+        "exam_style_guidelines": "Follow the VCAA pattern: define -> classify -> justify with sport example -> explain link to participation or performance.",
+        "anti_prompts": [
+          "Do not confuse open/closed with skill complexity",
+          "Avoid generic examples; use specific sport scenarios"
+        ],
+        "tech_free_rules": "Focus on qualitative justification and simple scenario analysis.",
+        "tech_active_rules": "Analyze complex, dynamic game scenarios where environmental conditions shift."
+      },
+      "complexity_levers": {
+        "easy": "Identify if a skill is gross or fine given a clear description.",
+        "hard": "Justify why a specific sport skill (e.g., a vault in gymnastics) is classified as closed, gross, and discrete.",
+        "extreme": "Analyze how a skill might transition from closed to open during a game and the resulting impact on a performer in the cognitive stage of learning."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Discrete, Serial, and Continuous Motor Skills",
+      "technique_notes": {
+        "core_concepts": "Focus on the temporal boundaries: clear beginning/end (discrete), arbitrary endpoints (continuous), or a sequence of discrete skills (serial).",
+        "exam_style_guidelines": "Identify skill type -> explain temporal characteristics -> link to practice scheduling (e.g., part vs whole practice).",
+        "anti_prompts": [
+          "Do not confuse serial with continuous skills",
+          "Ensure definitions mention beginning and end points"
+        ],
+        "tech_free_rules": "Classify skills from short descriptions.",
+        "tech_active_rules": "Evaluate how the organization of a serial skill (like a triple jump) influences the effectiveness of part practice."
+      },
+      "complexity_levers": {
+        "easy": "Classify a named skill (e.g., a netball pass) as discrete, serial, or continuous.",
+        "hard": "Explain the practice implication of a serial skill in a learning scenario.",
+        "extreme": "Compare several skills and justify how learning stage affects practice choice (whole vs part)."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Stages of Learning: Cognitive, Associative, and Autonomous",
+      "technique_notes": {
+        "core_concepts": "Identify stage based on characteristics: error rate, consistency, attentional focus, and feedback dependency.",
+        "exam_style_guidelines": "Identify stage -> justify with evidence from the scenario -> recommend appropriate coaching strategy.",
+        "anti_prompts": [
+          "Do not treat stages as rigid labels without evidence",
+          "Avoid recommending feedback types unsuitable for the stage"
+        ],
+        "tech_free_rules": "Describe basic characteristics of a stage.",
+        "tech_active_rules": "Design a 4-week progression that transitions a learner from the cognitive to the associative stage for a specific skill."
+      },
+      "complexity_levers": {
+        "easy": "Identify the likely stage of learning from a short scenario.",
+        "hard": "Justify a coaching strategy (e.g., augmented feedback frequency) for a specific stage of learning.",
+        "extreme": "Compare two performers at different stages and recommend differentiated coaching strategies for a shared training environment."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Skill Acquisition Theories: Linear vs. Non-Linear Learning Models",
+      "technique_notes": {
+        "core_concepts": "Contrast linear models (predictable stages, direct instruction) with non-linear models (constraints-led approach, individual variability).",
+        "exam_style_guidelines": "Compare theories -> apply to scenario -> justify which suits a given learner with reference to constraints.",
+        "anti_prompts": [
+          "Do not present theories without specific sport application",
+          "Ensure 'constraints' include individual, task, and environment"
+        ],
+        "tech_free_rules": "Define linear and non-linear learning.",
+        "tech_active_rules": "Evaluate how manipulating a task constraint (e.g., ball size) facilitates the emergence of a specific movement pattern in a non-linear model."
+      },
+      "complexity_levers": {
+        "easy": "Identify which model is more suitable for a beginner requiring technical foundations.",
+        "hard": "Compare linear and non-linear approaches for a team-sport skill.",
+        "extreme": "Justify a model choice using a complex analysis of individual, task, and environmental constraints."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Learning Approaches: Direct Instruction vs. Constraint-Based Methods",
+      "technique_notes": {
+        "core_concepts": "Direct instruction is coach-led and explicit; constraint-based methods (game sense) are implicit and rely on environmental manipulation.",
+        "exam_style_guidelines": "Define approaches -> compare advantages/disadvantages -> recommend for specific stage of learning.",
+        "anti_prompts": [
+          "Do not suggest constraint-based methods for high-risk safety skills without qualification",
+          "Ensure 'implicit learning' is connected to the associative/autonomous stages"
+        ],
+        "tech_free_rules": "List advantages of direct instruction for cognitive learners.",
+        "tech_active_rules": "Compare the impact on decision-making between direct instruction and constraint-based methods in an elite sport context."
+      },
+      "complexity_levers": {
+        "easy": "State one advantage of using direct instruction for a beginner.",
+        "hard": "Explain how a coach could manipulate a task constraint to improve a player's spatial awareness.",
+        "extreme": "Critique the use of constraint-based coaching for an autonomous performer experiencing a 'technique slump'."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Practice Scheduling: Type, Distribution, and Variability",
+      "technique_notes": {
+        "core_concepts": "Analyze trade-offs: whole vs part (complexity/organization), massed vs distributed (fatigue/motivation), and blocked vs random (interference/retention).",
+        "exam_style_guidelines": "Analyze skill characteristics -> recommend schedule -> justify with learning stage and retention principles.",
+        "anti_prompts": [
+          "Do not confuse blocked/random with massed/distributed",
+          "Must link to 'contextual interference' for random practice"
+        ],
+        "tech_free_rules": "Define blocked and random practice.",
+        "tech_active_rules": "Design a practice schedule for an associative learner that maximizes transfer to game situations."
+      },
+      "complexity_levers": {
+        "easy": "Recommend blocked practice for a learner in the cognitive stage.",
+        "hard": "Explain why distributed practice is better suited for learning a high-complexity continuous skill.",
+        "extreme": "Justify the use of random practice for an autonomous performer using the concept of contextual interference."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Feedback in Skill Acquisition: Intrinsic, Augmented, and Timing",
+      "technique_notes": {
+        "core_concepts": "Distinguish between intrinsic (sensory) and augmented (KR vs KP) feedback. Manage timing (concurrent/terminal) and frequency to avoid dependency.",
+        "exam_style_guidelines": "Define feedback types -> analyze scenario -> recommend strategy (frequency/timing) with justification.",
+        "anti_prompts": [
+          "Do not assume more feedback is always better",
+          "Distinguish clearly between knowledge of results and knowledge of performance"
+        ],
+        "tech_free_rules": "Identify examples of intrinsic feedback.",
+        "tech_active_rules": "Evaluate the 'guidance hypothesis' and the risk of feedback dependency in a coaching scenario."
+      },
+      "complexity_levers": {
+        "easy": "Identify an example of Knowledge of Results in a sport scenario.",
+        "hard": "Recommend a feedback frequency strategy for a learner moving into the associative stage.",
+        "extreme": "Analyze how concurrent augmented feedback might hinder the development of intrinsic feedback loops in an autonomous performer."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Psychological Factors: Confidence, Motivation, Arousal, and Concentration",
+      "technique_notes": {
+        "core_concepts": "Manage self-efficacy, optimal arousal (Inverted-U), and attentional focus using strategies like SMARTER goals, imagery, and relaxation.",
+        "exam_style_guidelines": "Identify factor -> explain impact on performance -> recommend strategy (imagery, PMR, etc.) with sport-specific justification.",
+        "anti_prompts": [
+          "Do not use generic psychological advice; link to specific sport demands",
+          "Ensure 'optimal arousal' varies by sport type (e.g., fine vs gross motor skills)"
+        ],
+        "tech_free_rules": "Define the Inverted-U hypothesis.",
+        "tech_active_rules": "Analyze a performance slump using psychological data (motivation/confidence) and propose an intervention plan."
+      },
+      "complexity_levers": {
+        "easy": "State the relationship between arousal and performance according to the Inverted-U hypothesis.",
+        "hard": "Recommend a relaxation technique for a performer whose arousal is too high for a fine motor skill.",
+        "extreme": "Design and justify a SMARTER goal-setting program for an athlete recovering from a major injury to maintain motivation."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Coaching Strategies: Tailoring Instruction and Performance Requirements",
+      "technique_notes": {
+        "core_concepts": "Integrate skill classification, learning stages, and practice scheduling into a holistic coaching approach.",
+        "exam_style_guidelines": "Analyze performer -> identify stage -> design approach (practice/feedback) -> justify based on learner characteristics.",
+        "anti_prompts": [
+          "Avoid generic coaching advice; must be evidenced-based from the Study Design"
+        ],
+        "tech_free_rules": "Link a learning stage to a specific practice type.",
+        "tech_active_rules": "Synthesize a comprehensive coaching plan for a team with mixed ability levels."
+      },
+      "complexity_levers": {
+        "easy": "Match a coaching strategy to a cognitive learner.",
+        "hard": "Justify why a coach would switch from direct instruction to a constraints-based approach.",
+        "extreme": "Evaluate the effectiveness of an integrated coaching plan for a high-performance athlete in a transition phase."
+      },
+      "group": "unit3-skill-acquisition"
+    },
+    {
+      "name": "Linear Motion: Momentum, Velocity, and Acceleration",
+      "technique_notes": {
+        "core_concepts": "Apply displacement, velocity, and acceleration to straight-line movements. Link to Newton's laws.",
+        "exam_style_guidelines": "Define concepts -> apply to scenario -> explain how manipulation (e.g., increasing force) improves performance.",
+        "anti_prompts": [
+          "Do not focus on complex calculations; focus on biomechanical application"
+        ],
+        "tech_free_rules": "Compare the velocity of two sprinters given time and distance.",
+        "tech_active_rules": "Analyze a velocity-time graph for a 100m sprinter and identify the phase of maximal acceleration."
+      },
+      "complexity_levers": {
+        "easy": "Identify the difference between speed and velocity.",
+        "hard": "Explain how a sprinter can use Newton's Second Law to increase their acceleration off the blocks.",
+        "extreme": "Analyze the relationship between linear momentum and force in a high-impact collision in a contact sport."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Angular Motion: Momentum, Inertia, and Velocity",
+      "technique_notes": {
+        "core_concepts": "Examine rotation around an axis. Understand the inverse relationship between moment of inertia and angular velocity (conservation of angular momentum).",
+        "exam_style_guidelines": "Define concepts -> apply to scenario (diving/gymnastics) -> explain how mass distribution changes the rate of rotation.",
+        "anti_prompts": [
+          "Ensure moment of inertia is linked to the 'radius of rotation'",
+          "Do not forget the principle of conservation of angular momentum"
+        ],
+        "tech_free_rules": "Describe how a diver tucks to spin faster.",
+        "tech_active_rules": "Evaluate the biomechanical efficiency of a figure skater's spin using moment of inertia data."
+      },
+      "complexity_levers": {
+        "easy": "State how a gymnast decreases their moment of inertia.",
+        "hard": "Explain the principle of conservation of angular momentum during a dive.",
+        "extreme": "Analyze how changes in mass distribution affect both stability and angular velocity in a multi-rotation aerial maneuver."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Momentum and Impulse: Conservation and Application",
+      "technique_notes": {
+        "core_concepts": "Impulse = Force x Time. Understand how manipulating the time of impact changes the force applied to or by the body.",
+        "exam_style_guidelines": "Define -> apply formula conceptually -> explain how increasing time (e.g., landing) or force increases impulse/momentum.",
+        "anti_prompts": [
+          "Do not ignore the direction of momentum",
+          "Link impulse clearly to 'change in momentum'"
+        ],
+        "tech_free_rules": "Explain why catching a ball with 'soft hands' reduces the sting.",
+        "tech_active_rules": "Analyze force-time curves from a force plate during a vertical jump to identify the impulse generated."
+      },
+      "complexity_levers": {
+        "easy": "Identify the two components of impulse.",
+        "hard": "Explain how a cricketer uses impulse to maximize the distance they hit a ball.",
+        "extreme": "Evaluate landing techniques in different sports with reference to the impulse-momentum relationship and injury prevention."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Newton's Laws of Motion in Sport",
+      "technique_notes": {
+        "core_concepts": "Apply First (Inertia), Second (Acceleration), and Third (Action-Reaction) Laws to movement. Focus on ground reaction forces.",
+        "exam_style_guidelines": "State law -> identify in scenario -> explain how the athlete manipulates the law for a performance advantage.",
+        "anti_prompts": [
+          "Avoid generic physics examples; must be sport-specific"
+        ],
+        "tech_free_rules": "Identify which of Newton's laws is most relevant to a sprinter using blocks.",
+        "tech_active_rules": "Analyze how an athlete's equipment (e.g., shoe spikes) maximizes the application of Newton's Third Law."
+      },
+      "complexity_levers": {
+        "easy": "State Newton's First Law of Motion.",
+        "hard": "Apply Newton's Second Law (F=ma) to explain why a heavier shot put requires more force to reach the same acceleration.",
+        "extreme": "Analyze the interaction of all three of Newton's laws in a complex movement like a rugby tackle."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Projectile Motion: Factors and Trajectories",
+      "technique_notes": {
+        "core_concepts": "Factors: release angle, height, and speed. Speed is the most influential. Optimal angle changes with release height.",
+        "exam_style_guidelines": "Identify factors -> explain effect on trajectory -> recommend optimal conditions for a specific goal (distance/height).",
+        "anti_prompts": [
+          "Do not state 45 degrees is always optimal; consider release height",
+          "Address air resistance qualitatively"
+        ],
+        "tech_free_rules": "List the three factors affecting a projectile's path.",
+        "tech_active_rules": "Use video analysis data to determine the optimal release angle for a shot putter given their release height."
+      },
+      "complexity_levers": {
+        "easy": "Identify the most influential factor in projectile motion.",
+        "hard": "Explain why the optimal release angle for a javelin is less than 45 degrees.",
+        "extreme": "Analyze how the trade-off between release speed and release angle affects the flight time and distance of a basketball shot."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Equilibrium: Center of Gravity, Base of Support, and Stability",
+      "technique_notes": {
+        "core_concepts": "Stability is affected by COG height, BOS size, and the line of gravity's position relative to the BOS.",
+        "exam_style_guidelines": "Define principles -> analyze stance -> recommend adjustments for stability vs mobility trade-off.",
+        "anti_prompts": [
+          "Do not confuse stability with balance",
+          "Remember that higher stability can reduce mobility"
+        ],
+        "tech_free_rules": "Explain how a wrestler increases their stability.",
+        "tech_active_rules": "Compare the stability of two different defensive stances in basketball using center of gravity coordinates."
+      },
+      "complexity_levers": {
+        "easy": "Define 'base of support'.",
+        "hard": "Explain the stability-mobility trade-off for a sprint start.",
+        "extreme": "Analyze how a performer's center of gravity moves outside their body during a high jump (Fosbury Flop) and the impact on performance."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Third Class Lever Systems",
+      "technique_notes": {
+        "core_concepts": "Axis-Force-Resistance (F in middle). Human body is primarily third-class, designed for speed and range of motion.",
+        "exam_style_guidelines": "Identify components (A, F, R) in a limb -> explain mechanical advantage (<1) -> link to speed/range outcomes.",
+        "anti_prompts": [
+          "Distinguish clearly from 1st and 2nd class levers",
+          "Mechanical advantage < 1 means force cost but speed gain"
+        ],
+        "tech_free_rules": "Label the A, F, and R on a diagram of a bicep curl.",
+        "tech_active_rules": "Calculate the force required to move a load using a 3rd class lever system given lengths of the force and resistance arms."
+      },
+      "complexity_levers": {
+        "easy": "Identify which component is in the middle of a third-class lever.",
+        "hard": "Explain why a third-class lever is better suited for a tennis serve than a second-class lever.",
+        "extreme": "Analyze how the length of the resistance arm (e.g., using a longer tennis racket) affects the force required and the resulting speed at the racket head."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Qualitative Movement Analysis (QMA)",
+      "technique_notes": {
+        "core_concepts": "Four stages: Preparation, Observation, Evaluation, and Error Correction. Use biomechanics to diagnose and fix errors.",
+        "exam_style_guidelines": "Design protocol -> identify observation points -> diagnose error using biomechanical principles -> recommend correction.",
+        "anti_prompts": [
+          "Avoid generic coaching cues; corrections must have a mechanical basis",
+          "Do not skip the 'Preparation' stage"
+        ],
+        "tech_free_rules": "Outline the four stages of QMA.",
+        "tech_active_rules": "Apply a QMA evaluation to a video of a swimming stroke and propose a biomechanically-sound correction."
+      },
+      "complexity_levers": {
+        "easy": "List the four stages of Qualitative Movement Analysis.",
+        "hard": "Describe the 'Preparation' stage for a QMA of a golf swing.",
+        "extreme": "Evaluate a performance error in a shot put and justify the correction using projectile motion principles."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Video Analysis and Biomechanical Assessment",
+      "technique_notes": {
+        "core_concepts": "Technology (GPS, force plates, video) provides objective data for QMA. Understand advantages (precision) and limitations (cost/access).",
+        "exam_style_guidelines": "Explain how technology aids analysis -> identify advantages over naked eye -> discuss practical limitations.",
+        "anti_prompts": [
+          "Do not treat technology as a replacement for the coach, but as a tool for the QMA process"
+        ],
+        "tech_free_rules": "State one advantage of video analysis over live observation.",
+        "tech_active_rules": "Compare force-plate data to video analysis to identify inconsistencies in a jumping technique."
+      },
+      "complexity_levers": {
+        "easy": "State how a coach might use video analysis.",
+        "hard": "Explain how force plates provide data that cannot be seen with the naked eye.",
+        "extreme": "Critique the use of wearable technology for monitoring biomechanical efficiency during an endurance event."
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "ATP-CP System",
+      "technique_notes": {
+        "core_concepts": "Fuel: Phosphocreatine (PC). Yield: Very low. Rate: Fastest. Duration: 0-10s. No fatiguing by-products. Recovery: 2-3 mins for 100%.",
+        "exam_style_guidelines": "Identify system -> explain fuel/rate/duration -> link to power/speed activities -> recommend work:rest ratio (1:10+).",
+        "anti_prompts": [
+          "Do not confuse with anaerobic glycolysis",
+          "Ensure recovery time for PC replenishment is accurate"
+        ],
+        "tech_free_rules": "State the fuel used by the ATP-CP system.",
+        "tech_active_rules": "Analyze a 100m sprint breakdown and identify where the ATP-CP system ceases to be dominant."
+      },
+      "complexity_levers": {
+        "easy": "Identify a sport that primarily uses the ATP-CP system.",
+        "hard": "Justify the use of a 1:12 work-to-rest ratio for a shot putter's training session.",
+        "extreme": "Analyze how partial PC replenishment affects performance in repeated 50m sprints with only 30 seconds of rest."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Anaerobic Glycolysis",
+      "technique_notes": {
+        "core_concepts": "Fuel: Glycogen. Yield: Low. Rate: Fast. Duration: 10-60/90s. By-product: H+ ions (fatiguing).",
+        "exam_style_guidelines": "Explain process (no oxygen) -> identify intensity -> discuss fatigue mechanism (H+ ions) -> link to LIP.",
+        "anti_prompts": [
+          "Do NOT say 'lactic acid'; use 'H+ ions' or 'lactate'",
+          "Do not assume this system only starts after 10 seconds (it contributes from the start)"
+        ],
+        "tech_free_rules": "Identify the fatiguing by-product of anaerobic glycolysis.",
+        "tech_active_rules": "Evaluate how improving the Lactate Inflection Point (LIP) allows an athlete to rely less on anaerobic glycolysis at high intensities."
+      },
+      "complexity_levers": {
+        "easy": "What is the primary fuel for the anaerobic glycolysis system?",
+        "hard": "Explain how H+ ions interfere with muscle contraction.",
+        "extreme": "Analyze the energy system contribution in a 400m race where the athlete 'hits a wall' at the 300m mark."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Aerobic System",
+      "technique_notes": {
+        "core_concepts": "Fuels: Glycogen/Fats. Yield: Very High. Rate: Slowest. Duration: 2min+. By-products: CO2, H2O, heat. Occurs in mitochondria.",
+        "exam_style_guidelines": "Explain process (oxygen used) -> identify sport demands -> discuss fuel shifts (glycogen vs fats) -> link to recovery.",
+        "anti_prompts": [
+          "Ensure fats are noted as being used at lower intensities or longer durations",
+          "Do not forget the role of the aerobic system in recovering the anaerobic systems"
+        ],
+        "tech_free_rules": "List two by-products of the aerobic system.",
+        "tech_active_rules": "Analyze respiratory exchange ratio (RER) data to determine when an athlete shifts from burning primarily fats to carbohydrates."
+      },
+      "complexity_levers": {
+        "easy": "Identify one sport that relies primarily on the aerobic system.",
+        "hard": "Explain why fats are not used as a fuel source during high-intensity anaerobic efforts.",
+        "extreme": "Justify the importance of the aerobic system for a soccer player who performs repeated 10-meter sprints."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Energy System Interplay",
+      "technique_notes": {
+        "core_concepts": "All three systems contribute simultaneously. Dominance shifts based on intensity and duration. No system works in isolation.",
+        "exam_style_guidelines": "Analyze scenario -> describe interplay at phases -> justify dominance with reference to time and intensity.",
+        "anti_prompts": [
+          "Avoid saying systems 'turn on' or 'turn off'",
+          "Must specify the 'dominant' system at different time points"
+        ],
+        "tech_free_rules": "State the dominant energy system for a 2-minute max effort.",
+        "tech_active_rules": "Interpret a multi-stage fitness test graph and explain the shifting energy system interplay as the intensity increases."
+      },
+      "complexity_levers": {
+        "easy": "Identify the dominant energy system for an activity lasting 5 seconds.",
+        "hard": "Explain the interplay of energy systems during a 1500m race (approx. 4 mins).",
+        "extreme": "Analyze how an athlete's strategy in a marathon (e.g., a final sprint) alters the interplay and the resulting fatigue mechanisms."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Oxygen Uptake: Deficit, Steady State, and EPOC",
+      "technique_notes": {
+        "core_concepts": "Oxygen Deficit: lag at start. Steady State: supply = demand. EPOC: post-exercise recovery for PC and H+ removal.",
+        "exam_style_guidelines": "Define concepts -> explain physiological processes -> link to training/recovery (fast/slow components of EPOC).",
+        "anti_prompts": [
+          "Distinguish between the 'fast' and 'slow' components of EPOC"
+        ],
+        "tech_free_rules": "Define 'steady state'.",
+        "tech_active_rules": "Analyze oxygen uptake curves for trained vs untrained individuals and identify differences in the deficit and EPOC phases."
+      },
+      "complexity_levers": {
+        "easy": "Identify when oxygen deficit occurs in an exercise session.",
+        "hard": "Explain the role of EPOC in replenishing phosphocreatine stores.",
+        "extreme": "Compare the oxygen deficit and EPOC of a 100m sprinter versus a 10,000m runner."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "VO2 Max and Lactate Inflection Point (LIP)",
+      "technique_notes": {
+        "core_concepts": "VO2 Max: Max oxygen rate. LIP: Highest sustainable intensity without rapid H+ accumulation. LIP is a better performance predictor.",
+        "exam_style_guidelines": "Define -> explain relationship -> discuss training adaptations (e.g., LIP increasing as % of VO2 max).",
+        "anti_prompts": [
+          "Do not confuse VO2 max with LIP",
+          "Distinguish between absolute (L/min) and relative (ml/kg/min) VO2 max"
+        ],
+        "tech_free_rules": "State the units for relative VO2 max.",
+        "tech_active_rules": "Analyze blood lactate data to identify the Lactate Inflection Point for a cyclist."
+      },
+      "complexity_levers": {
+        "easy": "Define VO2 max.",
+        "hard": "Explain why an athlete with a higher LIP but lower VO2 max might win a marathon.",
+        "extreme": "Analyze how chronic aerobic adaptations lead to an increase in both VO2 max and LIP."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Fatigue Mechanisms",
+      "technique_notes": {
+        "core_concepts": "Identify mechanisms: PC depletion (power), H+ accumulation (intensity), Glycogen depletion (endurance), Dehydration/Heat (long duration).",
+        "exam_style_guidelines": "Identify fatigue type -> explain mechanism -> link to sport intensity/duration -> recommend management.",
+        "anti_prompts": [
+          "Must specify the dominant energy system and its corresponding fatigue factor"
+        ],
+        "tech_free_rules": "Match a fatigue mechanism to a specific sport (e.g., PC depletion to 100m sprint).",
+        "tech_active_rules": "Analyze core temperature data to identify thermoregulatory fatigue and its impact on heart rate (cardiovascular drift)."
+      },
+      "complexity_levers": {
+        "easy": "State the primary cause of fatigue for a shot putter.",
+        "hard": "Explain how H+ ion accumulation affects the force of muscle contraction.",
+        "extreme": "Analyze the complex interplay of central and peripheral fatigue in an ultra-endurance event."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Nutrition and Hydration Strategies",
+      "technique_notes": {
+        "core_concepts": "Carbohydrates (fuel/glycogen loading), Protein (repair), Hydration (fluid/electrolyte balance). Timing is critical (pre, during, post).",
+        "exam_style_guidelines": "Analyze sport demands -> recommend strategy -> justify with physiological rationale.",
+        "anti_prompts": [
+          "Do not suggest supplements without evidence",
+          "Link protein primarily to repair and adaptation, not fuel"
+        ],
+        "tech_free_rules": "Identify the best fuel source for an endurance event.",
+        "tech_active_rules": "Design a 24-hour nutrition plan for an athlete competing in multiple swim heats in a single day."
+      },
+      "complexity_levers": {
+        "easy": "State why an athlete should consume carbohydrates after a match.",
+        "hard": "Explain the physiological rationale for glycogen loading before a marathon.",
+        "extreme": "Evaluate the use of electrolyte-replacement drinks during a long-distance cycling race in high-humidity conditions."
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Activity Analysis",
+      "technique_notes": {
+        "core_concepts": "Collect data on skill frequency, movement patterns, and work:rest ratios. Use data to identify fitness and energy demands.",
+        "exam_style_guidelines": "Conduct/interpret analysis -> identify fitness components -> justify with evidence to inform training design.",
+        "anti_prompts": [
+          "Data must be used to justify training choices",
+          "Distinguish between notational and GPS-based analysis"
+        ],
+        "tech_free_rules": "Define 'work-to-rest ratio'.",
+        "tech_active_rules": "Interpret GPS heat maps and work:rest data for a midfielder in AFL to determine their primary energy system dominance."
+      },
+      "complexity_levers": {
+        "easy": "List two data types collected during an activity analysis.",
+        "hard": "Justify why a basketball player requires high levels of anaerobic capacity based on their work:rest ratio.",
+        "extreme": "Compare the movement patterns of two different positions in netball and recommend differentiated training priorities."
+      },
+      "group": "unit4-foundations"
+    },
+    {
+      "name": "Fitness Assessment: Testing and Selection",
+      "technique_notes": {
+        "core_concepts": "Select tests based on specificity to sport demands (aerobic, anaerobic, speed, agility, etc.). Understand protocols and ethics.",
+        "exam_style_guidelines": "Recommend test -> justify with reference to activity analysis -> discuss reliability/validity.",
+        "anti_prompts": [
+          "Do not use generic tests if a sport-specific one is available (e.g., Yo-Yo vs Beep Test for team sports)"
+        ],
+        "tech_free_rules": "Match a fitness test to the component it measures.",
+        "tech_active_rules": "Design a fitness testing battery for a specific sport and justify the sequence of tests to minimize fatigue interference."
+      },
+      "complexity_levers": {
+        "easy": "Identify a test for aerobic capacity.",
+        "hard": "Justify the selection of the Illinois Agility Test for a tennis player.",
+        "extreme": "Evaluate the limitations of using a field-based test (e.g., Beep Test) compared to a lab-based VO2 max test."
+      },
+      "group": "unit4-foundations"
+    },
+    {
+      "name": "Reliability, Validity, and Accuracy",
+      "technique_notes": {
+        "core_concepts": "Reliability: consistency. Validity: correct measurement. Accuracy: closeness to truth. Standardized protocols are essential.",
+        "exam_style_guidelines": "Evaluate test selection -> identify reliability/validity issues -> recommend protocol improvements.",
+        "anti_prompts": ["Do not confuse reliability with validity"],
+        "tech_free_rules": "State one way to improve the reliability of a test.",
+        "tech_active_rules": "Analyze a dataset of fitness results and identify signs of poor test reliability (e.g., high variability in identical conditions)."
+      },
+      "complexity_levers": {
+        "easy": "Define 'test validity'.",
+        "hard": "Explain how environmental factors can affect the reliability of a 12-minute run test.",
+        "extreme": "Critique the validity of a 1RM test for a cross-country runner."
+      },
+      "group": "unit4-foundations"
+    },
+    {
+      "name": "Pre-Participation Screening and Informed Consent",
+      "technique_notes": {
+        "core_concepts": "Safety (PAR-Q+) and Ethics (Informed Consent). Duty of care, right to withdraw, and risk disclosure.",
+        "exam_style_guidelines": "Explain screening process -> identify ethical/safety considerations -> justify importance for legal/safety reasons.",
+        "anti_prompts": [
+          "Must include the 'right to withdraw' in informed consent"
+        ],
+        "tech_free_rules": "List two components of an informed consent form.",
+        "tech_active_rules": "Evaluate a screening protocol for a high-risk population (e.g., elderly) starting a new exercise program."
+      },
+      "complexity_levers": {
+        "easy": "Why is pre-participation screening important?",
+        "hard": "Describe the components of informed consent for a minor.",
+        "extreme": "Analyze the legal and ethical consequences of failing to conduct a PAR-Q+ before fitness testing."
+      },
+      "group": "unit4-foundations"
+    },
+    {
+      "name": "Training Principles: FITT and Progression",
+      "technique_notes": {
+        "core_concepts": "Frequency, Intensity, Time, Type. Progressive overload ensures adaptation while avoiding overtraining.",
+        "exam_style_guidelines": "Analyze program -> apply FITT -> design progression -> justify with training goals.",
+        "anti_prompts": [
+          "Intensity must be measured correctly (e.g., %HR max, RPE)",
+          "Avoid progressing more than one variable significantly at a time"
+        ],
+        "tech_free_rules": "Define each component of the FITT acronym.",
+        "tech_active_rules": "Adjust the FITT variables of a program based on an athlete's heart rate response to the previous microcycle."
+      },
+      "complexity_levers": {
+        "easy": "State the meaning of 'Intensity' in a training context.",
+        "hard": "Explain how to apply progressive overload to a resistance training program.",
+        "extreme": "Critique a training program that lacks progression and predict the impact on long-term performance."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Training Principles: Specificity, Individuality, Variety, and Diminishing Returns",
+      "technique_notes": {
+        "core_concepts": "Specificity matches sport demands. Individuality accounts for personal traits. Variety prevents plateaus. Diminishing returns means slower gains for elite athletes.",
+        "exam_style_guidelines": "Apply principles to scenario -> explain importance -> predict outcome if principle is violated.",
+        "anti_prompts": [
+          "Specificity must include movement patterns and energy systems"
+        ],
+        "tech_free_rules": "Define 'diminishing returns'.",
+        "tech_active_rules": "Analyze performance data for an elite athlete to identify the principle of diminishing returns."
+      },
+      "complexity_levers": {
+        "easy": "What is 'specificity' in training?",
+        "hard": "Explain why an elite athlete needs more variety in their program than a beginner.",
+        "extreme": "Justify why two athletes doing the same program might have different results using the principle of individuality."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Periodization and Planning",
+      "technique_notes": {
+        "core_concepts": "Macro/Meso/Microcycles. Preparation, competition, and transition phases. Tapering (peaking) and Detraining.",
+        "exam_style_guidelines": "Design program -> explain phase purposes -> justify tapering -> address detraining risk.",
+        "anti_prompts": [
+          "Tapering must involve reduced volume but maintained intensity"
+        ],
+        "tech_free_rules": "Define 'macrocycle'.",
+        "tech_active_rules": "Evaluate a year-long periodization plan for a swimmer peaking for national trials."
+      },
+      "complexity_levers": {
+        "easy": "Identify the goal of the 'transition phase'.",
+        "hard": "Explain the physiological goal of tapering before a major competition.",
+        "extreme": "Analyze the detraining effects on the cardiovascular system during a 4-week injury layoff."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Continuous and Interval Training",
+      "technique_notes": {
+        "core_concepts": "Continuous: steady-state aerobic. Interval: work:rest ratios target systems (Short <10s: ATP-CP; Int 10s-2m: Anaerobic Glycolysis; Long >2m: Aerobic).",
+        "exam_style_guidelines": "Recommend method -> justify with energy system analysis -> specify work:rest and intensity.",
+        "anti_prompts": ["Work:rest ratios are the critical differentiator"],
+        "tech_free_rules": "What work:rest ratio targets the ATP-CP system?",
+        "tech_active_rules": "Design a high-intensity interval training (HIIT) session to improve the Lactate Inflection Point."
+      },
+      "complexity_levers": {
+        "easy": "Match continuous training to a fitness component.",
+        "hard": "Justify a 1:3 work-to-rest ratio for improving anaerobic capacity.",
+        "extreme": "Evaluate the benefits of Fartlek training over steady-state continuous training for a team-sport athlete."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Specialized Training Methods: Plyometrics, Resistance, and Circuits",
+      "technique_notes": {
+        "core_concepts": "Plyometrics (stretch-shortening cycle for power). Resistance (strength/sets/reps). Circuits (efficiency/sport-specific stations).",
+        "exam_style_guidelines": "Select method -> explain rationale (e.g., SSC) -> design session -> link to sport demands.",
+        "anti_prompts": ["Must address safety prerequisites for plyometrics"],
+        "tech_free_rules": "Define 'plyometrics'.",
+        "tech_active_rules": "Design a resistance training session targeting muscular endurance and justify the chosen rep ranges and rest periods."
+      },
+      "complexity_levers": {
+        "easy": "Identify the primary fitness component developed by plyometrics.",
+        "hard": "Explain the role of the 'stretch-shortening cycle' in a depth jump.",
+        "extreme": "Design a circuit training session that integrates both aerobic and anaerobic energy system demands for a boxer."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Training Components: Warm-Up and Cool-Down",
+      "technique_notes": {
+        "core_concepts": "Warm-up (RAMP: Raise, Activate, Mobilize, Potentiate). Cool-down (recovery, H+ removal, injury prevention).",
+        "exam_style_guidelines": "Design session -> justify each component -> explain physiological purpose.",
+        "anti_prompts": [
+          "Avoid static stretching in the warm-up; focus on dynamic movement"
+        ],
+        "tech_free_rules": "Identify one reason for a cool-down.",
+        "tech_active_rules": "Analyze a warm-up protocol and evaluate its effectiveness for a high-intensity power activity."
+      },
+      "complexity_levers": {
+        "easy": "State one physiological effect of a warm-up.",
+        "hard": "Describe the 'Potentiate' phase of a RAMP warm-up for a sprinter.",
+        "extreme": "Justify how an active cool-down accelerates the removal of fatiguing by-products compared to a passive recovery."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Overtraining Syndrome",
+      "technique_notes": {
+        "core_concepts": "Chronic state of decline due to excessive load/inadequate recovery. Symptoms: persistent fatigue, mood changes, sleep issues, illness.",
+        "exam_style_guidelines": "Identify symptoms -> analyze causes -> recommend prevention (periodization/monitoring) or management.",
+        "anti_prompts": [
+          "Distinguish between overreaching (acute) and overtraining (chronic)"
+        ],
+        "tech_free_rules": "List two psychological symptoms of overtraining.",
+        "tech_active_rules": "Interpret wellness data (RPE, mood, sleep) to identify an athlete at risk of overtraining syndrome."
+      },
+      "complexity_levers": {
+        "easy": "Identify a common sign of overtraining.",
+        "hard": "Explain the difference between functional overreaching and overtraining syndrome.",
+        "extreme": "Design a monitoring strategy for a coach to detect early signs of overtraining in a youth athlete during an intensive training block."
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Cardiovascular Adaptations",
+      "technique_notes": {
+        "core_concepts": "Cardiac hypertrophy (increased SV), increased blood volume, hemoglobin, and capillarization. Leads to improved VO2 max.",
+        "exam_style_guidelines": "Explain adaptation -> link to performance -> distinguish between rest/submax/max responses.",
+        "anti_prompts": [
+          "Submaximal cardiac output remains unchanged (SV increases, HR decreases)"
+        ],
+        "tech_free_rules": "State how aerobic training affects resting heart rate.",
+        "tech_active_rules": "Analyze heart rate and stroke volume data for a trained vs untrained athlete at submaximal intensity."
+      },
+      "complexity_levers": {
+        "easy": "Identify one cardiovascular adaptation to aerobic training.",
+        "hard": "Explain why submaximal cardiac output does not change after chronic aerobic training despite an increase in stroke volume.",
+        "extreme": "Justify how an increase in plasma volume contributes to better thermoregulation and endurance performance."
+      },
+      "group": "unit4-adaptations"
+    },
+    {
+      "name": "Respiratory Adaptations",
+      "technique_notes": {
+        "core_concepts": "Increased strength/endurance of respiratory muscles. Increased alveoli capillarization. Improved a-vO2 difference (extraction).",
+        "exam_style_guidelines": "Explain adaptation -> link to performance -> acknowledge that respiratory changes are often less significant than cardiovascular ones.",
+        "anti_prompts": [
+          "Do not overstate respiratory adaptations in healthy individuals"
+        ],
+        "tech_free_rules": "State how the a-vO2 difference changes with training.",
+        "tech_active_rules": "Interpret ventilation data for an athlete before and after a 12-week aerobic program."
+      },
+      "complexity_levers": {
+        "easy": "Define 'a-vO2 difference'.",
+        "hard": "Explain how increased capillarization of the alveoli improves oxygen uptake.",
+        "extreme": "Analyze why respiratory adaptations provide a smaller contribution to improved aerobic capacity than cardiovascular adaptations."
+      },
+      "group": "unit4-adaptations"
+    },
+    {
+      "name": "Muscular Adaptations",
+      "technique_notes": {
+        "core_concepts": "Resistance: Neural gains (early) + Hypertrophy (Type II). Aerobic: Mitochondrial density, capillary density, oxidative enzymes.",
+        "exam_style_guidelines": "Explain adaptation -> link to training method -> predict performance outcome -> distinguish between neural and structural.",
+        "anti_prompts": [
+          "Hypertrophy is an increase in fiber size, not number (hyperplasia is not in scope)"
+        ],
+        "tech_free_rules": "Identify one muscular adaptation to anaerobic training.",
+        "tech_active_rules": "Evaluate muscle biopsy data to identify changes in mitochondrial density and enzyme activity after an endurance program."
+      },
+      "complexity_levers": {
+        "easy": "Identify which muscle fiber type shows the greatest hypertrophy with resistance training.",
+        "hard": "Explain the difference between neural and structural muscular adaptations to strength training.",
+        "extreme": "Analyze the metabolic muscular adaptations (e.g., increased glycogen and triglyceride stores) that result from chronic aerobic training."
+      },
+      "group": "unit4-adaptations"
+    },
+    {
+      "name": "Aerobic vs. Anaerobic Training Adaptations",
+      "technique_notes": {
+        "core_concepts": "Aerobic: Cardiovascular/Mitochondrial. Anaerobic: Glycolytic enzymes, H+ buffering, PC stores, Lactate tolerance.",
+        "exam_style_guidelines": "Compare adaptations -> link to sport demands -> reference physiological markers (LIP/VO2 max).",
+        "anti_prompts": [
+          "Must distinguish between fuel stores and enzyme activity"
+        ],
+        "tech_free_rules": "List one adaptation specific to anaerobic training.",
+        "tech_active_rules": "Compare the chronic adaptations of a 100m sprinter and a marathon runner."
+      },
+      "complexity_levers": {
+        "easy": "Which training type increases mitochondrial density?",
+        "hard": "Explain how increased buffering capacity improves performance in a 400m race.",
+        "extreme": "Justify the need for both aerobic and anaerobic adaptations in a mid-field player in professional soccer."
+      },
+      "group": "unit4-adaptations"
+    },
+    {
+      "name": "Lactate Threshold and Metabolic Efficiency",
+      "technique_notes": {
+        "core_concepts": "Improved fat oxidation (glycogen sparing). Increased LIP. Enhanced H+ buffering/tolerance.",
+        "exam_style_guidelines": "Explain concept -> describe training method (e.g., continuous at LIP) -> predict performance gain.",
+        "anti_prompts": [
+          "Distinguish between LIP (sustainable) and Lactate Tolerance (high-intensity survival)"
+        ],
+        "tech_free_rules": "Define 'glycogen sparing'.",
+        "tech_active_rules": "Analyze a blood lactate curve to identify the shift in LIP after a training intervention."
+      },
+      "complexity_levers": {
+        "easy": "Identify the goal of lactate tolerance training.",
+        "hard": "Explain the concept of glycogen sparing and its benefit for a marathon runner.",
+        "extreme": "Analyze how chronic aerobic adaptations lead to a rightward shift of the lactate curve."
+      },
+      "group": "unit4-adaptations"
+    },
+    {
+      "name": "Training Monitoring: Data Collection",
+      "technique_notes": {
+        "core_concepts": "Physiological (HR), Psychological (mood/sleep), and Sociological (team/social) monitoring.",
+        "exam_style_guidelines": "Design protocol -> justify data types -> explain how data informs program changes.",
+        "anti_prompts": [
+          "Monitoring must lead to specific program modifications"
+        ],
+        "tech_free_rules": "Identify one psychological marker used to monitor training.",
+        "tech_active_rules": "Design a weekly monitoring schedule for a state-level athlete and justify the frequency of data collection."
+      },
+      "complexity_levers": {
+        "easy": "Why do athletes track their resting heart rate?",
+        "hard": "Explain how sociological factors like family support can influence an athlete's recovery.",
+        "extreme": "Evaluate the use of Heart Rate Variability (HRV) as a tool for managing training load and avoiding overtraining."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Training Diaries and Wearable Technology",
+      "technique_notes": {
+        "core_concepts": "Diaries (subjective RPE/sleep) vs Technology (GPS/HR). Advantages and limitations (accuracy/cost/overload).",
+        "exam_style_guidelines": "Evaluate tool -> identify pros/cons -> recommend for specific context.",
+        "anti_prompts": [
+          "Address data overload and the need for coach interpretation"
+        ],
+        "tech_free_rules": "State one advantage of a training diary.",
+        "tech_active_rules": "Compare the data provided by a GPS tracker and a heart rate monitor for a team-sport player."
+      },
+      "complexity_levers": {
+        "easy": "Identify a piece of wearable technology used in sport.",
+        "hard": "Explain how RPE data in a training diary can be used to monitor internal training load.",
+        "extreme": "Critique the reliability of consumer-grade smartwatches for monitoring elite athletic performance."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Program Evaluation and Modification",
+      "technique_notes": {
+        "core_concepts": "Analyze results vs goals. Adjust FITT principles based on plateaus/wellness data.",
+        "exam_style_guidelines": "Analyze data -> evaluate effectiveness -> recommend modifications -> justify with evidence.",
+        "anti_prompts": ["Modifications must be specific to the data provided"],
+        "tech_free_rules": "Identify a sign that a training program needs modification.",
+        "tech_active_rules": "Analyze a 6-week block of training data and recommend specific changes to the next mesocycle."
+      },
+      "complexity_levers": {
+        "easy": "State one reason why a coach would modify a training program.",
+        "hard": "Justify a change in training intensity based on a plateau in fitness test results.",
+        "extreme": "Evaluate the effectiveness of a periodized plan after an athlete fails to reach their peak for a major competition."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Skill Acquisition and Training Integration",
+      "technique_notes": {
+        "core_concepts": "Combine skill drills with conditioning. Decision-making under fatigue.",
+        "exam_style_guidelines": "Design integrated session -> explain skill/physical interaction -> justify structure using learning stages.",
+        "anti_prompts": [
+          "Ensure the skill component is appropriate for the performer's stage of learning"
+        ],
+        "tech_free_rules": "Give an example of a skill drill that also develops aerobic fitness.",
+        "tech_active_rules": "Design a random-practice circuit that also targets the anaerobic glycolysis system."
+      },
+      "complexity_levers": {
+        "easy": "Why is it important to practice skills under game-like fatigue?",
+        "hard": "Explain the risks of teaching a new skill to a cognitive learner in a high-fatigue environment.",
+        "extreme": "Evaluate the benefits of using small-sided games for integrating fitness and skill development in professional soccer."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Biomechanical Optimization Within Training",
+      "technique_notes": {
+        "core_concepts": "Refining technique under fatigue. Maintaining levers/stability efficiency as intensity increases.",
+        "exam_style_guidelines": "Analyze movement -> identify inefficiencies -> design intervention -> predict outcome.",
+        "anti_prompts": [
+          "Focus on how technique breaks down when the athlete is tired"
+        ],
+        "tech_free_rules": "Identify a biomechanical principle that improves running economy.",
+        "tech_active_rules": "Analyze video footage of a 400m runner's final 50m to identify biomechanical technique breakdown."
+      },
+      "complexity_levers": {
+        "easy": "State how maintaining a stable core improves movement efficiency.",
+        "hard": "Explain how a tired swimmer's stroke length might change due to reduced force application.",
+        "extreme": "Justify a technique modification for a high-performance athlete based on 3D motion analysis data."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Energy System Alignment in Training",
+      "technique_notes": {
+        "core_concepts": "Match training methods to activity analysis findings. Correct work:rest ratios for target systems.",
+        "exam_style_guidelines": "Activity analysis -> system ID -> method selection -> justify with specificity.",
+        "anti_prompts": [
+          "Avoid training systems that are not dominant in the target sport"
+        ],
+        "tech_free_rules": "What energy system is targeted by a 1:1 work-to-rest ratio?",
+        "tech_active_rules": "Design a training session for a position in a team sport (e.g., AFL Ruckman) based on GPS-derived work:rest data."
+      },
+      "complexity_levers": {
+        "easy": "Match a training method to the ATP-CP system.",
+        "hard": "Justify why an 800m runner requires both aerobic and anaerobic training alignment.",
+        "extreme": "Evaluate the impact of incorrect work-to-rest ratios on the metabolic adaptations of an elite sprinter."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Sport-Specific Performance Analysis",
+      "technique_notes": {
+        "core_concepts": "Holistic assessment: activity analysis, fitness testing, biomechanics, and skill.",
+        "exam_style_guidelines": "Analyze multiple data sources -> identify strengths/weaknesses -> prioritize development areas.",
+        "anti_prompts": [
+          "Must integrate the different domains (e.g., how fitness affects technique)"
+        ],
+        "tech_free_rules": "List three domains of performance analysis.",
+        "tech_active_rules": "Synthesize data from a fitness battery, a GPS report, and a QMA to create a comprehensive athlete profile."
+      },
+      "complexity_levers": {
+        "easy": "Identify one strength and one weakness from a basic performance report.",
+        "hard": "Explain how a weakness in aerobic capacity might lead to an increase in technical errors in the second half of a game.",
+        "extreme": "Design a long-term development strategy for an athlete based on a holistic performance analysis."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Holistic Athlete Development",
+      "technique_notes": {
+        "core_concepts": "Integrate physical, psychological, and social factors. Understand how domains interact (e.g., confidence affects technique).",
+        "exam_style_guidelines": "Analyze situation -> identify factors across domains -> recommend integrated plan -> explain interactions.",
+        "anti_prompts": [
+          "Do not ignore social support factors for youth or injured athletes"
+        ],
+        "tech_free_rules": "State one psychological factor that can influence physical performance.",
+        "tech_active_rules": "Evaluate a development plan for an athlete returning from a long-term injury, addressing physical, psychological, and social needs."
+      },
+      "complexity_levers": {
+        "easy": "State how team cohesion can improve performance.",
+        "hard": "Explain how poor physical fitness can lead to a decline in an athlete's self-confidence.",
+        "extreme": "Justify an integrated approach for a youth athlete transitioning into a high-performance environment."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Recovery Strategies",
+      "technique_notes": {
+        "core_concepts": "Evidence-based: Sleep (GH release), Nutrition (glycogen), Active Recovery (H+ removal), Cold Water Immersion (inflammation).",
+        "exam_style_guidelines": "Recommend strategy -> explain physiological mechanism -> justify for context (e.g., tournament vs single match).",
+        "anti_prompts": [
+          "Distinguish between evidence-based strategies and those with purely psychological benefits"
+        ],
+        "tech_free_rules": "List two recovery strategies an athlete can use at home.",
+        "tech_active_rules": "Design a recovery protocol for a multi-day tournament and justify the timing of each strategy."
+      },
+      "complexity_levers": {
+        "easy": "Why is sleep important for athletic recovery?",
+        "hard": "Explain the physiological benefit of active recovery over passive recovery for lactate removal.",
+        "extreme": "Evaluate the effectiveness of cold water immersion versus compression garments for reducing exercise-induced muscle damage."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Fatigue Management",
+      "technique_notes": {
+        "core_concepts": "Balance stimulus with recovery. Monitor indicators (HRV, mood, performance). Prevent chronic fatigue/overtraining.",
+        "exam_style_guidelines": "Analyze indicators -> recommend management (load/periodization) -> justify with physiological rationale.",
+        "anti_prompts": [
+          "Fatigue must be managed at both the micro and macro levels"
+        ],
+        "tech_free_rules": "Identify a symptom of excessive fatigue.",
+        "tech_active_rules": "Analyze a season-long periodization plan and identify phases where the risk of chronic fatigue is highest."
+      },
+      "complexity_levers": {
+        "easy": "State one way a coach can monitor athlete fatigue.",
+        "hard": "Explain how heart rate variability (HRV) can indicate an athlete's readiness to train.",
+        "extreme": "Justify a reduction in training volume for an athlete showing signs of high life-stress and poor sleep quality."
+      },
+      "group": "unit4-integration"
+    },
+    {
+      "name": "Interdisciplinary Performance Optimization",
+      "technique_notes": {
+        "core_concepts": "Connect biomechanics, physiology, and psychology. Efficient technique reduces energy cost; focus maintains technique.",
+        "exam_style_guidelines": "Analyze holistically -> identify interacting factors -> design comprehensive intervention -> explain cross-domain benefits.",
+        "anti_prompts": [
+          "Avoid treating domains in isolation; the value is in the interaction"
+        ],
+        "tech_free_rules": "State how better technique can help an athlete last longer in a game.",
+        "tech_active_rules": "Evaluate a performance breakdown in the final stages of a race by considering technique (biomechanics), energy depletion (physiology), and focus (psychology)."
+      },
+      "complexity_levers": {
+        "easy": "How does efficient technique help save energy?",
+        "hard": "Explain how psychological stress can lead to increased muscular tension and reduced biomechanical efficiency.",
+        "extreme": "Design a holistic intervention for an athlete whose performance peaks in training but declines under the pressure of competition."
+      },
+      "group": "unit4-integration"
+    }
+  ]
+}

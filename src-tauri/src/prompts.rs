@@ -20,6 +20,7 @@ pub fn written_system() -> String {
          {style_rules}\n\
          {mermaid_rules}\n\n\
          CORE RULES:\n\
+         - Use precise VCAA command terms (e.g. 'state', 'describe', 'explain', 'justify', 'evaluate', 'compare', 'derive', 'show that').\n\
          - 'show that': every step must be explicit.\n\
          - 'hence': must use previous result.\n\
          - 'justify': reasoning required.\n\
@@ -43,6 +44,7 @@ pub fn mc_system() -> String {
          {style_rules}\n\
          {mermaid_rules}\n\n\
          CORE RULES:\n\
+         - Use VCAA standard phrasing and plausible distractors.\n\
          - Provide ONLY final answers and concise rationale.\n\
          - NO chain-of-thought in output.\n\
          - 'promptMarkdown' contains STEM ONLY. No options (A-D) in stem.\n\n\
@@ -95,6 +97,8 @@ pub fn subject_specific_guidance(topics: &[String]) -> String {
     let mut chemistry_flag = false;
     let mut physical_education_flag = false;
     let mut biology_flag = false;
+    let mut specialist_math_flag = false;
+    let mut general_math_flag = false;
 
     for topic in topics {
         let low = topic.to_lowercase();
@@ -107,12 +111,19 @@ pub fn subject_specific_guidance(topics: &[String]) -> String {
         if low.contains("biology") {
             biology_flag = true;
         }
+        if low.contains("specialist") {
+            specialist_math_flag = true;
+        }
+        if low.contains("general math") {
+            general_math_flag = true;
+        }
     }
 
     if chemistry_flag {
         s.push_str(
             "\nVCE CHEMISTRY RULES:\n\
             - Focus on VCAA key knowledge (e.g., green chemistry principles, stoichiometry, analytical techniques).\n\
+            - Emphasize data-driven questions involving the interpretation of tables, graphs, and experimental data.\n\
             - Always provide states of matter in chemical equations where appropriate.\n\
             - Use correct IUPAC nomenclature.",
         );
@@ -120,15 +131,32 @@ pub fn subject_specific_guidance(topics: &[String]) -> String {
     if physical_education_flag {
         s.push_str(
             "\nVCE PHYSICAL EDUCATION RULES:\n\
-            - Focus on biomechanical principles, energy systems, and training programs.\n\
-            - Ensure scenarios relate to VCE relevant sports and exercise contexts.",
+            - Focus on biomechanical principles, energy system interplay, and training program design/evaluation.\n\
+            - Use highly specific sporting contexts. Demand analysis of physiological data (e.g. lactate curves, VO2 max graphs).\n\
+            - Avoid formula derivations; focus on verbal justification and application of principles.",
         );
     }
     if biology_flag {
         s.push_str(
             "\nVCE BIOLOGY RULES:\n\
-            - Focus on molecular biology, genetics, and immunity.\n\
+            - Focus on molecular biology, genetics, and immunity. Apply knowledge to NOVEL scenarios.\n\
+            - Include experimental design questions and data analysis (e.g. interpreting gel electrophoresis, PCR results).\n\
             - Use precise biological terminology as per VCAA study design.",
+        );
+    }
+    if specialist_math_flag {
+        s.push_str(
+            "\nVCE SPECIALIST MATHEMATICS RULES:\n\
+            - Focus on rigorous formal proof, complex numbers, vectors, kinematics, and advanced calculus.\n\
+            - Demand high levels of formal mathematical notation and symbolic reasoning.\n\
+            - Scenarios should be abstract or highly technical applications of mathematics.",
+        );
+    }
+    if general_math_flag {
+        s.push_str(
+            "\nVCE GENERAL MATHEMATICS RULES:\n\
+            - Focus on practical, real-world application of mathematics: finance, matrices, networks, and data analysis.\n\
+            - Use realistic numbers and clear, straightforward scenarios. Avoid unnecessary abstraction.",
         );
     }
 
@@ -143,8 +171,97 @@ pub fn topic_notes(topics: &[String], _selected_subs: Option<&Vec<String>>) -> S
             s.push('\n');
             s.push_str(guidance);
         }
+
+        let out_of_scope = catalog::topic_out_of_scope(topic_name);
+        if !out_of_scope.is_empty() {
+            s.push_str("\nTOPIC OUT OF SCOPE (DO NOT ASSESS):\n- ");
+            s.push_str(&out_of_scope.join("\n- "));
+        }
     }
     s.push_str(&subject_specific_guidance(topics));
+    s
+}
+
+pub fn subtopics_note(
+    topics: &[String],
+    selected: Option<&Vec<String>>,
+    shuffle: bool,
+    difficulty: &str,
+    tech_mode: &str,
+) -> String {
+    let Some(mut subs) = selected.filter(|s| !s.is_empty()).cloned() else {
+        return String::new();
+    };
+
+    if shuffle {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::rng();
+        subs.shuffle(&mut rng);
+    }
+
+    let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
+
+    for sub in subs {
+        let key = sub.trim();
+        // We find the subtopic entry across all relevant topics.
+        for topic in topics {
+            if let Some(entry) = catalog::find_subtopic(topic, key) {
+                s.push_str(&format!("\n\n[{}]", entry.name));
+                s.push_str(&format!(
+                    "\nCORE CONCEPTS: {}",
+                    entry.technique_notes.core_concepts
+                ));
+                if !entry.technique_notes.exam_style_guidelines.is_empty() {
+                    s.push_str(&format!(
+                        "\nSTYLE GUIDELINES: {}",
+                        entry.technique_notes.exam_style_guidelines
+                    ));
+                }
+                if !entry.technique_notes.anti_prompts.is_empty() {
+                    s.push_str("\nSTRICT NEGATIVE CONSTRAINTS:\n- ");
+                    s.push_str(&entry.technique_notes.anti_prompts.join("\n- "));
+                }
+
+                if tech_mode == "tech-free" && !entry.technique_notes.tech_free_rules.is_empty() {
+                    s.push_str(&format!(
+                        "\nTECH-FREE SPECIFIC: {}",
+                        entry.technique_notes.tech_free_rules
+                    ));
+                } else if tech_mode == "tech-active"
+                    && !entry.technique_notes.tech_active_rules.is_empty()
+                {
+                    s.push_str(&format!(
+                        "\nTECH-ACTIVE SPECIFIC: {}",
+                        entry.technique_notes.tech_active_rules
+                    ));
+                }
+
+                if let Some(levers) = &entry.complexity_levers {
+                    let lever = match difficulty.to_ascii_lowercase().as_str() {
+                        "essential skills" | "easy" => &levers.easy,
+                        "hard" | "extreme" => &levers.hard,
+                        _ => "",
+                    };
+                    if !lever.is_empty() {
+                        s.push_str(&format!("\nDIFFICULTY SCALING ({}): {}", difficulty, lever));
+                    }
+                    if difficulty.eq_ignore_ascii_case("extreme") && !levers.extreme.is_empty() {
+                        s.push_str(&format!("\nEXTREME CHALLENGE: {}", levers.extreme));
+                    }
+                }
+
+                if !entry.out_of_scope.is_empty() {
+                    s.push_str("\nSUBTOPIC OUT OF SCOPE:\n- ");
+                    s.push_str(&entry.out_of_scope.join("\n- "));
+                }
+
+                if let Some(rules) = &entry.synthesis_rules {
+                    s.push_str(&format!("\nSYNTHESIS GUIDANCE: {}", rules));
+                }
+                break; // Found it in this topic, move to next subtopic.
+            }
+        }
+    }
     s
 }
 
@@ -173,42 +290,16 @@ pub fn tech_note(mode: &str, topics: &[String]) -> String {
     }
 }
 
-pub fn subtopics_note(selected: Option<&Vec<String>>, shuffle: bool) -> String {
-    let Some(mut subs) = selected.filter(|s| !s.is_empty()).cloned() else {
-        return String::new();
-    };
-
-    if shuffle {
-        use rand::seq::SliceRandom;
-        let mut rng = rand::rng();
-        subs.shuffle(&mut rng);
-    }
-
-    let mut s = format!("\nFocus subtopics: {}.", subs.join(", "));
-
-    // Inject Study Design key knowledge and exam technique notes from the catalog.
-    let exam_map = constants::shared_subtopic_exam_technique_notes();
-    for sub in subs {
-        let key = sub.trim().to_ascii_lowercase();
-
-        if let Some(exam) = exam_map.get(key.as_str()) {
-            s.push_str(&format!("\n\n[{sub}]\n{exam}"));
-        }
-    }
-    s
-}
-
 pub fn subtopic_synthesis_note(selected: Option<&Vec<String>>, question_count: usize) -> String {
-    let Some(_) = selected.filter(|s| s.len() > 1) else {
+    let Some(_subs) = selected.filter(|s| s.len() > 1) else {
         return String::new();
     };
 
-    let min_to_blend = if question_count <= 3 { 2 } else { 1 };
-    let blend_scope = if min_to_blend >= 2 {
-        "integrate at least two focus areas per question"
-    } else {
-        "integrate multiple areas where valid"
-    };
+    if question_count <= 3 {
+        return "\nINTEGRATED: Focus deeply on a single primary area. If integrating a second area from the selection, ensure the transition is logically authentic to VCE exams and doesn't dilute the focus.".to_string();
+    }
+
+    let blend_scope = "integrate multiple areas where valid";
 
     format!("\nINTEGRATED: {blend_scope}. Prefer exam-style synthesis. Use one primary subtopic label per question.")
 }
@@ -217,6 +308,7 @@ pub fn focus_lock_note(
     selected: Option<&Vec<String>>,
     custom_focus_area: Option<&str>,
     shuffle: bool,
+    question_count: usize,
 ) -> String {
     let mut constraints = Vec::<String>::new();
     if let Some(mut subs) = selected.filter(|s| !s.is_empty()).cloned() {
@@ -238,9 +330,16 @@ pub fn focus_lock_note(
         return String::new();
     }
 
+    let batch_note = if question_count <= 3 {
+        " Since generating a small number of questions, ensure the scenario allows for deep exploration of the specified focus area. Avoid superficial contexts; anchor the data, scenario, and variables strictly to VCAA Study Design applications."
+    } else {
+        ""
+    };
+
     format!(
-        "\nFOCUS LOCK: {}. Use these focus constraints exclusively; prioritize over PDF content.",
-        constraints.join(" ")
+        "\nFOCUS LOCK: {}. Use these focus constraints exclusively; prioritize over PDF content.{}",
+        constraints.join(" "),
+        batch_note
     )
 }
 
@@ -248,6 +347,7 @@ pub fn pdf_reanchor_note(
     selected: Option<&Vec<String>>,
     custom_focus_area: Option<&str>,
     shuffle: bool,
+    question_count: usize,
 ) -> String {
     let mut lines = vec![
         "── PDF STYLE REFERENCE ENDS HERE ──".to_string(),
@@ -267,6 +367,14 @@ pub fn pdf_reanchor_note(
             lines.push(format!("• Custom focus: \"{trimmed}\"."));
         }
     }
+
+    if question_count <= 3 {
+        lines.push(
+            "Since this is a small batch, ensure deep exploration of the above subtopics."
+                .to_string(),
+        );
+    }
+
     lines.push(
         "IMPORTANT: PDFs are for style ONLY. DO NOT reuse any content, scenarios, or numbers. \
          Generate original contexts mapping exclusively to focus constraints."
@@ -502,6 +610,14 @@ impl UserPromptBuilder {
             ""
         };
 
+        let scaffolding_note = if self.count == 1 && average_marks >= 4 {
+            "\nSTRUCTURE: Generate a comprehensive, multi-part extended response item (e.g., Part a, b, c). \
+             Sequence the cognitive demand logically: begin with procedural/setup tasks, progress to analysis, \
+             and conclude with synthesis/evaluation or justification."
+        } else {
+            ""
+        };
+
         format!(
             "USER REQUEST:\n\
              Generate {count} VCE written questions.\n\
@@ -510,13 +626,20 @@ impl UserPromptBuilder {
              Average marks: {average_marks} (Total marks: {total_marks})\n\n\
              CONSTRAINTS:\n\
              - Complexity must match marks (e.g., 5-6 marks = 2-3 parts).\n\
-             {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+             {scaffolding}{subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
              GOAL: Output exactly {count} high-quality questions following VCAA standards.",
             count                 = self.count,
             topics                = sanitize_for_api(&self.topics.join(", ")),
             difficulty            = self.difficulty,
             diff_rules            = difficulty_guidance(&self.difficulty),
-            subs_note             = sanitize_for_api(&subtopics_note(self.subtopics.as_ref(), self.shuffle_subtopics)),
+            scaffolding           = scaffolding_note,
+            subs_note             = sanitize_for_api(&subtopics_note(
+                &self.topics,
+                self.subtopics.as_ref(),
+                self.shuffle_subtopics,
+                &self.difficulty,
+                &self.tech_mode
+            )),
             synth_note            = sanitize_for_api(&subtopic_synthesis_note(self.subtopics.as_ref(), self.count)),
             custom_note           = sanitize_for_api(&custom_note),
             tech                  = tech_note(&self.tech_mode, &self.topics),
@@ -524,7 +647,7 @@ impl UserPromptBuilder {
             math_diff             = math_difficulty_note(&self.difficulty, &self.topics),
             methods_exam1_note    = math_methods_exam1_tech_free_note(&self.topics, &self.tech_mode),
             prob_table_note       = probability_distribution_table_note(&self.topics),
-            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics)),
+            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics, self.count)),
             exam_context_preamble = exam_context_preamble,
             average_marks         = average_marks,
             total_marks           = total_marks,
@@ -566,14 +689,20 @@ impl UserPromptBuilder {
             topics                = sanitize_for_api(&self.topics.join(", ")),
             difficulty            = self.difficulty,
             diff_rules            = difficulty_guidance(&self.difficulty),
-            subs_note             = sanitize_for_api(&subtopics_note(self.subtopics.as_ref(), self.shuffle_subtopics)),
+            subs_note             = sanitize_for_api(&subtopics_note(
+                &self.topics,
+                self.subtopics.as_ref(),
+                self.shuffle_subtopics,
+                &self.difficulty,
+                &self.tech_mode
+            )),
             synth_note            = sanitize_for_api(&subtopic_synthesis_note(self.subtopics.as_ref(), self.count)),
             custom_note           = sanitize_for_api(&custom_note),
             tech                  = tech_note(&self.tech_mode, &self.topics),
             topic_notes           = topic_notes(&self.topics, self.subtopics.as_ref()),
             math_diff             = math_difficulty_note(&self.difficulty, &self.topics),
             prob_table_note       = probability_distribution_table_note(&self.topics),
-            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics)),
+            focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics, self.count)),
             exam_context_preamble = exam_context_preamble,
             sim_note              = sanitize_for_api(&similarity_note(
                 self.avoid_similar_questions,

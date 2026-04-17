@@ -1,7 +1,3 @@
-use once_cell::sync::Lazy;
-use serde::Deserialize;
-use std::collections::HashMap;
-
 pub const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
 // ─── Topic name constants (used in marking logic) ─────────────────────────────
@@ -106,48 +102,3 @@ VCAA MC STYLE:
 pub const CHEMISTRY_LATEX_GUIDANCE: &str =
     " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, \
 $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ";
-
-// ─── Shared exam technique notes from catalog ─────────────────────────────────
-// These are loaded from subtopic-catalog.json at compile time.
-// The catalog contains both `instruction` and `techniqueNotes` per subtopic;
-// we merge them here so callers get the full technique guidance.
-
-#[derive(Debug, Deserialize)]
-struct SharedSubtopicCatalog {
-    topics: Vec<SharedTopicEntry>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SharedTopicEntry {
-    subtopics: Vec<SharedSubtopicEntry>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SharedSubtopicEntry {
-    name: String,
-    #[serde(default)]
-    technique_notes: String,
-}
-
-static SHARED_SUBTOPIC_EXAM_NOTES: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    let raw = include_str!("../../src/shared/subtopic-catalog.json");
-    let Ok(catalog) = serde_json::from_str::<SharedSubtopicCatalog>(raw) else {
-        return HashMap::new();
-    };
-
-    let mut notes = HashMap::new();
-    for topic in catalog.topics {
-        for subtopic in topic.subtopics {
-            let note = subtopic.technique_notes.clone();
-
-            if !note.trim().is_empty() {
-                notes.insert(subtopic.name.trim().to_ascii_lowercase(), note);
-            }
-        }
-    }
-    notes
-});
-
-pub fn shared_subtopic_exam_technique_notes() -> &'static HashMap<String, String> {
-    &SHARED_SUBTOPIC_EXAM_NOTES
-}

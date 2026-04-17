@@ -315,6 +315,7 @@ export function PresetSection({
                           variant='ghost'
                           size='icon-lg'
                           className='h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity'
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <MoreHorizontal className='w-3.5 h-3.5' />
                         </Button>
@@ -322,7 +323,8 @@ export function PresetSection({
                       <DropdownMenuContent align='end' className='w-32'>
                         <DropdownMenuItem
                           className='text-xs'
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setRenamingPresetId(preset.id);
                             setRenamingValue(preset.name);
                           }}
@@ -331,14 +333,20 @@ export function PresetSection({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className='text-xs'
-                          onClick={() => handleUpdatePreset(preset)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUpdatePreset(preset);
+                          }}
                         >
                           Update to current
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className='text-xs text-destructive focus:text-destructive'
-                          onClick={() => deletePreset(preset.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deletePreset(preset.id);
+                          }}
                         >
                           Delete
                         </DropdownMenuItem>

@@ -1,8 +1,21 @@
-import SUBTOPIC_CATALOG from '../shared/subtopic-catalog.json';
+import biology from '../shared/subjects/biology.json';
+import chemistry from '../shared/subjects/chemistry.json';
+import generalMathematics from '../shared/subjects/general-mathematics.json';
+import mathematicalMethods from '../shared/subjects/mathematical-methods.json';
+import physicalEducation from '../shared/subjects/physical-education.json';
+import specialistMathematics from '../shared/subjects/specialist-mathematics.json';
 
 type CatalogSubtopicEntry = {
   name: string;
-  technique_notes?: string;
+  technique_notes?:
+    | string
+    | {
+        core_concepts: string;
+        exam_style_guidelines?: string;
+        anti_prompts?: string[];
+        tech_free_rules?: string;
+        tech_active_rules?: string;
+      };
   group?: string;
 };
 
@@ -15,8 +28,15 @@ type CatalogTopicEntry = {
   subtopics: CatalogSubtopicEntry[];
 };
 
-const CATALOG = SUBTOPIC_CATALOG as {
-  topics: CatalogTopicEntry[];
+const CATALOG = {
+  topics: [
+    biology,
+    chemistry,
+    generalMathematics,
+    mathematicalMethods,
+    physicalEducation,
+    specialistMathematics,
+  ] as unknown as CatalogTopicEntry[],
 };
 
 function toTitleCase(value: string): string {

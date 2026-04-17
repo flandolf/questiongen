@@ -1,0 +1,723 @@
+{
+  "name": "Specialist Mathematics",
+  "icon": "SigmaSquare",
+  "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+  "reportPdfs": [
+    "2025-SpecialistMaths1-report.pdf",
+    "2025-SpecialistMaths2-report.pdf"
+  ],
+  "examGuidance": "Specialist Mathematics demands high precision. For Units 1/2, focus on the structural logic of proofs, the geometry of the complex plane, and the properties of discrete structures. For Units 3/4, emphasize calculus-based derivations, 3D vectors, and statistical inference. Always require exact values in tech-free sections and formal notation (i.e., cis theta, vector notation, i, j, k).",
+  "out_of_scope": [
+    "Integration of $e^{-x^2}$",
+    "General relativity",
+    "Non-Euclidean geometry",
+    "Higher-order differential equations (beyond Unit 4)",
+    "Advanced number theory beyond Pigeonhole Principle"
+  ],
+  "subtopics": [
+    {
+      "name": "Partial Fraction Decomposition",
+      "technique_notes": {
+        "core_concepts": "Decompose rational expressions into sums of simpler fractions with linear and irreducible quadratic factors in the denominator.",
+        "exam_style_guidelines": "Show all algebraic steps. Use common denominators to solve for coefficients.",
+        "anti_prompts": [
+          "Do not use on improper fractions without long division first"
+        ],
+        "tech_free_rules": "Manual decomposition of linear and simple quadratic factors.",
+        "tech_active_rules": "Verify decomposition for complex denominators using CAS."
+      },
+      "complexity_levers": {
+        "easy": "Decompose with two distinct linear factors.",
+        "hard": "Decompose with repeated linear factors.",
+        "extreme": "Decompose with irreducible quadratic factors."
+      },
+      "group": "unit1-additional-algebra-and-number-systems"
+    },
+    {
+      "name": "Polynomial Theorems and Long Division",
+      "technique_notes": {
+        "core_concepts": "Apply Remainder and Factor theorems. Perform polynomial long division to find quotients and remainders.",
+        "exam_style_guidelines": "State all roots with multiplicity. Identify irreducible factors over R.",
+        "anti_prompts": ["Do not ignore complex roots unless specified"],
+        "tech_free_rules": "Manual division and factorisation of cubics.",
+        "tech_active_rules": "Solve for parameters given zeros or remainders."
+      },
+      "complexity_levers": {
+        "easy": "Find remainder when divided by a linear factor.",
+        "hard": "Factorise a cubic given one integer zero.",
+        "extreme": "Solve for coefficients using multiple theorem applications."
+      },
+      "group": "unit1-additional-algebra-and-number-systems"
+    },
+    {
+      "name": "Real and Complex Number Systems",
+      "technique_notes": {
+        "core_concepts": "Identify subsets of R and C. Explore properties of prime numbers and divisibility.",
+        "exam_style_guidelines": "Use formal set notation (N, Z, Q, R, C).",
+        "anti_prompts": ["Do not confuse rational with real numbers"],
+        "tech_free_rules": "Conceptual classification and prime factorisation.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Classify a list of numbers into sets.",
+        "hard": "Identify closure properties for different operations.",
+        "extreme": "Prove a property of divisibility for a number subset."
+      },
+      "group": "unit1-additional-algebra-and-number-systems"
+    },
+    {
+      "name": "Pigeonhole Principle",
+      "technique_notes": {
+        "core_concepts": "Apply the principle: if n items are put into m containers and n > m, at least one container has >1 item.",
+        "exam_style_guidelines": "Clearly identify pigeons and holes in written justifications.",
+        "anti_prompts": ["Avoid vague explanations"],
+        "tech_free_rules": "Apply to discrete sets and simple geometry.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Basic application with integers.",
+        "hard": "Geometric application within shapes.",
+        "extreme": "Complex proof requiring multiple constraints."
+      },
+      "group": "unit1-additional-algebra-and-number-systems"
+    },
+    {
+      "name": "Irrationality Proofs",
+      "technique_notes": {
+        "core_concepts": "Use contradiction to prove numbers like sqrt(2) or log_2(3) are irrational.",
+        "exam_style_guidelines": "Follow the standard structure: Assume rational, p/q in simplest form, derive contradiction.",
+        "anti_prompts": ["Do not skip the simplest form assumption"],
+        "tech_free_rules": "Full handwritten logical steps.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Identify the contradiction in a given proof.",
+        "hard": "Prove sqrt(3) is irrational.",
+        "extreme": "Prove a combination (e.g., sqrt(2)+sqrt(3)) is irrational."
+      },
+      "group": "unit1-additional-algebra-and-number-systems"
+    },
+    {
+      "name": "Arithmetic and Geometric Sequences",
+      "technique_notes": {
+        "core_concepts": "Find general terms (tn) and sums (Sn). Apply convergence conditions for infinite series.",
+        "exam_style_guidelines": "Identify common difference (d) or ratio (r). Use exact values.",
+        "anti_prompts": [
+          "Do not use sum formulas without verifying sequence type"
+        ],
+        "tech_free_rules": "Calculate terms and sums for small n.",
+        "tech_active_rules": "Solve for n given a sum threshold."
+      },
+      "complexity_levers": {
+        "easy": "Find the 10th term of an arithmetic sequence.",
+        "hard": "Calculate the sum of an infinite geometric series.",
+        "extreme": "Solve problems involving alternating geometric series."
+      },
+      "group": "unit1-sequences-series-conics"
+    },
+    {
+      "name": "Infinite Geometric Series and Convergence",
+      "technique_notes": {
+        "core_concepts": "Determine the sum to infinity using S = a/(1-r). Identify convergence condition |r| < 1.",
+        "exam_style_guidelines": "Explicitly state why a series converges or diverges.",
+        "anti_prompts": ["Do not calculate sum if |r| >= 1"],
+        "tech_free_rules": "Manual sum calculations for rational ratios.",
+        "tech_active_rules": "Analyze convergence for variable ratios."
+      },
+      "complexity_levers": {
+        "easy": "Find the sum of a series with r = 1/2.",
+        "hard": "Find the range of x for which a series converges.",
+        "extreme": "Solve for parameters given a specific sum to infinity."
+      },
+      "group": "unit1-sequences-series-conics"
+    },
+    {
+      "name": "Recurrence Relations",
+      "technique_notes": {
+        "core_concepts": "Solve first-order linear recurrence relations. Model population or financial growth.",
+        "exam_style_guidelines": "State initial values (u0/u1). Identify steady-state solutions.",
+        "anti_prompts": ["Do not confuse with explicit rules"],
+        "tech_free_rules": "Generate the first few terms manually.",
+        "tech_active_rules": "Find long-term behavior using CAS."
+      },
+      "complexity_levers": {
+        "easy": "Generate the first 4 terms of a simple relation.",
+        "hard": "Derive a relation from a worded financial scenario.",
+        "extreme": "Solve for the explicit rule using algebraic methods."
+      },
+      "group": "unit1-sequences-series-conics"
+    },
+    {
+      "name": "Circles and Ellipses",
+      "technique_notes": {
+        "core_concepts": "Identify center, radius, and semi-axes. Sketch and label all key features.",
+        "exam_style_guidelines": "Convert to standard form by completing the square. Label vertices and intercepts.",
+        "anti_prompts": ["Do not confuse horizontal and vertical semi-axes"],
+        "tech_free_rules": "Manual sketching and feature identification.",
+        "tech_active_rules": "Find intersections with other relations."
+      },
+      "complexity_levers": {
+        "easy": "Identify center and radius of a circle.",
+        "hard": "Convert a general quadratic to ellipse standard form.",
+        "extreme": "Find the equation given specific intercepts and vertices."
+      },
+      "group": "unit1-sequences-series-conics"
+    },
+    {
+      "name": "Hyperbolas",
+      "technique_notes": {
+        "core_concepts": "Sketch hyperbolas and their asymptotes. Identify vertices and intercepts.",
+        "exam_style_guidelines": "Asymptotes must be dashed with equations labeled. Show calculation of asymptotes.",
+        "anti_prompts": ["Do not confuse the direction of opening"],
+        "tech_free_rules": "Manual derivation of asymptotes.",
+        "tech_active_rules": "Analyze shapes with complex translations."
+      },
+      "complexity_levers": {
+        "easy": "Identify the asymptotes of a standard hyperbola.",
+        "hard": "Sketch a hyperbola with a horizontal translation.",
+        "extreme": "Find the equation of a tangent to a hyperbola."
+      },
+      "group": "unit1-sequences-series-conics"
+    },
+    {
+      "name": "Reciprocal Functions",
+      "technique_notes": {
+        "core_concepts": "Sketch $y = 1/f(x)$. Map zeros of $f(x)$ to vertical asymptotes.",
+        "exam_style_guidelines": "Label all asymptotes, intercepts, and stationary points.",
+        "anti_prompts": ["Do not forget the horizontal asymptote at y=0"],
+        "tech_free_rules": "Sketch based on a linear or quadratic base.",
+        "tech_active_rules": "Find turning points algebraically."
+      },
+      "complexity_levers": {
+        "easy": "Sketch the reciprocal of a linear function.",
+        "hard": "Sketch the reciprocal of a quadratic with two zeros.",
+        "extreme": "Analyze behavior for $f(x)$ with no real zeros."
+      },
+      "group": "unit1-rational-discrete-matrices"
+    },
+    {
+      "name": "Rational Functions and Asymptotes",
+      "technique_notes": {
+        "core_concepts": "Analyze $y = P(x)/Q(x)$. Identify vertical, horizontal, and oblique asymptotes.",
+        "exam_style_guidelines": "Use long division for oblique asymptotes. Describe end behavior.",
+        "anti_prompts": [
+          "Do not assume vertical asymptote exists if there is a hole"
+        ],
+        "tech_free_rules": "Identify all asymptotes manually.",
+        "tech_active_rules": "Use CAS for complex rational sketches."
+      },
+      "complexity_levers": {
+        "easy": "Identify asymptotes for a simple linear/linear fraction.",
+        "hard": "Identify the oblique asymptote for a quadratic/linear fraction.",
+        "extreme": "Sketch a rational function with two vertical asymptotes."
+      },
+      "group": "unit1-rational-discrete-matrices"
+    },
+    {
+      "name": "Combinatorics and Counting",
+      "technique_notes": {
+        "core_concepts": "Solve problems using permutations and combinations with restrictive constraints.",
+        "exam_style_guidelines": "Distinguish between order-dependent and order-independent scenarios. Show factorial steps.",
+        "anti_prompts": ["Do not use nPr when order is irrelevant"],
+        "tech_free_rules": "Calculate values for small n/r manually.",
+        "tech_active_rules": "Solve problems with multiple overlapping constraints."
+      },
+      "complexity_levers": {
+        "easy": "Calculate nCr for simple selection.",
+        "hard": "Arrangements where specific items must be together.",
+        "extreme": "Selections requiring at least one item from multiple groups."
+      },
+      "group": "unit1-rational-discrete-matrices"
+    },
+    {
+      "name": "Matrix Algebra and Determinants",
+      "technique_notes": {
+        "core_concepts": "Perform arithmetic on 2x2 matrices. Calculate determinants and inverses.",
+        "exam_style_guidelines": "Identify singular matrices (det=0). Use formal notation.",
+        "anti_prompts": ["Do not multiply in wrong order (AB != BA)"],
+        "tech_free_rules": "Manual calculation for all 2x2 operations.",
+        "tech_active_rules": "Verify higher-order operations using CAS."
+      },
+      "complexity_levers": {
+        "easy": "Multiply two 2x2 matrices.",
+        "hard": "Find the inverse of a non-singular matrix.",
+        "extreme": "Solve for a parameter k that makes a matrix singular."
+      },
+      "group": "unit1-rational-discrete-matrices"
+    },
+    {
+      "name": "Systems of Equations via Matrices",
+      "technique_notes": {
+        "core_concepts": "Solve AX = B using inverse matrices. Interpret geometric results.",
+        "exam_style_guidelines": "Identify consistent, inconsistent, and dependent systems.",
+        "anti_prompts": ["Do not use inverses if det=0"],
+        "tech_free_rules": "Solve 2x2 systems by hand.",
+        "tech_active_rules": "Solve 3x3 systems and identify planes geometry."
+      },
+      "complexity_levers": {
+        "easy": "Convert linear equations to matrix form.",
+        "hard": "Solve a consistent 2x2 system via inverse.",
+        "extreme": "Identify parameter values for infinitely many solutions."
+      },
+      "group": "unit1-rational-discrete-matrices"
+    },
+    {
+      "name": "Reciprocal Trigonometric Functions",
+      "technique_notes": {
+        "core_concepts": "Master sec, cosec, and cot. Identify domains and vertical asymptotes.",
+        "exam_style_guidelines": "Use exact values from the unit circle. Sketch and label asymptotes.",
+        "anti_prompts": ["Do not confuse with inverse functions"],
+        "tech_free_rules": "Evaluate for standard angles manually.",
+        "tech_active_rules": "Solve complex reciprocal equations."
+      },
+      "complexity_levers": {
+        "easy": "Evaluate cosec(pi/4) exactly.",
+        "hard": "Sketch y = sec(x) for one period.",
+        "extreme": "Solve sec^2(x) - tan(x) = 1 for a given interval."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Inverse Trigonometric Functions (Intro)",
+      "technique_notes": {
+        "core_concepts": "Understand arcsin, arccos, and arctan principal ranges. State restricted domains.",
+        "exam_style_guidelines": "Always provide the principal value. State exact values.",
+        "anti_prompts": [
+          "Do not provide multiple values for a single inverse call"
+        ],
+        "tech_free_rules": "Evaluate for standard exact values.",
+        "tech_active_rules": "Solve simple inverse trig equations."
+      },
+      "complexity_levers": {
+        "easy": "Evaluate arcsin(1/2) exactly.",
+        "hard": "State domain and range for transformed inverse functions.",
+        "extreme": "Simplify tan(arcsin(x)) using right-triangle logic."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Compound and Double Angle Identities",
+      "technique_notes": {
+        "core_concepts": "Apply formulas for sin(A+B), cos(A+B), tan(A+B) and double angles.",
+        "exam_style_guidelines": "Show the substitution of identities clearly. Simplify before solving.",
+        "anti_prompts": ["Do not skip the expansion step"],
+        "tech_free_rules": "Manual expansion and simplification.",
+        "tech_active_rules": "Verify identity equivalence."
+      },
+      "complexity_levers": {
+        "easy": "Evaluate sin(2*pi/6) using double angle.",
+        "hard": "Simplify sin(x)cos(y) + cos(x)sin(y).",
+        "extreme": "Solve equations requiring a double angle identity substitution."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometric Equations (Exact Values)",
+      "technique_notes": {
+        "core_concepts": "Solve equations within a specific domain using unit circle symmetry.",
+        "exam_style_guidelines": "Provide all solutions in exact form. Verify domain boundaries.",
+        "anti_prompts": ["Do not use degrees"],
+        "tech_free_rules": "Manual unit circle analysis.",
+        "tech_active_rules": "Find general solutions using parameter n."
+      },
+      "complexity_levers": {
+        "easy": "Solve cos(x) = 1/2 for [0, 2pi].",
+        "hard": "Solve sin(2x) = sqrt(3)/2 for [-pi, pi].",
+        "extreme": "Solve quadratics in terms of trig ratios."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometric Identities and Proofs",
+      "technique_notes": {
+        "core_concepts": "Prove RHS = LHS using standard identities (Pythagorean, reciprocal).",
+        "exam_style_guidelines": "Start with one side and derive the other. Justify every step.",
+        "anti_prompts": ["Do not treat as an equation (moving terms across =)"],
+        "tech_free_rules": "Full handwritten algebraic proofs.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Simplify (1-cos^2 x) / sin x.",
+        "hard": "Prove a standard double angle identity.",
+        "extreme": "Prove complex identities involving reciprocal and compound terms."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Proof by Induction (Series and Divisibility)",
+      "technique_notes": {
+        "core_concepts": "Four-step process: Base case, Hypothesis, Inductive step, Conclusion.",
+        "exam_style_guidelines": "Strict adherence to formal wording is essential for marks.",
+        "anti_prompts": ["Do not skip the base case"],
+        "tech_free_rules": "Full handwritten proofs.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Prove sum of first n integers formula.",
+        "hard": "Prove divisibility (e.g., 3^(2n)-1 is divisible by 8).",
+        "extreme": "Induction for inequalities or non-standard series."
+      },
+      "group": "unit2-proof-and-modulus"
+    },
+    {
+      "name": "Contradiction and Contrapositive",
+      "technique_notes": {
+        "core_concepts": "Apply indirect proof methods. Focus on number theory properties.",
+        "exam_style_guidelines": "State the negation clearly. Derive a logical fallacy for contradiction.",
+        "anti_prompts": [
+          "Ensure the contrapositive statement is logically equivalent"
+        ],
+        "tech_free_rules": "Full logic-chain proofs.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Explain the logic of contrapositive.",
+        "hard": "Prove that if n^2 is odd, then n is odd.",
+        "extreme": "Prove there are infinitely many primes by contradiction."
+      },
+      "group": "unit2-proof-and-modulus"
+    },
+    {
+      "name": "Modulus Equations and Inequalities",
+      "technique_notes": {
+        "core_concepts": "Solve |f(x)| = g(x) and |f(x)| < g(x) algebraically and graphically.",
+        "exam_style_guidelines": "Use piecewise cases or squaring both sides (carefully). Check for extraneous solutions.",
+        "anti_prompts": [
+          "Do not forget to verify solutions against the original equation"
+        ],
+        "tech_free_rules": "Algebraic solution via case analysis.",
+        "tech_active_rules": "Verify solution regions on CAS."
+      },
+      "complexity_levers": {
+        "easy": "Solve |x-3| = 2.",
+        "hard": "Solve |2x+1| < |x-4|.",
+        "extreme": "Solve quadratics inside modulus brackets."
+      },
+      "group": "unit2-proof-and-modulus"
+    },
+    {
+      "name": "Sketching Modulus Graphs",
+      "technique_notes": {
+        "core_concepts": "Sketch y = |f(x)| and y = f(|x|). Identify cusps.",
+        "exam_style_guidelines": "Label all intercepts and sharp points. Draw based on a parent function.",
+        "anti_prompts": ["Do not smooth out the cusps"],
+        "tech_free_rules": "Manual sketching of transformed modulus graphs.",
+        "tech_active_rules": "Analyze how transformations affect cusp positions."
+      },
+      "complexity_levers": {
+        "easy": "Sketch y = |x| + 2.",
+        "hard": "Sketch y = |x^2 - 4| and label intercepts.",
+        "extreme": "Sketch compositions (e.g., y = ||x-1|-2|)."
+      },
+      "group": "unit2-proof-and-modulus"
+    },
+    {
+      "name": "Number Theory Proofs",
+      "technique_notes": {
+        "core_concepts": "Prove properties of integers (even/odd/divisibility) using algebra.",
+        "exam_style_guidelines": "Use 2k, 2k+1 notation. State k belongs to Z.",
+        "anti_prompts": ["Avoid using numerical examples as proof"],
+        "tech_free_rules": "Direct algebraic proofs.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Prove sum of two evens is even.",
+        "hard": "Prove n^2+n is always even for all integers n.",
+        "extreme": "Prove properties of prime squares."
+      },
+      "group": "unit2-proof-and-modulus"
+    },
+    {
+      "name": "Graph Terminology and Properties",
+      "technique_notes": {
+        "core_concepts": "Vertices, edges, degrees, isomorphism. Euler's planar formula.",
+        "exam_style_guidelines": "Use V-E+F=2. Identify isomorphic pairs by vertex degrees.",
+        "anti_prompts": ["Do not miscount edge degrees for loops"],
+        "tech_free_rules": "Identify features from diagrams.",
+        "tech_active_rules": "Use adjacency matrices for path counting."
+      },
+      "complexity_levers": {
+        "easy": "Identify the degree of each vertex.",
+        "hard": "Determine if two graphs are isomorphic.",
+        "extreme": "Apply Euler's formula to solve for faces in a planar graph."
+      },
+      "group": "unit2-algorithms-and-graph-theory"
+    },
+    {
+      "name": "Eulerian and Hamiltonian Circuits",
+      "technique_notes": {
+        "core_concepts": "Identify Eulerian (edges) and Hamiltonian (vertices) circuits and trails.",
+        "exam_style_guidelines": "Check vertex degrees for Eulerian conditions. Search for circuits systematically.",
+        "anti_prompts": ["Do not confuse trails with circuits"],
+        "tech_free_rules": "Find paths manually in small graphs.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Identify Eulerian circuit possibility from degrees.",
+        "hard": "Find a Hamiltonian circuit in a complex graph.",
+        "extreme": "Prove a graph cannot have a Hamiltonian path."
+      },
+      "group": "unit2-algorithms-and-graph-theory"
+    },
+    {
+      "name": "Shortest Path: Dijkstra's Algorithm",
+      "technique_notes": {
+        "core_concepts": "Systematically find the shortest path in a weighted graph.",
+        "exam_style_guidelines": "Show update steps in a table. Label predecessors.",
+        "anti_prompts": ["Do not skip label updates"],
+        "tech_free_rules": "Manual algorithm application (up to 8 vertices).",
+        "tech_active_rules": "Evaluate efficiency for large networks."
+      },
+      "complexity_levers": {
+        "easy": "Find shortest path by inspection (very small).",
+        "hard": "Apply Dijkstra fully to find path from A to Z.",
+        "extreme": "Analyze how changing an edge weight affects the shortest path."
+      },
+      "group": "unit2-algorithms-and-graph-theory"
+    },
+    {
+      "name": "Minimal Spanning Trees",
+      "technique_notes": {
+        "core_concepts": "Connect all vertices with minimum total weight using Prim's or Kruskal's.",
+        "exam_style_guidelines": "Show order of edge selection. Ensure no cycles.",
+        "anti_prompts": ["Do not form cycles"],
+        "tech_free_rules": "Apply Prim's manually from a given vertex.",
+        "tech_active_rules": "Compare Prim's and Kruskal's efficiency."
+      },
+      "complexity_levers": {
+        "easy": "Find MST of a 4-vertex graph.",
+        "hard": "Apply Prim's to a 6-vertex weighted graph.",
+        "extreme": "Solve a minimal connector problem with a mandatory edge."
+      },
+      "group": "unit2-algorithms-and-graph-theory"
+    },
+    {
+      "name": "Flowcharts and Pseudo-code",
+      "technique_notes": {
+        "core_concepts": "Follow and design algorithms for graph and discrete problems.",
+        "exam_style_guidelines": "Trace output through variable updates. Use standard symbols.",
+        "anti_prompts": ["Ensure termination conditions are met"],
+        "tech_free_rules": "Trace output of provided pseudo-code.",
+        "tech_active_rules": "Modify code to improve performance."
+      },
+      "complexity_levers": {
+        "easy": "Trace a flowchart with one decision.",
+        "hard": "Trace nested loops in pseudo-code.",
+        "extreme": "Design an algorithm for finding the degree of a vertex."
+      },
+      "group": "unit2-algorithms-and-graph-theory"
+    },
+    {
+      "name": "Intersections of Conics and Lines",
+      "technique_notes": {
+        "core_concepts": "Solve systems of quadratic and linear equations. Interpret chord/tangent results.",
+        "exam_style_guidelines": "Use substitution. Solve for parameter k for tangency (discriminant=0).",
+        "anti_prompts": ["Do not forget to check for 0, 1, or 2 solutions"],
+        "tech_free_rules": "Algebraic solution by hand.",
+        "tech_active_rules": "Verify graphically on CAS."
+      },
+      "complexity_levers": {
+        "easy": "Find intersections of a circle and horizontal line.",
+        "hard": "Determine tangency point for a line and ellipse.",
+        "extreme": "Find the distance between intersection points on a hyperbola."
+      },
+      "group": "unit2-graphing-relations-and-complex-numbers"
+    },
+    {
+      "name": "Complex Arithmetic (Cartesian)",
+      "technique_notes": {
+        "core_concepts": "Add, subtract, multiply, and divide in a+bi form. Geometric vector representation.",
+        "exam_style_guidelines": "Use the conjugate for division. State real and imaginary parts clearly.",
+        "anti_prompts": ["Do not leave i in the denominator"],
+        "tech_free_rules": "Manual calculation and Argand sketching.",
+        "tech_active_rules": "Verify powers using CAS."
+      },
+      "complexity_levers": {
+        "easy": "Divide two complex numbers.",
+        "hard": "Solve (z+i)/(z-i) = 2+i for z.",
+        "extreme": "Prove geometric properties of complex addition."
+      },
+      "group": "unit2-graphing-relations-and-complex-numbers"
+    },
+    {
+      "name": "Polar Form and Conversions",
+      "technique_notes": {
+        "core_concepts": "Convert between Cartesian and r cis theta. Use principal argument Arg(z).",
+        "exam_style_guidelines": "Use exact values. Check the quadrant for theta calculation.",
+        "anti_prompts": ["Do not use degrees"],
+        "tech_free_rules": "Manual conversion for standard angles.",
+        "tech_active_rules": "Perform multiplication/division in polar form."
+      },
+      "complexity_levers": {
+        "easy": "Convert 1+i to polar form.",
+        "hard": "Convert a complex number in quadrant III to polar.",
+        "extreme": "Multiply three polar numbers and find the final Arg(z)."
+      },
+      "group": "unit2-graphing-relations-and-complex-numbers"
+    },
+    {
+      "name": "De Moivre's Theorem and Roots",
+      "technique_notes": {
+        "core_concepts": "Apply theorem for powers and solving z^n = w. Geometric distribution of roots.",
+        "exam_style_guidelines": "Return arguments to principal range. Show roots as vertices of a polygon.",
+        "anti_prompts": [
+          "Do not skip the periodicity of the argument (+2k*pi)"
+        ],
+        "tech_free_rules": "Calculate square and cube roots manually.",
+        "tech_active_rules": "Plot all n-th roots on CAS."
+      },
+      "complexity_levers": {
+        "easy": "Find (cis(pi/4))^2 exactly.",
+        "hard": "Find all cube roots of 1.",
+        "extreme": "Solve z^4 = -16 and sketch on Argand plane."
+      },
+      "group": "unit2-graphing-relations-and-complex-numbers"
+    },
+    {
+      "name": "Complex Loci and Regions",
+      "technique_notes": {
+        "core_concepts": "Sketch circles, perpendicular bisectors, and rays. Handle regions (inequalities).",
+        "exam_style_guidelines": "Label centers, radii, and endpoints correctly. Identify inclusive boundaries.",
+        "anti_prompts": ["Ensure the ray starting point is accurate"],
+        "tech_free_rules": "Manual sketching of standard loci.",
+        "tech_active_rules": "Find Cartesian equations for complex loci."
+      },
+      "complexity_levers": {
+        "easy": "Sketch |z-2i| = 1.",
+        "hard": "Sketch region |z-1| < |z-i|.",
+        "extreme": "Sketch the locus Arg(z-1) = pi/4."
+      },
+      "group": "unit2-graphing-relations-and-complex-numbers"
+    },
+    {
+      "name": "Vector Arithmetic and Dot Product",
+      "technique_notes": {
+        "core_concepts": "Addition, scalar multiplication, and dot product. Calculate angles and check orthogonality.",
+        "exam_style_guidelines": "u . v = |u||v|cos(theta). Orthogonal means u . v = 0.",
+        "anti_prompts": ["Do not confuse dot product with a vector result"],
+        "tech_free_rules": "Manual arithmetic and angle calculations.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Calculate dot product of two 2D vectors.",
+        "hard": "Find angle between i+j and i-2j.",
+        "extreme": "Find a vector orthogonal to a given vector with specific magnitude."
+      },
+      "group": "unit2-transformations-and-vectors-in-the-plane"
+    },
+    {
+      "name": "Vector Projections",
+      "technique_notes": {
+        "core_concepts": "Find scalar and vector projections of u onto v.",
+        "exam_style_guidelines": "Use proj_v(u) = ((u.v)/|v|^2)v. Distinguish scalar vs vector.",
+        "anti_prompts": ["Do not use wrong base vector in denominator"],
+        "tech_free_rules": "Manual projection calculations.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Find scalar projection of i+j onto i.",
+        "hard": "Find vector projection of 2i-j onto i+2j.",
+        "extreme": "Resolve a vector into parallel and perpendicular components."
+      },
+      "group": "unit2-transformations-and-vectors-in-the-plane"
+    },
+    {
+      "name": "Vector Equations of Lines (2D)",
+      "technique_notes": {
+        "core_concepts": "r = a + lambda v. Convert between vector, parametric, and Cartesian forms.",
+        "exam_style_guidelines": "Identify direction vectors and position vectors clearly. Find intersections.",
+        "anti_prompts": ["Ensure lambda is clearly stated as a parameter"],
+        "tech_free_rules": "Manual conversion and intersection solution.",
+        "tech_active_rules": "Verify intersections on CAS."
+      },
+      "complexity_levers": {
+        "easy": "Write vector equation through two points.",
+        "hard": "Convert r = (1,2) + t(3,4) to Cartesian form.",
+        "extreme": "Find the intersection point of two vector lines."
+      },
+      "group": "unit2-transformations-and-vectors-in-the-plane"
+    },
+    {
+      "name": "Geometric Proofs with Vectors",
+      "technique_notes": {
+        "core_concepts": "Prove theorems (midpoints, perpendicularity) using vector algebra.",
+        "exam_style_guidelines": "Label diagrams with vector variables. State properties (e.g., u.v=0).",
+        "anti_prompts": ["Avoid using Cartesian coordinates in a vector proof"],
+        "tech_free_rules": "Full handwritten proofs.",
+        "tech_active_rules": "N/A"
+      },
+      "complexity_levers": {
+        "easy": "Prove diagonals of parallelogram bisect.",
+        "hard": "Prove angle in semi-circle is a right angle.",
+        "extreme": "Prove properties of a trapezoid mid-segment."
+      },
+      "group": "unit2-transformations-and-vectors-in-the-plane"
+    },
+    {
+      "name": "Matrix Transformations in the Plane",
+      "technique_notes": {
+        "core_concepts": "Dilation, reflection, and rotation matrices. Sequence of transformations.",
+        "exam_style_guidelines": "Use standard matrices. Apply to (x,y)^T from the left.",
+        "anti_prompts": [
+          "Do not confuse rotation direction (counter-clockwise is +)"
+        ],
+        "tech_free_rules": "Manual mapping and matrix multiplication.",
+        "tech_active_rules": "Find single matrix for multiple transformations."
+      },
+      "complexity_levers": {
+        "easy": "Reflect a point across the x-axis via matrix.",
+        "hard": "Find the image under 90-degree rotation and dilation.",
+        "extreme": "Find the matrix for reflection across y = mx."
+      },
+      "group": "unit2-transformations-and-vectors-in-the-plane"
+    },
+    {
+      "name": "Integration by Parts and Partial Fractions",
+      "technique_notes": {
+        "core_concepts": "Advanced antiderivatives for Units 3/4.",
+        "exam_style_guidelines": "Show clear substitution and parts steps.",
+        "anti_prompts": ["Do not forget +c"],
+        "tech_free_rules": "Manual integration for complex functions.",
+        "tech_active_rules": "CAS for verification."
+      },
+      "complexity_levers": {
+        "easy": "Integrate x*e^x.",
+        "hard": "Integrate using partial fractions (U3/4).",
+        "extreme": "Evaluate cyclic integrals."
+      },
+      "group": "unit3-4-calculus"
+    },
+    {
+      "name": "Differential Equations and Dynamics",
+      "technique_notes": {
+        "core_concepts": "Separable DEs and Mechanics (Newton's Laws).",
+        "exam_style_guidelines": "Draw FBDs. Show variable separation.",
+        "anti_prompts": ["Check units and g=9.8"],
+        "tech_free_rules": "Manual solution of simple DEs and resolution of forces.",
+        "tech_active_rules": "Euler's method and complex mechanics on CAS."
+      },
+      "complexity_levers": {
+        "easy": "Solve dy/dx = ky.",
+        "hard": "Resolve forces on an inclined plane with friction.",
+        "extreme": "Solve logistic growth equations."
+      },
+      "group": "unit3-4-calculus-mechanics"
+    },
+    {
+      "name": "3D Vectors and Statistics",
+      "technique_notes": {
+        "core_concepts": "Cross product, planes in 3D, and statistical inference (Sampling/Hypothesis).",
+        "exam_style_guidelines": "Formal notation for planes and hypothesis tests (H0/Ha).",
+        "anti_prompts": ["Do not confuse sample mean with population mean"],
+        "tech_free_rules": "Manual cross product and standard error calculations.",
+        "tech_active_rules": "Hypothesis testing and 3D visualization on CAS."
+      },
+      "complexity_levers": {
+        "easy": "Calculate cross product.",
+        "hard": "Conduct a one-sample hypothesis test for the mean.",
+        "extreme": "Find distance between skew lines in 3D."
+      },
+      "group": "unit3-4-vectors-stats"
+    }
+  ]
+}
