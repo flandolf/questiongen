@@ -23,6 +23,10 @@ use std::collections::HashSet;
 use std::time::Instant;
 use tauri::Emitter;
 
+/// Orchestrates interaction with AI models for question generation and marking.
+///
+/// This service handles prompt construction, API communication with OpenRouter,
+/// and post-processing of model outputs (normalization and validation).
 pub struct GenerationService {
     app: tauri::AppHandle,
 }

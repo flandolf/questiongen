@@ -64,64 +64,53 @@ fn write_export_envelope_to_dir(
     Ok(path)
 }
 
+use crate::models::PersistedAppState;
+use tauri_plugin_store::StoreExt;
+
+/// Loads the application state from the persistent store.
+///
+/// This command opens the Tauri store, retrieves the serialized state,
+/// and performs normalization using Serde's default values if the data
+/// is missing or corrupted.
 #[tauri::command]
-pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
+pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<PersistedAppState> {
     let path = state_path(&app)?;
-    if !path.exists() {
-        return Ok(serde_json::json!({}));
-    }
+    let store = app
+        .store(&path)
+        .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
 
-    let content = fs::read_to_string(&path).map_err(|e| {
-        AppError::new(
-            "PERSISTENCE_READ_ERROR",
-            format!("Could not read state: {e}"),
-        )
-    })?;
+    let state_val = store.get("state").unwrap_or(serde_json::Value::Null);
 
-    if content.trim().is_empty() {
-        return Ok(serde_json::json!({}));
-    }
+    let state: PersistedAppState = serde_json::from_value(state_val).unwrap_or_else(|_| {
+        // If we can't parse it, return an empty state which will be filled with defaults by Serde
+        serde_json::from_value(serde_json::json!({})).expect("Default state must be valid")
+    });
 
-    serde_json::from_str(&content).map_err(|e| {
-        AppError::new(
-            "PERSISTENCE_PARSE_ERROR",
-            format!("Invalid state JSON: {e}"),
-        )
-    })
+    Ok(state)
 }
 
+/// Saves the current application state to the persistent store.
+///
+/// The state is serialized to JSON and stored atomically using the Tauri Store API.
 #[tauri::command]
-pub fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> CommandResult<()> {
-    if !state.is_object() {
-        return Err(AppError::new(
-            "PERSISTENCE_VALIDATION_ERROR",
-            "State must be a JSON object.",
-        ));
-    }
+pub fn save_persisted_state(app: tauri::AppHandle, state: PersistedAppState) -> CommandResult<()> {
     let path = state_path(&app)?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| {
-            AppError::new("PERSISTENCE_DIR_ERROR", format!("Cannot create dir: {e}"))
-        })?;
-    }
+    let store = app
+        .store(&path)
+        .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
 
-    let payload = serde_json::to_string(&state).map_err(|e| {
+    let state_json = serde_json::to_value(state).map_err(|e| {
         AppError::new(
-            "PERSISTENCE_SERIALIZE_ERROR",
-            format!("Serialize error: {e}"),
+            "SERIALIZE_ERROR",
+            format!("Failed to serialize state: {}", e),
         )
     })?;
 
-    // Atomic write via temp file + rename.
-    let tmp = path.with_extension("tmp");
-    fs::write(&tmp, payload)
-        .map_err(|e| AppError::new("PERSISTENCE_WRITE_ERROR", format!("Write error: {e}")))?;
-    // On Unix, fs::rename atomically replaces the target if it exists.
-    // On Windows, rename fails if the target exists, so remove first.
-    #[cfg(windows)]
-    remove_if_exists(&path)?;
-    fs::rename(&tmp, &path)
-        .map_err(|e| AppError::new("PERSISTENCE_RENAME_ERROR", format!("Rename error: {e}")))?;
+    store.set("state", state_json);
+    store
+        .save()
+        .map_err(|e| AppError::new("STORE_SAVE_ERROR", format!("Failed to save store: {}", e)))?;
+
     Ok(())
 }
 

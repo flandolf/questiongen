@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Clock,
-  FileText,
   Flag,
   Info,
   Pause,
@@ -20,15 +19,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type {
-  Difficulty,
-  GeneratedQuestion,
-  GenerationTelemetry,
-  McQuestion,
-} from '@/types';
+import type { Difficulty, GenerationTelemetry } from '@/types';
 
 import { formatDurationMs } from '../../lib/app-utils';
-import { exportToPdf } from '../../lib/pdf-export';
 import { useAppStore } from '../../store';
 
 type SessionHeaderProps = {
@@ -54,7 +47,6 @@ type SessionHeaderProps = {
   onNext: () => void;
   onDelete: () => void;
   onExit: () => void;
-  questions?: (GeneratedQuestion | McQuestion)[];
   onRegenerate?: () => void;
   onTogglePause?: () => void;
   onResetTimer?: () => void;
@@ -236,7 +228,6 @@ export const SessionHeader = memo(function SessionHeader({
   onDelete,
   onExit,
   onRegenerate,
-  questions,
   onTogglePause,
   onResetTimer,
 }: SessionHeaderProps) {
@@ -359,32 +350,6 @@ export const SessionHeader = memo(function SessionHeader({
             </Tooltip>
           </TooltipProvider>
           <div className='flex items-center gap-1'>
-            {questions && questions.length > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() =>
-                        void exportToPdf(
-                          `${topic || 'Exam'} - ${difficulty}`,
-                          questions,
-                          type === 'written' ? 'written' : 'multiple-choice',
-                        )
-                      }
-                      aria-label='Export session'
-                      className='h-9 w-9 p-0 rounded-full'
-                    >
-                      <FileText className='w-3.5 h-3.5' />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side='bottom' className='z-50'>
-                    <p>Export set to PDF</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

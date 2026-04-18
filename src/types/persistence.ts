@@ -17,7 +17,6 @@ import type {
   McQuestion,
   StudentAnswerImage,
 } from './questions';
-import type { SpacedRepetitionCard } from './spaced-repetition';
 import type { Preset, StreakData, StudyGoals } from './study';
 import type { GenerationTelemetry } from './telemetry';
 import type { TimeAllocationConfig } from './time-allocation';
@@ -113,7 +112,6 @@ export type PersistedAppState = {
   questionHistory: QuestionHistoryEntry[];
   mcHistory: McHistoryEntry[];
   savedSets: SavedQuestionSet[];
-  spacedRepetition?: Record<string, SpacedRepetitionCard>;
   studyGoals?: StudyGoals;
   streakData?: StreakData;
   generationHistory?: GenerationRecord[];
