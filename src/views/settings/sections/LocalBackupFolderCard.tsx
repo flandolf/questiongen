@@ -9,15 +9,15 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-import { Button } from '../../../components/ui/button';
-import { Label } from '../../../components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../../components/ui/select';
+} from '@/components/ui/select';
 import {
   createExportEnvelope,
   exportAppState,
@@ -26,9 +26,10 @@ import {
   listJsonBackupsInDirectory,
   parseImportText,
   readBackupJsonFile,
-} from '../../../lib/import-export';
-import { useAppStore } from '../../../store';
-import type { PersistedAppState } from '../../../types';
+} from '@/lib/import-export';
+import { useAppStore } from '@/store';
+import type { PersistedAppState } from '@/types';
+
 import { Card, FieldGroup } from '../SettingsUI';
 
 const BACKUP_INTERVAL_OPTIONS: { value: string; label: string }[] = [
