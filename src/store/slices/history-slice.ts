@@ -13,6 +13,7 @@ import {
 } from '@/context/modules/sync/mutations';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { getTodayKey } from '@/lib/utils';
+import type { AppActions, AppState } from '@/store/types';
 import type {
   PersistedGeneratorPreferences,
   PersistedMcSession,
@@ -26,7 +27,6 @@ import {
   isWrittenSessionComplete,
   resolve,
 } from '../helpers';
-import type { AppActions, AppState } from '../types';
 
 export interface HistorySlice {
   questionHistory: AppState['questionHistory'];

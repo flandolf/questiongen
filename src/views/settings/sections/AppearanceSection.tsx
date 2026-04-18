@@ -1,3 +1,4 @@
+import { useAppSettings } from '@/AppContext';
 import { ColorPicker } from '@/components/color-picker';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import { Slider } from '@/components/ui/slider';
 import { useAppStore } from '@/store';
 import { getDesignThemeLabel, themes } from '@/themes/designThemes';
 
-import { useAppSettings } from '../../../AppContext';
 import {
   AnimatedSection,
   Card,

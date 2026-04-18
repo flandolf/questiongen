@@ -27,12 +27,14 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-import { useAppContext } from '../../../AppContext';
-import { Autocomplete } from '../../../components/ui/autocomplete';
-import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { readBackendError } from '../../../lib/app-utils';
-import { cn } from '../../../lib/utils';
+import { useAppContext } from '@/AppContext';
+import { Autocomplete } from '@/components/ui/autocomplete';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { readBackendError } from '@/lib/app-utils';
+import { cn } from '@/lib/utils';
+import { PRESET_MODELS } from '@/views/settings/constants';
+
 import {
   BIOLOGY_SUBTOPICS,
   CHEMISTRY_SUBTOPICS,
@@ -50,7 +52,6 @@ import {
   SPECIALIST_MATH_SUBTOPIC_GROUPS,
   type TopicSubtopicGroup,
 } from '../../../types/catalog';
-import { PRESET_MODELS } from '../constants';
 import {
   Divider,
   ErrorBanner,

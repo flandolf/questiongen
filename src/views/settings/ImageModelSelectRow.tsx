@@ -2,7 +2,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { AlertCircle, Search, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Button } from '../../components/ui/button';
+import { Button } from '@/components/ui/button';
+import { readBackendError } from '@/lib/app-utils';
+
 import {
   Select,
   SelectContent,
@@ -10,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { readBackendError } from '../../lib/app-utils';
 import { PRESET_IMAGE_MODELS } from './constants';
 import {
   getCachedImageValidation,

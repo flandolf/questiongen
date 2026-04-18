@@ -2,19 +2,20 @@ import { invoke } from '@tauri-apps/api/core';
 import { Calendar, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { readBackendError } from '@/lib/app-utils';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
+import { CreditBar } from '@/views/settings/CreditBar';
+import { DailyUsageSection } from '@/views/settings/DailyUsageSection';
+import { fmt } from '@/views/settings/formatters';
+import type { CreditsInfo } from '@/views/settings/types';
 
 import {
   useAppSettings,
   useMultipleChoiceSession,
   useWrittenSession,
 } from '../../../AppContext';
-import { Button } from '../../../components/ui/button';
-import { readBackendError } from '../../../lib/app-utils';
-import { useAppStore } from '../../../store';
-import { CreditBar } from '../CreditBar';
-import { DailyUsageSection } from '../DailyUsageSection';
-import { fmt } from '../formatters';
 import {
   AnimatedSection,
   Card,
@@ -22,7 +23,6 @@ import {
   EmptyState,
   ErrorBanner,
 } from '../SettingsUI';
-import type { CreditsInfo } from '../types';
 
 export function CreditsSection() {
   const { apiKey } = useAppSettings();

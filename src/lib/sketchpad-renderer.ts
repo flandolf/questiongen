@@ -5,8 +5,7 @@ import {
   getCatmullRomPoints,
   simplifyPoints,
 } from '@/components/sketchpadUtils';
-
-import type { BgType, Point, Stroke } from '../types/sketchpad';
+import type { BgType, Point, Stroke } from '@/types/sketchpad';
 
 // Cache for smoothed points to avoid mutating Stroke objects
 const smoothedPointsCache = new Map<

@@ -29,8 +29,7 @@ import {
 } from '@/lib/import-export';
 import { useAppStore } from '@/store';
 import type { PersistedAppState } from '@/types';
-
-import { Card, FieldGroup } from '../SettingsUI';
+import { Card, FieldGroup } from '@/views/settings/SettingsUI';
 
 const BACKUP_INTERVAL_OPTIONS: { value: string; label: string }[] = [
   { value: '0', label: 'Off' },

@@ -10,10 +10,10 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { fmt } from './formatters';
 import { setCachedImageValidation } from './imageValidationCache';
 import { Card, ErrorBanner } from './SettingsUI';

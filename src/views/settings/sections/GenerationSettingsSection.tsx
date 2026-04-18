@@ -17,9 +17,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-
-import { useAppStore } from '../../../store';
-import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
+import { useAppStore } from '@/store';
+import {
+  AnimatedSection,
+  Card,
+  SectionHeader,
+} from '@/views/settings/SettingsUI';
 
 export function GenerationSettingsSection() {
   const avoidSimilarQuestions = useAppStore((s) => s.avoidSimilarQuestions);

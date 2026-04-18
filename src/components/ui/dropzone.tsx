@@ -1,7 +1,7 @@
 import { UploadCloud } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface DropzoneProps {
   onDrop: (acceptedFiles: File[]) => void;

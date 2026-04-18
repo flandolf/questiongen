@@ -4,7 +4,8 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { GeneratedQuestion, Topic } from '../../types';
+import type { GeneratedQuestion, Topic } from '@/types';
+
 import {
   applyBatchQualityChecks,
   deduplicateQuestions,

@@ -7,12 +7,12 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { useAppSettings } from '@/AppContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { cn } from '@/lib/utils';
 
-import { useAppSettings } from '../../../AppContext';
-import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { useFirebaseSyncContext } from '../../../context/FirebaseSyncContext';
 import {
   AnimatedSection,
   Card,

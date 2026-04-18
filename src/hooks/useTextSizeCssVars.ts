@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useAppSettings } from '../AppContext';
+import { useAppSettings } from '@/AppContext';
 
 export function useTextSizeCssVars() {
   /**

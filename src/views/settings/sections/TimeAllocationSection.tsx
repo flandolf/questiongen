@@ -11,10 +11,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
 import type { Difficulty, TimeAllocationConfig } from '@/types';
-
-import { useAppStore } from '../../../store';
-import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
+import {
+  AnimatedSection,
+  Card,
+  SectionHeader,
+} from '@/views/settings/SettingsUI';
 
 const DIFFICULTY_CONFIG: Record<
   Difficulty,

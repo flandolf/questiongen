@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cn, getDayKey, getTodayKey, isDeepEqual } from '../utils';
+import { cn, getDayKey, getTodayKey, isDeepEqual } from '@/lib/utils';
 
 describe('utils', () => {
   describe('cn', () => {

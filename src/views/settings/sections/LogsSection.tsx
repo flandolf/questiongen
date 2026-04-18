@@ -22,8 +22,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type { LogEntry } from '@/types';
-
-import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
+import {
+  AnimatedSection,
+  Card,
+  SectionHeader,
+} from '@/views/settings/SettingsUI';
 
 function hasLogData(
   data: unknown,

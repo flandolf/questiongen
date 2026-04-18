@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { GeneratedQuestion, McQuestion } from '../../types';
+import type { GeneratedQuestion, McQuestion } from '@/types';
+
 import {
   countWords,
   getDifficultyBadgeClasses,

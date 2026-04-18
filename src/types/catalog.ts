@@ -1,9 +1,9 @@
-import biology from '../shared/subjects/biology.json';
-import chemistry from '../shared/subjects/chemistry.json';
-import generalMathematics from '../shared/subjects/general-mathematics.json';
-import mathematicalMethods from '../shared/subjects/mathematical-methods.json';
-import physicalEducation from '../shared/subjects/physical-education.json';
-import specialistMathematics from '../shared/subjects/specialist-mathematics.json';
+import biology from '@/shared/subjects/biology.json';
+import chemistry from '@/shared/subjects/chemistry.json';
+import generalMathematics from '@/shared/subjects/general-mathematics.json';
+import mathematicalMethods from '@/shared/subjects/mathematical-methods.json';
+import physicalEducation from '@/shared/subjects/physical-education.json';
+import specialistMathematics from '@/shared/subjects/specialist-mathematics.json';
 
 type CatalogSubtopicEntry = {
   name: string;

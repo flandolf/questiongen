@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shieldMathForMarkdown } from '../math-normalization';
+import { shieldMathForMarkdown } from '@/lib/math-normalization';
 
 describe('math-normalization', () => {
   describe('shieldMathForMarkdown', () => {

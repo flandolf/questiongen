@@ -28,14 +28,16 @@ import {
   YAxis,
 } from 'recharts';
 
+import { useMultipleChoiceSession, useWrittenSession } from '@/AppContext';
+import { EmptyState } from '@/components/EmptyState';
 import { PageContainer, PageHeader } from '@/components/layout/primitives';
+import { MarkdownMath } from '@/components/MarkdownMath';
+import { Button } from '@/components/ui/button';
+import type { ChartConfig } from '@/components/ui/chart';
+import { formatDurationMs, formatPercent } from '@/lib/app-utils';
 import { getDayKey } from '@/lib/utils';
+import { useAppStore } from '@/store';
 
-import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
-import { EmptyState } from '../components/EmptyState';
-import { MarkdownMath } from '../components/MarkdownMath';
-import { Button } from '../components/ui/button';
-import type { ChartConfig } from '../components/ui/chart';
 import {
   ChartContainer,
   ChartLegend,
@@ -43,8 +45,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '../components/ui/chart';
-import { formatDurationMs, formatPercent } from '../lib/app-utils';
-import { useAppStore } from '../store';
 import type {
   GenerationRecord,
   McHistoryEntry,

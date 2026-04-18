@@ -36,21 +36,20 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useMultipleChoiceSession, useWrittenSession } from '@/AppContext';
+import { EmptyState } from '@/components/EmptyState';
 import { PageContainer, PageHeader } from '@/components/layout/primitives';
+import { MarkdownMath } from '@/components/MarkdownMath';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
-
-import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
-import { EmptyState } from '../components/EmptyState';
-import { MarkdownMath } from '../components/MarkdownMath';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
-import { formatDate } from '../lib/app-utils';
-import { scoreColorBgClass } from '../lib/score-utils';
-import type { McHistoryEntry, QuestionHistoryEntry, Topic } from '../types';
-import { TOPICS } from '../types';
+import { formatDate } from '@/lib/app-utils';
+import { scoreColorBgClass } from '@/lib/score-utils';
+import type { McHistoryEntry, QuestionHistoryEntry, Topic } from '@/types';
+import { TOPICS } from '@/types';
 
 type AnyEntry =
   | ({ kind: 'written' } & QuestionHistoryEntry)

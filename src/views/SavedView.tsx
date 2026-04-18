@@ -22,6 +22,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useSavedSets } from '@/AppContext';
+import { EmptyState } from '@/components/EmptyState';
 import {
   FilterButton,
   FilterGroup,
@@ -29,16 +31,13 @@ import {
   PageHeader,
   Toolbar,
 } from '@/components/layout/primitives';
-
-import { useSavedSets } from '../AppContext';
-import { EmptyState } from '../components/EmptyState';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader } from '../components/ui/card';
-import { ConfirmModal } from '../components/ui/ConfirmModal';
-// import { ScrollArea } from "../components/ui/scroll-area";
-import { formatDate } from '../lib/app-utils';
-import type { SavedQuestionSet } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+// import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatDate } from '@/lib/app-utils';
+import type { SavedQuestionSet } from '@/types';
 
 type SortKey = 'updatedAt' | 'title' | 'progress';
 type ModeFilter = 'all' | 'written' | 'mc';

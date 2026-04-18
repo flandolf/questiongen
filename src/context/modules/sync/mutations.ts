@@ -9,6 +9,7 @@ import {
 } from 'firebase/firestore';
 import debounce from 'lodash.debounce';
 
+import { auth, db } from '@/context/modules/firebase-init';
 import { removeUndefined } from '@/lib/app-utils';
 import type {
   GenerationRecord,
@@ -17,8 +18,6 @@ import type {
 } from '@/types/history';
 import type { SavedQuestionSet } from '@/types/persistence';
 import type { Preset, StreakData, StudyGoals } from '@/types/study';
-
-import { auth, db } from '../firebase-init';
 
 /**
  * Direct, atomic mutations to Firestore.

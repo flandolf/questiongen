@@ -1,9 +1,8 @@
 import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-
-import { TUTOR_PERSONA_PRESETS } from '../constants';
-import { AnimatedSection, SectionHeader } from '../SettingsUI';
+import { TUTOR_PERSONA_PRESETS } from '@/views/settings/constants';
+import { AnimatedSection, SectionHeader } from '@/views/settings/SettingsUI';
 
 export function TutorSection() {
   const { tutorPersona, setTutorPersona } = useAppSettings();
