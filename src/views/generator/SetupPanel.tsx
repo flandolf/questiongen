@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
+import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import {
@@ -232,6 +233,8 @@ function SetupPanelImpl({
     (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics',
   );
   const hasSubtopicSection = selectedTopics.length > 0;
+  const activeDifficulty = normalizeDifficulty(difficulty);
+  const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
 
   const showBatchTimeline = batchProgress.length > 1;
 
@@ -331,7 +334,7 @@ function SetupPanelImpl({
     'Hard',
     'Extreme',
   ] as Difficulty[];
-  const diffIndex = levels.indexOf(difficulty);
+  const diffIndex = levels.indexOf(activeDifficulty);
 
   return (
     <TooltipProvider>
@@ -439,17 +442,17 @@ function SetupPanelImpl({
                 <span
                   className={cn(
                     'text-sm font-black uppercase tracking-widest',
-                    DIFFICULTY_META[difficulty].color,
+                    activeDifficultyMeta.color,
                   )}
                 >
-                  {DIFFICULTY_META[difficulty].label}
+                  {activeDifficultyMeta.label}
                 </span>
                 <Badge
                   variant='outline'
                   className={cn(
                     'font-mono text-[10px] tracking-widest',
-                    DIFFICULTY_META[difficulty].border,
-                    DIFFICULTY_META[difficulty].color,
+                    activeDifficultyMeta.border,
+                    activeDifficultyMeta.color,
                   )}
                 >
                   LVL.0{diffIndex + 1}
@@ -481,22 +484,22 @@ function SetupPanelImpl({
                               ? `${40 + idx * 12}%`
                               : '20%',
                           backgroundColor: isCurrent
-                            ? DIFFICULTY_META[difficulty].themeColor
+                            ? activeDifficultyMeta.themeColor
                             : isActive
-                              ? `color-mix(in srgb, ${DIFFICULTY_META[difficulty].themeColor} 40%, transparent)`
+                              ? `color-mix(in srgb, ${activeDifficultyMeta.themeColor} 40%, transparent)`
                               : 'color-mix(in srgb, var(--color-muted) 60%, transparent)',
                         }}
                         whileHover={{
                           height: `${60 + idx * 12}%`,
                           backgroundColor:
-                            DIFFICULTY_META[difficulty].themeColor,
+                            activeDifficultyMeta.themeColor,
                           transition: { duration: 0.1 },
                         }}
                         transition={SPRING}
                         className={cn(
                           'w-full rounded-sm relative z-10 shadow-sm transition-shadow duration-300',
                           isCurrent &&
-                            'shadow-[0_0_12px_rgba(var(--color-foreground),0.3)]',
+                          'shadow-[0_0_12px_rgba(var(--color-foreground),0.3)]',
                         )}
                       />
 
@@ -507,8 +510,8 @@ function SetupPanelImpl({
                           className='absolute -bottom-2 w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]'
                           style={{
                             backgroundColor:
-                              DIFFICULTY_META[difficulty].themeColor,
-                            color: DIFFICULTY_META[difficulty].themeColor,
+                              activeDifficultyMeta.themeColor,
+                            color: activeDifficultyMeta.themeColor,
                           }}
                           transition={SPRING}
                         />
@@ -652,7 +655,7 @@ function SetupPanelImpl({
                     <div className='flex items-baseline gap-1.5'>
                       <span className='text-xl font-mono font-black tabular-nums tracking-tight text-foreground'>
                         {estimated.promptCost != null ||
-                        estimated.completionCost != null
+                          estimated.completionCost != null
                           ? formatCostUsd(estimated.totalCost).replace('$', '')
                           : '--.--'}
                       </span>

@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
+import { normalizeDifficulty } from '@/lib/persistence';
 import type {
   Difficulty,
   Preset,
@@ -123,7 +124,7 @@ export function PresetSection({
   const buildCurrentPreferences = (): PresetPreferences => {
     return {
       selectedTopics,
-      difficulty,
+      difficulty: normalizeDifficulty(difficulty),
       techMode,
       questionCount,
       averageMarksPerQuestion,
@@ -238,6 +239,10 @@ export function PresetSection({
         <div className='space-y-4'>
           {presets.map(function (preset) {
             const isRenaming = renamingPresetId === preset.id;
+            const presetDifficulty = normalizeDifficulty(
+              preset.preferences.difficulty,
+            );
+            const presetDifficultyMeta = DIFFICULTY_META[presetDifficulty];
             return (
               <div
                 key={preset.id}
@@ -278,10 +283,7 @@ export function PresetSection({
                             ? 'Written'
                             : 'MC'}{' '}
                           ·{' '}
-                          {
-                            DIFFICULTY_META[preset.preferences.difficulty]
-                              ?.label
-                          }
+                          {presetDifficultyMeta.label}
                           {preset.preferences.questionCount
                             ? ` · ${preset.preferences.questionCount} Qs`
                             : ''}

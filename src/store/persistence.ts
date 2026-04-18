@@ -1,5 +1,7 @@
 import type { StoreApi, UseBoundStore } from 'zustand';
 
+import { normalizeHexColor } from '@/lib/color-helpers';
+import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { savePersistedAppState } from '@/lib/persistence';
 import { isDeepEqual } from '@/lib/utils';
 import type { PersistedAppState } from '@/types';
@@ -26,7 +28,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       localBackupFolderPath: s.localBackupFolderPath,
       localBackupIntervalMinutes: s.localBackupIntervalMinutes,
       theme: s.theme,
-      customThemeSeedColor: s.customThemeSeedColor,
+      customThemeSeedColor: normalizeHexColor(s.customThemeSeedColor),
       globalRounding: s.globalRounding,
       interfaceFont: s.interfaceFont,
       headingFont: s.headingFont,
@@ -88,31 +90,48 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
   const prefs = s.preferences;
   const written = s.writtenSession;
   const mc = s.mcSession;
+  const defaultSettings = EMPTY_PERSISTED_APP_STATE.settings;
 
   return {
-    apiKey: settings.apiKey,
-    model: settings.model,
-    markingModel: settings.markingModel,
+    apiKey: settings.apiKey || defaultSettings.apiKey,
+    model: settings.model?.trim() || defaultSettings.model,
+    markingModel: settings.markingModel?.trim() || defaultSettings.markingModel,
     useSeparateMarkingModel: settings.useSeparateMarkingModel,
-    imageMarkingModel: settings.imageMarkingModel,
+    imageMarkingModel:
+      settings.imageMarkingModel?.trim() || defaultSettings.imageMarkingModel,
     useSeparateImageMarkingModel: settings.useSeparateImageMarkingModel,
     debugMode: settings.debugMode,
-    questionTextSize: settings.questionTextSize,
-    responseTextSize: settings.responseTextSize,
-    includeExamContext: settings.includeExamContext,
-    autoSyncIntervalMinutes: settings.autoSyncIntervalMinutes,
+    questionTextSize:
+      settings.questionTextSize ?? defaultSettings.questionTextSize,
+    responseTextSize:
+      settings.responseTextSize ?? defaultSettings.responseTextSize,
+    includeExamContext:
+      settings.includeExamContext ?? defaultSettings.includeExamContext,
+    autoSyncIntervalMinutes:
+      settings.autoSyncIntervalMinutes ??
+      defaultSettings.autoSyncIntervalMinutes,
     syncApiKey: settings.syncApiKey,
-    localBackupFolderPath: settings.localBackupFolderPath,
-    localBackupIntervalMinutes: settings.localBackupIntervalMinutes,
-    theme: normalizeThemeName(settings.theme ?? 'claude'),
+    localBackupFolderPath:
+      settings.localBackupFolderPath ?? defaultSettings.localBackupFolderPath,
+    localBackupIntervalMinutes:
+      settings.localBackupIntervalMinutes ??
+      defaultSettings.localBackupIntervalMinutes,
+    theme: normalizeThemeName(settings.theme ?? defaultSettings.theme),
     customThemeSeedColor: settings.customThemeSeedColor,
-    globalRounding: settings.globalRounding,
-    interfaceFont: settings.interfaceFont,
-    headingFont: settings.headingFont,
-    tutorPersona: settings.tutorPersona,
-    tutorModel: settings.tutorModel,
-    shuffleSubtopics: settings.shuffleSubtopics,
-    shuffleQuestions: settings.shuffleQuestions,
+    globalRounding: ['sm', 'md', 'lg', 'xl'].includes(settings.globalRounding)
+      ? settings.globalRounding
+      : defaultSettings.globalRounding,
+    interfaceFont: settings.interfaceFont?.trim() || defaultSettings.interfaceFont,
+    headingFont: settings.headingFont?.trim() || defaultSettings.headingFont,
+    tutorPersona: settings.tutorPersona ?? defaultSettings.tutorPersona,
+    tutorModel:
+      settings.tutorModel?.trim() ||
+      settings.model?.trim() ||
+      defaultSettings.tutorModel,
+    shuffleSubtopics:
+      settings.shuffleSubtopics ?? defaultSettings.shuffleSubtopics,
+    shuffleQuestions:
+      settings.shuffleQuestions ?? defaultSettings.shuffleQuestions,
 
     selectedTopics: prefs.selectedTopics,
     difficulty: prefs.difficulty,
@@ -202,8 +221,7 @@ export function setupPersistence(
           lastSavedSnapshot = finalSnapshot;
         })
         .catch((err: unknown) => {
-          // Persistence failure intentionally ignored for linting
-          void err;
+          console.error('Failed to persist app state:', err);
         });
     }, 500);
   });

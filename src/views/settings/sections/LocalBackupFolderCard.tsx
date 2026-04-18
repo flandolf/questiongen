@@ -290,7 +290,7 @@ export function LocalBackupFolderCard({
               loadingBackups
             }
           >
-            <SelectTrigger className='w-full min-w-[200px] max-w-md'>
+            <SelectTrigger className='w-full min-w-50 max-w-md'>
               <SelectValue
                 placeholder={
                   loadingBackups ? 'Loading…' : 'Select a backup file'

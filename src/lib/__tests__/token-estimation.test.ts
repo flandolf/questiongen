@@ -128,5 +128,20 @@ describe('token-estimation', () => {
         expectedPromptCost + expectedCompletionCost,
       );
     });
+
+    it('should fall back to written ratios for unknown question modes', () => {
+      const estimate = estimateTokensAndCost(
+        [],
+        'Chemistry',
+        'Medium',
+        4,
+        'unsupported-mode' as never,
+        'tech-active',
+      );
+
+      expect(estimate.totalTokens).toBeGreaterThan(0);
+      expect(estimate.totalPromptTokens).toBeGreaterThan(0);
+      expect(estimate.totalCompletionTokens).toBeGreaterThan(0);
+    });
   });
 });

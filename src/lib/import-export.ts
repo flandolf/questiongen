@@ -17,6 +17,7 @@ import {
   EMPTY_PERSISTED_APP_STATE,
   isTauriRuntime,
   normalizePersistedAppState,
+  normalizeQuestionMode,
   savePersistedAppState,
 } from './persistence';
 import { formatTauriInvokeError } from './tauri-invoke-error';
@@ -395,7 +396,7 @@ export function mergeImportedState(
   merged.selectedSubtopics = imported.preferences.selectedSubtopics;
   merged.questionCount = imported.preferences.questionCount;
   merged.averageMarksPerQuestion = imported.preferences.averageMarksPerQuestion;
-  merged.questionMode = imported.preferences.questionMode;
+  merged.questionMode = normalizeQuestionMode(imported.preferences.questionMode);
   merged.aiDifficultyScalingEnabled =
     imported.preferences.aiDifficultyScalingEnabled ?? true;
   merged.difficultyThresholds = imported.preferences.difficultyThresholds ?? {

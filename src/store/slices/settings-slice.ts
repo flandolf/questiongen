@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 
 import { updateApiKey, updatePresets } from '@/context/modules/sync/mutations';
+import { normalizeHexColor } from '@/lib/color-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 
 import { normalizeThemeName, resolve } from '../helpers';
@@ -134,7 +135,7 @@ export const createSettingsSlice: StateCreator<
   localBackupIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
   theme: normalizeThemeName(EMPTY_PERSISTED_APP_STATE.settings.theme),
-  customThemeSeedColor: '#3b82f6',
+  customThemeSeedColor: EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor ? normalizeHexColor(EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor) : '#3b82f6',
   globalRounding: 'md',
   interfaceFont: 'Manrope Variable',
   headingFont: 'Manrope Variable',
@@ -190,7 +191,7 @@ export const createSettingsSlice: StateCreator<
     set({ localBackupIntervalMinutes }),
   setTheme: (theme) => set({ theme }),
   setCustomThemeSeedColor: (customThemeSeedColor) =>
-    set({ customThemeSeedColor }),
+    set({ customThemeSeedColor: normalizeHexColor(customThemeSeedColor) }),
   setGlobalRounding: (globalRounding) => set({ globalRounding }),
   setInterfaceFont: (interfaceFont) => set({ interfaceFont }),
   setHeadingFont: (headingFont) => set({ headingFont }),
