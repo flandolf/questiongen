@@ -62,6 +62,10 @@ const QUESTION_MODE_RATIOS = {
   written: { prompt: 0.35, completion: 0.65 },
 };
 
+function getQuestionModeRatios(questionMode: QuestionMode) {
+  return QUESTION_MODE_RATIOS[questionMode] ?? QUESTION_MODE_RATIOS.written;
+}
+
 const PARAMETER_WEIGHTS = {
   topic: 0.4,
   difficulty: 0.3,
@@ -441,7 +445,7 @@ function estimateTokensLogRegression(
     coeffs,
   );
 
-  const ratios = QUESTION_MODE_RATIOS[questionMode];
+  const ratios = getQuestionModeRatios(questionMode);
   const totalTokens = predictTokensLogRegression(coeffs, features);
 
   const promptTokens = Math.round(totalTokens * ratios.prompt);
@@ -693,7 +697,7 @@ function estimateStaticTokens(
       techMultiplier +
     PER_QUESTION_PROMPT_TOKENS;
 
-  const ratios = QUESTION_MODE_RATIOS[questionMode];
+  const ratios = getQuestionModeRatios(questionMode);
 
   const apiCallsCount =
     generationStrategy === 'single-pass'

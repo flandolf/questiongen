@@ -67,11 +67,32 @@ fn write_export_envelope_to_dir(
 use crate::models::PersistedAppState;
 use tauri_plugin_store::StoreExt;
 
+fn decode_persisted_state_value(value: serde_json::Value) -> CommandResult<PersistedAppState> {
+    match value {
+        serde_json::Value::String(raw) => {
+            serde_json::from_str::<PersistedAppState>(&raw).map_err(|e| {
+                AppError::new(
+                    "STORE_PARSE_ERROR",
+                    format!("Failed to parse persisted state string: {e}"),
+                )
+            })
+        }
+        other if other.is_object() => {
+            serde_json::from_value::<PersistedAppState>(other).map_err(|e| {
+                AppError::new(
+                    "STORE_PARSE_ERROR",
+                    format!("Failed to parse persisted state object: {e}"),
+                )
+            })
+        }
+        _ => Ok(PersistedAppState::default()),
+    }
+}
+
 /// Loads the application state from the persistent store.
 ///
-/// This command opens the Tauri store, retrieves the serialized state,
-/// and performs normalization using Serde's default values if the data
-/// is missing or corrupted.
+/// This command opens the Tauri store and returns the persisted app state.
+/// Legacy string payloads are parsed for backward compatibility.
 #[tauri::command]
 pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<PersistedAppState> {
     let path = state_path(&app)?;
@@ -80,26 +101,24 @@ pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<PersistedApp
         .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
 
     let state_val = store.get("state").unwrap_or(serde_json::Value::Null);
-
-    let state: PersistedAppState = serde_json::from_value(state_val).unwrap_or_else(|_| {
-        // If we can't parse it, return an empty state which will be filled with defaults by Serde
-        serde_json::from_value(serde_json::json!({})).expect("Default state must be valid")
-    });
+    let state = decode_persisted_state_value(state_val)?;
 
     Ok(state)
 }
 
 /// Saves the current application state to the persistent store.
 ///
-/// The state is serialized to JSON and stored atomically using the Tauri Store API.
+/// The state is stored as JSON using the Tauri Store API.
+/// Supports both object and string payloads for compatibility.
 #[tauri::command]
-pub fn save_persisted_state(app: tauri::AppHandle, state: PersistedAppState) -> CommandResult<()> {
+pub fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> CommandResult<()> {
     let path = state_path(&app)?;
     let store = app
         .store(&path)
         .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
 
-    let state_json = serde_json::to_value(state).map_err(|e| {
+    let parsed = decode_persisted_state_value(state)?;
+    let state_json = serde_json::to_value(parsed).map_err(|e| {
         AppError::new(
             "SERIALIZE_ERROR",
             format!("Failed to serialize state: {}", e),

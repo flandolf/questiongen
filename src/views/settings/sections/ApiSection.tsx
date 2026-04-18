@@ -1,5 +1,5 @@
 import { CheckCircle2, Eye, EyeOff, Key } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useAppSettings } from '../../../AppContext';
 import { Button } from '../../../components/ui/button';
@@ -11,6 +11,10 @@ export function ApiSection() {
     useAppSettings();
   const [localKey, setLocalKey] = useState(apiKey);
   const [keySaved, setKeySaved] = useState(false);
+
+  useEffect(() => {
+    setLocalKey(apiKey);
+  }, [apiKey]);
 
   function handleSaveKey() {
     setApiKey(localKey);

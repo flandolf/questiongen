@@ -91,21 +91,21 @@ function LiveStatsSection({
       },
       ...(models.useMark
         ? [
-            {
-              stats: stats.marking.stats,
-              label: models.mark || 'Marking',
-              loading: stats.marking.loading,
-            },
-          ]
+          {
+            stats: stats.marking.stats,
+            label: models.mark || 'Marking',
+            loading: stats.marking.loading,
+          },
+        ]
         : []),
       ...(models.useImg
         ? [
-            {
-              stats: stats.image.stats,
-              label: models.img || 'Image marking',
-              loading: stats.image.loading,
-            },
-          ]
+          {
+            stats: stats.image.stats,
+            label: models.img || 'Image marking',
+            loading: stats.image.loading,
+          },
+        ]
         : []),
       {
         stats: stats.tutor.stats,
@@ -195,6 +195,36 @@ export function ModelsSection() {
   const [searchTarget, setSearchTarget] = useState<
     'generation' | 'marking' | 'imageMarking' | 'tutor'
   >('generation');
+
+  useEffect(() => {
+    setLocalModel(settings.model);
+  }, [settings.model]);
+
+  useEffect(() => {
+    setLocalMarkingModel(settings.markingModel);
+  }, [settings.markingModel]);
+
+  useEffect(() => {
+    setLocalImageMarkingModel(settings.imageMarkingModel);
+  }, [settings.imageMarkingModel]);
+
+  useEffect(() => {
+    setLocalTutorModel(settings.tutorModel);
+  }, [settings.tutorModel]);
+
+  useEffect(() => {
+    setLocalUseSeparateMarkingModel(settings.useSeparateMarkingModel);
+  }, [settings.useSeparateMarkingModel]);
+
+  useEffect(() => {
+    setLocalUseSeparateImageMarkingModel(
+      settings.useSeparateImageMarkingModel,
+    );
+  }, [settings.useSeparateImageMarkingModel]);
+
+  useEffect(() => {
+    setLocalIncludeExamContext(settings.includeExamContext);
+  }, [settings.includeExamContext]);
 
   // Sync settings effects
   useEffect(() => {

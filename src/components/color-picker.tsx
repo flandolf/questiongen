@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { isValidHexColor, normalizeHexColor } from '@/lib/color-helpers';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_SWATCHES = [
@@ -38,16 +39,6 @@ type ColorPickerProps = {
   showNativeInput?: boolean;
 };
 
-function normalizeHex(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return '#000000';
-  return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
-}
-
-function isValidHexColor(value: string) {
-  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value);
-}
-
 export function ColorPicker({
   value,
   onChange,
@@ -59,24 +50,24 @@ export function ColorPicker({
   showNativeInput = true,
 }: ColorPickerProps) {
   const [open, setOpen] = React.useState(false);
-  const [draftValue, setDraftValue] = React.useState(normalizeHex(value));
+  const [draftValue, setDraftValue] = React.useState(normalizeHexColor(value));
 
   React.useEffect(() => {
     if (!open) {
-      setDraftValue(normalizeHex(value));
+      setDraftValue(normalizeHexColor(value));
     }
   }, [open, value]);
 
   const commitColor = React.useCallback(
     (nextValue: string) => {
-      const normalized = normalizeHex(nextValue);
+      const normalized = normalizeHexColor(nextValue);
       setDraftValue(normalized);
       onChange(normalized);
     },
     [onChange],
   );
 
-  const currentValue = isValidHexColor(value) ? value : normalizeHex(value);
+  const currentValue = normalizeHexColor(value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -152,7 +143,7 @@ export function ColorPicker({
                     const nextValue = e.target.value;
                     setDraftValue(nextValue);
                     if (isValidHexColor(nextValue)) {
-                      onChange(nextValue);
+                      onChange(normalizeHexColor(nextValue));
                     }
                   }}
                   onBlur={() => {

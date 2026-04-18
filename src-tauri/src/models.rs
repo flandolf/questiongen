@@ -216,7 +216,7 @@ pub struct BatchMarkItem {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkAnswerResponse {
     pub verdict: String,
@@ -244,7 +244,7 @@ pub struct MarkAnswerResponse {
     pub total_tokens: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkingCriterion {
     pub criterion: String,
@@ -507,10 +507,10 @@ pub struct PersistedSettings {
 }
 
 fn default_model() -> String {
-    "google/gemini-2.0-flash-lite-preview-02-05:free".to_string()
+    "openai/gpt-5.4-mini".to_string()
 }
 fn default_text_size() -> u32 {
-    16
+    18
 }
 fn default_true() -> bool {
     true
@@ -581,7 +581,7 @@ fn default_strategy() -> String {
     "multi-pass".to_string()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DifficultyThresholds {
     pub increase: u8,

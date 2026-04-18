@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { cleanupOldSketchpadData } from '../components/sketchpadUtils';
 import type {
+  Difficulty,
   GenerationRecord,
   McHistoryEntry,
   PersistedAppState,
@@ -11,6 +12,7 @@ import type {
   PersistedWrittenSession,
   Preset,
   QuestionHistoryEntry,
+  QuestionMode,
   SavedQuestionSet,
   StreakData,
   StudyGoals,
@@ -18,13 +20,17 @@ import type {
 } from '../types';
 import { APP_STATE_STORAGE_KEY, PERSISTED_APP_STATE_VERSION } from '../types';
 import type { TimerState } from '../types/timer';
+import {
+  DEFAULT_CUSTOM_THEME_SEED_COLOR,
+  normalizeHexColor,
+} from './color-helpers';
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: '',
-  model: 'google/gemini-2.0-flash-lite-preview-02-05:free',
-  markingModel: 'google/gemini-2.0-flash-lite-preview-02-05:free',
+  model: 'openai/gpt-5.4-mini',
+  markingModel: 'openai/gpt-5.4-mini',
   useSeparateMarkingModel: false,
-  imageMarkingModel: 'google/gemini-2.0-flash-lite-preview-02-05:free',
+  imageMarkingModel: 'openai/gpt-5.4-mini',
   useSeparateImageMarkingModel: false,
   debugMode: false,
   questionTextSize: 16,
@@ -35,12 +41,12 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   localBackupFolderPath: '',
   localBackupIntervalMinutes: 0,
   theme: 'claude',
-  customThemeSeedColor: '#3b82f6',
+  customThemeSeedColor: DEFAULT_CUSTOM_THEME_SEED_COLOR,
   globalRounding: 'md',
-  interfaceFont: 'Manrope Variable',
+  interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',
   tutorPersona: '',
-  tutorModel: 'google/gemini-2.0-flash-lite-preview-02-05:free',
+  tutorModel: 'openai/gpt-5.4-mini',
   shuffleSubtopics: false,
   shuffleQuestions: false,
 };
@@ -60,6 +66,19 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   strictLatexValidation: true,
   generationStrategy: 'multi-pass',
 };
+
+const VALID_QUESTION_MODES = new Set<QuestionMode>([
+  'written',
+  'multiple-choice',
+]);
+
+const VALID_DIFFICULTIES = new Set<Difficulty>([
+  'Essential Skills',
+  'Easy',
+  'Medium',
+  'Hard',
+  'Extreme',
+]);
 
 const DEFAULT_WRITTEN_SESSION: PersistedWrittenSession = {
   questions: [],
@@ -126,7 +145,13 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
 
   if (isTauriRuntime()) {
     try {
-      return await invoke<PersistedAppState>('load_persisted_state');
+      const persisted = await invoke<unknown>('load_persisted_state');
+      let decoded: unknown = persisted;
+      if (typeof persisted === 'string') {
+        const parsed: unknown = JSON.parse(persisted);
+        decoded = parsed;
+      }
+      return normalizePersistedAppState(decoded);
     } catch (err) {
       console.error('Failed to load state from Tauri:', err);
       return EMPTY_PERSISTED_APP_STATE;
@@ -136,7 +161,7 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
   const serialized = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
   if (!serialized) return EMPTY_PERSISTED_APP_STATE;
   try {
-    const parsed = JSON.parse(serialized);
+    const parsed: unknown = JSON.parse(serialized);
     return normalizePersistedAppState(parsed);
   } catch {
     return EMPTY_PERSISTED_APP_STATE;
@@ -147,7 +172,16 @@ export async function savePersistedAppState(
   state: PersistedAppState,
 ): Promise<void> {
   if (isTauriRuntime()) {
-    await invoke('save_persisted_state', { state });
+    try {
+      await invoke('save_persisted_state', { state });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/expected a string/i.test(message)) {
+        await invoke('save_persisted_state', { state: JSON.stringify(state) });
+      } else {
+        throw err;
+      }
+    }
     return;
   }
 
@@ -206,19 +240,81 @@ export function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
 
 function normalizeSettings(raw: unknown): PersistedSettings {
   const data = isRecord(raw) ? raw : {};
-  const model = asString(data.model) || DEFAULT_SETTINGS.model;
+  const model = normalizeNonEmptyString(data.model, DEFAULT_SETTINGS.model);
   return {
     ...DEFAULT_SETTINGS,
     ...data,
+    apiKey: asString(data.apiKey),
     model,
+    markingModel: normalizeNonEmptyString(
+      data.markingModel,
+      DEFAULT_SETTINGS.markingModel,
+    ),
+    imageMarkingModel: normalizeNonEmptyString(
+      data.imageMarkingModel,
+      DEFAULT_SETTINGS.imageMarkingModel,
+    ),
+    includeExamContext:
+      typeof data.includeExamContext === 'boolean'
+        ? data.includeExamContext
+        : DEFAULT_SETTINGS.includeExamContext,
+    autoSyncIntervalMinutes:
+      typeof data.autoSyncIntervalMinutes === 'number'
+        ? data.autoSyncIntervalMinutes
+        : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
+    syncApiKey:
+      typeof data.syncApiKey === 'boolean'
+        ? data.syncApiKey
+        : DEFAULT_SETTINGS.syncApiKey,
+    localBackupFolderPath: asString(data.localBackupFolderPath),
+    localBackupIntervalMinutes:
+      typeof data.localBackupIntervalMinutes === 'number'
+        ? data.localBackupIntervalMinutes
+        : DEFAULT_SETTINGS.localBackupIntervalMinutes,
+    theme: normalizeNonEmptyString(data.theme, DEFAULT_SETTINGS.theme),
+    customThemeSeedColor: normalizeHexColor(
+      data.customThemeSeedColor,
+      DEFAULT_CUSTOM_THEME_SEED_COLOR,
+    ),
+    globalRounding: normalizeRounding(
+      data.globalRounding,
+      DEFAULT_SETTINGS.globalRounding,
+    ),
+    interfaceFont: normalizeNonEmptyString(
+      data.interfaceFont,
+      DEFAULT_SETTINGS.interfaceFont,
+    ),
+    headingFont: normalizeNonEmptyString(
+      data.headingFont,
+      DEFAULT_SETTINGS.headingFont,
+    ),
+    tutorPersona: asString(data.tutorPersona),
+    tutorModel: normalizeNonEmptyString(
+      data.tutorModel,
+      model,
+    ),
+    shuffleSubtopics:
+      typeof data.shuffleSubtopics === 'boolean'
+        ? data.shuffleSubtopics
+        : DEFAULT_SETTINGS.shuffleSubtopics,
+    shuffleQuestions:
+      typeof data.shuffleQuestions === 'boolean'
+        ? data.shuffleQuestions
+        : DEFAULT_SETTINGS.shuffleQuestions,
   } as PersistedSettings;
 }
 
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
+  const questionMode = VALID_QUESTION_MODES.has(data.questionMode as QuestionMode)
+    ? (data.questionMode as QuestionMode)
+    : DEFAULT_PREFERENCES.questionMode;
+  const difficulty = normalizeDifficulty(data.difficulty);
   return {
     ...DEFAULT_PREFERENCES,
     ...data,
+    difficulty,
+    questionMode,
   } as PersistedGeneratorPreferences;
 }
 
@@ -248,7 +344,10 @@ export function normalizeSavedSets(raw: unknown): SavedQuestionSet[] {
 export function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
   const data = isRecord(raw) ? raw : null;
   if (!data || !data.id) return null;
-  return data as SavedQuestionSet;
+  return {
+    ...data,
+    preferences: normalizePreferences(data.preferences),
+  } as SavedQuestionSet;
 }
 
 export function normalizeQuestionHistory(raw: unknown): QuestionHistoryEntry[] {
@@ -273,7 +372,13 @@ function normalizeStreakData(raw: unknown): StreakData {
 
 function normalizePresets(raw: unknown): Preset[] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item) => item as Preset);
+  return raw.map((item) => {
+    const data = isRecord(item) ? item : {};
+    return {
+      ...data,
+      preferences: normalizePreferences(data.preferences),
+    } as unknown as Preset;
+  });
 }
 
 function normalizeTimerState(raw: unknown): TimerState | null {
@@ -292,6 +397,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function normalizeNonEmptyString(
+  value: unknown,
+  fallback: string | undefined,
+): string {
+  const text = asString(value).trim();
+  return text.length > 0 ? text : fallback ?? '';
+}
+
+const VALID_ROUNDINGS = new Set(['sm', 'md', 'lg', 'xl']);
+
+function normalizeRounding(
+  value: unknown,
+  fallback: string | undefined,
+): string {
+  const text = asString(value).trim();
+  return VALID_ROUNDINGS.has(text) ? text : fallback ?? 'md';
+}
+
+export function normalizeQuestionMode(value: unknown): QuestionMode {
+  return VALID_QUESTION_MODES.has(value as QuestionMode)
+    ? (value as QuestionMode)
+    : DEFAULT_PREFERENCES.questionMode;
+}
+
+export function normalizeDifficulty(value: unknown): Difficulty {
+  return VALID_DIFFICULTIES.has(value as Difficulty)
+    ? (value as Difficulty)
+    : DEFAULT_PREFERENCES.difficulty;
 }
 
 const isTauri =

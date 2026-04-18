@@ -15,6 +15,8 @@ import {
   SchemeVibrant,
 } from '@material/material-color-utilities';
 
+import { normalizeHexColor } from './color-helpers';
+
 export type SchemeVariant =
   | 'tonal-spot'
   | 'vibrant'
@@ -60,7 +62,7 @@ export function generateM3Theme(
   isDark: boolean,
   variant: SchemeVariant = 'fidelity',
 ): Record<string, string> {
-  const argb = argbFromHex(seedHex);
+  const argb = argbFromHex(normalizeHexColor(seedHex));
   const hct = Hct.fromInt(argb);
   const scheme = getScheme(hct, isDark, variant);
 

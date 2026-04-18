@@ -1043,7 +1043,9 @@ export function GeneratorView() {
         ...prev,
         [activeQuestion.id]: String(nextFeedback.achievedMarks),
       }));
-      const entry = questionHistory.find((e) => e.question.id === activeQuestion.id);
+      const entry = questionHistory.find(
+        (e) => e.question.id === activeQuestion.id,
+      );
       if (!entry) return;
       updateQuestionHistoryEntry({
         ...entry,
