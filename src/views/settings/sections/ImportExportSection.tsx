@@ -164,9 +164,6 @@ export function ImportExportSection() {
     if (importCounts.newGenerationHistory > 0) {
       parts.push(`${importCounts.newGenerationHistory} generation records`);
     }
-    if (importCounts.newSpacedCards > 0) {
-      parts.push(`${importCounts.newSpacedCards} spaced repetition cards`);
-    }
 
     if (parts.length === 0) {
       return 'No new data found. All entries in the import file already exist in your data. Nothing will be changed.';
