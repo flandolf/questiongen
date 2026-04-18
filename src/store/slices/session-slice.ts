@@ -373,6 +373,8 @@ export const createSessionSlice: StateCreator<
 
   argueForWrittenMark: async (markingModel) => {
     const s = get();
+    if (s.isMarking) return;
+
     const activeQuestion = s.questions[s.activeQuestionIndex];
     if (!activeQuestion) return;
 
@@ -486,9 +488,9 @@ export const createSessionSlice: StateCreator<
       },
     }));
 
-    const historyEntry = s.questionHistory.find(
-      (e: QuestionHistoryEntry) => e.question.id === activeQuestion.id,
-    );
+    const historyEntry = s.questionHistory
+      .filter((e: QuestionHistoryEntry) => e.question.id === activeQuestion.id)
+      .pop();
     if (historyEntry) {
       s.updateQuestionHistoryEntry({
         ...historyEntry,
@@ -580,14 +582,14 @@ export const createSessionSlice: StateCreator<
     if (s.questionMode === 'written') {
       set({
         activeQuestionIndex: Math.min(
-          s.questions.length - 1,
+          Math.max(0, s.questions.length - 1),
           s.activeQuestionIndex + 1,
         ),
       });
     } else {
       set({
         activeMcQuestionIndex: Math.min(
-          s.mcQuestions.length - 1,
+          Math.max(0, s.mcQuestions.length - 1),
           s.activeMcQuestionIndex + 1,
         ),
       });

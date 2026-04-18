@@ -136,7 +136,8 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
   const serialized = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
   if (!serialized) return EMPTY_PERSISTED_APP_STATE;
   try {
-    return JSON.parse(serialized) as PersistedAppState;
+    const parsed = JSON.parse(serialized);
+    return normalizePersistedAppState(parsed);
   } catch {
     return EMPTY_PERSISTED_APP_STATE;
   }

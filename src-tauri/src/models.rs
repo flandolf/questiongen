@@ -455,7 +455,7 @@ pub struct GenerateMcQuestionsResponse {
 
 // ─── Persistence / App State ──────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistedSettings {
     #[serde(default)]
@@ -528,7 +528,7 @@ fn default_font() -> String {
     "Manrope Variable".to_string()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistedGeneratorPreferences {
     #[serde(default)]
@@ -595,7 +595,7 @@ fn default_thresholds() -> DifficultyThresholds {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistedWrittenSession {
     #[serde(default)]
@@ -618,7 +618,7 @@ pub struct PersistedWrittenSession {
     pub saved_set_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistedMcSession {
     #[serde(default)]
@@ -629,6 +629,10 @@ pub struct PersistedMcSession {
     pub presented_at_by_question_id: HashMap<String, u64>,
     #[serde(default)]
     pub answers_by_question_id: HashMap<String, String>,
+    #[serde(default)]
+    pub mc_mark_override_input_by_question_id: HashMap<String, String>,
+    #[serde(default)]
+    pub mc_awarded_marks_by_question_id: HashMap<String, f64>,
     #[serde(default)]
     pub raw_model_output: String,
     #[serde(default)]
@@ -666,6 +670,15 @@ pub struct SavedQuestionSet {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct Analytics {
+    #[serde(default, rename = "submitWrittenAnswer")]
+    pub submit_written_answer: Option<serde_json::Value>,
+    #[serde(default, rename = "argueForWrittenMark")]
+    pub argue_for_written_mark: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionHistoryEntry {
     pub id: String,
     pub created_at: String,
@@ -679,6 +692,10 @@ pub struct QuestionHistoryEntry {
     pub generation_telemetry: Option<GenerationTelemetry>,
     #[serde(default)]
     pub is_uploaded: bool,
+    #[serde(default)]
+    pub difficulty: Option<String>,
+    #[serde(default)]
+    pub analytics: Option<Analytics>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -694,9 +711,11 @@ pub struct McHistoryEntry {
     pub generation_telemetry: Option<GenerationTelemetry>,
     #[serde(default)]
     pub is_uploaded: bool,
+    #[serde(default, rename = "type")]
+    pub r#type: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct StudyGoals {
     #[serde(default = "default_daily_goal")]
@@ -722,7 +741,7 @@ fn default_streak_goal() -> u8 {
     5
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct StreakData {
     #[serde(default)]
@@ -812,8 +831,8 @@ pub struct GenerationRecordOutputs {
     pub duration_ms: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default, rename_all = "camelCase")]
 pub struct PersistedAppState {
     #[serde(default = "default_version")]
     pub version: u32,
