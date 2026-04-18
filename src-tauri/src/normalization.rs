@@ -40,21 +40,18 @@ fn apply_re_before_part_outside_math(s: &str) -> String {
             i += open_len;
 
             // Copy math content until the matching closing delimiter (or end of string).
-            let mut found_close = false;
             while i < len {
                 if chars[i..].starts_with(close_pat) {
                     for c in close_pat {
                         result.push(*c);
                     }
                     i += close_pat.len();
-                    found_close = true;
                     break;
                 }
                 result.push(chars[i]);
                 i += 1;
             }
-            // If the delimiter was never closed, we've already copied everything above.
-            let _ = found_close;
+            // If the delimiter was never closed, all content was already copied above.
         } else {
             // Collect the non-math segment up to the next $.
             let start = i;
