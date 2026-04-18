@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -76,9 +76,9 @@ function buildSketchpadSessionKey(
   question:
     | Pick<GeneratedQuestion, 'id' | 'topic' | 'subtopic' | 'promptMarkdown'>
     | Pick<
-      McQuestion,
-      'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
-    >,
+        McQuestion,
+        'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
+      >,
 ): string {
   const signature = [
     mode,
@@ -135,6 +135,9 @@ export function GeneratorView() {
       return true;
     }
   });
+
+  const wasMarkingRef = useRef(false);
+  const autoPausedTimersRef = useRef({ written: false, mc: false });
 
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
   const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
@@ -228,7 +231,7 @@ export function GeneratorView() {
   } = useGenerationStatus();
 
   const aggregatedStreamText = useMemo(() => {
-    return Object.values(streamTexts as Record<string, string>).filter(Boolean).join('\n\n');
+    return Object.values(streamTexts).filter(Boolean).join('\n\n');
   }, [streamTexts]);
 
   const deleteSavedSet = useAppStore((s) => s.deleteSavedSet);
@@ -652,10 +655,27 @@ export function GeneratorView() {
   }, [writtenTimer, mcTimer]);
 
   useEffect(() => {
-    if (isMarking) {
-      if (!writtenTimerIsPaused) toggleWrittenTimerPause();
-      if (!mcTimerIsPaused) toggleMcTimerPause();
+    if (isMarking && !wasMarkingRef.current) {
+      autoPausedTimersRef.current = {
+        written: !writtenTimerIsPaused,
+        mc: !mcTimerIsPaused,
+      };
+      if (autoPausedTimersRef.current.written) {
+        toggleWrittenTimerPause();
+      }
+      if (autoPausedTimersRef.current.mc) {
+        toggleMcTimerPause();
+      }
+    } else if (!isMarking && wasMarkingRef.current) {
+      if (autoPausedTimersRef.current.written && writtenTimerIsPaused) {
+        toggleWrittenTimerPause();
+      }
+      if (autoPausedTimersRef.current.mc && mcTimerIsPaused) {
+        toggleMcTimerPause();
+      }
+      autoPausedTimersRef.current = { written: false, mc: false };
     }
+    wasMarkingRef.current = isMarking;
   }, [
     isMarking,
     writtenTimerIsPaused,
@@ -779,6 +799,7 @@ export function GeneratorView() {
     setConfirmMessage(
       `Remove question ${activeQuestionIndex + 1} ("${activeQuestion.topic}")? It will be taken out of your current set.`,
     );
+    setLastFailedAction(null);
     setPendingCancelType('written');
     setConfirmOpen(true);
   }, [activeQuestion, activeQuestionIndex]);
@@ -788,6 +809,7 @@ export function GeneratorView() {
     setConfirmMessage(
       `Remove question ${activeMcQuestionIndex + 1} ("${activeMcQuestion.topic}")? It will be taken out of your current set.`,
     );
+    setLastFailedAction(null);
     setPendingCancelType('mc');
     setConfirmOpen(true);
   }, [activeMcQuestion, activeMcQuestionIndex]);
@@ -921,8 +943,8 @@ export function GeneratorView() {
       const entry = trackedEntryId
         ? latestMcHistory.find((e: McHistoryEntry) => e.id === trackedEntryId)
         : latestMcHistory.find(
-          (e: McHistoryEntry) => e.question.id === questionId,
-        );
+            (e: McHistoryEntry) => e.question.id === questionId,
+          );
       if (!entry) return;
       const updatedEntry = {
         ...entry,
@@ -942,11 +964,11 @@ export function GeneratorView() {
       const trackedEntryId = writtenHistoryEntryIdByQuestionId[questionId];
       const entry = trackedEntryId
         ? latestQuestionHistory.find(
-          (e: QuestionHistoryEntry) => e.id === trackedEntryId,
-        )
+            (e: QuestionHistoryEntry) => e.id === trackedEntryId,
+          )
         : latestQuestionHistory.find(
-          (e: QuestionHistoryEntry) => e.question.id === questionId,
-        );
+            (e: QuestionHistoryEntry) => e.question.id === questionId,
+          );
       if (!entry) return;
       const updatedEntry = {
         ...entry,
@@ -1596,6 +1618,8 @@ export function GeneratorView() {
         }
         generationStartedAt={generationStartedAt}
         telemetry={null}
+        questionTimeSeconds={activeTimer.currentQuestionElapsed}
+        questionMarks={activeTimer.currentQuestionMarks}
         isPaused={activeTimer.isPaused}
         onTogglePause={togglePause}
         onResetTimer={resetCurrentQuestionTimer}
@@ -1685,13 +1709,13 @@ export function GeneratorView() {
                   awardedMarks={activeMcAwardedMarks}
                   appealText=''
                   overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => { }}
+                  onAppealChange={() => {}}
                   onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => { }}
+                  onArgueForMark={() => {}}
                   onApplyOverride={handleMcOverrideMark}
                   isMarking={isMarking}
-                  onImageDrop={() => { }}
-                  onImageRemove={() => { }}
+                  onImageDrop={() => {}}
+                  onImageRemove={() => {}}
                   renderSketchpadInline={false}
                 />
               </div>
@@ -1699,8 +1723,8 @@ export function GeneratorView() {
             rightSlot={
               <McSketchpadPanel
                 sketchSessionKey={activeMcSketchSessionKey}
-                onImageDrop={() => { }}
-                onImageRemove={() => { }}
+                onImageDrop={() => {}}
+                onImageRemove={() => {}}
               />
             }
           />
@@ -1729,13 +1753,13 @@ export function GeneratorView() {
                   awardedMarks={activeMcAwardedMarks}
                   appealText=''
                   overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => { }}
+                  onAppealChange={() => {}}
                   onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => { }}
+                  onArgueForMark={() => {}}
                   onApplyOverride={handleMcOverrideMark}
                   isMarking={isMarking}
-                  onImageDrop={() => { }}
-                  onImageRemove={() => { }}
+                  onImageDrop={() => {}}
+                  onImageRemove={() => {}}
                 />
               </div>
             }
@@ -1771,11 +1795,14 @@ export function GeneratorView() {
       />
 
       <ConfirmModal
-        open={confirmOpen && Boolean(lastFailedAction)}
+        open={Boolean(lastFailedAction) && !confirmOpen}
         onCancel={() => setLastFailedAction(null)}
         title='Generation Failed'
         description='The generation request timed out or was interrupted. Would you like to retry the same parameters?'
-        onConfirm={() => void handleGenerateQuestions()}
+        onConfirm={() => {
+          setLastFailedAction(null);
+          void handleGenerateQuestions();
+        }}
         confirmText='Retry'
       />
 
