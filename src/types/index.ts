@@ -8,7 +8,6 @@ export * from './logs';
 export * from './marking';
 export * from './persistence';
 export * from './questions';
-export * from './spaced-repetition';
 export * from './study';
 export * from './telemetry';
 export * from './time-allocation';

@@ -177,9 +177,6 @@ export function useAppContext() {
       setErrorMessage: s.setErrorMessage,
       isKeyboardShortcutsOpen: s.isKeyboardShortcutsOpen,
       setIsKeyboardShortcutsOpen: s.setIsKeyboardShortcutsOpen,
-      spacedRepetitionCards: s.spacedRepetitionCards,
-      reviewSpacedCard: s.reviewSpacedCard,
-      getDueCards: s.getDueCards,
       studyGoals: s.studyGoals,
       setStudyGoals: s.setStudyGoals,
       streakData: s.streakData,
@@ -328,6 +325,21 @@ export function useWrittenSession() {
       setWrittenGenerationTelemetry: s.setWrittenGenerationTelemetry,
       activeWrittenSavedSetId: s.activeWrittenSavedSetId,
       setActiveWrittenSavedSetId: s.setActiveWrittenSavedSetId,
+      submitWrittenAnswer: s.submitWrittenAnswer,
+      argueForWrittenMark: s.argueForWrittenMark,
+      overrideWrittenMark: s.overrideWrittenMark,
+      nextQuestion: s.nextQuestion,
+      prevQuestion: s.prevQuestion,
+      markAppealByQuestionId: s.markAppealByQuestionId,
+      setMarkAppealByQuestionId: s.setMarkAppealByQuestionId,
+      markOverrideInputByQuestionId: s.markOverrideInputByQuestionId,
+      setMarkOverrideInputByQuestionId: s.setMarkOverrideInputByQuestionId,
+      writtenMarkingDurationMsByQuestionId:
+        s.writtenMarkingDurationMsByQuestionId,
+      setWrittenMarkingDurationMsByQuestionId:
+        s.setWrittenMarkingDurationMsByQuestionId,
+      writtenResponseEnteredAtById: s.writtenResponseEnteredAtById,
+      setWrittenResponseEnteredAtById: s.setWrittenResponseEnteredAtById,
     })),
   );
 }
@@ -355,6 +367,12 @@ export function useMultipleChoiceSession() {
       setMcGenerationTelemetry: s.setMcGenerationTelemetry,
       activeMcSavedSetId: s.activeMcSavedSetId,
       setActiveMcSavedSetId: s.setActiveMcSavedSetId,
+      submitMcAnswer: s.submitMcAnswer,
+      overrideMcMark: s.overrideMcMark,
+      mcMarkOverrideInputByQuestionId: s.mcMarkOverrideInputByQuestionId,
+      setMcMarkOverrideInputByQuestionId: s.setMcMarkOverrideInputByQuestionId,
+      mcAwardedMarksByQuestionId: s.mcAwardedMarksByQuestionId,
+      setMcAwardedMarksByQuestionId: s.setMcAwardedMarksByQuestionId,
     })),
   );
 }
