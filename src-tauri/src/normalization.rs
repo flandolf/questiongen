@@ -9,12 +9,82 @@ use regex::Regex;
 
 static RE_AFTER_MARK: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(\[\d+\s*marks?\])[^\S\r\n]*([^\r\n])").unwrap());
+// Matches a non-newline, non-$, non-word character immediately before a part label.
+// Excluding \w prevents false positives for non-math prose like "function g(a)".
+// This regex is applied only outside $...$ math regions (see apply_re_before_part_outside_math).
 static RE_BEFORE_PART: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"([^\r\n\$])[^\S\r\n]*(\([a-g]\))").unwrap());
+    Lazy::new(|| Regex::new(r"([^\r\n\$\w])[^\S\r\n]*(\([a-g]\))").unwrap());
+
+/// Apply RE_BEFORE_PART only to text that lies outside $...$ or $$...$$ math regions.
+/// This prevents false positives like inserting a newline inside $f'(a)$ or $g(a)$.
+fn apply_re_before_part_outside_math(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if chars[i] == '$' {
+            // Determine whether this is display math ($$) or inline math ($).
+            let is_display = i + 1 < len && chars[i + 1] == '$';
+            let (open_len, close_pat): (usize, &[char]) = if is_display {
+                (2, &['$', '$'])
+            } else {
+                (1, &['$'])
+            };
+
+            // Copy the opening delimiter.
+            for c in &chars[i..i + open_len] {
+                result.push(*c);
+            }
+            i += open_len;
+
+            // Copy math content until the matching closing delimiter (or end of string).
+            let mut found_close = false;
+            while i < len {
+                if chars[i..].starts_with(close_pat) {
+                    for c in close_pat {
+                        result.push(*c);
+                    }
+                    i += close_pat.len();
+                    found_close = true;
+                    break;
+                }
+                result.push(chars[i]);
+                i += 1;
+            }
+            // If the delimiter was never closed, we've already copied everything above.
+            let _ = found_close;
+        } else {
+            // Collect the non-math segment up to the next $.
+            let start = i;
+            while i < len && chars[i] != '$' {
+                i += 1;
+            }
+            let segment: String = chars[start..i].iter().collect();
+            let processed = RE_BEFORE_PART.replace_all(&segment, |caps: &regex::Captures| {
+                let prefix = &caps[1];
+                let label = &caps[2];
+                // When the captured prefix is pure horizontal whitespace, drop it so the
+                // newline replaces the space entirely (e.g. "$$...$$ (a)" → "$$...$$\n(a)").
+                if prefix.chars().all(|c| c != '\r' && c != '\n' && c.is_whitespace()) {
+                    format!("\n{label}")
+                } else {
+                    format!("{prefix}\n{label}")
+                }
+            });
+            result.push_str(&processed);
+        }
+    }
+
+    result
+}
 
 fn fix_prompt_newlines(s: &str) -> String {
+    // RE_AFTER_MARK is safe to apply globally: [X marks] never appears inside $...$.
     let s = RE_AFTER_MARK.replace_all(s, "$1\n$2");
-    RE_BEFORE_PART.replace_all(&s, "$1\n$2").to_string()
+    // RE_BEFORE_PART must only run on non-math text to avoid corrupting LaTeX like $f'(a)$.
+    apply_re_before_part_outside_math(&s)
 }
 
 fn sole_selected_subtopic(selected_subtopics: Option<&Vec<String>>) -> Option<&str> {
@@ -223,6 +293,27 @@ mod tests {
             (
                 "Multiple parts [1 mark](a) Part 1 [2 marks](b) Part 2",
                 "Multiple parts [1 mark]\n(a) Part 1 [2 marks]\n(b) Part 2",
+            ),
+            // Math function notation must not trigger newline insertion inside $...$.
+            (
+                "Let $f(a)$ be defined. [2 marks]",
+                "Let $f(a)$ be defined. [2 marks]",
+            ),
+            (
+                "Given $f(a) = a^2$. (a) Find $f(3)$. [2 marks](b) Find $f'(a)$. [3 marks]",
+                "Given $f(a) = a^2$.\n(a) Find $f(3)$. [2 marks]\n(b) Find $f'(a)$. [3 marks]",
+            ),
+            // Trailing mark with nothing after it — no extra newline.
+            ("(a) Solve for $x$. [3 marks]", "(a) Solve for $x$. [3 marks]"),
+            // Part label after colon.
+            (
+                "Consider: (a) Part one [1 mark](b) Part two [2 marks]",
+                "Consider:\n(a) Part one [1 mark]\n(b) Part two [2 marks]",
+            ),
+            // Space between display math and part label is absorbed into the newline.
+            (
+                "$$f(a) = a^2$$ (a) Find the value. [2 marks]",
+                "$$f(a) = a^2$$\n(a) Find the value. [2 marks]",
             ),
         ];
 
