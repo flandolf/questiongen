@@ -1043,8 +1043,10 @@ export function GeneratorView() {
         ...prev,
         [activeQuestion.id]: String(nextFeedback.achievedMarks),
       }));
+      const entry = questionHistory.find((e) => e.question.id === activeQuestion.id);
+      if (!entry) return;
       updateQuestionHistoryEntry({
-        ...questionHistory.find((e) => e.question.id === activeQuestion.id)!,
+        ...entry,
         markResponse: nextFeedback,
         workedSolutionMarkdown: nextFeedback.workedSolutionMarkdown,
         lastModified: Date.now(),
