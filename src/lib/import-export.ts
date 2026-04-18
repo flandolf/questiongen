@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { APP_VERSION } from '@/views/settings/types';
+
 import type {
   DiversityStrictness,
   GenerationRecord,
@@ -12,7 +14,6 @@ import type {
   StudentAnswerImage,
   StudyGoals,
 } from '../types';
-import { APP_VERSION } from '../views/settings/types';
 import {
   EMPTY_PERSISTED_APP_STATE,
   isTauriRuntime,
@@ -396,7 +397,9 @@ export function mergeImportedState(
   merged.selectedSubtopics = imported.preferences.selectedSubtopics;
   merged.questionCount = imported.preferences.questionCount;
   merged.averageMarksPerQuestion = imported.preferences.averageMarksPerQuestion;
-  merged.questionMode = normalizeQuestionMode(imported.preferences.questionMode);
+  merged.questionMode = normalizeQuestionMode(
+    imported.preferences.questionMode,
+  );
   merged.aiDifficultyScalingEnabled =
     imported.preferences.aiDifficultyScalingEnabled ?? true;
   merged.difficultyThresholds = imported.preferences.difficultyThresholds ?? {

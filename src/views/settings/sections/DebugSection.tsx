@@ -1,8 +1,12 @@
 import { Bug } from 'lucide-react';
 
-import { useAppSettings } from '../../../AppContext';
-import { Button } from '../../../components/ui/button';
-import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
+import { useAppSettings } from '@/AppContext';
+import { Button } from '@/components/ui/button';
+import {
+  AnimatedSection,
+  Card,
+  SectionHeader,
+} from '@/views/settings/SettingsUI';
 
 export function DebugSection() {
   const { debugMode, setDebugMode } = useAppSettings();

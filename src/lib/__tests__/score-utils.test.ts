@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { scoreColorClass, scoreLabel } from '../score-utils';
+import { scoreColorClass, scoreLabel } from '@/lib/score-utils';
 
 describe('score-utils', () => {
   describe('scoreColorClass', () => {

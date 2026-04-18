@@ -10,9 +10,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
-import { normalizeDifficulty } from '@/lib/persistence';
 import type {
   Difficulty,
   Preset,
@@ -282,8 +282,7 @@ export function PresetSection({
                           {preset.preferences.questionMode === 'written'
                             ? 'Written'
                             : 'MC'}{' '}
-                          ·{' '}
-                          {presetDifficultyMeta.label}
+                          · {presetDifficultyMeta.label}
                           {preset.preferences.questionCount
                             ? ` · ${preset.preferences.questionCount} Qs`
                             : ''}

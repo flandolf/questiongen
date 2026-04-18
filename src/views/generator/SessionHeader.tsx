@@ -19,10 +19,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { formatDurationMs } from '@/lib/app-utils';
+import { useAppStore } from '@/store';
 import type { Difficulty, GenerationTelemetry } from '@/types';
-
-import { formatDurationMs } from '../../lib/app-utils';
-import { useAppStore } from '../../store';
 
 type SessionHeaderProps = {
   type: 'written' | 'mc';

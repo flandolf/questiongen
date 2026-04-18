@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeHexColor } from '../color-helpers';
-import { generateM3Theme } from '../color-utils';
-import { normalizePersistedAppState } from '../persistence';
+import { normalizeHexColor } from '@/lib/color-helpers';
+import { generateM3Theme } from '@/lib/color-utils';
+import { normalizePersistedAppState } from '@/lib/persistence';
 
 describe('persistence normalization', () => {
   it('defaults an invalid question mode to written', () => {
@@ -29,22 +29,14 @@ describe('persistence normalization', () => {
       },
     });
 
-    expect(normalized.settings.model).toBe(
-      'google/gemini-2.0-flash-lite-preview-02-05:free',
-    );
-    expect(normalized.settings.markingModel).toBe(
-      'google/gemini-2.0-flash-lite-preview-02-05:free',
-    );
-    expect(normalized.settings.imageMarkingModel).toBe(
-      'google/gemini-2.0-flash-lite-preview-02-05:free',
-    );
+    expect(normalized.settings.model).toBe('openai/gpt-5.4-mini');
+    expect(normalized.settings.markingModel).toBe('openai/gpt-5.4-mini');
+    expect(normalized.settings.imageMarkingModel).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.theme).toBe('claude');
     expect(normalized.settings.globalRounding).toBe('md');
-    expect(normalized.settings.interfaceFont).toBe('Manrope Variable');
+    expect(normalized.settings.interfaceFont).toBe('Inter Variable');
     expect(normalized.settings.headingFont).toBe('Manrope Variable');
-    expect(normalized.settings.tutorModel).toBe(
-      'google/gemini-2.0-flash-lite-preview-02-05:free',
-    );
+    expect(normalized.settings.tutorModel).toBe('openai/gpt-5.4-mini');
   });
 
   it('normalizes shorthand and invalid custom theme seed colors', () => {

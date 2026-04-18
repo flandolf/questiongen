@@ -5,6 +5,8 @@ import type { StateCreator } from 'zustand';
 import { normalizeMarkResponse, readBackendError } from '@/lib/app-utils';
 import { countWords, generateEntryId } from '@/lib/generator-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
+import { resolve } from '@/store/helpers';
+import type { AppActions, AppState } from '@/store/types';
 import type {
   BatchTopicProgress,
   GenerationSubCallProgress,
@@ -12,9 +14,6 @@ import type {
   McHistoryEntry,
   QuestionHistoryEntry,
 } from '@/types';
-
-import { resolve } from '../helpers';
-import type { AppActions, AppState } from '../types';
 
 export interface SessionSlice {
   // Written session

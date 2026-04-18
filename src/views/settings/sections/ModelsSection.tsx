@@ -1,15 +1,16 @@
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useAppSettings } from '@/AppContext';
+import { Button } from '@/components/ui/button';
 import { useModelStats } from '@/hooks/useModelStats';
 import { cn } from '@/lib/utils';
+import { PRESET_MODELS } from '@/views/settings/constants';
+import { fmt } from '@/views/settings/formatters';
+import { ImageModelSelectRow } from '@/views/settings/ImageModelSelectRow';
+import { ModelSearchPanel } from '@/views/settings/ModelSearchPanel';
+import { StatsTable } from '@/views/settings/StatsTable';
 
-import { useAppSettings } from '../../../AppContext';
-import { Button } from '../../../components/ui/button';
-import { PRESET_MODELS } from '../constants';
-import { fmt } from '../formatters';
-import { ImageModelSelectRow } from '../ImageModelSelectRow';
-import { ModelSearchPanel } from '../ModelSearchPanel';
 import {
   AnimatedSection,
   CustomModelInput,
@@ -21,7 +22,6 @@ import {
   SectionHeader,
   ToggleRow,
 } from '../SettingsUI';
-import { StatsTable } from '../StatsTable';
 
 function ErrorBanners({ stats }: { stats: ReturnType<typeof useModelStats> }) {
   const errors = [
@@ -91,21 +91,21 @@ function LiveStatsSection({
       },
       ...(models.useMark
         ? [
-          {
-            stats: stats.marking.stats,
-            label: models.mark || 'Marking',
-            loading: stats.marking.loading,
-          },
-        ]
+            {
+              stats: stats.marking.stats,
+              label: models.mark || 'Marking',
+              loading: stats.marking.loading,
+            },
+          ]
         : []),
       ...(models.useImg
         ? [
-          {
-            stats: stats.image.stats,
-            label: models.img || 'Image marking',
-            loading: stats.image.loading,
-          },
-        ]
+            {
+              stats: stats.image.stats,
+              label: models.img || 'Image marking',
+              loading: stats.image.loading,
+            },
+          ]
         : []),
       {
         stats: stats.tutor.stats,
@@ -217,9 +217,7 @@ export function ModelsSection() {
   }, [settings.useSeparateMarkingModel]);
 
   useEffect(() => {
-    setLocalUseSeparateImageMarkingModel(
-      settings.useSeparateImageMarkingModel,
-    );
+    setLocalUseSeparateImageMarkingModel(settings.useSeparateImageMarkingModel);
   }, [settings.useSeparateImageMarkingModel]);
 
   useEffect(() => {

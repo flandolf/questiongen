@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { Topic } from '../../types';
+import type { Topic } from '@/types';
+
 import {
   calculateOptimalBatchDistribution,
   calculateSubtopicDistribution,

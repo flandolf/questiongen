@@ -3,9 +3,8 @@ import type { StateCreator } from 'zustand';
 import { updateApiKey, updatePresets } from '@/context/modules/sync/mutations';
 import { normalizeHexColor } from '@/lib/color-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
-
-import { normalizeThemeName, resolve } from '../helpers';
-import type { AppActions, AppState } from '../types';
+import { normalizeThemeName, resolve } from '@/store/helpers';
+import type { AppActions, AppState } from '@/store/types';
 
 export interface SettingsSlice {
   apiKey: string;
@@ -135,9 +134,11 @@ export const createSettingsSlice: StateCreator<
   localBackupIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.localBackupIntervalMinutes ?? 0,
   theme: normalizeThemeName(EMPTY_PERSISTED_APP_STATE.settings.theme),
-  customThemeSeedColor: EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor ? normalizeHexColor(EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor) : '#3b82f6',
+  customThemeSeedColor: EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor
+    ? normalizeHexColor(EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor)
+    : '#3b82f6',
   globalRounding: 'md',
-  interfaceFont: 'Manrope Variable',
+  interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',
   tutorPersona: EMPTY_PERSISTED_APP_STATE.settings.tutorPersona ?? '',
   tutorModel:

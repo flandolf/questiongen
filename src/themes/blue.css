@@ -32,7 +32,7 @@
   --sidebar-border: oklch(0.9 0.02 250);
   --sidebar-ring: oklch(0.55 0.15 250);
   --radius: var(--global-radius, 0.5rem);
-  --font-sans: var(--interface-font, 'Manrope Variable'), sans-serif;
+  --font-sans: var(--interface-font, 'Inter Variable'), sans-serif;
   --font-serif: var(--heading-font, Georgia), serif;
   --font-mono: var(--mono-font, 'JetBrains Mono Variable'), monospace;
   --shadow-2xs: 0px 2px 4px 0px oklch(0 0 0 / 0.05);
@@ -46,6 +46,7 @@
   --tracking-normal: -0.01em;
   --spacing: 0.25rem;
 }
+
 .dark[data-design-theme='blue'] {
   --background: oklch(0.15 0.03 250);
   --foreground: oklch(0.92 0.02 250);

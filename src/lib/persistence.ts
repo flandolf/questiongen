@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 
-import { cleanupOldSketchpadData } from '../components/sketchpadUtils';
+import { cleanupOldSketchpadData } from '@/components/sketchpadUtils';
+import { APP_STATE_STORAGE_KEY, PERSISTED_APP_STATE_VERSION } from '@/types';
+import type { TimerState } from '@/types/timer';
+
 import type {
   Difficulty,
   GenerationRecord,
@@ -18,8 +21,6 @@ import type {
   StudyGoals,
   TimeAllocationConfig,
 } from '../types';
-import { APP_STATE_STORAGE_KEY, PERSISTED_APP_STATE_VERSION } from '../types';
-import type { TimerState } from '../types/timer';
 import {
   DEFAULT_CUSTOM_THEME_SEED_COLOR,
   normalizeHexColor,
@@ -289,10 +290,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       DEFAULT_SETTINGS.headingFont,
     ),
     tutorPersona: asString(data.tutorPersona),
-    tutorModel: normalizeNonEmptyString(
-      data.tutorModel,
-      model,
-    ),
+    tutorModel: normalizeNonEmptyString(data.tutorModel, model),
     shuffleSubtopics:
       typeof data.shuffleSubtopics === 'boolean'
         ? data.shuffleSubtopics
@@ -306,7 +304,9 @@ function normalizeSettings(raw: unknown): PersistedSettings {
 
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
   const data = isRecord(raw) ? raw : {};
-  const questionMode = VALID_QUESTION_MODES.has(data.questionMode as QuestionMode)
+  const questionMode = VALID_QUESTION_MODES.has(
+    data.questionMode as QuestionMode,
+  )
     ? (data.questionMode as QuestionMode)
     : DEFAULT_PREFERENCES.questionMode;
   const difficulty = normalizeDifficulty(data.difficulty);
@@ -404,7 +404,7 @@ function normalizeNonEmptyString(
   fallback: string | undefined,
 ): string {
   const text = asString(value).trim();
-  return text.length > 0 ? text : fallback ?? '';
+  return text.length > 0 ? text : (fallback ?? '');
 }
 
 const VALID_ROUNDINGS = new Set(['sm', 'md', 'lg', 'xl']);
@@ -414,7 +414,7 @@ function normalizeRounding(
   fallback: string | undefined,
 ): string {
   const text = asString(value).trim();
-  return VALID_ROUNDINGS.has(text) ? text : fallback ?? 'md';
+  return VALID_ROUNDINGS.has(text) ? text : (fallback ?? 'md');
 }
 
 export function normalizeQuestionMode(value: unknown): QuestionMode {

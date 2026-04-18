@@ -6,8 +6,11 @@ import {
 } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
-import { Button } from '../../../components/ui/button';
-import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+import { Button } from '@/components/ui/button';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useAppStore } from '@/store';
+import type { PersistedAppState } from '@/types';
+
 import {
   computeImportCounts,
   createExportEnvelope,
@@ -17,8 +20,6 @@ import {
   isTauriApp,
   parseImportFile,
 } from '../../../lib/import-export';
-import { useAppStore } from '../../../store';
-import type { PersistedAppState } from '../../../types';
 import {
   AnimatedSection,
   Card,

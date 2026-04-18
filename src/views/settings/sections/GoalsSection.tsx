@@ -1,7 +1,10 @@
 import { Slider } from '@/components/ui/slider';
-
-import { useAppStore } from '../../../store';
-import { AnimatedSection, Card, SectionHeader } from '../SettingsUI';
+import { useAppStore } from '@/store';
+import {
+  AnimatedSection,
+  Card,
+  SectionHeader,
+} from '@/views/settings/SettingsUI';
 
 export function GoalsSection() {
   const studyGoals = useAppStore((s) => s.studyGoals);

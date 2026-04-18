@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 
-import { useMultipleChoiceSession, useWrittenSession } from '../AppContext';
-import { useAppStore } from '../store';
+import { useMultipleChoiceSession, useWrittenSession } from '@/AppContext';
+import { useAppStore } from '@/store';
+
 import type {
   GenerationRecord,
   McHistoryEntry,

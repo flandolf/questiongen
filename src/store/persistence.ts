@@ -1,8 +1,10 @@
 import type { StoreApi, UseBoundStore } from 'zustand';
 
 import { normalizeHexColor } from '@/lib/color-helpers';
-import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
-import { savePersistedAppState } from '@/lib/persistence';
+import {
+  EMPTY_PERSISTED_APP_STATE,
+  savePersistedAppState,
+} from '@/lib/persistence';
 import { isDeepEqual } from '@/lib/utils';
 import type { PersistedAppState } from '@/types';
 
@@ -85,6 +87,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
   };
 }
 
+// eslint-disable-next-line complexity
 export function snapshotToState(s: PersistedAppState): Partial<AppState> {
   const settings = s.settings;
   const prefs = s.preferences;
@@ -118,10 +121,13 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
       defaultSettings.localBackupIntervalMinutes,
     theme: normalizeThemeName(settings.theme ?? defaultSettings.theme),
     customThemeSeedColor: settings.customThemeSeedColor,
-    globalRounding: ['sm', 'md', 'lg', 'xl'].includes(settings.globalRounding)
+    globalRounding: ['sm', 'md', 'lg', 'xl'].includes(
+      settings.globalRounding ? settings.globalRounding : '',
+    )
       ? settings.globalRounding
       : defaultSettings.globalRounding,
-    interfaceFont: settings.interfaceFont?.trim() || defaultSettings.interfaceFont,
+    interfaceFont:
+      settings.interfaceFont?.trim() || defaultSettings.interfaceFont,
     headingFont: settings.headingFont?.trim() || defaultSettings.headingFont,
     tutorPersona: settings.tutorPersona ?? defaultSettings.tutorPersona,
     tutorModel:

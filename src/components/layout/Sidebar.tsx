@@ -19,9 +19,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-
-import { cn, getTodayKey } from '../../lib/utils';
-import { useAppStore } from '../../store';
+import { cn, getTodayKey } from '@/lib/utils';
+import { useAppStore } from '@/store';
 
 // ─── Shared transition presets ───────────────────────────────────────────────
 const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };

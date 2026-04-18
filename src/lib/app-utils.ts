@@ -1,4 +1,4 @@
-import type { BackendError, MarkAnswerResponse } from '../types';
+import type { BackendError, MarkAnswerResponse } from '@/types';
 
 export {
   normalizeMathDelimiters,
