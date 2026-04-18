@@ -119,23 +119,23 @@ const Mermaid = ({ chart }: { chart: string }) => {
 
         const fallbacks: Record<string, string> = isDarkMode
           ? {
-            '--background': '#0a0a0a',
-            '--foreground': '#ffffff',
-            '--primary': '#3b82f6',
-            '--muted-foreground': '#a1a1aa',
-            '--card': '#1a1a1a',
-            '--chart-2': '#e11d48',
-            '--chart-3': '#f59e0b',
-          }
+              '--background': '#0a0a0a',
+              '--foreground': '#ffffff',
+              '--primary': '#3b82f6',
+              '--muted-foreground': '#a1a1aa',
+              '--card': '#1a1a1a',
+              '--chart-2': '#e11d48',
+              '--chart-3': '#f59e0b',
+            }
           : {
-            '--background': '#ffffff',
-            '--foreground': '#0a0a0a',
-            '--primary': '#2563eb',
-            '--muted-foreground': '#71717a',
-            '--card': '#ffffff',
-            '--chart-2': '#e11d48',
-            '--chart-3': '#f59e0b',
-          };
+              '--background': '#ffffff',
+              '--foreground': '#0a0a0a',
+              '--primary': '#2563eb',
+              '--muted-foreground': '#71717a',
+              '--card': '#ffffff',
+              '--chart-2': '#e11d48',
+              '--chart-3': '#f59e0b',
+            };
 
         return fallbacks[varName] || '#888888';
       }

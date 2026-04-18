@@ -60,8 +60,14 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   localBackupFolderPath: '',
   localBackupIntervalMinutes: 0,
   theme: 'claude',
+  customThemeSeedColor: '#3b82f6',
+  globalRounding: 'md',
+  interfaceFont: 'Manrope Variable',
+  headingFont: 'Manrope Variable',
   tutorPersona: '',
   tutorModel: 'google/gemini-3.1-flash-lite-preview',
+  shuffleSubtopics: false,
+  shuffleQuestions: false,
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -338,10 +344,31 @@ function normalizeSettings(raw: unknown): PersistedSettings {
         : DEFAULT_SETTINGS.includeExamContext,
     ...normalizeSyncSettings(data),
     theme: asString(data.theme) || DEFAULT_SETTINGS.theme,
+    customThemeSeedColor:
+      asString(data.customThemeSeedColor) ||
+      DEFAULT_SETTINGS.customThemeSeedColor,
+    globalRounding:
+      data.globalRounding === 'sm' ||
+      data.globalRounding === 'md' ||
+      data.globalRounding === 'lg' ||
+      data.globalRounding === 'xl'
+        ? data.globalRounding
+        : DEFAULT_SETTINGS.globalRounding,
+    interfaceFont:
+      asString(data.interfaceFont) || DEFAULT_SETTINGS.interfaceFont,
+    headingFont: asString(data.headingFont) || DEFAULT_SETTINGS.headingFont,
     tutorPersona:
       asString(data.tutorPersona) || DEFAULT_SETTINGS.tutorPersona || '',
     tutorModel:
       asString(data.tutorModel) || model || DEFAULT_SETTINGS.tutorModel,
+    shuffleSubtopics:
+      typeof data.shuffleSubtopics === 'boolean'
+        ? data.shuffleSubtopics
+        : DEFAULT_SETTINGS.shuffleSubtopics,
+    shuffleQuestions:
+      typeof data.shuffleQuestions === 'boolean'
+        ? data.shuffleQuestions
+        : DEFAULT_SETTINGS.shuffleQuestions,
   };
 }
 
