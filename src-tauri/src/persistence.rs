@@ -67,41 +67,64 @@ fn write_export_envelope_to_dir(
 use crate::models::PersistedAppState;
 use tauri_plugin_store::StoreExt;
 
-fn decode_persisted_state_value(value: serde_json::Value) -> CommandResult<PersistedAppState> {
+fn default_persisted_state_json() -> CommandResult<serde_json::Value> {
+    let default_state = serde_json::from_value::<PersistedAppState>(serde_json::json!({}))
+        .map_err(|e| {
+            AppError::new(
+                "STORE_PARSE_ERROR",
+                format!("Failed to build default persisted state: {e}"),
+            )
+        })?;
+
+    serde_json::to_value(default_state).map_err(|e| {
+        AppError::new(
+            "SERIALIZE_ERROR",
+            format!("Failed to serialize default persisted state: {e}"),
+        )
+    })
+}
+
+fn normalize_state_for_storage(value: serde_json::Value) -> CommandResult<serde_json::Value> {
     match value {
-        serde_json::Value::String(raw) => {
-            serde_json::from_str::<PersistedAppState>(&raw).map_err(|e| {
+        serde_json::Value::String(raw) => serde_json::from_str::<serde_json::Value>(&raw)
+            .map_err(|e| {
                 AppError::new(
                     "STORE_PARSE_ERROR",
                     format!("Failed to parse persisted state string: {e}"),
                 )
             })
-        }
-        other if other.is_object() => {
-            serde_json::from_value::<PersistedAppState>(other).map_err(|e| {
-                AppError::new(
-                    "STORE_PARSE_ERROR",
-                    format!("Failed to parse persisted state object: {e}"),
-                )
-            })
-        }
-        _ => Ok(PersistedAppState::default()),
+            .and_then(|parsed| {
+                if parsed.is_object() {
+                    Ok(parsed)
+                } else {
+                    Err(AppError::new(
+                        "STORE_PARSE_ERROR",
+                        "Persisted state string must decode to a JSON object.",
+                    ))
+                }
+            }),
+        other if other.is_object() => Ok(other),
+        _ => Err(AppError::new(
+            "STORE_PARSE_ERROR",
+            "Persisted state must be a JSON object or JSON-encoded object string.",
+        )),
     }
 }
 
 /// Loads the application state from the persistent store.
 ///
-/// This command opens the Tauri store and returns the persisted app state.
-/// Legacy string payloads are parsed for backward compatibility.
+/// This command opens the Tauri store and returns persisted app-state JSON.
+/// If persisted data is malformed, we fall back to serde-derived defaults.
 #[tauri::command]
-pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<PersistedAppState> {
+pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
     let path = state_path(&app)?;
     let store = app
         .store(&path)
         .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
 
     let state_val = store.get("state").unwrap_or(serde_json::Value::Null);
-    let state = decode_persisted_state_value(state_val)?;
+    let state =
+        normalize_state_for_storage(state_val).or_else(|_| default_persisted_state_json())?;
 
     Ok(state)
 }
@@ -117,13 +140,9 @@ pub fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> 
         .store(&path)
         .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
 
-    let parsed = decode_persisted_state_value(state)?;
-    let state_json = serde_json::to_value(parsed).map_err(|e| {
-        AppError::new(
-            "SERIALIZE_ERROR",
-            format!("Failed to serialize state: {}", e),
-        )
-    })?;
+    // Save should be schema-tolerant so minor frontend/backed shape drift doesn't
+    // break persistence writes. Typed validation occurs during load normalization.
+    let state_json = normalize_state_for_storage(state)?;
 
     store.set("state", state_json);
     store
