@@ -16,9 +16,7 @@ import type {
   PresetPreferences,
   QuestionHistoryEntry,
   QuestionMode,
-  ReviewQuality,
   SavedQuestionSet,
-  SpacedRepetitionCard,
   StreakData,
   StudentAnswerImage,
   StudyGoals,
@@ -88,6 +86,10 @@ export interface AppState {
   writtenRawModelOutput: string;
   writtenGenerationTelemetry: GenerationTelemetry | null;
   activeWrittenSavedSetId: string | null;
+  markAppealByQuestionId: Record<string, string>;
+  markOverrideInputByQuestionId: Record<string, string>;
+  writtenMarkingDurationMsByQuestionId: Record<string, number>;
+  writtenResponseEnteredAtById: Record<string, number>;
 
   // ── MC session ─────────────────────────────────────────────────────────────
   mcQuestions: McQuestion[];
@@ -98,6 +100,8 @@ export interface AppState {
   mcRawModelOutput: string;
   mcGenerationTelemetry: GenerationTelemetry | null;
   activeMcSavedSetId: string | null;
+  mcMarkOverrideInputByQuestionId: Record<string, string>;
+  mcAwardedMarksByQuestionId: Record<string, number>;
 
   // ── Saved sets ─────────────────────────────────────────────────────────────
   savedSets: SavedQuestionSet[];
@@ -113,9 +117,6 @@ export interface AppState {
   batchProgress: BatchTopicProgress[];
   generationSubCallProgress: GenerationSubCallProgress | null;
   streamTexts: Record<string, string>;
-
-  // ── Spaced repetition ─────────────────────────────────────────────────────
-  spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
 
   // ── Study goals & streaks ─────────────────────────────────────────────────
   studyGoals: StudyGoals;
@@ -235,6 +236,16 @@ export interface AppActions {
     telemetry: GenerationTelemetry | null,
   ) => void;
   setActiveWrittenSavedSetId: (id: string | null) => void;
+  setMarkAppealByQuestionId: (update: Updater<Record<string, string>>) => void;
+  setMarkOverrideInputByQuestionId: (
+    update: Updater<Record<string, string>>,
+  ) => void;
+  setWrittenMarkingDurationMsByQuestionId: (
+    update: Updater<Record<string, number>>,
+  ) => void;
+  setWrittenResponseEnteredAtById: (
+    update: Updater<Record<string, number>>,
+  ) => void;
 
   // MC session
   setMcQuestions: (questions: McQuestion[]) => void;
@@ -255,6 +266,12 @@ export interface AppActions {
   setMcRawModelOutput: (output: string) => void;
   setMcGenerationTelemetry: (telemetry: GenerationTelemetry | null) => void;
   setActiveMcSavedSetId: (id: string | null) => void;
+  setMcMarkOverrideInputByQuestionId: (
+    update: Updater<Record<string, string>>,
+  ) => void;
+  setMcAwardedMarksByQuestionId: (
+    update: Updater<Record<string, number>>,
+  ) => void;
 
   // Generation / marking status
   setIsGenerating: (is: boolean) => void;
@@ -292,10 +309,6 @@ export interface AppActions {
   clearQuestionHistory: () => void;
   clearMcHistory: () => void;
 
-  // Spaced repetition
-  reviewSpacedCard: (questionId: string, quality: ReviewQuality) => void;
-  getDueCards: () => Array<{ questionId: string; card: SpacedRepetitionCard }>;
-
   // Study goals & streaks
   setStudyGoals: (goals: Partial<StudyGoals>) => void;
   recordCompletion: (mode: QuestionMode) => void;
@@ -316,6 +329,17 @@ export interface AppActions {
   // Logs
   addLog: (entry: Omit<LogEntry, 'id' | 'timestamp'>) => void;
   clearLogs: () => void;
+
+  // Marking Actions
+  submitWrittenAnswer: (markingModel: string) => Promise<void>;
+  argueForWrittenMark: (markingModel: string) => Promise<void>;
+  overrideWrittenMark: () => void;
+  submitMcAnswer: (selectedLabel: string) => void;
+  overrideMcMark: () => void;
+
+  // Navigation Actions
+  nextQuestion: () => void;
+  prevQuestion: () => void;
 
   // Import / Export
   importState: (imported: PersistedAppState) => void;

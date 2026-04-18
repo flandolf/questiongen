@@ -8,7 +8,6 @@ import type {
   Preset,
   QuestionHistoryEntry,
   SavedQuestionSet,
-  SpacedRepetitionCard,
   StreakData,
   StudentAnswerImage,
   StudyGoals,
@@ -16,6 +15,7 @@ import type {
 import { APP_VERSION } from '../views/settings/types';
 import {
   EMPTY_PERSISTED_APP_STATE,
+  isTauriRuntime,
   normalizePersistedAppState,
   savePersistedAppState,
 } from './persistence';
@@ -81,7 +81,6 @@ export interface ImportExportState {
   questionHistory: QuestionHistoryEntry[];
   mcHistory: McHistoryEntry[];
   savedSets: SavedQuestionSet[];
-  spacedRepetitionCards: Record<string, SpacedRepetitionCard>;
   studyGoals: StudyGoals;
   streakData: StreakData;
   generationHistory: GenerationRecord[];
@@ -106,7 +105,6 @@ export interface ImportCounts {
   newSavedSets: number;
   newPresets: number;
   newGenerationHistory: number;
-  newSpacedCards: number;
   totalImported: number;
 }
 
@@ -339,18 +337,13 @@ export function computeImportCounts(
   const newGenerationHistory = (imported.generationHistory ?? []).filter(
     (item) => !current.generationHistory.some((e) => e.id === item.id),
   ).length;
-  const importedCards = imported.spacedRepetition ?? {};
-  const newSpacedCards = Object.keys(importedCards).filter(
-    (key) => !(key in current.spacedRepetitionCards),
-  ).length;
 
   const totalImported =
     newQuestionHistory +
     newMcHistory +
     newSavedSets +
     newPresets +
-    newGenerationHistory +
-    newSpacedCards;
+    newGenerationHistory;
 
   return {
     newQuestionHistory,
@@ -358,7 +351,6 @@ export function computeImportCounts(
     newSavedSets,
     newPresets,
     newGenerationHistory,
-    newSpacedCards,
     totalImported,
   };
 }
@@ -381,13 +373,6 @@ export function mergeImportedState(
     current.generationHistory,
     imported.generationHistory ?? [],
   );
-
-  // Spaced repetition cards: merged by key, existing keys kept
-  const importedCards = imported.spacedRepetition ?? {};
-  merged.spacedRepetitionCards = {
-    ...importedCards,
-    ...current.spacedRepetitionCards,
-  };
 
   // Settings: overwrite, but preserve local API key
   merged.model = imported.settings.model;
@@ -529,27 +514,10 @@ function buildExportSnapshot(
     ),
     mcHistory: s.mcHistory,
     savedSets: s.savedSets,
-    spacedRepetition: s.spacedRepetitionCards,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
     generationHistory: s.generationHistory,
     presets: s.presets,
     timeAllocations: s.timeAllocations,
   };
-}
-
-function isTauriRuntime(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const runtimeWindow = window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
-  };
-
-  return (
-    typeof runtimeWindow.__TAURI__ !== 'undefined' ||
-    typeof runtimeWindow.__TAURI_INTERNALS__ !== 'undefined'
-  );
 }

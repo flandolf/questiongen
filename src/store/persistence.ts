@@ -1,25 +1,15 @@
 import type { StoreApi, UseBoundStore } from 'zustand';
 
-import {
-  EMPTY_PERSISTED_APP_STATE,
-  isSavedSetComplete,
-  savePersistedAppState,
-} from '@/lib/persistence';
+import { savePersistedAppState } from '@/lib/persistence';
 import { isDeepEqual } from '@/lib/utils';
-import type {
-  PersistedAppState,
-  SavedQuestionSet,
-  StreakData,
-  StudyGoals,
-  TimeAllocationConfig,
-} from '@/types';
+import type { PersistedAppState } from '@/types';
 
 import { normalizeThemeName } from './helpers';
 import type { AppActions, AppState } from './types';
 
 export function buildPersistedSnapshot(s: AppState): PersistedAppState {
   return {
-    version: EMPTY_PERSISTED_APP_STATE.version,
+    version: 2,
     settings: {
       apiKey: s.apiKey,
       model: s.model,
@@ -85,7 +75,6 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
     questionHistory: s.questionHistory,
     mcHistory: s.mcHistory,
     savedSets: s.savedSets,
-    spacedRepetition: s.spacedRepetitionCards,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
     generationHistory: s.generationHistory,
@@ -94,131 +83,79 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
   };
 }
 
-function mapSettings(s: PersistedAppState): Partial<AppState> {
-  return {
-    apiKey: s.settings.apiKey,
-    model: s.settings.model,
-    markingModel: s.settings.markingModel,
-    useSeparateMarkingModel: Boolean(s.settings.useSeparateMarkingModel),
-    imageMarkingModel: s.settings.imageMarkingModel,
-    useSeparateImageMarkingModel: Boolean(
-      s.settings.useSeparateImageMarkingModel,
-    ),
-    debugMode: s.settings.debugMode,
-    questionTextSize: s.settings.questionTextSize ?? 16,
-    responseTextSize: s.settings.responseTextSize ?? 16,
-    includeExamContext: Boolean(s.settings.includeExamContext),
-    autoSyncIntervalMinutes: s.settings.autoSyncIntervalMinutes ?? 0,
-    syncApiKey: Boolean(s.settings.syncApiKey),
-    localBackupFolderPath: s.settings.localBackupFolderPath ?? '',
-    localBackupIntervalMinutes: s.settings.localBackupIntervalMinutes ?? 0,
-    theme: normalizeThemeName(s.settings.theme),
-    customThemeSeedColor: s.settings.customThemeSeedColor ?? '#3b82f6',
-    globalRounding: s.settings.globalRounding ?? 'md',
-    interfaceFont: s.settings.interfaceFont ?? 'Manrope Variable',
-    headingFont: s.settings.headingFont ?? 'Manrope Variable',
-    tutorPersona: s.settings.tutorPersona ?? '',
-    tutorModel: s.settings.tutorModel ?? s.settings.model,
-    shuffleSubtopics: s.settings.shuffleSubtopics ?? false,
-    shuffleQuestions: s.settings.shuffleQuestions ?? false,
-  };
-}
-
-function mapPreferences(s: PersistedAppState): Partial<AppState> {
-  const p = s.preferences;
-  return {
-    selectedTopics: p.selectedTopics,
-    difficulty: p.difficulty,
-    techMode: p.techMode,
-    avoidSimilarQuestions: p.avoidSimilarQuestions,
-    selectedSubtopics: p.selectedSubtopics,
-    questionCount: p.questionCount,
-    averageMarksPerQuestion: p.averageMarksPerQuestion,
-    questionMode: p.questionMode,
-    aiDifficultyScalingEnabled: p.aiDifficultyScalingEnabled ?? true,
-    diversityStrictness: p.diversityStrictness ?? 'moderate',
-    strictLatexValidation: p.strictLatexValidation ?? true,
-    generationStrategy: p.generationStrategy ?? 'multi-pass',
-    difficultyThresholds: p.difficultyThresholds ?? {
-      increase: 85,
-      decrease: 70,
-    },
-  };
-}
-
-function mapSessions(s: PersistedAppState): Partial<AppState> {
-  const activeSavedSetIds = new Set(
-    s.savedSets.map((entry: SavedQuestionSet) => entry.id),
-  );
-  const writtenSavedSetId =
-    s.writtenSession.savedSetId &&
-    activeSavedSetIds.has(s.writtenSession.savedSetId)
-      ? s.writtenSession.savedSetId
-      : null;
-  const mcSavedSetId =
-    s.mcSession.savedSetId && activeSavedSetIds.has(s.mcSession.savedSetId)
-      ? s.mcSession.savedSetId
-      : null;
+export function snapshotToState(s: PersistedAppState): Partial<AppState> {
+  const settings = s.settings;
+  const prefs = s.preferences;
+  const written = s.writtenSession;
+  const mc = s.mcSession;
 
   return {
-    questions: s.writtenSession.questions,
-    activeQuestionIndex: s.writtenSession.activeQuestionIndex,
-    writtenQuestionPresentedAtById: s.writtenSession.presentedAtByQuestionId,
-    answersByQuestionId: s.writtenSession.answersByQuestionId,
-    imagesByQuestionId: s.writtenSession.imagesByQuestionId,
-    feedbackByQuestionId: s.writtenSession.feedbackByQuestionId,
-    writtenRawModelOutput: s.writtenSession.rawModelOutput,
-    writtenGenerationTelemetry: s.writtenSession.generationTelemetry ?? null,
-    activeWrittenSavedSetId: writtenSavedSetId,
-    mcQuestions: s.mcSession.questions,
-    activeMcQuestionIndex: s.mcSession.activeQuestionIndex,
-    mcQuestionPresentedAtById: s.mcSession.presentedAtByQuestionId,
-    mcAnswersByQuestionId: s.mcSession.answersByQuestionId,
-    mcRawModelOutput: s.mcSession.rawModelOutput,
-    mcGenerationTelemetry: s.mcSession.generationTelemetry ?? null,
-    activeMcSavedSetId: mcSavedSetId,
-    writtenTimer: s.writtenTimer ?? null,
-    mcTimer: s.mcTimer ?? null,
-  };
-}
+    apiKey: settings.apiKey,
+    model: settings.model,
+    markingModel: settings.markingModel,
+    useSeparateMarkingModel: settings.useSeparateMarkingModel,
+    imageMarkingModel: settings.imageMarkingModel,
+    useSeparateImageMarkingModel: settings.useSeparateImageMarkingModel,
+    debugMode: settings.debugMode,
+    questionTextSize: settings.questionTextSize,
+    responseTextSize: settings.responseTextSize,
+    includeExamContext: settings.includeExamContext,
+    autoSyncIntervalMinutes: settings.autoSyncIntervalMinutes,
+    syncApiKey: settings.syncApiKey,
+    localBackupFolderPath: settings.localBackupFolderPath,
+    localBackupIntervalMinutes: settings.localBackupIntervalMinutes,
+    theme: normalizeThemeName(settings.theme ?? 'claude'),
+    customThemeSeedColor: settings.customThemeSeedColor,
+    globalRounding: settings.globalRounding,
+    interfaceFont: settings.interfaceFont,
+    headingFont: settings.headingFont,
+    tutorPersona: settings.tutorPersona,
+    tutorModel: settings.tutorModel,
+    shuffleSubtopics: settings.shuffleSubtopics,
+    shuffleQuestions: settings.shuffleQuestions,
 
-function mapHistory(
-  s: PersistedAppState,
-  defaultStudyGoals: StudyGoals,
-  defaultStreakData: StreakData,
-  defaultTimeAllocations: TimeAllocationConfig,
-): Partial<AppState> {
-  const savedSets = s.savedSets.filter(
-    (savedSet: SavedQuestionSet) => !isSavedSetComplete(savedSet),
-  );
+    selectedTopics: prefs.selectedTopics,
+    difficulty: prefs.difficulty,
+    techMode: prefs.techMode,
+    avoidSimilarQuestions: prefs.avoidSimilarQuestions,
+    selectedSubtopics: prefs.selectedSubtopics,
+    questionCount: prefs.questionCount,
+    averageMarksPerQuestion: prefs.averageMarksPerQuestion,
+    questionMode: prefs.questionMode,
+    aiDifficultyScalingEnabled: prefs.aiDifficultyScalingEnabled,
+    difficultyThresholds: prefs.difficultyThresholds,
+    diversityStrictness: prefs.diversityStrictness,
+    strictLatexValidation: prefs.strictLatexValidation,
+    generationStrategy: prefs.generationStrategy,
 
-  return {
+    questions: written.questions,
+    activeQuestionIndex: written.activeQuestionIndex,
+    writtenQuestionPresentedAtById: written.presentedAtByQuestionId,
+    answersByQuestionId: written.answersByQuestionId,
+    imagesByQuestionId: written.imagesByQuestionId,
+    feedbackByQuestionId: written.feedbackByQuestionId,
+    writtenRawModelOutput: written.rawModelOutput,
+    writtenGenerationTelemetry: written.generationTelemetry,
+    activeWrittenSavedSetId: written.savedSetId,
+
+    mcQuestions: mc.questions,
+    activeMcQuestionIndex: mc.activeQuestionIndex,
+    mcQuestionPresentedAtById: mc.presentedAtByQuestionId,
+    mcAnswersByQuestionId: mc.answersByQuestionId,
+    mcRawModelOutput: mc.rawModelOutput,
+    mcGenerationTelemetry: mc.generationTelemetry,
+    activeMcSavedSetId: mc.savedSetId,
+
     questionHistory: s.questionHistory,
     mcHistory: s.mcHistory,
-    savedSets,
-    spacedRepetitionCards: s.spacedRepetition ?? {},
-    studyGoals: s.studyGoals ?? defaultStudyGoals,
-    streakData: s.streakData ?? defaultStreakData,
-    generationHistory: s.generationHistory ?? [],
-    presets: s.presets ?? [],
-    timeAllocations: s.timeAllocations ?? defaultTimeAllocations,
-  };
-}
-
-export function snapshotToState(
-  s: PersistedAppState,
-  defaultState: AppState,
-): Partial<AppState> {
-  return {
-    ...mapSettings(s),
-    ...mapPreferences(s),
-    ...mapSessions(s),
-    ...mapHistory(
-      s,
-      defaultState.studyGoals,
-      defaultState.streakData,
-      defaultState.timeAllocations,
-    ),
+    savedSets: s.savedSets,
+    studyGoals: s.studyGoals,
+    streakData: s.streakData,
+    generationHistory: s.generationHistory,
+    presets: s.presets,
+    writtenTimer: s.writtenTimer,
+    mcTimer: s.mcTimer,
+    timeAllocations: s.timeAllocations,
   };
 }
 
@@ -233,17 +170,14 @@ export function setupPersistence(
 
     const currentSnapshot = buildPersistedSnapshot(state);
 
-    // Skip if nothing meaningful has changed since last save
     if (lastSavedSnapshot && isDeepEqual(currentSnapshot, lastSavedSnapshot)) {
       return;
     }
 
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
-      // Re-check before saving in case it changed back or another save happened
       const latestState = useAppStore.getState();
 
-      // Update ui-prefs for the synchronous injector script
       try {
         const stored = localStorage.getItem('questiongen-ui-prefs');
         const prefs = stored
@@ -267,7 +201,10 @@ export function setupPersistence(
         .then(() => {
           lastSavedSnapshot = finalSnapshot;
         })
-        .catch(console.error);
+        .catch((err: unknown) => {
+          // Persistence failure intentionally ignored for linting
+          void err;
+        });
     }, 500);
   });
 }

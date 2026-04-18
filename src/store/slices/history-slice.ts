@@ -12,7 +12,6 @@ import {
   updateStudyGoals,
 } from '@/context/modules/sync/mutations';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
-import { createCard, isDue, reviewCard } from '@/lib/spaced-repetition';
 import { getTodayKey } from '@/lib/utils';
 import type {
   PersistedGeneratorPreferences,
@@ -33,7 +32,6 @@ export interface HistorySlice {
   questionHistory: AppState['questionHistory'];
   mcHistory: AppState['mcHistory'];
   savedSets: AppState['savedSets'];
-  spacedRepetitionCards: AppState['spacedRepetitionCards'];
   studyGoals: AppState['studyGoals'];
   streakData: AppState['streakData'];
   timeAllocations: AppState['timeAllocations'];
@@ -57,9 +55,6 @@ export interface HistorySlice {
   clearQuestionHistory: AppActions['clearQuestionHistory'];
   clearMcHistory: AppActions['clearMcHistory'];
 
-  reviewSpacedCard: AppActions['reviewSpacedCard'];
-  getDueCards: AppActions['getDueCards'];
-
   setStudyGoals: AppActions['setStudyGoals'];
   recordCompletion: AppActions['recordCompletion'];
   getTodayCompletions: AppActions['getTodayCompletions'];
@@ -80,7 +75,6 @@ export const createHistorySlice: StateCreator<
   questionHistory: EMPTY_PERSISTED_APP_STATE.questionHistory,
   mcHistory: EMPTY_PERSISTED_APP_STATE.mcHistory,
   savedSets: EMPTY_PERSISTED_APP_STATE.savedSets,
-  spacedRepetitionCards: {},
   studyGoals: {
     dailyQuestionGoal: 10,
     dailyWrittenGoal: 5,
@@ -390,26 +384,6 @@ export const createHistorySlice: StateCreator<
       return { mcHistory: [] };
     });
   },
-
-  reviewSpacedCard: (id, q) =>
-    set((s) => {
-      const card = s.spacedRepetitionCards[id]
-        ? reviewCard(s.spacedRepetitionCards[id], q)
-        : reviewCard(createCard(), q);
-      return {
-        spacedRepetitionCards: { ...s.spacedRepetitionCards, [id]: card },
-      };
-    }),
-
-  getDueCards: () =>
-    Object.entries(get().spacedRepetitionCards)
-      .filter(([, c]) => isDue(c))
-      .map(([id, c]) => ({ questionId: id, card: c }))
-      .sort(
-        (a, b) =>
-          new Date(a.card.nextReviewDate).getTime() -
-          new Date(b.card.nextReviewDate).getTime(),
-      ),
 
   setStudyGoals: (goals) =>
     set((s) => {

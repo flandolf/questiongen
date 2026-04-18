@@ -30,12 +30,8 @@ export const useAppStore = create<AppState & AppActions>()(
         const persisted = await loadPersistedAppState();
         setLastSavedSnapshot(persisted);
 
-        // We need a base state to apply the snapshot to.
-        // We'll use the current state from the store.
-        const currentState = get();
-
         set({
-          ...snapshotToState(persisted, currentState as AppState),
+          ...snapshotToState(persisted),
           isHydrated: true,
         });
         console.info('Hydration successful', {

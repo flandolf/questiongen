@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,19 +16,13 @@ import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
-import {
-  fileToDataUrl,
-  normalizeMarkResponse,
-  readBackendError,
-} from '@/lib/app-utils';
+import { fileToDataUrl, readBackendError } from '@/lib/app-utils';
 import { deleteImage, uploadImageDataUrl } from '@/lib/firebase-storage';
 import {
   generateQuestionsOrchestrator,
   getCanGenerate,
 } from '@/lib/generation-orchestrator';
 import {
-  countWords,
-  generateEntryId,
   getDifficultyBadgeClasses,
   hashStringForSeed,
   isMathTopic,
@@ -42,14 +35,10 @@ import type {
   GenerationTokenEvent,
   MarkAnswerResponse,
   MarkingCriterion,
-  McAttemptKind,
-  McHistoryEntry,
   McQuestion,
   PresetPreferences,
-  QuestionHistoryEntry,
   StudentAnswerImage,
   Topic,
-  WrittenAttemptKind,
 } from '@/types';
 import {
   BIOLOGY_SUBTOPICS,
@@ -104,29 +93,6 @@ export function GeneratorView() {
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
   const [_showMarkingScreen, setShowMarkingScreen] = useState(false);
-
-  const [markAppealByQuestionId, setMarkAppealByQuestionId] = useState<
-    Record<string, string>
-  >({});
-  const [markOverrideInputByQuestionId, setMarkOverrideInputByQuestionId] =
-    useState<Record<string, string>>({});
-  const [mcMarkOverrideInputByQuestionId, setMcMarkOverrideInputByQuestionId] =
-    useState<Record<string, string>>({});
-  const [
-    writtenHistoryEntryIdByQuestionId,
-    setWrittenHistoryEntryIdByQuestionId,
-  ] = useState<Record<string, string>>({});
-  const [mcHistoryEntryIdByQuestionId, setMcHistoryEntryIdByQuestionId] =
-    useState<Record<string, string>>({});
-  const [mcAwardedMarksByQuestionId, setMcAwardedMarksByQuestionId] = useState<
-    Record<string, number>
-  >({});
-  const [
-    writtenMarkingDurationMsByQuestionId,
-    setWrittenMarkingDurationMsByQuestionId,
-  ] = useState<Record<string, number>>({});
-  const [writtenResponseEnteredAtById, setWrittenResponseEnteredAtById] =
-    useState<Record<string, number>>({});
 
   const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
     try {
@@ -191,13 +157,21 @@ export function GeneratorView() {
     feedbackByQuestionId,
     setFeedbackByQuestionId,
     questionHistory,
-    addQuestionHistoryEntry,
     updateQuestionHistoryEntry,
-    deleteQuestionHistoryEntry,
     activeWrittenSavedSetId,
     setActiveWrittenSavedSetId,
-    writtenGenerationTelemetry,
     setWrittenQuestionPresentedAtById,
+    markAppealByQuestionId,
+    setMarkAppealByQuestionId,
+    markOverrideInputByQuestionId,
+    setMarkOverrideInputByQuestionId,
+    writtenMarkingDurationMsByQuestionId,
+    setWrittenResponseEnteredAtById,
+    submitWrittenAnswer,
+    argueForWrittenMark,
+    overrideWrittenMark,
+    nextQuestion,
+    prevQuestion,
   } = useWrittenSession();
 
   const {
@@ -207,14 +181,15 @@ export function GeneratorView() {
     setActiveMcQuestionIndex,
     mcAnswersByQuestionId,
     setMcAnswersByQuestionId,
-    mcHistory,
-    addMcHistoryEntry,
-    updateMcHistoryEntry,
-    deleteMcHistoryEntry,
     activeMcSavedSetId,
     setActiveMcSavedSetId,
-    mcGenerationTelemetry,
     setMcQuestionPresentedAtById,
+    mcMarkOverrideInputByQuestionId,
+    setMcMarkOverrideInputByQuestionId,
+    mcAwardedMarksByQuestionId,
+    setMcAwardedMarksByQuestionId,
+    submitMcAnswer,
+    overrideMcMark,
   } = useMultipleChoiceSession();
 
   const {
@@ -222,7 +197,6 @@ export function GeneratorView() {
     generationStatus,
     generationStartedAt,
     isMarking,
-    setIsMarking,
     setErrorMessage,
     batchProgress,
     generationSubCallProgress,
@@ -528,12 +502,12 @@ export function GeneratorView() {
     (value: string) => {
       if (!activeQuestion) return;
       const questionId = activeQuestion.id;
-      setAnswersByQuestionId((prev: Record<string, string>) => ({
+      setAnswersByQuestionId((prev) => ({
         ...prev,
         [questionId]: value,
       }));
       if (value.trim().length > 0) {
-        setWrittenResponseEnteredAtById((prev: Record<string, number>) =>
+        setWrittenResponseEnteredAtById((prev) =>
           prev[questionId] !== undefined
             ? prev
             : { ...prev, [questionId]: Date.now() },
@@ -554,13 +528,11 @@ export function GeneratorView() {
 
       void fileToDataUrl(file)
         .then(async (dataUrl) => {
-          setImagesByQuestionId(
-            (prev: Record<string, StudentAnswerImage | undefined>) => ({
-              ...prev,
-              [questionId]: { id: imageId, dataUrl, timestamp },
-            }),
-          );
-          setWrittenResponseEnteredAtById((prev: Record<string, number>) =>
+          setImagesByQuestionId((prev) => ({
+            ...prev,
+            [questionId]: { id: imageId, dataUrl, timestamp },
+          }));
+          setWrittenResponseEnteredAtById((prev) =>
             prev[questionId] !== undefined
               ? prev
               : { ...prev, [questionId]: Date.now() },
@@ -573,18 +545,16 @@ export function GeneratorView() {
                 questionId,
                 imageId,
               );
-              setImagesByQuestionId(
-                (prev: Record<string, StudentAnswerImage | undefined>) => ({
-                  ...prev,
-                  [questionId]: {
-                    id: imageId,
-                    dataUrl,
-                    storagePath,
-                    downloadUrl,
-                    timestamp,
-                  },
-                }),
-              );
+              setImagesByQuestionId((prev) => ({
+                ...prev,
+                [questionId]: {
+                  id: imageId,
+                  dataUrl,
+                  storagePath,
+                  downloadUrl,
+                  timestamp,
+                },
+              }));
             } catch (error) {
               console.error('Firebase upload failed:', error);
               toast.error('Failed to upload image to cloud storage.');
@@ -610,16 +580,13 @@ export function GeneratorView() {
     if (currentImage?.storagePath) {
       void deleteImage(currentImage.storagePath).catch(console.error);
     }
-    setImagesByQuestionId(
-      (prev: Record<string, StudentAnswerImage | undefined>) =>
-        removeKey(prev, activeQuestion.id),
-    );
+    setImagesByQuestionId((prev) => removeKey(prev, activeQuestion.id));
   }, [activeQuestion, imagesByQuestionId, setImagesByQuestionId]);
 
   const handleAppealChange = useCallback(
     (value: string) => {
       if (!activeQuestion) return;
-      setMarkAppealByQuestionId((prev: Record<string, string>) => ({
+      setMarkAppealByQuestionId((prev) => ({
         ...prev,
         [activeQuestion.id]: value,
       }));
@@ -630,7 +597,7 @@ export function GeneratorView() {
   const handleOverrideInputChange = useCallback(
     (value: string) => {
       if (!activeQuestion) return;
-      setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
+      setMarkOverrideInputByQuestionId((prev) => ({
         ...prev,
         [activeQuestion.id]: value,
       }));
@@ -641,7 +608,7 @@ export function GeneratorView() {
   const handleMcOverrideInputChange = useCallback(
     (value: string) => {
       if (!activeMcQuestion) return;
-      setMcMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
+      setMcMarkOverrideInputByQuestionId((prev) => ({
         ...prev,
         [activeMcQuestion.id]: value,
       }));
@@ -755,17 +722,8 @@ export function GeneratorView() {
       setShowCompletionScreen(true);
       return;
     }
-    setActiveQuestionIndex(
-      Math.min(questions.length - 1, activeQuestionIndex + 1),
-    );
-  }, [
-    canAdvanceWritten,
-    isAtLastWrittenQuestion,
-    questions.length,
-    activeQuestionIndex,
-    setActiveQuestionIndex,
-    writtenTimer,
-  ]);
+    nextQuestion();
+  }, [canAdvanceWritten, isAtLastWrittenQuestion, nextQuestion, writtenTimer]);
 
   const handleNextMcQuestion = useCallback(() => {
     if (!canAdvanceMc) return;
@@ -774,25 +732,16 @@ export function GeneratorView() {
       setShowCompletionScreen(true);
       return;
     }
-    setActiveMcQuestionIndex(
-      Math.min(mcQuestions.length - 1, activeMcQuestionIndex + 1),
-    );
-  }, [
-    canAdvanceMc,
-    isAtLastMcQuestion,
-    mcQuestions.length,
-    activeMcQuestionIndex,
-    setActiveMcQuestionIndex,
-    mcTimer,
-  ]);
+    nextQuestion();
+  }, [canAdvanceMc, isAtLastMcQuestion, nextQuestion, mcTimer]);
 
   const handlePrevWritten = useCallback(() => {
-    setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1));
-  }, [activeQuestionIndex, setActiveQuestionIndex]);
+    prevQuestion();
+  }, [prevQuestion]);
 
   const handlePrevMc = useCallback(() => {
-    setActiveMcQuestionIndex(Math.max(0, activeMcQuestionIndex - 1));
-  }, [activeMcQuestionIndex, setActiveMcQuestionIndex]);
+    prevQuestion();
+  }, [prevQuestion]);
 
   const handleCancelWrittenQuestion = useCallback(() => {
     if (!activeQuestion) return;
@@ -870,240 +819,37 @@ export function GeneratorView() {
     setActiveMcSavedSetId,
   ]);
 
-  const getWrittenAttemptSequence = useCallback(
-    (qId: string) =>
-      questionHistory.filter((e: QuestionHistoryEntry) => e.question.id === qId)
-        .length + 1,
-    [questionHistory],
-  );
-  const getMcAttemptSequence = useCallback(
-    (qId: string) =>
-      mcHistory.filter((e: McHistoryEntry) => e.question.id === qId).length + 1,
-    [mcHistory],
-  );
-
-  const appendMcHistoryEntry = useCallback(
-    (
-      question: McQuestion,
-      selectedAnswer: string,
-      awardedMarks: number,
-      attemptKind: McAttemptKind,
-      responseEnteredAtMs?: number,
-    ) => {
-      if (!question) return;
-      const timing = mcTimer.getQuestionTiming(question.id);
-      const responseAt = responseEnteredAtMs ?? Date.now();
-      const now = Date.now();
-      const entry: McHistoryEntry = {
-        type: 'multiple-choice',
-        id: generateEntryId(),
-        createdAt: new Date(now).toISOString(),
-        lastModified: now,
-        question,
-        selectedAnswer,
-        correct: awardedMarks >= 1,
-        awardedMarks,
-        maxMarks: 1,
-        generationTelemetry: mcGenerationTelemetry ?? undefined,
-        difficulty: difficulty,
-        analytics: {
-          attemptKind,
-          attemptSequence: getMcAttemptSequence(question.id),
-          answerCharacterCount: 0,
-          answerWordCount: 0,
-          usedImageUpload: false,
-          responseLatencyMs: timing ? timing.elapsedSeconds * 1000 : undefined,
-          finalAnswerChangedAtMs: responseAt,
-        },
-      };
-      addMcHistoryEntry(entry);
-      setMcHistoryEntryIdByQuestionId((prev: Record<string, string>) => ({
-        ...prev,
-        [question.id]: entry.id,
-      }));
-
-      useAppStore
-        .getState()
-        .reviewSpacedCard(question.id, awardedMarks >= 1 ? 4 : 1);
-    },
-    [
-      mcTimer,
-      mcGenerationTelemetry,
-      difficulty,
-      getMcAttemptSequence,
-      addMcHistoryEntry,
-    ],
-  );
-
-  const updateLatestMcHistoryEntryMark = useCallback(
-    (questionId: string, awardedMarks: number) => {
-      const now = Date.now();
-      const latestMcHistory = useAppStore.getState().mcHistory;
-      const trackedEntryId = mcHistoryEntryIdByQuestionId[questionId];
-      const entry = trackedEntryId
-        ? latestMcHistory.find((e: McHistoryEntry) => e.id === trackedEntryId)
-        : latestMcHistory.find(
-            (e: McHistoryEntry) => e.question.id === questionId,
-          );
-      if (!entry) return;
-      const updatedEntry = {
-        ...entry,
-        correct: awardedMarks >= 1,
-        awardedMarks,
-        lastModified: now,
-      };
-      updateMcHistoryEntry(updatedEntry);
-    },
-    [mcHistoryEntryIdByQuestionId, updateMcHistoryEntry],
-  );
-
-  const updateLatestWrittenHistoryEntry = useCallback(
-    (questionId: string, response: MarkAnswerResponse) => {
-      const now = Date.now();
-      const latestQuestionHistory = useAppStore.getState().questionHistory;
-      const trackedEntryId = writtenHistoryEntryIdByQuestionId[questionId];
-      const entry = trackedEntryId
-        ? latestQuestionHistory.find(
-            (e: QuestionHistoryEntry) => e.id === trackedEntryId,
-          )
-        : latestQuestionHistory.find(
-            (e: QuestionHistoryEntry) => e.question.id === questionId,
-          );
-      if (!entry) return;
-      const updatedEntry = {
-        ...entry,
-        markResponse: response,
-        workedSolutionMarkdown: response.workedSolutionMarkdown,
-        lastModified: now,
-      };
-      updateQuestionHistoryEntry(updatedEntry);
-    },
-    [writtenHistoryEntryIdByQuestionId, updateQuestionHistoryEntry],
-  );
-
-  const appendWrittenHistoryEntry = useCallback(
-    (
-      question: GeneratedQuestion,
-      response: MarkAnswerResponse,
-      options?: {
-        uploadedAnswerOverride?: string;
-        uploadedAnswerImageOverride?: StudentAnswerImage;
-        attemptKind?: WrittenAttemptKind;
-        markingLatencyMs?: number;
-        responseEnteredAtMs?: number;
-      },
-    ) => {
-      if (!question) return;
-      const uploadedAnswer =
-        options?.uploadedAnswerOverride ??
-        answersByQuestionId[question.id] ??
-        '';
-      const uploadedAnswerImage =
-        options?.uploadedAnswerImageOverride ?? imagesByQuestionId[question.id];
-      const timing = writtenTimer.getQuestionTiming(question.id);
-      const now = Date.now();
-      const entry: QuestionHistoryEntry = {
-        id: generateEntryId(),
-        createdAt: new Date(now).toISOString(),
-        lastModified: now,
-        question,
-        uploadedAnswer,
-        uploadedAnswerImage,
-        workedSolutionMarkdown: response.workedSolutionMarkdown,
-        markResponse: response,
-        generationTelemetry: writtenGenerationTelemetry ?? undefined,
-        difficulty: difficulty,
-        analytics: {
-          attemptKind: options?.attemptKind ?? 'initial',
-          attemptSequence: getWrittenAttemptSequence(question.id),
-          answerCharacterCount: uploadedAnswer.length,
-          answerWordCount: countWords(uploadedAnswer),
-          usedImageUpload: Boolean(imagesByQuestionId[question.id]),
-          responseLatencyMs: timing ? timing.elapsedSeconds * 1000 : undefined,
-          markingLatencyMs: options?.markingLatencyMs,
-        },
-      };
-      addQuestionHistoryEntry(entry);
-      setWrittenHistoryEntryIdByQuestionId((prev: Record<string, string>) => ({
-        ...prev,
-        [question.id]: entry.id,
-      }));
-
-      const isCorrect =
-        response.verdict?.toLowerCase() === 'correct' ||
-        (response.maxMarks > 0 && response.achievedMarks >= response.maxMarks);
-      useAppStore.getState().reviewSpacedCard(question.id, isCorrect ? 4 : 1);
-    },
-    [
-      answersByQuestionId,
-      imagesByQuestionId,
-      writtenTimer,
-      writtenGenerationTelemetry,
-      difficulty,
-      getWrittenAttemptSequence,
-      addQuestionHistoryEntry,
-    ],
-  );
-
   const performConfirmedCancel = useCallback(() => {
     if (pendingCancelType === 'written' && activeQuestion) {
       const id = activeQuestion.id;
-      const next = questions.filter((q: GeneratedQuestion) => q.id !== id);
+      const next = questions.filter((q) => q.id !== id);
       setQuestions(next);
       setActiveWrittenSavedSetId(null);
       setShowCompletionScreen(false);
       setActiveQuestionIndex(
         Math.min(activeQuestionIndex, Math.max(0, next.length - 1)),
       );
-      setAnswersByQuestionId((p: Record<string, string>) => removeKey(p, id));
-      setImagesByQuestionId(
-        (p: Record<string, StudentAnswerImage | undefined>) => removeKey(p, id),
-      );
-      setFeedbackByQuestionId((p: Record<string, MarkAnswerResponse>) =>
-        removeKey(p, id),
-      );
-      setMarkAppealByQuestionId((p: Record<string, string>) =>
-        removeKey(p, id),
-      );
-      setMarkOverrideInputByQuestionId((p: Record<string, string>) =>
-        removeKey(p, id),
-      );
-      setWrittenHistoryEntryIdByQuestionId((p: Record<string, string>) =>
-        removeKey(p, id),
-      );
-      setWrittenResponseEnteredAtById((p: Record<string, number>) =>
-        removeKey(p, id),
-      );
-      const writtenHistoryEntryId = writtenHistoryEntryIdByQuestionId[id];
-      if (writtenHistoryEntryId) {
-        deleteQuestionHistoryEntry(writtenHistoryEntryId);
-      }
+      setAnswersByQuestionId((p) => removeKey(p, id));
+      setImagesByQuestionId((p) => removeKey(p, id));
+      setFeedbackByQuestionId((p) => removeKey(p, id));
+      setMarkAppealByQuestionId((p) => removeKey(p, id));
+      setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+      setWrittenResponseEnteredAtById((p) => removeKey(p, id));
       writtenTimer.removeQuestion(id);
       setErrorMessage(null);
     }
     if (pendingCancelType === 'mc' && activeMcQuestion) {
       const id = activeMcQuestion.id;
-      const next = mcQuestions.filter((q: McQuestion) => q.id !== id);
+      const next = mcQuestions.filter((q) => q.id !== id);
       setMcQuestions(next);
       setActiveMcSavedSetId(null);
       setShowCompletionScreen(false);
       setActiveMcQuestionIndex(
         Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)),
       );
-      setMcAnswersByQuestionId((p: Record<string, string>) => removeKey(p, id));
-      setMcMarkOverrideInputByQuestionId((p: Record<string, string>) =>
-        removeKey(p, id),
-      );
-      setMcHistoryEntryIdByQuestionId((p: Record<string, string>) =>
-        removeKey(p, id),
-      );
-      setMcAwardedMarksByQuestionId((p: Record<string, number>) =>
-        removeKey(p, id),
-      );
-      const mcHistoryEntryId = mcHistoryEntryIdByQuestionId[id];
-      if (mcHistoryEntryId) {
-        deleteMcHistoryEntry(mcHistoryEntryId);
-      }
+      setMcAnswersByQuestionId((p) => removeKey(p, id));
+      setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+      setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
       mcTimer.removeQuestion(id);
       setErrorMessage(null);
     }
@@ -1126,19 +872,14 @@ export function GeneratorView() {
     setAnswersByQuestionId,
     setImagesByQuestionId,
     setFeedbackByQuestionId,
-    writtenHistoryEntryIdByQuestionId,
-    deleteQuestionHistoryEntry,
     writtenTimer,
     setMcQuestions,
     setActiveMcQuestionIndex,
     setMcAnswersByQuestionId,
-    deleteMcHistoryEntry,
-    mcHistoryEntryIdByQuestionId,
     mcTimer,
     setErrorMessage,
     setMarkAppealByQuestionId,
     setMarkOverrideInputByQuestionId,
-    setWrittenHistoryEntryIdByQuestionId,
     setWrittenResponseEnteredAtById,
     setMcMarkOverrideInputByQuestionId,
     setMcAwardedMarksByQuestionId,
@@ -1188,76 +929,29 @@ export function GeneratorView() {
       )
         return;
       setErrorMessage(null);
-      setIsMarking(true);
       setShowMarkingScreen(true);
       setLastFailedAction(null);
       try {
-        let finalImage = effectiveImage;
         if (payload?.image) {
-          finalImage = payload.image;
-          setImagesByQuestionId(
-            (prev: Record<string, StudentAnswerImage | undefined>) => ({
-              ...prev,
-              [activeQuestion.id]: finalImage,
-            }),
-          );
-          finalImage = await resolveWrittenMarkImage(
+          const image = payload.image;
+          setImagesByQuestionId((prev) => ({
+            ...prev,
+            [activeQuestion.id]: image,
+          }));
+          const resolved = await resolveWrittenMarkImage(
             activeQuestion.id,
-            finalImage,
+            image,
           );
-          setImagesByQuestionId(
-            (prev: Record<string, StudentAnswerImage | undefined>) => ({
-              ...prev,
-              [activeQuestion.id]: finalImage,
-            }),
-          );
+          setImagesByQuestionId((prev) => ({
+            ...prev,
+            [activeQuestion.id]: resolved,
+          }));
         }
-        const responseEnteredAtMs =
-          writtenResponseEnteredAtById[activeQuestion.id] ?? Date.now();
-        const markStartedAt = Date.now();
-        const rawResponse = await invoke<unknown>('mark_answer', {
-          request: {
-            question: activeQuestion,
-            studentAnswer: activeQuestionAnswer,
-            studentAnswerImageDataUrl: finalImage?.dataUrl,
-            model: markModel,
-            apiKey,
-          },
-        });
-        const markingLatencyMs = Date.now() - markStartedAt;
-        const response = normalizeMarkResponse(
-          rawResponse,
-          activeQuestion.maxMarks,
-        );
-        setWrittenMarkingDurationMsByQuestionId((prev) => ({
-          ...prev,
-          [activeQuestion.id]: markingLatencyMs,
-        }));
-        setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
-          ...prev,
-          [activeQuestion.id]: response,
-        }));
-        setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
-          ...prev,
-          [activeQuestion.id]: String(response.achievedMarks),
-        }));
-        appendWrittenHistoryEntry(activeQuestion, response, {
-          uploadedAnswerOverride: activeQuestionAnswer,
-          uploadedAnswerImageOverride: finalImage,
-          attemptKind: 'initial',
-          markingLatencyMs,
-          responseEnteredAtMs,
-        });
+        await submitWrittenAnswer(markModel);
         writtenTimer.markAnswered(activeQuestion.id);
-        useAppStore.getState().recordCompletion('written');
-        toast.success(
-          `Answer marked: ${response.achievedMarks}/${response.maxMarks} marks`,
-        );
       } catch (error) {
         setErrorMessage(readBackendError(error));
         setLastFailedAction('mark-written');
-      } finally {
-        setIsMarking(false);
       }
     },
     [
@@ -1269,13 +963,8 @@ export function GeneratorView() {
       isMarking,
       activeFeedback,
       setErrorMessage,
-      setIsMarking,
       setImagesByQuestionId,
-      writtenResponseEnteredAtById,
-      setFeedbackByQuestionId,
-      setMarkOverrideInputByQuestionId,
-      setWrittenMarkingDurationMsByQuestionId,
-      appendWrittenHistoryEntry,
+      submitWrittenAnswer,
       writtenTimer,
       resolveWrittenMarkImage,
     ],
@@ -1286,53 +975,14 @@ export function GeneratorView() {
     const appealText = activeMarkAppeal.trim();
     if (!appealText || !apiKey.trim() || !markModel.trim()) return;
     setErrorMessage(null);
-    setIsMarking(true);
     setShowMarkingScreen(true);
     setLastFailedAction(null);
     try {
-      const responseEnteredAtMs = Date.now();
-      const markStartedAt = Date.now();
-      const arguedAnswer = [
-        activeQuestionAnswer,
-        `Additional marking argument from student:\n${appealText}`,
-      ]
-        .filter((p) => p.trim())
-        .join('\n\n');
-      const rawResponse = await invoke<unknown>('mark_answer', {
-        request: {
-          question: activeQuestion,
-          studentAnswer: arguedAnswer,
-          studentAnswerImageDataUrl: activeQuestionImage?.dataUrl,
-          model: markModel,
-          apiKey,
-        },
-      });
-      const response = normalizeMarkResponse(
-        rawResponse,
-        activeQuestion.maxMarks,
-      );
-      setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
-        ...prev,
-        [activeQuestion.id]: response,
-      }));
-      setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
-        ...prev,
-        [activeQuestion.id]: String(response.achievedMarks),
-      }));
-      appendWrittenHistoryEntry(activeQuestion, response, {
-        uploadedAnswerOverride: activeQuestionAnswer,
-        attemptKind: 'appeal',
-        markingLatencyMs: Date.now() - markStartedAt,
-        responseEnteredAtMs,
-      });
-      toast.success(
-        `Re-mark complete: ${response.achievedMarks}/${response.maxMarks} marks`,
-      );
+      await argueForWrittenMark(markModel);
     } catch (error) {
       setErrorMessage(readBackendError(error));
       setLastFailedAction('mark-written');
     } finally {
-      setIsMarking(false);
       setShowMarkingScreen(true);
     }
   }, [
@@ -1341,120 +991,18 @@ export function GeneratorView() {
     activeMarkAppeal,
     apiKey,
     markModel,
-    activeQuestionAnswer,
-    activeQuestionImage,
+    argueForWrittenMark,
     setErrorMessage,
-    setIsMarking,
-    setFeedbackByQuestionId,
-    setMarkOverrideInputByQuestionId,
-    appendWrittenHistoryEntry,
-  ]);
-
-  const handleOverrideMark = useCallback(() => {
-    if (!activeQuestion || !activeFeedback) return;
-    const parsed = Number(activeOverrideInput);
-    if (!Number.isFinite(parsed)) return;
-    const clamped = Math.max(
-      0,
-      Math.min(activeFeedback.maxMarks, Math.round(parsed)),
-    );
-    const updated = {
-      ...activeFeedback,
-      achievedMarks: clamped,
-      verdict:
-        clamped === activeFeedback.maxMarks
-          ? 'Correct'
-          : clamped === 0
-            ? 'Incorrect'
-            : 'Overridden',
-    };
-    setErrorMessage(null);
-    setFeedbackByQuestionId((prev: Record<string, MarkAnswerResponse>) => ({
-      ...prev,
-      [activeQuestion.id]: updated,
-    }));
-    setMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
-      ...prev,
-      [activeQuestion.id]: String(clamped),
-    }));
-    updateLatestWrittenHistoryEntry(activeQuestion.id, updated);
-    toast.message(`Mark overridden to ${clamped}/${activeFeedback.maxMarks}`);
-  }, [
-    activeQuestion,
-    activeFeedback,
-    activeOverrideInput,
-    setErrorMessage,
-    setFeedbackByQuestionId,
-    updateLatestWrittenHistoryEntry,
-    setMarkOverrideInputByQuestionId,
   ]);
 
   const handleMcAnswer = useCallback(
     (selectedLabel: string) => {
       if (!activeMcQuestion || isReviewingCompletedSet) return;
-      const existingAnswer = mcAnswersByQuestionId[activeMcQuestion.id];
-      if (existingAnswer) return;
-      const responseEnteredAtMs = Date.now();
-      const awardedMarks =
-        selectedLabel === activeMcQuestion.correctAnswer ? 1 : 0;
-      setMcAnswersByQuestionId((prev: Record<string, string>) => ({
-        ...prev,
-        [activeMcQuestion.id]: selectedLabel,
-      }));
-      setMcAwardedMarksByQuestionId((prev: Record<string, number>) => ({
-        ...prev,
-        [activeMcQuestion.id]: awardedMarks,
-      }));
-      appendMcHistoryEntry(
-        activeMcQuestion,
-        selectedLabel,
-        awardedMarks,
-        'initial',
-        responseEnteredAtMs,
-      );
+      submitMcAnswer(selectedLabel);
       mcTimer.markAnswered(activeMcQuestion.id);
-      useAppStore.getState().recordCompletion('multiple-choice');
-      if (awardedMarks >= 1) {
-        toast.success('Correct!');
-      } else {
-        toast.error(
-          `Incorrect. The correct answer was ${activeMcQuestion.correctAnswer}.`,
-        );
-      }
     },
-    [
-      activeMcQuestion,
-      isReviewingCompletedSet,
-      mcAnswersByQuestionId,
-      appendMcHistoryEntry,
-      mcTimer,
-      setMcAnswersByQuestionId,
-      setMcAwardedMarksByQuestionId,
-    ],
+    [activeMcQuestion, isReviewingCompletedSet, submitMcAnswer, mcTimer],
   );
-
-  const handleMcOverrideMark = useCallback(() => {
-    if (!activeMcQuestion) return;
-    const parsed = Number(activeMcOverrideInput);
-    if (!Number.isFinite(parsed)) return;
-    const clamped = Math.max(0, Math.min(1, Math.round(parsed)));
-    setMcAwardedMarksByQuestionId((prev: Record<string, number>) => ({
-      ...prev,
-      [activeMcQuestion.id]: clamped,
-    }));
-    setMcMarkOverrideInputByQuestionId((prev: Record<string, string>) => ({
-      ...prev,
-      [activeMcQuestion.id]: String(clamped),
-    }));
-    updateLatestMcHistoryEntryMark(activeMcQuestion.id, clamped);
-    toast.message(`Mark overridden to ${clamped}/1`);
-  }, [
-    activeMcQuestion,
-    activeMcOverrideInput,
-    updateLatestMcHistoryEntryMark,
-    setMcAwardedMarksByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
-  ]);
 
   const handleOverrideCriterion = useCallback(
     (idx: number, achievedMarks: number, rationale: string) => {
@@ -1495,13 +1043,19 @@ export function GeneratorView() {
         ...prev,
         [activeQuestion.id]: String(nextFeedback.achievedMarks),
       }));
-      updateLatestWrittenHistoryEntry(activeQuestion.id, nextFeedback);
+      updateQuestionHistoryEntry({
+        ...questionHistory.find((e) => e.question.id === activeQuestion.id)!,
+        markResponse: nextFeedback,
+        workedSolutionMarkdown: nextFeedback.workedSolutionMarkdown,
+        lastModified: Date.now(),
+      });
     },
     [
       activeQuestion,
       activeFeedback,
       setFeedbackByQuestionId,
-      updateLatestWrittenHistoryEntry,
+      updateQuestionHistoryEntry,
+      questionHistory,
       setErrorMessage,
       setMarkOverrideInputByQuestionId,
     ],
@@ -1636,7 +1190,6 @@ export function GeneratorView() {
         }
         onExit={handleExitSession}
         getDifficultyBadgeClasses={getDifficultyBadgeClasses}
-        questions={questionMode === 'written' ? questions : mcQuestions}
       />
 
       <div className='flex-1 min-h-0 overflow-auto relative p-6'>
@@ -1656,7 +1209,7 @@ export function GeneratorView() {
               onArgueForMark={() => void handleArgueForMark()}
               overrideInput={activeOverrideInput}
               onOverrideInputChange={handleOverrideInputChange}
-              onApplyOverride={handleOverrideMark}
+              onApplyOverride={overrideWrittenMark}
               onCriterionChange={handleOverrideCriterion}
               isMarking={isMarking}
             />
@@ -1712,7 +1265,7 @@ export function GeneratorView() {
                   onAppealChange={() => {}}
                   onOverrideInputChange={handleMcOverrideInputChange}
                   onArgueForMark={() => {}}
-                  onApplyOverride={handleMcOverrideMark}
+                  onApplyOverride={overrideMcMark}
                   isMarking={isMarking}
                   onImageDrop={() => {}}
                   onImageRemove={() => {}}
@@ -1756,7 +1309,7 @@ export function GeneratorView() {
                   onAppealChange={() => {}}
                   onOverrideInputChange={handleMcOverrideInputChange}
                   onArgueForMark={() => {}}
-                  onApplyOverride={handleMcOverrideMark}
+                  onApplyOverride={overrideMcMark}
                   isMarking={isMarking}
                   onImageDrop={() => {}}
                   onImageRemove={() => {}}
