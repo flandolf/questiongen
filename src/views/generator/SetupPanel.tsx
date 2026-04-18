@@ -19,12 +19,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAppSettings } from '@/AppContext';
-import {
-  FilterButton,
-  FilterGroup,
-  PageHeader,
-} from '@/components/layout/primitives';
-import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/layout/primitives';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -87,6 +82,7 @@ const DIFFICULTY_META: Record<
     desc: string;
     width: string;
     themeColor: string;
+    pill: string;
   }
 > = {
   'Essential Skills': {
@@ -97,6 +93,7 @@ const DIFFICULTY_META: Record<
     desc: 'Core concepts',
     width: '20%',
     themeColor: '#10b981',
+    pill: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25',
   },
   Easy: {
     label: 'Easy',
@@ -106,6 +103,7 @@ const DIFFICULTY_META: Record<
     desc: 'Straightforward',
     width: '40%',
     themeColor: '#0ea5e9',
+    pill: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/25',
   },
   Medium: {
     label: 'Medium',
@@ -115,6 +113,7 @@ const DIFFICULTY_META: Record<
     desc: 'Balanced',
     width: '60%',
     themeColor: '#f59e0b',
+    pill: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25',
   },
   Hard: {
     label: 'Hard',
@@ -124,6 +123,7 @@ const DIFFICULTY_META: Record<
     desc: 'Complex',
     width: '80%',
     themeColor: '#f97316',
+    pill: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/25',
   },
   Extreme: {
     label: 'Extreme',
@@ -133,6 +133,7 @@ const DIFFICULTY_META: Record<
     desc: 'Edge cases',
     width: '100%',
     themeColor: '#f43f5e',
+    pill: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/25',
   },
 };
 
@@ -175,11 +176,33 @@ type SetupPanelProps = {
   streamText?: string;
   batchProgress?: BatchTopicProgress[];
   generationStrategy?: 'single-pass' | 'multi-pass';
-  /** When several API calls run per subject after local subtopic selection. */
   generationSubCallProgress?: GenerationSubCallProgress | null;
 };
 
 const EMPTY_BATCH_PROGRESS: BatchTopicProgress[] = [];
+
+// ─── Section wrapper ──────────────────────────────────────────────────────────
+
+function Section({
+  label,
+  children,
+  className,
+}: {
+  label?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex flex-col gap-3', className)}>
+      {label && (
+        <p className='text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/60 px-0.5'>
+          {label}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -235,7 +258,6 @@ function SetupPanelImpl({
   const hasSubtopicSection = selectedTopics.length > 0;
   const activeDifficulty = normalizeDifficulty(difficulty);
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
-
   const showBatchTimeline = batchProgress.length > 1;
 
   const flatSelectedSubtopics = useMemo(
@@ -304,24 +326,13 @@ function SetupPanelImpl({
 
   const generationDisabledReasons = useMemo(() => {
     const reasons: string[] = [];
-    if (!hasApiKey) {
-      reasons.push('OpenRouter API key is missing');
-    }
-    if (!model || model.trim().length === 0) {
+    if (!hasApiKey) reasons.push('OpenRouter API key is missing');
+    if (!model || model.trim().length === 0)
       reasons.push('AI model not selected');
-    }
-    if (selectedTopics.length === 0) {
-      reasons.push('Select at least one topic');
-    }
-    if (questionCount < 1) {
-      reasons.push('Question count must be at least 1');
-    }
-    if (questionCount > 20) {
-      reasons.push('Question count cannot exceed 20');
-    }
-    if (isGenerating) {
-      reasons.push('Generation in progress');
-    }
+    if (selectedTopics.length === 0) reasons.push('Select at least one topic');
+    if (questionCount < 1) reasons.push('Question count must be at least 1');
+    if (questionCount > 20) reasons.push('Question count cannot exceed 20');
+    if (isGenerating) reasons.push('Generation in progress');
     return reasons;
   }, [hasApiKey, model, selectedTopics.length, questionCount, isGenerating]);
 
@@ -339,197 +350,242 @@ function SetupPanelImpl({
   return (
     <TooltipProvider>
       <div className='selection:bg-foreground/10 flex flex-col h-screen'>
-        <div className='relative px-6 flex flex-col lg:flex-row gap-8 flex-1 overflow-y-auto'>
-          {/* ── LEFT COLUMN: Core Configuration & Generate ── */}
-          <div className='w-full lg:w-105 xl:w-120 flex flex-col gap-6 shrink-0'>
+        <div className='relative px-6 flex flex-col lg:flex-row gap-10 flex-1 overflow-y-auto'>
+          {/* ── LEFT COLUMN ── */}
+          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-7 shrink-0 py-6'>
             {/* Header */}
-            <div className='space-y-6'>
-              <PageHeader
-                title='Generator'
-                description='Configure revision settings.'
-              />
-            </div>
+            <PageHeader
+              title='Generator'
+              description='Configure revision settings.'
+            />
 
-            <FilterGroup className='w-full justify-between'>
-              <FilterButton
-                active={questionMode === 'written'}
-                onClick={() => onSetQuestionMode('written')}
-                className={cn(
-                  'flex-1 h-12 transition-all duration-300',
-                  questionMode === 'written'
-                    ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
-                    : 'hover:bg-blue-500/5 hover:text-blue-500/80 hover:border-blue-500/20',
-                )}
-              >
-                <BookOpen className='w-4 h-4 mr-2' /> Written
-              </FilterButton>
-              <FilterButton
-                active={questionMode === 'multiple-choice'}
-                onClick={() => onSetQuestionMode('multiple-choice')}
-                className={cn(
-                  'flex-1 h-12 transition-all duration-300',
-                  questionMode === 'multiple-choice'
-                    ? 'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30'
-                    : 'hover:bg-violet-500/5 hover:text-violet-500/80 hover:border-violet-500/20',
-                )}
-              >
-                <Target className='w-4 h-4 mr-2' /> Multiple Choice
-              </FilterButton>
-            </FilterGroup>
-            <div className='grid grid-cols-2 gap-3'>
-              {TOPICS.map((topic) => {
-                const isSelected = selectedTopics.includes(topic);
-                return (
-                  <motion.button
-                    key={topic}
-                    type='button'
-                    onClick={() => onToggleTopic(topic)}
-                    whileHover={{ y: -2, scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    transition={SPRING}
-                    className={cn(
-                      'relative flex flex-col items-start gap-4 p-4 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none group',
-                      isSelected
-                        ? 'bg-primary/5 border-primary/30'
-                        : 'bg-transparent border-border/60 hover:border-foreground/30 hover:bg-muted/30',
-                    )}
-                  >
-                    <div className='flex items-start justify-between w-full relative z-10'>
-                      <div
-                        className={cn(
-                          'p-2 rounded-lg transition-colors duration-200',
-                          isSelected
-                            ? 'bg-primary/5 border-primary/30 text-primary'
-                            : 'bg-muted/50 text-muted-foreground group-hover:text-foreground',
-                        )}
-                      >
-                        {TOPIC_ICONS[topic] ?? <BookOpen className='w-4 h-4' />}
+            {/* Question Mode */}
+            <Section label='Question Type'>
+              <div className='grid grid-cols-2 gap-2.5'>
+                {[
+                  {
+                    mode: 'written' as QuestionMode,
+                    label: 'Written',
+                    icon: <BookOpen className='w-4 h-4' />,
+                  },
+                  {
+                    mode: 'multiple-choice' as QuestionMode,
+                    label: 'Multiple Choice',
+                    icon: <Target className='w-4 h-4' />,
+                  },
+                ].map(({ mode, label, icon }) => {
+                  const isActive = questionMode === mode;
+                  const activeClass =
+                    mode === 'written'
+                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                      : 'bg-violet-500/10 border-violet-500/30 text-violet-600 dark:text-violet-400';
+                  return (
+                    <motion.button
+                      key={mode}
+                      type='button'
+                      onClick={() => onSetQuestionMode(mode)}
+                      whileHover={{ y: -1 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={SPRING}
+                      className={cn(
+                        'flex items-center justify-center gap-2.5 h-11 rounded-xl border text-sm font-semibold transition-all',
+                        isActive
+                          ? activeClass
+                          : 'bg-card border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                    >
+                      {icon}
+                      {label}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </Section>
+
+            {/* Topics */}
+            <Section label='Subjects'>
+              <div className='grid grid-cols-2 gap-2.5'>
+                {TOPICS.map((topic) => {
+                  const isSelected = selectedTopics.includes(topic);
+                  return (
+                    <motion.button
+                      key={topic}
+                      type='button'
+                      onClick={() => onToggleTopic(topic)}
+                      whileHover={{ y: -2, scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={SPRING}
+                      className={cn(
+                        'relative flex flex-col items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer select-none group overflow-hidden',
+                        isSelected
+                          ? 'bg-primary/5 border-primary/25 shadow-sm'
+                          : 'bg-card border-border hover:border-foreground/20 hover:bg-muted/30',
+                      )}
+                    >
+                      {/* Subtle gradient accent on selected */}
+                      {isSelected && (
+                        <div className='absolute inset-0 bg-linear-to-br from-primary/5 to-transparent pointer-events-none' />
+                      )}
+
+                      <div className='flex items-start justify-between w-full relative z-10'>
+                        <div
+                          className={cn(
+                            'p-1.5 rounded-lg transition-colors duration-200',
+                            isSelected
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                          )}
+                        >
+                          {TOPIC_ICONS[topic] ?? (
+                            <BookOpen className='w-4 h-4' />
+                          )}
+                        </div>
+                        <div
+                          className={cn(
+                            'w-4 h-4 rounded-sm border-[1.5px] flex items-center justify-center transition-all duration-200 mt-0.5',
+                            isSelected
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'border-border/70',
+                          )}
+                        >
+                          {isSelected && (
+                            <Check className='w-2.5 h-2.5' strokeWidth={3} />
+                          )}
+                        </div>
                       </div>
-                      <div
+
+                      <p
                         className={cn(
-                          'w-4 h-4 rounded-sm border flex items-center justify-center transition-all duration-200',
-                          isSelected
-                            ? 'bg-primary/5 border-primary/30 text-primary'
-                            : 'border-border/60 bg-transparent',
-                        )}
-                      >
-                        {isSelected && (
-                          <Check
-                            className='w-3 h-3 text-current'
-                            strokeWidth={3}
-                          />
-                        )}
-                      </div>
-                    </div>
-                    <div className='relative z-10'>
-                      <h3
-                        className={cn(
-                          'text-sm font-medium leading-tight',
+                          'text-xs font-semibold leading-tight relative z-10',
                           isSelected
                             ? 'text-foreground'
                             : 'text-muted-foreground group-hover:text-foreground',
                         )}
                       >
                         {topic}
-                      </h3>
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
-            <div className='p-6 bg-transparent rounded-xl border border-border/60 relative flex flex-col gap-6'>
-              <div className='flex items-center justify-between px-1'>
-                <span
-                  className={cn(
-                    'text-sm font-black uppercase tracking-widest',
-                    activeDifficultyMeta.color,
-                  )}
-                >
-                  {activeDifficultyMeta.label}
-                </span>
-                <Badge
-                  variant='outline'
-                  className={cn(
-                    'font-mono text-[10px] tracking-widest',
-                    activeDifficultyMeta.border,
-                    activeDifficultyMeta.color,
-                  )}
-                >
-                  LVL.0{diffIndex + 1}
-                </Badge>
+                      </p>
+                    </motion.button>
+                  );
+                })}
               </div>
+            </Section>
 
-              {/* Stepped Equalizer/Gauge */}
-              <div className='flex gap-2 h-14 items-end px-1 group/gauge'>
-                {levels.map((level, idx) => {
-                  const isActive = idx <= diffIndex;
-                  const isCurrent = idx === diffIndex;
-                  return (
+            {/* Difficulty */}
+            <Section label='Difficulty'>
+              <div className='rounded-xl border border-border/70 bg-card p-5 flex flex-col gap-5'>
+                {/* Header row */}
+                <div className='flex items-center justify-between'>
+                  <div className='flex items-center gap-2.5'>
+                    <span
+                      className={cn(
+                        'text-base font-black tracking-tight',
+                        activeDifficultyMeta.color,
+                      )}
+                    >
+                      {activeDifficultyMeta.label}
+                    </span>
+                    <span className='text-xs text-muted-foreground/60'>
+                      — {activeDifficultyMeta.desc}
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border',
+                      activeDifficultyMeta.pill,
+                    )}
+                  >
+                    LVL {diffIndex + 1}/5
+                  </span>
+                </div>
+
+                {/* Gauge bars */}
+                <div className='flex gap-1.5 h-12 items-end'>
+                  {levels.map((level, idx) => {
+                    const isActive = idx <= diffIndex;
+                    const isCurrent = idx === diffIndex;
+                    const barHeights = [28, 40, 55, 70, 88];
+                    return (
+                      <button
+                        key={level}
+                        type='button'
+                        onClick={() => onSetDifficulty(level)}
+                        className='group/bar relative flex-1 h-full flex items-end justify-center cursor-pointer outline-none'
+                      >
+                        <div className='absolute inset-0 w-full h-full bg-muted/20 rounded-md' />
+                        <motion.div
+                          initial={false}
+                          animate={{
+                            height: `${barHeights[idx]}%`,
+                            backgroundColor: isCurrent
+                              ? activeDifficultyMeta.themeColor
+                              : isActive
+                                ? `color-mix(in srgb, ${activeDifficultyMeta.themeColor} 35%, transparent)`
+                                : 'color-mix(in srgb, var(--color-muted-foreground) 15%, transparent)',
+                            opacity: isCurrent ? 1 : isActive ? 0.75 : 0.4,
+                          }}
+                          whileHover={{
+                            backgroundColor: activeDifficultyMeta.themeColor,
+                            opacity: 1,
+                            transition: { duration: 0.1 },
+                          }}
+                          transition={SPRING}
+                          className='w-full rounded-md relative z-10'
+                          style={
+                            isCurrent
+                              ? {
+                                  boxShadow: `0 0 10px ${activeDifficultyMeta.themeColor}55`,
+                                }
+                              : undefined
+                          }
+                        />
+                        {isCurrent && (
+                          <motion.div
+                            layoutId='active-difficulty-dot'
+                            className='absolute -bottom-2.5 w-1 h-1 rounded-full'
+                            style={{
+                              backgroundColor: activeDifficultyMeta.themeColor,
+                            }}
+                            transition={SPRING}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Level labels */}
+                <div className='flex gap-1.5'>
+                  {levels.map((level, idx) => (
                     <button
                       key={level}
                       type='button'
                       onClick={() => onSetDifficulty(level)}
-                      className='group/bar relative flex-1 h-full flex items-end justify-center cursor-pointer outline-none'
-                    >
-                      {/* Background Slot */}
-                      <div className='absolute inset-0 w-full h-full bg-muted/10 rounded-sm' />
-
-                      {/* Active Level Fill */}
-                      <motion.div
-                        initial={false}
-                        animate={{
-                          height: isCurrent
-                            ? `${60 + idx * 12}%`
-                            : isActive
-                              ? `${40 + idx * 12}%`
-                              : '20%',
-                          backgroundColor: isCurrent
-                            ? activeDifficultyMeta.themeColor
-                            : isActive
-                              ? `color-mix(in srgb, ${activeDifficultyMeta.themeColor} 40%, transparent)`
-                              : 'color-mix(in srgb, var(--color-muted) 60%, transparent)',
-                        }}
-                        whileHover={{
-                          height: `${60 + idx * 12}%`,
-                          backgroundColor: activeDifficultyMeta.themeColor,
-                          transition: { duration: 0.1 },
-                        }}
-                        transition={SPRING}
-                        className={cn(
-                          'w-full rounded-sm relative z-10 shadow-sm transition-shadow duration-300',
-                          isCurrent &&
-                            'shadow-[0_0_12px_rgba(var(--color-foreground),0.3)]',
-                        )}
-                      />
-
-                      {/* Selection Indicator */}
-                      {isCurrent && (
-                        <motion.div
-                          layoutId='active-difficulty-dot'
-                          className='absolute -bottom-2 w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]'
-                          style={{
-                            backgroundColor: activeDifficultyMeta.themeColor,
-                            color: activeDifficultyMeta.themeColor,
-                          }}
-                          transition={SPRING}
-                        />
+                      className={cn(
+                        'flex-1 text-center text-[9px] font-semibold tracking-wide uppercase transition-colors cursor-pointer truncate',
+                        idx === diffIndex
+                          ? activeDifficultyMeta.color
+                          : 'text-muted-foreground/40 hover:text-muted-foreground',
                       )}
+                    >
+                      {DIFFICULTY_META[level].label}
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className='p-6 bg-transparent rounded-xl border border-border/60 relative flex flex-col gap-2'>
-              <div className='flex items-center justify-between'>
-                <Label className='text-sm font-semibold flex items-center gap-2 text-foreground'>
-                  <Hash className='w-4 h-4 text-muted-foreground' /> Total
-                  Questions
-                </Label>
-                <div className='text-xl font-medium text-foreground'>
-                  {questionCount}
+                  ))}
                 </div>
               </div>
-              <div>
+            </Section>
+
+            {/* Question Count */}
+            <Section label='Questions'>
+              <div className='rounded-xl border border-border/70 bg-card px-5 py-4 flex flex-col gap-3'>
+                <div className='flex items-center justify-between'>
+                  <Label className='text-sm font-semibold text-foreground flex items-center gap-2'>
+                    <Hash className='w-3.5 h-3.5 text-muted-foreground' /> Total
+                    Questions
+                  </Label>
+                  <span className='text-2xl font-black font-mono tabular-nums text-foreground leading-none'>
+                    {questionCount}
+                  </span>
+                </div>
                 <Slider
                   min={1}
                   max={20}
@@ -537,53 +593,62 @@ function SetupPanelImpl({
                   value={[questionCount]}
                   onValueChange={(val) => onSetQuestionCount(val[0])}
                 />
-                <div className='flex justify-between mt-2 font-mono text-[10px] text-muted-foreground font-medium'>
+                <div className='flex justify-between font-mono text-[10px] text-muted-foreground/50 font-medium -mt-1'>
                   <span>1</span>
                   <span>20</span>
                 </div>
               </div>
-            </div>
+            </Section>
 
             {/* API key warning */}
             {!hasApiKey && (
-              <div className='flex items-start gap-4 rounded-xl border border-border/60 bg-muted/30 p-5'>
-                <div className='p-2 bg-muted/50 rounded-md border border-border/60'>
-                  <AlertTriangle className='w-5 h-5 text-foreground shrink-0' />
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className='flex items-start gap-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4'
+              >
+                <div className='p-1.5 bg-amber-500/10 rounded-lg mt-0.5 shrink-0'>
+                  <AlertTriangle className='w-4 h-4 text-amber-600 dark:text-amber-400' />
                 </div>
-                <div className='flex-1 space-y-2 pt-0.5'>
-                  <p className='text-sm text-foreground leading-snug font-medium'>
-                    <strong>SYSTEM WARNING:</strong> OpenRouter API key missing.
-                    Configuration required before synthesis sequence.
+                <div className='flex-1 space-y-2'>
+                  <p className='text-sm font-semibold text-foreground leading-snug'>
+                    API key missing
+                  </p>
+                  <p className='text-xs text-muted-foreground leading-relaxed'>
+                    An OpenRouter API key is required before generating
+                    questions.
                   </p>
                   <Button
                     size='sm'
                     variant='outline'
-                    className='rounded-md border-border/60 hover:bg-muted/50'
+                    className='rounded-lg border-border/60 hover:bg-muted/50 mt-1 h-8 text-xs'
                     onClick={() => void navigate('/settings')}
                   >
                     Configure Settings
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
-          {/* ── RIGHT COLUMN: Advanced Configuration ── */}
-          <div className='w-full lg:flex-1 flex flex-col gap-6 pt-2'>
+
+          {/* ── RIGHT COLUMN ── */}
+          <div className='w-full lg:flex-1 flex flex-col gap-8 py-6'>
             {/* Presets */}
-            <div className='space-y-4'>
-              <Label className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/80 flex flex-row items-center gap-2'>
-                <TestTubeDiagonal className='w-3.5 h-3.5' /> Presets
-              </Label>
-              <PresetSection
-                selectedTopics={selectedTopics}
-                difficulty={difficulty}
-                techMode={techMode}
-                selectedSubtopics={selectedSubtopics}
-                questionCount={questionCount}
-                averageMarksPerQuestion={averageMarksPerQuestion}
-                questionMode={questionMode}
-              />
-            </div>
+            <Section label='Presets'>
+              <div className='rounded-xl border border-border/70 bg-card p-4'>
+                <PresetSection
+                  selectedTopics={selectedTopics}
+                  difficulty={difficulty}
+                  techMode={techMode}
+                  selectedSubtopics={selectedSubtopics}
+                  questionCount={questionCount}
+                  averageMarksPerQuestion={averageMarksPerQuestion}
+                  questionMode={questionMode}
+                />
+              </div>
+            </Section>
+
+            {/* Advanced Options */}
             <AdvancedOptionsGroup
               questionMode={questionMode}
               averageMarksPerQuestion={averageMarksPerQuestion}
@@ -606,166 +671,170 @@ function SetupPanelImpl({
         </div>
 
         {/* ── STICKY CONTROL BAR ── */}
-        <div className='sticky bottom-0 left-0 right-0 z-50 bg-background/80 border-t border-border/40 px-6 py-3'>
-          <div className='mx-auto relative'>
-            <div className='flex flex-col gap-2'>
-              {/* Generation Progress (Full Width when active) */}
-              <AnimatePresence>
-                {isGenerating && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    className='overflow-hidden'
-                  >
-                    <div className='pb-3'>
-                      {showBatchTimeline ? (
-                        <BatchTimeline
-                          entries={batchProgress}
-                          generationSubCallProgress={generationSubCallProgress}
-                          formattedElapsedTime={formattedElapsedTime}
-                          streamText={streamText}
-                          isGenerating={isGenerating}
-                          isPaused={isPaused}
-                          onTogglePause={onTogglePause}
-                        />
-                      ) : (
-                        <GenerationTimeline
-                          generationStatus={generationStatus}
-                          generationSubCallProgress={generationSubCallProgress}
-                          formattedElapsedTime={formattedElapsedTime}
-                          streamText={streamText}
-                          isGenerating={isGenerating}
-                          isPaused={isPaused}
-                          onTogglePause={onTogglePause}
-                        />
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        <div className='sticky bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-t border-border/50'>
+          <div className='px-6 py-3'>
+            <AnimatePresence>
+              {isGenerating && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className='overflow-hidden pb-3'
+                >
+                  {showBatchTimeline ? (
+                    <BatchTimeline
+                      entries={batchProgress}
+                      generationSubCallProgress={generationSubCallProgress}
+                      formattedElapsedTime={formattedElapsedTime}
+                      streamText={streamText}
+                      isGenerating={isGenerating}
+                      isPaused={isPaused}
+                      onTogglePause={onTogglePause}
+                    />
+                  ) : (
+                    <GenerationTimeline
+                      generationStatus={generationStatus}
+                      generationSubCallProgress={generationSubCallProgress}
+                      formattedElapsedTime={formattedElapsedTime}
+                      streamText={streamText}
+                      isGenerating={isGenerating}
+                      isPaused={isPaused}
+                      onTogglePause={onTogglePause}
+                    />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              <div className='flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4'>
-                {/* Telemetry Cluster - Industrial Cluster */}
-                <div className='flex flex-wrap items-center gap-x-8 gap-y-3'>
-                  {/* Cost Cluster */}
-                  <div className='relative'>
-                    <div className='flex items-baseline gap-1.5'>
-                      <span className='text-xl font-mono font-black tabular-nums tracking-tight text-foreground'>
-                        {estimated.promptCost != null ||
-                        estimated.completionCost != null
-                          ? formatCostUsd(estimated.totalCost).replace('$', '')
-                          : '--.--'}
-                      </span>
-                      <span className='text-xs font-bold text-muted-foreground uppercase tracking-widest'>
-                        USD
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Load Cluster */}
-                  <div className='relative min-w-40'>
-                    <div className='flex items-baseline gap-2'>
-                      <span className='text-xl font-mono font-black tabular-nums tracking-tight text-foreground'>
-                        {estimated.totalTokens.toLocaleString()}
-                      </span>
-                      <span className='text-[10px] font-bold text-muted-foreground uppercase tracking-tighter'>
-                        Tokens
-                      </span>
-                    </div>
-
-                    {estimated.confidence != null && (
-                      <div className='flex items-center gap-2'>
-                        <div className='flex-1 h-1 bg-muted/40 rounded-full overflow-hidden'>
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${estimated.confidence * 100}%`,
-                            }}
-                            transition={{ duration: 1, ease: 'circOut' }}
-                            className='h-full bg-foreground shadow-[0_0_8px_rgba(var(--color-foreground),0.5)]'
-                          />
-                        </div>
-                        <span className='text-[9px] font-mono font-black text-foreground/80'>
-                          {Math.round(estimated.confidence * 100)}% confidence
-                        </span>
-                      </div>
-                    )}
+            <div className='flex items-center justify-between gap-4'>
+              {/* Cost & token estimates */}
+              <div className='flex items-center gap-6'>
+                <div className='flex flex-col'>
+                  <span className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50'>
+                    Est. Cost
+                  </span>
+                  <div className='flex items-baseline gap-1'>
+                    <span className='text-xl font-mono font-black tabular-nums text-foreground leading-none'>
+                      {estimated.promptCost != null ||
+                      estimated.completionCost != null
+                        ? formatCostUsd(estimated.totalCost).replace('$', '')
+                        : '--'}
+                    </span>
+                    <span className='text-[10px] font-bold text-muted-foreground/60 uppercase'>
+                      USD
+                    </span>
                   </div>
                 </div>
-                <div className='items-center flex flex-row'>
-                  <Button
-                    variant='destructive'
-                    onClick={onStartOver}
-                    disabled={isGenerating}
-                  >
-                    Start Over
-                  </Button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className='inline-block'>
-                        <Button
-                          variant='ghost'
-                          onClick={onGenerate}
-                          disabled={isGenerationDisabled}
-                        >
-                          <span className='relative flex items-center justify-center gap-4 text-sm'>
-                            {isGenerating ? (
-                              <>
-                                <div className='relative'>
-                                  <Loader2 className='w-5 h-5 animate-spin' />
-                                  <div className='absolute inset-0 w-5 h-5 animate-ping bg-background/30 rounded-full' />
-                                </div>
-                                <span className='animate-pulse'>
-                                  Loading...
-                                </span>
-                              </>
-                            ) : (
-                              <span className='flex flex-row items-center gap-3 text-md'>
-                                <Zap className='w-5 h-5 -rotate-12' /> Generate
-                              </span>
-                            )}
-                          </span>
-                        </Button>
+
+                <div className='w-px h-8 bg-border/60' />
+
+                <div className='flex flex-col min-w-28'>
+                  <span className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50'>
+                    Tokens
+                  </span>
+                  <span className='text-xl font-mono font-black tabular-nums text-foreground leading-none'>
+                    {estimated.totalTokens.toLocaleString()}
+                  </span>
+                  {estimated.confidence != null && (
+                    <div className='flex items-center gap-1.5 mt-1'>
+                      <div className='flex-1 h-0.5 bg-muted/40 rounded-full overflow-hidden'>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${estimated.confidence * 100}%` }}
+                          transition={{ duration: 0.8, ease: 'circOut' }}
+                          className='h-full bg-foreground/60'
+                        />
                       </div>
-                    </TooltipTrigger>
-                    {isGenerationDisabled && (
-                      <TooltipContent
-                        side='top'
-                        className='flex flex-col gap-1.5'
-                      >
-                        <p className='flex items-center gap-2'>
-                          <AlertTriangle className='w-3.5 h-3.5' /> Missing
-                          Requirements
-                        </p>
-                        <ul className='space-y-1'>
-                          {generationDisabledReasons.map((reason, i) => (
-                            <li
-                              key={i}
-                              className='text-[10px] flex items-center gap-2'
-                            >
-                              <div className='w-1 h-1 rounded-full bg-destructive-foreground/50' />
-                              {reason}
-                            </li>
-                          ))}
-                        </ul>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
+                      <span className='text-[9px] font-mono text-muted-foreground/50'>
+                        {Math.round(estimated.confidence * 100)}%
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {!isGenerating &&
-                generationStatus?.stage !== 'completed' &&
-                lastGenerationTelemetry && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <LastGenerationStats telemetry={lastGenerationTelemetry} />
-                  </motion.div>
-                )}
+              {/* Actions */}
+              <div className='flex items-center gap-2.5'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={onStartOver}
+                  disabled={isGenerating}
+                  className='h-9 rounded-lg border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                >
+                  Start Over
+                </Button>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={SPRING}
+                      >
+                        <Button
+                          onClick={onGenerate}
+                          disabled={isGenerationDisabled}
+                          className={cn(
+                            'h-9 px-5 rounded-lg font-semibold text-sm gap-2.5 transition-all',
+                            isGenerationDisabled
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'shadow-sm',
+                          )}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className='w-4 h-4 animate-spin' />
+                              <span className='animate-pulse'>Generating…</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className='w-4 h-4 -rotate-12' />
+                              Generate
+                            </>
+                          )}
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </TooltipTrigger>
+                  {isGenerationDisabled && !isGenerating && (
+                    <TooltipContent
+                      side='top'
+                      className='flex flex-col gap-1.5 max-w-52'
+                    >
+                      <p className='flex items-center gap-1.5 text-xs font-semibold'>
+                        <AlertTriangle className='w-3 h-3' /> Missing
+                        requirements
+                      </p>
+                      <ul className='space-y-0.5'>
+                        {generationDisabledReasons.map((reason, i) => (
+                          <li
+                            key={i}
+                            className='text-[10px] text-muted-foreground flex items-center gap-1.5'
+                          >
+                            <div className='w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0' />
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </div>
             </div>
+
+            {!isGenerating &&
+              generationStatus?.stage !== 'completed' &&
+              lastGenerationTelemetry && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className='mt-2'
+                >
+                  <LastGenerationStats telemetry={lastGenerationTelemetry} />
+                </motion.div>
+              )}
           </div>
         </div>
       </div>
