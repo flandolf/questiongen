@@ -86,7 +86,10 @@ DIAGRAMS (MERMAID):
 pub const WRITTEN_STYLE_RULES: &str = "
 VCAA WRITTEN STYLE:
 1. STRUCTURE: Match marks. 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
-2. FORMATTING: Use newlines after [X marks] and before part labels (a), (b), etc.
+2. FORMATTING: Each part label must be on its own line with its mark count at the end. Required format (labels flush-left, no indentation):
+(a) Question text here. [X marks]
+(b) Next part here. [Y marks]
+No part label may share a line with the preceding text or another part label.
 3. SCAFFOLDING: For items ≥4 marks, earlier parts MUST produce results reused in later parts.
 4. COGNITION: Demand must increase: recall -> method -> synthesis/justification.
 5. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No duplicate skills in one batch.";
