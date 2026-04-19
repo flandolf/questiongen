@@ -64,7 +64,10 @@ fn apply_re_before_part_outside_math(s: &str) -> String {
                 let label = &caps[2];
                 // When the captured prefix is pure horizontal whitespace, drop it so the
                 // newline replaces the space entirely (e.g. "$$...$$ (a)" → "$$...$$\n(a)").
-                if prefix.chars().all(|c| c != '\r' && c != '\n' && c.is_whitespace()) {
+                if prefix
+                    .chars()
+                    .all(|c| c != '\r' && c != '\n' && c.is_whitespace())
+                {
                     format!("\n{label}")
                 } else {
                     format!("{prefix}\n{label}")
@@ -301,7 +304,10 @@ mod tests {
                 "Given $f(a) = a^2$.\n(a) Find $f(3)$. [2 marks]\n(b) Find $f'(a)$. [3 marks]",
             ),
             // Trailing mark with nothing after it — no extra newline.
-            ("(a) Solve for $x$. [3 marks]", "(a) Solve for $x$. [3 marks]"),
+            (
+                "(a) Solve for $x$. [3 marks]",
+                "(a) Solve for $x$. [3 marks]",
+            ),
             // Part label after colon.
             (
                 "Consider: (a) Part one [1 mark](b) Part two [2 marks]",

@@ -233,6 +233,7 @@ function SetupPanelImpl({
   isPaused,
   onTogglePause,
   generationStatus,
+  generationStartedAt,
   formattedElapsedTime,
   onGenerate,
   onStartOver,
@@ -533,8 +534,8 @@ function SetupPanelImpl({
                           style={
                             isCurrent
                               ? {
-                                  boxShadow: `0 0 10px ${activeDifficultyMeta.themeColor}55`,
-                                }
+                                boxShadow: `0 0 10px ${activeDifficultyMeta.themeColor}55`,
+                              }
                               : undefined
                           }
                         />
@@ -685,6 +686,7 @@ function SetupPanelImpl({
                     <BatchTimeline
                       entries={batchProgress}
                       generationSubCallProgress={generationSubCallProgress}
+                      generationStartedAt={generationStartedAt}
                       formattedElapsedTime={formattedElapsedTime}
                       streamText={streamText}
                       isGenerating={isGenerating}
@@ -695,6 +697,7 @@ function SetupPanelImpl({
                     <GenerationTimeline
                       generationStatus={generationStatus}
                       generationSubCallProgress={generationSubCallProgress}
+                      generationStartedAt={generationStartedAt}
                       formattedElapsedTime={formattedElapsedTime}
                       streamText={streamText}
                       isGenerating={isGenerating}
@@ -716,7 +719,7 @@ function SetupPanelImpl({
                   <div className='flex items-baseline gap-1'>
                     <span className='text-xl font-mono font-black tabular-nums text-foreground leading-none'>
                       {estimated.promptCost != null ||
-                      estimated.completionCost != null
+                        estimated.completionCost != null
                         ? formatCostUsd(estimated.totalCost).replace('$', '')
                         : '--'}
                     </span>

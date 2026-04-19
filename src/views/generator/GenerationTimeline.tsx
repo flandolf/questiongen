@@ -8,7 +8,7 @@ import {
   Play,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { formatCostUsd } from '@/lib/app-utils';
 import type {
@@ -79,6 +79,93 @@ const STAGE_LABELS: Record<KnownStage, string> = {
   parsing: GENERATION_STAGE_LABELS.parsing,
   completed: GENERATION_STAGE_LABELS.completed,
 };
+
+function formatElapsed(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function useGenerationElapsedTime({
+  generationStartedAt,
+  completedDurationMs,
+  isGenerating,
+  isPaused,
+  fallback,
+}: {
+  generationStartedAt?: number | null;
+  completedDurationMs?: number;
+  isGenerating: boolean;
+  isPaused: boolean;
+  fallback: string;
+}): string {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const pausedAtMsRef = useRef<number | null>(null);
+  const pausedTotalMsRef = useRef(0);
+  const generationStartRef = useRef<number | null>(generationStartedAt ?? null);
+
+  useEffect(() => {
+    const nextStart = generationStartedAt ?? null;
+    if (generationStartRef.current === nextStart) return;
+    generationStartRef.current = nextStart;
+    pausedAtMsRef.current = null;
+    pausedTotalMsRef.current = 0;
+    setNowMs(Date.now());
+  }, [generationStartedAt]);
+
+  useEffect(() => {
+    if (!isGenerating) {
+      pausedAtMsRef.current = null;
+      return;
+    }
+
+    const now = Date.now();
+    if (isPaused) {
+      if (pausedAtMsRef.current === null) {
+        pausedAtMsRef.current = now;
+      }
+      return;
+    }
+
+    if (pausedAtMsRef.current !== null) {
+      pausedTotalMsRef.current += now - pausedAtMsRef.current;
+      pausedAtMsRef.current = null;
+    }
+  }, [isGenerating, isPaused]);
+
+  useEffect(() => {
+    if (!isGenerating || isPaused) return;
+
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [isGenerating, isPaused]);
+
+  if (completedDurationMs != null && completedDurationMs >= 0) {
+    return formatElapsed(completedDurationMs);
+  }
+
+  if (!generationStartedAt) {
+    return fallback;
+  }
+
+  const effectiveNow =
+    isPaused && pausedAtMsRef.current != null ? pausedAtMsRef.current : nowMs;
+  const elapsedMs =
+    effectiveNow - generationStartedAt - pausedTotalMsRef.current;
+
+  return formatElapsed(elapsedMs);
+}
 
 export function LastGenerationStats({
   telemetry,
@@ -288,6 +375,7 @@ function CompletedStats({
 export function GenerationTimeline({
   generationStatus,
   generationSubCallProgress,
+  generationStartedAt,
   formattedElapsedTime,
   streamText,
   isGenerating,
@@ -297,6 +385,7 @@ export function GenerationTimeline({
   generationStatus: GenerationStatusEvent | null;
   /** Present when several API calls run for one subject (per locally chosen subtopic). */
   generationSubCallProgress?: GenerationSubCallProgress | null;
+  generationStartedAt?: number | null;
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
@@ -308,6 +397,13 @@ export function GenerationTimeline({
   const isDone = currentStage === 'completed';
 
   const completedEvent = isDone ? generationStatus : null;
+  const elapsedTimeLabel = useGenerationElapsedTime({
+    generationStartedAt,
+    completedDurationMs: completedEvent?.durationMs,
+    isGenerating,
+    isPaused,
+    fallback: formattedElapsedTime,
+  });
 
   return (
     <div className='w-full py-2.5 space-y-2'>
@@ -326,7 +422,7 @@ export function GenerationTimeline({
         </div>
         <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
           <Clock3 className='w-2.5 h-2.5' />
-          {formattedElapsedTime}
+          {elapsedTimeLabel}
           {isGenerating && (
             <button
               type='button'
@@ -371,6 +467,7 @@ export function GenerationTimeline({
 export function BatchTimeline({
   entries,
   generationSubCallProgress,
+  generationStartedAt,
   formattedElapsedTime,
   streamText,
   isGenerating,
@@ -379,6 +476,7 @@ export function BatchTimeline({
 }: {
   entries: BatchTopicProgress[];
   generationSubCallProgress?: GenerationSubCallProgress | null;
+  generationStartedAt?: number | null;
   formattedElapsedTime: string;
   streamText: string;
   isGenerating: boolean;
@@ -396,6 +494,12 @@ export function BatchTimeline({
   const errorCount = entries.filter((e) => e.status === 'error').length;
   const activeEntry = entries.find((e) => e.status === 'active');
   const allDone = doneCount + errorCount === entries.length;
+  const elapsedTimeLabel = useGenerationElapsedTime({
+    generationStartedAt,
+    isGenerating,
+    isPaused,
+    fallback: formattedElapsedTime,
+  });
 
   return (
     <div className='w-full px-6 py-2.5 space-y-2'>
@@ -420,7 +524,7 @@ export function BatchTimeline({
         </div>
         <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
           <Clock3 className='w-2.5 h-2.5' />
-          {formattedElapsedTime}
+          {elapsedTimeLabel}
           {isGenerating && (
             <button
               type='button'
