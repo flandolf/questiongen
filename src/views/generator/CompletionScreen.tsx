@@ -169,7 +169,7 @@ const ScoreRing = memo(function ScoreRing({
           strokeDashoffset={dashoffset}
           style={{
             transition:
-              'stroke-dashoffset 1.1s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              'stroke-dashoffset 1.1s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       </svg>
