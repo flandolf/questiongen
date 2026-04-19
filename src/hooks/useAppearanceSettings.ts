@@ -94,5 +94,33 @@ export function useAppearanceSettings() {
     // Apply Fonts
     root.style.setProperty('--interface-font', `"${interfaceFont}"`);
     root.style.setProperty('--heading-font', `"${headingFont}"`);
-  }, [m3Colors, globalRounding, interfaceFont, headingFont]);
+
+    // Keep the prepaint theme injector cache in sync for next startup.
+    try {
+      const stored = localStorage.getItem('questiongen-ui-prefs');
+      const prefs = stored
+        ? (JSON.parse(stored) as Record<string, unknown>)
+        : {};
+
+      prefs.designTheme = theme;
+      prefs.customThemeSeedColor = customThemeSeedColor;
+
+      if (m3Colors) {
+        prefs.customThemeVars = m3Colors;
+      } else if ('customThemeVars' in prefs) {
+        delete prefs.customThemeVars;
+      }
+
+      localStorage.setItem('questiongen-ui-prefs', JSON.stringify(prefs));
+    } catch {
+      // Ignore parsing errors.
+    }
+  }, [
+    theme,
+    customThemeSeedColor,
+    m3Colors,
+    globalRounding,
+    interfaceFont,
+    headingFont,
+  ]);
 }
