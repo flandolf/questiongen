@@ -60,6 +60,7 @@ import type {
 import {
   applyPressureCurve,
   CANVAS_STORAGE_KEY_PREFIX,
+  cleanupOldSketchpadData,
   cloneStrokes,
   DEFAULT_TOOL_SETTINGS,
   drawGraphAxes,
@@ -126,6 +127,8 @@ type SketchpadStoragePayload = {
   strokeSvg?: string;
   lastModified?: number;
 };
+
+const MAX_SKETCH_STORAGE_CHARS = 1_500_000;
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
@@ -315,6 +318,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       null,
     );
     const hasDirtyCanvasRef = useRef(false);
+    const storageSaveBlockedKeysRef = useRef<Set<string>>(new Set());
 
     const markCanvasDirty = useCallback(() => {
       hasDirtyCanvasRef.current = true;
@@ -379,6 +383,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const saveCanvasToStorage = useCallback(
       (key?: string) => {
         if (!key) return;
+        const storageKey = getCanvasStorageKey(key);
+        if (!storageKey) return;
+        if (storageSaveBlockedKeysRef.current.has(storageKey)) return;
+
         try {
           const payload: SketchpadStoragePayload = {
             version: 2,
@@ -391,10 +399,32 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             ),
             lastModified: Date.now(),
           };
-          localStorage.setItem(
-            getCanvasStorageKey(key),
-            JSON.stringify(payload),
-          );
+
+          const serializedPayload = JSON.stringify(payload);
+          if (serializedPayload.length > MAX_SKETCH_STORAGE_CHARS) {
+            storageSaveBlockedKeysRef.current.add(storageKey);
+            console.warn(
+              'Sketchpad auto-save disabled for this question because the drawing is too large for local storage.',
+            );
+            return;
+          }
+
+          try {
+            localStorage.setItem(storageKey, serializedPayload);
+          } catch (err) {
+            const isQuotaExceeded =
+              err instanceof DOMException &&
+              (err.name === 'QuotaExceededError' || err.code === 22);
+
+            if (!isQuotaExceeded) {
+              throw err;
+            }
+
+            // Attempt one best-effort cleanup pass, then retry once.
+            cleanupOldSketchpadData();
+            localStorage.setItem(storageKey, serializedPayload);
+          }
+
           hasDirtyCanvasRef.current = false;
           window.dispatchEvent(
             new CustomEvent('sketchpad-saved', {
@@ -404,7 +434,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               },
             }),
           );
+          storageSaveBlockedKeysRef.current.delete(storageKey);
         } catch (err) {
+          const isQuotaExceeded =
+            err instanceof DOMException &&
+            (err.name === 'QuotaExceededError' || err.code === 22);
+
+          if (isQuotaExceeded) {
+            storageSaveBlockedKeysRef.current.add(storageKey);
+            console.warn(
+              'Failed to save canvas to localStorage due to quota limits. Auto-save is disabled for this sketch until the next session.',
+            );
+            return;
+          }
+
           console.warn('Failed to save canvas to localStorage:', err);
         }
       },
