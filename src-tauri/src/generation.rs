@@ -195,8 +195,8 @@ fn estimate_completion_budget(
         "essential skills" => 0.85,
         "easy" => 0.95,
         "medium" => 1.0,
-        "hard" => 1.15,
-        "extreme" => 1.3,
+        "hard" => 1.25,
+        "extreme" => 1.45,
         _ => 1.0,
     };
 
@@ -540,20 +540,26 @@ impl GenerationService {
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
 
-        if request.avoid_similar_questions() {
-            let mut need_retry = summary
-                .distinctness_avg
-                .is_some_and(|v| v < distinctness_threshold)
-                || metrics
-                    .iter()
-                    .any(|m| m.distinctness < per_question_distinctness_threshold);
+        let mut retry_deficit = self.retry_deficit(
+            &summary,
+            &metrics,
+            distinctness_threshold,
+            per_question_distinctness_threshold,
+            request.avoid_similar_questions(),
+            &adjusted_difficulty,
+            is_mc,
+        );
+
+        if retry_deficit > 0.0 {
             let mut attempts = 0;
-            while need_retry && attempts < 2 {
+            while retry_deficit > 0.0 && attempts < 2 {
                 attempts += 1;
-                self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "regenerating-duplicates", "message": format!("Regenerating to improve diversity (attempt {})...", attempts), "attempt": attempts + 1 }));
+                self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "regenerating-duplicates", "message": format!("Regenerating to improve quality (attempt {})...", attempts), "attempt": attempts + 1 }));
 
                 let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
                 let adaptive_note = prompts::adaptive_quality_note(&metrics);
+                let hard_difficulty_note =
+                    self.high_difficulty_regen_note(&adjusted_difficulty, is_mc);
                 let regen_intro = format!("Regenerate {count} {mode} questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count(), mode = mode_str, topics = sanitize_for_api(&topics.join(", ")), difficulty = adjusted_difficulty);
 
                 let new_user_content = if include_exam_context {
@@ -577,6 +583,11 @@ impl GenerationService {
                         }
                     }
                     parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
+                    if !hard_difficulty_note.is_empty() {
+                        parts.push(
+                            serde_json::json!({ "type": "text", "text": hard_difficulty_note }),
+                        );
+                    }
                     if !adaptive_note.is_empty() {
                         parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
                     }
@@ -599,6 +610,10 @@ impl GenerationService {
                         synth,
                         diversity_note
                     );
+                    if !hard_difficulty_note.is_empty() {
+                        p.push_str("\n\n");
+                        p.push_str(hard_difficulty_note);
+                    }
                     if !adaptive_note.is_empty() {
                         p.push_str(&adaptive_note);
                     }
@@ -632,6 +647,7 @@ impl GenerationService {
                     {
                         Q::normalize(&mut new_payload.questions, &topics, selected_subs);
                         if Q::validate(&new_payload.questions, request.question_count()).is_ok() {
+                            Q::adjust_marks(&mut new_payload.questions, total_marks);
                             let new_texts = Q::extract_texts(&new_payload.questions);
                             let new_marks: Vec<u8> = new_payload
                                 .questions
@@ -640,12 +656,20 @@ impl GenerationService {
                                 .collect();
                             let (new_metrics, new_summary) =
                                 quality::score_batch(&new_texts, Some(&new_marks));
-                            if new_summary.distinctness_avg.unwrap_or(0.0)
-                                > summary.distinctness_avg.unwrap_or(0.0)
-                            {
+                            let new_retry_deficit = self.retry_deficit(
+                                &new_summary,
+                                &new_metrics,
+                                distinctness_threshold,
+                                per_question_distinctness_threshold,
+                                request.avoid_similar_questions(),
+                                &adjusted_difficulty,
+                                is_mc,
+                            );
+                            if new_retry_deficit < retry_deficit {
                                 payload = new_payload;
                                 metrics = new_metrics;
                                 summary = new_summary;
+                                retry_deficit = new_retry_deficit;
                                 final_prompt_tokens = r.prompt_tokens;
                                 final_completion_tokens = r.completion_tokens;
                                 final_total_tokens = r.total_tokens;
@@ -653,18 +677,13 @@ impl GenerationService {
                                 {
                                     q.apply_metrics(metric);
                                 }
-                                break;
+                                if retry_deficit <= 0.0 {
+                                    break;
+                                }
                             }
                         }
                     }
                 }
-                need_retry = attempts < 2
-                    && (summary
-                        .distinctness_avg
-                        .is_some_and(|v| v < distinctness_threshold)
-                        || metrics
-                            .iter()
-                            .any(|m| m.distinctness < per_question_distinctness_threshold));
             }
         }
 
@@ -862,6 +881,86 @@ impl GenerationService {
             "strict" => (0.75, 0.5),
             _ => (0.6, 0.35),
         }
+    }
+
+    fn high_difficulty_quality_thresholds(
+        &self,
+        difficulty: &str,
+        is_mc: bool,
+    ) -> Option<(f32, f32)> {
+        match difficulty.to_ascii_lowercase().as_str() {
+            "hard" => {
+                if is_mc {
+                    Some((2.2, 0.45))
+                } else {
+                    Some((2.8, 0.55))
+                }
+            }
+            "extreme" => {
+                if is_mc {
+                    Some((2.5, 0.55))
+                } else {
+                    Some((3.2, 0.7))
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn high_difficulty_regen_note(&self, difficulty: &str, is_mc: bool) -> &'static str {
+        match difficulty.to_ascii_lowercase().as_str() {
+            "hard" => {
+                if is_mc {
+                    "HIGH-DIFFICULTY CORRECTION (HARD): Increase cognitive demand. Require non-routine distractors, multi-step inference, and explicit discrimination between closely plausible options. Avoid direct recall and one-step substitutions."
+                } else {
+                    "HIGH-DIFFICULTY CORRECTION (HARD): Increase cognitive demand. Each question should require multi-step reasoning, method selection, and justification. Include non-routine structure and richer data/context; avoid direct template substitution."
+                }
+            }
+            "extreme" => {
+                if is_mc {
+                    "HIGH-DIFFICULTY CORRECTION (EXTREME): Push to top-end challenge. Use layered reasoning with subtle distractor traps that test synthesis across concepts, not recall."
+                } else {
+                    "HIGH-DIFFICULTY CORRECTION (EXTREME): Push to top-end challenge. Require deep synthesis across concepts, chain reasoning, and rigorous argumentation/proof-style justification where syllabus-valid."
+                }
+            }
+            _ => "",
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn retry_deficit(
+        &self,
+        summary: &quality::QualitySummary,
+        metrics: &[quality::QuestionQualityMetrics],
+        distinctness_threshold: f32,
+        per_question_distinctness_threshold: f32,
+        enforce_distinctness: bool,
+        difficulty: &str,
+        is_mc: bool,
+    ) -> f32 {
+        let mut deficit = 0.0;
+
+        if enforce_distinctness {
+            let distinctness_avg = summary.distinctness_avg.unwrap_or(0.0);
+            deficit += (distinctness_threshold - distinctness_avg).max(0.0);
+
+            let per_question_shortfall = metrics
+                .iter()
+                .map(|m| (per_question_distinctness_threshold - m.distinctness).max(0.0))
+                .sum::<f32>();
+            deficit += per_question_shortfall;
+        }
+
+        if let Some((min_depth, min_verb_diversity)) =
+            self.high_difficulty_quality_thresholds(difficulty, is_mc)
+        {
+            let depth = summary.multi_step_depth_avg.unwrap_or(0.0);
+            let verb_diversity = summary.command_verb_diversity.unwrap_or(0.0);
+            deficit += (min_depth - depth).max(0.0);
+            deficit += (min_verb_diversity - verb_diversity).max(0.0);
+        }
+
+        deficit
     }
 
     pub fn resolve_tech_mode(&self, mode: Option<&str>) -> &'static str {
@@ -1521,5 +1620,15 @@ mod tests {
         let contextual = estimate_completion_budget(5, 10, "Medium", true, 3, 4, 3, true, true);
 
         assert!(contextual > base);
+    }
+
+    #[test]
+    fn estimate_completion_budget_scales_with_higher_difficulty() {
+        let medium = estimate_completion_budget(4, 8, "Medium", false, 1, 1, 0, false, false);
+        let hard = estimate_completion_budget(4, 8, "Hard", false, 1, 1, 0, false, false);
+        let extreme = estimate_completion_budget(4, 8, "Extreme", false, 1, 1, 0, false, false);
+
+        assert!(hard > medium);
+        assert!(extreme > hard);
     }
 }

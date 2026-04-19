@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 
-import { cleanupOldSketchpadData } from '@/components/sketchpadUtils';
 import { APP_STATE_STORAGE_KEY, PERSISTED_APP_STATE_VERSION } from '@/types';
 import type { TimerState } from '@/types/timer';
 
@@ -142,8 +141,6 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
-  cleanupOldSketchpadData();
-
   if (isTauriRuntime()) {
     try {
       const persisted = await invoke<unknown>('load_persisted_state');
