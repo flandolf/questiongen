@@ -485,16 +485,16 @@ pub fn difficulty_enforcement_note(difficulty: &str, is_mc: bool) -> &'static st
     match difficulty.to_ascii_lowercase().as_str() {
         "hard" => {
             if is_mc {
-                " HARD ENFORCEMENT: Avoid direct recall or single-step substitutions. Stems must require at least two reasoning moves, and distractors must come from realistic misconceptions or near-miss methods. Increase cognitive demand, not mark allocation."
+                " HARD ENFORCEMENT: Avoid direct recall or single-step substitutions. Stems must require at least two reasoning moves, and distractors must come from realistic misconceptions or near-miss methods. INCREASE COGNITIVE DEMAND — DO NOT increase marks."
             } else {
-                " HARD ENFORCEMENT: Avoid direct recall or one-step substitution questions. Require non-routine setup, method choice, and explicit justification. For items that already carry higher marks, use linked sub-parts that escalate from setup to analysis/synthesis where syllabus-valid. Do not increase marks solely to signal difficulty."
+                " HARD ENFORCEMENT: Avoid direct recall or one-step substitution questions. Require non-routine setup, method choice, and explicit justification. USE LINKED SUB-PARTS that escalate from setup to analysis/synthesis where syllabus-valid. DO NOT increase marks beyond the requested average — achieve difficulty through complexity, not allocation."
             }
         }
         "extreme" => {
             if is_mc {
-                " EXTREME ENFORCEMENT: Every item must demand layered inference and concept synthesis, not procedural recall. Distractors should be highly plausible and discriminate between partially-correct and fully-correct reasoning. Increase complexity, not marks."
+                " EXTREME ENFORCEMENT: Every item must demand layered inference and concept synthesis, not procedural recall. Distractors should be highly plausible and discriminate between partially-correct and fully-correct reasoning. INCREASE COMPLEXITY — DO NOT increase marks."
             } else {
-                " EXTREME ENFORCEMENT: Every item must require deep multi-step reasoning and synthesis across concepts where syllabus-valid. Prioritize proof-grade argumentation, symbolic reasoning, and non-routine structure over procedural templates. Keep mark allocation aligned to the requested average."
+                " EXTREME ENFORCEMENT: Every item must require deep multi-step reasoning and synthesis across concepts where syllabus-valid. Prioritize proof-grade argumentation, symbolic reasoning, and non-routine structure. KEEP MARKS AT OR BELOW THE REQUESTED AVERAGE — achieve extreme difficulty through cognitive complexity, not mark bloat."
             }
         }
         _ => "",
@@ -645,6 +645,7 @@ impl UserPromptBuilder {
              Difficulty: {difficulty} ({diff_rules})\n\
              Average marks: {average_marks} (Total marks: {total_marks})\n\n\
              CONSTRAINTS:\n\
+             - CRITICAL: Do NOT exceed the average marks requested. Keep each question's marks AT OR NEAR {average_marks}. Difficulty should come from cognitive complexity, NOT from mark bloat.\n\
              - Complexity must match marks (e.g., 5-6 marks = 2-3 parts).\n\
              {scaffolding}{subs_note}{synth_note}{custom_note}{tech}{difficulty_enforcement}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
              GOAL: Output exactly {count} high-quality questions following VCAA standards.",
