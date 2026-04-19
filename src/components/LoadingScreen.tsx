@@ -14,7 +14,7 @@ export function LoadingScreen() {
   }, []);
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-linear-to-br from-background via-background to-background/95 text-foreground px-6 overflow-hidden relative'>
+    <div className='fixed inset-0 z-50 flex h-dvh w-screen items-center justify-center overflow-hidden bg-linear-to-br from-background via-background to-background/95 px-6 text-foreground'>
       {/* Animated background elements */}
       <div className='absolute inset-0 pointer-events-none'>
         <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse' />

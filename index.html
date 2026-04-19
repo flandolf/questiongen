@@ -43,11 +43,25 @@
             designTheme || 'claude',
           );
 
+          // Apply cached custom theme CSS vars immediately for true first-paint custom theming.
+          if (designTheme === 'custom' && uiPrefs.customThemeVars) {
+            Object.entries(uiPrefs.customThemeVars).forEach(([key, value]) => {
+              if (typeof key === 'string' && typeof value === 'string') {
+                document.documentElement.style.setProperty(key, value);
+              }
+            });
+          }
+
           // 3. Set background color immediately to avoid white flash
-          // These match the oklch values in the CSS for Claude theme (default)
-          document.documentElement.style.backgroundColor = isDark
-            ? 'oklch(0.2 0.02 90)'
-            : 'oklch(0.99 0.005 90)';
+          // These match Claude defaults unless custom cached vars are available.
+          document.documentElement.style.backgroundColor =
+            designTheme === 'custom' &&
+            uiPrefs.customThemeVars &&
+            typeof uiPrefs.customThemeVars['--background'] === 'string'
+              ? uiPrefs.customThemeVars['--background']
+              : isDark
+                ? 'oklch(0.2 0.02 90)'
+                : 'oklch(0.99 0.005 90)';
         } catch (e) {
           console.error('Theme injector failed', e);
         }
