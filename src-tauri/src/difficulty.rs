@@ -4,6 +4,7 @@ pub fn difficulty_guidance(level: &str) -> &'static str {
         "easy" => "Easy: Foundational understanding, familiar contexts, short reasoning steps.",
         "medium" => "Medium: Multi-step reasoning, method selection required, some interpretation.",
         "hard" => "Hard: Information-dense, synthesis of areas, non-routine setup, rigorous argumentation.",
+        "extreme" => "Extreme: High-cognitive-load, multi-stage synthesis, non-routine reasoning, and proof-grade justification where syllabus-valid.",
         _ => "Medium: Multi-step reasoning, method selection, some interpretation.",
     }
 }

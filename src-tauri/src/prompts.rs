@@ -481,6 +481,26 @@ pub fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str
     }
 }
 
+pub fn difficulty_enforcement_note(difficulty: &str, is_mc: bool) -> &'static str {
+    match difficulty.to_ascii_lowercase().as_str() {
+        "hard" => {
+            if is_mc {
+                " HARD ENFORCEMENT: Avoid direct recall or single-step substitutions. Stems must require at least two reasoning moves, and distractors must come from realistic misconceptions or near-miss methods. Increase cognitive demand, not mark allocation."
+            } else {
+                " HARD ENFORCEMENT: Avoid direct recall or one-step substitution questions. Require non-routine setup, method choice, and explicit justification. For items that already carry higher marks, use linked sub-parts that escalate from setup to analysis/synthesis where syllabus-valid. Do not increase marks solely to signal difficulty."
+            }
+        }
+        "extreme" => {
+            if is_mc {
+                " EXTREME ENFORCEMENT: Every item must demand layered inference and concept synthesis, not procedural recall. Distractors should be highly plausible and discriminate between partially-correct and fully-correct reasoning. Increase complexity, not marks."
+            } else {
+                " EXTREME ENFORCEMENT: Every item must require deep multi-step reasoning and synthesis across concepts where syllabus-valid. Prioritize proof-grade argumentation, symbolic reasoning, and non-routine structure over procedural templates. Keep mark allocation aligned to the requested average."
+            }
+        }
+        _ => "",
+    }
+}
+
 pub fn math_methods_exam1_tech_free_note(topics: &[String], tech_mode: &str) -> &'static str {
     let is_methods = topics
         .iter()
@@ -626,7 +646,7 @@ impl UserPromptBuilder {
              Average marks: {average_marks} (Total marks: {total_marks})\n\n\
              CONSTRAINTS:\n\
              - Complexity must match marks (e.g., 5-6 marks = 2-3 parts).\n\
-             {scaffolding}{subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+             {scaffolding}{subs_note}{synth_note}{custom_note}{tech}{difficulty_enforcement}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
              GOAL: Output exactly {count} high-quality questions following VCAA standards.",
             count                 = self.count,
             topics                = sanitize_for_api(&self.topics.join(", ")),
@@ -643,6 +663,7 @@ impl UserPromptBuilder {
             synth_note            = sanitize_for_api(&subtopic_synthesis_note(self.subtopics.as_ref(), self.count)),
             custom_note           = sanitize_for_api(&custom_note),
             tech                  = tech_note(&self.tech_mode, &self.topics),
+            difficulty_enforcement = difficulty_enforcement_note(&self.difficulty, false),
             topic_notes           = topic_notes(&self.topics, self.subtopics.as_ref()),
             math_diff             = math_difficulty_note(&self.difficulty, &self.topics),
             methods_exam1_note    = math_methods_exam1_tech_free_note(&self.topics, &self.tech_mode),
@@ -683,7 +704,7 @@ impl UserPromptBuilder {
              Topics: {topics}\n\
              Difficulty: {difficulty} ({diff_rules})\n\n\
              CONSTRAINTS:\n\
-             {subs_note}{synth_note}{custom_note}{tech}{topic_notes}{math_diff}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+             {subs_note}{synth_note}{custom_note}{tech}{difficulty_enforcement}{topic_notes}{math_diff}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
              GOAL: Output exactly {count} high-quality questions following VCAA standards.",
             count                 = self.count,
             topics                = sanitize_for_api(&self.topics.join(", ")),
@@ -699,6 +720,7 @@ impl UserPromptBuilder {
             synth_note            = sanitize_for_api(&subtopic_synthesis_note(self.subtopics.as_ref(), self.count)),
             custom_note           = sanitize_for_api(&custom_note),
             tech                  = tech_note(&self.tech_mode, &self.topics),
+            difficulty_enforcement = difficulty_enforcement_note(&self.difficulty, true),
             topic_notes           = topic_notes(&self.topics, self.subtopics.as_ref()),
             math_diff             = math_difficulty_note(&self.difficulty, &self.topics),
             prob_table_note       = probability_distribution_table_note(&self.topics),
@@ -786,5 +808,38 @@ mod tests {
         assert!(guidance.contains("VCE PHYSICAL EDUCATION RULES:"));
         let pe_count = guidance.matches("VCE PHYSICAL EDUCATION RULES:").count();
         assert_eq!(pe_count, 1);
+    }
+
+    #[test]
+    fn difficulty_enforcement_note_applies_to_hard_and_extreme() {
+        let hard_written = difficulty_enforcement_note("Hard", false);
+        let hard_mc = difficulty_enforcement_note("Hard", true);
+        let extreme_written = difficulty_enforcement_note("Extreme", false);
+
+        assert!(hard_written.contains("HARD ENFORCEMENT"));
+        assert!(hard_mc.contains("HARD ENFORCEMENT"));
+        assert!(extreme_written.contains("EXTREME ENFORCEMENT"));
+        assert!(hard_written.contains("Do not increase marks"));
+        assert!(difficulty_enforcement_note("Medium", false).is_empty());
+    }
+
+    #[test]
+    fn build_written_includes_hard_enforcement() {
+        let builder = UserPromptBuilder {
+            count: 2,
+            topics: vec!["Mathematical Methods".to_string()],
+            difficulty: "Hard".to_string(),
+            average_marks: Some(5),
+            subtopics: None,
+            custom_focus_area: None,
+            tech_mode: "tech-free".to_string(),
+            include_exam_context: false,
+            avoid_similar_questions: false,
+            shuffle_subtopics: false,
+            prior_question_prompts: None,
+        };
+
+        let prompt = builder.build_written();
+        assert!(prompt.contains("HARD ENFORCEMENT"));
     }
 }
