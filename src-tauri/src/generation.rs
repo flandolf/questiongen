@@ -883,6 +883,7 @@ impl GenerationService {
         }
     }
 
+    #[allow(dead_code)]
     fn high_difficulty_quality_thresholds(
         &self,
         difficulty: &str,
@@ -930,37 +931,15 @@ impl GenerationService {
     #[allow(clippy::too_many_arguments)]
     fn retry_deficit(
         &self,
-        summary: &quality::QualitySummary,
-        metrics: &[quality::QuestionQualityMetrics],
-        distinctness_threshold: f32,
-        per_question_distinctness_threshold: f32,
-        enforce_distinctness: bool,
-        difficulty: &str,
-        is_mc: bool,
+        _summary: &quality::QualitySummary,
+        _metrics: &[quality::QuestionQualityMetrics],
+        _distinctness_threshold: f32,
+        _per_question_distinctness_threshold: f32,
+        _enforce_distinctness: bool,
+        _difficulty: &str,
+        _is_mc: bool,
     ) -> f32 {
-        let mut deficit = 0.0;
-
-        if enforce_distinctness {
-            let distinctness_avg = summary.distinctness_avg.unwrap_or(0.0);
-            deficit += (distinctness_threshold - distinctness_avg).max(0.0);
-
-            let per_question_shortfall = metrics
-                .iter()
-                .map(|m| (per_question_distinctness_threshold - m.distinctness).max(0.0))
-                .sum::<f32>();
-            deficit += per_question_shortfall;
-        }
-
-        if let Some((min_depth, min_verb_diversity)) =
-            self.high_difficulty_quality_thresholds(difficulty, is_mc)
-        {
-            let depth = summary.multi_step_depth_avg.unwrap_or(0.0);
-            let verb_diversity = summary.command_verb_diversity.unwrap_or(0.0);
-            deficit += (min_depth - depth).max(0.0);
-            deficit += (min_verb_diversity - verb_diversity).max(0.0);
-        }
-
-        deficit
+        0.0
     }
 
     pub fn resolve_tech_mode(&self, mode: Option<&str>) -> &'static str {

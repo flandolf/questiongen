@@ -1,10 +1,10 @@
 pub fn difficulty_guidance(level: &str) -> &'static str {
     match level.to_ascii_lowercase().as_str() {
-        "essential skills" => "Essential Skills: Direct recall, 1-2 step calculations, no ambiguity.",
-        "easy" => "Easy: Foundational understanding, familiar contexts, short reasoning steps.",
-        "medium" => "Medium: Multi-step reasoning, method selection required, some interpretation.",
-        "hard" => "Hard: Information-dense, synthesis of areas, non-routine setup, rigorous argumentation.",
-        "extreme" => "Extreme: High-cognitive-load, multi-stage synthesis, non-routine reasoning, and proof-grade justification where syllabus-valid.",
+        "essential skills" => "Essential Skills: Direct recall, 1-2 step calculations, no ambiguity. Keep marks low.",
+        "easy" => "Easy: Foundational understanding, familiar contexts, short reasoning steps. Keep marks low.",
+        "medium" => "Medium: Multi-step reasoning, method selection required, some interpretation. Balance marks with complexity.",
+        "hard" => "Hard: Make it HARDER through cognitive complexity (non-routine setup, synthesis, rigorous argumentation) — NOT by adding marks. Use the marks you have wisely.",
+        "extreme" => "Extreme: Make questions extremely HARD through layered reasoning and proof-grade justification — NOT by increasing marks beyond the average requested.",
         _ => "Medium: Multi-step reasoning, method selection, some interpretation.",
     }
 }
