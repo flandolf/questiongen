@@ -2,18 +2,6 @@
 REM Windows batch port of build.sh
 SETLOCAL ENABLEDELAYEDEXPANSION
 
-REM Default jobs env (no direct equivalent; kept for parity)
-IF NOT DEFINED CARGO_BUILD_JOBS (
-  REM Try wmic first (older Windows). If unavailable, fall back to PowerShell.
-  FOR /F "tokens=*" %%C IN ('where wmic 2^>nul') DO SET _WMIC_FOUND=%%C
-  IF DEFINED _WMIC_FOUND (
-    FOR /F "tokens=*" %%C IN ('wmic cpu get NumberOfLogicalProcessors ^| findstr /R /C:"[0-9]"') DO SET CARGO_BUILD_JOBS=%%C
-  ) ELSE (
-    FOR /F "tokens=*" %%C IN ('powershell -NoProfile -Command "(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors"') DO SET CARGO_BUILD_JOBS=%%C
-  )
-  SET _WMIC_FOUND=
-)
-
 SET BUMP=0
 SET VER_ARG=
 SET MODE=
