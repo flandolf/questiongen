@@ -510,7 +510,7 @@ fn default_model() -> String {
     "openai/gpt-5.4-mini".to_string()
 }
 fn default_text_size() -> u32 {
-    18
+    16
 }
 fn default_true() -> bool {
     true
