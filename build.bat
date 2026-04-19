@@ -4,7 +4,14 @@ SETLOCAL ENABLEDELAYEDEXPANSION
 
 REM Default jobs env (no direct equivalent; kept for parity)
 IF NOT DEFINED CARGO_BUILD_JOBS (
-  FOR /F "tokens=*" %%C IN ('wmic cpu get NumberOfLogicalProcessors ^| findstr /R /C:"[0-9]"') DO SET CARGO_BUILD_JOBS=%%C
+  REM Try wmic first (older Windows). If unavailable, fall back to PowerShell.
+  FOR /F "tokens=*" %%C IN ('where wmic 2^>nul') DO SET _WMIC_FOUND=%%C
+  IF DEFINED _WMIC_FOUND (
+    FOR /F "tokens=*" %%C IN ('wmic cpu get NumberOfLogicalProcessors ^| findstr /R /C:"[0-9]"') DO SET CARGO_BUILD_JOBS=%%C
+  ) ELSE (
+    FOR /F "tokens=*" %%C IN ('powershell -NoProfile -Command "(Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors"') DO SET CARGO_BUILD_JOBS=%%C
+  )
+  SET _WMIC_FOUND=
 )
 
 SET BUMP=0
@@ -33,15 +40,6 @@ IF "%BUMP%"=="1" (
   )
 )
 
-REM Handle build/install modes
-IF "%MODE%"=="-c" (
-  ECHO Copying app to Program Files...
-  IF NOT EXIST "%ProgramFiles%\questiongen" MKDIR "%ProgramFiles%\questiongen"
-  REM Adjust source path if your Windows bundle path differs
-  COPY /Y "src-tauri\target\release\bundle\windows\questiongen.exe" "%ProgramFiles%\questiongen\" >nul 2>&1 || ECHO (copy failed or file missing)
-  GOTO end
-)
-
 IF "%MODE%"=="-a" (
   ECHO Building Android (Windows host)...
   bun run tauri android build -t aarch64
@@ -52,9 +50,6 @@ IF "%MODE%"=="-a" (
 IF "%MODE%"=="-b" (
   ECHO Full build (desktop + android)...
   bun run tauri build
-  IF EXIST "src-tauri\target\release\bundle\windows\questiongen.exe" (
-    COPY /Y "src-tauri\target\release\bundle\windows\questiongen.exe" "%ProgramFiles%\questiongen\" >nul 2>&1 || ECHO (copy failed)
-  )
   bun run tauri android build -t aarch64
   adb install -r "src-tauri\gen\android\app\build\outputs\apk\universal\release\app-universal-release.apk"
   GOTO end
@@ -63,9 +58,6 @@ IF "%MODE%"=="-b" (
 REM Default: desktop build
 ECHO Running default desktop build...
 bun run tauri build
-IF EXIST "src-tauri\target\release\bundle\windows\questiongen.exe" (
-  COPY /Y "src-tauri\target\release\bundle\windows\questiongen.exe" "%ProgramFiles%\questiongen\" >nul 2>&1 || ECHO (copy failed)
-)
 
 :end
 ENDLOCAL
