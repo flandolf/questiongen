@@ -6,16 +6,16 @@ SET BUMP=0
 SET VER_ARG=
 SET MODE=
 
+
 :parse_args
 IF "%~1"=="" GOTO after_parse
-  IF /I "%~1"=="-B" (SET BUMP=1) ELSE (
-  IF /I "%~1"=="-m" (SET VER_ARG=minor) ELSE (
-  IF /I "%~1"=="-M" (SET VER_ARG=major) ELSE (
-  IF /I "%~1"=="-c" (SET MODE=-c) ELSE (
-  IF /I "%~1"=="-a" (SET MODE=-a) ELSE (
-  IF /I "%~1"=="-b" (SET MODE=-b)
-  ))))))
-  SHIFT
+IF /I "%~1"=="-B" (SET BUMP=1)
+IF /I "%~1"=="-m" (SET VER_ARG=minor)
+IF /I "%~1"=="-M" (SET VER_ARG=major)
+IF /I "%~1"=="-c" (SET MODE=-c)
+IF /I "%~1"=="-a" (SET MODE=-a)
+IF /I "%~1"=="-b" (SET MODE=-b)
+SHIFT
 GOTO parse_args
 
 :after_parse
