@@ -2,6 +2,7 @@ import { type ComponentType, lazy, Suspense, useEffect } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/layout/Layout';
+import { LoadingScreen, RouteFallback } from '@/components/LoadingScreen';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -147,33 +148,11 @@ const NotFound = lazy(() =>
   ),
 );
 
-function RouteFallback() {
-  return (
-    <div className='min-h-full flex items-center justify-center p-8'>
-      <div className='text-center space-y-2'>
-        <div className='h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto' />
-        <p className='text-sm text-muted-foreground'>Loading...</p>
-      </div>
-    </div>
-  );
-}
-
 function AppRoutes() {
   const isHydrated = useAppStore((s) => s.isHydrated);
 
   if (!isHydrated) {
-    return (
-      <div className='min-h-screen flex items-center justify-center bg-background text-foreground px-6'>
-        <div className='text-center space-y-2'>
-          <h1 className='text-2xl font-bold tracking-tight'>
-            Loading your workspace
-          </h1>
-          <p className='text-sm text-muted-foreground'>
-            Restoring saved question sets, history, and analytics.
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
