@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppSettings } from '@/AppContext';
 import { PageHeader } from '@/components/layout/primitives';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -44,7 +45,6 @@ import {
   type TechMode,
   toCanonicalSubtopicName,
   type Topic,
-  TOPICS,
 } from '@/types';
 
 import { AdvancedOptionsGroup } from './AdvancedOptions';
@@ -257,6 +257,16 @@ function SetupPanelImpl({
     (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics',
   );
   const hasSubtopicSection = selectedTopics.length > 0;
+
+  const SUBJECT_GROUPS = [
+    { id: 'math', label: 'Mathematics', topics: ['Mathematical Methods', 'Specialist Mathematics', 'General Mathematics'] },
+    { id: 'science', label: 'Sciences', topics: ['Chemistry', 'Biology'] },
+    { id: 'pe', label: 'Health & PE', topics: ['Physical Education'] },
+  ] as const;
+  type SubjectGroupId = typeof SUBJECT_GROUPS[number]['id'];
+  const [activeGroup, setActiveGroup] = useState<SubjectGroupId>('math');
+  const visibleTopics = SUBJECT_GROUPS.find((g) => g.id === activeGroup)?.topics ?? [];
+
   const activeDifficulty = normalizeDifficulty(difficulty);
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
   const showBatchTimeline = batchProgress.length > 1;
@@ -339,6 +349,25 @@ function SetupPanelImpl({
 
   const isGenerationDisabled = generationDisabledReasons.length > 0;
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault();
+        if (!isGenerationDisabled && !isGenerating) {
+          onGenerate();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'r' && !e.shiftKey) {
+        e.preventDefault();
+        if (!isGenerating) {
+          onStartOver();
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isGenerationDisabled, isGenerating, onGenerate, onStartOver]);
+
   const levels = [
     'Essential Skills',
     'Easy',
@@ -405,69 +434,92 @@ function SetupPanelImpl({
 
             {/* Topics */}
             <Section label='Subjects'>
-              <div className='grid grid-cols-2 gap-2.5'>
-                {TOPICS.map((topic) => {
-                  const isSelected = selectedTopics.includes(topic);
-                  return (
-                    <motion.button
-                      key={topic}
-                      type='button'
-                      onClick={() => onToggleTopic(topic)}
-                      whileHover={{ y: -2, scale: 1.01 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={SPRING}
-                      className={cn(
-                        'relative flex flex-col items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer select-none group overflow-hidden',
-                        isSelected
-                          ? 'bg-primary/5 border-primary/25 shadow-sm'
-                          : 'bg-card border-border hover:border-foreground/20 hover:bg-muted/30',
-                      )}
-                    >
-                      {/* Subtle gradient accent on selected */}
-                      {isSelected && (
-                        <div className='absolute inset-0 bg-linear-to-br from-primary/5 to-transparent pointer-events-none' />
-                      )}
-
-                      <div className='flex items-start justify-between w-full relative z-10'>
-                        <div
+              <ButtonGroup className='w-full'>
+                {SUBJECT_GROUPS.map(({ id, label }) => (
+                  <Button
+                    key={id}
+                    variant='outline'
+                    onClick={() => setActiveGroup(id)}
+                    className={cn(
+                      'h-8 rounded-md border-border/70 text-xs flex-1',
+                      activeGroup === id
+                        ? 'bg-primary/10 border-primary/30 text-primary'
+                        : 'hover:bg-muted/50 hover:border-foreground/20',
+                    )}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </ButtonGroup>
+              <div className='relative'>
+                <AnimatePresence mode='wait' initial={false}>
+                  <motion.div
+                    key={activeGroup}
+                    initial={{ opacity: 0, x: 4 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -4 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className='grid grid-cols-2 gap-2.5'
+                  >
+                    {visibleTopics.map((topic) => {
+                      const isSelected = selectedTopics.includes(topic);
+                      return (
+                        <motion.button
+                          key={topic}
+                          type='button'
+                          onClick={() => onToggleTopic(topic)}
+                          whileHover={{ y: -2, scale: 1.01 }}
+                          whileTap={{ scale: 0.98 }}
+                          transition={SPRING}
                           className={cn(
-                            'p-1.5 rounded-lg transition-colors duration-200',
+                            'relative flex flex-col items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer select-none group overflow-hidden',
                             isSelected
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                              ? 'bg-primary/5 border-primary/25 shadow-sm'
+                              : 'bg-card border-border hover:border-foreground/20 hover:bg-muted/30',
                           )}
                         >
-                          {TOPIC_ICONS[topic] ?? (
-                            <BookOpen className='w-4 h-4' />
-                          )}
-                        </div>
-                        <div
-                          className={cn(
-                            'w-4 h-4 rounded-sm border-[1.5px] flex items-center justify-center transition-all duration-200 mt-0.5',
-                            isSelected
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'border-border/70',
-                          )}
-                        >
-                          {isSelected && (
-                            <Check className='w-2.5 h-2.5' strokeWidth={3} />
-                          )}
-                        </div>
-                      </div>
+                          <div className='flex items-start justify-between w-full relative z-10'>
+                            <div
+                              className={cn(
+                                'p-1.5 rounded-lg transition-colors duration-200',
+                                isSelected
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                              )}
+                            >
+                              {TOPIC_ICONS[topic] ?? (
+                                <BookOpen className='w-4 h-4' />
+                              )}
+                            </div>
+                            <div
+                              className={cn(
+                                'w-4 h-4 rounded-sm border-[1.5px] flex items-center justify-center transition-all duration-200 mt-0.5',
+                                isSelected
+                                  ? 'bg-primary border-primary text-primary-foreground'
+                                  : 'border-border/70',
+                              )}
+                            >
+                              {isSelected && (
+                                <Check className='w-2.5 h-2.5' strokeWidth={3} />
+                              )}
+                            </div>
+                          </div>
 
-                      <p
-                        className={cn(
-                          'text-xs font-semibold leading-tight relative z-10',
-                          isSelected
-                            ? 'text-foreground'
-                            : 'text-muted-foreground group-hover:text-foreground',
-                        )}
-                      >
-                        {topic}
-                      </p>
-                    </motion.button>
-                  );
-                })}
+                          <p
+                            className={cn(
+                              'text-xs font-semibold leading-tight relative z-10',
+                              isSelected
+                                ? 'text-foreground'
+                                : 'text-muted-foreground group-hover:text-foreground',
+                            )}
+                          >
+                            {topic}
+                          </p>
+                        </motion.button>
+                      );
+                    })}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </Section>
 
@@ -491,11 +543,11 @@ function SetupPanelImpl({
                   </div>
                   <span
                     className={cn(
-                      'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border',
+                      'text-[9px] font-mono font-black px-2 py-0.5 rounded-full border shadow-xs',
                       activeDifficultyMeta.pill,
                     )}
                   >
-                    LVL {diffIndex + 1}/5
+                    LVL {diffIndex + 1} OF 5
                   </span>
                 </div>
 
@@ -534,8 +586,8 @@ function SetupPanelImpl({
                           style={
                             isCurrent
                               ? {
-                                  boxShadow: `0 0 10px ${activeDifficultyMeta.themeColor}55`,
-                                }
+                                boxShadow: `0 0 10px ${activeDifficultyMeta.themeColor}55`,
+                              }
                               : undefined
                           }
                         />
@@ -583,7 +635,7 @@ function SetupPanelImpl({
                     <Hash className='w-3.5 h-3.5 text-muted-foreground' /> Total
                     Questions
                   </Label>
-                  <span className='text-2xl font-black font-mono tabular-nums text-foreground leading-none'>
+                  <span className='text-lg font-black font-mono tabular-nums text-foreground leading-none'>
                     {questionCount}
                   </span>
                 </div>
@@ -635,7 +687,10 @@ function SetupPanelImpl({
           {/* ── RIGHT COLUMN ── */}
           <div className='w-full lg:flex-1 flex flex-col gap-8 py-6'>
             {/* Presets */}
-            <Section label='Presets'>
+            <div className='flex flex-col gap-3'>
+              <p className='text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/60 px-0.5'>
+                Presets
+              </p>
               <div className='rounded-xl border border-border/70 bg-card p-4'>
                 <PresetSection
                   selectedTopics={selectedTopics}
@@ -647,27 +702,32 @@ function SetupPanelImpl({
                   questionMode={questionMode}
                 />
               </div>
-            </Section>
+            </div>
 
             {/* Advanced Options */}
-            <AdvancedOptionsGroup
-              questionMode={questionMode}
-              averageMarksPerQuestion={averageMarksPerQuestion}
-              onSetAverageMarksPerQuestion={onSetAverageMarksPerQuestion}
-              selectedTopics={selectedTopics}
-              hasSubtopicSection={hasSubtopicSection}
-              selectedSubtopics={selectedSubtopics}
-              onToggleSubtopic={onToggleSubtopic}
-              hasAnyMathTopic={hasAnyMathTopic}
-              techMode={techMode}
-              onSetTechMode={onSetTechMode}
-              customFocusArea={customFocusArea}
-              onSetCustomFocusArea={onSetCustomFocusArea}
-              diversityStrictness={diversityStrictness}
-              onSetDiversityStrictness={onSetDiversityStrictness}
-              strictLatexValidation={strictLatexValidation}
-              onSetStrictLatexValidation={onSetStrictLatexValidation}
-            />
+            <div className='flex flex-col gap-3'>
+              <p className='text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/60 px-0.5'>
+                Advanced Options
+              </p>
+              <AdvancedOptionsGroup
+                questionMode={questionMode}
+                averageMarksPerQuestion={averageMarksPerQuestion}
+                onSetAverageMarksPerQuestion={onSetAverageMarksPerQuestion}
+                selectedTopics={selectedTopics}
+                hasSubtopicSection={hasSubtopicSection}
+                selectedSubtopics={selectedSubtopics}
+                onToggleSubtopic={onToggleSubtopic}
+                hasAnyMathTopic={hasAnyMathTopic}
+                techMode={techMode}
+                onSetTechMode={onSetTechMode}
+                customFocusArea={customFocusArea}
+                onSetCustomFocusArea={onSetCustomFocusArea}
+                diversityStrictness={diversityStrictness}
+                onSetDiversityStrictness={onSetDiversityStrictness}
+                strictLatexValidation={strictLatexValidation}
+                onSetStrictLatexValidation={onSetStrictLatexValidation}
+              />
+            </div>
           </div>
         </div>
 
@@ -711,49 +771,57 @@ function SetupPanelImpl({
 
             <div className='flex items-center justify-between gap-4'>
               {/* Cost & token estimates */}
-              <div className='flex items-center gap-6'>
-                <div className='flex flex-col'>
-                  <span className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50'>
-                    Est. Cost
-                  </span>
-                  <div className='flex items-baseline gap-1'>
-                    <span className='text-xl font-mono font-black tabular-nums text-foreground leading-none'>
-                      {estimated.promptCost != null ||
-                      estimated.completionCost != null
-                        ? formatCostUsd(estimated.totalCost).replace('$', '')
-                        : '--'}
+              <div className='flex items-center gap-2 p-1 rounded-xl bg-muted/20 border border-border/40'>
+                <div className='flex items-center gap-4 px-3 py-1.5'>
+                  <div className='flex flex-col'>
+                    <span className='text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/50'>
+                      Est. Cost
                     </span>
-                    <span className='text-[10px] font-bold text-muted-foreground/60 uppercase'>
-                      USD
+                    <div className='flex items-baseline gap-1'>
+                      <span className='text-lg font-mono font-black tabular-nums text-foreground leading-none'>
+                        {estimated.promptCost != null ||
+                          estimated.completionCost != null
+                          ? formatCostUsd(estimated.totalCost).replace('$', '')
+                          : '--'}
+                      </span>
+                      <span className='text-[9px] font-bold text-muted-foreground/60 uppercase'>
+                        USD
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className='w-px h-6 bg-border/40 self-center' />
+
+                  <div className='flex flex-col min-w-20'>
+                    <span className='text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/50'>
+                      Tokens
+                    </span>
+                    <span className='text-lg font-mono font-black tabular-nums text-foreground leading-none'>
+                      {estimated.totalTokens.toLocaleString()}
                     </span>
                   </div>
                 </div>
 
-                <div className='w-px h-8 bg-border/60' />
-
-                <div className='flex flex-col min-w-28'>
-                  <span className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50'>
-                    Tokens
-                  </span>
-                  <span className='text-xl font-mono font-black tabular-nums text-foreground leading-none'>
-                    {estimated.totalTokens.toLocaleString()}
-                  </span>
-                  {estimated.confidence != null && (
-                    <div className='flex items-center gap-1.5 mt-1'>
-                      <div className='flex-1 h-0.5 bg-muted/40 rounded-full overflow-hidden'>
+                {estimated.confidence != null && (
+                  <div className='hidden xl:flex flex-col justify-center px-3 border-l border-border/40 min-w-30'>
+                    <span className='text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/50'>
+                      Conf.
+                    </span>
+                    <div className='flex items-center gap-2 mt-0.5'>
+                      <div className='flex-1 h-1 bg-muted/50 rounded-full overflow-hidden'>
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${estimated.confidence * 100}%` }}
                           transition={{ duration: 0.8, ease: 'circOut' }}
-                          className='h-full bg-foreground/60'
+                          className='h-full bg-primary/60'
                         />
                       </div>
-                      <span className='text-[9px] font-mono text-muted-foreground/50'>
+                      <span className='text-[9px] font-mono font-bold text-muted-foreground/70'>
                         {Math.round(estimated.confidence * 100)}%
                       </span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -765,7 +833,7 @@ function SetupPanelImpl({
                   disabled={isGenerating}
                   className='h-9 rounded-lg border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 >
-                  Start Over
+                  Reset
                 </Button>
 
                 <Tooltip>
@@ -814,9 +882,8 @@ function SetupPanelImpl({
                         {generationDisabledReasons.map((reason, i) => (
                           <li
                             key={i}
-                            className='text-[10px] text-muted-foreground flex items-center gap-1.5'
+                            className='text-[10px] flex items-center gap-1.5'
                           >
-                            <div className='w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0' />
                             {reason}
                           </li>
                         ))}
