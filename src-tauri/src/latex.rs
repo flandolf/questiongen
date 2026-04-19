@@ -144,6 +144,7 @@ pub fn heal_latex(nodes: Vec<LatexNode>) -> Vec<LatexNode> {
                 let mut text = protect_currency(&text);
                 text = repair_math_typos(&text);
                 text = repair_tabular_row_breaks(&text);
+                text = replace_unicode_symbols(&text, false);
                 LatexNode::Text(text)
             }
             LatexNode::InlineMath(inner) => LatexNode::InlineMath(heal_math_node(&inner)),
@@ -158,6 +159,7 @@ fn heal_math_node(inner: &str) -> String {
     inner = repair_fractions(&inner);
     inner = repair_tabular_row_breaks(&inner);
     inner = repair_common_math_spacing(&inner);
+    inner = replace_unicode_symbols(&inner, true);
     inner = escape_unescaped_percent(&inner);
     balance_braces(&inner)
 }
@@ -270,6 +272,104 @@ fn repair_backspace_latex_prefixes(text: &str) -> String {
         let good = format!("\\{}", cmd);
         out = out.replace(&bad, &good);
     }
+    out
+}
+
+fn latex_unicode_command(ch: char, in_math_mode: bool) -> Option<&'static str> {
+    match ch {
+        '\u{00B1}' => Some("pm"),
+        '\u{00D7}' => Some("times"),
+        '\u{00F7}' => Some("div"),
+        '\u{2212}' => Some("minus"),
+        '\u{221E}' => Some("infty"),
+        '\u{2202}' => Some("partial"),
+        '\u{2211}' => Some("sum"),
+        '\u{220F}' => Some("prod"),
+        '\u{222B}' => Some("int"),
+        '\u{2208}' => Some("in"),
+        '\u{2209}' => Some("notin"),
+        '\u{220A}' => Some("ni"),
+        '\u{2283}' => Some("supset"),
+        '\u{2282}' => Some("subset"),
+        '\u{2286}' => Some("subseteq"),
+        '\u{2287}' => Some("supseteq"),
+        '\u{2260}' => Some("neq"),
+        '\u{2264}' => Some("leq"),
+        '\u{2265}' => Some("geq"),
+        '\u{2248}' => Some("approx"),
+        '\u{2261}' => Some("equiv"),
+        '\u{2200}' => Some("forall"),
+        '\u{2203}' => Some("exists"),
+        '\u{2227}' => Some("wedge"),
+        '\u{2228}' => Some("vee"),
+        '\u{00AC}' => Some("neg"),
+        '\u{2190}' => Some("leftarrow"),
+        '\u{2192}' => Some("rightarrow"),
+        '\u{2194}' => Some("leftrightarrow"),
+        '\u{21D0}' => Some("Leftarrow"),
+        '\u{21D2}' => Some("Rightarrow"),
+        '\u{21D4}' => Some("Leftrightarrow"),
+        '\u{03B1}' if in_math_mode => Some("alpha"),
+        '\u{03B2}' if in_math_mode => Some("beta"),
+        '\u{03B3}' if in_math_mode => Some("gamma"),
+        '\u{03B4}' if in_math_mode => Some("delta"),
+        '\u{03B5}' if in_math_mode => Some("epsilon"),
+        '\u{03B8}' if in_math_mode => Some("theta"),
+        '\u{03BB}' if in_math_mode => Some("lambda"),
+        '\u{03BC}' if in_math_mode => Some("mu"),
+        '\u{03C0}' if in_math_mode => Some("pi"),
+        '\u{03C1}' if in_math_mode => Some("rho"),
+        '\u{03C3}' if in_math_mode => Some("sigma"),
+        '\u{03C4}' if in_math_mode => Some("tau"),
+        '\u{03C6}' if in_math_mode => Some("phi"),
+        '\u{03C9}' if in_math_mode => Some("omega"),
+        '\u{0394}' if in_math_mode => Some("Delta"),
+        '\u{0398}' if in_math_mode => Some("Theta"),
+        '\u{039B}' if in_math_mode => Some("Lambda"),
+        '\u{03A0}' if in_math_mode => Some("Pi"),
+        '\u{03A3}' if in_math_mode => Some("Sigma"),
+        '\u{03A6}' if in_math_mode => Some("Phi"),
+        '\u{03A9}' if in_math_mode => Some("Omega"),
+        '\u{2115}' if in_math_mode => Some("mathbb{N}"),
+        '\u{2124}' if in_math_mode => Some("mathbb{Z}"),
+        '\u{211A}' if in_math_mode => Some("mathbb{Q}"),
+        '\u{211D}' if in_math_mode => Some("mathbb{R}"),
+        '\u{2102}' if in_math_mode => Some("mathbb{C}"),
+        _ => None,
+    }
+}
+
+fn replace_unicode_symbols(text: &str, in_math_mode: bool) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len() + 8);
+
+    for (idx, &ch) in chars.iter().enumerate() {
+        if let Some(latex_cmd) = latex_unicode_command(ch, in_math_mode) {
+            out.push('\\');
+            out.push_str(latex_cmd);
+            if idx + 1 < chars.len() && chars[idx + 1].is_ascii_alphabetic() {
+                out.push(' ');
+            }
+            continue;
+        }
+
+        if !in_math_mode {
+            match ch {
+                '\u{00B0}' => {
+                    out.push_str("$^\\circ$");
+                    continue;
+                }
+                '\u{00B5}' => {
+                    out.push_str("$\\mu$");
+                    continue;
+                }
+                _ => {}
+            }
+        }
+
+        out.push(ch);
+    }
+
     out
 }
 
@@ -521,5 +621,36 @@ mod tests {
     #[test]
     fn repair_backspace_control_character_before_binom() {
         assert_eq!(clean_field("P(X)=\u{0008}inom{4}{2}"), r"P(X)=\binom{4}{2}");
+    }
+
+    #[test]
+    fn healer_replaces_unicode_math_symbols() {
+        let healed = heal_latex(lex("Find $x≤2$, $π≈3.14$, and $n∈ℕ$"));
+        let rendered = render_latex(&healed);
+        assert_eq!(
+            rendered,
+            "Find $x\\leq2$, $\\pi\\approx3.14$, and $n\\in\\mathbb{N}$"
+        );
+    }
+
+    #[test]
+    fn healer_adds_command_boundary_space_after_unicode_replacement() {
+        let healed = heal_latex(lex("Compute $∞x$ and $αbeta$"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "Compute $\\infty x$ and $\\alpha beta$");
+    }
+
+    #[test]
+    fn healer_replaces_basic_unicode_in_text_nodes() {
+        let healed = heal_latex(lex("Use ± and × and ≤ in notes"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "Use \\pm and \\times and \\leq in notes");
+    }
+
+    #[test]
+    fn healer_keeps_greek_unicode_unchanged_in_text_nodes() {
+        let healed = heal_latex(lex("café αβγ"));
+        let rendered = render_latex(&healed);
+        assert_eq!(rendered, "café αβγ");
     }
 }
