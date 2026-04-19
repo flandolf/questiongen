@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bookmark,
   ChartColumnIncreasing,
@@ -10,7 +10,7 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
@@ -31,48 +31,44 @@ function GoalProgressBar({
   current,
   goal,
   color,
+  ringColor,
 }: {
   label: string;
   current: number;
   goal: number;
   color: string;
+  ringColor: string;
 }) {
   const pct = Math.min(100, (current / goal) * 100);
   const complete = current >= goal;
   return (
-    <div className='space-y-2 flex-1 min-w-48'>
-      <div className='flex items-center justify-between px-0.5'>
-        <div className='flex items-center gap-1.5'>
-          <div className={cn('h-1.5 w-1.5 rounded-full', color)} />
-          <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground'>
-            {label}
-          </p>
-        </div>
-        <div className='flex items-baseline gap-1'>
-          <span className='text-[11px] font-bold tabular-nums'>{current}</span>
-          <span className='text-[9px] font-medium text-muted-foreground opacity-60'>
-            / {goal}
-          </span>
-        </div>
+    <div className='flex items-center gap-3'>
+      <div className='flex items-center gap-1.5 w-28 shrink-0'>
+        <div
+          className='h-2 w-2 rounded-full shrink-0'
+          style={{ backgroundColor: ringColor }}
+        />
+        <span className='text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate'>
+          {label}
+        </span>
       </div>
-      <div className='h-2 w-full bg-muted/10 rounded-full overflow-hidden relative group'>
+      <div className='flex-1 h-1.5 bg-muted/20 rounded-full overflow-hidden'>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 1, ease: [0.34, 1.56, 0.64, 1] }}
+          transition={{ duration: 0.9, ease: [0.34, 1.56, 0.64, 1] }}
           className={cn(
-            'h-full rounded-full relative transition-all duration-500',
+            'h-full rounded-full',
             color,
-            complete && 'brightness-110 shadow-[0_0_8px_currentColor]',
+            complete && 'brightness-110',
           )}
-        >
-          <div className='absolute inset-0 bg-white/10' />
-        </motion.div>
+        />
       </div>
-      <div className='flex justify-end px-0.5'>
-        <p className='text-[9px] font-bold text-muted-foreground/60 tabular-nums'>
-          {Math.round(pct)}%
-        </p>
+      <div className='flex items-baseline gap-0.5 w-12 justify-end shrink-0'>
+        <span className='text-[12px] font-bold tabular-nums'>{current}</span>
+        <span className='text-[10px] text-muted-foreground/50 tabular-nums'>
+          /{goal}
+        </span>
       </div>
     </div>
   );
@@ -139,6 +135,104 @@ function ConcentricRings({
   );
 }
 
+function GoalsPopover({
+  goalItems,
+  allGoalsMet,
+}: {
+  goalItems: {
+    label: string;
+    current: number;
+    goal: number;
+    color: string;
+    ringColor: string;
+  }[];
+  todayCompletions: { total: number; written: number; mc: number };
+  completedGoalCount: number;
+  goalCount: number;
+  allGoalsMet: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), 120);
+  };
+
+  return (
+    <div
+      className='relative'
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        className='flex items-center gap-1 rounded-full px-1 py-1 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
+      >
+        <ConcentricRings
+          goals={goalItems.map((goal) => ({
+            label: goal.label,
+            current: goal.current,
+            goal: goal.goal,
+            color: goal.ringColor,
+          }))}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            style={{ transformOrigin: 'top right' }}
+            className='absolute right-0 top-[calc(100%+10px)] z-50 w-72 overflow-hidden rounded-2xl border border-border/60 bg-popover/95 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+          >
+            <div className='relative space-y-4'>
+              {/* Progress bars */}
+              {goalItems.some((g) => g.goal > 0) && (
+                <div className='rounded-xl border border-border/40 bg-background/40 px-3 py-3 space-y-3'>
+                  {goalItems.map((goal) =>
+                    goal.goal > 0 ? (
+                      <GoalProgressBar
+                        key={goal.label}
+                        label={goal.label}
+                        current={goal.current}
+                        goal={goal.goal}
+                        color={goal.color}
+                        ringColor={goal.ringColor}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              )}
+
+              {/* All goals met banner */}
+              {allGoalsMet && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className='rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-3 py-2.5 text-center'
+                >
+                  <p className='text-[11px] font-semibold text-emerald-400'>
+                    🎉 All goals complete — keep the streak alive!
+                  </p>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function Header() {
   const { isSyncEnabled, syncStatus } = useFirebaseSyncContext();
   const streakData = useAppStore((s) => s.streakData);
@@ -154,16 +248,49 @@ export function Header() {
     );
   }, [streakData.dailyCompletions]);
 
+  const goalItems = useMemo(
+    () => [
+      {
+        label: 'Overall',
+        current: todayCompletions.total,
+        goal: studyGoals.dailyQuestionGoal,
+        color: 'bg-emerald-500',
+        ringColor: 'oklch(69.6% 0.17 162.48)',
+      },
+      {
+        label: 'MC',
+        current: todayCompletions.mc,
+        goal: studyGoals.dailyMcGoal,
+        color: 'bg-violet-500',
+        ringColor: 'oklch(60.6% 0.25 292.717)',
+      },
+      {
+        label: 'Written',
+        current: todayCompletions.written,
+        goal: studyGoals.dailyWrittenGoal,
+        color: 'bg-sky-500',
+        ringColor: 'oklch(68.5% 0.169 237.323)',
+      },
+    ],
+    [
+      studyGoals.dailyMcGoal,
+      studyGoals.dailyQuestionGoal,
+      studyGoals.dailyWrittenGoal,
+      todayCompletions,
+    ],
+  );
+
+  const activeGoalItems = goalItems.filter((goal) => goal.goal > 0);
+  const completedGoalCount = activeGoalItems.filter(
+    (goal) => goal.current >= goal.goal,
+  ).length;
+  const goalCount = activeGoalItems.length;
+
   const isSyncing = syncStatus === 'syncing' || syncStatus === 'connecting';
 
   const allGoalsMet = useMemo(() => {
-    const goals = [
-      { current: todayCompletions.total, goal: studyGoals.dailyQuestionGoal },
-      { current: todayCompletions.mc, goal: studyGoals.dailyMcGoal },
-      { current: todayCompletions.written, goal: studyGoals.dailyWrittenGoal },
-    ].filter((g) => g.goal > 0);
-    return goals.length > 0 && goals.every((g) => g.current >= g.goal);
-  }, [todayCompletions, studyGoals]);
+    return goalCount > 0 && completedGoalCount === goalCount;
+  }, [completedGoalCount, goalCount]);
 
   const renderLink = useCallback(
     (link: {
@@ -187,7 +314,7 @@ export function Header() {
         <div className='flex items-center justify-center'>
           <link.icon className='h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-105' />
           {link.showSessionDot && hasActiveSession && (
-            <span className='absolute top-1.5 left-6 w-1.5 h-1.5 rounded-full bg-emerald-500' />
+            <span className='absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary' />
           )}
         </div>
         <span className='ml-2 text-sm font-medium whitespace-nowrap'>
@@ -262,88 +389,18 @@ export function Header() {
               )}
             </div>
           )}
-
-          {/* Goals */}
-
-          {todayCompletions.total > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className='flex items-center gap-1 text-sm font-medium text-muted-foreground cursor-pointer'>
-                  <ConcentricRings
-                    goals={[
-                      {
-                        label: 'Daily',
-                        current: todayCompletions.total,
-                        goal: studyGoals.dailyQuestionGoal,
-                        color: 'oklch(69.6% 0.17 162.48)',
-                      },
-                      {
-                        label: 'MC',
-                        current: todayCompletions.mc,
-                        goal: studyGoals.dailyMcGoal,
-                        color: 'oklch(60.6% 0.25 292.717)',
-                      },
-                      {
-                        label: 'Written',
-                        current: todayCompletions.written,
-                        goal: studyGoals.dailyWrittenGoal,
-                        color: 'oklch(68.5% 0.169 237.323)',
-                      },
-                    ]}
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent
-                side='bottom'
-                className='w-64 p-4 bg-popover/95 backdrop-blur-xl border-border/50 shadow-2xl'
-              >
-                <div className='space-y-4'>
-                  <div className='flex items-center justify-between pb-2 border-b border-border/10'>
-                    <h3 className='text-xs font-bold uppercase tracking-widest text-muted-foreground'>
-                      Daily Goals
-                    </h3>
-                    <Sparkles className='h-3.5 w-3.5 text-primary/40' />
-                  </div>
-
-                  <div className='space-y-5'>
-                    {studyGoals.dailyQuestionGoal > 0 && (
-                      <GoalProgressBar
-                        label='Overall'
-                        current={todayCompletions.total}
-                        goal={studyGoals.dailyQuestionGoal}
-                        color='bg-emerald-500'
-                      />
-                    )}
-                    {studyGoals.dailyMcGoal > 0 && (
-                      <GoalProgressBar
-                        label='Multiple Choice'
-                        current={todayCompletions.mc}
-                        goal={studyGoals.dailyMcGoal}
-                        color='bg-violet-500'
-                      />
-                    )}
-                    {studyGoals.dailyWrittenGoal > 0 && (
-                      <GoalProgressBar
-                        label='Written'
-                        current={todayCompletions.written}
-                        goal={studyGoals.dailyWrittenGoal}
-                        color='bg-sky-500'
-                      />
-                    )}
-                  </div>
-
-                  {allGoalsMet && (
-                    <div className='pt-2 mt-2 border-t border-border/10'>
-                      <p className='text-[10px] text-center font-medium text-emerald-500 italic'>
-                        All daily goals reached! Great job.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
         </TooltipProvider>
+
+        {/* Goals — custom hover+click popover */}
+        {todayCompletions.total > 0 && (
+          <GoalsPopover
+            goalItems={goalItems}
+            todayCompletions={todayCompletions}
+            completedGoalCount={completedGoalCount}
+            goalCount={goalCount}
+            allGoalsMet={allGoalsMet}
+          />
+        )}
 
         {/* Streak */}
         {streakData.currentStreak > 0 && (

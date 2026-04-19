@@ -24,7 +24,6 @@ import {
 } from '@/lib/generation-orchestrator';
 import {
   getDifficultyBadgeClasses,
-  hashStringForSeed,
   isMathTopic,
   removeKey,
 } from '@/lib/generator-helpers';
@@ -62,24 +61,12 @@ import { WrittenAnswerCard } from './generator/WrittenAnswerCard';
 
 function buildSketchpadSessionKey(
   mode: 'written' | 'multiple-choice',
-  question:
-    | Pick<GeneratedQuestion, 'id' | 'topic' | 'subtopic' | 'promptMarkdown'>
-    | Pick<
-        McQuestion,
-        'id' | 'topic' | 'subtopic' | 'promptMarkdown' | 'explanationMarkdown'
-      >,
+  question: Pick<GeneratedQuestion, 'id'> | Pick<McQuestion, 'id'>,
 ): string {
-  const signature = [
-    mode,
-    question.topic,
-    question.subtopic ?? '',
-    question.promptMarkdown,
-    'explanationMarkdown' in question
-      ? (question as McQuestion).explanationMarkdown
-      : '',
-  ].join('|');
-  const hash = hashStringForSeed(signature).toString(36);
-  return `sketch-${mode}-${question.id}-${hash}`;
+  // Keep the sketch session key stable across view/page transitions.
+  // Including mutable content-derived hashes can cause keys to drift after
+  // hydration/normalization and make sketches appear to reset.
+  return `sketch-${mode}-${question.id}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
