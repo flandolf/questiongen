@@ -1,8 +1,12 @@
 # QuestionGen Documentation
 
-This docs folder provides high-level and module-level documentation for the QuestionGen repository. Use the files here to understand architecture, frontend, backend (Tauri) native code, core libraries, state management, testing, build and release instructions, contributing guidelines, and API/schema formats.
+This docs folder provides high-level and module-level documentation for the
+QuestionGen repository. Use the files here to understand architecture, frontend,
+backend (Tauri) native code, core libraries, state management, testing, build
+and release instructions, contributing guidelines, and API/schema formats.
 
 Contents:
+
 - `architecture/SIMPLIFIED_ARCHITECTURE.md` (existing)
 - `architecture.md` — Architecture overview and diagram
 - `frontend.md` — Frontend (src) modules and component guide
