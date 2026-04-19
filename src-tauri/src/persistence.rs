@@ -145,6 +145,12 @@ pub fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> 
     let state_json = normalize_state_for_storage(state)?;
 
     store.set("state", state_json);
+    #[cfg(windows)]
+    {
+        // Windows does not support replacing an existing file via rename.
+        // Ensure the target path is clear before the store performs its atomic write.
+        remove_if_exists(&path)?;
+    }
     store
         .save()
         .map_err(|e| AppError::new("STORE_SAVE_ERROR", format!("Failed to save store: {}", e)))?;
