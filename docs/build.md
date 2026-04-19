@@ -2,7 +2,7 @@
 
 Local development:
 
- Install dependencies (prefer `bun`):
+Install dependencies (prefer `bun`):
 
 ```bash
 bun install
@@ -33,6 +33,7 @@ cd src-tauri
 cargo build --release
 # platform-specific bundle will be in target/release/bundle or similar
 ```
+
 ```
 
 Packaging:
@@ -42,3 +43,4 @@ Quick links:
 - Frontend entry: [src/main.tsx](src/main.tsx#L1)
 - Tauri config: [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json#L1)
 - Tauri entry: [src-tauri/src/main.rs](src-tauri/src/main.rs#L1)
+```
