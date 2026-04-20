@@ -280,13 +280,13 @@ function ModelSearchHeader({
             </span>
           )}
           {isImageTarget && (
-            <span className='text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800 leading-none flex items-center gap-0.5'>
+            <span className='text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800 leading-none flex items-center gap-0.5'>
               <ImageIcon className='h-2.5 w-2.5' />
               Vision only
             </span>
           )}
           {fromCache && !loading && (
-            <span className='text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 leading-none'>
+            <span className='text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 leading-none'>
               cached
             </span>
           )}
@@ -546,7 +546,7 @@ function ModelSearchResultsTable({
                     </p>
                   </div>
                   {isImageTarget && r.supportsImages && (
-                    <span className='shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none'>
+                    <span className='shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none'>
                       Vision
                     </span>
                   )}

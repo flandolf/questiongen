@@ -1,6 +1,6 @@
 [package]
 name = "questiongen"
-version = "4.2.0"
+version = "4.2.1"
 description = "A tool to generate questions from text using AI models."
 authors = ["flandolf"]
 edition = "2021"
