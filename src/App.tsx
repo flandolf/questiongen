@@ -12,10 +12,52 @@ import { useAppearanceSettings } from './hooks/useAppearanceSettings';
 import { useTextSizeCssVars } from './hooks/useTextSizeCssVars';
 import { useAppStore } from './store';
 
-const MATHJAX_CDN_URL =
-  'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
+const MATHJAX_CDN_URL = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js';
 const MATHJAX_SCRIPT_ID = 'mathjax-script';
 let mathJaxLoaderPromise: Promise<void> | null = null;
+
+type MathJaxMenuSettings = {
+  assistiveMml: boolean;
+  explorer: boolean;
+  speech: boolean;
+  braille: boolean;
+};
+
+type MathJaxRuntimeOptions = {
+  enableAssistiveMml?: boolean;
+  enableMenu?: boolean;
+  menuOptions?: {
+    settings?: Partial<MathJaxMenuSettings>;
+  };
+};
+
+type MathJaxRuntime = {
+  tex?: {
+    inlineMath?: [string, string][];
+    displayMath?: [string, string][];
+    packages?: Record<string, string[]>;
+  };
+  loader?: {
+    load?: string[];
+  };
+  startup?: {
+    typeset?: boolean;
+    promise?: Promise<unknown>;
+  };
+  sre?: {
+    enabled?: boolean;
+  };
+  options?: MathJaxRuntimeOptions;
+  typesetPromise?: (elements?: Element[]) => Promise<void>;
+  typesetClear?: (elements?: Element[]) => void;
+};
+
+const MATHJAX_MENU_SETTINGS: MathJaxMenuSettings = {
+  assistiveMml: false,
+  explorer: false,
+  speech: false,
+  braille: false,
+};
 
 async function importWithRetry<T extends ComponentType<unknown>>(
   loader: () => Promise<{ default: T }>,
@@ -43,7 +85,7 @@ function ensureMathJaxLoaded(): Promise<void> {
   }
 
   if (!window.MathJax) {
-    window.MathJax = {
+    const defaultConfig: MathJaxRuntime = {
       tex: {
         inlineMath: [['$', '$']],
         displayMath: [['$$', '$$']],
@@ -54,6 +96,18 @@ function ensureMathJaxLoaded(): Promise<void> {
       loader: {
         load: ['[tex]/ams', '[tex]/textmacros'],
       },
+      options: {
+        enableAssistiveMml: false,
+        enableMenu: false,
+        menuOptions: {
+          settings: {
+            assistiveMml: false,
+            explorer: false,
+            speech: false,
+            braille: false,
+          },
+        },
+      },
       startup: {
         typeset: false,
       },
@@ -61,11 +115,28 @@ function ensureMathJaxLoaded(): Promise<void> {
         enabled: false,
       },
     };
-  } else {
-    window.MathJax.sre = {
-      enabled: false,
-    };
+
+    window.MathJax = defaultConfig as Window['MathJax'];
   }
+
+  const runtime = window.MathJax as unknown as MathJaxRuntime;
+
+  runtime.options = {
+    ...(runtime.options ?? {}),
+    enableAssistiveMml: false,
+    enableMenu: false,
+    menuOptions: {
+      ...(runtime.options?.menuOptions ?? {}),
+      settings: {
+        ...(runtime.options?.menuOptions?.settings ?? {}),
+        ...MATHJAX_MENU_SETTINGS,
+      },
+    },
+  };
+
+  runtime.sre = {
+    enabled: false,
+  };
 
   mathJaxLoaderPromise = new Promise<void>((resolve, reject) => {
     const existing = document.getElementById(
