@@ -161,6 +161,7 @@ export function GeneratorView() {
     overrideWrittenMark,
     nextQuestion,
     prevQuestion,
+    writtenGenerationTelemetry,
   } = useWrittenSession();
 
   const {
@@ -177,6 +178,7 @@ export function GeneratorView() {
     setMcAwardedMarksByQuestionId,
     submitMcAnswer,
     overrideMcMark,
+    mcGenerationTelemetry,
   } = useMultipleChoiceSession();
 
   const {
@@ -1170,7 +1172,11 @@ export function GeneratorView() {
           questionMode === 'written' ? canAdvanceWritten : canAdvanceMc
         }
         generationStartedAt={generationStartedAt}
-        telemetry={null}
+        telemetry={
+          questionMode === 'written'
+            ? writtenGenerationTelemetry
+            : mcGenerationTelemetry
+        }
         questionTimeSeconds={activeTimer.currentQuestionElapsed}
         questionMarks={activeTimer.currentQuestionMarks}
         isPaused={activeTimer.isPaused}
