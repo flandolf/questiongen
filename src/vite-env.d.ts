@@ -13,6 +13,9 @@ type MathJaxConfig = {
     typeset?: boolean;
     promise?: Promise<unknown>;
   };
+  sre?: {
+    enabled?: boolean;
+  };
   typesetPromise?: (elements?: Element[]) => Promise<void>;
   typesetClear?: (elements?: Element[]) => void;
 };

@@ -57,6 +57,13 @@ function ensureMathJaxLoaded(): Promise<void> {
       startup: {
         typeset: false,
       },
+      sre: {
+        enabled: false,
+      },
+    };
+  } else {
+    window.MathJax.sre = {
+      enabled: false,
     };
   }
 

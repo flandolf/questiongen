@@ -7,6 +7,7 @@ import {
   Minus,
   Pencil,
   Redo2,
+  Settings2,
   Square,
   Trash2,
   Type,
@@ -14,7 +15,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import {
+import React, {
   forwardRef,
   useCallback,
   useEffect,
@@ -28,6 +29,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -202,11 +208,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     });
     const [isHovering, setIsHovering] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const [recentColors, setRecentColors] = useState<string[]>([
       '#111827',
       '#ef4444',
       '#007AFF',
     ]);
+
+    useEffect(() => {
+      const checkMobile = () => setIsMobile(window.innerWidth < 768);
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    }, []);
     const [antiAlias] = useState(true);
     const [toolSettingsMap, setToolSettingsMap] = useState<ToolSettingsMap>(
       () => {
@@ -746,7 +760,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [setViewportImmediate]);
 
     const initCanvas = useCallback(
-      (fitViewport: boolean = false) => {
+      (fitViewport: boolean = false, redrawSync: boolean = false) => {
         const container = containerRef.current;
         if (!container) return;
 
@@ -786,9 +800,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           );
         }
 
-        scheduleRedraw();
+        if (redrawSync) {
+          redraw();
+        } else {
+          scheduleRedraw();
+        }
       },
-      [setViewportImmediate, scheduleRedraw],
+      [setViewportImmediate, scheduleRedraw, redraw],
     );
 
     useEffect(() => {
@@ -944,11 +962,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       // want to resize internal canvas buffers etc but avoid changing the
       // user's current zoom/pan. Pass `false` to `initCanvas` to skip the
       // zoom-to-fit behavior on resize.
-      const handler = () => requestAnimationFrame(() => initCanvas(false));
+      const handler = () => initCanvas(false, true);
       const ro = new ResizeObserver(handler);
       ro.observe(container);
       return () => ro.disconnect();
     }, [initCanvas]);
+
 
     useEffect(() => {
       const isEditableTarget = (target: EventTarget | null) => {
@@ -2312,59 +2331,158 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const settingsFooter = (
       <Card className='flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-card pointer-events-auto'>
-        <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-          <SelectTrigger className='h-9 w-32 border-none rounded-xl transition-all'>
-            <SelectValue placeholder='Background' />
-          </SelectTrigger>
-          <SelectContent className='rounded-xl'>
-            <SelectGroup>
-              <SelectItem value='lined'>Lined Paper</SelectItem>
-              <SelectItem value='white-grid'>Grid Paper</SelectItem>
-              <SelectItem value='dot-grid'>Dotted Paper</SelectItem>
-              <SelectItem value='black-grid'>Dark Canvas</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        {isMobile ? (
+          <div className='flex items-center gap-1'>
+            <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
+              <SelectTrigger className='h-9 w-28 border-none rounded-xl transition-all text-xs'>
+                <SelectValue placeholder='Bg' />
+              </SelectTrigger>
+              <SelectContent className='rounded-xl'>
+                <SelectGroup>
+                  <SelectItem value='lined'>Lined Paper</SelectItem>
+                  <SelectItem value='white-grid'>Grid Paper</SelectItem>
+                  <SelectItem value='dot-grid'>Dotted Paper</SelectItem>
+                  <SelectItem value='black-grid'>Dark Canvas</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
 
-        <Button
-          variant={penOnlyMode ? 'default' : 'secondary'}
-          size='sm'
-          onClick={() => setPenOnlyMode(!penOnlyMode)}
-          className='rounded-xl h-9'
-        >
-          {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
-        </Button>
+            <Separator orientation='vertical' className='h-6 mx-0.5' />
 
-        <Separator orientation='vertical' className='h-6 mx-1' />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='rounded-xl h-9 w-9'
+                >
+                  <Settings2 size={18} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                side='top'
+                align='start'
+                className='w-72 p-4 space-y-4 rounded-2xl backdrop-blur-md bg-card/95 border-border/50 shadow-2xl'
+              >
+                <div className='space-y-4'>
+                  <div className='flex flex-col gap-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+                        Size
+                      </Label>
+                      <Badge
+                        variant='secondary'
+                        className='text-[10px] tabular-nums'
+                      >
+                        {currentSize}
+                      </Badge>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={[currentSize]}
+                      onValueChange={([val]) => setSize(val)}
+                    />
+                  </div>
 
-        <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
-          Size
-        </Label>
+                  <div className='flex flex-col gap-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+                        Smoothing
+                      </Label>
+                      <Badge
+                        variant='secondary'
+                        className='text-[10px] tabular-nums'
+                      >
+                        {Math.round(currentSmoothing * 100)}%
+                      </Badge>
+                    </div>
+                    <Slider
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={[currentSmoothing]}
+                      onValueChange={([val]) => setSmoothing(val)}
+                    />
+                  </div>
 
-        <Slider
-          min={1}
-          max={100}
-          step={1}
-          value={[currentSize]}
-          onValueChange={([val]) => setSize(val)}
-          className='w-20 ml-1'
-        />
+                  <Separator />
 
-        <Separator orientation='vertical' className='h-6 mx-1' />
+                  <div className='flex items-center justify-between'>
+                    <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+                      Input Mode
+                    </Label>
+                    <Button
+                      variant={penOnlyMode ? 'default' : 'secondary'}
+                      size='sm'
+                      onClick={() => setPenOnlyMode(!penOnlyMode)}
+                      className='rounded-xl h-8 px-3 text-[11px]'
+                    >
+                      {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        ) : (
+          <div className='flex flex-row items-center gap-1'>
+            <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
+              <SelectTrigger className='h-9 w-32 border-none rounded-xl transition-all'>
+                <SelectValue placeholder='Background' />
+              </SelectTrigger>
+              <SelectContent className='rounded-xl'>
+                <SelectGroup>
+                  <SelectItem value='lined'>Lined Paper</SelectItem>
+                  <SelectItem value='white-grid'>Grid Paper</SelectItem>
+                  <SelectItem value='dot-grid'>Dotted Paper</SelectItem>
+                  <SelectItem value='black-grid'>Dark Canvas</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
 
-        <div className='flex items-center gap-3 px-2'>
-          <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
-            Smooth
-          </Label>
-          <Slider
-            min={0}
-            max={1}
-            step={0.05}
-            value={[currentSmoothing]}
-            onValueChange={([val]) => setSmoothing(val)}
-            className='w-24'
-          />
-        </div>
+            <Button
+              variant={penOnlyMode ? 'default' : 'secondary'}
+              size='sm'
+              onClick={() => setPenOnlyMode(!penOnlyMode)}
+              className='rounded-xl h-9'
+            >
+              {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
+            </Button>
+
+            <Separator orientation='vertical' className='h-6 mx-1' />
+
+            <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+              Size
+            </Label>
+
+            <Slider
+              min={1}
+              max={100}
+              step={1}
+              value={[currentSize]}
+              onValueChange={([val]) => setSize(val)}
+              className='w-20 ml-1'
+            />
+
+            <Separator orientation='vertical' className='h-6 mx-1' />
+
+            <div className='flex items-center gap-3 px-2'>
+              <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+                Smooth
+              </Label>
+              <Slider
+                min={0}
+                max={1}
+                step={0.05}
+                value={[currentSmoothing]}
+                onValueChange={([val]) => setSmoothing(val)}
+                className='w-24'
+              />
+            </div>
+          </div>
+        )}
       </Card>
     );
 
@@ -2382,24 +2500,25 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       [onSave, saveAsDataUrl],
     );
 
+    const QUICK_COLORS = [
+      { label: 'Black', value: '#111827' },
+      { label: 'Blue', value: '#007AFF' },
+      { label: 'Red', value: '#ef4444' },
+    ];
+
     const topNavigationBar = (
       <TooltipProvider>
-        <Card className='absolute top-4 left-1/2 -translate-x-1/2 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50 transition-all hover:bg-card'>
-          <div className='flex items-center gap-0.5 px-1 pr-2'>
+        <Card className='absolute top-2 md:top-4 left-1/2 -translate-x-1/2 flex flex-row items-center gap-0.5 bg-card/90 backdrop-blur-md border border-border/50 rounded-2xl p-1 shadow-xl z-50 transition-all hover:bg-card max-w-[98vw] md:max-w-none overflow-x-auto no-scrollbar'>
+          <div className='flex items-center gap-0.5 px-0.5 shrink-0'>
             {!embedded && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    onClick={onClose}
-                    className='rounded-xl'
-                  >
-                    <ChevronLeft size={20} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Close</TooltipContent>
-              </Tooltip>
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={onClose}
+                className='rounded-xl size-8 md:size-9'
+              >
+                <ChevronLeft size={18} />
+              </Button>
             )}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -2408,9 +2527,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   size='icon'
                   onClick={undo}
                   disabled={undoStack.current.length === 0}
-                  className='rounded-xl disabled:opacity-20'
+                  className='rounded-xl size-8 md:size-9 disabled:opacity-20'
                 >
-                  <Undo2 size={20} />
+                  <Undo2 size={18} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Undo</TooltipContent>
@@ -2422,18 +2541,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   size='icon'
                   onClick={redo}
                   disabled={redoStack.current.length === 0}
-                  className='rounded-xl disabled:opacity-20'
+                  className='rounded-xl size-8 md:size-9 disabled:opacity-20'
                 >
-                  <Redo2 size={20} />
+                  <Redo2 size={18} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Redo</TooltipContent>
             </Tooltip>
           </div>
 
-          <Separator orientation='vertical' className='h-8 mx-1' />
+          <Separator orientation='vertical' className='h-6 mx-0.5 shrink-0' />
 
-          <div className='flex items-center gap-1 px-1'>
+          <div className='flex items-center gap-0.5 px-0.5 shrink-0'>
             {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
               const isActive = activeTool === tool;
               return (
@@ -2444,11 +2563,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       size='icon'
                       onClick={() => switchTool(tool)}
                       className={cn(
-                        'rounded-xl transition-all',
-                        isActive && 'shadow-lg shadow-primary/20 scale-105',
+                        'rounded-xl transition-all size-8 md:size-9',
+                        isActive && 'shadow-md shadow-primary/20 scale-105',
                       )}
                     >
-                      {TOOL_ICONS[tool]}
+                      {React.cloneElement(
+                        TOOL_ICONS[tool] as React.ReactElement<{
+                          className?: string;
+                        }>,
+                        {
+                          className: cn('size-4'),
+                        },
+                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{TOOL_LABELS[tool]}</TooltipContent>
@@ -2457,38 +2583,26 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })}
           </div>
 
-          <Separator orientation='vertical' className='h-8 mx-1' />
+          <Separator orientation='vertical' className='h-6 mx-0.5 shrink-0' />
 
-          <div className='flex items-center gap-3 px-2'>
-            <div className='flex items-center gap-1'>
-              {[0.5, 1, 2].map((m) => {
-                const baseSize = activeTool === 'eraser' ? 40 : 4;
-                const size = baseSize * m;
-                const isActive = currentSize === size;
-                return (
-                  <Button
-                    key={size}
-                    variant={isActive ? 'default' : 'ghost'}
-                    size='icon-sm'
-                    onClick={() => setSize(size)}
-                    className='size-6 rounded-lg'
-                  >
-                    <div
-                      className={cn(
-                        'rounded-full',
-                        isActive ? 'bg-primary-foreground' : 'bg-foreground/50',
-                      )}
-                      style={{ width: 6 * m, height: 6 * m }}
-                    />
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-
-          <Separator orientation='vertical' className='h-8 mx-1' />
-
-          <div className='flex items-center gap-3 px-2'>
+          <div className='flex items-center gap-1 px-1 shrink-0'>
+            {QUICK_COLORS.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => {
+                  setColor(c.value);
+                  addRecentColor(c.value);
+                }}
+                className={cn(
+                  'size-6 md:size-7 rounded-full border-2 transition-all hover:scale-110 active:scale-95',
+                  currentColor === c.value
+                    ? 'border-primary shadow-sm scale-105'
+                    : 'border-transparent hover:border-border',
+                )}
+                style={{ backgroundColor: c.value }}
+                title={c.label}
+              />
+            ))}
             <ColorPicker
               value={currentColor}
               onChange={(nextColor) => {
@@ -2496,23 +2610,28 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 addRecentColor(nextColor);
               }}
               swatches={Array.from(new Set([currentColor, ...recentColors]))}
-              label='Sketch color'
-              triggerClassName='h-9 w-44 rounded-xl'
-              contentClassName='w-80'
+              label='More colors'
+              triggerClassName='size-6 md:size-7 p-0 rounded-full border-2 border-border/50 hover:bg-muted/50'
+              contentClassName='w-[90vw] max-w-80'
+              hideLabel
             />
-            <Separator orientation='vertical' className='h-8 mx-1' />
+          </div>
+
+          <Separator orientation='vertical' className='h-6 mx-0.5 shrink-0' />
+
+          <div className='flex items-center gap-0.5 px-0.5 shrink-0'>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant='ghost'
                   size='icon'
                   onClick={clearCanvas}
-                  className='p-2 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl'
+                  className='text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl size-8 md:size-9'
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={18} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Clear Canvas</TooltipContent>
+              <TooltipContent>Clear</TooltipContent>
             </Tooltip>
           </div>
         </Card>
@@ -2520,19 +2639,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     );
 
     const zoomIndicator = (
-      <Card className='absolute bottom-6 right-6 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-50'>
+      <Card className='absolute bottom-6 right-6 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1 md:p-1.5 shadow-xl z-50'>
         <Button
           variant='ghost'
           size='icon-sm'
           type='button'
           onClick={() => zoomByKeyboardStep(-1)}
-          className='rounded-xl'
+          className='rounded-xl size-7 md:size-8'
         >
-          <ZoomOut size={12} />
+          <ZoomOut size={14} />
         </Button>
         <Badge
           variant='secondary'
-          className='bg-muted px-2 py-0.5 text-[10px] font-bold tabular-nums rounded-lg'
+          className='bg-muted px-1.5 md:px-2 py-0.5 text-[9px] md:text-[10px] font-bold tabular-nums rounded-lg'
         >
           {Math.round(zoom * 100)}%
         </Badge>
@@ -2541,9 +2660,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           size='icon-sm'
           type='button'
           onClick={() => zoomByKeyboardStep(1)}
-          className='rounded-xl'
+          className='rounded-xl size-7 md:size-8'
         >
-          <ZoomIn size={12} />
+          <ZoomIn size={14} />
         </Button>
       </Card>
     );
@@ -2556,7 +2675,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           {topNavigationBar}
           {canvasArea}
           {zoomIndicator}
-          <div className='absolute bottom-6 left-6 z-50'>{settingsFooter}</div>
+          <div className='absolute bottom-4 left-4 md:bottom-6 md:left-6 z-50'>
+            {settingsFooter}
+          </div>
         </div>
       );
     }
@@ -2585,7 +2706,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             {topNavigationBar}
             {canvasArea}
             {zoomIndicator}
-            <div className='absolute bottom-6 left-6 z-50 pointer-events-auto'>
+            <div className='absolute bottom-4 left-4 md:bottom-6 md:left-6 z-50 pointer-events-auto'>
               {settingsFooter}
             </div>
           </div>
