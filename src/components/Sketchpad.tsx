@@ -2148,7 +2148,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             reader.onerror = () => reject(new Error('Read error'));
             reader.readAsDataURL(blob);
           },
-          'image/webp',
+          'image/png',
           0.92,
         );
       });

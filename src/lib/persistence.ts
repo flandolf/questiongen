@@ -488,7 +488,12 @@ export function normalizeDifficulty(value: unknown): Difficulty {
 
 const isTauri =
   typeof window !== 'undefined' &&
-  ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (Boolean((window as any).__TAURI_INTERNALS__) ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    Boolean((window as any).__TAURI__) ||
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+    Boolean((window as any).rpc?.notify));
 
 export function isTauriRuntime() {
   return isTauri;

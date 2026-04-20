@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   Copy,
   Download,
-  Eraser,
   FileText,
   Info,
   Loader2,
@@ -37,7 +36,6 @@ import {
   INTERNAL_RES_WIDTH,
 } from '@/components/sketchpadUtils';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Popover,
@@ -99,9 +97,8 @@ async function getSketchpadDataUrl(
   if (!sketchSessionKey) return undefined;
 
   try {
-    const parsed = await getStoreItem<Partial<SketchpadStoragePayload>>(
-      `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
-    );
+    const key = `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`;
+    const parsed = await getStoreItem<Partial<SketchpadStoragePayload>>(key);
     if (!parsed) return undefined;
 
     if (typeof parsed.strokeSvg !== 'string' || !parsed.strokeSvg.trim()) {
@@ -394,7 +391,7 @@ const MessageItem = ({
   isCompact,
   handleCopyMessage,
 }: {
-  msg: { id: string; role: string; content: string };
+  msg: { id: string; role: string; content: string | TutorApiContentPart[] };
   copiedId: string | null;
   isCompact: boolean;
   handleCopyMessage: (
@@ -402,69 +399,93 @@ const MessageItem = ({
     content: string,
     type?: 'text' | 'md',
   ) => void;
-}) => (
-  <div
-    className={cn(
-      'flex flex-col space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-400 group min-w-0',
-      msg.role === 'assistant'
-        ? isCompact
-          ? 'max-w-[88%]'
-          : 'max-w-[82%]'
-        : isCompact
-          ? 'max-w-[90%]'
-          : 'max-w-[85%]',
-      msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start',
-    )}
-  >
+}) => {
+  const textContent = useMemo(() => {
+    if (typeof msg.content === 'string') return msg.content;
+    return msg.content
+      .filter(
+        (part): part is { type: 'text'; text: string } => part.type === 'text',
+      )
+      .map((part) => part.text)
+      .join('\n');
+  }, [msg.content]);
+
+  const hasImages = useMemo(() => {
+    if (typeof msg.content === 'string') return false;
+    return msg.content.some((part) => part.type === 'image_url');
+  }, [msg.content]);
+
+  return (
     <div
       className={cn(
-        'rounded-xl leading-relaxed shadow-sm min-w-0 overflow-hidden transition-colors',
-        isCompact ? 'px-3.5 py-2 text-[12px]' : 'px-4.5 py-3 text-[13px]',
-        msg.role === 'user'
-          ? 'bg-primary/95 text-primary-foreground rounded-tr-none shadow-md'
-          : 'bg-card/80 text-foreground rounded-tl-none border border-border/40 backdrop-blur-sm',
+        'flex flex-col space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-400 group min-w-0',
+        msg.role === 'assistant'
+          ? isCompact
+            ? 'max-w-[88%]'
+            : 'max-w-[82%]'
+          : isCompact
+            ? 'max-w-[90%]'
+            : 'max-w-[85%]',
+        msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start',
       )}
     >
       <div
         className={cn(
-          'min-w-0 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full tracking-tight',
+          'rounded-xl leading-relaxed shadow-sm min-w-0 overflow-hidden transition-colors',
+          isCompact ? 'px-3.5 py-2 text-[12px]' : 'px-4.5 py-3 text-[13px]',
           msg.role === 'user'
-            ? 'text-primary-foreground [&_.math-inline]:text-primary-foreground [&_.math-display]:text-primary-foreground'
-            : 'prose-sm leading-relaxed',
+            ? 'bg-primary/95 text-primary-foreground rounded-tr-none shadow-md'
+            : 'bg-card/80 text-foreground rounded-tl-none border border-border/40 backdrop-blur-sm',
         )}
       >
-        <MarkdownMath content={msg.content} />
+        <div
+          className={cn(
+            'min-w-0 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full tracking-tight',
+            msg.role === 'user'
+              ? 'text-primary-foreground [&_.math-inline]:text-primary-foreground [&_.math-display]:text-primary-foreground'
+              : 'prose-sm leading-relaxed',
+          )}
+        >
+          <MarkdownMath content={textContent} />
+          {hasImages && msg.role === 'user' && (
+            <div className='mt-2 flex gap-1.5 opacity-80'>
+              <span className='text-[10px] font-bold uppercase tracking-wider bg-white/20 px-1.5 py-0.5 rounded'>
+                Sketchpad Attached
+              </span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
 
-    {msg.role === 'assistant' && (
-      <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 ml-1 mt-0.5'>
-        <button
-          onClick={() => handleCopyMessage(msg.id, msg.content, 'text')}
-          className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
-          title='Copy plain text'
-        >
-          {copiedId === `${msg.id}-text` ? (
-            <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
-          ) : (
-            <Copy className='h-3.5 w-3.5' />
-          )}
-        </button>
-        <button
-          onClick={() => handleCopyMessage(msg.id, msg.content, 'md')}
-          className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
-          title='Copy Markdown source'
-        >
-          {copiedId === `${msg.id}-md` ? (
-            <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
-          ) : (
-            <FileText className='h-3.5 w-3.5' />
-          )}
-        </button>
-      </div>
-    )}
-  </div>
-);
+      {msg.role === 'assistant' && (
+        <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 ml-1 mt-0.5'>
+          <button
+            onClick={() => handleCopyMessage(msg.id, textContent, 'text')}
+            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+            title='Copy plain text'
+          >
+            {copiedId === `${msg.id}-text` ? (
+              <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
+            ) : (
+              <Copy className='h-3.5 w-3.5' />
+            )}
+          </button>
+          <button
+            onClick={() => handleCopyMessage(msg.id, textContent, 'md')}
+            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+            title='Copy Markdown source'
+          >
+            {copiedId === `${msg.id}-md` ? (
+              <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
+            ) : (
+              <FileText className='h-3.5 w-3.5' />
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TutorEmptyState = ({
   isCompact,
@@ -555,11 +576,12 @@ async function performTutorChat(params: {
   contextPrompt: string;
   studentAnswer?: string;
   userMessageContent: string;
-  messages: { role: string; content: string }[];
+  messages: { role: string; content: string | TutorApiContentPart[] }[];
   image?: StudentAnswerImage;
   sketchpadDataUrl?: string;
   apiKey: string;
   isDiagnostic: boolean;
+  currentRequestParts?: TutorApiContentPart[];
 }) {
   const {
     activeModel,
@@ -572,6 +594,7 @@ async function performTutorChat(params: {
     sketchpadDataUrl,
     apiKey,
     isDiagnostic,
+    currentRequestParts,
   } = params;
 
   // Build full conversation history for the API
@@ -589,7 +612,11 @@ async function performTutorChat(params: {
   if (studentAnswer) {
     systemContent += `\n\n--- STUDENT'S WRITTEN ANSWER ---\n${studentAnswer}`;
   }
-  if (image?.dataUrl || sketchpadDataUrl) {
+  if (
+    image?.dataUrl ||
+    sketchpadDataUrl ||
+    currentRequestParts?.some((p) => p.type === 'image_url')
+  ) {
     systemContent +=
       '\n\n--- VISUAL CONTEXT ---\nThe student has provided images/sketches. Use these to understand their working and provide targeted feedback.';
   }
@@ -613,28 +640,35 @@ async function performTutorChat(params: {
   });
 
   // 3. New User Message with Images
-  const userContentParts: TutorApiContentPart[] = [
-    { type: 'text', text: userMessageContent },
-  ];
+  if (currentRequestParts) {
+    apiMessages.push({
+      role: 'user',
+      content: currentRequestParts,
+    });
+  } else {
+    const userContentParts: TutorApiContentPart[] = [
+      { type: 'text', text: userMessageContent },
+    ];
 
-  if (image?.dataUrl) {
-    userContentParts.push({
-      type: 'image_url',
-      image_url: { url: image.dataUrl },
+    if (image?.dataUrl) {
+      userContentParts.push({
+        type: 'image_url',
+        image_url: { url: image.dataUrl },
+      });
+    }
+
+    if (sketchpadDataUrl) {
+      userContentParts.push({
+        type: 'image_url',
+        image_url: { url: sketchpadDataUrl },
+      });
+    }
+
+    apiMessages.push({
+      role: 'user',
+      content: userContentParts,
     });
   }
-
-  if (sketchpadDataUrl) {
-    userContentParts.push({
-      type: 'image_url',
-      image_url: { url: sketchpadDataUrl },
-    });
-  }
-
-  apiMessages.push({
-    role: 'user',
-    content: userContentParts,
-  });
 
   // Call backend
   return await invoke<TutorChatResponse>('tutor_chat', {
@@ -663,7 +697,12 @@ const TutorChatArea = ({
   scrollToBottom,
   setShowScrollButton,
 }: {
-  messages: { id: string; role: string; content: string; createdAt: number }[];
+  messages: {
+    id: string;
+    role: string;
+    content: string | TutorApiContentPart[];
+    createdAt: number;
+  }[];
   isGenerating: boolean;
   isCompact: boolean;
   streamedContent: string;
@@ -678,7 +717,7 @@ const TutorChatArea = ({
     type?: 'text' | 'md',
   ) => void;
   handleRegenerate: () => void;
-  handleSend: (suggestion: string) => void;
+  handleSend: (content: string) => void;
   scrollToBottom: () => void;
   setShowScrollButton: (show: boolean) => void;
 }) => (
@@ -725,144 +764,6 @@ const TutorChatArea = ({
       }}
     />
   </ScrollArea>
-);
-
-const TutorInputArea = ({
-  isCompact,
-  isGenerating,
-  inputValue,
-  includeSketch,
-  sketchSessionKey,
-  sketchStatus,
-  sketchDataUrl,
-  image,
-  messages,
-  questionId,
-  setInputValue,
-  setIncludeSketch,
-  handleSend,
-  handleKeyDown,
-  handleDiagnosticRequest,
-  clearSession,
-}: {
-  isCompact: boolean;
-  isGenerating: boolean;
-  inputValue: string;
-  includeSketch: boolean;
-  sketchSessionKey?: string;
-  sketchStatus: string;
-  sketchDataUrl?: string;
-  image?: StudentAnswerImage;
-  messages: readonly { id: string }[];
-  questionId: string;
-  setInputValue: (v: string) => void;
-  setIncludeSketch: (v: boolean) => void;
-  handleSend: () => void;
-  handleKeyDown: (e: React.KeyboardEvent) => void;
-  handleDiagnosticRequest: () => void;
-  clearSession: (qid: string) => void;
-}) => (
-  <div
-    className={cn(
-      'border-t border-border bg-card shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]',
-      isCompact ? 'p-2' : 'p-3',
-    )}
-  >
-    <div
-      className={cn(
-        'flex items-center justify-between px-1.5',
-        isCompact ? 'mb-1.5' : 'mb-2',
-      )}
-    >
-      {sketchSessionKey && (
-        <div className='flex items-center space-x-2.5 group cursor-pointer'>
-          <Checkbox
-            id='include-sketch'
-            checked={includeSketch}
-            onCheckedChange={(checked) => setIncludeSketch(checked === true)}
-            className={cn(
-              'transition-all',
-              isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4',
-            )}
-          />
-          <Label
-            htmlFor='include-sketch'
-            className={cn(
-              'text-muted-foreground font-bold cursor-pointer uppercase tracking-wider transition-colors group-hover:text-primary/80',
-              isCompact ? 'text-[8px]' : 'text-[9px]',
-            )}
-          >
-            Include Sketch
-          </Label>
-        </div>
-      )}
-      <div className='flex items-center gap-1.5'>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={() => clearSession(questionId)}
-          disabled={isGenerating || messages.length === 0}
-          className={cn(
-            'text-muted-foreground/70 hover:text-destructive hover:bg-destructive/5 flex items-center gap-1.5 font-bold tracking-tight transition-all',
-            isCompact ? 'h-6 px-2 text-[8px]' : 'h-7 px-2.5 text-[9px]',
-          )}
-          title='Purge session history'
-        >
-          <Eraser className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-          CLEAR
-        </Button>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={handleDiagnosticRequest}
-          disabled={isGenerating}
-          className={cn(
-            'text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1.5 font-bold tracking-tight transition-all',
-            isCompact ? 'h-6 px-2 text-[8px]' : 'h-7 px-2.5 text-[9px]',
-          )}
-          title='Analyze working for errors'
-        >
-          <Activity className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-          CHECK WORK
-        </Button>
-      </div>
-    </div>
-    <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
-    <TutorAttachmentPreview
-      includeSketch={includeSketch}
-      sketchDataUrl={sketchDataUrl}
-      image={image}
-      setIncludeSketch={setIncludeSketch}
-    />
-    <div className='relative flex items-end gap-2 px-1'>
-      <Textarea
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder='Inquire for academic guidance...'
-        className={cn(
-          'max-h-32 resize-none rounded-xl bg-muted/20 border-border/40 focus-visible:ring-primary/20 transition-all placeholder:italic placeholder:opacity-50',
-          isCompact
-            ? 'min-h-10 py-2.5 px-3.5 text-[11px] pr-12'
-            : 'min-h-12 py-3.5 px-4.5 text-xs pr-14',
-        )}
-        disabled={isGenerating}
-      />
-      <Button
-        size='icon'
-        className={cn(
-          'absolute transition-all duration-300 shadow-sm hover:shadow-md active:scale-90',
-          isCompact
-            ? 'right-2 bottom-1.5 h-7 w-7 rounded-lg'
-            : 'right-2.5 bottom-2 h-8 w-8 rounded-xl',
-        )}
-        onClick={() => void handleSend()}
-        disabled={!inputValue.trim() || isGenerating}
-      >
-        <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-      </Button>
-    </div>
-  </div>
 );
 
 const TutorStreamingChunk = ({
@@ -938,7 +839,12 @@ const TutorMessageList = ({
   handleCopyMessage,
   handleRegenerate,
 }: {
-  messages: { id: string; role: string; content: string; createdAt: number }[];
+  messages: {
+    id: string;
+    role: string;
+    content: string | TutorApiContentPart[];
+    createdAt: number;
+  }[];
   isCompact: boolean;
   isGenerating: boolean;
   copiedId: string | null;
@@ -950,134 +856,79 @@ const TutorMessageList = ({
   handleRegenerate: () => void;
 }) => (
   <>
-    {messages.map((msg, idx) => (
-      <div key={msg.id} className='relative group/msg'>
+    {messages.map((m, i) => (
+      <React.Fragment key={m.id}>
         <MessageItem
-          msg={msg}
+          msg={m}
           copiedId={copiedId}
           isCompact={isCompact}
           handleCopyMessage={handleCopyMessage}
         />
-        {msg.role === 'assistant' &&
-          idx === messages.length - 1 &&
+        {i === messages.length - 1 &&
+          m.role === 'assistant' &&
           !isGenerating && (
-            <Button
-              variant='ghost'
-              size='xs'
-              onClick={() => void handleRegenerate()}
+            <div
               className={cn(
-                'absolute -bottom-5.5 left-1 opacity-0 group-hover/msg:opacity-100 transition-all flex items-center gap-1.5 text-[9px] font-bold tracking-tight text-muted-foreground hover:text-primary px-2 h-5 rounded-md hover:bg-primary/5',
+                'flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-500',
+                isCompact ? 'px-1' : 'px-1',
               )}
             >
-              <RefreshCcw className='h-2.5 w-2.5' />
-              REGENERATE
-            </Button>
+              <Button
+                variant='ghost'
+                size='sm'
+                className='h-7 text-[10px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg px-2.5 tracking-tight'
+                onClick={handleRegenerate}
+              >
+                <RefreshCcw className='h-3 w-3 mr-1.5 opacity-70' />
+                REGENERATE
+              </Button>
+            </div>
           )}
-        {msg.role === 'assistant' && idx === messages.length - 1 && (
-          <div className='h-5' />
-        )}
-      </div>
+      </React.Fragment>
     ))}
   </>
 );
 
-async function getSketchpadImage(
-  sketchSessionKey: string,
-): Promise<string | undefined> {
-  return await new Promise<string | undefined>((resolve) => {
-    let resolved = false;
-
-    const handler = (e: Event) => {
-      if (resolved) return;
-      resolved = true;
-      window.removeEventListener('tutor-sketch-response', handler);
-      const customEvent = e as CustomEvent<{ dataUrl?: string }>;
-      resolve(customEvent.detail.dataUrl);
-    };
-    window.addEventListener('tutor-sketch-response', handler);
-
-    window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
-
-    // Fallback to local storage if Sketchpad component is unmounted or doesn't respond
-    setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      window.removeEventListener('tutor-sketch-response', handler);
-      console.warn(
-        '[Tutor] Sketchpad did not respond in time, falling back to local storage',
-      );
-      getSketchpadDataUrl(sketchSessionKey)
-        .then(resolve)
-        .catch(() => resolve(undefined));
-    }, 500);
-  });
-}
-
-const TutorScrollButton = ({
-  show,
-  onClick,
-}: {
-  show: boolean;
-  onClick: () => void;
-}) => (
-  <AnimatePresence>
-    {show && (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.8 }}
-        className='absolute bottom-4 right-4 z-10'
-      >
-        <Button
-          size='icon'
-          variant='secondary'
-          className='h-8 w-8 rounded-full shadow-lg border border-border'
-          onClick={onClick}
-        >
-          <ChevronDown className='h-4 w-4' />
-        </Button>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-
-function calculateTutorMetrics(result: TutorChatResponse) {
-  const promptTokens = Number(result.promptTokens ?? result.prompt_tokens);
-  const completionTokens = Number(
-    result.completionTokens ?? result.completion_tokens,
-  );
-  const directTotalTokens = Number(result.totalTokens ?? result.total_tokens);
-  const fallbackTotalTokens =
-    (Number.isFinite(promptTokens) ? promptTokens : 0) +
-    (Number.isFinite(completionTokens) ? completionTokens : 0);
-  const totalTokens = Number.isFinite(directTotalTokens)
-    ? directTotalTokens
-    : fallbackTotalTokens;
-
-  const directCost = Number(
-    result.estimatedCostUsd ?? result.estimated_cost_usd,
-  );
-  const cost = Number.isFinite(directCost)
-    ? directCost
-    : totalTokens * 0.000005;
-
-  return { totalTokens, cost };
-}
-
-const TutorAttachmentPreview = ({
+const TutorInputArea = ({
+  isCompact,
+  isGenerating,
+  inputValue,
   includeSketch,
+  sketchStatus,
   sketchDataUrl,
   image,
+  messages,
+  setInputValue,
   setIncludeSketch,
+  handleSend,
+  handleKeyDown,
+  handleDiagnosticRequest,
 }: {
+  isCompact: boolean;
+  isGenerating: boolean;
+  inputValue: string;
   includeSketch: boolean;
+  sketchStatus: string;
   sketchDataUrl?: string;
   image?: StudentAnswerImage;
-  setIncludeSketch: (v: boolean) => void;
-}) => {
-  if (!includeSketch && !image?.dataUrl) return null;
-
-  return (
+  messages: {
+    id: string;
+    role: string;
+    content: string | TutorApiContentPart[];
+    createdAt: number;
+  }[];
+  setInputValue: (val: string) => void;
+  setIncludeSketch: (inc: boolean) => void;
+  handleSend: () => void;
+  handleKeyDown: (e: React.KeyboardEvent) => void;
+  handleDiagnosticRequest: () => void;
+}) => (
+  <div
+    className={cn(
+      'border-t border-border bg-muted/20 p-3 shrink-0 backdrop-blur-md',
+      isCompact ? 'p-2' : 'p-3',
+    )}
+  >
     <div className='flex gap-2 mb-2 px-1'>
       {includeSketch && (
         <div className='relative group'>
@@ -1123,8 +974,52 @@ const TutorAttachmentPreview = ({
         </div>
       )}
     </div>
-  );
-};
+
+    <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
+
+    <div className='relative flex items-end gap-2'>
+      {messages.length === 0 && (
+        <Button
+          variant='outline'
+          size='icon'
+          className={cn(
+            'shrink-0 shadow-sm hover:shadow-md transition-all active:scale-90',
+            isCompact ? 'h-8 w-8 rounded-lg' : 'h-10 w-10 rounded-xl',
+          )}
+          onClick={handleDiagnosticRequest}
+          title='Check my working for errors'
+        >
+          <Activity className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+        </Button>
+      )}
+      <Textarea
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={isCompact ? 'Ask...' : 'Ask the tutor a question...'}
+        className={cn(
+          'resize-none pr-10 focus-visible:ring-primary/20 bg-background/50 border-border/40 backdrop-blur-sm min-h-0',
+          isCompact
+            ? 'text-[11px] py-2 rounded-xl h-10'
+            : 'text-xs py-3 rounded-2xl h-11',
+        )}
+      />
+      <Button
+        size='icon'
+        className={cn(
+          'absolute transition-all duration-300 shadow-sm hover:shadow-md active:scale-90',
+          isCompact
+            ? 'right-2 bottom-1.5 h-7 w-7 rounded-lg'
+            : 'right-2.5 bottom-2 h-8 w-8 rounded-xl',
+        )}
+        onClick={() => void handleSend()}
+        disabled={!inputValue.trim() || isGenerating}
+      >
+        <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+      </Button>
+    </div>
+  </div>
+);
 
 const TutorSketchStatus = ({
   sketchStatus,
@@ -1155,6 +1050,72 @@ const TutorSketchStatus = ({
             <span>Uploading sketchpad content...</span>
           </>
         )}
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+async function getSketchpadImage(
+  sketchSessionKey: string,
+): Promise<string | undefined> {
+  return await new Promise<string | undefined>((resolve) => {
+    let resolved = false;
+
+    const handler = (e: Event) => {
+      if (resolved) return;
+      resolved = true;
+      window.removeEventListener('tutor-sketch-response', handler);
+      const customEvent = e as CustomEvent<{ dataUrl?: string }>;
+      resolve(customEvent.detail.dataUrl);
+    };
+    window.addEventListener('tutor-sketch-response', handler);
+
+    window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
+
+    // Fallback to store if Sketchpad component is unmounted or doesn't respond
+    setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      window.removeEventListener('tutor-sketch-response', handler);
+      console.warn(
+        '[Tutor] Sketchpad did not respond in time, falling back to store',
+      );
+      getSketchpadDataUrl(sketchSessionKey)
+        .then(resolve)
+        .catch(() => resolve(undefined));
+    }, 500);
+  });
+}
+
+function calculateTutorMetrics(result: TutorChatResponse) {
+  const totalTokens = result.total_tokens ?? result.totalTokens ?? 0;
+  const cost = result.estimated_cost_usd ?? result.estimatedCostUsd ?? 0;
+  return { totalTokens, cost };
+}
+
+const TutorScrollButton = ({
+  show,
+  onClick,
+}: {
+  show: boolean;
+  onClick: () => void;
+}) => (
+  <AnimatePresence>
+    {show && (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.8 }}
+        className='absolute bottom-4 right-4 z-10'
+      >
+        <Button
+          size='icon'
+          variant='secondary'
+          className='h-9 w-9 rounded-full shadow-lg border border-border/40 bg-background/80 backdrop-blur-md hover:bg-background transition-all active:scale-90'
+          onClick={onClick}
+        >
+          <ChevronDown className='h-5 w-5' />
+        </Button>
       </motion.div>
     )}
   </AnimatePresence>
@@ -1291,10 +1252,19 @@ export function TutorPanel({
 
       try {
         const transcript = messages
-          .map(
-            (m) =>
-              `### ${m.role === 'user' ? 'Student' : 'Tutor'} (${new Date(m.createdAt).toLocaleString()})\n\n${m.content}\n\n---`,
-          )
+          .map((m) => {
+            const date = new Date(m.createdAt).toLocaleString();
+            const role = m.role === 'user' ? 'Student' : 'Tutor';
+            const content =
+              typeof m.content === 'string'
+                ? m.content
+                : m.content
+                    .filter((p) => p.type === 'text')
+                    .map((p) => (p as { text: string }).text)
+                    .join('\n');
+
+            return `### ${role} (${date})\n\n${content}\n\n---`;
+          })
           .join('\n\n');
 
         const filePath = await save({
@@ -1521,9 +1491,9 @@ export function TutorPanel({
     // Initial check from store
     void (async () => {
       try {
-        const parsed = await getStoreItem<Partial<SketchpadStoragePayload>>(
-          `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
-        );
+        const key = `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`;
+        const parsed =
+          await getStoreItem<Partial<SketchpadStoragePayload>>(key);
         if (parsed) {
           if (typeof parsed.strokeSvg === 'string' && parsed.strokeSvg.trim()) {
             const strokes = parseStrokesFromSvgString(parsed.strokeSvg);
@@ -1568,60 +1538,126 @@ export function TutorPanel({
     }
   }, [includeSketch, sketchSessionKey]);
 
+  const prepareContentToStore = (
+    input: string | TutorApiContentPart[],
+    imageUrl?: string,
+    sketchUrl?: string,
+  ): string | TutorApiContentPart[] => {
+    if (Array.isArray(input)) return input;
+
+    const parts: TutorApiContentPart[] = [{ type: 'text', text: input }];
+    if (imageUrl)
+      parts.push({ type: 'image_url', image_url: { url: imageUrl } });
+    if (sketchUrl)
+      parts.push({ type: 'image_url', image_url: { url: sketchUrl } });
+
+    return parts.length > 1 ? parts : input;
+  };
+
+  const prepareRequestParts = (
+    input: string | TutorApiContentPart[],
+    imageUrl?: string,
+    sketchUrl?: string,
+  ) => {
+    if (Array.isArray(input)) {
+      return {
+        effectiveUserContent: input.find((p) => p.type === 'text')?.text || '',
+        currentRequestParts: input,
+      };
+    }
+
+    const currentRequestParts: TutorApiContentPart[] = [
+      { type: 'text', text: input },
+    ];
+    if (imageUrl) {
+      currentRequestParts.push({
+        type: 'image_url',
+        image_url: { url: imageUrl },
+      });
+    }
+    if (sketchUrl) {
+      currentRequestParts.push({
+        type: 'image_url',
+        image_url: { url: sketchUrl },
+      });
+    }
+
+    return {
+      effectiveUserContent: input,
+      currentRequestParts,
+    };
+  };
+
   const handleSend = async (
-    overrideValue?: string,
+    overrideValue?: string | TutorApiContentPart[],
     isDiagnostic = false,
     skipAddingUserMessage = false,
   ) => {
     const finalInputValue = overrideValue ?? inputValue;
-    if (!finalInputValue.trim() || isGenerating) return;
 
-    const userMessageContent = finalInputValue;
+    // Check if we have anything to send
+    const hasContent =
+      typeof finalInputValue === 'string'
+        ? finalInputValue.trim().length > 0
+        : finalInputValue.some(
+            (p) => p.type === 'text' && p.text.trim().length > 0,
+          );
+
+    if (!hasContent || isGenerating) return;
     if (!overrideValue) setInputValue('');
-
-    // Add user message to store (unless we're regenerating)
-    if (!skipAddingUserMessage) {
-      addMessage(questionId, {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: userMessageContent,
-        createdAt: Date.now(),
-      });
-    }
 
     setIsGenerating(true);
     setStreamedContent('');
 
     try {
       console.log(`[Tutor] Starting chat with model: ${activeModel}`);
-
       setSketchStatus('processing');
-      let sketchpadDataUrl: string | undefined = undefined;
 
-      if (includeSketch && sketchSessionKey) {
+      let sketchpadDataUrl: string | undefined;
+      if (
+        includeSketch &&
+        sketchSessionKey &&
+        typeof finalInputValue === 'string'
+      ) {
         sketchpadDataUrl = await getSketchpadImage(sketchSessionKey);
       }
+      setSketchStatus(sketchpadDataUrl ? 'sending' : 'none');
 
-      if (sketchpadDataUrl) {
-        setSketchStatus('sending');
-      } else {
-        setSketchStatus('none');
+      // Add user message to store (unless we're regenerating)
+      if (!skipAddingUserMessage) {
+        const contentToStore = prepareContentToStore(
+          finalInputValue,
+          image?.dataUrl,
+          sketchpadDataUrl,
+        );
+        addMessage(questionId, {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: contentToStore,
+          createdAt: Date.now(),
+        });
       }
+
+      const { effectiveUserContent, currentRequestParts } = prepareRequestParts(
+        finalInputValue,
+        image?.dataUrl,
+        sketchpadDataUrl,
+      );
 
       const result = await performTutorChat({
         activeModel,
         activePersona,
         contextPrompt,
         studentAnswer,
-        userMessageContent,
+        userMessageContent: effectiveUserContent,
         messages,
         image,
         sketchpadDataUrl,
         apiKey,
         isDiagnostic,
+        currentRequestParts,
       });
 
-      // Add assistant message to store
       addMessage(questionId, {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -1629,11 +1665,8 @@ export function TutorPanel({
         createdAt: Date.now(),
       });
 
-      // Update metrics
       const { totalTokens, cost } = calculateTutorMetrics(result);
-
       updateMetrics(totalTokens, cost);
-      console.log(`[Tutor] Success. Tokens: ${totalTokens}, Cost: $${cost}`);
     } catch (error) {
       console.error('Tutor chat error:', error);
       incrementErrorCount();
@@ -1673,8 +1706,15 @@ export function TutorPanel({
 
     // Check if the user message was a diagnostic request
     const isDiagnostic =
-      lastUserMsg.content ===
-      'Please check my work and let me know if I made any errors.';
+      typeof lastUserMsg.content === 'string'
+        ? lastUserMsg.content ===
+          'Please check my work and let me know if I made any errors.'
+        : lastUserMsg.content.some(
+            (p) =>
+              p.type === 'text' &&
+              p.text ===
+                'Please check my work and let me know if I made any errors.',
+          );
 
     // Remove the last assistant message
     removeLastMessage(questionId);
@@ -1800,12 +1840,10 @@ export function TutorPanel({
               isGenerating={isGenerating}
               inputValue={inputValue}
               includeSketch={includeSketch}
-              sketchSessionKey={sketchSessionKey}
               sketchStatus={sketchStatus}
               sketchDataUrl={sketchDataUrl}
               image={image}
               messages={messages}
-              questionId={questionId}
               setInputValue={setInputValue}
               setIncludeSketch={setIncludeSketch}
               handleSend={() => {
@@ -1813,7 +1851,6 @@ export function TutorPanel({
               }}
               handleKeyDown={handleKeyDown}
               handleDiagnosticRequest={handleDiagnosticRequest}
-              clearSession={clearSession}
             />
           </motion.div>
         )}
