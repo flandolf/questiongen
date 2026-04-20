@@ -338,11 +338,71 @@ export function normalizeSavedSets(raw: unknown): SavedQuestionSet[] {
     .filter((i): i is SavedQuestionSet => i !== null);
 }
 
+function normalizeTimestampToIso(value: unknown, fallbackMs: number): string {
+  const toIsoFromMs = (ms: number) => {
+    const date = new Date(ms);
+    return Number.isNaN(date.getTime())
+      ? new Date(fallbackMs).toISOString()
+      : date.toISOString();
+  };
+
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) {
+      return new Date(parsed).toISOString();
+    }
+    return new Date(fallbackMs).toISOString();
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    // Support both milliseconds and unix-seconds inputs.
+    const ms = Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value;
+    return toIsoFromMs(ms);
+  }
+
+  if (value instanceof Date) {
+    return toIsoFromMs(value.getTime());
+  }
+
+  if (isRecord(value)) {
+    const maybeToDate = value.toDate;
+    if (typeof maybeToDate === 'function') {
+      const toDate = maybeToDate as (this: Record<string, unknown>) => unknown;
+      const maybeDate = toDate.call(value);
+      if (maybeDate instanceof Date && !Number.isNaN(maybeDate.getTime())) {
+        return maybeDate.toISOString();
+      }
+    }
+
+    const seconds = value.seconds;
+    if (typeof seconds === 'number' && Number.isFinite(seconds)) {
+      const nanos =
+        typeof value.nanoseconds === 'number' &&
+        Number.isFinite(value.nanoseconds)
+          ? value.nanoseconds
+          : 0;
+      const ms = seconds * 1000 + Math.floor(nanos / 1_000_000);
+      return toIsoFromMs(ms);
+    }
+  }
+
+  return new Date(fallbackMs).toISOString();
+}
+
 export function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
   const data = isRecord(raw) ? raw : null;
-  if (!data || !data.id) return null;
+  if (!data || typeof data.id !== 'string') return null;
+
+  const fallbackMs =
+    typeof data.lastModified === 'number' && Number.isFinite(data.lastModified)
+      ? data.lastModified
+      : Date.now();
+
   return {
     ...data,
+    createdAt: normalizeTimestampToIso(data.createdAt, fallbackMs),
+    updatedAt: normalizeTimestampToIso(data.updatedAt, fallbackMs),
+    lastModified: fallbackMs,
     preferences: normalizePreferences(data.preferences),
   } as SavedQuestionSet;
 }

@@ -1,21 +1,9 @@
-import {
-  BookOpen,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  MessageSquareDiff,
-  ShieldAlert,
-  Sparkles,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, ShieldAlert } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedQuestionPromptCard } from '@/components/question/UnifiedQuestionBlocks';
 import { Button } from '@/components/ui/button';
-import { CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { scoreColorClass } from '@/lib/score-utils';
 import type { MarkAnswerResponse, StudentAnswerImage } from '@/types';
@@ -45,7 +33,6 @@ type WrittenFeedbackPanelProps = {
   ) => void;
 };
 
-// eslint-disable-next-line complexity
 export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   promptMarkdown,
   answer,
@@ -53,16 +40,13 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   feedback,
   markingDurationMs,
   appealText,
-  overrideInput,
   isMarking,
   distinctness,
   multiStepDepth,
   verbDiversityCount,
   scaffoldPattern,
   onAppealChange,
-  onOverrideInputChange,
   onArgueForMark,
-  onApplyOverride,
   onCriterionChange,
 }: WrittenFeedbackPanelProps) {
   const pct =
@@ -75,338 +59,309 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
       ? `${(markingDurationMs / 1000).toFixed(1)}s`
       : undefined;
 
-  const [showExemplar, setShowExemplar] = useState(false);
   const [aiFeedbackOpen, setAiFeedbackOpen] = useState(true);
 
   return (
-    <div className='h-full min-h-0 flex flex-col'>
-      {/* HEADER BANNER - Sticky for persistent score context */}
-      <div
-        className={`sticky top-0 z-10 flex items-center gap-4 px-2 sm:px-4 py-2 border-b border-border/40`}
-      >
-        <div className='flex-1 min-w-0 space-y-1'>
-          <div className='text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground'>
-            Evaluation Result
-          </div>
-          <div className='flex items-baseline gap-2'>
-            <div
-              className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${scoreColor}`}
-            >
-              {feedback.achievedMarks}
+    <div className='h-full w-full flex flex-col overflow-hidden bg-background text-foreground selection:bg-primary/10'>
+      {/* TOP BANNER: Clinical Score & Verdict */}
+      <header className='shrink-0 z-30 flex items-center justify-between px-6 pb-4 border-b border-border bg-background/95 backdrop-blur-sm'>
+        <div className='flex items-center gap-10'>
+          <div className='flex flex-col'>
+            <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-0.5'>
+              Achieved Marks
+            </span>
+            <div className='flex items-baseline gap-2 font-mono'>
+              <span
+                className={`text-4xl font-black tabular-nums tracking-tighter ${scoreColor}`}
+              >
+                {feedback.achievedMarks}
+              </span>
+              <span className='text-xl font-medium text-muted-foreground/30'>
+                / {feedback.maxMarks}
+              </span>
             </div>
-            <div className='text-base sm:text-lg font-medium text-muted-foreground'>
-              / {feedback.maxMarks}
-            </div>
           </div>
-          <div className='flex items-center gap-3 mt-1'>
+
+          <div className='flex flex-col'>
+            <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-1'>
+              Final Verdict
+            </span>
             <div
-              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+              className={`text-sm px-3 py-1.5 rounded border shadow-sm ${
                 isCorrect
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                   : pct >= 0.5
-                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                    ? 'bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                    : 'bg-rose-500/5 border-rose-500/20 text-rose-600 dark:text-rose-400'
               }`}
             >
-              {isCorrect ? (
-                <Check className='w-3.5 h-3.5' />
-              ) : (
-                <ShieldAlert className='w-3.5 h-3.5' />
-              )}
               {feedback.verdict}
             </div>
-            {markingDurationLabel && (
-              <div className='inline-flex items-center gap-1.5 rounded-md border border-border/40 bg-muted/30 px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground'>
-                Marked in {markingDurationLabel}
-              </div>
-            )}
           </div>
         </div>
-      </div>
 
-      <CardContent className='p-0 flex-1 min-h-0 overflow-y-auto'>
-        <div className='px-4 sm:px-6 py-5 space-y-7'>
-          <UnifiedQuestionPromptCard
-            promptMarkdown={promptMarkdown}
-            distinctness={distinctness}
-            multiStepDepth={multiStepDepth}
-            verbDiversityCount={verbDiversityCount}
-            scaffoldPattern={scaffoldPattern}
-          />
-          {/* SUBMISSION & EXEMPLAR - Side-by-side on wide screens */}
-          <section className='space-y-4'>
-            <div className='flex items-center justify-between border-b border-border/30 pb-2'>
-              <Label className='text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground'>
-                <BookOpen className='w-4 h-4 text-muted-foreground' />
-                Submission
-              </Label>
-              <Button
-                type='button'
-                variant='ghost'
-                size='sm'
-                onClick={() => setShowExemplar(!showExemplar)}
-                className={`text-xs h-7 px-3 rounded-full transition-all ${
-                  showExemplar
-                    ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {showExemplar ? 'Hide Exemplar' : 'Compare Exemplar'}
-              </Button>
-            </div>
+        {markingDurationLabel && (
+          <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground tracking-tighter'>
+            <Loader2 className='w-3 h-3 animate-spin opacity-50' />
+            PROCESSED IN {markingDurationLabel.toUpperCase()}
+          </div>
+        )}
+      </header>
 
-            <div className='grid grid-cols-1 gap-4'>
-              <div className='min-w-0'>
-                {answer.trim().length > 0 ? (
-                  <div
-                    className='prose dark:prose-invert max-w-none bg-muted/25 p-4 sm:p-5 rounded-md text-foreground/90 leading-relaxed font-medium border border-border/40'
-                    style={{ fontSize: 'var(--response-text-size)' }}
-                  >
-                    <MarkdownMath content={answer} />
-                  </div>
-                ) : (
-                  <div className='rounded-md border border-dashed border-border/50 bg-muted/10 p-5 text-sm text-muted-foreground italic flex justify-center items-center min-h-20'>
-                    No typed answer was submitted.
-                  </div>
-                )}
+      <main className='flex-1 flex flex-col min-h-0'>
+        {/* QUESTION PROMPT: Full Width Context */}
+        <div className='shrink-0 border-b border-border/40 bg-muted/5 px-4 sm:px-8 py-6 sm:py-10'>
+          <div className='max-w-6xl'>
+            <UnifiedQuestionPromptCard
+              promptMarkdown={promptMarkdown}
+              distinctness={distinctness}
+              multiStepDepth={multiStepDepth}
+              verbDiversityCount={verbDiversityCount}
+              scaffoldPattern={scaffoldPattern}
+              className='space-y-6'
+            />
+          </div>
+        </div>
 
-                {image && (
-                  <div className='mt-3 rounded-md border border-border/30 bg-muted/10 p-2 shadow-sm'>
-                    <img
-                      src={image.downloadUrl || image.dataUrl}
-                      alt='Submitted working'
-                      className='w-full h-auto max-h-96 object-contain rounded-md mix-blend-multiply dark:mix-blend-normal'
-                    />
-                  </div>
-                )}
-              </div>
-
-              {showExemplar && (
-                <div className='min-w-0 animate-in slide-in-from-top-2 fade-in duration-300'>
-                  <div
-                    className='prose dark:prose-invert max-w-none bg-amber-500/5 p-4 sm:p-5 rounded-md text-foreground/90 border border-amber-500/30'
-                    style={{ fontSize: 'var(--response-text-size)' }}
-                  >
-                    <Label className='text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-amber-600 dark:text-amber-500 mb-3'>
-                      <Sparkles className='w-3.5 h-3.5' /> Ideal Solution
-                    </Label>
-                    <MarkdownMath
-                      content={
-                        feedback.exemplarResponseMarkdown ||
-                        feedback.workedSolutionMarkdown ||
-                        'No exemplar available.'
-                      }
-                    />
-                  </div>
+        {/* ASYMMETRICAL SPLIT PANE */}
+        <div className='flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden'>
+          {/* LEFT: THE TRUTH (Rubric & Exemplar) */}
+          <aside className='lg:w-[42%] h-full overflow-y-auto border-r border-border bg-muted/2 scroll-smooth'>
+            <div className='p-6 space-y-12'>
+              {/* INTERACTIVE RUBRIC */}
+              <section className='space-y-8'>
+                <div className='flex items-center gap-3 border-b border-border/50 pb-4'>
+                  <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
+                    Reference Rubric
+                  </h3>
                 </div>
-              )}
-            </div>
-          </section>
 
-          {/* AI FEEDBACK - Collapsible section */}
-          <section className='space-y-3'>
-            <button
-              type='button'
-              onClick={() => setAiFeedbackOpen(!aiFeedbackOpen)}
-              className='w-full flex items-center justify-between border-b border-border/30 pb-2 rounded px-1 mx-1'
-            >
-              <Label className='text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground cursor-pointer'>
-                <MessageSquareDiff className='w-4 h-4 text-muted-foreground' />{' '}
-                General Feedback
-              </Label>
-              {aiFeedbackOpen ? (
-                <ChevronUp className='w-4 h-4 text-muted-foreground' />
-              ) : (
-                <ChevronDown className='w-4 h-4 text-muted-foreground' />
-              )}
-            </button>
-            {aiFeedbackOpen && (
-              <div
-                className='prose dark:prose-invert max-w-none text-muted-foreground leading-relaxed px-1'
-                style={{ fontSize: 'var(--response-text-size)' }}
-              >
-                <MarkdownMath content={feedback.feedbackMarkdown} />
-              </div>
-            )}
-          </section>
+                <div className='space-y-3'>
+                  {feedback.vcaaMarkingScheme.map((item, idx) => {
+                    const isFullMarks = item.achievedMarks === item.maxMarks;
+                    const isPartial = item.achievedMarks > 0 && !isFullMarks;
 
-          {/* MARKING SCHEME - Compact rubric rows */}
-          <section className='space-y-3 pt-3 border-t border-border/20'>
-            <div className='border-b border-border/30 pb-2'>
-              <Label className='text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-foreground'>
-                <Check className='w-4 h-4 text-muted-foreground' /> Interactive
-                Rubric
-              </Label>
-            </div>
-
-            <div className='flex flex-col gap-2'>
-              {feedback.vcaaMarkingScheme.map((item, idx) => {
-                const isFullMarks = item.achievedMarks === item.maxMarks;
-                const criterionPct =
-                  item.maxMarks > 0 ? item.achievedMarks / item.maxMarks : 0;
-                const isPartial = item.achievedMarks > 0 && !isFullMarks;
-
-                return (
-                  <div
-                    key={idx}
-                    className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors ${
-                      isFullMarks
-                        ? 'bg-emerald-500/5 border-emerald-500/30'
-                        : isPartial
-                          ? 'bg-amber-500/5 border-amber-500/30'
-                          : 'bg-muted/10 border-border/40 hover:border-border/80'
-                    }`}
-                  >
-                    {/* Mark Stepper */}
-                    <div className='flex items-center gap-2 w-24 shrink-0'>
+                    return (
                       <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-md font-mono font-bold text-base ${isFullMarks ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isPartial ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}
+                        key={idx}
+                        className='group relative flex flex-col gap-2 p-3 rounded-lg border border-border/40 bg-background transition-all duration-200 hover:border-border/80 hover:shadow-sm'
                       >
-                        {item.achievedMarks}
-                      </div>
-                      <div className='flex flex-col gap-0.5'>
-                        <button
-                          onClick={() =>
-                            onCriterionChange?.(
-                              idx,
-                              Math.min(item.maxMarks, item.achievedMarks + 1),
-                              item.rationale || '',
-                            )
-                          }
-                          disabled={item.achievedMarks >= item.maxMarks}
-                          className='w-6 h-4 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors text-xs'
-                        >
-                          ▲
-                        </button>
-                        <button
-                          onClick={() =>
-                            onCriterionChange?.(
-                              idx,
-                              Math.max(0, item.achievedMarks - 1),
-                              item.rationale || '',
-                            )
-                          }
-                          disabled={item.achievedMarks <= 0}
-                          className='w-6 h-4 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors text-xs'
-                        >
-                          ▼
-                        </button>
-                      </div>
-                      <span
-                        className={`text-xs font-medium ${isFullMarks ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}
-                      >
-                        /{item.maxMarks}
-                      </span>
-                    </div>
+                        <div className='flex items-start gap-3'>
+                          {/* Index */}
+                          <span className='flex items-center justify-center w-5 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold tabular-nums shrink-0 mt-0.5 font-mono'>
+                            {idx + 1}
+                          </span>
 
-                    {/* Criterion & Rationale */}
-                    <div className='flex-1 min-w-0 flex flex-col gap-2'>
-                      <div className='flex items-start gap-2'>
-                        <div className='flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5'>
-                          {idx + 1}
-                        </div>
-                        <div
-                          className='prose dark:prose-invert max-w-none text-foreground/90 leading-relaxed font-medium'
-                          style={{ fontSize: 'var(--response-text-size)' }}
-                        >
-                          <MarkdownMath content={item.criterion} />
-                        </div>
-                      </div>
+                          {/* Content */}
+                          <div className='flex-1 min-w-0 space-y-1.5'>
+                            <div className='prose dark:prose-invert max-w-none text-foreground/90 leading-snug font-medium text-[13px]'>
+                              <MarkdownMath content={item.criterion} />
+                            </div>
 
-                      {item.rationale && (
-                        <div
-                          className={`ml-7 pl-3 border-l-2 ${isFullMarks ? 'border-emerald-500/40' : isPartial ? 'border-amber-500/40' : 'border-border/40'}`}
-                        >
-                          <div className='text-xs text-muted-foreground italic'>
-                            <MarkdownMath content={item.rationale} />
+                            {item.rationale && (
+                              <div className='text-[12px] text-muted-foreground/80 leading-relaxed italic border-l-2 border-border/60 pl-2.5 ml-0.5'>
+                                <MarkdownMath content={item.rationale} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Mark Controls */}
+                          <div className='flex flex-col items-end gap-1.5 shrink-0 ml-2 mt-0.5'>
+                            <div className='flex items-center gap-1.5 bg-muted/30 p-1 rounded-md border border-border/30'>
+                              <div
+                                className={`flex items-center justify-center min-w-7 h-5.5 px-1.5 rounded font-mono text-[12px] font-black tabular-nums transition-colors ${
+                                  isFullMarks
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                    : isPartial
+                                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                      : 'bg-muted text-muted-foreground/50'
+                                }`}
+                              >
+                                {item.achievedMarks}
+                                <span className='text-[9px] text-muted-foreground/40 ml-px'>
+                                  /{item.maxMarks}
+                                </span>
+                              </div>
+                              <div className='flex flex-col gap-px'>
+                                <button
+                                  onClick={() =>
+                                    onCriterionChange?.(
+                                      idx,
+                                      Math.min(
+                                        item.maxMarks,
+                                        item.achievedMarks + 1,
+                                      ),
+                                      item.rationale || '',
+                                    )
+                                  }
+                                  disabled={item.achievedMarks >= item.maxMarks}
+                                  className='w-5 h-2.5 flex items-center justify-center rounded-xs bg-background border border-border/40 hover:bg-muted disabled:opacity-30 transition-all'
+                                  aria-label='Increase mark'
+                                >
+                                  <ChevronUp className='w-2.5 h-2.5' />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    onCriterionChange?.(
+                                      idx,
+                                      Math.max(0, item.achievedMarks - 1),
+                                      item.rationale || '',
+                                    )
+                                  }
+                                  disabled={item.achievedMarks <= 0}
+                                  className='w-5 h-2.5 flex items-center justify-center rounded-xs bg-background border border-border/40 hover:bg-muted disabled:opacity-30 transition-all'
+                                  aria-label='Decrease mark'
+                                >
+                                  <ChevronDown className='w-2.5 h-2.5' />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
 
-                    {/* Visual indicator bar - only on wide screens */}
-                    <div className='hidden xl:block w-1.5 self-stretch rounded-full bg-muted/30 overflow-hidden'>
-                      <div
-                        className={`w-full rounded-full transition-all duration-500 ${isFullMarks ? 'bg-emerald-500' : isPartial ? 'bg-amber-500' : 'bg-muted-foreground/30'}`}
-                        style={{ height: `${criterionPct * 100}%` }}
+              {/* IDEAL SOLUTION (Always Visible) */}
+              <section className='space-y-8'>
+                <div className='flex items-center gap-3 border-b border-border/50 pb-4 pt-6'>
+                  <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
+                    Exemplar Answer
+                  </h3>
+                </div>
+                <div
+                  className='px-2 prose dark:prose-invert text-foreground leading-relaxed font-medium shadow-sm transition-all hover:bg-muted/5'
+                  style={{ fontSize: 'var(--response-text-size)' }}
+                >
+                  <MarkdownMath
+                    content={
+                      feedback.exemplarResponseMarkdown ||
+                      feedback.workedSolutionMarkdown ||
+                      'No exemplar available.'
+                    }
+                  />
+                </div>
+              </section>
+            </div>
+          </aside>
+
+          {/* RIGHT: THE ATTEMPT (Submission & Feedback) */}
+          <section className='flex-1 h-full overflow-y-auto bg-background scroll-smooth'>
+            <div className='p-6 space-y-16'>
+              {/* STUDENT SUBMISSION */}
+              <section className='space-y-8'>
+                <div className='flex items-center gap-3 border-b border-border/50 pb-4'>
+                  <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
+                    Student Submission
+                  </h3>
+                </div>
+
+                <div className='space-y-6'>
+                  {answer.trim().length > 0 ? (
+                    <div
+                      className='px-2 prose dark:prose-invert text-foreground leading-relaxed font-medium shadow-sm transition-all hover:bg-muted/5'
+                      style={{ fontSize: 'var(--response-text-size)' }}
+                    >
+                      <MarkdownMath content={answer} />
+                    </div>
+                  ) : (
+                    <div className='rounded-2xl border border-dashed border-border/60 bg-muted/2 p-12 text-sm text-muted-foreground italic flex flex-col justify-center items-center gap-3'>
+                      <div className='w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-2'>
+                        <ShieldAlert className='w-6 h-6 opacity-30 text-muted-foreground' />
+                      </div>
+                      No typed answer was submitted.
+                    </div>
+                  )}
+
+                  {image && (
+                    <div className='rounded-2xl border border-border/30 bg-muted/2 p-4 overflow-hidden shadow-sm max-w-[75ch] transition-all hover:shadow-md'>
+                      <img
+                        src={image.downloadUrl || image.dataUrl}
+                        alt='Submitted working'
+                        className='w-full h-auto max-h-175 object-contain rounded-xl mix-blend-multiply dark:mix-blend-normal'
                       />
                     </div>
+                  )}
+                </div>
+              </section>
+
+              {/* AI GENERAL FEEDBACK */}
+              <section className='space-y-8'>
+                <div className='flex items-center justify-between border-b border-border/50 pb-4'>
+                  <div className='flex items-center gap-3'>
+                    <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
+                      General Feedback
+                    </h3>
                   </div>
-                );
-              })}
+                  <button
+                    onClick={() => setAiFeedbackOpen(!aiFeedbackOpen)}
+                    className='w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-all active:scale-90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none'
+                    aria-label={
+                      aiFeedbackOpen ? 'Collapse feedback' : 'Expand feedback'
+                    }
+                  >
+                    {aiFeedbackOpen ? (
+                      <ChevronUp className='w-4 h-4' />
+                    ) : (
+                      <ChevronDown className='w-4 h-4' />
+                    )}
+                  </button>
+                </div>
+                {aiFeedbackOpen && (
+                  <div
+                    className='px-2 prose dark:prose-invert text-foreground leading-relaxed font-medium shadow-sm transition-all hover:bg-muted/5'
+                    style={{ fontSize: 'var(--response-text-size)' }}
+                  >
+                    <MarkdownMath content={feedback.feedbackMarkdown} />
+                  </div>
+                )}
+              </section>
+
+              {/* ADJUSTMENTS & APPEALS */}
+              <section className='pt-12 border-t border-border/30'>
+                <div className='space-y-6'>
+                  <div className='flex flex-col gap-1'>
+                    <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground'>
+                      Appeal
+                    </span>
+                    <span className='text-sm text-muted-foreground/80'>
+                      If you think this submission deserves a different mark,
+                      you can submit an appeal justifying why.
+                    </span>
+                  </div>
+                  <div className='px-2 space-y-6'>
+                    <Textarea
+                      placeholder='Justify why this submission deserves a different mark...'
+                      className='min-h-40 text-sm resize-none bg-muted/3 border-border/60 focus:border-primary rounded-xl p-4 transition-all focus:shadow-inner'
+                      value={appealText}
+                      onChange={(e) => onAppealChange(e.target.value)}
+                      disabled={isMarking}
+                    />
+                    <Button
+                      type='button'
+                      variant='secondary'
+                      onClick={onArgueForMark}
+                      disabled={isMarking || appealText.trim().length === 0}
+                      className='w-full h-11 rounded-lg font-bold uppercase tracking-widest text-[11px] border border-border/40 transition-all active:scale-[0.98] focus-visible:ring-2'
+                    >
+                      {isMarking ? (
+                        <>
+                          <Loader2 className='w-4 h-4 animate-spin mr-3' />{' '}
+                          ANALYZING...
+                        </>
+                      ) : (
+                        'Submit Appeal'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </section>
             </div>
           </section>
         </div>
-
-        {/* ADJUSTMENTS & OVERRIDES */}
-        <div className='border-t border-border/40 p-4 sm:p-6'>
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8'>
-            <div className='space-y-3'>
-              <Label className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
-                Request Re-evaluation
-              </Label>
-              <div className='flex flex-col gap-2'>
-                <Textarea
-                  placeholder='Justify why this submission deserves a different mark...'
-                  className='min-h-20 text-sm resize-none bg-background shadow-sm border-border/60 focus:border-primary'
-                  value={appealText}
-                  onChange={(e) => onAppealChange(e.target.value)}
-                  disabled={isMarking}
-                />
-                <Button
-                  type='button'
-                  variant='secondary'
-                  onClick={onArgueForMark}
-                  disabled={isMarking || appealText.trim().length === 0}
-                  className='w-full sm:w-auto self-start gap-2 shadow-sm'
-                >
-                  {isMarking ? (
-                    <>
-                      <Loader2 className='w-4 h-4 animate-spin' /> Analyzing...
-                    </>
-                  ) : (
-                    'Submit Appeal'
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className='space-y-3 lg:pl-8 lg:border-l border-border/40'>
-              <Label className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
-                Adjust Score
-              </Label>
-              <p className='text-xs text-muted-foreground mb-4 max-w-sm'>
-                Manually adjust the total score if the automated marking needs
-                correction.
-              </p>
-              <div className='flex items-center gap-3'>
-                <div className='relative'>
-                  <Input
-                    type='number'
-                    min={0}
-                    max={feedback.maxMarks}
-                    step={1}
-                    className='w-24 h-10 text-lg font-mono font-bold pl-3 pr-8 shadow-sm bg-background border-border/60 focus:border-primary focus:ring-1'
-                    value={overrideInput}
-                    onChange={(e) => onOverrideInputChange(e.target.value)}
-                  />
-                  <span className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-xs'>
-                    /{feedback.maxMarks}
-                  </span>
-                </div>
-                <Button
-                  type='button'
-                  onClick={onApplyOverride}
-                  className='h-10 px-6 font-semibold shadow-sm'
-                  disabled={!overrideInput}
-                >
-                  Apply Adjustment
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
+      </main>
     </div>
   );
 });
