@@ -197,7 +197,7 @@ function extractLogRegressionFeatures(
   techMode: TechMode,
   subtopics?: string[],
   customFocusArea?: string,
-  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
+  generationStrategy: 'single-pass' | 'multi-pass' = 'single-pass',
   coeffs: LogRegressionCoefficients = DEFAULT_LOG_REGRESSION_COEFFICIENTS,
 ): Record<string, number> {
   const totalMarks = (averageMarksPerQuestion ?? DEFAULT_MARKS) * questionCount;
@@ -287,7 +287,7 @@ export function trainLogRegressionModel(
         record.inputs.techMode,
         record.inputs.subtopics,
         record.inputs.customFocusArea,
-        record.inputs.generationStrategy ?? 'multi-pass',
+        record.inputs.generationStrategy ?? 'single-pass',
         coeffs,
       ),
       target: Math.log(record.outputs.totalTokens!),
@@ -411,7 +411,7 @@ function estimateTokensLogRegression(
   techMode: TechMode,
   subtopics?: string[],
   customFocusArea?: string,
-  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
+  generationStrategy: 'single-pass' | 'multi-pass' = 'single-pass',
   historyRecords?: GenerationRecord[],
 ): {
   promptTokens: number;
@@ -530,7 +530,7 @@ function estimateTokensAdvanced(
   averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string,
-  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
+  generationStrategy: 'single-pass' | 'multi-pass' = 'single-pass',
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -671,7 +671,7 @@ function estimateStaticTokens(
   averageMarksPerQuestion?: number,
   subtopics?: string[],
   customFocusArea?: string,
-  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
+  generationStrategy: 'single-pass' | 'multi-pass' = 'single-pass',
 ): {
   promptTokens: number;
   completionTokens: number;
@@ -737,7 +737,7 @@ export function estimateTokensAndCost(
   customFocusArea?: string,
   promptPricePerToken?: number | null,
   completionPricePerToken?: number | null,
-  generationStrategy: 'single-pass' | 'multi-pass' = 'multi-pass',
+  generationStrategy: 'single-pass' | 'multi-pass' = 'single-pass',
 ): EstimatedTokensAndCost {
   const { promptTokens, completionTokens, totalTokens, confidence } =
     estimateTokensAdvanced(

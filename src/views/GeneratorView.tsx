@@ -91,6 +91,8 @@ export function GeneratorView() {
 
   const wasMarkingRef = useRef(false);
   const autoPausedTimersRef = useRef({ written: false, mc: false });
+  const streamBufferRef = useRef<Record<string, string>>({});
+  const streamFlushRafRef = useRef<number | null>(null);
 
   const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
   const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
@@ -171,8 +173,6 @@ export function GeneratorView() {
     activeMcSavedSetId,
     setActiveMcSavedSetId,
     setMcQuestionPresentedAtById,
-    mcMarkOverrideInputByQuestionId,
-    setMcMarkOverrideInputByQuestionId,
     mcAwardedMarksByQuestionId,
     setMcAwardedMarksByQuestionId,
     submitMcAnswer,
@@ -233,13 +233,6 @@ export function GeneratorView() {
   const activeMcQuestion = mcQuestions[activeMcQuestionIndex];
   const activeMcAnswer = activeMcQuestion
     ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? '')
-    : '';
-  const activeMcAwardedMarks = activeMcQuestion
-    ? mcAwardedMarksByQuestionId[activeMcQuestion.id]
-    : undefined;
-  const activeMcOverrideInput = activeMcQuestion
-    ? (mcMarkOverrideInputByQuestionId[activeMcQuestion.id] ??
-      (activeMcAwardedMarks !== undefined ? String(activeMcAwardedMarks) : ''))
     : '';
 
   const activeWrittenSketchSessionKey = useMemo(() => {
@@ -592,17 +585,6 @@ export function GeneratorView() {
     [activeQuestion, setMarkOverrideInputByQuestionId],
   );
 
-  const handleMcOverrideInputChange = useCallback(
-    (value: string) => {
-      if (!activeMcQuestion) return;
-      setMcMarkOverrideInputByQuestionId((prev) => ({
-        ...prev,
-        [activeMcQuestion.id]: value,
-      }));
-    },
-    [activeMcQuestion, setMcMarkOverrideInputByQuestionId],
-  );
-
   const startStopwatch = useCallback(() => {
     writtenTimer.reset();
     mcTimer.reset();
@@ -672,6 +654,8 @@ export function GeneratorView() {
     let cancelled = false;
 
     void listen<{ topic?: string }>('generation-reset', (event) => {
+      const key = event.payload.topic || 'default';
+      delete streamBufferRef.current[key];
       setStreamText('', event.payload.topic);
     }).then((fn) => {
       if (cancelled) fn();
@@ -687,17 +671,38 @@ export function GeneratorView() {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
+
+    const flushBufferedTokens = () => {
+      streamFlushRafRef.current = null;
+      const buffered = streamBufferRef.current;
+      streamBufferRef.current = {};
+      for (const [key, chunk] of Object.entries(buffered)) {
+        if (!chunk) continue;
+        setStreamText(
+          (prev: string) => prev + chunk,
+          key === 'default' ? undefined : key,
+        );
+      }
+    };
+
     void listen<GenerationTokenEvent>('generation-token', (event) => {
-      setStreamText(
-        (prev: string) => prev + event.payload.text,
-        event.payload.topic,
-      );
+      const key = event.payload.topic || 'default';
+      streamBufferRef.current[key] =
+        (streamBufferRef.current[key] || '') + event.payload.text;
+      if (streamFlushRafRef.current === null) {
+        streamFlushRafRef.current = requestAnimationFrame(flushBufferedTokens);
+      }
     }).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
     });
     return () => {
       cancelled = true;
+      if (streamFlushRafRef.current !== null) {
+        cancelAnimationFrame(streamFlushRafRef.current);
+        streamFlushRafRef.current = null;
+      }
+      streamBufferRef.current = {};
       unlisten?.();
     };
   }, [setStreamText]);
@@ -835,7 +840,6 @@ export function GeneratorView() {
         Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)),
       );
       setMcAnswersByQuestionId((p) => removeKey(p, id));
-      setMcMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
       mcTimer.removeQuestion(id);
       setErrorMessage(null);
@@ -868,12 +872,16 @@ export function GeneratorView() {
     setMarkAppealByQuestionId,
     setMarkOverrideInputByQuestionId,
     setWrittenResponseEnteredAtById,
-    setMcMarkOverrideInputByQuestionId,
     setMcAwardedMarksByQuestionId,
   ]);
 
   const handleGenerateQuestions = useCallback(async () => {
     startStopwatch();
+    streamBufferRef.current = {};
+    if (streamFlushRafRef.current !== null) {
+      cancelAnimationFrame(streamFlushRafRef.current);
+      streamFlushRafRef.current = null;
+    }
     setStreamText('');
     useTutorStore.getState().clearAllSessions();
     await generateQuestionsOrchestrator();
@@ -1248,16 +1256,9 @@ export function GeneratorView() {
                     setMcSketchpadActive(!mcSketchpadActive)
                   }
                   sketchSessionKey={activeMcSketchSessionKey}
-                  awardedMarks={activeMcAwardedMarks}
-                  appealText=''
-                  overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => { }}
-                  onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => { }}
                   onApplyOverride={overrideMcMark}
-                  isMarking={isMarking}
-                  onImageDrop={() => { }}
-                  onImageRemove={() => { }}
+                  onImageDrop={() => {}}
+                  onImageRemove={() => {}}
                   renderSketchpadInline={false}
                 />
               </div>
@@ -1265,8 +1266,8 @@ export function GeneratorView() {
             rightSlot={
               <McSketchpadPanel
                 sketchSessionKey={activeMcSketchSessionKey}
-                onImageDrop={() => { }}
-                onImageRemove={() => { }}
+                onImageDrop={() => {}}
+                onImageRemove={() => {}}
               />
             }
           />
@@ -1292,16 +1293,9 @@ export function GeneratorView() {
                     setMcSketchpadActive(!mcSketchpadActive)
                   }
                   sketchSessionKey={activeMcSketchSessionKey}
-                  awardedMarks={activeMcAwardedMarks}
-                  appealText=''
-                  overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => { }}
-                  onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => { }}
                   onApplyOverride={overrideMcMark}
-                  isMarking={isMarking}
-                  onImageDrop={() => { }}
-                  onImageRemove={() => { }}
+                  onImageDrop={() => {}}
+                  onImageRemove={() => {}}
                 />
               </div>
             }

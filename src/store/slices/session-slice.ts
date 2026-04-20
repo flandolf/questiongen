@@ -551,15 +551,21 @@ export const createSessionSlice: StateCreator<
     const activeMcQuestion = s.mcQuestions[s.activeMcQuestionIndex];
     if (!activeMcQuestion) return;
 
-    const input = s.mcMarkOverrideInputByQuestionId[activeMcQuestion.id];
-    const parsed = Number(input);
-    if (!Number.isFinite(parsed)) return;
+    const selectedAnswer = s.mcAnswersByQuestionId[activeMcQuestion.id];
+    if (!selectedAnswer) return;
 
-    const clamped = Math.max(0, Math.min(1, Math.round(parsed)));
+    // Change the question's correctAnswer to match what the user selected
+    const updatedQuestions = s.mcQuestions.map((q) =>
+      q.id === activeMcQuestion.id
+        ? { ...q, correctAnswer: selectedAnswer }
+        : q,
+    );
+
     set((state) => ({
+      mcQuestions: updatedQuestions,
       mcAwardedMarksByQuestionId: {
         ...state.mcAwardedMarksByQuestionId,
-        [activeMcQuestion.id]: clamped,
+        [activeMcQuestion.id]: 1,
       },
     }));
 
@@ -569,11 +575,12 @@ export const createSessionSlice: StateCreator<
     if (historyEntry) {
       s.updateMcHistoryEntry({
         ...historyEntry,
-        correct: clamped >= 1,
+        question: { ...historyEntry.question, correctAnswer: selectedAnswer },
+        correct: true,
         lastModified: Date.now(),
       });
     }
-    toast.message(`Mark overridden to ${clamped}/1`);
+    toast.message('Answer marked as correct');
   },
 
   nextQuestion: () => {

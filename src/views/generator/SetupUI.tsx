@@ -246,7 +246,14 @@ export function GroupedSubtopicSelector({
                   >
                     {unit}
                   </span>
-                  <span className={cn('text-[10px] tabular-nums', selectedCount > 0 ? 'text-primary/70 font-bold' : 'text-muted-foreground/40')}>
+                  <span
+                    className={cn(
+                      'text-[10px] tabular-nums',
+                      selectedCount > 0
+                        ? 'text-primary/70 font-bold'
+                        : 'text-muted-foreground/40',
+                    )}
+                  >
                     {selectedCount}/{totalSubs}
                   </span>
                 </div>

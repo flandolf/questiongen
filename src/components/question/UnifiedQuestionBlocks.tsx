@@ -7,17 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-function getOptionColor(label: string): string {
-  const colors = [
-    'oklch(0.55 0.2 250)',
-    'oklch(0.55 0.2 280)',
-    'oklch(0.55 0.2 45)',
-    'oklch(0.55 0.2 320)',
-  ];
-  const idx = label.charCodeAt(0) - 65;
-  return colors[idx % colors.length];
-}
-
 export function UnifiedQuestionPromptCard({
   promptMarkdown,
   topic,
@@ -133,7 +122,6 @@ export function UnifiedMcqOptionsGrid({
       {options.map((opt) => {
         const isChosen = selectedAnswer === opt.label;
         const isCorrect = opt.label === correctAnswer;
-        const color = getOptionColor(opt.label);
         const disabled = lockSelection && (isAnswered || !onSelect);
 
         // Determine variant for clean conditional logic
@@ -178,11 +166,6 @@ export function UnifiedMcqOptionsGrid({
           faded: 'bg-muted text-muted-foreground border-transparent',
         }[variant];
 
-        const badgeStyle =
-          variant === 'idle' || variant === 'selectable'
-            ? { borderColor: `${color}35`, color }
-            : undefined;
-
         return (
           <button
             key={opt.label}
@@ -206,7 +189,6 @@ export function UnifiedMcqOptionsGrid({
                   'transition-colors duration-150',
                   badgeClasses,
                 )}
-                style={badgeStyle}
               >
                 {opt.label}
               </div>

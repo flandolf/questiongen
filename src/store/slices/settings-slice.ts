@@ -164,7 +164,7 @@ export const createSettingsSlice: StateCreator<
   strictLatexValidation: true,
   shuffleSubtopics: false,
   shuffleQuestions: false,
-  generationStrategy: 'multi-pass',
+  generationStrategy: 'single-pass',
 
   // Actions
   setApiKey: (key) => {
@@ -306,6 +306,6 @@ export const createSettingsSlice: StateCreator<
       strictLatexValidation: true,
       shuffleSubtopics: false,
       shuffleQuestions: false,
-      generationStrategy: 'multi-pass',
+      generationStrategy: 'single-pass',
     }),
 });

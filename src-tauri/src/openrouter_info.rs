@@ -175,6 +175,18 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
+/// Returns cached model stats when present and fresh, without performing I/O.
+pub fn get_cached_model_stats(api_key: &str, model_id: &str) -> Option<ModelStats> {
+    let cache_key = format!("{}:{}", api_key.trim(), model_id.trim());
+    let cache = STATS_CACHE.lock().ok()?;
+    let (stats, ts) = cache.get(&cache_key)?;
+    if now_secs().saturating_sub(*ts) <= STATS_CACHE_TTL_SECS {
+        Some(stats.clone())
+    } else {
+        None
+    }
+}
+
 // ─── Catalogue fetch / cache ──────────────────────────────────────────────────
 
 /// Look up image/file support for `model_id` from the in-memory catalogue cache.

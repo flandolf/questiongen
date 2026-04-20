@@ -678,10 +678,10 @@ function ReattemptView({
         timeSeconds,
       };
     } else {
-      const correctAnswer = entry.question.correctAnswer;
       return {
         id: entry.id,
-        correct: selectedAnswer === correctAnswer,
+        correct:
+          awardedMarks === 1 || selectedAnswer === entry.question.correctAnswer,
         timeSeconds,
       };
     }
@@ -750,8 +750,10 @@ function ReattemptView({
     setAwardedMarks(correct ? 1 : 0);
   };
   const handleApplyMcOverride = () => {
-    const marks = Number(mcOverrideInput);
-    setAwardedMarks(marks);
+    if (selectedAnswer) {
+      setAwardedMarks(1);
+      toast.success('Answer marked as correct');
+    }
   };
 
   // --- Navigation logic ---
@@ -963,15 +965,8 @@ function ReattemptView({
                         correctAnswer={entry.question.correctAnswer}
                         explanationMarkdown={entry.question.explanationMarkdown}
                         selectedAnswer={selectedAnswer}
-                        awardedMarks={awardedMarks}
-                        appealText={mcAppealText}
-                        overrideInput={mcOverrideInput}
-                        isMarking={false}
                         hideCorrectAnswer={false}
                         onSelectAnswer={handleSelectAnswer}
-                        onAppealChange={setMcAppealText}
-                        onOverrideInputChange={setMcOverrideInput}
-                        onArgueForMark={() => {}}
                         onApplyOverride={handleApplyMcOverride}
                         isSketchpadOpen={mcSketchpadActive}
                         onToggleSketchpad={() =>
@@ -1015,15 +1010,8 @@ function ReattemptView({
                     correctAnswer={entry.question.correctAnswer}
                     explanationMarkdown={entry.question.explanationMarkdown}
                     selectedAnswer={selectedAnswer}
-                    awardedMarks={awardedMarks}
-                    appealText={mcAppealText}
-                    overrideInput={mcOverrideInput}
-                    isMarking={false}
                     hideCorrectAnswer={false}
                     onSelectAnswer={handleSelectAnswer}
-                    onAppealChange={setMcAppealText}
-                    onOverrideInputChange={setMcOverrideInput}
-                    onArgueForMark={() => {}}
                     onApplyOverride={handleApplyMcOverride}
                     isSketchpadOpen={mcSketchpadActive}
                     onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
@@ -1432,6 +1420,10 @@ export default function WrongQuestionView() {
       } else {
         updateMcHistoryEntry({
           ...entry,
+          question: {
+            ...entry.question,
+            correctAnswer: entry.selectedAnswer,
+          },
           lastModified: Date.now(),
           correct: true,
         });

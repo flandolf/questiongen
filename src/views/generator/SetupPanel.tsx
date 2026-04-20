@@ -239,7 +239,7 @@ function SetupPanelImpl({
   streamText = '',
   batchProgress = EMPTY_BATCH_PROGRESS,
   generationSubCallProgress = null,
-  generationStrategy = 'multi-pass',
+  generationStrategy = 'single-pass',
 }: SetupPanelProps) {
   const navigate = useNavigate();
   const { apiKey, model } = useAppSettings();
@@ -257,13 +257,22 @@ function SetupPanelImpl({
   const hasSubtopicSection = selectedTopics.length > 0;
 
   const SUBJECT_GROUPS = [
-    { id: 'math', label: 'Mathematics', topics: ['Mathematical Methods', 'Specialist Mathematics', 'General Mathematics'] },
+    {
+      id: 'math',
+      label: 'Mathematics',
+      topics: [
+        'Mathematical Methods',
+        'Specialist Mathematics',
+        'General Mathematics',
+      ],
+    },
     { id: 'science', label: 'Sciences', topics: ['Chemistry', 'Biology'] },
     { id: 'pe', label: 'Health & PE', topics: ['Physical Education'] },
   ] as const;
-  type SubjectGroupId = typeof SUBJECT_GROUPS[number]['id'];
+  type SubjectGroupId = (typeof SUBJECT_GROUPS)[number]['id'];
   const [activeGroup, setActiveGroup] = useState<SubjectGroupId>('math');
-  const visibleTopics = SUBJECT_GROUPS.find((g) => g.id === activeGroup)?.topics ?? [];
+  const visibleTopics =
+    SUBJECT_GROUPS.find((g) => g.id === activeGroup)?.topics ?? [];
 
   const activeDifficulty = normalizeDifficulty(difficulty);
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
@@ -498,7 +507,10 @@ function SetupPanelImpl({
                               )}
                             >
                               {isSelected && (
-                                <Check className='w-2.5 h-2.5' strokeWidth={3} />
+                                <Check
+                                  className='w-2.5 h-2.5'
+                                  strokeWidth={3}
+                                />
                               )}
                             </div>
                           </div>
@@ -610,7 +622,8 @@ function SetupPanelImpl({
                   </div>
                   <div className='text-right'>
                     <p className='text-xs font-bold text-primary/80 mt-1'>
-                      {Math.ceil((questionCount * 2.5) / 10) * 10}–{Math.ceil((questionCount * 3.5) / 10) * 10} mins
+                      {Math.ceil((questionCount * 2.5) / 10) * 10}–
+                      {Math.ceil((questionCount * 3.5) / 10) * 10} mins
                     </p>
                   </div>
                 </div>
@@ -785,7 +798,7 @@ function SetupPanelImpl({
                   <div className='flex items-baseline gap-1'>
                     <span className='text-lg font-mono font-bold tabular-nums text-foreground'>
                       {estimated.promptCost != null ||
-                        estimated.completionCost != null
+                      estimated.completionCost != null
                         ? formatCostUsd(estimated.totalCost).replace('$', '')
                         : '--'}
                     </span>
