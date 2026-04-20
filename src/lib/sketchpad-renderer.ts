@@ -89,9 +89,21 @@ function strokeToSvgElement(
   }
 
   if (stroke.tool === 'graph') {
-    const anchor = stroke.points[0];
-    if (anchor) {
-      return `${graphAxesToSvg(anchor.x, anchor.y, stroke.color, strokeWidth, opacity, metadata)}\n`;
+    const p1 = stroke.points[0];
+    const p2 = stroke.points[1];
+    if (p1) {
+      let halfW = 320;
+      let halfH = 240;
+      let cx = p1.x;
+      let cy = p1.y;
+
+      if (p2) {
+        halfW = Math.max(40, Math.abs(p2.x - p1.x) / 2);
+        halfH = Math.max(40, Math.abs(p2.y - p1.y) / 2);
+        cx = (p1.x + p2.x) / 2;
+        cy = (p1.y + p2.y) / 2;
+      }
+      return `${graphAxesToSvg(cx, cy, halfW, halfH, stroke.color, strokeWidth, opacity, metadata)}\n`;
     }
     return '';
   }
@@ -103,6 +115,8 @@ function strokeToSvgElement(
 function graphAxesToSvg(
   cx: number,
   cy: number,
+  halfW: number,
+  halfH: number,
   color: string,
   strokeWidth: number,
   opacity: number,
@@ -111,17 +125,15 @@ function graphAxesToSvg(
   /**
    * Render graph axes and gridlines as an SVG group string centered at (cx,cy).
    */
-  const halfW = 320;
-  const halfH = 240;
-  const tickSpacing = 40;
-  const tickLen = 8;
-  const arrowSize = 14;
+  const tickSpacing = 20;
+  const tickLen = 4;
+  const arrowSize = 10;
   const base = arrowSize * 0.4;
   const graphStroke = Math.max(1, strokeWidth);
   const gridOpacity = Math.max(0, Math.min(1, opacity * 0.08));
   const tickStroke = Math.max(0.5, graphStroke * 0.8);
   const axisOpacity = Math.max(0, Math.min(1, opacity));
-  const fontSize = Math.round(tickSpacing * 0.5);
+  const fontSize = 12;
 
   const gridLines: string[] = [];
   for (let tx = tickSpacing; tx < halfW; tx += tickSpacing) {
@@ -423,14 +435,29 @@ export function renderStrokesToCanvas(
     }
 
     if (stroke.tool === 'graph') {
-      const anchor = stroke.points[0];
-      if (anchor) {
+      const p1 = stroke.points[0];
+      const p2 = stroke.points[1];
+      if (p1) {
+        let halfW = 320;
+        let halfH = 240;
+        let cx = p1.x;
+        let cy = p1.y;
+
+        if (p2) {
+          halfW = Math.max(40, Math.abs(p2.x - p1.x) / 2);
+          halfH = Math.max(40, Math.abs(p2.y - p1.y) / 2);
+          cx = (p1.x + p2.x) / 2;
+          cy = (p1.y + p2.y) / 2;
+        }
+
         drawGraphAxes(
           ctx,
-          anchor.x,
-          anchor.y,
+          cx,
+          cy,
           stroke.color,
           Math.max(1, stroke.size),
+          halfW,
+          halfH,
         );
       }
       ctx.restore();

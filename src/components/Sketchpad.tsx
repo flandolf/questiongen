@@ -51,6 +51,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { getStoreItem, setStoreItem } from '@/lib/tauri-store';
 import { cn } from '@/lib/utils';
 
 import {
@@ -67,7 +68,6 @@ import type {
 import {
   applyPressureCurve,
   CANVAS_STORAGE_KEY_PREFIX,
-  cleanupOldSketchpadData,
   cloneStrokes,
   DEFAULT_TOOL_SETTINGS,
   drawGraphAxes,
@@ -75,7 +75,6 @@ import {
   getStrokeBoundingBox,
   INTERNAL_RES_HEIGHT,
   INTERNAL_RES_WIDTH,
-  KEYBOARD_ZOOM_STEP,
   MAX_PENDING_MOVE_POINTS,
   MAX_UNDO_SNAPSHOTS,
   MAX_ZOOM,
@@ -129,13 +128,11 @@ type CanvasSnapshot = {
   strokes: Stroke[];
 };
 
-type SketchpadStoragePayload = {
+export type SketchpadStoragePayload = {
   version: 2;
   strokeSvg?: string;
   lastModified?: number;
 };
-
-const MAX_SKETCH_STORAGE_CHARS = 1_500_000;
 
 const TOOL_KEYS: Record<string, ToolType> = {
   p: 'pen',
@@ -168,6 +165,7 @@ const TOOL_LABELS: Record<ToolType, string> = {
 };
 
 const QUICK_SIZES = [2, 4, 8, 12, 16, 24] as const;
+const ERASER_QUICK_SIZES = [8, 16, 24, 32, 40, 64] as const;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -415,7 +413,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const bgRef2 = useRef<BgType>(bg);
 
     const saveCanvasToStorage = useCallback(
-      (key?: string) => {
+      async (key?: string) => {
         if (!key) return;
         const storageKey = getCanvasStorageKey(key);
         if (!storageKey) return;
@@ -434,30 +432,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             lastModified: Date.now(),
           };
 
-          const serializedPayload = JSON.stringify(payload);
-          if (serializedPayload.length > MAX_SKETCH_STORAGE_CHARS) {
-            storageSaveBlockedKeysRef.current.add(storageKey);
-            console.warn(
-              'Sketchpad auto-save disabled for this question because the drawing is too large for local storage.',
-            );
-            return;
-          }
-
-          try {
-            localStorage.setItem(storageKey, serializedPayload);
-          } catch (err) {
-            const isQuotaExceeded =
-              err instanceof DOMException &&
-              (err.name === 'QuotaExceededError' || err.code === 22);
-
-            if (!isQuotaExceeded) {
-              throw err;
-            }
-
-            // Attempt one best-effort cleanup pass, then retry once.
-            cleanupOldSketchpadData();
-            localStorage.setItem(storageKey, serializedPayload);
-          }
+          await setStoreItem(storageKey, payload);
 
           hasDirtyCanvasRef.current = false;
           window.dispatchEvent(
@@ -470,19 +445,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           );
           storageSaveBlockedKeysRef.current.delete(storageKey);
         } catch (err) {
-          const isQuotaExceeded =
-            err instanceof DOMException &&
-            (err.name === 'QuotaExceededError' || err.code === 22);
-
-          if (isQuotaExceeded) {
-            storageSaveBlockedKeysRef.current.add(storageKey);
-            console.warn(
-              'Failed to save canvas to localStorage due to quota limits. Auto-save is disabled for this sketch until the next session.',
-            );
-            return;
-          }
-
-          console.warn('Failed to save canvas to localStorage:', err);
+          console.warn('Failed to save canvas to store:', err);
         }
       },
       [getCanvasStorageKey],
@@ -563,7 +526,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, [redraw]);
 
     const restoreCanvasFromStorage = useCallback(
-      (key?: string) => {
+      async (key?: string) => {
         if (!key) return;
         try {
           clearHistoryStacks();
@@ -574,27 +537,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           strokesRef.current = [];
           setStrokes([]);
 
-          const storedValue = localStorage.getItem(getCanvasStorageKey(key));
-          if (!storedValue) {
-            scheduleRedraw();
-            return;
-          }
+          const payload = await getStoreItem<Partial<SketchpadStoragePayload>>(
+            getCanvasStorageKey(key),
+          );
 
-          if (storedValue.trim().startsWith('{')) {
-            try {
-              const payload = JSON.parse(
-                storedValue,
-              ) as Partial<SketchpadStoragePayload>;
-              if (typeof payload.strokeSvg === 'string' && payload.strokeSvg) {
-                const restoredStrokes = parseStrokesFromSvgString(
-                  payload.strokeSvg,
-                );
-                strokesRef.current = restoredStrokes;
-                setStrokes(restoredStrokes);
-              }
-            } catch (parseErr) {
-              console.warn('Failed to parse saved sketch payload:', parseErr);
-            }
+          if (payload && payload.strokeSvg) {
+            const restoredStrokes = parseStrokesFromSvgString(
+              payload.strokeSvg,
+            );
+            strokesRef.current = restoredStrokes;
+            setStrokes(restoredStrokes);
           }
           scheduleRedraw();
           window.dispatchEvent(
@@ -620,7 +572,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           clearTimeout(autoSaveTimeoutRef.current);
         }
         autoSaveTimeoutRef.current = setTimeout(() => {
-          saveCanvasToStorage(key);
+          void saveCanvasToStorage(key);
         }, 1000); // Save 1s after last drawing action
       },
       [saveCanvasToStorage],
@@ -767,10 +719,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const zoomByKeyboardStep = useCallback(
       (direction: 1 | -1) => {
-        zoomAroundCenter(
-          zoomRef.current + direction * KEYBOARD_ZOOM_STEP,
-          true,
-        );
+        const factor = direction === 1 ? 1.25 : 0.8;
+        zoomAroundCenter(zoomRef.current * factor, true);
       },
       [zoomAroundCenter],
     );
@@ -877,7 +827,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     // Restore canvas from storage on mount/session changes.
     useEffect(() => {
       if (sessionKey) {
-        restoreCanvasFromStorage(sessionKey);
+        void restoreCanvasFromStorage(sessionKey);
       }
     }, [sessionKey, restoreCanvasFromStorage]);
 
@@ -889,13 +839,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           autoSaveTimeoutRef.current = null;
         }
       } else if (
-        hasExplicitlySaved.current === false &&
+        sessionKey &&
         hasDirtyCanvasRef.current &&
-        sessionKey
+        !autoSaveTimeoutRef.current
       ) {
-        scheduleAutoSave(sessionKey);
+        void saveCanvasToStorage(sessionKey);
       }
-    }, [isDrawing, sessionKey, scheduleAutoSave]);
+    }, [isDrawing, sessionKey, scheduleAutoSave, saveCanvasToStorage]);
 
     // Save canvas immediately when sessionKey changes (user switched questions)
     useEffect(() => {
@@ -911,7 +861,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           hasDirtyCanvasRef.current &&
           sessionKey
         ) {
-          saveCanvasToStorage(sessionKey);
+          void saveCanvasToStorage(sessionKey);
         }
       };
     }, [sessionKey, saveCanvasToStorage]);
@@ -1092,7 +1042,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           return;
         }
 
-        const zoomFactor = Math.exp(-e.deltaY * 0.01);
+        const clampedDelta = Math.max(-50, Math.min(50, e.deltaY));
+        const zoomFactor = Math.exp(-clampedDelta * 0.01);
         zoomAroundClientPoint(
           e.clientX,
           e.clientY,
@@ -1292,7 +1243,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       const tool = activeToolRef.current;
       const isShapeTool =
-        tool === 'line' || tool === 'rect' || tool === 'ellipse';
+        tool === 'line' ||
+        tool === 'rect' ||
+        tool === 'ellipse' ||
+        tool === 'graph';
 
       if (isShapeTool && shapeStart.current) {
         const latest = moves[moves.length - 1];
@@ -1673,24 +1627,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         return;
       }
 
-      if (currentTool === 'graph') {
-        pushUndo(true);
-        const settings = toolSettingsMapRef.current['graph'];
-        const newStroke: Stroke = {
-          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
-          tool: 'graph',
-          color: settings.color,
-          size: settings.size,
-          smoothing: 0,
-          pressureCurve: 'linear',
-          points: [{ x: pt.x, y: pt.y, pressure: 1, time: Date.now() }],
-        };
-        strokesRef.current = [...strokesRef.current, newStroke];
-        setStrokes(strokesRef.current.slice());
-        canvasBoundsRef.current = null;
-        return;
-      }
-
       if (e.pointerType === 'touch' && hasActivePenPointer()) return;
       if (penOnly && e.pointerType !== 'pen' && e.pointerType !== 'mouse') {
         return;
@@ -1722,7 +1658,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             ? e.pressure
             : 1;
 
-      if (['line', 'rect', 'ellipse'].includes(currentTool)) {
+      if (['line', 'rect', 'ellipse', 'graph'].includes(currentTool)) {
         pushUndo(true);
         shapeStart.current = pt;
         setIsDrawing(true);
@@ -1800,7 +1736,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
       if (currentTool === 'text') return;
 
-      if (currentTool === 'graph') {
+      if (currentTool === 'graph' && !isDrawingRef.current) {
         graphPreviewPointRef.current = getCanvasPoint(
           e,
           canvasBoundsRef.current,
@@ -1969,7 +1905,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const disablePres =
           toolSettingsMapRef.current[stroke.tool].disablePressure;
         if (
-          ['line', 'rect', 'ellipse'].includes(activeToolRef.current) &&
+          ['line', 'rect', 'ellipse', 'graph'].includes(
+            activeToolRef.current,
+          ) &&
           shapeStart.current
         ) {
           stroke.points = [
@@ -2223,7 +2161,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           if (autoSaveTimeoutRef.current) {
             clearTimeout(autoSaveTimeoutRef.current);
           }
-          saveCanvasToStorage(sessionKey);
+          void saveCanvasToStorage(sessionKey);
         }
 
         // Generate a direct link for TutorPanel
@@ -2424,7 +2362,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       onValueChange={([val]) => setSize(val)}
                     />
                     <div className='flex items-center gap-1 flex-wrap'>
-                      {QUICK_SIZES.map((size) => (
+                      {(activeTool === 'eraser'
+                        ? ERASER_QUICK_SIZES
+                        : QUICK_SIZES
+                      ).map((size) => (
                         <Button
                           key={`mobile-size-${size}`}
                           type='button'
@@ -2520,18 +2461,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             />
 
             <div className='flex items-center gap-0.5'>
-              {QUICK_SIZES.map((size) => (
-                <Button
-                  key={`desktop-size-${size}`}
-                  type='button'
-                  variant={currentSize === size ? 'default' : 'ghost'}
-                  size='sm'
-                  onClick={() => setSize(size)}
-                  className='h-6 min-w-7 rounded-md px-1 text-[10px] tabular-nums'
-                >
-                  {size}
-                </Button>
-              ))}
+              {(activeTool === 'eraser' ? ERASER_QUICK_SIZES : QUICK_SIZES).map(
+                (size) => (
+                  <Button
+                    key={`desktop-size-${size}`}
+                    type='button'
+                    variant={currentSize === size ? 'default' : 'ghost'}
+                    size='sm'
+                    onClick={() => setSize(size)}
+                    className='h-6 min-w-7 rounded-md px-1 text-[10px] tabular-nums'
+                  >
+                    {size}
+                  </Button>
+                ),
+              )}
             </div>
 
             <Separator orientation='vertical' className='h-5 mx-0.5' />
@@ -2745,7 +2688,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       <div className='fixed inset-0 z-50 flex items-center justify-center font-sans overflow-hidden'>
         <div
           className='absolute inset-0 bg-background/60 backdrop-blur-xl'
-          onClick={
+          onClick={() => {
             void (async () => {
               if (!hasExplicitlySaved.current) {
                 try {
@@ -2758,8 +2701,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 }
               }
               onClose?.();
-            })
-          }
+            })();
+          }}
         />
         <div className='relative w-full h-full flex flex-col items-center justify-center pointer-events-none'>
           <div className='pointer-events-auto h-full w-full relative flex flex-col'>

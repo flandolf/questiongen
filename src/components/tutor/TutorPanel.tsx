@@ -29,6 +29,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { useAppSettings } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
+import { type SketchpadStoragePayload } from '@/components/Sketchpad';
 import {
   CANVAS_STORAGE_KEY_PREFIX,
   getCropBoundingBox,
@@ -56,6 +57,7 @@ import {
   parseStrokesFromSvgString,
   rasterizeSvgString,
 } from '@/lib/sketchpad-renderer';
+import { getStoreItem } from '@/lib/tauri-store';
 import { cn } from '@/lib/utils';
 import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';
@@ -95,15 +97,13 @@ async function getSketchpadDataUrl(
   sketchSessionKey?: string,
 ): Promise<string | undefined> {
   if (!sketchSessionKey) return undefined;
-  if (typeof window === 'undefined' || !window.localStorage) return undefined;
 
   try {
-    const storedValue = window.localStorage.getItem(
+    const parsed = await getStoreItem<Partial<SketchpadStoragePayload>>(
       `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
     );
-    if (!storedValue) return undefined;
+    if (!parsed) return undefined;
 
-    const parsed = JSON.parse(storedValue) as { strokeSvg?: unknown };
     if (typeof parsed.strokeSvg !== 'string' || !parsed.strokeSvg.trim()) {
       return undefined;
     }
@@ -1518,21 +1518,22 @@ export function TutorPanel({
   useEffect(() => {
     if (!sketchSessionKey) return;
 
-    // Initial check from localStorage
-    try {
-      const storedValue = window.localStorage.getItem(
-        `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
-      );
-      if (storedValue) {
-        const parsed = JSON.parse(storedValue) as { strokeSvg?: unknown };
-        if (typeof parsed.strokeSvg === 'string' && parsed.strokeSvg.trim()) {
-          const strokes = parseStrokesFromSvgString(parsed.strokeSvg);
-          setIncludeSketch(strokes.length > 0);
+    // Initial check from store
+    void (async () => {
+      try {
+        const parsed = await getStoreItem<Partial<SketchpadStoragePayload>>(
+          `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`,
+        );
+        if (parsed) {
+          if (typeof parsed.strokeSvg === 'string' && parsed.strokeSvg.trim()) {
+            const strokes = parseStrokesFromSvgString(parsed.strokeSvg);
+            setIncludeSketch(strokes.length > 0);
+          }
         }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
+    })();
 
     const handleSketchpadSaved = (e: Event) => {
       const customEvent = e as CustomEvent<{
