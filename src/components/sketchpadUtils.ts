@@ -627,19 +627,33 @@ export function paintBackground(
   width: number,
   height: number,
   bg: BgType,
+  useDarkTheme: boolean = false,
   zoom: number = 1,
   pan: { x: number; y: number } = { x: 0, y: 0 },
   dpr: number = 1,
+  appBackgroundColor?: string,
 ) {
-  const isDark = bg === 'black-grid';
+  const isDark = bg === 'black-grid' || useDarkTheme;
   const darkBg = 'oklch(27.4% 0.006 286.033)';
   const lightBg = 'oklch(98.5% 0 0)';
   const darkStroke = 'oklch(20% 0.1 0)';
   const lightStroke = 'oklch(87% 0 0)';
+  const normalizedAppBackground = appBackgroundColor?.trim();
+  const useAppBackground = !!normalizedAppBackground && bg !== 'black-grid';
+  const viewportBackground = useAppBackground
+    ? normalizedAppBackground
+    : isDark
+      ? 'oklch(20% 0 0)'
+      : 'oklch(95% 0 0)';
+  const paperBackground = useAppBackground
+    ? normalizedAppBackground
+    : isDark
+      ? darkBg
+      : lightBg;
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = isDark ? 'oklch(20% 0 0)' : 'oklch(95% 0 0)';
+  ctx.fillStyle = viewportBackground;
   ctx.fillRect(0, 0, width, height);
   ctx.restore();
 
@@ -650,7 +664,7 @@ export function paintBackground(
   ctx.shadowBlur = 20 / zoom;
   ctx.shadowOffsetY = 10 / zoom;
 
-  ctx.fillStyle = isDark ? darkBg : lightBg;
+  ctx.fillStyle = paperBackground;
   ctx.fillRect(0, 0, INTERNAL_RES_WIDTH, INTERNAL_RES_HEIGHT);
 
   ctx.shadowColor = 'transparent';
