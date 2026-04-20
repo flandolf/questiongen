@@ -1,3 +1,8 @@
+import {
+  getAllStoreKeys,
+  getStoreItem,
+  removeStoreItem,
+} from '../lib/tauri-store';
 import type {
   BgType,
   Point,
@@ -70,7 +75,7 @@ export const DEFAULT_TOOL_SETTINGS: ToolSettingsMap = {
     color: '#111827',
   },
   graph: {
-    size: 2,
+    size: 1.5,
     opacity: 1,
     smoothing: 0,
     pressureCurve: 'linear',
@@ -84,44 +89,39 @@ export const PEN_ONLY_STORAGE_KEY = 'sketchpad-pen-only-mode';
 export const CANVAS_STORAGE_KEY_PREFIX = 'sketchpad-canvas';
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 10;
-export const KEYBOARD_ZOOM_STEP = 0.25;
 export const MAX_UNDO_SNAPSHOTS = 40;
 export const MAX_PENDING_MOVE_POINTS = 240;
 export const MAX_STORED_SKETCHES = 15;
 
-export function cleanupOldSketchpadData() {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
+export async function cleanupOldSketchpadData() {
   try {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(CANVAS_STORAGE_KEY_PREFIX)) {
-        keys.push(key);
-      }
-    }
+    const keys = await getAllStoreKeys();
+    const sketchKeys = keys.filter((k) =>
+      k.startsWith(CANVAS_STORAGE_KEY_PREFIX),
+    );
 
-    if (keys.length <= MAX_STORED_SKETCHES) return;
+    if (sketchKeys.length <= MAX_STORED_SKETCHES) return;
 
-    const sketches = keys.map((key) => {
-      try {
-        const item = localStorage.getItem(key);
-        if (!item) return { key, lastModified: 0 };
-        const parsed = JSON.parse(item) as { lastModified?: number };
-        return {
-          key,
-          lastModified: parsed.lastModified || 0,
-        };
-      } catch {
-        return { key, lastModified: 0 };
-      }
-    });
+    const sketches = await Promise.all(
+      sketchKeys.map(async (key) => {
+        try {
+          const item = await getStoreItem<{ lastModified?: number }>(key);
+          if (!item) return { key, lastModified: 0 };
+          return {
+            key,
+            lastModified: item.lastModified || 0,
+          };
+        } catch {
+          return { key, lastModified: 0 };
+        }
+      }),
+    );
 
     sketches.sort((a, b) => b.lastModified - a.lastModified);
 
     const toRemove = sketches.slice(MAX_STORED_SKETCHES);
     for (const sketch of toRemove) {
-      localStorage.removeItem(sketch.key);
+      await removeStoreItem(sketch.key);
     }
   } catch (err) {
     console.warn('Failed to cleanup old sketchpad data:', err);
@@ -279,16 +279,26 @@ export function getStrokeBoundingBox(strokes: Stroke[], padding: number = 20) {
 
   for (const stroke of strokes) {
     if (stroke.tool === 'graph') {
-      // Graph axes have fixed dimensions: halfW = 320, halfH = 240
-      const p = stroke.points[0];
-      if (p) {
+      const p1 = stroke.points[0];
+      const p2 = stroke.points[1];
+      if (p1) {
         found = true;
-        const halfW = 320;
-        const halfH = 240;
-        minX = Math.min(minX, p.x - halfW);
-        minY = Math.min(minY, p.y - halfH);
-        maxX = Math.max(maxX, p.x + halfW);
-        maxY = Math.max(maxY, p.y + halfH);
+        let halfW = 320;
+        let halfH = 240;
+        let cx = p1.x;
+        let cy = p1.y;
+
+        if (p2) {
+          halfW = Math.max(40, Math.abs(p2.x - p1.x) / 2);
+          halfH = Math.max(40, Math.abs(p2.y - p1.y) / 2);
+          cx = (p1.x + p2.x) / 2;
+          cy = (p1.y + p2.y) / 2;
+        }
+
+        minX = Math.min(minX, cx - halfW);
+        minY = Math.min(minY, cy - halfH);
+        maxX = Math.max(maxX, cx + halfW);
+        maxY = Math.max(maxY, cy + halfH);
       }
     } else if (stroke.tool === 'text' && stroke.text) {
       // Estimate text bounds based on font size and text length
@@ -490,6 +500,20 @@ export function drawShape(
     const cy = (start.y + end.y) / 2;
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
+  } else if (tool === 'graph') {
+    const halfW = Math.max(40, Math.abs(end.x - start.x) / 2);
+    const halfH = Math.max(40, Math.abs(end.y - start.y) / 2);
+    const cx = (start.x + end.x) / 2;
+    const cy = (start.y + end.y) / 2;
+    drawGraphAxes(
+      ctx,
+      cx,
+      cy,
+      ctx.strokeStyle as string,
+      ctx.lineWidth,
+      halfW,
+      halfH,
+    );
   }
 }
 
@@ -498,13 +522,13 @@ export function drawGraphAxes(
   cx: number,
   cy: number,
   color: string,
-  strokeWidth: number = 2,
+  strokeWidth: number = 1.5,
+  halfW: number = 320,
+  halfH: number = 240,
 ) {
-  const halfW = 320;
-  const halfH = 240;
-  const tickSpacing = 40;
-  const tickLen = 8;
-  const arrowSize = 14;
+  const tickSpacing = 20;
+  const tickLen = 4;
+  const arrowSize = 10;
 
   ctx.save();
   ctx.globalAlpha = 1;
@@ -603,7 +627,7 @@ export function drawGraphAxes(
   }
 
   // Axis labels
-  const fontSize = Math.round(tickSpacing * 0.5);
+  const fontSize = 12;
   ctx.font = `italic ${fontSize}px serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';

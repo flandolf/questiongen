@@ -14,6 +14,7 @@ import Sketchpad from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
 import { Textarea } from '@/components/ui/textarea';
+import { useAppStore } from '@/store';
 import type { StudentAnswerImage } from '@/types';
 
 type WrittenAnswerCardProps = {
@@ -59,9 +60,11 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   onSubmit,
   onSketchpadActiveChange,
 }: WrittenAnswerCardProps) {
-  const [activeTab, setActiveTab] = useState<
-    'response' | 'upload' | 'sketchpad'
-  >('response');
+  const { activeTabByQuestionId, setActiveTabByQuestionId } = useAppStore();
+  const activeTab = activeTabByQuestionId[questionId] || 'response';
+  const setActiveTab = (tab: 'response' | 'upload' | 'sketchpad') =>
+    setActiveTabByQuestionId(questionId, tab);
+
   const [confirmSketchSubmit, setConfirmSketchSubmit] = useState(false);
   const sketchpadRef = useRef<SketchpadHandle | null>(null);
   const words = wordCount(answer);
@@ -70,7 +73,6 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   const footerNote = getFooterNote(isExamMode);
 
   useEffect(() => {
-    setActiveTab('response');
     setConfirmSketchSubmit(false);
   }, [questionId]);
 

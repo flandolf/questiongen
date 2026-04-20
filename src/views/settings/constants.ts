@@ -7,7 +7,8 @@ export const PRESET_MODELS = [
   { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini' },
   { id: 'x-ai/grok-4.20', name: 'Grok 4.20' },
   { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast' },
-  { id: 'xiaomi/mimo-v2-pro', name: 'Mimo V2 Pro' },
+  { id: 'xiaomi/mimo-v2-pro', name: 'MiMo V2 Pro' },
+  { id: 'xiaomi/mimo-v2-omni', name: 'MiMo V2 Omni' },
   { id: 'minimax/minimax-m2.7', name: 'Minimax M2.7' },
   { id: 'qwen/qwen3.6-plus', name: 'Qwen 3.6 Plus' },
   { id: 'openai/gpt-oss-120b:nitro', name: 'GPT-OSS 120B (Nitro)' },
@@ -21,6 +22,9 @@ export const PRESET_IMAGE_MODELS = [
   { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini' },
   { id: 'x-ai/grok-4.20', name: 'Grok 4.20' },
   { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast' },
+  { id: 'xiaomi/mimo-v2-omni', name: 'MiMo V2 Omni' },
+  { id: 'minimax/minimax-m2.7', name: 'Minimax M2.7' },
+  { id: 'qwen/qwen3.6-plus', name: 'Qwen 3.6 Plus' },
   { id: 'custom', name: 'Custom…' },
 ];
 

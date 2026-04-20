@@ -22,6 +22,7 @@ export interface SessionSlice {
   writtenQuestionPresentedAtById: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, AppState['imagesByQuestionId'][string]>;
+  activeTabByQuestionId: Record<string, 'response' | 'upload' | 'sketchpad'>;
   feedbackByQuestionId: Record<
     string,
     AppState['feedbackByQuestionId'][string]
@@ -67,6 +68,7 @@ export interface SessionSlice {
   setWrittenQuestionPresentedAtById: AppActions['setWrittenQuestionPresentedAtById'];
   setAnswersByQuestionId: AppActions['setAnswersByQuestionId'];
   setImagesByQuestionId: AppActions['setImagesByQuestionId'];
+  setActiveTabByQuestionId: AppActions['setActiveTabByQuestionId'];
   setFeedbackByQuestionId: AppActions['setFeedbackByQuestionId'];
   setMarkAppealByQuestionId: AppActions['setMarkAppealByQuestionId'];
   setMarkOverrideInputByQuestionId: AppActions['setMarkOverrideInputByQuestionId'];
@@ -138,6 +140,7 @@ export const createSessionSlice: StateCreator<
     EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
   imagesByQuestionId:
     EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
+  activeTabByQuestionId: {},
   feedbackByQuestionId:
     EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
   writtenRawModelOutput:
@@ -194,6 +197,13 @@ export const createSessionSlice: StateCreator<
     })),
   setImagesByQuestionId: (update) =>
     set((s) => ({ imagesByQuestionId: resolve(update, s.imagesByQuestionId) })),
+  setActiveTabByQuestionId: (questionId, tab) =>
+    set((s) => ({
+      activeTabByQuestionId: {
+        ...s.activeTabByQuestionId,
+        [questionId]: tab,
+      },
+    })),
   setFeedbackByQuestionId: (update) =>
     set((s) => ({
       feedbackByQuestionId: resolve(update, s.feedbackByQuestionId),

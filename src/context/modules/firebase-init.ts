@@ -5,7 +5,6 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
-  persistentSingleTabManager,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -28,10 +27,6 @@ if (!app) {
 const auth = getAuth(app);
 const storage = getStorage(app);
 
-const isTauriRuntime =
-  typeof window !== 'undefined' &&
-  ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
-
 /**
  * Firebase initialization helper: configures app, auth, firestore and
  * storage. Uses a persistent Firestore cache.
@@ -42,9 +37,7 @@ const db = (() => {
     return initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
       localCache: persistentLocalCache({
-        tabManager: isTauriRuntime
-          ? persistentSingleTabManager(undefined)
-          : persistentMultipleTabManager(),
+        tabManager: persistentMultipleTabManager(),
       }),
     });
   } catch (error) {

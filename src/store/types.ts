@@ -81,6 +81,7 @@ export interface AppState {
   writtenQuestionPresentedAtById: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
+  activeTabByQuestionId: Record<string, 'response' | 'upload' | 'sketchpad'>;
   feedbackByQuestionId: Record<string, MarkAnswerResponse>;
   questionHistory: QuestionHistoryEntry[];
   writtenRawModelOutput: string;
@@ -218,6 +219,10 @@ export interface AppActions {
       | ((
           prev: Record<string, StudentAnswerImage | undefined>,
         ) => Record<string, StudentAnswerImage | undefined>),
+  ) => void;
+  setActiveTabByQuestionId: (
+    questionId: string,
+    tab: 'response' | 'upload' | 'sketchpad',
   ) => void;
   setFeedbackByQuestionId: (
     feedback:

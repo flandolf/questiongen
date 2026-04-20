@@ -75,6 +75,7 @@ export type PersistedWrittenSession = {
   presentedAtByQuestionId: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
+  activeTabByQuestionId?: Record<string, 'response' | 'upload' | 'sketchpad'>;
   feedbackByQuestionId: Record<string, MarkAnswerResponse>;
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;

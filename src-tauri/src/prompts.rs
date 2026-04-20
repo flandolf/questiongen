@@ -22,7 +22,6 @@ pub fn written_system() -> String {
          CORE RULES:\n\
          - Use precise VCAA command terms (e.g. 'state', 'describe', 'explain', 'justify', 'evaluate', 'compare', 'derive', 'show that').\n\
          - 'show that': every step must be explicit.\n\
-         - 'hence': must use previous result.\n\
          - 'justify': reasoning required.\n\
          - 'promptMarkdown' contains STEM ONLY. No solutions/answers.\n\n\
          {field_contract}",
@@ -71,7 +70,6 @@ pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> Str
          1. Criterion-based (steps, not just answers).\n\
          2. Award for method even if arithmetic slips.\n\
          3. 'show that' needs full algebraic steps.\n\
-         4. 'hence' must use previous part results.\n\
          5. MC: justify correct and explain all 3 distractors.\n\n\
          {hygiene}\n\
          {latex_rules}\n\
@@ -580,7 +578,6 @@ pub fn marking_prompt(
          - Apply VCAA criterion-based marking strictly.\n\
          - Do not award marks for correct answers without correct supporting working or reasoning (except for questions that are purely answer-only).\n\
          - Do not credit vague restatements of the question as explanation.\n\
-         - For 'hence' sub-parts: the student must use the result from the immediately preceding part.\n\
          - For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n\
          - For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n\
          - Produce one criterion per mark (or group closely related marks where natural).\n\
