@@ -37,6 +37,7 @@ type ColorPickerProps = {
   contentClassName?: string;
   showHexInput?: boolean;
   showNativeInput?: boolean;
+  hideLabel?: boolean;
 };
 
 export function ColorPicker({
@@ -48,6 +49,7 @@ export function ColorPicker({
   contentClassName,
   showHexInput = true,
   showNativeInput = true,
+  hideLabel = false,
 }: ColorPickerProps) {
   const [open, setOpen] = React.useState(false);
   const [draftValue, setDraftValue] = React.useState(normalizeHexColor(value));
@@ -84,10 +86,14 @@ export function ColorPicker({
             className='size-5 shrink-0 rounded-full border border-border shadow-sm ring-2 ring-background'
             style={{ backgroundColor: currentValue }}
           />
-          <span className='min-w-0 flex-1 truncate text-sm text-foreground'>
-            {currentValue.toUpperCase()}
-          </span>
-          <Pipette className='size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground' />
+          {!hideLabel && (
+            <>
+              <span className='min-w-0 flex-1 truncate text-sm text-foreground'>
+                {currentValue.toUpperCase()}
+              </span>
+              <Pipette className='size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground' />
+            </>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent

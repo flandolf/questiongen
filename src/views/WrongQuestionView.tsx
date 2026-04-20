@@ -589,24 +589,24 @@ function ReattemptView({
     const state: QuestionState =
       currentEntry.kind === 'written'
         ? {
-            writtenAnswer,
-            image,
-            feedback,
-            markingScheme,
-            appealText,
-            overrideInput,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          }
+          writtenAnswer,
+          image,
+          feedback,
+          markingScheme,
+          appealText,
+          overrideInput,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        }
         : {
-            selectedAnswer,
-            awardedMarks,
-            mcAppealText,
-            mcOverrideInput,
-            mcSketchpadActive,
-            result: results.find((r) => r.id === currentEntry.id) ?? null,
-            timeSeconds: totalTime,
-          };
+          selectedAnswer,
+          awardedMarks,
+          mcAppealText,
+          mcOverrideInput,
+          mcSketchpadActive,
+          result: results.find((r) => r.id === currentEntry.id) ?? null,
+          timeSeconds: totalTime,
+        };
     setSavedStates((prev) => ({ ...prev, [currentEntry.id]: state }));
   }, [
     idx,
@@ -911,7 +911,7 @@ function ReattemptView({
                   isMarking={isMarking}
                   onAppealChange={setAppealText}
                   onOverrideInputChange={setOverrideInput}
-                  onArgueForMark={() => {}}
+                  onArgueForMark={() => { }}
                   onApplyOverride={handleApplyOverride}
                   onCriterionChange={handleCriterionChange}
                 />
