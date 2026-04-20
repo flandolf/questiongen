@@ -182,37 +182,37 @@ const TutorHeader = ({
 }) => (
   <div
     className={cn(
-      'flex items-center justify-between border-b border-border bg-muted/30 backdrop-blur-sm shrink-0',
-      isCompact ? 'px-3 py-1.5' : 'px-4 py-2.5',
+      'flex items-center justify-between border-b border-border bg-muted/20 backdrop-blur-md shrink-0',
+      isCompact ? 'px-3 py-2' : 'px-4 py-3',
     )}
   >
-    <div className='flex items-center gap-2'>
+    <div className='flex items-center gap-3'>
       {!isCompact && (
-        <div className='bg-primary/10 p-1.5 rounded-lg'>
-          <Sparkles className='h-4 w-4 text-primary' />
+        <div className='bg-primary/5 p-2 rounded-lg border border-primary/10'>
+          <Sparkles className='h-4 w-4 text-primary/80' />
         </div>
       )}
-      <div className='min-w-0'>
-        <h3 className='font-bold text-sm flex items-center gap-1.5 truncate'>
-          {!isCompact && 'AI Tutor'}
+      <div className='min-w-0 space-y-0.5'>
+        <h3 className='font-bold text-sm flex items-center gap-2 truncate tracking-tight'>
+          {!isCompact && <span className="opacity-90">AI Tutor</span>}
           <Popover>
             <PopoverTrigger asChild>
               <button
                 className={cn(
-                  'font-medium text-muted-foreground bg-muted rounded border border-border/50 hover:bg-muted/80 transition-colors truncate',
+                  'font-mono uppercase tracking-wider text-muted-foreground bg-muted/50 rounded-md border border-border/50 hover:bg-muted hover:text-foreground transition-all truncate',
                   isCompact
-                    ? 'text-[9px] px-1 py-0'
-                    : 'text-[10px] px-1.5 py-0.5',
+                    ? 'text-[8px] px-1.5 py-0.5'
+                    : 'text-[9px] px-2 py-0.5',
                 )}
               >
                 {modelName || 'Select Model'}
               </button>
             </PopoverTrigger>
-            <PopoverContent className='w-64 p-3' align='start'>
-              <div className='space-y-3'>
-                <div className='space-y-1.5'>
-                  <Label className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-                    Session Model
+            <PopoverContent className='w-72 p-4 shadow-xl border-border/60' align='start'>
+              <div className='space-y-4'>
+                <div className='space-y-2'>
+                  <Label className='text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold'>
+                    Computational Model
                   </Label>
                   <Select
                     value={activeModel}
@@ -222,7 +222,7 @@ const TutorHeader = ({
                       });
                     }}
                   >
-                    <SelectTrigger className='h-8 text-xs'>
+                    <SelectTrigger className='h-9 text-xs font-medium'>
                       <SelectValue placeholder='Select model' />
                     </SelectTrigger>
                     <SelectContent>
@@ -243,9 +243,9 @@ const TutorHeader = ({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className='space-y-1.5'>
-                  <Label className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-                    Session Persona
+                <div className='space-y-2'>
+                  <Label className='text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold'>
+                    Tutor Persona
                   </Label>
                   <Textarea
                     value={activePersona}
@@ -255,18 +255,18 @@ const TutorHeader = ({
                       });
                     }}
                     placeholder='Custom tutor instructions...'
-                    className='text-[11px] min-h-20 resize-none'
+                    className='text-xs min-h-24 resize-none bg-muted/20 border-border/40 focus-visible:ring-primary/20'
                   />
                   <Button
                     variant='outline'
                     size='sm'
-                    className='w-full h-7 text-[10px]'
+                    className='w-full h-8 text-[10px] font-bold tracking-wide'
                     onClick={() => {
                       clearSession(questionId);
                     }}
                   >
-                    <Trash2 className='h-3 w-3 mr-1.5' />
-                    Reset Session
+                    <Trash2 className='h-3 w-3 mr-2' />
+                    RESET SESSION
                   </Button>
                 </div>
               </div>
@@ -275,63 +275,73 @@ const TutorHeader = ({
         </h3>
         {!isCompact && (
           <div className='flex items-center gap-2'>
-            <p className='text-[10px] text-muted-foreground font-medium'>
-              {totalTokensSession > 0
-                ? `${totalTokensSession.toLocaleString()} tokens (~$${totalCostSession.toFixed(4)})`
-                : 'Always here to help'}
+            <p className='text-[10px] text-muted-foreground/80 font-mono tracking-tight'>
+              {totalTokensSession > 0 ? (
+                <>
+                  <span className="font-bold text-primary/70">{totalTokensSession.toLocaleString()}</span>
+                  <span className="mx-1 opacity-50">TOKENS</span>
+                  <span className="opacity-50">/</span>
+                  <span className="ml-1 font-bold text-primary/70">${totalCostSession.toFixed(4)}</span>
+                </>
+              ) : (
+                'SCHOLARLY ASSISTANCE'
+              )}
             </p>
             <Popover>
               <PopoverTrigger asChild>
-                <button className='text-muted-foreground hover:text-primary transition-colors'>
+                <button className='text-muted-foreground/60 hover:text-primary transition-colors'>
                   <Info className='h-3 w-3' />
                 </button>
               </PopoverTrigger>
-              <PopoverContent className='w-64 p-3 text-[11px] space-y-2'>
-                <h4 className='font-bold flex items-center gap-1.5'>
-                  <Brain className='h-3.5 w-3.5' />
-                  Session Context
+              <PopoverContent className='w-64 p-4 text-[11px] space-y-3 shadow-xl'>
+                <h4 className='font-bold flex items-center gap-2 text-foreground/90'>
+                  <Brain className='h-4 w-4 text-primary' />
+                  SESSION CONTEXT
                 </h4>
-                <div className='space-y-1 text-muted-foreground'>
-                  <div className='flex items-center justify-between'>
-                    <span>Question Text</span>
-                    <Check className='h-3 w-3 text-green-500' />
+                <div className='space-y-2 text-muted-foreground font-medium'>
+                  <div className='flex items-center justify-between border-b border-border/30 pb-1'>
+                    <span>Exam Question</span>
+                    <Check className='h-3.5 w-3.5 text-primary' />
                   </div>
-                  <div className='flex items-center justify-between'>
-                    <span>Your Answer</span>
+                  <div className='flex items-center justify-between border-b border-border/30 pb-1'>
+                    <span>Student Response</span>
                     {studentAnswer ? (
-                      <Check className='h-3 w-3 text-green-500' />
+                      <Check className='h-3.5 w-3.5 text-primary' />
                     ) : (
-                      <span className='text-[9px] uppercase'>None</span>
+                      <span className='text-[9px] font-bold opacity-40 uppercase'>Not provided</span>
                     )}
                   </div>
                   <div className='flex items-center justify-between'>
-                    <span>Formula Sheet</span>
-                    <Check className='h-3 w-3 text-green-500' />
+                    <span>VCE Formula Sheet</span>
+                    <Check className='h-3.5 w-3.5 text-primary' />
                   </div>
                 </div>
+                <p className="text-[9px] leading-relaxed text-muted-foreground/70 italic border-t border-border/30 pt-2">
+                  The AI analyzes your working against official curriculum standards to provide targeted feedback.
+                </p>
               </PopoverContent>
             </Popover>
           </div>
         )}
       </div>
     </div>
-    <div className='flex items-center gap-1'>
+    <div className='flex items-center gap-1.5'>
       <Button
         variant='ghost'
         size='icon'
         className={cn(
-          'rounded-full hover:bg-muted',
-          isCompact ? 'h-6 w-6' : 'h-8 w-8',
+          'rounded-full hover:bg-muted transition-all active:scale-90',
+          isCompact ? 'h-7 w-7' : 'h-8 w-8',
         )}
         onClick={() => {
           toggleCompact();
         }}
         title={
-          isCompact ? 'Large Mode (Cmd+Shift+M)' : 'Compact Mode (Cmd+Shift+M)'
+          isCompact ? 'Standard View (Cmd+Shift+M)' : 'Compact View (Cmd+Shift+M)'
         }
       >
         {isCompact ? (
-          <Maximize2 className='h-3.5 w-3.5' />
+          <Maximize2 className='h-4 w-4' />
         ) : (
           <Minimize2 className='h-4 w-4' />
         )}
@@ -340,7 +350,7 @@ const TutorHeader = ({
         <Button
           variant='ghost'
           size='icon'
-          className='h-8 w-8 rounded-full hover:bg-muted'
+          className='h-8 w-8 rounded-full hover:bg-muted active:scale-90'
           onClick={() => {
             handleExportTranscript();
           }}
@@ -353,14 +363,14 @@ const TutorHeader = ({
         variant='ghost'
         size='icon'
         className={cn(
-          'rounded-full hover:bg-muted',
-          isCompact ? 'h-6 w-6' : 'h-8 w-8',
+          'rounded-full hover:bg-destructive/10 hover:text-destructive transition-all active:scale-90',
+          isCompact ? 'h-7 w-7' : 'h-8 w-8',
         )}
         onClick={() => {
           setIsOpen(false);
         }}
       >
-        <X className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+        <X className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
       </Button>
     </div>
   </div>
@@ -383,57 +393,64 @@ const MessageItem = ({
 }) => (
   <div
     className={cn(
-      'flex flex-col space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300 group relative',
-      isCompact ? 'max-w-[92%]' : 'max-w-[85%]',
+      'flex flex-col space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-400 group min-w-0',
+      msg.role === 'assistant'
+        ? isCompact
+          ? 'max-w-[88%]'
+          : 'max-w-[82%]'
+        : isCompact
+          ? 'max-w-[90%]'
+          : 'max-w-[85%]',
       msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start',
     )}
   >
     <div
       className={cn(
-        'rounded-2xl leading-relaxed shadow-sm',
-        isCompact ? 'px-3 py-1.5 text-[12px]' : 'px-4 py-2.5 text-[13px]',
+        'rounded-xl leading-relaxed shadow-sm min-w-0 overflow-hidden transition-colors',
+        isCompact ? 'px-3.5 py-2 text-[12px]' : 'px-4.5 py-3 text-[13px]',
         msg.role === 'user'
-          ? 'bg-primary text-primary-foreground rounded-tr-none'
-          : 'bg-card text-foreground rounded-tl-none border border-border/50',
+          ? 'bg-primary/95 text-primary-foreground rounded-tr-none shadow-md'
+          : 'bg-card/80 text-foreground rounded-tl-none border border-border/40 backdrop-blur-sm',
       )}
     >
       <div
         className={cn(
+          'min-w-0 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full tracking-tight',
           msg.role === 'user'
             ? 'text-primary-foreground [&_.math-inline]:text-primary-foreground [&_.math-display]:text-primary-foreground'
-            : '',
+            : 'prose-sm leading-relaxed',
         )}
       >
         <MarkdownMath content={msg.content} />
       </div>
-
-      {msg.role === 'assistant' && (
-        <div className='absolute -right-10 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
-          <button
-            onClick={() => handleCopyMessage(msg.id, msg.content, 'text')}
-            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors'
-            title='Copy as text'
-          >
-            {copiedId === `${msg.id}-text` ? (
-              <ClipboardCheck className='h-3.5 w-3.5 text-green-500' />
-            ) : (
-              <Copy className='h-3.5 w-3.5' />
-            )}
-          </button>
-          <button
-            onClick={() => handleCopyMessage(msg.id, msg.content, 'md')}
-            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors'
-            title='Copy as Markdown'
-          >
-            {copiedId === `${msg.id}-md` ? (
-              <ClipboardCheck className='h-3.5 w-3.5 text-green-500' />
-            ) : (
-              <FileText className='h-3.5 w-3.5' />
-            )}
-          </button>
-        </div>
-      )}
     </div>
+
+    {msg.role === 'assistant' && (
+      <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 ml-1 mt-0.5'>
+        <button
+          onClick={() => handleCopyMessage(msg.id, msg.content, 'text')}
+          className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+          title='Copy plain text'
+        >
+          {copiedId === `${msg.id}-text` ? (
+            <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
+          ) : (
+            <Copy className='h-3.5 w-3.5' />
+          )}
+        </button>
+        <button
+          onClick={() => handleCopyMessage(msg.id, msg.content, 'md')}
+          className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+          title='Copy Markdown source'
+        >
+          {copiedId === `${msg.id}-md` ? (
+            <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
+          ) : (
+            <FileText className='h-3.5 w-3.5' />
+          )}
+        </button>
+      </div>
+    )}
   </div>
 );
 
@@ -444,29 +461,33 @@ const TutorEmptyState = ({
   isCompact: boolean;
   onSuggestion: (s: string) => void;
 }) => (
-  <div className='flex flex-col items-center justify-center text-center mt-10 space-y-4 px-4'>
-    <div className='bg-primary/5 p-2 rounded-full'>
+  <div className='flex flex-col items-center justify-center text-center space-y-5 px-6'>
+    <div className='bg-primary/5 p-3 rounded-2xl border border-primary/10 shadow-inner'>
       <Brain
-        className={`text-primary/40 ${!isCompact ? 'h-6 w-6' : 'h-4 w-4'}`}
+        className={`text-primary/60 ${!isCompact ? 'h-7 w-7' : 'h-5 w-5'}`}
       />
     </div>
-    <div className='space-y-1'>
-      <p className='text-xs font-semibold'>Ask for guidance</p>
+    <div className='space-y-1.5 max-w-70'>
+      <p className='text-xs font-bold tracking-tight text-foreground/90 uppercase opacity-80'>Academic Consultation</p>
       <p className='text-[11px] text-muted-foreground leading-relaxed'>
-        I can provide hints, check your working, or explain the core concepts of
-        this question.
+        The tutor is prepared to analyze your methodology, provide conceptual clarification, or offer strategic hints for this VCE problem.
       </p>
     </div>
-    <div className='flex flex-wrap justify-center gap-1.5 pt-2'>
-      {['Give me a hint', 'Explain this concept', 'Check my steps'].map(
+    <div className='flex flex-wrap justify-center gap-2 pt-3'>
+      {[
+        { text: 'Conceptual hint', icon: Sparkles },
+        { text: 'Methodology check', icon: Activity },
+        { text: 'Analyze steps', icon: PencilRuler }
+      ].map(
         (suggestion) => (
           <button
-            aria-label={`Send suggestion: ${suggestion}`}
-            key={suggestion}
-            onClick={() => onSuggestion(suggestion)}
-            className='text-[10px] px-2.5 py-1 rounded-full bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-colors'
+            aria-label={`Send suggestion: ${suggestion.text}`}
+            key={suggestion.text}
+            onClick={() => onSuggestion(suggestion.text)}
+            className='text-[10px] font-bold px-3 py-1.5 rounded-lg text-primary border border-primary/10 transition-all active:scale-95 flex items-center gap-1.5 shadow-sm'
           >
-            {suggestion}
+            <suggestion.icon className="h-3 w-3 opacity-70" />
+            {suggestion.text.toUpperCase()}
           </button>
         ),
       )}
@@ -650,32 +671,36 @@ const TutorChatArea = ({
 }) => (
   <ScrollArea
     ref={scrollAreaRef}
-    className='flex-1 min-h-0 p-2 bg-muted/5 relative'
+    className='flex-1 min-h-0 bg-muted/5 relative'
   >
-    <div className='space-y-2'>
-      {messages.length === 0 && !isGenerating && (
-        <TutorEmptyState
-          isCompact={isCompact}
-          onSuggestion={(s) => void handleSend(s)}
-        />
+    <div className='flex flex-col min-h-full'>
+      {messages.length === 0 && !isGenerating ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <TutorEmptyState
+            isCompact={isCompact}
+            onSuggestion={(s) => void handleSend(s)}
+          />
+        </div>
+      ) : (
+        <div className='flex-1 flex flex-col justify-end p-4 space-y-4'>
+          <div className='flex-1' />
+          <TutorMessageList
+            messages={messages}
+            isCompact={isCompact}
+            isGenerating={isGenerating}
+            copiedId={copiedId}
+            handleCopyMessage={handleCopyMessage}
+            handleRegenerate={handleRegenerate}
+          />
+
+          <TutorStreamingChunk
+            isGenerating={isGenerating}
+            isCompact={isCompact}
+            streamedContent={streamedContent}
+            sketchStatus={sketchStatus}
+          />
+        </div>
       )}
-
-      <TutorMessageList
-        messages={messages}
-        isCompact={isCompact}
-        isGenerating={isGenerating}
-        copiedId={copiedId}
-        handleCopyMessage={handleCopyMessage}
-        handleRegenerate={handleRegenerate}
-      />
-
-      {/* Streaming chunk */}
-      <TutorStreamingChunk
-        isGenerating={isGenerating}
-        isCompact={isCompact}
-        streamedContent={streamedContent}
-        sketchStatus={sketchStatus}
-      />
       <div ref={messagesEndRef} />
     </div>
 
@@ -726,49 +751,49 @@ const TutorInputArea = ({
 }) => (
   <div
     className={cn(
-      'border-t border-border bg-card shrink-0',
-      isCompact ? 'p-1.5' : 'p-2',
+      'border-t border-border bg-card shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]',
+      isCompact ? 'p-2' : 'p-3',
     )}
   >
     <div
       className={cn(
-        'flex items-center justify-between px-1',
-        isCompact ? 'mb-0.5' : 'mb-1',
+        'flex items-center justify-between px-1.5',
+        isCompact ? 'mb-1.5' : 'mb-2',
       )}
     >
       {sketchSessionKey && (
-        <div className='flex items-center space-x-2'>
+        <div className='flex items-center space-x-2.5 group cursor-pointer'>
           <Checkbox
             id='include-sketch'
             checked={includeSketch}
             onCheckedChange={(checked) => setIncludeSketch(checked === true)}
-            className={isCompact ? 'h-3 w-3' : ''}
+            className={cn("transition-all", isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4')}
           />
           <Label
             htmlFor='include-sketch'
             className={cn(
-              'text-muted-foreground font-medium cursor-pointer',
-              isCompact ? 'text-[9px]' : 'text-[11px]',
+              'text-muted-foreground font-bold cursor-pointer uppercase tracking-wider transition-colors group-hover:text-primary/80',
+              isCompact ? 'text-[8px]' : 'text-[9px]',
             )}
           >
             Include Sketch
           </Label>
         </div>
       )}
-      <div className='flex items-center gap-1'>
+      <div className='flex items-center gap-1.5'>
         <Button
           variant='ghost'
           size='sm'
           onClick={() => clearSession(questionId)}
           disabled={isGenerating || messages.length === 0}
           className={cn(
-            'text-muted-foreground hover:text-destructive hover:bg-destructive/5 flex items-center gap-1',
-            isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
+            'text-muted-foreground/70 hover:text-destructive hover:bg-destructive/5 flex items-center gap-1.5 font-bold tracking-tight transition-all',
+            isCompact ? 'h-6 px-2 text-[8px]' : 'h-7 px-2.5 text-[9px]',
           )}
-          title='Clear Chat'
+          title='Purge session history'
         >
           <Eraser className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-          Clear
+          CLEAR
         </Button>
         <Button
           variant='ghost'
@@ -776,12 +801,13 @@ const TutorInputArea = ({
           onClick={handleDiagnosticRequest}
           disabled={isGenerating}
           className={cn(
-            'text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1',
-            isCompact ? 'h-5 px-1.5 text-[9px]' : 'h-6 px-2 text-[10px]',
+            'text-primary/70 hover:text-primary hover:bg-primary/5 flex items-center gap-1.5 font-bold tracking-tight transition-all',
+            isCompact ? 'h-6 px-2 text-[8px]' : 'h-7 px-2.5 text-[9px]',
           )}
+          title="Analyze working for errors"
         >
           <Activity className={isCompact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-          Check work
+          CHECK WORK
         </Button>
       </div>
     </div>
@@ -792,27 +818,27 @@ const TutorInputArea = ({
       image={image}
       setIncludeSketch={setIncludeSketch}
     />
-    <div className='relative flex items-end gap-2'>
+    <div className='relative flex items-end gap-2 px-1'>
       <Textarea
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder='Ask for a hint...'
+        placeholder='Inquire for academic guidance...'
         className={cn(
-          'max-h-30 resize-none rounded-xl bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary/20',
+          'max-h-32 resize-none rounded-xl bg-muted/20 border-border/40 focus-visible:ring-primary/20 transition-all placeholder:italic placeholder:opacity-50',
           isCompact
-            ? 'min-h-9 py-2 px-3 text-[11px] pr-10'
-            : 'min-h-11 py-3 px-4 text-xs pr-12',
+            ? 'min-h-10 py-2.5 px-3.5 text-[11px] pr-12'
+            : 'min-h-12 py-3.5 px-4.5 text-xs pr-14',
         )}
         disabled={isGenerating}
       />
       <Button
         size='icon'
         className={cn(
-          'absolute transition-all duration-200',
+          'absolute transition-all duration-300 shadow-sm hover:shadow-md active:scale-90',
           isCompact
-            ? 'right-1 bottom-1 h-7 w-7 rounded-md'
-            : 'right-1.5 bottom-1.5 h-8 w-8 rounded-lg',
+            ? 'right-2 bottom-1.5 h-7 w-7 rounded-lg'
+            : 'right-2.5 bottom-2 h-8 w-8 rounded-xl',
         )}
         onClick={() => void handleSend()}
         disabled={!inputValue.trim() || isGenerating}
@@ -839,55 +865,43 @@ const TutorStreamingChunk = ({
   return (
     <div
       className={cn(
-        'flex flex-col mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-1 duration-300',
-        isCompact ? 'max-w-[92%]' : 'max-w-[85%]',
+        'flex flex-col mr-auto items-start space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-400 min-w-0',
+        isCompact ? 'max-w-[88%]' : 'max-w-[82%]',
       )}
     >
       <div
         className={cn(
-          'rounded-2xl leading-relaxed bg-card text-foreground rounded-tl-none border border-border/50 shadow-sm min-w-15',
-          isCompact ? 'px-3 py-1.5 text-[12px]' : 'px-4 py-2.5 text-[13px]',
+          'rounded-xl leading-relaxed bg-card/80 text-foreground rounded-tl-none border border-border/40 shadow-sm min-w-16 overflow-hidden backdrop-blur-sm',
+          isCompact ? 'px-3.5 py-2 text-[12px]' : 'px-4.5 py-3 text-[13px]',
         )}
       >
         {streamedContent ? (
           <MarkdownMath content={streamedContent + ' ▋'} isStreaming />
         ) : (
-          <div className='flex flex-col gap-2 py-1'>
-            <div className='flex gap-1'>
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1,
-                  times: [0, 0.5, 1],
-                }}
-                className='h-1.5 w-1.5 bg-primary rounded-full'
-              />
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1,
-                  times: [0, 0.5, 1],
-                  delay: 0.2,
-                }}
-                className='h-1.5 w-1.5 bg-primary rounded-full'
-              />
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.4, 1, 0.4] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1,
-                  times: [0, 0.5, 1],
-                  delay: 0.4,
-                }}
-                className='h-1.5 w-1.5 bg-primary rounded-full'
-              />
+          <div className='flex flex-col gap-2.5 py-1.5'>
+            <div className='flex gap-1.5 ml-0.5'>
+              {[0, 0.2, 0.4].map((delay) => (
+                <motion.div
+                  key={delay}
+                  animate={{
+                    scale: [1, 1.25, 1],
+                    opacity: [0.3, 0.8, 0.3],
+                    backgroundColor: ['var(--primary)', 'var(--primary)', 'var(--primary)']
+                  }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 1.2,
+                    times: [0, 0.5, 1],
+                    delay,
+                  }}
+                  className='h-1 w-1 bg-primary/60 rounded-full'
+                />
+              ))}
             </div>
-            <span className='text-[10px] text-muted-foreground animate-pulse font-medium'>
+            <span className='text-[9px] uppercase tracking-[0.1em] text-muted-foreground/80 animate-pulse font-bold'>
               {sketchStatus === 'sending'
-                ? 'Uploading work...'
-                : 'AI Tutor is thinking...'}
+                ? 'Uploading...'
+                : 'Processing Inquiry...'}
             </span>
           </div>
         )}
@@ -927,18 +941,20 @@ const TutorMessageList = ({
         {msg.role === 'assistant' &&
           idx === messages.length - 1 &&
           !isGenerating && (
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => void handleRegenerate()}
               className={cn(
-                'absolute -bottom-6 left-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary px-2 py-1',
+                'absolute -bottom-5.5 left-1 opacity-0 group-hover/msg:opacity-100 transition-all flex items-center gap-1.5 text-[9px] font-bold tracking-tight text-muted-foreground hover:text-primary px-2 h-5 rounded-md hover:bg-primary/5',
               )}
             >
-              <RefreshCcw className='h-3 w-3' />
-              Regenerate
-            </button>
+              <RefreshCcw className='h-2.5 w-2.5' />
+              REGENERATE
+            </Button>
           )}
         {msg.role === 'assistant' && idx === messages.length - 1 && (
-          <div className='h-6' />
+          <div className='h-5' />
         )}
       </div>
     ))}
@@ -1045,7 +1061,7 @@ const TutorAttachmentPreview = ({
     <div className='flex gap-2 mb-2 px-1'>
       {includeSketch && (
         <div className='relative group'>
-          <div className='w-12 h-12 rounded-md border border-border bg-white overflow-hidden flex items-center justify-center'>
+          <div className='w-12 h-12 rounded-md border border-border bg-card overflow-hidden flex items-center justify-center shadow-sm'>
             {sketchDataUrl ? (
               <img
                 src={sketchDataUrl}
@@ -1053,7 +1069,7 @@ const TutorAttachmentPreview = ({
                 className='w-full h-full object-cover'
               />
             ) : (
-              <PencilRuler className='h-5 w-5 text-muted-foreground/40' />
+              <PencilRuler className='h-5 w-5 text-muted-foreground/30' />
             )}
           </div>
           <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
@@ -1189,6 +1205,10 @@ export function TutorPanel({
   const [sketchDataUrl, setSketchDataUrl] = useState<string | undefined>(
     undefined,
   );
+  const [dynamicPanelWidth, setDynamicPanelWidth] = useState<number | null>(
+    null,
+  );
+  const [lastLayoutUpdate, setLastLayoutUpdate] = useState(0);
 
   const session = sessions[questionId];
   const messages = useMemo(() => session?.messages || [], [session]);
@@ -1278,21 +1298,29 @@ export function TutorPanel({
 
   // Smart Scroll logic
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    );
+    if (viewport) {
+      viewport.scrollTo({
+        top: viewport.scrollHeight,
+        behavior,
+      });
+    }
   };
 
   const wasAtBottomRef = useRef(true);
 
   useEffect(() => {
-    const scrollArea = scrollAreaRef.current?.querySelector(
+    const viewport = scrollAreaRef.current?.querySelector(
       '[data-radix-scroll-area-viewport]',
-    );
-    if (!scrollArea) return;
+    ) as HTMLElement | null;
+    if (!viewport) return;
 
     const checkIfAtBottom = () => {
       const isAtBottom =
-        scrollArea.scrollHeight - scrollArea.scrollTop <=
-        scrollArea.clientHeight + 100;
+        viewport.scrollHeight - viewport.scrollTop <=
+        viewport.clientHeight + 100;
       return isAtBottom;
     };
 
@@ -1303,7 +1331,11 @@ export function TutorPanel({
 
     // Only auto-scroll during generation if user was already at bottom
     if (isGenerating && wasAtBottomRef.current) {
-      scrollToBottom('auto');
+      // Use 'auto' during streaming for immediate positioning, 
+      // but ensure it happens after the DOM has likely updated
+      requestAnimationFrame(() => {
+        scrollToBottom('auto');
+      });
     } else if (!isGenerating && wasAtBottomRef.current) {
       scrollToBottom('smooth');
     } else if (messages.length > 0 && !checkIfAtBottom()) {
@@ -1338,6 +1370,90 @@ export function TutorPanel({
       viewport.removeEventListener('scroll', handleScroll);
     };
   }, [showScrollButton, isGenerating]);
+
+  // Expand panel width for wide rendered math content (e.g., long integrals)
+  // while keeping the panel inside the viewport.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    ) as HTMLElement | null;
+
+    if (!viewport) return;
+
+    const isSmallScreen = window.matchMedia('(max-width: 640px)').matches;
+    const horizontalMargin = isSmallScreen ? 32 : 48;
+    const maxAllowedWidth = Math.max(320, window.innerWidth - horizontalMargin);
+
+    const baseWidth = isCompact ? 416 : 512;
+    const hardCap = isCompact ? 580 : 1100;
+    const boundedMaxWidth = Math.min(maxAllowedWidth, hardCap);
+
+    let widestMath = 0;
+
+    const mathNodes = viewport.querySelectorAll(
+      '.math-node, .mjx-container, .katex-display .katex, .math-display',
+    );
+
+    mathNodes.forEach((node) => {
+      const el = node as HTMLElement;
+      // For display math, we want the inner content width, not the 100% container width
+      const innerMath = el.querySelector('.mjx-math, .katex, svg');
+      const measureTarget = innerMath || el;
+      widestMath = Math.max(widestMath, (measureTarget as HTMLElement).scrollWidth);
+    });
+
+    const bubbleRatio = isCompact ? 0.88 : 0.82;
+    const contentDrivenWidth = widestMath
+      ? Math.ceil(widestMath / bubbleRatio + (isCompact ? 48 : 64))
+      : baseWidth;
+
+    const nextWidth = Math.max(
+      baseWidth,
+      Math.min(boundedMaxWidth, contentDrivenWidth),
+    );
+
+    setDynamicPanelWidth((prev) => {
+      // Avoid tiny adjustments that cause layout jitter
+      if (prev !== null && Math.abs(prev - nextWidth) < 4) return prev;
+      return nextWidth;
+    });
+  }, [
+    isOpen,
+    isCompact,
+    messages,
+    streamedContent,
+    showScrollButton,
+    sketchStatus,
+    lastLayoutUpdate,
+  ]);
+
+  // Listen for MathJax completion events to trigger width recalculation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const viewport = scrollAreaRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    );
+    if (!viewport) return;
+
+    const handleMathTypeset = () => {
+      setLastLayoutUpdate(Date.now());
+    };
+
+    viewport.addEventListener('math-typeset-complete', handleMathTypeset);
+
+    const observer = new ResizeObserver(() => {
+      handleMathTypeset();
+    });
+    observer.observe(viewport);
+
+    return () => {
+      viewport.removeEventListener('math-typeset-complete', handleMathTypeset);
+      observer.disconnect();
+    };
+  }, [isOpen]);
 
   // Setup SSE listener for streaming tokens with throttling
   useEffect(() => {
@@ -1567,37 +1683,54 @@ export function TutorPanel({
         className,
       )}
     >
-      <AnimatePresence mode='wait'>
+      <AnimatePresence>
         {!isOpen ? (
           <motion.div
             key='tutor-toggle'
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, scale: 0.8, rotate: -20 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.8, rotate: 20 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
             className='pointer-events-auto'
           >
             <Button
               onClick={() => setIsOpen(true)}
               size='icon'
-              className='h-12 w-12 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105 active:scale-95 group'
+              className='h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 active:scale-90 group relative overflow-hidden'
             >
-              <Brain className='h-6 w-6 text-primary-foreground group-hover:rotate-12 transition-transform duration-300' />
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Brain className='h-7 w-7 text-primary-foreground group-hover:rotate-[15deg] transition-transform duration-500 relative z-10' />
+              <div className="absolute -inset-1 bg-primary/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
           </motion.div>
         ) : (
           <motion.div
             key='tutor-panel'
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            layoutId="tutor-container"
+            initial={{ opacity: 0, y: 40, scale: 0.9, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: 40, scale: 0.9, filter: 'blur(10px)' }}
+            transition={{ 
+              type: 'spring', 
+              damping: 30, 
+              stiffness: 400,
+              opacity: { duration: 0.2 },
+              filter: { duration: 0.2 }
+            }}
             className={cn(
-              'pointer-events-auto flex flex-col bg-card border border-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden transition-all duration-300',
+              'pointer-events-auto flex flex-col bg-card/95 border border-border/60 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl origin-bottom-left',
               isCompact
-                ? 'w-72 h-[clamp(15rem,50dvh,25rem)]'
-                : 'w-[min(24rem,calc(100vw-2rem))] sm:w-96 h-[clamp(20rem,68dvh,37.5rem)] max-h-[calc(100dvh-4.5rem)]',
+                ? 'w-[min(26rem,calc(100vw-2rem))] h-[clamp(18rem,55dvh,28rem)]'
+                : 'w-[min(32rem,calc(100vw-2rem))] h-[clamp(24rem,72dvh,45rem)] max-h-[calc(100dvh-5rem)]',
             )}
+            style={
+              dynamicPanelWidth && isOpen
+                ? {
+                  width: `${dynamicPanelWidth}px`,
+                  maxWidth: 'calc(100vw - 2rem)',
+                }
+                : undefined
+            }
           >
             <TutorHeader
               modelName={modelName}

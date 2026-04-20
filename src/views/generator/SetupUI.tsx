@@ -1,6 +1,6 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -62,8 +62,8 @@ export function ResizableAccordionContent({
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className='flex items-center pt-1 pb-3 w-full'>
-      <h2 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/80'>
+    <div className='flex items-center pt-1 pb-2 w-full'>
+      <h2 className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
         {children}
       </h2>
     </div>
@@ -222,61 +222,45 @@ export function GroupedSubtopicSelector({
               0,
             );
 
-            const progressPercentage =
-              totalSubs > 0 ? (selectedCount / totalSubs) * 100 : 0;
-
             return (
               <motion.button
                 key={unit}
                 type='button'
                 onClick={() => toggleUnit(unit)}
-                whileHover={{ y: -2, scale: 1.01 }}
+                whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.99 }}
                 transition={SPRING}
                 className={cn(
-                  'group relative flex flex-col items-start gap-4 p-5 rounded-xl transition-all overflow-hidden border',
+                  'group relative flex items-center justify-between p-3 rounded-xl transition-all border',
                   isActive
-                    ? 'bg-primary/5 border-primary/30'
+                    ? 'bg-primary/5 border-primary/20'
                     : 'bg-card border-border hover:bg-muted/50 text-muted-foreground',
                 )}
               >
-                <div className='flex items-start justify-between w-full relative z-10'>
+                <div className='flex flex-col items-start'>
                   <span
                     className={cn(
-                      'font-medium text-sm',
+                      'font-bold text-xs',
                       isActive ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     {unit}
                   </span>
-                  <div
-                    role='button'
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      toggleSelectAllInUnit(unit);
-                    }}
-                    className='cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors'
-                  >
-                    All
-                  </div>
+                  <span className={cn('text-[10px] tabular-nums', selectedCount > 0 ? 'text-primary/70 font-bold' : 'text-muted-foreground/40')}>
+                    {selectedCount}/{totalSubs}
+                  </span>
                 </div>
 
-                <div className='w-full space-y-1.5 relative z-10'>
-                  <div className='flex items-center justify-between text-[10px] font-medium text-muted-foreground'>
-                    <span>COVERAGE</span>
-                    <span className={cn(selectedCount > 0 && 'text-primary')}>
-                      {selectedCount}/{totalSubs}
-                    </span>
-                  </div>
-                  <div className='w-full h-1.5 bg-muted rounded-full overflow-hidden'>
-                    <motion.div
-                      className='h-full bg-primary rounded-full'
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progressPercentage}%` }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
-                    />
-                  </div>
+                <div
+                  role='button'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleSelectAllInUnit(unit);
+                  }}
+                  className='cursor-pointer text-[10px] font-bold text-muted-foreground/50 hover:text-foreground px-2 py-1 rounded bg-muted/30 hover:bg-muted transition-colors'
+                >
+                  ALL
                 </div>
               </motion.button>
             );
@@ -302,52 +286,46 @@ export function GroupedSubtopicSelector({
                 <motion.div
                   layout
                   key={group.groupId}
-                  initial={{ opacity: 0, scale: 0.98 }}
+                  initial={{ opacity: 0, scale: 0.99 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className={cn(
-                    'flex flex-col gap-5 p-6 rounded-xl border transition-all relative overflow-hidden',
+                    'flex flex-col gap-3 p-4 rounded-xl border transition-all relative overflow-hidden',
                     allSelected
                       ? 'bg-primary/5 border-primary/20'
                       : 'bg-card border-border',
                   )}
                 >
-                  <div className='flex items-start justify-between relative z-10'>
-                    <div className='flex items-center gap-2'>
-                      <h4 className='text-sm font-medium text-foreground leading-tight'>
-                        {group.aos}
-                      </h4>
-                    </div>
+                  <div className='flex items-center justify-between relative z-10'>
+                    <h4 className='text-xs font-bold text-foreground leading-tight'>
+                      {group.aos}
+                    </h4>
                     <button
                       type='button'
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleSelectAllInGroup(group);
                       }}
-                      className='text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted px-2 py-1 rounded transition-colors shrink-0'
+                      className='text-[10px] font-bold text-muted-foreground/40 hover:text-foreground bg-muted/30 hover:bg-muted px-2 py-1 rounded transition-colors shrink-0'
                     >
-                      {allSelected ? (
-                        <X className='w-3 h-3' />
-                      ) : (
-                        <Plus className='w-3 h-3' />
-                      )}
+                      {allSelected ? 'CLEAR' : 'SELECT ALL'}
                     </button>
                   </div>
 
-                  <div className='flex flex-wrap gap-2 pt-2 relative z-10'>
+                  <div className='flex flex-wrap gap-1.5 relative z-10'>
                     {group.subtopics.map((subtopic) => {
                       const isSelected = selected.includes(subtopic);
                       return (
                         <motion.button
                           key={subtopic}
                           type='button'
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
                           onClick={() => onToggle(subtopic)}
                           className={cn(
-                            'inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border',
+                            'inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border',
                             isSelected
-                              ? 'bg-primary/10 text-primary border-primary/20'
-                              : 'bg-background text-muted-foreground border-border hover:bg-muted/50',
+                              ? 'bg-primary/10 text-primary border-primary/20 font-bold'
+                              : 'bg-background text-muted-foreground/60 border-border hover:bg-muted/50',
                           )}
                         >
                           {toCanonicalSubtopicName(subtopic)}

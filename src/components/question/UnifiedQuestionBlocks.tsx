@@ -7,12 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-export const UNIFIED_OPTION_COLORS: Record<string, string> = {
-  A: '#3b82f6',
-  B: '#8b5cf6',
-  C: '#f59e0b',
-  D: '#ec4899',
-};
+function getOptionColor(label: string): string {
+  const colors = [
+    'oklch(0.55 0.2 250)',
+    'oklch(0.55 0.2 280)',
+    'oklch(0.55 0.2 45)',
+    'oklch(0.55 0.2 320)',
+  ];
+  const idx = label.charCodeAt(0) - 65;
+  return colors[idx % colors.length];
+}
 
 export function UnifiedQuestionPromptCard({
   promptMarkdown,
@@ -129,7 +133,7 @@ export function UnifiedMcqOptionsGrid({
       {options.map((opt) => {
         const isChosen = selectedAnswer === opt.label;
         const isCorrect = opt.label === correctAnswer;
-        const color = UNIFIED_OPTION_COLORS[opt.label] ?? '#6b7280';
+        const color = getOptionColor(opt.label);
         const disabled = lockSelection && (isAnswered || !onSelect);
 
         // Determine variant for clean conditional logic

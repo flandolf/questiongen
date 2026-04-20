@@ -44,7 +44,16 @@ const MathNode = memo(
           .typesetPromise([container])
           .then(() => {
             // Once typeset, remove the streaming-only styling
-            if (container) container.classList.remove('opacity-70');
+            if (container) {
+              container.classList.remove('opacity-70');
+              // Dispatch event to notify parent (e.g. TutorPanel) to check for width updates
+              container.dispatchEvent(
+                new CustomEvent('math-typeset-complete', {
+                  bubbles: true,
+                  detail: { isDisplay },
+                }),
+              );
+            }
           })
           .catch((err) => {
             console.error('MathJax typeset error:', err);
@@ -65,7 +74,7 @@ const MathNode = memo(
       return () => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
       };
-    }, [latex, isStreaming]);
+    }, [latex, isStreaming, isDisplay]);
 
     return (
       <span

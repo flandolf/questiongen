@@ -63,6 +63,29 @@
   --spacing: 0.25rem;
 }
 
+[data-design-theme='academic'] * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+[data-design-theme='academic'] ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+[data-design-theme='academic'] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-design-theme='academic'] ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+[data-design-theme='academic'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
 .dark[data-design-theme='academic'] {
   /* Dark Mode - The Midnight Scholar */
   --background: oklch(0.12 0.01 260);
