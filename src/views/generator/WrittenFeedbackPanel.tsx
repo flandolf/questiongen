@@ -33,6 +33,7 @@ type WrittenFeedbackPanelProps = {
   ) => void;
 };
 
+// eslint-disable-next-line complexity
 export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   promptMarkdown,
   answer,
@@ -60,6 +61,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
       : undefined;
 
   const [aiFeedbackOpen, setAiFeedbackOpen] = useState(true);
+  const [isQuestionOpen, setIsQuestionOpen] = useState(true);
 
   return (
     <div className='h-full w-full flex flex-col overflow-hidden bg-background text-foreground selection:bg-primary/10'>
@@ -111,16 +113,36 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
       <main className='flex-1 flex flex-col min-h-0'>
         {/* QUESTION PROMPT: Full Width Context */}
         <div className='shrink-0 border-b border-border/40 bg-muted/5 px-4 sm:px-8 py-6 sm:py-10'>
-          <div className='max-w-6xl'>
-            <UnifiedQuestionPromptCard
-              promptMarkdown={promptMarkdown}
-              distinctness={distinctness}
-              multiStepDepth={multiStepDepth}
-              verbDiversityCount={verbDiversityCount}
-              scaffoldPattern={scaffoldPattern}
-              className='space-y-6'
-            />
+          <div className='flex items-center justify-between mb-6'>
+            <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
+              Question
+            </h3>
+            <button
+              onClick={() => setIsQuestionOpen(!isQuestionOpen)}
+              className='w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-all active:scale-90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none'
+              aria-label={
+                isQuestionOpen ? 'Collapse question' : 'Expand question'
+              }
+            >
+              {isQuestionOpen ? (
+                <ChevronUp className='w-4 h-4' />
+              ) : (
+                <ChevronDown className='w-4 h-4' />
+              )}
+            </button>
           </div>
+          {isQuestionOpen && (
+            <div className='max-w-6xl'>
+              <UnifiedQuestionPromptCard
+                promptMarkdown={promptMarkdown}
+                distinctness={distinctness}
+                multiStepDepth={multiStepDepth}
+                verbDiversityCount={verbDiversityCount}
+                scaffoldPattern={scaffoldPattern}
+                className='space-y-6'
+              />
+            </div>
+          )}
         </div>
 
         {/* ASYMMETRICAL SPLIT PANE */}

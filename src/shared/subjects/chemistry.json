@@ -33,7 +33,7 @@
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
     {
-      "name": "Molecular Structure and Intermolecular Forces",
+      "name": "Covalent Bonding and Molecular Geometry",
       "technique_notes": {
         "core_concepts": "Lewis (electron dot) structures, VSEPR geometry (linear, bent, pyramidal, tetrahedral), polarity, and intermolecular forces (dispersion, dipole-dipole, hydrogen bonding).",
         "exam_style_guidelines": "Require drawing of Lewis structures. Link molecular symmetry and bond dipoles to overall polarity. Correlate forces with boiling points and solubility.",
@@ -50,6 +50,25 @@
         "extreme": "Predict the solubility of a complex drug molecule in water versus hexane based on its functional groups and overall polarity."
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+    },
+    {
+      "name": "Solutions, precipitation, and chromatography",
+      "technique_notes": {
+        "core_concepts": "Solubility rules, precipitation reactions, and the principles of chromatography (stationary vs mobile phase, Rf values).",
+        "exam_style_guidelines": "Include ionic equations for precipitation. Use chromatography to separate and identify components of a mixture. Link solubility to lattice energy and hydration energy.",
+        "anti_prompts": [
+          "Do not ask for solubility of complex ions or organometallics",
+          "Avoid chromatography techniques beyond paper and thin-layer"
+        ],
+        "tech_free_rules": "Focus on simple ionic compounds and basic chromatography setups.",
+        "tech_active_rules": "Use technology to analyze chromatograms and calculate Rf values for unknown mixtures."
+      },
+      "complexity_levers": {
+        "easy": "Write the ionic equation for the precipitation of $\\text{AgCl}$ from $\\text{AgNO}_3$ and $\\text{NaCl}$ solutions  .",
+        "hard": "Predict the Rf value of a compound in a given solvent system based on its polarity.",
+        "extreme": "Design a chromatography experiment to separate a mixture of three organic compounds with varying polarities, justifying the choice of stationary and mobile phases."
+      },
+      "group": "unit1-How-are-materials-quantified-and-classified?"
     },
     {
       "name": "Metallic and Ionic Bonding",

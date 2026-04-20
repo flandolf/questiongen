@@ -1,9 +1,13 @@
 import { create } from 'zustand';
 
+export type TutorApiContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 export interface TutorMessage {
   id: string;
   role: 'user' | 'assistant';
-  content: string;
+  content: string | TutorApiContentPart[];
   createdAt: number;
 }
 
