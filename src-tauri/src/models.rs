@@ -578,7 +578,7 @@ fn default_diversity() -> String {
     "moderate".to_string()
 }
 fn default_strategy() -> String {
-    "multi-pass".to_string()
+    "single-pass".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

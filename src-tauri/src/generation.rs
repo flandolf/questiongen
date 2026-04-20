@@ -12,7 +12,7 @@ use crate::models::{
 };
 use crate::normalization;
 use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
-use crate::openrouter_info::{compute_generation_cost, get_model_stats};
+use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats, get_model_stats};
 use crate::parsing::protect_latex_in_raw_json;
 use crate::pdf;
 use crate::prompts;
@@ -412,6 +412,9 @@ impl GenerationService {
             request.recent_difficulty(),
         );
 
+        // Fast path: tiny MC batches prioritize low TTFT over PDF style context.
+        let use_exam_context = include_exam_context && !(is_mc && request.question_count() <= 2);
+
         let average_marks_val = average_marks.unwrap_or(if is_mc { 1 } else { 10 });
         let total_marks = average_marks_val as usize * request.question_count();
         let mode_str = if is_mc { "multiple-choice" } else { "written" };
@@ -429,7 +432,7 @@ impl GenerationService {
             subtopics: subtopics.clone(),
             custom_focus_area: custom_focus_area.clone(),
             tech_mode: tech_mode.to_string(),
-            include_exam_context,
+            include_exam_context: use_exam_context,
             avoid_similar_questions: request.avoid_similar_questions(),
             shuffle_subtopics: request.shuffle_subtopics(),
             prior_question_prompts: prior_question_prompts.clone(),
@@ -460,7 +463,7 @@ impl GenerationService {
             request.question_count(),
             average_marks_val,
             &adjusted_difficulty,
-            include_exam_context,
+            use_exam_context,
             topics.len(),
             subtopics.as_ref().map_or(0, Vec::len),
             prior_question_prompts.as_ref().map_or(0, Vec::len),
@@ -468,12 +471,20 @@ impl GenerationService {
             request.avoid_similar_questions(),
         );
 
-        let stats_result =
-            get_model_stats(request.api_key().to_string(), request.model().to_string()).await;
-        let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
+        let cached_stats = get_cached_model_stats(request.api_key(), request.model());
+        if cached_stats.is_none() {
+            let api_key = request.api_key().to_string();
+            let model = request.model().to_string();
+            tokio::spawn(async move {
+                let _ = get_model_stats(api_key, model).await;
+            });
+        }
+        let supports_files = cached_stats.as_ref().map(|s| s.supports_files);
         let plugins = pdf::plugins_for_model(supports_files);
 
-        let user_content = if include_exam_context {
+        // Fast path: tiny MC batches prioritize low TTFT over PDF style context.
+
+        let user_content = if use_exam_context {
             let mut parts = vec![serde_json::json!({ "type": "text", "text": prompt })];
             parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
             parts.extend(pdf::build_report_file_parts(&self.app, &topics));
@@ -562,7 +573,7 @@ impl GenerationService {
                     self.high_difficulty_regen_note(&adjusted_difficulty, is_mc);
                 let regen_intro = format!("Regenerate {count} {mode} questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count(), mode = mode_str, topics = sanitize_for_api(&topics.join(", ")), difficulty = adjusted_difficulty);
 
-                let new_user_content = if include_exam_context {
+                let new_user_content = if use_exam_context {
                     let mut parts =
                         vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
                     parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
@@ -698,7 +709,7 @@ impl GenerationService {
             final_latex_issues,
         );
 
-        let estimated_cost_usd = stats_result.ok().and_then(|stats| {
+        let estimated_cost_usd = cached_stats.as_ref().and_then(|stats| {
             compute_generation_cost(
                 Some(final_prompt_tokens as u64),
                 Some(final_completion_tokens as u64),
@@ -1179,7 +1190,7 @@ impl GenerationService {
         let max_tokens = ((max_marks as u32) * 2000 + 4000).min(MAX_TOKENS_CAP);
         let plugins = if has_reports {
             let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
-            pdf::plugins_for_model(supports_files)
+            pdf::plugins_for_model(Some(supports_files))
         } else {
             serde_json::json!([{ "id": "response-healing" }])
         };

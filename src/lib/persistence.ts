@@ -64,7 +64,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   difficultyThresholds: { increase: 85, decrease: 70 },
   diversityStrictness: 'moderate',
   strictLatexValidation: true,
-  generationStrategy: 'multi-pass',
+  generationStrategy: 'single-pass',
 };
 
 const VALID_QUESTION_MODES = new Set<QuestionMode>([

@@ -1,22 +1,10 @@
-import {
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  PencilRuler,
-  Trash2,
-  XCircle,
-} from 'lucide-react';
+import { CheckCircle2, PencilRuler, Trash2, XCircle } from 'lucide-react';
 import { memo } from 'react';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
 import Sketchpad from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
 import type { McOption, StudentAnswerImage } from '@/types';
 
 type McAnswerCardProps = {
@@ -24,16 +12,9 @@ type McAnswerCardProps = {
   correctAnswer: string;
   explanationMarkdown: string;
   selectedAnswer: string;
-  awardedMarks: number | undefined;
-  appealText: string;
-  overrideInput: string;
-  isMarking: boolean;
   image?: StudentAnswerImage;
   hideCorrectAnswer?: boolean;
   onSelectAnswer: (label: string) => void;
-  onAppealChange: (value: string) => void;
-  onOverrideInputChange: (value: string) => void;
-  onArgueForMark: () => void;
   onApplyOverride: () => void;
   isSketchpadOpen: boolean;
   onToggleSketchpad: () => void;
@@ -107,22 +88,14 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
   );
 });
 
-// eslint-disable-next-line complexity
 export const McAnswerCard = memo(function McAnswerCard({
   options,
   correctAnswer,
   explanationMarkdown,
   selectedAnswer,
-  awardedMarks,
-  appealText,
-  overrideInput,
-  isMarking,
   image,
   hideCorrectAnswer,
   onSelectAnswer,
-  onAppealChange,
-  onOverrideInputChange,
-  onArgueForMark,
   onApplyOverride,
   isSketchpadOpen,
   onToggleSketchpad,
@@ -217,73 +190,13 @@ export const McAnswerCard = memo(function McAnswerCard({
             </div>
           )}
 
-          <div className='rounded-xl border border-border/40 bg-muted/10 p-4 space-y-3'>
-            <button
-              type='button'
-              className='flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors'
-              onClick={() =>
-                onAppealChange(
-                  appealText ? '' : 'I believe my answer is correct because...',
-                )
-              }
-            >
-              Appeal
-              {appealText ? (
-                <ChevronUp className='w-4 h-4' />
-              ) : (
-                <ChevronDown className='w-4 h-4' />
-              )}
-            </button>
-
-            {appealText !== undefined && (
-              <div className='space-y-2 animate-in fade-in slide-in-from-top-2 duration-200'>
-                <Textarea
-                  value={appealText}
-                  onChange={(e) => onAppealChange(e.target.value)}
-                  placeholder='I believe my answer is correct because...'
-                  className='min-h-20 text-sm'
-                />
-                <div className='flex justify-end'>
-                  <Button
-                    size='sm'
-                    onClick={onArgueForMark}
-                    disabled={!appealText.trim() || isMarking}
-                  >
-                    {isMarking ? (
-                      <Loader2 className='w-4 h-4 animate-spin' />
-                    ) : (
-                      'Submit Appeal'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {awardedMarks !== undefined && awardedMarks > 0 && (
-              <>
-                <Separator />
-                <div className='space-y-2'>
-                  <Label className='text-sm font-medium'>
-                    Adjust mark (out of 1)
-                  </Label>
-                  <div className='flex gap-2'>
-                    <Input
-                      type='number'
-                      min={0}
-                      max={1}
-                      step={0.5}
-                      value={overrideInput}
-                      onChange={(e) => onOverrideInputChange(e.target.value)}
-                      className='w-24'
-                    />
-                    <Button size='sm' onClick={onApplyOverride}>
-                      Apply
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          {!isCorrect && (
+            <div className='rounded-xl border border-border/40 bg-muted/10 p-4 space-y-3'>
+              <Button size='sm' onClick={onApplyOverride}>
+                Mark selected as correct
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className='grid grid-cols-2 justify-between items-center'>
