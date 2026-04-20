@@ -106,10 +106,14 @@ export function SectionHeader({
   description?: string;
 }) {
   return (
-    <div className='mb-6'>
-      <h2 className='text-lg font-semibold tracking-tight'>{title}</h2>
+    <div>
+      <h2 className='text-base font-semibold tracking-tight text-foreground'>
+        {title}
+      </h2>
       {description && (
-        <p className='mt-1 text-sm text-muted-foreground'>{description}</p>
+        <p className='mt-1 text-xs text-muted-foreground font-medium leading-relaxed opacity-80'>
+          {description}
+        </p>
       )}
     </div>
   );
@@ -138,7 +142,11 @@ export function FieldGroup({
 }
 
 export function Divider() {
-  return <div className='border-t border-border my-6' />;
+  return (
+    <div className='relative h-px w-full my-6 flex items-center justify-center'>
+      <div className='absolute inset-0 bg-gradient-to-r from-transparent via-border/60 to-transparent' />
+    </div>
+  );
 }
 
 export function Card({
@@ -149,7 +157,12 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={cn('rounded-lg border border-border', className)}>
+    <div
+      className={cn(
+        'rounded-xl border border-border/40 bg-card/50 shadow-sm backdrop-blur-sm',
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -174,21 +187,29 @@ export function EmptyState({ message }: { message: string }) {
 
 export function StatusBadge({ value }: { value: string | boolean | null }) {
   if (value === null)
-    return <span className='text-muted-foreground text-sm'>—</span>;
+    return (
+      <span className='text-muted-foreground/30 text-xs font-mono tracking-tighter'>
+        —
+      </span>
+    );
   if (typeof value === 'boolean') {
     return value ? (
-      <span className='inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-sm'>
-        <CheckCircle2 className='h-3.5 w-3.5' />
-        Yes
+      <span className='inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded'>
+        <CheckCircle2 className='h-3 w-3' />
+        Enabled
       </span>
     ) : (
-      <span className='inline-flex items-center gap-1 text-muted-foreground text-sm'>
-        <AlertCircle className='h-3.5 w-3.5' />
+      <span className='inline-flex items-center gap-1.5 text-muted-foreground/60 text-xs font-semibold bg-muted/50 px-1.5 py-0.5 rounded'>
+        <AlertCircle className='h-3 w-3' />
         No
       </span>
     );
   }
-  return <span className='tabular-nums text-sm font-medium'>{value}</span>;
+  return (
+    <span className='tabular-nums text-xs font-bold tracking-tight text-foreground/90'>
+      {value}
+    </span>
+  );
 }
 
 export function ToggleRow({
@@ -205,18 +226,31 @@ export function ToggleRow({
   description?: string;
 }) {
   return (
-    <div className='flex items-center gap-3 p-3 rounded-lg bg-muted/50'>
+    <div
+      className={cn(
+        'flex items-center gap-3 p-2.5 rounded-lg transition-all duration-200',
+        checked
+          ? 'bg-primary/5 ring-1 ring-primary/20 shadow-[0_2px_8px_rgba(var(--primary),0.05)]'
+          : 'bg-muted/40',
+      )}
+    >
       <Checkbox
         id={id}
         checked={checked}
         onCheckedChange={(v) => onChange(!!v)}
+        className='data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all active:scale-90'
       />
-      <div>
-        <Label htmlFor={id} className='font-medium cursor-pointer'>
+      <div className='select-none'>
+        <Label
+          htmlFor={id}
+          className='text-sm font-semibold cursor-pointer text-foreground/90 leading-none'
+        >
           {label}
         </Label>
         {description && (
-          <p className='text-xs text-muted-foreground mt-0.5'>{description}</p>
+          <p className='text-xs text-muted-foreground mt-1 font-medium opacity-70'>
+            {description}
+          </p>
         )}
       </div>
     </div>
@@ -230,7 +264,7 @@ export function ModelSelectRow({
   disabled,
   onSelect,
   onSearch,
-  placeholder = 'Select a model',
+  placeholder = 'Select model...',
 }: {
   id: string;
   value: string;
@@ -257,25 +291,30 @@ export function ModelSelectRow({
   return (
     <div className='flex flex-row items-center gap-2'>
       <Select value={selectVal} onValueChange={onSelect}>
-        <SelectTrigger id={id} className='flex-1 min-w-0'>
+        <SelectTrigger
+          id={id}
+          className='flex-1 min-w-0 h-9 bg-background/50 border-border/40 hover:bg-muted/50 transition-colors text-xs font-medium'
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className='max-h-80'>
           {extraEntry.map((m) => (
-            <SelectItem key={m.id} value={m.id}>
+            <SelectItem key={m.id} value={m.id} className='text-xs font-medium'>
               <span className='flex items-center gap-2 min-w-0'>
-                <span className='truncate font-mono text-xs'>{m.name}</span>
-                <span className='shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none'>
+                <span className='truncate font-mono text-[10px] opacity-70'>
+                  {m.name}
+                </span>
+                <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold leading-none'>
                   custom
                 </span>
               </span>
             </SelectItem>
           ))}
           {extraEntry.length > 0 && (
-            <div className='my-1 border-t border-border' />
+            <div className='my-1 border-t border-border/40' />
           )}
           {models.map((m) => (
-            <SelectItem key={m.id} value={m.id}>
+            <SelectItem key={m.id} value={m.id} className='text-xs font-medium'>
               {m.name}
             </SelectItem>
           ))}
@@ -288,8 +327,9 @@ export function ModelSelectRow({
           disabled={disabled}
           onClick={onSearch}
           title='Search all OpenRouter models'
+          className='h-9 w-9 border-border/40 hover:bg-primary/5 hover:text-primary transition-all active:scale-90'
         >
-          <Search size={4} />
+          <Search className='h-3.5 w-3.5' />
         </Button>
       )}
     </div>
@@ -312,24 +352,35 @@ export function CustomModelInput({
   hint?: string;
 }) {
   return (
-    <div className='p-4 rounded-lg border border-dashed border-border space-y-3'>
+    <div className='p-4 rounded-xl border border-border/40 bg-muted/40 shadow-inner space-y-4'>
       <FieldGroup
         label={label}
         htmlFor={id}
-        hint={hint ?? 'Format: provider/model-name'}
+        hint={
+          hint ?? 'Format: provider/model-name (e.g. anthropic/claude-3-opus)'
+        }
       >
-        <Input
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder='e.g. openai/gpt-oss-120b'
-          className='font-mono text-sm'
-          onKeyDown={(e) => e.key === 'Enter' && value.trim() && onApply()}
-        />
+        <div className='relative'>
+          <Input
+            id={id}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder='provider/model-name'
+            className='font-mono text-xs h-9 bg-background/80 border-border/40 focus:ring-primary/30 transition-all'
+            onKeyDown={(e) => e.key === 'Enter' && value.trim() && onApply()}
+          />
+        </div>
       </FieldGroup>
-      <Button size='sm' disabled={!value.trim()} onClick={onApply}>
-        Apply
-      </Button>
+      <div className='flex justify-end'>
+        <Button
+          size='sm'
+          disabled={!value.trim()}
+          onClick={onApply}
+          className='h-8 text-xs font-semibold px-4 active:scale-95 transition-transform'
+        >
+          Initialize Engine
+        </Button>
+      </div>
     </div>
   );
 }
