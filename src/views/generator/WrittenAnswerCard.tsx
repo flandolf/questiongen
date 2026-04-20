@@ -289,7 +289,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
           </Button>
           {activeTab === 'sketchpad' && confirmSketchSubmit && !isMarking && (
             <p className='mt-2 text-center text-xs text-muted-foreground'>
-              Confirmation expires in a few seconds.
+              Tap again to confirm within 4 seconds.
             </p>
           )}
         </>

@@ -13,7 +13,7 @@ import { memo, useState } from 'react';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedQuestionPromptCard } from '@/components/question/UnifiedQuestionBlocks';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -79,10 +79,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   const [aiFeedbackOpen, setAiFeedbackOpen] = useState(true);
 
   return (
-    <Card className='shadow-sm border-border/40 overflow-hidden bg-background h-full min-h-0 flex flex-col'>
+    <div className='h-full min-h-0 flex flex-col'>
       {/* HEADER BANNER - Sticky for persistent score context */}
       <div
-        className={`sticky top-0 z-10 flex items-center gap-4 sm:gap-6 px-4 sm:px-6 py-4 border-b border-border/40`}
+        className={`sticky top-0 z-10 flex items-center gap-4 px-2 sm:px-4 py-2 border-b border-border/40`}
       >
         <div className='flex-1 min-w-0 space-y-1'>
           <div className='text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground'>
@@ -100,13 +100,12 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
           </div>
           <div className='flex items-center gap-3 mt-1'>
             <div
-              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
-                isCorrect
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                  : pct >= 0.5
-                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-              }`}
+              className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${isCorrect
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                : pct >= 0.5
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                  : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                }`}
             >
               {isCorrect ? (
                 <Check className='w-3.5 h-3.5' />
@@ -145,11 +144,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                 variant='ghost'
                 size='sm'
                 onClick={() => setShowExemplar(!showExemplar)}
-                className={`text-xs h-7 px-3 rounded-full transition-all ${
-                  showExemplar
-                    ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`text-xs h-7 px-3 rounded-full transition-all ${showExemplar
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 {showExemplar ? 'Hide Exemplar' : 'Compare Exemplar'}
               </Button>
@@ -249,13 +247,12 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                 return (
                   <div
                     key={idx}
-                    className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors ${
-                      isFullMarks
-                        ? 'bg-emerald-500/5 border-emerald-500/30'
-                        : isPartial
-                          ? 'bg-amber-500/5 border-amber-500/30'
-                          : 'bg-muted/10 border-border/40 hover:border-border/80'
-                    }`}
+                    className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors ${isFullMarks
+                      ? 'bg-emerald-500/5 border-emerald-500/30'
+                      : isPartial
+                        ? 'bg-amber-500/5 border-amber-500/30'
+                        : 'bg-muted/10 border-border/40 hover:border-border/80'
+                      }`}
                   >
                     {/* Mark Stepper */}
                     <div className='flex items-center gap-2 w-24 shrink-0'>
@@ -373,11 +370,10 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
             <div className='space-y-3 lg:pl-8 lg:border-l border-border/40'>
               <Label className='text-[10px] font-bold uppercase tracking-widest text-muted-foreground'>
-                Manual Override
+                Adjust Score
               </Label>
               <p className='text-xs text-muted-foreground mb-4 max-w-sm'>
-                Bypass the automated marking scheme and forcefully assign a
-                total score.
+                Manually adjust the total score if the automated marking needs correction.
               </p>
               <div className='flex items-center gap-3'>
                 <div className='relative'>
@@ -400,13 +396,13 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                   className='h-10 px-6 font-semibold shadow-sm'
                   disabled={!overrideInput}
                 >
-                  Apply Override
+                  Apply Adjustment
                 </Button>
               </div>
             </div>
           </div>
         </div>
       </CardContent>
-    </Card>
+    </div>
   );
 });

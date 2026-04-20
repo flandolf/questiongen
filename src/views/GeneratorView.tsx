@@ -1185,26 +1185,24 @@ export function GeneratorView() {
 
       <div className='flex-1 min-h-0 overflow-auto relative p-6'>
         {questionMode === 'written' && activeFeedback ? (
-          <div className='mx-auto flex h-full w-full max-w-6xl'>
-            <WrittenFeedbackPanel
-              questionId={activeQuestion.id}
-              promptMarkdown={activeQuestion.promptMarkdown}
-              answer={activeQuestionAnswer}
-              image={activeQuestionImage}
-              feedback={activeFeedback}
-              markingDurationMs={
-                writtenMarkingDurationMsByQuestionId[activeQuestion.id]
-              }
-              appealText={activeMarkAppeal}
-              onAppealChange={handleAppealChange}
-              onArgueForMark={() => void handleArgueForMark()}
-              overrideInput={activeOverrideInput}
-              onOverrideInputChange={handleOverrideInputChange}
-              onApplyOverride={overrideWrittenMark}
-              onCriterionChange={handleOverrideCriterion}
-              isMarking={isMarking}
-            />
-          </div>
+          <WrittenFeedbackPanel
+            questionId={activeQuestion.id}
+            promptMarkdown={activeQuestion.promptMarkdown}
+            answer={activeQuestionAnswer}
+            image={activeQuestionImage}
+            feedback={activeFeedback}
+            markingDurationMs={
+              writtenMarkingDurationMsByQuestionId[activeQuestion.id]
+            }
+            appealText={activeMarkAppeal}
+            onAppealChange={handleAppealChange}
+            onArgueForMark={() => void handleArgueForMark()}
+            overrideInput={activeOverrideInput}
+            onOverrideInputChange={handleOverrideInputChange}
+            onApplyOverride={overrideWrittenMark}
+            onCriterionChange={handleOverrideCriterion}
+            isMarking={isMarking}
+          />
         ) : questionMode === 'written' ? (
           <QuestionSplitLayout
             mode='written'
@@ -1253,13 +1251,13 @@ export function GeneratorView() {
                   awardedMarks={activeMcAwardedMarks}
                   appealText=''
                   overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => {}}
+                  onAppealChange={() => { }}
                   onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => {}}
+                  onArgueForMark={() => { }}
                   onApplyOverride={overrideMcMark}
                   isMarking={isMarking}
-                  onImageDrop={() => {}}
-                  onImageRemove={() => {}}
+                  onImageDrop={() => { }}
+                  onImageRemove={() => { }}
                   renderSketchpadInline={false}
                 />
               </div>
@@ -1267,8 +1265,8 @@ export function GeneratorView() {
             rightSlot={
               <McSketchpadPanel
                 sketchSessionKey={activeMcSketchSessionKey}
-                onImageDrop={() => {}}
-                onImageRemove={() => {}}
+                onImageDrop={() => { }}
+                onImageRemove={() => { }}
               />
             }
           />
@@ -1297,13 +1295,13 @@ export function GeneratorView() {
                   awardedMarks={activeMcAwardedMarks}
                   appealText=''
                   overrideInput={activeMcOverrideInput}
-                  onAppealChange={() => {}}
+                  onAppealChange={() => { }}
                   onOverrideInputChange={handleMcOverrideInputChange}
-                  onArgueForMark={() => {}}
+                  onArgueForMark={() => { }}
                   onApplyOverride={overrideMcMark}
                   isMarking={isMarking}
-                  onImageDrop={() => {}}
-                  onImageRemove={() => {}}
+                  onImageDrop={() => { }}
+                  onImageRemove={() => { }}
                 />
               </div>
             }

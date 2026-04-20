@@ -8,7 +8,6 @@ import {
   Dumbbell,
   FlaskConical,
   FunctionSquare,
-  Hash,
   Loader2,
   SigmaSquare,
   Target,
@@ -22,7 +21,6 @@ import { useAppSettings } from '@/AppContext';
 import { PageHeader } from '@/components/layout/primitives';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import {
   Tooltip,
@@ -193,9 +191,9 @@ function Section({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
       {label && (
-        <p className='text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/60 px-0.5'>
+        <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 px-0.5'>
           {label}
         </p>
       )}
@@ -541,18 +539,10 @@ function SetupPanelImpl({
                       — {activeDifficultyMeta.desc}
                     </span>
                   </div>
-                  <span
-                    className={cn(
-                      'text-[9px] font-mono font-black px-2 py-0.5 rounded-full border shadow-xs',
-                      activeDifficultyMeta.pill,
-                    )}
-                  >
-                    LVL {diffIndex + 1} OF 5
-                  </span>
                 </div>
 
                 {/* Gauge bars */}
-                <div className='flex gap-1.5 h-12 items-end'>
+                <div className='flex gap-1.5 h-10 items-end'>
                   {levels.map((level, idx) => {
                     const isActive = idx <= diffIndex;
                     const isCurrent = idx === diffIndex;
@@ -564,7 +554,6 @@ function SetupPanelImpl({
                         onClick={() => onSetDifficulty(level)}
                         className='group/bar relative flex-1 h-full flex items-end justify-center cursor-pointer outline-none'
                       >
-                        <div className='absolute inset-0 w-full h-full bg-muted/20 rounded-md' />
                         <motion.div
                           initial={false}
                           animate={{
@@ -572,35 +561,12 @@ function SetupPanelImpl({
                             backgroundColor: isCurrent
                               ? activeDifficultyMeta.themeColor
                               : isActive
-                                ? `color-mix(in srgb, ${activeDifficultyMeta.themeColor} 35%, transparent)`
-                                : 'color-mix(in srgb, var(--color-muted-foreground) 15%, transparent)',
-                            opacity: isCurrent ? 1 : isActive ? 0.75 : 0.4,
-                          }}
-                          whileHover={{
-                            backgroundColor: activeDifficultyMeta.themeColor,
-                            opacity: 1,
-                            transition: { duration: 0.1 },
+                                ? `color-mix(in srgb, ${activeDifficultyMeta.themeColor} 30%, transparent)`
+                                : 'color-mix(in srgb, var(--color-border) 40%, transparent)',
                           }}
                           transition={SPRING}
-                          className='w-full rounded-md relative z-10'
-                          style={
-                            isCurrent
-                              ? {
-                                boxShadow: `0 0 10px ${activeDifficultyMeta.themeColor}55`,
-                              }
-                              : undefined
-                          }
+                          className='w-full rounded-sm relative z-10'
                         />
-                        {isCurrent && (
-                          <motion.div
-                            layoutId='active-difficulty-dot'
-                            className='absolute -bottom-2.5 w-1 h-1 rounded-full'
-                            style={{
-                              backgroundColor: activeDifficultyMeta.themeColor,
-                            }}
-                            transition={SPRING}
-                          />
-                        )}
                       </button>
                     );
                   })}
@@ -614,10 +580,10 @@ function SetupPanelImpl({
                       type='button'
                       onClick={() => onSetDifficulty(level)}
                       className={cn(
-                        'flex-1 text-center text-[9px] font-semibold tracking-wide uppercase transition-colors cursor-pointer truncate',
+                        'flex-1 text-center text-[9px] font-bold tracking-wide uppercase transition-colors cursor-pointer truncate',
                         idx === diffIndex
                           ? activeDifficultyMeta.color
-                          : 'text-muted-foreground/40 hover:text-muted-foreground',
+                          : 'text-muted-foreground/30 hover:text-muted-foreground',
                       )}
                     >
                       {DIFFICULTY_META[level].label}
@@ -629,26 +595,66 @@ function SetupPanelImpl({
 
             {/* Question Count */}
             <Section label='Questions'>
-              <div className='rounded-xl border border-border/70 bg-card px-5 py-4 flex flex-col gap-3'>
-                <div className='flex items-center justify-between'>
-                  <Label className='text-sm font-semibold text-foreground flex items-center gap-2'>
-                    <Hash className='w-3.5 h-3.5 text-muted-foreground' /> Total
-                    Questions
-                  </Label>
-                  <span className='text-lg font-black font-mono tabular-nums text-foreground leading-none'>
-                    {questionCount}
-                  </span>
+              <div className='rounded-xl border border-border/70 bg-card px-5 py-5 flex flex-col gap-4'>
+                {/* Header with count and context */}
+                <div className='flex items-start justify-between'>
+                  <div className='flex items-start gap-3'>
+                    <div className='flex flex-col gap-1'>
+                      <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60'>
+                        Total Questions
+                      </span>
+                      <span className='text-3xl font-black font-mono tabular-nums text-foreground leading-none'>
+                        {questionCount}
+                      </span>
+                    </div>
+                  </div>
+                  <div className='text-right'>
+                    <p className='text-xs font-bold text-primary/80 mt-1'>
+                      {Math.ceil((questionCount * 2.5) / 10) * 10}–{Math.ceil((questionCount * 3.5) / 10) * 10} mins
+                    </p>
+                  </div>
                 </div>
-                <Slider
-                  min={1}
-                  max={20}
-                  step={1}
-                  value={[questionCount]}
-                  onValueChange={(val) => onSetQuestionCount(val[0])}
-                />
-                <div className='flex justify-between font-mono text-[10px] text-muted-foreground/50 font-medium -mt-1'>
-                  <span>1</span>
-                  <span>20</span>
+
+                {/* Slider with visual fill */}
+                <div className='flex flex-col gap-3'>
+                  <Slider
+                    min={1}
+                    max={20}
+                    step={1}
+                    value={[questionCount]}
+                    onValueChange={(val) => onSetQuestionCount(val[0])}
+                    className='cursor-pointer'
+                  />
+                  <div className='flex justify-between font-mono text-[9px] text-muted-foreground/40 font-semibold'>
+                    <span>1</span>
+                    <span>20</span>
+                  </div>
+                </div>
+
+                {/* Quick presets */}
+                <div className='flex gap-1.5'>
+                  {[
+                    { count: 3, label: 'Quick' },
+                    { count: 7, label: 'Balanced' },
+                    { count: 15, label: 'Thorough' },
+                  ].map(({ count, label }) => (
+                    <motion.button
+                      key={count}
+                      type='button'
+                      onClick={() => onSetQuestionCount(count)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={SPRING}
+                      className={cn(
+                        'flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border',
+                        questionCount === count
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          : 'border-border/40 bg-muted/30 text-muted-foreground hover:border-border/70 hover:bg-muted/50',
+                      )}
+                    >
+                      {label}
+                    </motion.button>
+                  ))}
                 </div>
               </div>
             </Section>
@@ -687,8 +693,8 @@ function SetupPanelImpl({
           {/* ── RIGHT COLUMN ── */}
           <div className='w-full lg:flex-1 flex flex-col gap-8 py-6'>
             {/* Presets */}
-            <div className='flex flex-col gap-3'>
-              <p className='text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/60 px-0.5'>
+            <div className='flex flex-col gap-2'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 px-0.5'>
                 Presets
               </p>
               <div className='rounded-xl border border-border/70 bg-card p-4'>
@@ -705,8 +711,8 @@ function SetupPanelImpl({
             </div>
 
             {/* Advanced Options */}
-            <div className='flex flex-col gap-3'>
-              <p className='text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/60 px-0.5'>
+            <div className='flex flex-col gap-2'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 px-0.5'>
                 Advanced Options
               </p>
               <AdvancedOptionsGroup
@@ -732,15 +738,15 @@ function SetupPanelImpl({
         </div>
 
         {/* ── STICKY CONTROL BAR ── */}
-        <div className='sticky bottom-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md border-t border-border/50'>
-          <div className='px-6 py-3'>
+        <div className='sticky bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/40'>
+          <div className='px-6 py-4'>
             <AnimatePresence>
               {isGenerating && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className='overflow-hidden pb-3'
+                  className='overflow-hidden pb-4'
                 >
                   {showBatchTimeline ? (
                     <BatchTimeline
@@ -769,69 +775,44 @@ function SetupPanelImpl({
               )}
             </AnimatePresence>
 
-            <div className='flex items-center justify-between gap-4'>
+            <div className='flex items-center justify-between gap-6'>
               {/* Cost & token estimates */}
-              <div className='flex items-center gap-2 p-1 rounded-xl bg-muted/20 border border-border/40'>
-                <div className='flex items-center gap-4 px-3 py-1.5'>
-                  <div className='flex flex-col'>
-                    <span className='text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/50'>
-                      Est. Cost
+              <div className='flex items-center gap-6'>
+                <div className='flex flex-col'>
+                  <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40'>
+                    Est. Cost
+                  </span>
+                  <div className='flex items-baseline gap-1'>
+                    <span className='text-lg font-mono font-bold tabular-nums text-foreground'>
+                      {estimated.promptCost != null ||
+                        estimated.completionCost != null
+                        ? formatCostUsd(estimated.totalCost).replace('$', '')
+                        : '--'}
                     </span>
-                    <div className='flex items-baseline gap-1'>
-                      <span className='text-lg font-mono font-black tabular-nums text-foreground leading-none'>
-                        {estimated.promptCost != null ||
-                          estimated.completionCost != null
-                          ? formatCostUsd(estimated.totalCost).replace('$', '')
-                          : '--'}
-                      </span>
-                      <span className='text-[9px] font-bold text-muted-foreground/60 uppercase'>
-                        USD
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className='w-px h-6 bg-border/40 self-center' />
-
-                  <div className='flex flex-col min-w-20'>
-                    <span className='text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/50'>
-                      Tokens
-                    </span>
-                    <span className='text-lg font-mono font-black tabular-nums text-foreground leading-none'>
-                      {estimated.totalTokens.toLocaleString()}
+                    <span className='text-[10px] font-bold text-muted-foreground/50'>
+                      USD
                     </span>
                   </div>
                 </div>
 
-                {estimated.confidence != null && (
-                  <div className='hidden xl:flex flex-col justify-center px-3 border-l border-border/40 min-w-30'>
-                    <span className='text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/50'>
-                      Conf.
-                    </span>
-                    <div className='flex items-center gap-2 mt-0.5'>
-                      <div className='flex-1 h-1 bg-muted/50 rounded-full overflow-hidden'>
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${estimated.confidence * 100}%` }}
-                          transition={{ duration: 0.8, ease: 'circOut' }}
-                          className='h-full bg-primary/60'
-                        />
-                      </div>
-                      <span className='text-[9px] font-mono font-bold text-muted-foreground/70'>
-                        {Math.round(estimated.confidence * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <div className='flex flex-col'>
+                  <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40'>
+                    Tokens
+                  </span>
+                  <span className='text-lg font-mono font-bold tabular-nums text-foreground'>
+                    {estimated.totalTokens.toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               {/* Actions */}
-              <div className='flex items-center gap-2.5'>
+              <div className='flex items-center gap-3'>
                 <Button
-                  variant='outline'
+                  variant='ghost'
                   size='sm'
                   onClick={onStartOver}
                   disabled={isGenerating}
-                  className='h-9 rounded-lg border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  className='text-muted-foreground hover:text-foreground'
                 >
                   Reset
                 </Button>
@@ -839,34 +820,28 @@ function SetupPanelImpl({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div>
-                      <motion.div
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.97 }}
-                        transition={SPRING}
+                      <Button
+                        onClick={onGenerate}
+                        disabled={isGenerationDisabled}
+                        className={cn(
+                          'h-10 px-6 rounded-full font-bold text-sm gap-2 transition-all',
+                          isGenerationDisabled
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'shadow-sm',
+                        )}
                       >
-                        <Button
-                          onClick={onGenerate}
-                          disabled={isGenerationDisabled}
-                          className={cn(
-                            'h-9 px-5 rounded-lg font-semibold text-sm gap-2.5 transition-all',
-                            isGenerationDisabled
-                              ? 'opacity-50 cursor-not-allowed'
-                              : 'shadow-sm',
-                          )}
-                        >
-                          {isGenerating ? (
-                            <>
-                              <Loader2 className='w-4 h-4 animate-spin' />
-                              <span className='animate-pulse'>Generating…</span>
-                            </>
-                          ) : (
-                            <>
-                              <Zap className='w-4 h-4 -rotate-12' />
-                              Generate
-                            </>
-                          )}
-                        </Button>
-                      </motion.div>
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className='w-4 h-4 animate-spin' />
+                            <span>Generating…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className='w-4 h-4' />
+                            Generate
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </TooltipTrigger>
                   {isGenerationDisabled && !isGenerating && (

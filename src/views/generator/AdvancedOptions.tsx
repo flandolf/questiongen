@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Book, Calculator, Pen, Terminal } from 'lucide-react';
+import { Book, Calculator, Pen } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
@@ -35,14 +34,12 @@ const MATH_METHODS_SCOPED_SUBTOPIC_GROUPS = toScopedSubtopicGroups(
 
 export function ToggleRow({
   id,
-  icon,
   label,
   description,
   checked,
   onCheckedChange,
 }: {
   id: string;
-  icon: React.ReactNode;
   label: string;
   description: string;
   checked: boolean;
@@ -61,14 +58,6 @@ export function ToggleRow({
       onClick={() => onCheckedChange(!checked)}
     >
       <div className='flex items-start gap-3 min-w-0'>
-        <div
-          className={cn(
-            'p-2 rounded-lg flex items-center justify-center shrink-0',
-            checked ? 'text-primary' : 'text-muted-foreground',
-          )}
-        >
-          {icon}
-        </div>
         <div className='min-w-0'>
           <Label
             htmlFor={id}
@@ -148,15 +137,9 @@ export function AdvancedOptionsGroup({
     <div className='flex flex-col gap-5 w-full'>
       {/* Session Size & Marks Row */}
       <div className='flex flex-col gap-2'>
-        <SectionLabel>
-          <span className='flex items-center gap-2'>
-            <BarChart3 className='w-3.5 h-3.5' /> Target Marks
-          </span>
-        </SectionLabel>
         <motion.div
-          whileHover={{ y: -2 }}
           className={cn(
-            'p-4 rounded-lg border flex flex-col gap-3 transition-colors w-full',
+            'p-4 rounded-xl border flex flex-col gap-4 transition-colors w-full',
             questionMode === 'multiple-choice'
               ? 'bg-muted/30 border-transparent opacity-60 pointer-events-none'
               : 'bg-card border-border',
@@ -164,27 +147,20 @@ export function AdvancedOptionsGroup({
         >
           <div className='flex items-center justify-between'>
             <Label className='text-sm font-semibold flex items-center gap-2'>
-              <BarChart3 className='w-4 h-4 text-muted-foreground' /> Average
-              Marks Per Question
+              Average Marks Per Question
             </Label>
-            <div className='font-mono text-xl font-medium text-foreground'>
+            <div className='font-mono text-xl font-bold text-foreground'>
               {averageMarksPerQuestion}
             </div>
           </div>
-          <div>
-            <Slider
-              min={1}
-              max={15}
-              step={1}
-              value={[averageMarksPerQuestion]}
-              onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
-              disabled={questionMode === 'multiple-choice'}
-            />
-            <div className='flex justify-between mt-2 font-mono text-[10px] text-muted-foreground font-medium'>
-              <span>1</span>
-              <span>15</span>
-            </div>
-          </div>
+          <Slider
+            min={1}
+            max={15}
+            step={1}
+            value={[averageMarksPerQuestion]}
+            onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
+            disabled={questionMode === 'multiple-choice'}
+          />
         </motion.div>
       </div>
       {/* Calculator & Flags Row */}
@@ -195,13 +171,7 @@ export function AdvancedOptionsGroup({
             selectedTopics.length <= 1 && 'md:col-span-2',
           )}
         >
-          <SectionLabel>
-            <span className='flex items-center gap-2'>
-              <Calculator className='w-3.5 h-3.5' /> Calculator Mode
-            </span>
-          </SectionLabel>
-
-          <div className='grid grid-cols-2 gap-4'>
+          <div className='grid grid-cols-2 gap-3'>
             {(
               [
                 {
@@ -217,27 +187,24 @@ export function AdvancedOptionsGroup({
                   desc: 'Calculator required',
                 },
               ] as const
-            ).map(({ value, label, icon, desc }) => {
+            ).map(({ value, label, desc }) => {
               const isActive = techMode === value;
               return (
                 <TooltipProvider key={value}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <motion.button
-                        whileHover={{ y: -2, scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
+                      <button
                         type='button'
                         onClick={() => onSetTechMode(value)}
                         className={cn(
-                          'flex min-h-16 flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all cursor-pointer w-full',
+                          'flex min-h-14 flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all cursor-pointer w-full',
                           isActive
-                            ? 'bg-primary/5 border-primary/30 text-primary'
+                            ? 'bg-primary/5 border-primary/30 text-primary font-bold'
                             : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
                         )}
                       >
-                        <div>{icon}</div>
-                        <div className='text-sm font-medium'>{label}</div>
-                      </motion.button>
+                        <div className='text-sm'>{label}</div>
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent side='top'>
                       <p>{desc}</p>
@@ -252,16 +219,13 @@ export function AdvancedOptionsGroup({
 
       {/* Direction Override */}
       <div className='flex flex-col gap-2'>
-        <div className='flex items-center justify-between w-full pt-1 pb-2'>
-          <h2 className='text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2'>
-            <Terminal className='w-3.5 h-3.5' /> Custom Focus Area
+        <div className='flex items-center justify-between w-full pt-1 pb-1'>
+          <h2 className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 flex items-center gap-2'>
+            Custom Focus Area
           </h2>
-          <Badge
-            variant='secondary'
-            className='font-mono text-[10px] tracking-wider bg-muted text-muted-foreground'
-          >
+          <span className='font-mono text-[9px] text-muted-foreground/30'>
             OPTIONAL
-          </Badge>
+          </span>
         </div>
 
         <div className='relative'>
@@ -269,11 +233,11 @@ export function AdvancedOptionsGroup({
             value={customFocusArea}
             onChange={(e) => onSetCustomFocusArea(e.target.value)}
             maxLength={160}
-            placeholder='Define specific context, style, or focus topics here...'
-            className='pr-16 rounded-lg h-10 bg-card border-border text-sm placeholder:text-muted-foreground/50 focus-visible:ring-primary/20'
+            placeholder='e.g. "Focus on differentiation rules"'
+            className='pr-16 rounded-xl h-10 bg-card border-border text-sm placeholder:text-muted-foreground/30 focus-visible:ring-primary/20'
           />
           {customFocusArea.length > 0 && (
-            <div className='absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground font-medium'>
+            <div className='absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/30 font-medium'>
               {customFocusArea.length}/160
             </div>
           )}

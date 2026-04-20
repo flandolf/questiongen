@@ -264,7 +264,7 @@ export const McAnswerCard = memo(function McAnswerCard({
                 <Separator />
                 <div className='space-y-2'>
                   <Label className='text-sm font-medium'>
-                    Override marks (out of 1)
+                    Adjust mark (out of 1)
                   </Label>
                   <div className='flex gap-2'>
                     <Input
