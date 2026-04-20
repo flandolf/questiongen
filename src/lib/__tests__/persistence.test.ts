@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { normalizeHexColor } from '@/lib/color-helpers';
 import { generateM3Theme } from '@/lib/color-utils';
-import { normalizePersistedAppState } from '@/lib/persistence';
+import {
+  normalizePersistedAppState,
+  normalizeSavedSet,
+} from '@/lib/persistence';
 
 describe('persistence normalization', () => {
   it('defaults an invalid question mode to written', () => {
@@ -48,5 +51,37 @@ describe('persistence normalization', () => {
     const theme = generateM3Theme('not-a-color', false);
 
     expect(theme['--primary']).toMatch(/^#/);
+  });
+
+  it('normalizes Firestore Timestamp-like saved set dates', () => {
+    const updatedAt = '2026-04-20T09:00:00.500Z';
+    const set = normalizeSavedSet({
+      id: 'saved-1',
+      title: 'Test set',
+      questionMode: 'written',
+      preferences: {},
+      createdAt: {
+        toDate() {
+          return new Date('2026-04-20T09:00:00.000Z');
+        },
+      },
+      updatedAt: {
+        seconds: Math.floor(Date.parse(updatedAt) / 1000),
+        nanoseconds: 500_000_000,
+      },
+      writtenSession: {
+        questions: [],
+        activeQuestionIndex: 0,
+        presentedAtByQuestionId: {},
+        answersByQuestionId: {},
+        imagesByQuestionId: {},
+        feedbackByQuestionId: {},
+        rawModelOutput: '',
+      },
+    });
+
+    expect(set).not.toBeNull();
+    expect(set?.createdAt).toBe('2026-04-20T09:00:00.000Z');
+    expect(set?.updatedAt).toBe(updatedAt);
   });
 });

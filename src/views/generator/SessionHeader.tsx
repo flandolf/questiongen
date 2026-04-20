@@ -467,33 +467,37 @@ function InfoBadges({
   getDifficultyBadgeClasses: (level: Difficulty) => string;
 }) {
   return (
-    <div className='hidden lg:flex items-center gap-1.5 text-xs bg-muted/50 px-3 py-1.5 rounded-full'>
+    <div className='hidden lg:flex items-center gap-1.5 text-xs bg-muted/40 px-2.5 py-1 rounded-full border border-border/40'>
       {topic && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-medium border-border/50'
+          className='h-5 px-1.5 text-[10px] font-medium bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/20 dark:text-violet-300 dark:border-violet-900/50'
         >
           {topic}
         </Badge>
       )}
       <Badge
         variant='outline'
-        className={`h-5 px-1.5 text-[10px] font-semibold ${getDifficultyBadgeClasses(difficulty)}`}
+        className={`h-5 px-1.5 text-[10px] font-semibold shadow-xs ${getDifficultyBadgeClasses(difficulty)}`}
       >
         {difficulty}
       </Badge>
       {type === 'written' && maxMarks !== undefined && (
         <Badge
-          variant='secondary'
-          className='h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-700 hover:bg-sky-500/20'
+          variant='outline'
+          className='h-5 px-1.5 text-[10px] font-medium bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900/50'
         >
           {maxMarks} marks
         </Badge>
       )}
       {isMathTopic && techAllowed !== undefined && (
         <Badge
-          variant={techAllowed ? 'default' : 'destructive'}
-          className='h-5 px-1.5 text-[10px]'
+          variant='outline'
+          className={`h-5 px-1.5 text-[10px] font-medium ${
+            techAllowed
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-300 dark:border-indigo-900/50'
+              : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/50'
+          }`}
         >
           {techAllowed ? 'CAS' : 'No CAS'}
         </Badge>
