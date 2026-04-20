@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 
 import { ColorPicker } from '@/components/color-picker';
+import { useTheme } from '@/components/theme-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -166,6 +167,8 @@ const TOOL_LABELS: Record<ToolType, string> = {
   graph: 'Graph Axes (G)',
 };
 
+const QUICK_SIZES = [2, 4, 8, 12, 16, 24] as const;
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
@@ -214,6 +217,23 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       '#ef4444',
       '#007AFF',
     ]);
+    const { theme } = useTheme();
+    const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+      if (typeof window === 'undefined') return false;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    const isDarkTheme =
+      theme === 'dark' || (theme === 'system' && systemPrefersDark);
+
+    useEffect(() => {
+      if (typeof window === 'undefined') return;
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const onChange = (event: MediaQueryListEvent) =>
+        setSystemPrefersDark(event.matches);
+      setSystemPrefersDark(media.matches);
+      media.addEventListener('change', onChange);
+      return () => media.removeEventListener('change', onChange);
+    }, []);
 
     useEffect(() => {
       const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -316,12 +336,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       lastCenter: { x: number; y: number };
     } | null>(null);
     const multiTouchActive = useRef(false);
-    const undoActionRef = useRef<() => void>(() => { });
-    const redoActionRef = useRef<() => void>(() => { });
-    const clearActionRef = useRef<() => void>(() => { });
-    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => { });
-    const resetViewportRef = useRef<() => void>(() => { });
-    const updateCursorPreviewRef = useRef<() => void>(() => { });
+    const undoActionRef = useRef<() => void>(() => {});
+    const redoActionRef = useRef<() => void>(() => {});
+    const clearActionRef = useRef<() => void>(() => {});
+    const keyboardZoomStepRef = useRef<(direction: 1 | -1) => void>(() => {});
+    const resetViewportRef = useRef<() => void>(() => {});
+    const updateCursorPreviewRef = useRef<() => void>(() => {});
     const mainCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const bgCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -470,6 +490,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const requestRedraw = useRef<number | null>(null);
 
+    function resolveAppBackgroundColor() {
+      if (typeof window === 'undefined') return undefined;
+
+      const rootStyles = getComputedStyle(document.documentElement);
+      const tokenColor = rootStyles.getPropertyValue('--background').trim();
+      if (tokenColor) return tokenColor;
+
+      const bodyColor = getComputedStyle(document.body).backgroundColor.trim();
+      return bodyColor || undefined;
+    }
+
     const redraw = useCallback(() => {
       const canvas = canvasRef.current;
       const bgCanvas = bgRef.current;
@@ -499,9 +530,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         width * dpr,
         height * dpr,
         bgRef2.current,
+        isDarkTheme,
         zoomRef.current,
         panRef.current,
         dpr,
+        resolveAppBackgroundColor(),
       );
 
       const inProgressStroke = currentStrokeRef.current;
@@ -519,7 +552,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         height: height * dpr,
         quality: 'high',
       });
-    }, []);
+    }, [isDarkTheme]);
 
     const scheduleRedraw = useCallback(() => {
       if (requestRedraw.current !== null) return;
@@ -967,7 +1000,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       ro.observe(container);
       return () => ro.disconnect();
     }, [initCanvas]);
-
 
     useEffect(() => {
       const isEditableTarget = (target: EventTarget | null) => {
@@ -2145,9 +2177,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           exportW,
           exportH,
           bgRef2.current,
+          isDarkTheme,
           1,
           { x: -bounds.x, y: -bounds.y },
           exportDpr,
+          resolveAppBackgroundColor(),
         );
 
         // Render strokes on a transparent layer so eraser only removes ink,
@@ -2176,7 +2210,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           0.92,
         );
       });
-    }, []);
+    }, [isDarkTheme]);
 
     // Force save when TutorPanel requests it
     useEffect(() => {
@@ -2242,7 +2276,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasArea = (
       <div
         ref={containerRef}
-        className='relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none'
+        className='relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none isolate'
       >
         <div
           ref={cursorPreviewRef}
@@ -2304,40 +2338,43 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
         <canvas
           ref={bgRef}
-          className='absolute top-0 left-0 pointer-events-none'
+          className='absolute top-0 left-0 pointer-events-none z-0'
         />
 
-        <canvas ref={canvasRef} className='absolute top-0 left-0' />
+        {!isDarkTheme && (
+          <div
+            className='absolute top-0 left-0 pointer-events-none z-10'
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: '0 0',
+              width: INTERNAL_RES_WIDTH,
+              height: INTERNAL_RES_HEIGHT,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+              opacity: 0.03,
+              mixBlendMode: 'multiply',
+            }}
+          />
+        )}
+
+        <canvas ref={canvasRef} className='absolute top-0 left-0 z-20' />
 
         <canvas
           ref={overlayRef}
-          className='absolute top-0 left-0 pointer-events-none'
+          className='absolute top-0 left-0 pointer-events-none z-30'
           style={{ cursor: cursorStyle }}
-        />
-
-        {/* Subtle Paper Texture Overlay */}
-        <div
-          className='absolute top-0 left-0 pointer-events-none opacity-[0.03]'
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            width: INTERNAL_RES_WIDTH,
-            height: INTERNAL_RES_HEIGHT,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          }}
         />
       </div>
     );
 
     const settingsFooter = (
-      <Card className='flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl transition-all hover:bg-card pointer-events-auto'>
+      <Card className='flex flex-row items-center gap-1 bg-card/85 backdrop-blur-md border border-border/50 rounded-xl p-1 shadow-lg transition-all hover:bg-card pointer-events-auto'>
         {isMobile ? (
           <div className='flex items-center gap-1'>
             <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-              <SelectTrigger className='h-9 w-28 border-none rounded-xl transition-all text-xs'>
+              <SelectTrigger className='h-8 w-28 border-none rounded-lg transition-all text-[11px] px-2'>
                 <SelectValue placeholder='Bg' />
               </SelectTrigger>
-              <SelectContent className='rounded-xl'>
+              <SelectContent className='rounded-lg'>
                 <SelectGroup>
                   <SelectItem value='lined'>Lined Paper</SelectItem>
                   <SelectItem value='white-grid'>Grid Paper</SelectItem>
@@ -2347,24 +2384,22 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               </SelectContent>
             </Select>
 
-            <Separator orientation='vertical' className='h-6 mx-0.5' />
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant='ghost'
                   size='icon'
-                  className='rounded-xl h-9 w-9'
+                  className='rounded-lg h-8 w-8'
                 >
-                  <Settings2 size={18} />
+                  <Settings2 size={16} />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
                 side='top'
                 align='start'
-                className='w-72 p-4 space-y-4 rounded-2xl backdrop-blur-md bg-card/95 border-border/50 shadow-2xl'
+                className='w-72 p-3 space-y-3 rounded-xl backdrop-blur-md bg-card/95 border-border/50 shadow-2xl'
               >
-                <div className='space-y-4'>
+                <div className='space-y-3'>
                   <div className='flex flex-col gap-2'>
                     <div className='flex items-center justify-between'>
                       <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
@@ -2384,6 +2419,20 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       value={[currentSize]}
                       onValueChange={([val]) => setSize(val)}
                     />
+                    <div className='flex items-center gap-1 flex-wrap'>
+                      {QUICK_SIZES.map((size) => (
+                        <Button
+                          key={`mobile-size-${size}`}
+                          type='button'
+                          variant={currentSize === size ? 'default' : 'ghost'}
+                          size='sm'
+                          onClick={() => setSize(size)}
+                          className='h-6 min-w-8 rounded-md px-1.5 text-[10px] tabular-nums'
+                        >
+                          {size}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className='flex flex-col gap-2'>
@@ -2417,7 +2466,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       variant={penOnlyMode ? 'default' : 'secondary'}
                       size='sm'
                       onClick={() => setPenOnlyMode(!penOnlyMode)}
-                      className='rounded-xl h-8 px-3 text-[11px]'
+                      className='rounded-lg h-7 px-2.5 text-[10px]'
                     >
                       {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
                     </Button>
@@ -2429,10 +2478,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ) : (
           <div className='flex flex-row items-center gap-1'>
             <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-              <SelectTrigger className='h-9 w-32 border-none rounded-xl transition-all'>
+              <SelectTrigger className='h-8 w-28 border-none rounded-lg transition-all text-[11px] px-2'>
                 <SelectValue placeholder='Background' />
               </SelectTrigger>
-              <SelectContent className='rounded-xl'>
+              <SelectContent className='rounded-lg'>
                 <SelectGroup>
                   <SelectItem value='lined'>Lined Paper</SelectItem>
                   <SelectItem value='white-grid'>Grid Paper</SelectItem>
@@ -2446,12 +2495,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               variant={penOnlyMode ? 'default' : 'secondary'}
               size='sm'
               onClick={() => setPenOnlyMode(!penOnlyMode)}
-              className='rounded-xl h-9'
+              className='rounded-lg h-8 px-2.5 text-[10px]'
             >
               {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
             </Button>
 
-            <Separator orientation='vertical' className='h-6 mx-1' />
+            <Separator orientation='vertical' className='h-5 mx-0.5' />
 
             <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
               Size
@@ -2463,12 +2512,27 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               step={1}
               value={[currentSize]}
               onValueChange={([val]) => setSize(val)}
-              className='w-20 ml-1'
+              className='w-16 ml-0.5'
             />
 
-            <Separator orientation='vertical' className='h-6 mx-1' />
+            <div className='flex items-center gap-0.5'>
+              {QUICK_SIZES.map((size) => (
+                <Button
+                  key={`desktop-size-${size}`}
+                  type='button'
+                  variant={currentSize === size ? 'default' : 'ghost'}
+                  size='sm'
+                  onClick={() => setSize(size)}
+                  className='h-6 min-w-7 rounded-md px-1 text-[10px] tabular-nums'
+                >
+                  {size}
+                </Button>
+              ))}
+            </div>
 
-            <div className='flex items-center gap-3 px-2'>
+            <Separator orientation='vertical' className='h-5 mx-0.5' />
+
+            <div className='flex items-center gap-2 px-1'>
               <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
                 Smooth
               </Label>
@@ -2478,7 +2542,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 step={0.05}
                 value={[currentSmoothing]}
                 onValueChange={([val]) => setSmoothing(val)}
-                className='w-24'
+                className='w-16'
               />
             </div>
           </div>
@@ -2508,16 +2572,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const topNavigationBar = (
       <TooltipProvider>
-        <Card className='absolute top-2 md:top-4 left-1/2 -translate-x-1/2 flex flex-row items-center gap-0.5 bg-card/90 backdrop-blur-md border border-border/50 rounded-2xl p-1 shadow-xl z-50 transition-all hover:bg-card max-w-[98vw] md:max-w-none overflow-x-auto no-scrollbar'>
+        <Card className='absolute top-2 md:top-3 left-1/2 -translate-x-1/2 flex flex-row items-center gap-0.5 bg-card/90 backdrop-blur-md border border-border/50 rounded-xl p-0.5 shadow-lg z-50 transition-all hover:bg-card max-w-[98vw] md:max-w-none overflow-x-auto no-scrollbar'>
           <div className='flex items-center gap-0.5 px-0.5 shrink-0'>
             {!embedded && (
               <Button
                 variant='ghost'
                 size='icon'
                 onClick={onClose}
-                className='rounded-xl size-8 md:size-9'
+                className='rounded-lg size-7 md:size-8'
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </Button>
             )}
             <Tooltip>
@@ -2527,9 +2591,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   size='icon'
                   onClick={undo}
                   disabled={undoStack.current.length === 0}
-                  className='rounded-xl size-8 md:size-9 disabled:opacity-20'
+                  className='rounded-lg size-7 md:size-8 disabled:opacity-20'
                 >
-                  <Undo2 size={18} />
+                  <Undo2 size={16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Undo</TooltipContent>
@@ -2541,17 +2605,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   size='icon'
                   onClick={redo}
                   disabled={redoStack.current.length === 0}
-                  className='rounded-xl size-8 md:size-9 disabled:opacity-20'
+                  className='rounded-lg size-7 md:size-8 disabled:opacity-20'
                 >
-                  <Redo2 size={18} />
+                  <Redo2 size={16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Redo</TooltipContent>
             </Tooltip>
           </div>
-
-          <Separator orientation='vertical' className='h-6 mx-0.5 shrink-0' />
-
           <div className='flex items-center gap-0.5 px-0.5 shrink-0'>
             {(Object.keys(TOOL_ICONS) as ToolType[]).map((tool) => {
               const isActive = activeTool === tool;
@@ -2563,7 +2624,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       size='icon'
                       onClick={() => switchTool(tool)}
                       className={cn(
-                        'rounded-xl transition-all size-8 md:size-9',
+                        'rounded-lg transition-all size-7 md:size-8',
                         isActive && 'shadow-md shadow-primary/20 scale-105',
                       )}
                     >
@@ -2583,8 +2644,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })}
           </div>
 
-          <Separator orientation='vertical' className='h-6 mx-0.5 shrink-0' />
-
           <div className='flex items-center gap-1 px-1 shrink-0'>
             {QUICK_COLORS.map((c) => (
               <button
@@ -2594,7 +2653,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   addRecentColor(c.value);
                 }}
                 className={cn(
-                  'size-6 md:size-7 rounded-full border-2 transition-all hover:scale-110 active:scale-95',
+                  'size-5 md:size-6 rounded-full border transition-all',
                   currentColor === c.value
                     ? 'border-primary shadow-sm scale-105'
                     : 'border-transparent hover:border-border',
@@ -2611,14 +2670,11 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               }}
               swatches={Array.from(new Set([currentColor, ...recentColors]))}
               label='More colors'
-              triggerClassName='size-6 md:size-7 p-0 rounded-full border-2 border-border/50 hover:bg-muted/50'
+              triggerClassName='size-5 md:size-6 p-0 rounded-full border border-border/50 hover:bg-muted/50'
               contentClassName='w-[90vw] max-w-80'
               hideLabel
             />
           </div>
-
-          <Separator orientation='vertical' className='h-6 mx-0.5 shrink-0' />
-
           <div className='flex items-center gap-0.5 px-0.5 shrink-0'>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -2626,9 +2682,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   variant='ghost'
                   size='icon'
                   onClick={clearCanvas}
-                  className='text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl size-8 md:size-9'
+                  className='text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg size-7 md:size-8'
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Clear</TooltipContent>
@@ -2639,19 +2695,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     );
 
     const zoomIndicator = (
-      <Card className='absolute bottom-6 right-6 flex flex-row items-center gap-1 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1 md:p-1.5 shadow-xl z-50'>
+      <Card className='absolute bottom-6 right-6 flex flex-row items-center gap-0.5 bg-card/80 backdrop-blur-md border border-border/50 rounded-xl p-1 shadow-lg z-50'>
         <Button
           variant='ghost'
           size='icon-sm'
           type='button'
           onClick={() => zoomByKeyboardStep(-1)}
-          className='rounded-xl size-7 md:size-8'
+          className='rounded-lg size-7'
         >
           <ZoomOut size={14} />
         </Button>
         <Badge
           variant='secondary'
-          className='bg-muted px-1.5 md:px-2 py-0.5 text-[9px] md:text-[10px] font-bold tabular-nums rounded-lg'
+          className='bg-muted px-1.5 py-0.5 text-[9px] font-bold tabular-nums rounded-md'
         >
           {Math.round(zoom * 100)}%
         </Badge>
@@ -2660,7 +2716,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           size='icon-sm'
           type='button'
           onClick={() => zoomByKeyboardStep(1)}
-          className='rounded-xl size-7 md:size-8'
+          className='rounded-lg size-7'
         >
           <ZoomIn size={14} />
         </Button>
