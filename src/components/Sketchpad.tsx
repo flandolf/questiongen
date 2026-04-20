@@ -876,15 +876,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     // Restore canvas from storage on mount/session changes.
     useEffect(() => {
-      if (sessionKey && canvasRef.current) {
+      if (sessionKey) {
         restoreCanvasFromStorage(sessionKey);
       }
     }, [sessionKey, restoreCanvasFromStorage]);
 
     // Auto-save canvas after drawing completes
     useEffect(() => {
-      if (
-        !isDrawing &&
+      if (isDrawing) {
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+          autoSaveTimeoutRef.current = null;
+        }
+      } else if (
         hasExplicitlySaved.current === false &&
         hasDirtyCanvasRef.current &&
         sessionKey

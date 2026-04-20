@@ -378,7 +378,7 @@ function normalizeTimestampToIso(value: unknown, fallbackMs: number): string {
     if (typeof seconds === 'number' && Number.isFinite(seconds)) {
       const nanos =
         typeof value.nanoseconds === 'number' &&
-          Number.isFinite(value.nanoseconds)
+        Number.isFinite(value.nanoseconds)
           ? value.nanoseconds
           : 0;
       const ms = seconds * 1000 + Math.floor(nanos / 1_000_000);

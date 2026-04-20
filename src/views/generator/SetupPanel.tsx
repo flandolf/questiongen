@@ -165,6 +165,7 @@ type SetupPanelProps = {
   isGenerating: boolean;
   isPaused: boolean;
   onTogglePause: () => void;
+  onAbort: () => void;
   generationStatus: GenerationStatusEvent | null;
   generationStartedAt: number | null;
   formattedElapsedTime: string;
@@ -230,6 +231,7 @@ function SetupPanelImpl({
   isGenerating,
   isPaused,
   onTogglePause,
+  onAbort,
   generationStatus,
   generationStartedAt,
   formattedElapsedTime,
@@ -771,6 +773,7 @@ function SetupPanelImpl({
                       isGenerating={isGenerating}
                       isPaused={isPaused}
                       onTogglePause={onTogglePause}
+                      onAbort={onAbort}
                     />
                   ) : (
                     <GenerationTimeline
@@ -782,6 +785,7 @@ function SetupPanelImpl({
                       isGenerating={isGenerating}
                       isPaused={isPaused}
                       onTogglePause={onTogglePause}
+                      onAbort={onAbort}
                     />
                   )}
                 </motion.div>

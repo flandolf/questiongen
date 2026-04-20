@@ -1,5 +1,5 @@
 use crate::constants::OPENROUTER_CHAT_URL;
-use crate::models::{AppError, CommandResult, OpenRouterResponse};
+use crate::models::{AbortSignal, AppError, CommandResult, OpenRouterResponse};
 use futures_util::StreamExt;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use tauri::Emitter;
@@ -28,6 +28,7 @@ pub struct OpenRouterRequestConfig {
     pub stream: bool,
     pub app: Option<tauri::AppHandle>,
     pub topic: Option<String>,
+    pub abort_signal: Option<AbortSignal>,
 }
 
 impl OpenRouterRequestConfig {
@@ -50,6 +51,7 @@ impl OpenRouterRequestConfig {
             stream: false,
             app: None,
             topic: None,
+            abort_signal: None,
         }
     }
 
@@ -62,6 +64,11 @@ impl OpenRouterRequestConfig {
         self.stream = true;
         self.app = Some(app);
         self.topic = topic;
+        self
+    }
+
+    pub fn with_abort_signal(mut self, abort_signal: AbortSignal) -> Self {
+        self.abort_signal = Some(abort_signal);
         self
     }
 }
@@ -97,6 +104,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 stream: config.stream,
                 app: config.app.clone(),
                 topic: config.topic.clone(),
+                abort_signal: config.abort_signal.clone(),
             };
             if attempt > 0 {
                 if let Some(ref app) = retry_config.app {
@@ -119,6 +127,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 stream: config.stream,
                 app: config.app.clone(),
                 topic: config.topic.clone(),
+                abort_signal: config.abort_signal.clone(),
             };
             call_openrouter_non_streaming(retry_config).await
         };
@@ -126,6 +135,10 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
         match result {
             Ok(res) => return Ok(res),
             Err(e) => {
+                // If it was aborted, don't retry
+                if e.code == "ABORTED" {
+                    return Err(e);
+                }
                 if e.is_transient() {
                     last_error = Some(e);
                     continue;
@@ -145,6 +158,12 @@ async fn call_openrouter_non_streaming(
     let mut system_prompt = config.system_prompt.clone();
     if is_anthropic_model(&config.model) {
         system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
+    }
+
+    if let Some(signal) = &config.abort_signal {
+        if signal.is_aborted() {
+            return Err(AppError::new("ABORTED", "Generation aborted by user"));
+        }
     }
 
     let body = serde_json::json!({
@@ -280,8 +299,31 @@ async fn call_openrouter_streaming(
 
     let app = config.app;
     let topic = config.topic;
+    let abort_signal = config.abort_signal;
 
-    while let Some(chunk) = stream.next().await {
+    loop {
+        let chunk_opt = tokio::select! {
+            biased;
+            _ = async {
+                if let Some(signal) = &abort_signal {
+                    while !signal.is_aborted() {
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    }
+                    true
+                } else {
+                    futures_util::future::pending::<bool>().await
+                }
+            } => {
+                return Err(AppError::new("ABORTED", "Generation aborted by user"));
+            }
+            res = stream.next() => res,
+        };
+
+        let chunk = match chunk_opt {
+            Some(c) => c,
+            None => break,
+        };
+
         let chunk =
             chunk.map_err(|e| AppError::new("NETWORK_ERROR", format!("Stream error: {e}")))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
@@ -404,6 +446,7 @@ pub struct OpenRouterChatConfig {
     pub max_tokens: u32,
     pub temperature: Option<f32>,
     pub app: tauri::AppHandle,
+    pub abort_signal: Option<AbortSignal>,
 }
 
 pub async fn call_openrouter_chat_streaming(
@@ -453,8 +496,31 @@ pub async fn call_openrouter_chat_streaming(
     let mut done = false;
 
     let app = config.app;
+    let abort_signal = config.abort_signal;
 
-    while let Some(chunk) = stream.next().await {
+    loop {
+        let chunk_opt = tokio::select! {
+            biased;
+            _ = async {
+                if let Some(signal) = &abort_signal {
+                    while !signal.is_aborted() {
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    }
+                    true
+                } else {
+                    futures_util::future::pending::<bool>().await
+                }
+            } => {
+                return Err(AppError::new("ABORTED", "Generation aborted by user"));
+            }
+            res = stream.next() => res,
+        };
+
+        let chunk = match chunk_opt {
+            Some(c) => c,
+            None => break,
+        };
+
         let chunk =
             chunk.map_err(|e| AppError::new("NETWORK_ERROR", format!("Stream error: {e}")))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));

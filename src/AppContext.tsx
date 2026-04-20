@@ -412,6 +412,7 @@ export function useGenerationStatus() {
       setGenerationSubCallProgress: s.setGenerationSubCallProgress,
       streamTexts: s.streamTexts,
       setStreamText: s.setStreamText,
+      abortGeneration: s.abortGeneration,
     })),
   );
 }

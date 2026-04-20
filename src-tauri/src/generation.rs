@@ -5,10 +5,10 @@ use crate::envelope::normalise_envelope;
 use crate::json_input::{extract_json_array, extract_json_object};
 use crate::latex;
 use crate::models::{
-    AnalyzeImageRequest, AnalyzeImageResponse, AppError, CommandResult, GenerateMcQuestionsRequest,
-    GenerateMcQuestionsResponse, GenerateQuestionsRequest, GenerateQuestionsResponse,
-    GeneratedQuestion, GenerationQualityDiagnostics, MarkAnswerRequest, MarkAnswerResponse,
-    McQuestion,
+    AbortSignal, AnalyzeImageRequest, AnalyzeImageResponse, AppError, CommandResult,
+    GenerateMcQuestionsRequest, GenerateMcQuestionsResponse, GenerateQuestionsRequest,
+    GenerateQuestionsResponse, GeneratedQuestion, GenerationQualityDiagnostics, MarkAnswerRequest,
+    MarkAnswerResponse, McQuestion,
 };
 use crate::normalization;
 use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
@@ -29,6 +29,7 @@ use tauri::Emitter;
 /// and post-processing of model outputs (normalization and validation).
 pub struct GenerationService {
     app: tauri::AppHandle,
+    abort_signal: Option<AbortSignal>,
 }
 
 struct PreparedGenerationInputs {
@@ -360,7 +361,15 @@ impl GenerationRequestTrait for GenerateMcQuestionsRequest {
 
 impl GenerationService {
     pub fn new(app: tauri::AppHandle) -> Self {
-        Self { app }
+        Self {
+            app,
+            abort_signal: None,
+        }
+    }
+
+    pub fn with_abort_signal(mut self, abort_signal: AbortSignal) -> Self {
+        self.abort_signal = Some(abort_signal);
+        self
     }
 
     async fn execute_generation_pipeline<Q>(
@@ -510,7 +519,8 @@ impl GenerationService {
                 max_tokens,
             )
             .with_plugins(plugins.clone())
-            .with_stream(self.app.clone(), topics.first().map(|s| s.to_string())),
+            .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
+            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
         )
         .await?;
 
@@ -649,7 +659,8 @@ impl GenerationService {
                         max_tokens,
                     )
                     .with_plugins(plugins.clone())
-                    .with_stream(self.app.clone(), topics.first().map(|s| s.to_string())),
+                    .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
+                    .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
                 )
                 .await;
                 if let Ok(r) = retry_result {
@@ -1204,7 +1215,8 @@ impl GenerationService {
                 schemas::marking_format(&request.model),
                 max_tokens,
             )
-            .with_plugins(plugins),
+            .with_plugins(plugins)
+            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
         )
         .await?;
 
@@ -1287,6 +1299,7 @@ impl GenerationService {
             max_tokens: 50000,
             temperature,
             app: self.app.clone(),
+            abort_signal: self.abort_signal.clone(),
         };
 
         let result = crate::openrouter::call_openrouter_chat_streaming(config).await?;

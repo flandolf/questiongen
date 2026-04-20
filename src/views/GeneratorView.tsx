@@ -1094,6 +1094,7 @@ export function GeneratorView() {
         isGenerating={isGenerating}
         isPaused={activeTimer.isPaused}
         onTogglePause={togglePause}
+        onAbort={() => void useAppStore.getState().abortGeneration()}
         generationStatus={generationStatus}
         generationStartedAt={generationStartedAt}
         formattedElapsedTime={activeTimer.formattedSessionTime}
