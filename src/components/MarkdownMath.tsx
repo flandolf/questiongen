@@ -15,6 +15,17 @@ type MarkdownMathProps = {
   isStreaming?: boolean;
 };
 
+function normalizeMarkdownLineBreaks(content: string): string {
+  return (
+    content
+      .replace(/\\r\\n/g, '\n')
+      // Decode escaped newlines, but keep LaTeX command prefixes such as \nabla.
+      .replace(/\\n(?![A-Za-z])/g, '\n')
+      // Ensure common subpart markers render on their own line.
+      .replace(/\n(?=\([a-z]\))/gi, '\n\n')
+  );
+}
+
 const MathNode = memo(
   ({
     latex,
@@ -267,7 +278,14 @@ export const MarkdownMath = memo(function MarkdownMath({
   content,
   isStreaming = false,
 }: MarkdownMathProps) {
-  const normalized = useMemo(() => normalizeMathDelimiters(content), [content]);
+  const normalizedInput = useMemo(
+    () => normalizeMarkdownLineBreaks(content),
+    [content],
+  );
+  const normalized = useMemo(
+    () => normalizeMathDelimiters(normalizedInput),
+    [normalizedInput],
+  );
   const shielded = useMemo(
     () => shieldMathForMarkdown(normalized, isStreaming),
     [normalized, isStreaming],

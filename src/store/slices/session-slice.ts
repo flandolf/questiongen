@@ -120,6 +120,7 @@ export interface SessionSlice {
   overrideMcMark: AppActions['overrideMcMark'];
   nextQuestion: AppActions['nextQuestion'];
   prevQuestion: AppActions['prevQuestion'];
+  abortGeneration: () => Promise<void>;
 }
 
 export const createSessionSlice: StateCreator<
@@ -610,6 +611,14 @@ export const createSessionSlice: StateCreator<
       set({
         activeMcQuestionIndex: Math.max(0, s.activeMcQuestionIndex - 1),
       });
+    }
+  },
+  abortGeneration: async () => {
+    try {
+      await invoke('abort_generation');
+      toast.info('Aborting generation...');
+    } catch (e) {
+      console.error('Failed to abort generation:', e);
     }
   },
 });

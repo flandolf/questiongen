@@ -6,6 +6,7 @@ import {
   Loader2,
   Pause,
   Play,
+  Square,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -381,6 +382,7 @@ export function GenerationTimeline({
   isGenerating,
   isPaused,
   onTogglePause,
+  onAbort,
 }: {
   generationStatus: GenerationStatusEvent | null;
   /** Present when several API calls run for one subject (per locally chosen subtopic). */
@@ -391,6 +393,7 @@ export function GenerationTimeline({
   isGenerating: boolean;
   isPaused: boolean;
   onTogglePause: () => void;
+  onAbort: () => void;
 }) {
   const currentStage = generationStatus?.stage ?? 'preparing';
   const isFailed = currentStage === 'failed';
@@ -424,18 +427,28 @@ export function GenerationTimeline({
           <Clock3 className='w-2.5 h-2.5' />
           {elapsedTimeLabel}
           {isGenerating && (
-            <button
-              type='button'
-              onClick={onTogglePause}
-              className='ml-1 p-0.5 rounded hover:bg-muted transition-colors'
-              title={isPaused ? 'Resume' : 'Pause'}
-            >
-              {isPaused ? (
-                <Play className='w-3 h-3' />
-              ) : (
-                <Pause className='w-3 h-3' />
-              )}
-            </button>
+            <div className='flex items-center gap-0.5 ml-1'>
+              <button
+                type='button'
+                onClick={onTogglePause}
+                className='p-0.5 rounded hover:bg-muted transition-colors'
+                title={isPaused ? 'Resume' : 'Pause'}
+              >
+                {isPaused ? (
+                  <Play className='w-3 h-3' />
+                ) : (
+                  <Pause className='w-3 h-3' />
+                )}
+              </button>
+              <button
+                type='button'
+                onClick={onAbort}
+                className='p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors text-muted-foreground'
+                title='Abort Generation'
+              >
+                <Square className='w-3 h-3 fill-current' />
+              </button>
+            </div>
           )}
         </span>
       </div>
@@ -473,6 +486,7 @@ export function BatchTimeline({
   isGenerating,
   isPaused,
   onTogglePause,
+  onAbort,
 }: {
   entries: BatchTopicProgress[];
   generationSubCallProgress?: GenerationSubCallProgress | null;
@@ -482,6 +496,7 @@ export function BatchTimeline({
   isGenerating: boolean;
   isPaused: boolean;
   onTogglePause: () => void;
+  onAbort: () => void;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
 
@@ -526,18 +541,28 @@ export function BatchTimeline({
           <Clock3 className='w-2.5 h-2.5' />
           {elapsedTimeLabel}
           {isGenerating && (
-            <button
-              type='button'
-              onClick={onTogglePause}
-              className='ml-1 p-0.5 rounded hover:bg-muted transition-colors'
-              title={isPaused ? 'Resume' : 'Pause'}
-            >
-              {isPaused ? (
-                <Play className='w-3 h-3' />
-              ) : (
-                <Pause className='w-3 h-3' />
-              )}
-            </button>
+            <div className='flex items-center gap-0.5 ml-1'>
+              <button
+                type='button'
+                onClick={onTogglePause}
+                className='p-0.5 rounded hover:bg-muted transition-colors'
+                title={isPaused ? 'Resume' : 'Pause'}
+              >
+                {isPaused ? (
+                  <Play className='w-3 h-3' />
+                ) : (
+                  <Pause className='w-3 h-3' />
+                )}
+              </button>
+              <button
+                type='button'
+                onClick={onAbort}
+                className='p-0.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors text-muted-foreground'
+                title='Abort Generation'
+              >
+                <Square className='w-3 h-3 fill-current' />
+              </button>
+            </div>
           )}
         </span>
       </div>

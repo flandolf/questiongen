@@ -17,15 +17,19 @@ const MATHJAX_SCRIPT_ID = 'mathjax-script';
 let mathJaxLoaderPromise: Promise<void> | null = null;
 
 type MathJaxMenuSettings = {
-  assistiveMml: boolean;
-  explorer: boolean;
+  enrich: boolean;
+  collapsible: boolean;
   speech: boolean;
   braille: boolean;
+  assistiveMml: boolean;
 };
 
 type MathJaxRuntimeOptions = {
-  enableAssistiveMml?: boolean;
-  enableMenu?: boolean;
+  enableAssistiveMml: boolean;
+  enableEnrichment?: boolean;
+  enableSpeech?: boolean;
+  enableBraille?: boolean;
+  speechError?: (doc: unknown, math: unknown, err: unknown) => void;
   menuOptions?: {
     settings?: Partial<MathJaxMenuSettings>;
   };
@@ -54,9 +58,10 @@ type MathJaxRuntime = {
 
 const MATHJAX_MENU_SETTINGS: MathJaxMenuSettings = {
   assistiveMml: false,
-  explorer: false,
   speech: false,
   braille: false,
+  enrich: false,
+  collapsible: false,
 };
 
 async function importWithRetry<T extends ComponentType<unknown>>(
@@ -98,13 +103,15 @@ function ensureMathJaxLoaded(): Promise<void> {
       },
       options: {
         enableAssistiveMml: false,
-        enableMenu: false,
+        enableEnrichment: false,
+        enableSpeech: false,
+        enableBraille: false,
+        speechError: (doc, math, err) => {
+          console.error('MathJax Speech Error:', err, { doc, math });
+        },
         menuOptions: {
           settings: {
-            assistiveMml: false,
-            explorer: false,
-            speech: false,
-            braille: false,
+            ...MATHJAX_MENU_SETTINGS,
           },
         },
       },
@@ -124,7 +131,12 @@ function ensureMathJaxLoaded(): Promise<void> {
   runtime.options = {
     ...(runtime.options ?? {}),
     enableAssistiveMml: false,
-    enableMenu: false,
+    enableEnrichment: false,
+    enableSpeech: false,
+    enableBraille: false,
+    speechError: (doc, math, err) => {
+      console.error('MathJax Speech Error:', err, { doc, math });
+    },
     menuOptions: {
       ...(runtime.options?.menuOptions ?? {}),
       settings: {

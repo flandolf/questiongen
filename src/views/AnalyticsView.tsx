@@ -622,8 +622,11 @@ export function AnalyticsView() {
           title='Performance Trends'
           description='Accuracy progression over recent attempts.'
         />
-        <div className='h-87.5 mt-4'>
-          <ChartContainer config={trendChartConfig} className='h-full w-full'>
+        <div className='h-87.5 mt-4 min-h-0'>
+          <ChartContainer
+            config={trendChartConfig}
+            className='h-full w-full min-h-0'
+          >
             <LineChart
               data={trendData}
               margin={{ left: -20, right: 10, top: 10, bottom: 0 }}
@@ -748,7 +751,7 @@ export function AnalyticsView() {
       {/* Two Column Layout for Deep Dives */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         {/* Left Column: Written Insights */}
-        <div className='flex flex-col gap-6'>
+        <div className='flex flex-col gap-6 min-h-0'>
           <Card className='p-6'>
             <SectionHeading
               title='Written Insights'
@@ -923,7 +926,7 @@ export function AnalyticsView() {
               title='Performance Treemap'
               description='Subject and subtopic distribution by volume.'
             />
-            <div className='h-80 mt-4 bg-muted/20 rounded-lg overflow-hidden border border-border/40'>
+            <div className='h-80 mt-4 bg-muted/20 rounded-lg overflow-hidden border border-border/40 min-h-0'>
               <ResponsiveContainer width='100%' height='100%'>
                 <Treemap
                   data={treemapData}
@@ -941,7 +944,7 @@ export function AnalyticsView() {
               title='Subject Spread'
               description='Question distribution across subjects.'
             />
-            <div className='h-75 mt-4'>
+            <div className='h-75 mt-4 min-h-0'>
               {subjectSpreadData.length === 0 ? (
                 <ChartEmpty message='No attempts to display.' />
               ) : (
@@ -979,7 +982,7 @@ export function AnalyticsView() {
         </div>
 
         {/* Right Column: MC & Topic Insights */}
-        <div className='flex flex-col gap-6'>
+        <div className='flex flex-col gap-6 min-h-0'>
           <Card className='p-6'>
             <SectionHeading
               title='Topic Performance'

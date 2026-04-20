@@ -37,9 +37,12 @@ use persistence::{
 #[tauri::command]
 async fn generate_questions(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
+    state.reset();
     generation::GenerationService::new(app)
+        .with_abort_signal(state.inner().clone())
         .generate_written(request)
         .await
 }
@@ -47,9 +50,12 @@ async fn generate_questions(
 #[tauri::command]
 async fn generate_mc_questions(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
+    state.reset();
     generation::GenerationService::new(app)
+        .with_abort_signal(state.inner().clone())
         .generate_mc(request)
         .await
 }
@@ -57,9 +63,12 @@ async fn generate_mc_questions(
 #[tauri::command]
 async fn mark_answer(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
     request: MarkAnswerRequest,
 ) -> CommandResult<MarkAnswerResponse> {
+    state.reset();
     generation::GenerationService::new(app)
+        .with_abort_signal(state.inner().clone())
         .mark_answer(request)
         .await
 }
@@ -67,16 +76,20 @@ async fn mark_answer(
 #[tauri::command]
 async fn batch_mark_answers(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
     request: BatchMarkRequest,
 ) -> CommandResult<BatchMarkResponse> {
     use futures_util::stream::{self, StreamExt};
+    state.reset();
 
     let results: Vec<BatchMarkItem> = stream::iter(request.items)
         .map(|item| {
             let app = app.clone();
+            let state = state.inner().clone();
             async move {
                 let question_id = item.question.id.clone();
                 match generation::GenerationService::new(app)
+                    .with_abort_signal(state)
                     .mark_answer(item)
                     .await
                 {
@@ -103,11 +116,18 @@ async fn batch_mark_answers(
 #[tauri::command]
 async fn tutor_chat(
     app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
     request: TutorChatRequest,
 ) -> CommandResult<TutorChatResponse> {
+    state.reset();
     generation::GenerationService::new(app)
         .tutor_chat(request)
         .await
+}
+
+#[tauri::command]
+fn abort_generation(state: tauri::State<'_, AbortSignal>) {
+    state.abort();
 }
 
 #[tauri::command]
@@ -329,6 +349,7 @@ pub fn run() {
             }
             Ok(())
         })
+        .manage(AbortSignal::new())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -352,6 +373,7 @@ pub fn run() {
             cleanup_topics,
             cleanup_subtopics,
             export_question_to_anki,
+            abort_generation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

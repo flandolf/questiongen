@@ -341,6 +341,8 @@ export interface AppActions {
   nextQuestion: () => void;
   prevQuestion: () => void;
 
+  abortGeneration: () => Promise<void>;
+
   // Import / Export
   importState: (imported: PersistedAppState) => void;
 }

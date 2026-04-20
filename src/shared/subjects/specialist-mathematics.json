@@ -685,7 +685,7 @@
         "hard": "Integrate using partial fractions (U3/4).",
         "extreme": "Evaluate cyclic integrals."
       },
-      "group": "unit3-4-calculus"
+      "group": "unit3-calculus"
     },
     {
       "name": "Differential Equations and Dynamics",
@@ -701,7 +701,7 @@
         "hard": "Resolve forces on an inclined plane with friction.",
         "extreme": "Solve logistic growth equations."
       },
-      "group": "unit3-4-calculus-mechanics"
+      "group": "unit3-calculus-mechanics"
     },
     {
       "name": "3D Vectors and Statistics",
@@ -717,7 +717,7 @@
         "hard": "Conduct a one-sample hypothesis test for the mean.",
         "extreme": "Find distance between skew lines in 3D."
       },
-      "group": "unit3-4-vectors-stats"
+      "group": "unit3-vectors-stats"
     }
   ]
 }
