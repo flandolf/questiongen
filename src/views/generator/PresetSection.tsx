@@ -30,6 +30,7 @@ type PresetSectionProps = {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
+  customFocusArea: string;
 };
 
 interface LegacyPresetPreferences extends PresetPreferences {
@@ -85,6 +86,7 @@ export function PresetSection({
   questionCount,
   averageMarksPerQuestion,
   questionMode,
+  customFocusArea,
 }: PresetSectionProps) {
   const presets = useAppStore((s) => s.presets);
   const addPreset = useAppStore((s) => s.addPreset);
@@ -130,6 +132,7 @@ export function PresetSection({
       averageMarksPerQuestion,
       questionMode,
       selectedSubtopics,
+      customFocusArea,
     };
   };
 

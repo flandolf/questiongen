@@ -280,6 +280,8 @@ export const createSettingsSlice: StateCreator<
         next.averageMarksPerQuestion = prefs.averageMarksPerQuestion;
       if (prefs.questionMode !== undefined)
         next.questionMode = prefs.questionMode;
+      if (prefs.customFocusArea !== undefined)
+        next.customFocusArea = prefs.customFocusArea;
 
       // Atomic replacement to avoid "ghost" state from previous selections
       if (prefs.selectedSubtopics !== undefined) {

@@ -433,6 +433,8 @@ export function GeneratorView() {
     deleteSavedSet,
   ]);
 
+  const applyPreferences = useAppStore((s) => s.applyPreferences);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const topic = params.get('topic');
@@ -474,9 +476,9 @@ export function GeneratorView() {
           prefs.selectedSubtopics = { [topic]: [subtopic] };
         }
       }
-      appStore.applyPreferences(prefs);
+      applyPreferences(prefs);
     }
-  }, [location.search, appStore]);
+  }, [location.search, applyPreferences]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
