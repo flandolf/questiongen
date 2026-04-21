@@ -817,7 +817,9 @@ mod tests {
         assert!(hard_written.contains("HARD ENFORCEMENT"));
         assert!(hard_mc.contains("HARD ENFORCEMENT"));
         assert!(extreme_written.contains("EXTREME ENFORCEMENT"));
-        assert!(hard_written.to_lowercase().contains("do not increase marks"));
+        assert!(hard_written
+            .to_lowercase()
+            .contains("do not increase marks"));
         assert!(difficulty_enforcement_note("Medium", false).is_empty());
     }
 
