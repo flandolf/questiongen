@@ -1,10 +1,7 @@
 {
   "name": "Mathematical Methods",
   "icon": "FunctionSquare",
-  "examPdfs": [
-    "2025-MathMethods1.pdf",
-    "2025-MathMethods2.pdf"
-  ],
+  "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
   "reportPdfs": [
     "2025-MathematicalMethods1-report.pdf",
     "2025-MathematicalMethods2-report.pdf"
