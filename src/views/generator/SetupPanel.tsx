@@ -721,6 +721,7 @@ function SetupPanelImpl({
                   questionCount={questionCount}
                   averageMarksPerQuestion={averageMarksPerQuestion}
                   questionMode={questionMode}
+                  customFocusArea={customFocusArea}
                 />
               </div>
             </div>

@@ -35,4 +35,5 @@ export type PresetPreferences = {
   questionCount: number;
   averageMarksPerQuestion: number;
   questionMode: QuestionMode;
+  customFocusArea?: string;
 };

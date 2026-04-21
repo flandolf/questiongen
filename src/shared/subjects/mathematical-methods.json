@@ -1,7 +1,10 @@
 {
   "name": "Mathematical Methods",
   "icon": "FunctionSquare",
-  "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+  "examPdfs": [
+    "2025-MathMethods1.pdf",
+    "2025-MathMethods2.pdf"
+  ],
   "reportPdfs": [
     "2025-MathematicalMethods1-report.pdf",
     "2025-MathematicalMethods2-report.pdf"
@@ -571,26 +574,6 @@
         "extreme": "Sketch a family of functions $f_k(x)$ and determine the set of values for $k$ such that the range is $\\mathbb{R}^+$."
       },
       "group": "unit3-functions"
-    },
-    {
-      "name": "Composite Functions",
-      "technique_notes": "Construct questions requiring students to form $(f \\circ g)(x)$, verify that $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$ before proceeding, and determine the domain and range of the composition. Include cases where the composition is not defined and students must identify why. Progress from straightforward compositions to cases requiring domain restriction of $g$. Always verify $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$ explicitly before forming the composition   show this step. State the domain of $f \\circ g$ as $\\{x \\in \\mathrm{dom}(g) : g(x) \\in \\mathrm{dom}(f)\\}$. For tech-free items, keep the algebra of substitution manageable by hand.",
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Inverse Functions",
-      "technique_notes": "Develop questions where students determine whether a function has an inverse (one-to-one condition), find $f^{-1}$ algebraically by swapping $x$ and $y$ and solving, state the domain and range of $f^{-1}$, and sketch both $f$ and $f^{-1}$ on the same axes showing reflection in $y = x$. Include cases requiring domain restriction to make $f$ one-to-one. State inverse functions in the form $f^{-1}: \\mathrm{dom}(f^{-1}) \\to \\mathbb{R}, f^{-1}(x) = \\dots$   always include the domain. Verify using $f(f^{-1}(x)) = x$ and $f^{-1}(f(x)) = x$ where appropriate. On sketches, draw $y = x$ as a dashed reference line.",
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Piecewise and Hybrid Functions",
-      "technique_notes": "Create questions involving piecewise (hybrid) functions where students must: state the rule and domain for each piece, determine whether the function is continuous at boundary points (using left/right limit comparison), sketch the complete function, and determine the overall domain and range. Include modelling contexts where a hybrid function arises naturally. **Always use the LaTeX `\\begin{cases}...\\end{cases}` environment for piecewise functions.** The format is: `$f(x) = \\begin{cases} \\text{rule 1} & \\text{if condition 1} \\\\ \\text{rule 2} & \\text{if condition 2} \\\\ \\vdots \\end{cases}$`. Example: `$f(x) = \\begin{cases} -1 & \\text{if } x \\leq -1 \\\\ x & \\text{if } x \\in [-1, 1] \\\\ 1 & \\text{if } x \\geq 1 \\end{cases}$`. For continuity checks at $x = a$, write $\\lim_{x \\to a^-} f(x)$, $\\lim_{x \\to a^+} f(x)$, and $f(a)$ explicitly. Use open/closed dots on sketches to indicate whether endpoints are included.",
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Dilations",
-      "technique_notes": "Generate questions requiring students to apply and identify vertical dilations (from the x-axis, factor $|a|$) and horizontal dilations (from the y-axis, factor $1/|b|$) to standard functions. Include tasks to write the transformed equation, state the dilation in standard language, and track how key coordinates change. Test the common confusion between dilation factor and its reciprocal for horizontal dilations. Use standard language: 'dilation by factor $|a|$ from the x-axis' (vertical) and 'dilation by factor $1/|b|$ from the y-axis' (horizontal). Always track the mapping $(x, y) \\to (x', y')$ to verify transformed coordinates. For tech-free items, use integer or simple rational dilation factors.",
-      "group": "unit3-transformations"
     },
     {
       "name": "Reflections and Translations",

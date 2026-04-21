@@ -101,6 +101,7 @@ async function generateTopicQuestions(
     shuffleSubtopics,
     averageMarksPerQuestion,
     generationStrategy,
+    customFocusArea,
   } = store;
 
   try {
@@ -145,6 +146,7 @@ async function generateTopicQuestions(
           diversityStrictness,
           strictLatexValidation,
           averageMarksPerQuestion,
+          customFocusArea,
         },
       });
       topicQuestions = response.questions;
@@ -190,6 +192,7 @@ async function generateTopicQuestions(
             diversityStrictness,
             strictLatexValidation,
             averageMarksPerQuestion,
+            customFocusArea,
           },
         });
 
