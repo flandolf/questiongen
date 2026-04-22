@@ -10,198 +10,577 @@
     "Non-human primate evolution beyond the hominin line (e.g., detailed lemur or tarsier phylogeny)",
     "Specific drug brand names or proprietary medical technologies not mentioned in the Study Design",
     "Plant hormones beyond those explicitly listed in the VCAA study design",
-    "Complex mathematical modeling of population genetics beyond simple allele frequency changes"
+    "Complex mathematical modeling of population genetics beyond simple allele frequency changes",
+    "Detailed steps of the complement cascade beyond general function",
+    "Specific names of all cytokines beyond general roles"
   ],
   "subtopics": [
     {
-      "name": "How do cells function?",
+      "name": "Prokaryotic vs Eukaryotic Cells",
       "technique_notes": {
-        "core_concepts": "Focus on the plasma membrane as a semi-permeable boundary, the role of organelles in protein synthesis and transport, and the requirements for cellular survival (enzymes, photosynthesis, and respiration).",
-        "exam_style_guidelines": "Use authentic biological contexts. Require students to explain cause-and-effect relationships, particularly regarding how environmental factors (temp, pH, concentration) affect enzyme activity or cellular processes.",
-        "anti_prompts": [
-          "Do not ask for simple recall of organelle names without function",
-          "Avoid contexts that do not connect to the study design"
-        ],
-        "tech_free_rules": "Use clear scenarios with manageable data sets and explicit variables.",
-        "tech_active_rules": "Allow larger datasets or experimental output where interpretation benefits from technology/graphing tools."
-      },
-      "complexity_levers": {
-        "easy": "Identify a cell structure or describe a basic process like osmosis in a standard context.",
-        "hard": "Predict and explain the effect of a specific inhibitor on an enzyme-controlled pathway using experimental data.",
-        "extreme": "Apply cellular concepts to a novel mutation affecting protein secretion and justify the cascading effects on organismal function."
+        "core_concepts": "Distinction between prokaryotic (lack membrane-bound organelles, circular DNA) and eukaryotic cells (membrane-bound organelles, linear DNA).",
+        "exam_style_guidelines": "Focus on structural differences and the evolutionary significance of compartmentalisation in eukaryotes.",
+        "anti_prompts": ["Do not just list differences; explain how they impact cell function."]
       },
       "group": "unit1-How-do-organisms-regulate-their-functions?"
     },
     {
-      "name": "How do plant and animal systems function?",
+      "name": "Surface Area to Volume Ratio",
       "technique_notes": {
-        "core_concepts": "Compare and contrast the structure and function of specialized cells and systems (circulatory, digestive, excretory in animals; vascular in plants). Focus on homeostasis and the stimulus-response model.",
-        "exam_style_guidelines": "Require comparative explanation and explicit links between structure and function. Use feedback loop diagrams for homeostasis questions.",
-        "anti_prompts": [
-          "Do not ask for unrelated anatomy lists",
-          "Avoid comparisons without a clear biological purpose"
-        ],
-        "tech_free_rules": "Keep data tables small and comparisons direct.",
-        "tech_active_rules": "Use multi-factor contexts (e.g., exercise and dehydration) where technology helps model the homeostatic response."
-      },
-      "complexity_levers": {
-        "easy": "Identify one component of a stimulus-response model in a given scenario.",
-        "hard": "Analyze the impact of a malfunctioning organ (e.g., kidney) on the maintenance of a stable internal environment.",
-        "extreme": "Compare homeostatic mechanisms across different species and justify their evolutionary advantage in specific environments."
+        "core_concepts": "SA:V ratio as a limit to cell size and the driver for compartmentalisation and flattened cell shapes.",
+        "exam_style_guidelines": "Require calculations of SA:V and linking results to efficiency of diffusion and waste removal.",
+        "anti_prompts": ["Do not forget that internal organelles also increase effective surface area for reactions."]
       },
       "group": "unit1-How-do-organisms-regulate-their-functions?"
     },
     {
-      "name": "How do scientific investigations develop understanding?",
+      "name": "Organelles and Compartmentalisation",
       "technique_notes": {
-        "core_concepts": "Evaluation of research design, including independent, dependent, and controlled variables. Analysis of qualitative and quantitative data, including precision, accuracy, reliability, and validity.",
-        "exam_style_guidelines": "Use experimental scenarios that require evaluation of methodology. Ask students to identify sources of error (systematic vs random) and suggest improvements.",
-        "anti_prompts": [
-          "Do not ask for definitions of 'variable' without context",
-          "Avoid questions that cannot be justified with the provided data"
-        ],
-        "tech_free_rules": "Use concise datasets and clearly described methodologies.",
-        "tech_active_rules": "Allow analysis of complex datasets or multiple sources to evaluate competing research claims."
-      },
-      "complexity_levers": {
-        "easy": "Identify the independent and dependent variables in a simple experiment description.",
-        "hard": "Evaluate the validity of a conclusion based on identified confounding variables or lack of controls.",
-        "extreme": "Redesign a flawed experimental procedure to improve the precision and accuracy of the results, justifying each change."
+        "core_concepts": "Structure and function of chloroplasts, mitochondria, and other major organelles.",
+        "exam_style_guidelines": "Describe how compartmentalisation allows for different environments (pH, enzyme concentration) within a single cell.",
+        "anti_prompts": ["Avoid simple recall; use scenarios where organelle malfunction affects the cell."]
       },
       "group": "unit1-How-do-organisms-regulate-their-functions?"
     },
     {
-      "name": "How is inheritance explained?",
+      "name": "Plasma Membrane Structure and Function",
       "technique_notes": {
-        "core_concepts": "Mechanisms of genetic inheritance (dominance, co-dominance, sex-linkage). Cell cycle, apoptosis, and the importance of stem cells. Pedigree analysis and probability of offspring genotypes.",
-        "exam_style_guidelines": "Require explicit genotype-phenotype reasoning. Use standard VCAA pedigree symbols and nomenclature.",
-        "anti_prompts": [
-          "Do not use non-VCAA pedigree symbols",
-          "Avoid pedigree questions that allow for multiple valid inheritance patterns without enough evidence"
-        ],
-        "tech_free_rules": "Use simple Mendelian examples and manageable pedigree patterns (3 generations max).",
-        "tech_active_rules": "Allow more complex pedigree scenarios or multi-trait contexts where technology can help calculate probabilities."
+        "core_concepts": "Fluid mosaic model: phospholipids, proteins, cholesterol, and carbohydrates. Role as a semi-permeable boundary.",
+        "exam_style_guidelines": "Explain the role of different components in maintaining fluidity and regulating transport.",
+        "anti_prompts": ["Do not confuse the roles of integral and peripheral proteins."]
       },
-      "complexity_levers": {
-        "easy": "Predict the phenotype of offspring from a simple monohybrid cross.",
-        "hard": "Determine the mode of inheritance from a pedigree and calculate the probability of the next child being affected.",
-        "extreme": "Explain the biological consequences of non-disjunction during meiosis and its impact on the resulting phenotype in a novel context."
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Crossing the Plasma Membrane",
+      "technique_notes": {
+        "core_concepts": "Simple diffusion, facilitated diffusion, osmosis, and active transport (including bulk transport: endocytosis/exocytosis).",
+        "exam_style_guidelines": "Distinguish between passive and active processes. Use scenarios involving concentration gradients and polarity/size of molecules.",
+        "anti_prompts": ["Ensure students distinguish between channel and carrier proteins in facilitated diffusion."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Binary Fission and the Eukaryotic Cell Cycle",
+      "technique_notes": {
+        "core_concepts": "Asexual reproduction in prokaryotes. The eukaryotic cycle: Interphase (G1, S, G2), Mitosis (PMAT), and Cytokinesis.",
+        "exam_style_guidelines": "Focus on the purpose of each stage and the significance of producing genetically identical daughter cells.",
+        "anti_prompts": ["Do not skip the G0 resting phase or the checkpoints in your descriptions."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Apoptosis and its Malfunctions",
+      "technique_notes": {
+        "core_concepts": "Programmed cell death. Pathways (intrinsic/extrinsic). Role of caspases. Connection to cancer and deviant cell behavior.",
+        "exam_style_guidelines": "Explain how a failure in apoptosis leads to uncontrolled cell division. Describe the characteristics of cancer cells.",
+        "anti_prompts": ["Do not confuse apoptosis with necrosis (unregulated cell death)."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Stem Cells and Differentiation",
+      "technique_notes": {
+        "core_concepts": "Properties of stem cells: self-renewal and potency (totipotency, pluripotency, multipotency). Differentiation into specialised tissues.",
+        "exam_style_guidelines": "Compare different levels of potency and their potential applications in medicine.",
+        "anti_prompts": ["Ensure clear distinction between pluripotent and multipotent cells."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Specialisation and Organisation in Vascular Plants",
+      "technique_notes": {
+        "core_concepts": "Xylem and phloem. Tissues for water intake, movement, and loss (stomata).",
+        "exam_style_guidelines": "Link the structure of vascular tissues to their specific roles in transpiration and translocation.",
+        "anti_prompts": ["Avoid naming every plant cell type; focus on the transport systems."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Animal Systems: Digestive, Endocrine and Excretory",
+      "technique_notes": {
+        "core_concepts": "Organisation of cells into tissues and organs. Basic functions of the three systems mentioned in the Study Design.",
+        "exam_style_guidelines": "Focus on how these systems contribute to overall organism function and interact with each other.",
+        "anti_prompts": ["Do not require detailed anatomy of systems not listed (e.g., skeletal)."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Regulation of Water Balance in Plants",
+      "technique_notes": {
+        "core_concepts": "Transpiration, stomatal control, and adaptations to dry environments (xerophytes).",
+        "exam_style_guidelines": "Explain the factors affecting transpiration rate and how plants minimize water loss.",
+        "anti_prompts": ["Avoid generic 'saving water' answers; use physiological mechanisms."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Homeostasis: Stimulus-Response and Feedback Loops",
+      "technique_notes": {
+        "core_concepts": "Negative feedback loops. Components: stimulus, receptor, modulator, effector, response.",
+        "exam_style_guidelines": "Require students to map out loops for temperature, blood glucose, and water balance in animals.",
+        "anti_prompts": ["Do not confuse the effector with the response."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Malfunctions in Homeostatic Mechanisms",
+      "technique_notes": {
+        "core_concepts": "Type 1 diabetes, hypoglycaemia, and hyperthyroidism.",
+        "exam_style_guidelines": "Explain the physiological basis for the malfunction and the resulting symptoms/impact on the organism.",
+        "anti_prompts": ["Ensure distinction between Type 1 and Type 2 diabetes (Type 2 is not the focus here)."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Meiosis and the Production of Gametes",
+      "technique_notes": {
+        "core_concepts": "Key events in Meiosis I and II. Crossing over, independent assortment, and non-disjunction.",
+        "exam_style_guidelines": "Emphasise how meiosis leads to genetic variation in offspring. Compare with mitosis.",
+        "anti_prompts": ["Do not forget that DNA replication occurs *before* meiosis starts."]
       },
       "group": "unit2-How-does-inheritance-impact-on-diversity?"
     },
     {
-      "name": "How do inherited adaptations impact on diversity?",
+      "name": "Genomes, Genes and Alleles",
       "technique_notes": {
-        "core_concepts": "Biological importance of genetic diversity. Adaptations (structural, physiological, behavioral) and their survival value. Interdependencies between species (symbiosis, keystone species).",
-        "exam_style_guidelines": "Link specific adaptations to survival in a defined environment. Use the term 'selective advantage' appropriately.",
-        "anti_prompts": [
-          "Do not ask for lists of adaptations without environmental context",
-          "Avoid anthropomorphising organisms (e.g., 'the plant wants to survive')"
-        ],
-        "tech_free_rules": "Focus on clear, single-species adaptation scenarios.",
-        "tech_active_rules": "Model population shifts in response to environmental change using larger datasets."
-      },
-      "complexity_levers": {
-        "easy": "Classify a given adaptation as structural, physiological, or behavioral.",
-        "hard": "Explain how a specific adaptation provides a selective advantage in a changing environment.",
-        "extreme": "Analyze the impact of removing a keystone species from an ecosystem and justify the resulting changes in biodiversity."
+        "core_concepts": "The nature of chromosomes. Relationship between DNA, genes, and alleles. The concept of a genome.",
+        "exam_style_guidelines": "Distinguish between genotype and phenotype. Use correct terminology for homozygous and heterozygous individuals.",
+        "anti_prompts": ["Avoid confusing a gene locus with an allele."]
       },
       "group": "unit2-How-does-inheritance-impact-on-diversity?"
     },
     {
-      "name": "How do humans use science to explore bioethical issues?",
+      "name": "Patterns of Inheritance",
       "technique_notes": {
-        "core_concepts": "Application of ethical frameworks (consequentialism, duty-based, virtue-based) and principles (integrity, justice, beneficence, non-maleficence, respect) to biological scenarios.",
-        "exam_style_guidelines": "Require students to evaluate an issue from multiple perspectives using specific VCAA ethical terminology.",
-        "anti_prompts": [
-          "Do not ask for personal opinions",
-          "Avoid scenarios that do not have a clear biological or biotechnological basis"
-        ],
-        "tech_free_rules": "Focus on the application of a single ethical principle to a scenario.",
-        "tech_active_rules": "Evaluate complex, multi-stakeholder bioethical dilemmas using digital research/simulation tools."
-      },
-      "complexity_levers": {
-        "easy": "Identify an ethical concern related to a specific biotechnological advancement.",
-        "hard": "Evaluate a bioethical issue using two different ethical frameworks and compare the conclusions.",
-        "extreme": "Justify a position on a contemporary bioethical issue (e.g., CRISPR in humans) by balancing multiple competing ethical principles."
+        "core_concepts": "Dominance, co-dominance, incomplete dominance, and sex-linkage.",
+        "exam_style_guidelines": "Predict outcomes of monohybrid and dihybrid genetic crosses using Punnett squares. Calculate probabilities.",
+        "anti_prompts": ["Ensure students use consistent and clear allele symbols."]
       },
       "group": "unit2-How-does-inheritance-impact-on-diversity?"
     },
     {
-      "name": "Role of nucleic acids and proteins",
+      "name": "Pedigree Analysis",
       "technique_notes": {
-        "core_concepts": "DNA and RNA structure. The genetic code as universal and degenerate. Gene expression (transcription, RNA processing, translation). The proteome. DNA manipulation: CRISPR-Cas9, PCR, gel electrophoresis, recombinant plasmids.",
-        "exam_style_guidelines": "Require step-by-step explanation of molecular processes. Use clear diagrams of DNA manipulation techniques. Emphasize the role of specific enzymes (polymerase, ligase, endonucleases).",
-        "anti_prompts": [
-          "Do not skip the RNA processing step in eukaryotes",
-          "Avoid over-complicating the Cas9 mechanism beyond the guide RNA and 'molecular scissors' analogy"
-        ],
-        "tech_free_rules": "Focus on the basic steps of protein synthesis and DNA manipulation logic.",
-        "tech_active_rules": "Analyze DNA sequences or electropherograms to identify individuals or confirm successful transformations."
+        "core_concepts": "Interpretation of pedigree charts to determine the mode of inheritance (autosomal vs sex-linked, dominant vs recessive).",
+        "exam_style_guidelines": "Require students to justify their determined mode using specific individuals from the chart.",
+        "anti_prompts": ["Do not use non-VCAA symbols; ensure gender symbols are correct."]
       },
-      "complexity_levers": {
-        "easy": "Identify the difference between an exon and an intron.",
-        "hard": "Explain how a specific point mutation in a promoter region would affect the synthesis of a protein.",
-        "extreme": "Design a step-by-step procedure to create a transgenic organism, including the specific tools and methods used to verify success."
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Epigenetics and Environmental Influence",
+      "technique_notes": {
+        "core_concepts": "How external factors and epigenetic modifications (e.g., DNA methylation) influence phenotypic expression without changing the DNA sequence.",
+        "exam_style_guidelines": "Use examples like agouti mice or twins to explain the interaction between genes and environment.",
+        "anti_prompts": ["Do not imply that epigenetic changes are always permanent or easily reversible."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Asexual and Sexual Reproduction",
+      "technique_notes": {
+        "core_concepts": "Advantages and disadvantages of reproductive strategies. Types of asexual reproduction (budding, fragmentation, etc.).",
+        "exam_style_guidelines": "Compare the survival value of each strategy in stable vs changing environments.",
+        "anti_prompts": ["Do not state that asexual reproduction is 'easier' without biological justification."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Reproductive Cloning Technologies",
+      "technique_notes": {
+        "core_concepts": "Somatic cell nuclear transfer (SCNT) and embryo splitting in animals. Plant tissue culture.",
+        "exam_style_guidelines": "Describe the steps involved in SCNT and evaluate the ethical implications and biological impacts.",
+        "anti_prompts": ["Ensure students distinguish between the donor of the nucleus and the surrogate mother."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Adaptations for Survival",
+      "technique_notes": {
+        "core_concepts": "Structural, physiological, and behavioral adaptations. Survival value in specific Australian ecosystems.",
+        "exam_style_guidelines": "Link adaptations directly to an environmental challenge (e.g., heat, aridity).",
+        "anti_prompts": ["Avoid anthropomorphism; organisms don't 'choose' to adapt."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Interdependencies between Species",
+      "technique_notes": {
+        "core_concepts": "Symbiosis (mutualism, commensalism, parasitism). Keystone species and top predators.",
+        "exam_style_guidelines": "Explain how the removal of a keystone species impacts the entire ecosystem structure.",
+        "anti_prompts": ["Do not list relationships without explaining their ecological impact."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Indigenous Perspectives on Australian Ecosystems",
+      "technique_notes": {
+        "core_concepts": "Aboriginal and Torres Strait Islander knowledge in understanding and managing survival in ecosystems.",
+        "exam_style_guidelines": "Respectfully integrate Indigenous knowledge about species interdependencies and land management.",
+        "anti_prompts": ["Avoid tokenistic inclusion; link knowledge to specific ecological concepts."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Bioethical Issues and Frameworks",
+      "technique_notes": {
+        "core_concepts": "Ethical concepts: integrity, justice, beneficence, non-maleficence, respect. Ethical approaches: consequentialism, duty-based, virtue-based.",
+        "exam_style_guidelines": "Apply frameworks to contemporary issues (e.g., genetic testing, cloning). Require multi-perspective evaluation.",
+        "anti_prompts": ["Do not ask for personal opinion; require structured ethical analysis."]
+      },
+      "group": "unit2-How-does-inheritance-impact-on-diversity?"
+    },
+    {
+      "name": "Structure of DNA and RNA",
+      "technique_notes": {
+        "core_concepts": "Nucleotides as monomers. Double helix DNA vs single-stranded RNA. mRNA, tRNA, rRNA roles.",
+        "exam_style_guidelines": "Compare the sugar, bases, and general structure of DNA and the three types of RNA.",
+        "anti_prompts": ["Do not confuse the roles of the three RNA types."]
       },
       "group": "unit3-How-do-cells-maintain-life?"
     },
     {
-      "name": "Regulation of biochemical pathways",
+      "name": "The Genetic Code and Gene Expression",
       "technique_notes": {
-        "core_concepts": "Photosynthesis (light-dependent and light-independent stages). Cellular respiration (glycolysis, Krebs cycle, electron transport chain). Factors affecting rates. The role of Rubisco and adaptations (C4, CAM). Anaerobic fermentation.",
-        "exam_style_guidelines": "Focus on inputs, outputs, and locations of each stage. Use chemical equations (word or balanced). Link biochemical efficiency to environmental conditions and food security.",
-        "anti_prompts": [
-          "Do not require naming of all Krebs cycle intermediates",
-          "Avoid questions on the light-independent stage that ignore the requirement for ATP/NADPH from the first stage"
-        ],
-        "tech_free_rules": "Use standard rate-of-reaction graphs for interpretation.",
-        "tech_active_rules": "Model crop yield predictions based on modified Rubisco activity or varying atmospheric CO2 levels."
-      },
-      "complexity_levers": {
-        "easy": "Identify the main inputs and outputs of glycolysis.",
-        "hard": "Explain why C4 plants have a competitive advantage over C3 plants in hot, dry environments.",
-        "extreme": "Analyze data from a respirometer experiment and justify the change in respiration rate based on shifting from aerobic to anaerobic pathways."
+        "core_concepts": "Universal triplet code. Degeneracy/redundancy. Transcription (initiation, elongation, termination) and Translation.",
+        "exam_style_guidelines": "Describe the steps of transcription and translation. Explain why the code is degenerate and how this protects against some mutations.",
+        "anti_prompts": ["Ensure students mention RNA polymerase and ribosomes in their descriptions."]
       },
       "group": "unit3-How-do-cells-maintain-life?"
     },
     {
-      "name": "How do organisms respond to pathogens?",
+      "name": "RNA Processing in Eukaryotes",
       "technique_notes": {
-        "core_concepts": "Innate immunity (barriers, inflammation, phagocytes). Adaptive immunity (humoral and cell-mediated). Antigens, antibodies, and MHC markers. Vaccinations and herd immunity. Immunotherapies (monoclonal antibodies).",
-        "exam_style_guidelines": "Require clear distinction between self and non-self. Explain the role of memory cells in long-term immunity. Use scenarios involving the spread of infectious disease.",
-        "anti_prompts": [
-          "Do not confuse antibodies with antigens",
-          "Avoid skipping the role of the lymphatic system in the immune response"
-        ],
-        "tech_free_rules": "Focus on the logic of the immune response steps.",
-        "tech_active_rules": "Analyze epidemiological data to predict the impact of varying vaccination rates on population immunity."
+        "core_concepts": "Addition of 5' methyl cap and 3' poly-A tail. Splicing of introns and joining of exons. Alternative splicing.",
+        "exam_style_guidelines": "Explain how alternative splicing allows one gene to code for multiple proteins.",
+        "anti_prompts": ["Do not imply that RNA processing occurs in prokaryotes."]
       },
-      "complexity_levers": {
-        "easy": "Identify the physical barriers in the human innate immune system.",
-        "hard": "Contrast the roles of B cells and T cells in the adaptive immune response following a viral infection.",
-        "extreme": "Evaluate the use of monoclonal antibodies as a targeted treatment for specific cancers, justifying the mechanism of action."
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Structure of Genes and Regulation",
+      "technique_notes": {
+        "core_concepts": "Exons, introns, promoter, and operator regions. Trp operon in bacteria as an example of gene regulation.",
+        "exam_style_guidelines": "Explain how the trp operon is regulated by repression and attenuation. Link to energy conservation.",
+        "anti_prompts": ["Avoid overly detailed attenuation steps; focus on the regulatory logic."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Protein Structure and the Proteome",
+      "technique_notes": {
+        "core_concepts": "Amino acids, polypeptide chains. Hierarchical levels: primary, secondary, tertiary, quaternary structures.",
+        "exam_style_guidelines": "Explain how the primary sequence determines the final 3D shape and function of a protein. Define the proteome.",
+        "anti_prompts": ["Do not just list the levels; explain the bonds/interactions at each level."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "The Protein Secretory Pathway",
+      "technique_notes": {
+        "core_concepts": "Role of ribosomes, rough ER, Golgi apparatus, and transport/secretory vesicles.",
+        "exam_style_guidelines": "Trace the path of a protein from synthesis to secretion. Distinguish between membrane-bound and free ribosomes.",
+        "anti_prompts": ["Ensure students mention the role of the Golgi in modification and packaging."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "DNA Manipulation: Enzymes",
+      "technique_notes": {
+        "core_concepts": "Polymerases (synthesis), ligases (joining), and endonucleases (restriction enzymes/cutting).",
+        "exam_style_guidelines": "Explain how restriction enzymes create sticky or blunt ends and the significance for recombinant DNA.",
+        "anti_prompts": ["Ensure students know that ligase joins the sugar-phosphate backbone."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "CRISPR-Cas9 in Bacteria and Genome Editing",
+      "technique_notes": {
+        "core_concepts": "Natural role as an adaptive immune system in bacteria. Application as a tool for targeted gene editing using gRNA.",
+        "exam_style_guidelines": "Describe the components (Cas9 enzyme and guide RNA) and the process of locating and cutting DNA.",
+        "anti_prompts": ["Avoid over-complicating the PAM sequence; focus on the gRNA targeting."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "PCR and Gel Electrophoresis",
+      "technique_notes": {
+        "core_concepts": "PCR: denaturation, annealing, extension. Gel: sorting fragments by size using charge and a porous matrix.",
+        "exam_style_guidelines": "Interpret gel runs for DNA profiling or genetic screening. Explain the role of Taq polymerase.",
+        "anti_prompts": ["Ensure students understand that smaller fragments move further/faster in the gel."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Recombinant Plasmids and Bacterial Transformation",
+      "technique_notes": {
+        "core_concepts": "Plasmids as vectors. Transformation process. Use of antibiotic resistance genes for selection.",
+        "exam_style_guidelines": "Describe the steps to produce human insulin using transformed bacteria.",
+        "anti_prompts": ["Do not forget to mention the role of the heat shock or electroporation step."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "GMOs and Transgenic Organisms",
+      "technique_notes": {
+        "core_concepts": "Difference between GMOs and transgenic organisms. Applications in agriculture (productivity, disease resistance).",
+        "exam_style_guidelines": "Evaluate the biological, social, and ethical implications of using GMs in food production.",
+        "anti_prompts": ["Ensure distinction between 'genetically modified' (general) and 'transgenic' (genes from different species)."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Enzymes and Coenzymes",
+      "technique_notes": {
+        "core_concepts": "Enzymes as biological catalysts. Active site and substrate specificity. Role of coenzymes (ATP, NADH, NADPH) as cycling carriers.",
+        "exam_style_guidelines": "Explain the cycling of coenzymes between loaded and unloaded states in biochemical pathways.",
+        "anti_prompts": ["Avoid confusing coenzymes with inorganic cofactors."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Factors Affecting Enzyme Function",
+      "technique_notes": {
+        "core_concepts": "Temperature, pH, substrate/enzyme concentration. Competitive and non-competitive inhibitors.",
+        "exam_style_guidelines": "Interpret graphs of enzyme activity. Explain denaturation at high temps/extreme pH. Distinguish between inhibitor types.",
+        "anti_prompts": ["Ensure students explain the *mechanism* of inhibition (e.g., binding to active site vs allosteric site)."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Photosynthesis: Light Dependent Stage",
+      "technique_notes": {
+        "core_concepts": "Location: thylakoid membranes. Inputs: water, light, NADP+, ADP+Pi. Outputs: oxygen, NADPH, ATP.",
+        "exam_style_guidelines": "Focus on the photolysis of water and the role of chlorophyll in trapping light energy.",
+        "anti_prompts": ["Do not require the names of specific photosystems or electron carriers."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Photosynthesis: Light Independent Stage",
+      "technique_notes": {
+        "core_concepts": "Location: stroma. Inputs: CO2, NADPH, ATP. Outputs: glucose, NADP+, ADP+Pi, water.",
+        "exam_style_guidelines": "Explain how the products of the first stage are used to fix carbon into organic molecules.",
+        "anti_prompts": ["Details of the Calvin Cycle intermediates are not required."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Rubisco and C3, C4, CAM Adaptations",
+      "technique_notes": {
+        "core_concepts": "The role of Rubisco in carbon fixation. The problem of photorespiration. Adaptations to maximize efficiency.",
+        "exam_style_guidelines": "Compare how C4 and CAM plants minimize photorespiration through spatial or temporal separation of CO2 fixation.",
+        "anti_prompts": ["Avoid overly detailed biochemical differences; focus on the ecological advantage."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Cellular Respiration: Glycolysis",
+      "technique_notes": {
+        "core_concepts": "Location: cytosol. Inputs: glucose, NAD+, ADP+Pi. Outputs: pyruvate, NADH, 2 ATP.",
+        "exam_style_guidelines": "Explain that glycolysis occurs in both aerobic and anaerobic pathways.",
+        "anti_prompts": ["Details of the 10 enzyme-catalyzed steps are not required."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Aerobic Respiration: Krebs Cycle and ETC",
+      "technique_notes": {
+        "core_concepts": "Krebs: matrix, produces CO2, NADH, FADH2, 2 ATP. ETC: cristae, produces water and ~26-28 ATP using oxygen as terminal acceptor.",
+        "exam_style_guidelines": "Link the high ATP yield of aerobic respiration to the role of oxygen and the structure of the mitochondria.",
+        "anti_prompts": ["Intermediate steps of Krebs are out of scope."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Anaerobic Fermentation",
+      "technique_notes": {
+        "core_concepts": "Location: cytosol. Differences in outputs between animals (lactic acid) and yeasts (ethanol + CO2).",
+        "exam_style_guidelines": "Explain the purpose of fermentation: to regenerate NAD+ so glycolysis can continue.",
+        "anti_prompts": ["Ensure students note the significantly lower ATP yield compared to aerobic respiration."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Biotechnology: Biofuels and Crop Yields",
+      "technique_notes": {
+        "core_concepts": "Use of CRISPR-Cas9 to improve photosynthetic efficiency. Anaerobic fermentation of biomass for biofuel production.",
+        "exam_style_guidelines": "Evaluate how these biotechnologies address global challenges like food security and sustainable energy.",
+        "anti_prompts": ["Avoid generic sustainability answers; link to the specific biological pathway."]
+      },
+      "group": "unit3-How-do-cells-maintain-life?"
+    },
+    {
+      "name": "Physical and Chemical Barriers in Plants and Animals",
+      "technique_notes": {
+        "core_concepts": "Innate immunity: first line of defense. Barriers like skin, mucus, stomach acid (animals) and waxy cuticles, galls (plants).",
+        "exam_style_guidelines": "Categorise barriers as physical, chemical, or microbiota.",
+        "anti_prompts": ["Do not forget that plants also have an active innate response (though barriers are the focus here)."]
       },
       "group": "unit4-How-do-organisms-maintain-health?"
     },
     {
-      "name": "How are species related over time?",
+      "name": "The Innate Immune Response in Animals",
       "technique_notes": {
-        "core_concepts": "Changes in allele frequencies (natural selection, gene flow, genetic drift). Speciation (allopatric, sympatric). Evidence for evolution (fossil record, molecular homology). Hominin evolution (trends in skull anatomy, tool use, bipedalism).",
-        "exam_style_guidelines": "Require students to apply the 4-step natural selection model (variation, selection pressure, differential survival, inheritance). Use phylogenetic trees for interpreting relatedness.",
-        "anti_prompts": [
-          "Do not use Lamarckian explanations (e.g., 'giraffes stretched their necks so they got longer')",
-          "Avoid confusing 'hominid' with 'hominin'"
-        ],
-        "tech_free_rules": "Interpret simple phylogenetic trees and fossil succession scenarios.",
-        "tech_active_rules": "Analyze DNA sequence alignment data to determine the time since divergence for different species."
-      },
-      "complexity_levers": {
-        "easy": "Identify a selection pressure in a given evolutionary scenario.",
-        "hard": "Explain how allopatric speciation could occur in a population separated by a newly formed mountain range.",
-        "extreme": "Critically analyze the evidence for the 'Out of Africa' hypothesis vs the 'Multiregional' hypothesis using both fossil and DNA evidence."
+        "core_concepts": "Non-specific response. Role of phagocytes, NK cells, mast cells (histamine), and the inflammatory response.",
+        "exam_style_guidelines": "Describe the steps of the inflammatory response and the role of complement proteins and interferons.",
+        "anti_prompts": ["Do not confuse the roles of different leukocytes."]
       },
       "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Antigens and MHC Markers",
+      "technique_notes": {
+        "core_concepts": "Self vs non-self. MHC I (all nucleated cells) and MHC II (antigen-presenting cells) markers.",
+        "exam_style_guidelines": "Explain how the immune system distinguishes between host cells and pathogens. Define allergens as a type of antigen.",
+        "anti_prompts": ["Ensure students understand that MHC markers are proteins."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Adaptive Immunity: Humoral Response",
+      "technique_notes": {
+        "core_concepts": "B cells, plasma cells, and antibodies. Memory B cells for long-term immunity.",
+        "exam_style_guidelines": "Explain the process of clonal selection and expansion. Describe antibody structure and function (neutralisation, opsonisation).",
+        "anti_prompts": ["Do not confuse antibodies with antigens."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Adaptive Immunity: Cell-Mediated Response",
+      "technique_notes": {
+        "core_concepts": "Antigen-presenting cells (dendritic cells). T helper cells and Cytotoxic T cells. Memory T cells.",
+        "exam_style_guidelines": "Describe how Tc cells identify and destroy infected or abnormal cells. Explain the role of Th cells in coordinating the response.",
+        "anti_prompts": ["Ensure students distinguish between the roles of B cells and T cells."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "The Lymphatic System",
+      "technique_notes": {
+        "core_concepts": "Role in transporting APCs and lymphocytes. Primary (bone marrow, thymus) and secondary (lymph nodes, spleen) lymphoid tissues.",
+        "exam_style_guidelines": "Explain how the lymphatic system facilitates the adaptive immune response by bringing antigens to lymph nodes.",
+        "anti_prompts": ["Do not overlook the role of the lymphatic system in drainage and transport."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Acquired Immunity and Vaccinations",
+      "technique_notes": {
+        "core_concepts": "Natural vs artificial, active vs passive immunity. The role of booster shots.",
+        "exam_style_guidelines": "Explain how vaccines induce a primary immune response to create memory cells. Compare with passive treatments like antivenoms.",
+        "anti_prompts": ["Ensure clear distinction between active and passive acquired immunity."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Herd Immunity and Disease Spread",
+      "technique_notes": {
+        "core_concepts": "Concept of herd immunity and the required vaccination threshold. Pathogens: viruses, bacteria, fungi, protozoa, prions.",
+        "exam_style_guidelines": "Analyze the impact of varying vaccination rates on population protection. Distinguish between epidemic and pandemic.",
+        "anti_prompts": ["Do not imply that herd immunity protects individuals; it protects the population."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Immunotherapies: Monoclonal Antibodies",
+      "technique_notes": {
+        "core_concepts": "Production of mAbs. Application in treating cancer (targeted delivery, blocking signals) and autoimmune diseases.",
+        "exam_style_guidelines": "Explain the mechanism of action for a specific mAb application. Evaluate the ethical considerations.",
+        "anti_prompts": ["Ensure students know that mAbs are specific to a single antigen."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Changes in Allele Frequencies",
+      "technique_notes": {
+        "core_concepts": "Natural selection, gene flow, genetic drift (bottleneck and founder effects). Mutations as the source of new alleles.",
+        "exam_style_guidelines": "Apply the 4-step natural selection model to a scenario. Explain how drift reduces genetic diversity in small populations.",
+        "anti_prompts": ["Avoid Lamarckian language; use 'selection pressure' and 'selective advantage'."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Speciation: Allopatric and Sympatric",
+      "technique_notes": {
+        "core_concepts": "Isolation mechanisms (pre-zygotic and post-zygotic). Role of geographical and reproductive barriers.",
+        "exam_style_guidelines": "Describe the process of speciation following the isolation of populations. Use examples like Galápagos finches or Howea palms.",
+        "anti_prompts": ["Ensure students mention the lack of gene flow between populations."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Evidence for Evolution: Fossils",
+      "technique_notes": {
+        "core_concepts": "Fossil record, transitional fossils. Relative dating (stratigraphy, index fossils) and absolute dating (radiometric).",
+        "exam_style_guidelines": "Explain the conditions required for fossilisation. Compare dating methods and their limitations.",
+        "anti_prompts": ["Ensure students know that radiometric dating is for the surrounding rock, not usually the fossil itself."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Evidence for Evolution: Molecular Homology",
+      "technique_notes": {
+        "core_concepts": "DNA and amino acid sequence comparisons. Conserved genes (e.g., cytochrome c). Molecular clocks.",
+        "exam_style_guidelines": "Use sequence alignment data to determine the time since divergence and construct phylogenetic trees.",
+        "anti_prompts": ["Do not confuse molecular homology with structural homology."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Phylogenetic Trees",
+      "technique_notes": {
+        "core_concepts": "Interpreting relationships from trees. Identifying common ancestors, nodes, and branches.",
+        "exam_style_guidelines": "Determine the most closely related species based on the branching pattern. Explain the impact of new data on tree structure.",
+        "anti_prompts": ["Do not assume that species at the 'tips' are direct ancestors of each other."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Hominin Evolution: Human Lineage",
+      "technique_notes": {
+        "core_concepts": "Trends in skull anatomy (brain size, brow ridges, teeth). Transition to bipedalism. Significant species (Australopithecus, H. habilis, H. erectus, H. neanderthalensis).",
+        "exam_style_guidelines": "Identify trends in the hominin fossil record. Compare structural features of early and modern hominins.",
+        "anti_prompts": ["Ensure distinction between 'hominid' (all great apes) and 'hominin' (human lineage)."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Hominin Evolution: Cultural and Technological",
+      "technique_notes": {
+        "core_concepts": "Tool use, fire, and symbolic art. Impact on diet and social structure. Interbreeding between Homo sapiens, Neanderthals, and Denisovans.",
+        "exam_style_guidelines": "Explain how technological advancements influenced biological evolution (e.g., fire and smaller jaw/teeth). Evaluate evidence for interbreeding.",
+        "anti_prompts": ["Avoid stating that evolution is a linear progress; it's a branching bush."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Human Impact on Evolution",
+      "technique_notes": {
+        "core_concepts": "Selective breeding (artificial selection). Impact on genetic diversity and health of populations.",
+        "exam_style_guidelines": "Compare natural selection with artificial selection. Discuss the ethics and biological consequences of intensive selective breeding.",
+        "anti_prompts": ["Ensure students note that humans are the selection pressure in artificial selection."]
+      },
+      "group": "unit4-How-do-organisms-maintain-health?"
+    },
+    {
+      "name": "Scientific Investigations: Design",
+      "technique_notes": {
+        "core_concepts": "Independent, dependent, and controlled variables. Hypotheses and research questions.",
+        "exam_style_guidelines": "Identify variables in a given scenario. Evaluate the validity of an experimental design based on the control of variables.",
+        "anti_prompts": ["Ensure students distinguish between the control group and controlled variables."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
+    },
+    {
+      "name": "Scientific Investigations: Data and Error",
+      "technique_notes": {
+        "core_concepts": "Qualitative vs quantitative data. Accuracy, precision, repeatability, and reproducibility. Random and systematic errors.",
+        "exam_style_guidelines": "Identify sources of error in an experiment and suggest improvements. Distinguish between outliers and uncertainties.",
+        "anti_prompts": ["Do not confuse accuracy with precision."]
+      },
+      "group": "unit1-How-do-organisms-regulate-their-functions?"
     }
   ]
 }
