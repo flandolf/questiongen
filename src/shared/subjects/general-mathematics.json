@@ -1,10 +1,7 @@
 {
   "name": "General Mathematics",
   "icon": "Calculator",
-  "examPdfs": [
-    "2025-GeneralMaths1.pdf",
-    "2025-GeneralMaths2.pdf"
-  ],
+  "examPdfs": ["2025-GeneralMaths1.pdf", "2025-GeneralMaths2.pdf"],
   "reportPdfs": [
     "2025-GeneralMaths1-Report.pdf",
     "2025-GeneralMaths2-Report.pdf"
@@ -149,9 +146,7 @@
       "technique_notes": {
         "core_concepts": "Common ratio $R$. Recurrence relation $u_{n+1} = R u_n$. Explicit rule $u_n = u_0 R^n$.",
         "exam_style_guidelines": "Identify growth ($R > 1$) vs decay ($0 < R < 1$). Relate to compound interest.",
-        "anti_prompts": [
-          "Do not use negative ratios for growth/decay models."
-        ],
+        "anti_prompts": ["Do not use negative ratios for growth/decay models."],
         "tech_free_rules": "Generate terms for simple ratios like 2 or 0.5.",
         "tech_active_rules": "Investigate long-term behavior (approaching zero vs infinity)."
       },
@@ -241,9 +236,7 @@
       "technique_notes": {
         "core_concepts": "Solve $ax+by=c$ and $dx+ey=f$. Intersection represents the point where both conditions are met.",
         "exam_style_guidelines": "Break-even point: Revenue = Cost ($R=C$). Interpret the point of intersection in context.",
-        "anti_prompts": [
-          "Do not assume a solution exists for parallel lines."
-        ],
+        "anti_prompts": ["Do not assume a solution exists for parallel lines."],
         "tech_free_rules": "Solve small systems using substitution or elimination.",
         "tech_active_rules": "Use the `solve` or matrix functionality on CAS for larger coefficients."
       },
@@ -281,9 +274,7 @@
       "technique_notes": {
         "core_concepts": "Perform operations element-wise. Addition/Subtraction requires identical order.",
         "exam_style_guidelines": "Scalar multiplication scales every element. Interpret the resulting matrix in context.",
-        "anti_prompts": [
-          "Do not add matrices of different orders."
-        ],
+        "anti_prompts": ["Do not add matrices of different orders."],
         "tech_free_rules": "Perform basic arithmetic on $2 \\times 2$ matrices.",
         "tech_active_rules": "Use matrices to combine multiple datasets (e.g., inventory across months)."
       },
@@ -388,9 +379,7 @@
       "technique_notes": {
         "core_concepts": "Interpolation: prediction within the range of data. Extrapolation: prediction outside the range.",
         "exam_style_guidelines": "State that extrapolation is generally less reliable because the trend may not continue.",
-        "anti_prompts": [
-          "Do not treat extrapolation results as certainties."
-        ],
+        "anti_prompts": ["Do not treat extrapolation results as certainties."],
         "tech_free_rules": "Use a graph or equation to predict a value within the data range.",
         "tech_active_rules": "Identify the data range on CAS before making predictions."
       },
@@ -440,9 +429,7 @@
       "technique_notes": {
         "core_concepts": "Walk: any sequence of edges. Trail: no edges repeated. Path: no vertices repeated. Cycle: path ending at start. Circuit: trail ending at start.",
         "exam_style_guidelines": "Distinguish between these based on the repetition rules for vertices and edges.",
-        "anti_prompts": [
-          "Do not use 'path' and 'trail' interchangeably."
-        ],
+        "anti_prompts": ["Do not use 'path' and 'trail' interchangeably."],
         "tech_free_rules": "Identify a specific path or cycle in a provided network.",
         "tech_active_rules": "Analyze connectivity in large social networks."
       },
@@ -690,9 +677,7 @@
       "technique_notes": {
         "core_concepts": "Data collected over time. Identify: Trend (long-term up/down), Seasonality (repeating pattern within a year), Cycles (longer term patterns), Irregularity.",
         "exam_style_guidelines": "Include `chartData` for time series. Describe the overall direction and any obvious peaks/troughs.",
-        "anti_prompts": [
-          "Do not confuse seasonality with cycles."
-        ],
+        "anti_prompts": ["Do not confuse seasonality with cycles."],
         "tech_free_rules": "Qualitatively describe the features of a time series plot.",
         "tech_active_rules": "Plot time series and identify outliers."
       },
@@ -847,9 +832,7 @@
       "technique_notes": {
         "core_concepts": "Order, element identification ($a_{ij}$), powers ($A^n$), determinant, and inverse.",
         "exam_style_guidelines": "Verify order compatibility before adding or multiplying. Use $I$ for identity properties ($AI=IA=A$).",
-        "anti_prompts": [
-          "Do not use matrix division."
-        ],
+        "anti_prompts": ["Do not use matrix division."],
         "tech_free_rules": "Calculate $2 \\times 2$ determinants and inverses.",
         "tech_active_rules": "Find large powers of square matrices."
       },
@@ -899,9 +882,7 @@
       "technique_notes": {
         "core_concepts": "$S_{n+1} = T S_n + B$ where $B$ is a constant column matrix representing additions/removals.",
         "exam_style_guidelines": "Used for population models with immigration/emigration or restocking.",
-        "anti_prompts": [
-          "Do not forget to add $B$ at each iteration."
-        ],
+        "anti_prompts": ["Do not forget to add $B$ at each iteration."],
         "tech_free_rules": "Calculate $S_1$ and $S_2$ manually.",
         "tech_active_rules": "Determine if a population will stabilize or crash over time."
       },
@@ -912,9 +893,7 @@
       "technique_notes": {
         "core_concepts": "Special transition matrix for age-structured populations. Top row: birth rates. Sub-diagonal: survival rates.",
         "exam_style_guidelines": "Interpret the elements $f_i$ (fecundity) and $s_i$ (survival probability).",
-        "anti_prompts": [
-          "Do not put survival rates on the main diagonal."
-        ],
+        "anti_prompts": ["Do not put survival rates on the main diagonal."],
         "tech_free_rules": "Calculate the number of newborns in the next generation.",
         "tech_active_rules": "Analyze the growth rate of a population over several generations."
       },
@@ -938,9 +917,7 @@
       "technique_notes": {
         "core_concepts": "Path/Cycle that visits every *vertex* exactly once. Cycle ends at start.",
         "exam_style_guidelines": "No simple degree-based rule like Euler. Found by inspection.",
-        "anti_prompts": [
-          "Do not use every edge; just every vertex."
-        ],
+        "anti_prompts": ["Do not use every edge; just every vertex."],
         "tech_free_rules": "Identify a Hamiltonian cycle in a provided graph.",
         "tech_active_rules": "Solve the Traveling Salesman Problem for small networks."
       },
@@ -977,9 +954,7 @@
       "technique_notes": {
         "core_concepts": "Vertices partitioned into two sets. Edges only connect different sets. Used for tasks and people.",
         "exam_style_guidelines": "Draw a bipartite graph to show all possible assignments.",
-        "anti_prompts": [
-          "Do not connect vertices within the same set."
-        ],
+        "anti_prompts": ["Do not connect vertices within the same set."],
         "tech_free_rules": "Solve a simple 1-to-1 matching problem by inspection.",
         "tech_active_rules": "Analyze optimal task allocation."
       },
@@ -1016,9 +991,7 @@
       "technique_notes": {
         "core_concepts": "EST (Earliest Start Time) from start node using max path. LST (Latest Start Time) from end node using min path.",
         "exam_style_guidelines": "Forward scan: take the largest value at merging nodes. Backward scan: take the smallest value.",
-        "anti_prompts": [
-          "Do not confuse EST with EFT (Earliest Finish Time)."
-        ],
+        "anti_prompts": ["Do not confuse EST with EFT (Earliest Finish Time)."],
         "tech_free_rules": "Perform scans and label each node with [EST, LST].",
         "tech_active_rules": "N/A"
       },

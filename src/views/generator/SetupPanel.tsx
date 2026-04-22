@@ -21,6 +21,13 @@ import { useAppSettings } from '@/AppContext';
 import { PageHeader } from '@/components/layout/primitives';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import {
   Tooltip,
@@ -45,6 +52,7 @@ import {
   type Topic,
 } from '@/types';
 
+import { PRESET_MODELS } from '../settings/constants';
 import { AdvancedOptionsGroup } from './AdvancedOptions';
 import {
   BatchTimeline,
@@ -244,7 +252,7 @@ function SetupPanelImpl({
   generationStrategy = 'single-pass',
 }: SetupPanelProps) {
   const navigate = useNavigate();
-  const { apiKey, model } = useAppSettings();
+  const { apiKey, model, setModel } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(
     null,
@@ -279,6 +287,17 @@ function SetupPanelImpl({
   const activeDifficulty = normalizeDifficulty(difficulty);
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
   const showBatchTimeline = batchProgress.length > 1;
+
+  const displayModels = useMemo(() => {
+    const known = PRESET_MODELS.filter((m) => m.id !== 'custom');
+    if (model && model !== 'custom' && !known.some((m) => m.id === model)) {
+      return [
+        ...known,
+        { id: model, name: model.split('/').slice(1).join('/') || model },
+      ];
+    }
+    return known;
+  }, [model]);
 
   const flatSelectedSubtopics = useMemo(
     () =>
@@ -825,6 +844,24 @@ function SetupPanelImpl({
 
               {/* Actions */}
               <div className='flex items-center gap-3'>
+                <div className='hidden sm:flex items-center gap-2 mr-2'>
+                  <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 whitespace-nowrap'>
+                    Model
+                  </span>
+                  <Select value={model} onValueChange={setModel}>
+                    <SelectTrigger className='h-9 w-44 text-xs bg-muted/20 border-border/40 hover:bg-muted/30 transition-colors shadow-none focus:ring-0'>
+                      <SelectValue placeholder='Select model' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {displayModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className='text-xs'>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <Button
                   variant='ghost'
                   size='sm'

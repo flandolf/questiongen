@@ -28,7 +28,9 @@
       "technique_notes": {
         "core_concepts": "Protons, neutrons, electrons. Subshell notation ($1s, 2s, 2p, 3s, 3p, 4s, 3d$). Chromium and Copper exceptions.",
         "exam_style_guidelines": "Require full subshell configurations. Explain energy levels and filling rules (Aufbau, Pauli, Hund).",
-        "anti_prompts": ["Avoid Bohr model diagrams unless used for comparison."]
+        "anti_prompts": [
+          "Avoid Bohr model diagrams unless used for comparison."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -37,7 +39,9 @@
       "technique_notes": {
         "core_concepts": "Core charge as effective nuclear pull. Trend across periods (increases) and down groups (constant). Atomic radius trends.",
         "exam_style_guidelines": "Explain trends using the relationship between core charge and shell number.",
-        "anti_prompts": ["Do not say 'shells' when you mean 'subshells' or vice versa."]
+        "anti_prompts": [
+          "Do not say 'shells' when you mean 'subshells' or vice versa."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -55,7 +59,9 @@
       "technique_notes": {
         "core_concepts": "Cations in a sea of delocalised electrons. Lattice structure.",
         "exam_style_guidelines": "Explain properties (conductivity, malleability) using the metallic bonding model.",
-        "anti_prompts": ["Ensure students state that electrons are delocalised, not just 'moving'."]
+        "anti_prompts": [
+          "Ensure students state that electrons are delocalised, not just 'moving'."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -64,7 +70,9 @@
       "technique_notes": {
         "core_concepts": "Electrostatic attraction between cations and anions. Crystal lattice structure.",
         "exam_style_guidelines": "Explain brittleness and high melting points using the ionic model. Include full ionic equations for formation.",
-        "anti_prompts": ["Do not confuse ionic bonds with intermolecular forces."]
+        "anti_prompts": [
+          "Do not confuse ionic bonds with intermolecular forces."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -73,7 +81,9 @@
       "technique_notes": {
         "core_concepts": "Sharing of electron pairs. Single, double, and triple bonds. Non-bonding pairs (lone pairs).",
         "exam_style_guidelines": "Require drawing of electron-dot diagrams and valence structures. Ensure the octet rule is followed (except H).",
-        "anti_prompts": ["Avoid molecules that violate the octet rule unless specified (e.g. $BF_3$)."]
+        "anti_prompts": [
+          "Avoid molecules that violate the octet rule unless specified (e.g. $BF_3$)."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -82,7 +92,9 @@
       "technique_notes": {
         "core_concepts": "Repulsion between electron pairs. Shapes: linear, V-shaped, pyramidal, tetrahedral.",
         "exam_style_guidelines": "Predict shape based on the number of bonding and non-bonding pairs around the central atom.",
-        "anti_prompts": ["Distinguish between electron geometry and molecular shape."]
+        "anti_prompts": [
+          "Distinguish between electron geometry and molecular shape."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -91,7 +103,9 @@
       "technique_notes": {
         "core_concepts": "Dispersion forces, dipole-dipole attraction, and hydrogen bonding.",
         "exam_style_guidelines": "Link the strength of these forces to the boiling/melting points of molecular substances.",
-        "anti_prompts": ["Do not imply that intermolecular forces are stronger than covalent bonds."]
+        "anti_prompts": [
+          "Do not imply that intermolecular forces are stronger than covalent bonds."
+        ]
       },
       "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
     },
@@ -109,7 +123,9 @@
       "technique_notes": {
         "core_concepts": "Monomers and polymers. Addition polymerisation. Properties of polymers (thermoplastic vs thermosetting).",
         "exam_style_guidelines": "Evaluate the environmental impact of polymer use and the move towards biodegradable polymers.",
-        "anti_prompts": ["Ensure students know the difference between cross-links and intermolecular forces."]
+        "anti_prompts": [
+          "Ensure students know the difference between cross-links and intermolecular forces."
+        ]
       },
       "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
     },
@@ -118,7 +134,9 @@
       "technique_notes": {
         "core_concepts": "Endangered elements (e.g., He, In, Li). Linear vs circular economy models.",
         "exam_style_guidelines": "Evaluate strategies for recycling and reducing reliance on critical elements in modern technology.",
-        "anti_prompts": ["Avoid generic 'recycling is good' answers; reference specific chemical properties."]
+        "anti_prompts": [
+          "Avoid generic 'recycling is good' answers; reference specific chemical properties."
+        ]
       },
       "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
     },
@@ -127,7 +145,9 @@
       "technique_notes": {
         "core_concepts": "The 12 principles, focusing on atom economy and waste prevention.",
         "exam_style_guidelines": "Calculate atom economy for a given reaction. Suggest how a reaction could be made 'greener'.",
-        "anti_prompts": ["Do not require listing all 12 principles from memory."]
+        "anti_prompts": [
+          "Do not require listing all 12 principles from memory."
+        ]
       },
       "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
     },
@@ -136,7 +156,9 @@
       "technique_notes": {
         "core_concepts": "Defining the mole. $N_A = 6.02 \\times 10^{23} \\text{ mol}^{-1}$. Relationship $n = N/N_A$.",
         "exam_style_guidelines": "Solve problems converting between number of particles and moles. Use correct units.",
-        "anti_prompts": ["Avoid confusion between atoms and molecules in calculations."]
+        "anti_prompts": [
+          "Avoid confusion between atoms and molecules in calculations."
+        ]
       },
       "group": "unit1-How-are-materials-quantified-and-classified?"
     },
@@ -145,7 +167,9 @@
       "technique_notes": {
         "core_concepts": "Calculating $M$. Relationship $n = m/M$. Stoichiometric ratios in balanced equations.",
         "exam_style_guidelines": "Solve mass-mass stoichiometry problems. Always check the limiting reagent.",
-        "anti_prompts": ["Ensure significant figures are handled correctly throughout."]
+        "anti_prompts": [
+          "Ensure significant figures are handled correctly throughout."
+        ]
       },
       "group": "unit1-How-are-materials-quantified-and-classified?"
     },
@@ -172,7 +196,9 @@
       "technique_notes": {
         "core_concepts": "Hydrogen bonding. Anomalous density of ice. High surface tension.",
         "exam_style_guidelines": "Explain the significance of H-bonding in determining water's unique physical properties.",
-        "anti_prompts": ["Avoid saying 'water has strong bonds' without specifying intermolecular forces."]
+        "anti_prompts": [
+          "Avoid saying 'water has strong bonds' without specifying intermolecular forces."
+        ]
       },
       "group": "unit2-How-do-chemicals-interact-with-water?"
     },
@@ -181,7 +207,9 @@
       "technique_notes": {
         "core_concepts": "$q = mc\\Delta T$. Latent heat of fusion and vaporisation.",
         "exam_style_guidelines": "Calculate energy changes during heating and phase changes of water. Link to climate regulation.",
-        "anti_prompts": ["Ensure units of $c$ ($J \\text{ g}^{-1} \\text{ K}^{-1}$) match the mass units."]
+        "anti_prompts": [
+          "Ensure units of $c$ ($J \\text{ g}^{-1} \\text{ K}^{-1}$) match the mass units."
+        ]
       },
       "group": "unit2-How-do-chemicals-interact-with-water?"
     },
@@ -190,7 +218,9 @@
       "technique_notes": {
         "core_concepts": "Solubility rules. Full and net ionic equations. Spectator ions.",
         "exam_style_guidelines": "Predict the formation of a precipitate. Write balanced net ionic equations with states.",
-        "anti_prompts": ["Do not include spectator ions in net ionic equations."]
+        "anti_prompts": [
+          "Do not include spectator ions in net ionic equations."
+        ]
       },
       "group": "unit2-How-do-chemicals-interact-with-water?"
     },
@@ -217,7 +247,9 @@
       "technique_notes": {
         "core_concepts": "Ideal gas law $PV=nRT$. Molar volume at SLC ($24.8 \\text{ L mol}^{-1}$).",
         "exam_style_guidelines": "Calculate gas volumes in stoichiometric problems. Convert between units (kPa, atm, L, m3).",
-        "anti_prompts": ["Use $R=8.31 \\text{ J mol}^{-1} \\text{ K}^{-1}$ with appropriate units."]
+        "anti_prompts": [
+          "Use $R=8.31 \\text{ J mol}^{-1} \\text{ K}^{-1}$ with appropriate units."
+        ]
       },
       "group": "unit2-How-are-chemicals-measured-and-analysed?"
     },
@@ -226,7 +258,9 @@
       "technique_notes": {
         "core_concepts": "Rules for assigning oxidation numbers. Identifying oxidant and reductant.",
         "exam_style_guidelines": "Use O.N. to determine if a redox reaction has occurred. Justify identification of species being oxidised/reduced.",
-        "anti_prompts": ["Oxidation number of an element in its standard state is 0."]
+        "anti_prompts": [
+          "Oxidation number of an element in its standard state is 0."
+        ]
       },
       "group": "unit2-How-are-chemicals-measured-and-analysed?"
     },
@@ -244,7 +278,9 @@
       "technique_notes": {
         "core_concepts": "Standard solutions, primary standards. Pipettes, burettes, and flasks. End point vs Equivalence point.",
         "exam_style_guidelines": "Describe the steps to perform a titration. Identify sources of error (e.g., rinsing technique).",
-        "anti_prompts": ["Do not rinse the volumetric flask with the solution; use deionised water."]
+        "anti_prompts": [
+          "Do not rinse the volumetric flask with the solution; use deionised water."
+        ]
       },
       "group": "unit2-How-are-chemicals-measured-and-analysed?"
     },
@@ -262,7 +298,9 @@
       "technique_notes": {
         "core_concepts": "Coal, natural gas, LPG. Bioethanol, biogas, biodiesel. Carbon neutrality.",
         "exam_style_guidelines": "Compare fuels based on renewability and environmental impact. Explain the production of biofuels.",
-        "anti_prompts": ["Avoid generic 'biofuels are better' answers; use chemical reasoning."]
+        "anti_prompts": [
+          "Avoid generic 'biofuels are better' answers; use chemical reasoning."
+        ]
       },
       "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
     },
@@ -271,7 +309,9 @@
       "technique_notes": {
         "core_concepts": "Complete vs incomplete combustion. $\\\\Delta H$ notation. Exothermic vs Endothermic.",
         "exam_style_guidelines": "Write balanced thermochemical equations with states. Relate $\\\\Delta H$ to the energy per mole/gram.",
-        "anti_prompts": ["Ensure the sign of $\\\\Delta H$ matches the reaction type (negative for exo)."]
+        "anti_prompts": [
+          "Ensure the sign of $\\\\Delta H$ matches the reaction type (negative for exo)."
+        ]
       },
       "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
     },
@@ -280,7 +320,9 @@
       "technique_notes": {
         "core_concepts": "$q = mc\\\\Delta T$. Solution vs bomb calorimetry. Calibration factor (CF).",
         "exam_style_guidelines": "Calculate CF using electrical or chemical calibration. Use CF to find the enthalpy of reaction from temperature change.",
-        "anti_prompts": ["Do not forget to account for heat loss if the graph is provided (extrapolation)."]
+        "anti_prompts": [
+          "Do not forget to account for heat loss if the graph is provided (extrapolation)."
+        ]
       },
       "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
     },
@@ -289,7 +331,9 @@
       "technique_notes": {
         "core_concepts": "Converting chemical to electrical energy. Anode (-), Cathode (+), Salt bridge. Cell potential ($E^0_{cell}$).",
         "exam_style_guidelines": "Draw and label a standard galvanic cell. Predict electron and ion flow. Calculate cell voltage.",
-        "anti_prompts": ["Electrons flow from anode to cathode through the external circuit."]
+        "anti_prompts": [
+          "Electrons flow from anode to cathode through the external circuit."
+        ]
       },
       "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
     },
@@ -307,7 +351,9 @@
       "technique_notes": {
         "core_concepts": "Activation energy ($E_a$). Frequency and success of collisions. Maxwell-Boltzmann distribution.",
         "exam_style_guidelines": "Explain how temperature, concentration, and surface area affect rate using collision theory.",
-        "anti_prompts": ["Increasing temperature increases *both* frequency and the proportion of successful collisions."]
+        "anti_prompts": [
+          "Increasing temperature increases *both* frequency and the proportion of successful collisions."
+        ]
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
@@ -316,7 +362,9 @@
       "technique_notes": {
         "core_concepts": "Alternative pathway with lower $E_a$. Homogeneous vs heterogeneous catalysts.",
         "exam_style_guidelines": "Represent catalyst effect on energy profile diagrams. Discuss green chemistry benefits of catalysis.",
-        "anti_prompts": ["Catalysts do not change the $\\\\Delta H$ of a reaction."]
+        "anti_prompts": [
+          "Catalysts do not change the $\\\\Delta H$ of a reaction."
+        ]
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
@@ -325,7 +373,9 @@
       "technique_notes": {
         "core_concepts": "Dynamic equilibrium. Closed systems. Equilibrium constant ($K_c$) and Reaction quotient ($Q$).",
         "exam_style_guidelines": "Write $K_c$ expressions. Use $Q$ to predict the direction of net reaction to reach equilibrium.",
-        "anti_prompts": ["Only species in aqueous or gaseous states appear in $K_c$ expressions."]
+        "anti_prompts": [
+          "Only species in aqueous or gaseous states appear in $K_c$ expressions."
+        ]
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
@@ -334,7 +384,9 @@
       "technique_notes": {
         "core_concepts": "Responding to changes in temperature, concentration, or pressure/volume.",
         "exam_style_guidelines": "Predict the shift in equilibrium position. Represent changes using concentration-time graphs.",
-        "anti_prompts": ["Adding a catalyst or noble gas (at constant volume) does not shift equilibrium."]
+        "anti_prompts": [
+          "Adding a catalyst or noble gas (at constant volume) does not shift equilibrium."
+        ]
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
@@ -343,7 +395,9 @@
       "technique_notes": {
         "core_concepts": "Converting electrical to chemical energy. Non-spontaneous redox. Anode (+), Cathode (-).",
         "exam_style_guidelines": "Predict products for molten and aqueous electrolytes. Consider the role of active electrodes.",
-        "anti_prompts": ["The strongest oxidant reacts at the cathode; the strongest reductant at the anode."]
+        "anti_prompts": [
+          "The strongest oxidant reacts at the cathode; the strongest reductant at the anode."
+        ]
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
@@ -352,7 +406,9 @@
       "technique_notes": {
         "core_concepts": "$Q=It$. $n(e^-) = Q/F$. Faraday's constant ($96500 \\text{ C mol}^{-1}$).",
         "exam_style_guidelines": "Calculate mass of product or time required for electrolysis. Use stoichiometric ratios from half-equations.",
-        "anti_prompts": ["Check if the current is in Amperes and time is in seconds."]
+        "anti_prompts": [
+          "Check if the current is in Amperes and time is in seconds."
+        ]
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
@@ -361,7 +417,9 @@
       "technique_notes": {
         "core_concepts": "Alkanes, alkenes, alkynes. Cyclic hydrocarbons. IUPAC nomenclature.",
         "exam_style_guidelines": "Identify the longest chain. Number to give functional groups the lowest possible locants.",
-        "anti_prompts": ["Avoid naming branched chains with more than 8 carbons."]
+        "anti_prompts": [
+          "Avoid naming branched chains with more than 8 carbons."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
@@ -370,7 +428,9 @@
       "technique_notes": {
         "core_concepts": "Alcohols, carboxylic acids, esters, aldehydes, ketones, amines, amides, haloalkanes.",
         "exam_style_guidelines": "Identify priority for naming when multiple groups are present. Draw skeletal and semi-structural formulas.",
-        "anti_prompts": ["Ensure the suffix matches the highest priority functional group."]
+        "anti_prompts": [
+          "Ensure the suffix matches the highest priority functional group."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
@@ -379,7 +439,9 @@
       "technique_notes": {
         "core_concepts": "Chain, positional, and functional group isomers. Optical isomers (chiral centres).",
         "exam_style_guidelines": "Identify chiral carbons. Draw pairs of enantiomers. Distinguish between cis-trans isomers in alkenes.",
-        "anti_prompts": ["A chiral carbon must have four *different* groups attached."]
+        "anti_prompts": [
+          "A chiral carbon must have four *different* groups attached."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
@@ -388,7 +450,9 @@
       "technique_notes": {
         "core_concepts": "Molecular vibrations. Absorption bands. Fingerprint region.",
         "exam_style_guidelines": "Identify specific functional groups (e.g., $C=O, O-H, N-H$) using Data Book values.",
-        "anti_prompts": ["Distinguish between alcohol $O-H$ and acid $O-H$ bands."]
+        "anti_prompts": [
+          "Distinguish between alcohol $O-H$ and acid $O-H$ bands."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
@@ -397,7 +461,9 @@
       "technique_notes": {
         "core_concepts": "Ionisation and fragmentation. Mass-to-charge ratio ($m/z$). Molecular ion ($M^+$).",
         "exam_style_guidelines": "Use the $M^+$ peak to determine molar mass. Identify simple fragments (e.g., $CH_3, OH, COOH$).",
-        "anti_prompts": ["Fragmentation occurs due to high-energy electron impact."]
+        "anti_prompts": [
+          "Fragmentation occurs due to high-energy electron impact."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
@@ -424,7 +490,9 @@
       "technique_notes": {
         "core_concepts": "Monosaccharides (glucose, fructose). Disaccharides (sucrose). Polysaccharides (starch, cellulose, glycogen).",
         "exam_style_guidelines": "Compare the structure and solubility of different carbohydrates. Write equations for hydrolysis.",
-        "anti_prompts": ["Starch (amylose/amylopectin) vs Cellulose vs Glycogen differences are key."]
+        "anti_prompts": [
+          "Starch (amylose/amylopectin) vs Cellulose vs Glycogen differences are key."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
@@ -433,7 +501,9 @@
       "technique_notes": {
         "core_concepts": "Glycerol and fatty acids. Saturated vs unsaturated. Ester links.",
         "exam_style_guidelines": "Explain the difference in melting points between fats and oils based on chain structure and packing.",
-        "anti_prompts": ["Unsaturated fatty acids have $C=C$ double bonds which cause 'kinks' in the chain."]
+        "anti_prompts": [
+          "Unsaturated fatty acids have $C=C$ double bonds which cause 'kinks' in the chain."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
@@ -451,7 +521,9 @@
       "technique_notes": {
         "core_concepts": "Substitution, addition, oxidation, and esterification reactions.",
         "exam_style_guidelines": "Design multi-step pathways to produce a target organic molecule. Identify reagents and conditions.",
-        "anti_prompts": ["Yield for a pathway is the product of individual step yields."]
+        "anti_prompts": [
+          "Yield for a pathway is the product of individual step yields."
+        ]
       },
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
@@ -460,7 +532,9 @@
       "technique_notes": {
         "core_concepts": "Random vs systematic error. Accuracy, precision, validity, and reliability.",
         "exam_style_guidelines": "Evaluate experimental results. Identify outliers. Suggest improvements to minimise error.",
-        "anti_prompts": ["Repeating an experiment improves reliability and reduces the impact of random error, but does not eliminate systematic error."]
+        "anti_prompts": [
+          "Repeating an experiment improves reliability and reduces the impact of random error, but does not eliminate systematic error."
+        ]
       },
       "group": "unit1-How-are-materials-quantified-and-classified?"
     }

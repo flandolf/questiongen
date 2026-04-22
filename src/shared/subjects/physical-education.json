@@ -36,7 +36,9 @@
       "technique_notes": {
         "core_concepts": "Types: Hinge, Ball and Socket, Pivot, Saddle, Condyloid, Gliding. Movement terms: Flexion, Extension, Abduction, Adduction, Rotation, Circumduction.",
         "exam_style_guidelines": "Identify the joint type and possible planes of movement for specific sport actions (e.g., shoulder in a swim stroke).",
-        "anti_prompts": ["Ensure movement terms are used correctly relative to the anatomical position."]
+        "anti_prompts": [
+          "Ensure movement terms are used correctly relative to the anatomical position."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -45,7 +47,9 @@
       "technique_notes": {
         "core_concepts": "Skeletal, Smooth, and Cardiac muscle. Functions: movement, posture, and heat production.",
         "exam_style_guidelines": "Focus on skeletal muscle and its voluntary control in physical activity.",
-        "anti_prompts": ["Avoid detailed biochemical pathways of contraction in Unit 1."]
+        "anti_prompts": [
+          "Avoid detailed biochemical pathways of contraction in Unit 1."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -54,7 +58,9 @@
       "technique_notes": {
         "core_concepts": "Agonist (prime mover), Antagonist (relaxed), Stabiliser. Reciprocal inhibition.",
         "exam_style_guidelines": "Identify the roles of muscles in a specific phase of movement (e.g., bicep/tricep in a curl).",
-        "anti_prompts": ["Do not forget the role of stabilisers in maintaining form."]
+        "anti_prompts": [
+          "Do not forget the role of stabilisers in maintaining form."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -63,7 +69,9 @@
       "technique_notes": {
         "core_concepts": "Isotonic (Concentric and Eccentric), Isometric (static), and Isokinetic (constant speed).",
         "exam_style_guidelines": "Apply contraction types to phases of an exercise (e.g., lowering a weight is eccentric isotonic).",
-        "anti_prompts": ["Distinguish clearly between concentric and eccentric."]
+        "anti_prompts": [
+          "Distinguish clearly between concentric and eccentric."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -72,7 +80,9 @@
       "technique_notes": {
         "core_concepts": "The motor unit (neuron + fibers). All-or-nothing principle. Motor unit recruitment for force production.",
         "exam_style_guidelines": "Explain how increasing recruitment leads to greater force in sports like weightlifting or sprinting.",
-        "anti_prompts": ["Link recruitment to the size principle where relevant."]
+        "anti_prompts": [
+          "Link recruitment to the size principle where relevant."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -90,7 +100,9 @@
       "technique_notes": {
         "core_concepts": "Nasal cavity, Pharynx, Larynx, Trachea, Bronchi, Alveoli. Diaphragm and Intercostal muscles.",
         "exam_style_guidelines": "Explain the mechanics of inspiration and expiration using pressure changes.",
-        "anti_prompts": ["Ensure students link mechanics to volume/pressure relationships."]
+        "anti_prompts": [
+          "Ensure students link mechanics to volume/pressure relationships."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -99,7 +111,9 @@
       "technique_notes": {
         "core_concepts": "Diffusion of O2 and CO2 across the alveolar-capillary membrane and at the muscle site.",
         "exam_style_guidelines": "Explain the role of concentration gradients (partial pressure) in driving gas exchange.",
-        "anti_prompts": ["Pulmonary diffusion is an acute response *and* a chronic adaptation site."]
+        "anti_prompts": [
+          "Pulmonary diffusion is an acute response *and* a chronic adaptation site."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -108,7 +122,9 @@
       "technique_notes": {
         "core_concepts": "Increased Heart Rate (HR), Stroke Volume (SV), Cardiac Output (Q), and Blood Pressure. Blood redistribution (shunting).",
         "exam_style_guidelines": "Explain how these responses meet the increased oxygen demand of working muscles.",
-        "anti_prompts": ["Submaximal Q remains constant after training, but SV and HR change - don't confuse acute vs chronic here."]
+        "anti_prompts": [
+          "Submaximal Q remains constant after training, but SV and HR change - don't confuse acute vs chronic here."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -117,7 +133,9 @@
       "technique_notes": {
         "core_concepts": "Increased Tidal Volume (TV), Respiratory Frequency (Rf), and Ventilation (V).",
         "exam_style_guidelines": "Describe the change from rest to sub-maximal and maximal exercise intensity.",
-        "anti_prompts": ["Ventilation increases linearly with intensity until the ventilatory threshold."]
+        "anti_prompts": [
+          "Ventilation increases linearly with intensity until the ventilatory threshold."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -126,7 +144,9 @@
       "technique_notes": {
         "core_concepts": "Ethical considerations. Legal (e.g., training, nutrition) vs Illegal (e.g., steroids, EPO). Anti-doping codes (WADA).",
         "exam_style_guidelines": "Evaluate the impact of a specific method on health and fairness using ethical frameworks.",
-        "anti_prompts": ["Do not just list drugs; focus on the ethical justification for banning them."]
+        "anti_prompts": [
+          "Do not just list drugs; focus on the ethical justification for banning them."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -135,7 +155,9 @@
       "technique_notes": {
         "core_concepts": "Differences in structure, rules, and intent. Sedentary behavior vs physical inactivity.",
         "exam_style_guidelines": "Classify activities from scenarios. Use the 4 dimensions (FID) and 4 domains (Leisure, Household, Occupational, Transport).",
-        "anti_prompts": ["Do not use 'exercise' and 'physical activity' interchangeably."]
+        "anti_prompts": [
+          "Do not use 'exercise' and 'physical activity' interchangeably."
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -144,7 +166,9 @@
       "technique_notes": {
         "core_concepts": "Guidelines for different age groups (Youth, Adult, Older Adult). Requirements for duration, intensity, and muscle strengthening.",
         "exam_style_guidelines": "Evaluate a person's physical activity level against the specific age-appropriate guideline.",
-        "anti_prompts": ["Ensure the correct intensity (Moderate vs Vigorous) is identified."]
+        "anti_prompts": [
+          "Ensure the correct intensity (Moderate vs Vigorous) is identified."
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -153,7 +177,9 @@
       "technique_notes": {
         "core_concepts": "Subjective: Diaries, logs, surveys. Objective: Accelerometers, pedometers, heart rate monitors, direct observation.",
         "exam_style_guidelines": "Compare methods based on accuracy, cost, and respondent burden. Select the best method for a specific population.",
-        "anti_prompts": ["Subjective methods are prone to social desirability bias."]
+        "anti_prompts": [
+          "Subjective methods are prone to social desirability bias."
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -162,7 +188,9 @@
       "technique_notes": {
         "core_concepts": "Levels of influence: Individual, Social Environment, Physical Environment, Policy.",
         "exam_style_guidelines": "Identify factors at each level that influence participation in a given scenario. Critique an intervention using the model.",
-        "anti_prompts": ["interventions must target multiple levels to be effective."]
+        "anti_prompts": [
+          "interventions must target multiple levels to be effective."
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -171,7 +199,9 @@
       "technique_notes": {
         "core_concepts": "Demographic, social, cultural, and environmental factors.",
         "exam_style_guidelines": "Analyze how factors like SES, gender, or geographic location act as enablers or barriers.",
-        "anti_prompts": ["Avoid generic barriers; link to the specific context of the population."]
+        "anti_prompts": [
+          "Avoid generic barriers; link to the specific context of the population."
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -198,7 +228,9 @@
       "technique_notes": {
         "core_concepts": "Cognitive, Associative, and Autonomous. Characteristics: error rate, consistency, attentional focus.",
         "exam_style_guidelines": "Identify stage -> justify with evidence -> recommend appropriate coaching strategy (e.g., feedback frequency).",
-        "anti_prompts": ["Avoid recommending feedback types unsuitable for the stage."]
+        "anti_prompts": [
+          "Avoid recommending feedback types unsuitable for the stage."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -207,7 +239,9 @@
       "technique_notes": {
         "core_concepts": "Direct (coach-led) vs Constraint-based (implicit, environmental manipulation). Task, Individual, and Environmental constraints.",
         "exam_style_guidelines": "Evaluate how manipulating a task constraint (e.g., ball size) facilitates the emergence of a specific movement pattern.",
-        "anti_prompts": ["Ensure 'implicit learning' is connected to associative/autonomous stages."]
+        "anti_prompts": [
+          "Ensure 'implicit learning' is connected to associative/autonomous stages."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -216,7 +250,9 @@
       "technique_notes": {
         "core_concepts": "Whole vs part, Massed vs distributed, Blocked vs random. Contextual interference.",
         "exam_style_guidelines": "Analyze trade-offs between performance (blocked) and retention (random). Random practice maximizes transfer to games.",
-        "anti_prompts": ["Do not confuse blocked/random with massed/distributed."]
+        "anti_prompts": [
+          "Do not confuse blocked/random with massed/distributed."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -243,7 +279,9 @@
       "technique_notes": {
         "core_concepts": "Rotation around an axis. Moment of inertia vs Angular velocity. Radius of rotation.",
         "exam_style_guidelines": "Describe how mass distribution changes the rate of rotation (e.g., a diver tucking to spin faster).",
-        "anti_prompts": ["Ensure moment of inertia is linked to the 'radius of rotation'."]
+        "anti_prompts": [
+          "Ensure moment of inertia is linked to the 'radius of rotation'."
+        ]
       },
       "group": "unit3-biomechanics"
     },
@@ -252,7 +290,9 @@
       "technique_notes": {
         "core_concepts": "1st (Inertia), 2nd (Acceleration: $F=ma$), 3rd (Action-Reaction). Ground reaction forces.",
         "exam_style_guidelines": "Apply laws to sport scenarios (e.g., sprinting off blocks). Explain how force manipulation improves performance.",
-        "anti_prompts": ["Avoid generic physics examples; must be sport-specific."]
+        "anti_prompts": [
+          "Avoid generic physics examples; must be sport-specific."
+        ]
       },
       "group": "unit3-biomechanics"
     },
@@ -279,7 +319,9 @@
       "technique_notes": {
         "core_concepts": "1st, 2nd, and 3rd class levers (Axis-Force-Resistance). Mechanical advantage.",
         "exam_style_guidelines": "Identify components in a limb (e.g., bicep curl as 3rd class). Explain how 3rd class levers favor speed and range.",
-        "anti_prompts": ["3rd class levers have a mechanical advantage < 1 (force cost, speed gain)."]
+        "anti_prompts": [
+          "3rd class levers have a mechanical advantage < 1 (force cost, speed gain)."
+        ]
       },
       "group": "unit3-biomechanics"
     },
@@ -297,7 +339,9 @@
       "technique_notes": {
         "core_concepts": "Fuel: PC. Yield: Very low. Rate: Fastest. Duration: 0-10s. Recovery: 3 mins for 100%.",
         "exam_style_guidelines": "Identify dominance in explosive efforts. Recommend 1:10+ work:rest for training.",
-        "anti_prompts": ["Ensure recovery time for PC replenishment is accurate."]
+        "anti_prompts": [
+          "Ensure recovery time for PC replenishment is accurate."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -306,7 +350,9 @@
       "technique_notes": {
         "core_concepts": "Fuel: Glycogen. Yield: Low. Rate: Fast. Duration: 10-60/90s. By-product: H+ ions (fatiguing).",
         "exam_style_guidelines": "Explain fatigue mechanism (H+ ions interference). Link to high-intensity efforts above LIP.",
-        "anti_prompts": ["Do NOT say 'lactic acid'; use 'H+ ions' or 'lactate'."]
+        "anti_prompts": [
+          "Do NOT say 'lactic acid'; use 'H+ ions' or 'lactate'."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -315,7 +361,9 @@
       "technique_notes": {
         "core_concepts": "Fuels: Glycogen/Fats. Yield: Very High. Rate: Slowest. Duration: 2min+.",
         "exam_style_guidelines": "Explain dominance in long-duration activity and recovery. Discuss fuel shift (glycogen sparing).",
-        "anti_prompts": ["Do not forget the role of the aerobic system in recovering anaerobic systems."]
+        "anti_prompts": [
+          "Do not forget the role of the aerobic system in recovering anaerobic systems."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -333,7 +381,9 @@
       "technique_notes": {
         "core_concepts": "Deficit (lag), Steady State (supply=demand), EPOC (recovery).",
         "exam_style_guidelines": "Identify these phases on a graph. Explain the role of EPOC in PC replenishment and H+ removal.",
-        "anti_prompts": ["Distinguish between the fast and slow components of EPOC."]
+        "anti_prompts": [
+          "Distinguish between the fast and slow components of EPOC."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -351,7 +401,9 @@
       "technique_notes": {
         "core_concepts": "PC depletion, H+ accumulation, Glycogen depletion, Dehydration. Nutrition: Glycogen loading, protein for repair.",
         "exam_style_guidelines": "Match fatigue mechanism to the dominant energy system. Recommend hydration/nutrition strategies for recovery.",
-        "anti_prompts": ["Link protein primarily to repair and adaptation, not fuel."]
+        "anti_prompts": [
+          "Link protein primarily to repair and adaptation, not fuel."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -360,7 +412,9 @@
       "technique_notes": {
         "core_concepts": "Data: Skill frequency, movement patterns, work:rest ratios. Identify fitness components.",
         "exam_style_guidelines": "Use data to justify training choices. Distinguish between notational and GPS-based analysis.",
-        "anti_prompts": ["Data must be used to justify training, not just described."]
+        "anti_prompts": [
+          "Data must be used to justify training, not just described."
+        ]
       },
       "group": "unit4-foundations"
     },
@@ -378,7 +432,9 @@
       "technique_notes": {
         "core_concepts": "Frequency, Intensity, Time, Type. Progressive overload.",
         "exam_style_guidelines": "Apply overload to one variable at a time (~10%). Intensity measurement (HR max, RPE).",
-        "anti_prompts": ["Speed training requires high intensity (9-10 RPE) - 7 RPE is too low for speed."]
+        "anti_prompts": [
+          "Speed training requires high intensity (9-10 RPE) - 7 RPE is too low for speed."
+        ]
       },
       "group": "unit4-training"
     },
@@ -387,7 +443,9 @@
       "technique_notes": {
         "core_concepts": "Specificity (movement/energy). Variety (prevents plateaus). Diminishing returns (gains slow down).",
         "exam_style_guidelines": "Identify violations of these principles in a provided program. 'Variety' is a principle; 'variability' is practice classification.",
-        "anti_prompts": ["Do not write 'variability' when you mean 'variety' (training principle)."]
+        "anti_prompts": [
+          "Do not write 'variability' when you mean 'variety' (training principle)."
+        ]
       },
       "group": "unit4-training"
     },
@@ -396,7 +454,9 @@
       "technique_notes": {
         "core_concepts": "Continuous: Aerobic. Interval: Short (<10s, ATP-CP), Intermediate (10-60s, Anaerobic Glyc), Long (2m+, Aerobic).",
         "exam_style_guidelines": "Differentiate methods by work:rest ratios. Explain how reducing rest alters the targeted energy system.",
-        "anti_prompts": ["Decreasing rest may reduce specificity if it shifts the energy system dominance."]
+        "anti_prompts": [
+          "Decreasing rest may reduce specificity if it shifts the energy system dominance."
+        ]
       },
       "group": "unit4-training"
     },
@@ -405,7 +465,9 @@
       "technique_notes": {
         "core_concepts": "Resistance (reps/sets). Plyometrics (stretch-shortening cycle). Circuits (efficiency).",
         "exam_style_guidelines": "Design sessions targeting specific components (e.g., power vs endurance). Address safety for plyometrics.",
-        "anti_prompts": ["SSC involves a rapid eccentric contraction followed by a concentric one."]
+        "anti_prompts": [
+          "SSC involves a rapid eccentric contraction followed by a concentric one."
+        ]
       },
       "group": "unit4-training"
     },
@@ -414,7 +476,9 @@
       "technique_notes": {
         "core_concepts": "Cardiac hypertrophy (increased SV), increased blood volume, hemoglobin, and capillarisation.",
         "exam_style_guidelines": "Explain how increased SV leads to lower resting HR. Acknowledge that submaximal cardiac output remains unchanged.",
-        "anti_prompts": ["Submaximal cardiac output remains unchanged despite training (SV up, HR down)."]
+        "anti_prompts": [
+          "Submaximal cardiac output remains unchanged despite training (SV up, HR down)."
+        ]
       },
       "group": "unit4-adaptations"
     },
@@ -432,7 +496,9 @@
       "technique_notes": {
         "core_concepts": "Motivation, Confidence, Arousal (Inverted-U), Concentration. Imagery, PMR, Goal Setting (SMARTER).",
         "exam_style_guidelines": "Recommend strategies to reach 'optimal arousal' based on sport type (fine vs gross skills).",
-        "anti_prompts": ["Psychological strategies are used *during* competition, not just to prevent overtraining."]
+        "anti_prompts": [
+          "Psychological strategies are used *during* competition, not just to prevent overtraining."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -441,7 +507,9 @@
       "technique_notes": {
         "core_concepts": "Interrelationships between skill, biomechanics, energy, and training.",
         "exam_style_guidelines": "Analyze performance breakdowns by considering interacting factors (e.g., fatigue leading to technical errors).",
-        "anti_prompts": ["Avoid treating domains in isolation; look for the interaction."]
+        "anti_prompts": [
+          "Avoid treating domains in isolation; look for the interaction."
+        ]
       },
       "group": "unit4-integration"
     }

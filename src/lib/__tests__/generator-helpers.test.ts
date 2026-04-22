@@ -39,7 +39,7 @@ describe('generator-helpers', () => {
 
   describe('getDifficultyBadgeClasses', () => {
     it('should return specific classes for each difficulty level', () => {
-      expect(getDifficultyBadgeClasses('Easy')).toContain('emerald');
+      expect(getDifficultyBadgeClasses('Easy')).toContain('green');
       expect(getDifficultyBadgeClasses('Medium')).toContain('amber');
       expect(getDifficultyBadgeClasses('Extreme')).toContain('rose');
     });
