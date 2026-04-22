@@ -1,1393 +1,664 @@
 {
   "name": "Mathematical Methods",
   "icon": "FunctionSquare",
-  "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+  "examPdfs": [
+    "2025-MathMethods1.pdf",
+    "2025-MathMethods2.pdf"
+  ],
   "reportPdfs": [
     "2025-MathematicalMethods1-report.pdf",
     "2025-MathematicalMethods2-report.pdf"
   ],
-  "examGuidance": "Use formal mathematical notation and VCE command verbs. For tech-free: require exact arithmetic and manual algebraic manipulation (no technology). For tech-active: allow CAS for complex numerical work, rounded as specified. Confine questions to the VCE Units 3 and 4 Study Design. State domains for functions and give exact coordinates for key graphical features; include constants of integration where required. Avoid explicitly stating certain techniques, such as the 'product rule'   instead, design questions that require them to choose and apply appropriate methods themselves.",
+  "examGuidance": "Use formal mathematical notation and VCE command verbs (solve, sketch, find, justify, show that). For tech-free (Exam 1): require exact arithmetic, manual algebraic manipulation, and clear logical steps. For tech-active (Exam 2): assume access to CAS for solving, differentiating, and integrating complex functions; round as specified (usually 2 or 3 decimal places). State domains for functions and give exact coordinates for key graphical features (intercepts, stationary points, endpoints). Include constants of integration (+c) for indefinite integrals. Use function notation $f(x)$ and $f'(x)$ consistently. Ensure sketches show asymptotes with equations and appropriate curvature.",
   "out_of_scope": [
     "Complex numbers",
     "Vectors",
     "Integration by parts",
     "Differential equations beyond separable first-order",
-    "Non-standard distributions (only Binomial and Normal)",
-    "Proof by induction"
+    "Non-standard distributions (only Bernoulli, Binomial and Normal)",
+    "Proof by induction",
+    "Implicit differentiation",
+    "L'Hopital's Rule"
   ],
   "subtopics": [
     {
-      "name": "Functions and Function Notation",
+      "name": "Functions, Relations and Notation",
       "technique_notes": {
-        "core_concepts": "Define functions, use function notation, and distinguish functions from relations. Specify rules, domains (maximal/natural/implied), co-domains, and ranges.",
-        "exam_style_guidelines": "Always require explicit domain and range notation. Use $f: D \\to \\mathbb{R}$, $f(x) = \\ldots$ notation throughout.",
+        "core_concepts": "Distinguish between functions and relations (vertical line test). Use notation $f: D \\to \\mathbb{R}, f(x) = \\dots$. Concepts of domain, co-domain, and range.",
+        "exam_style_guidelines": "Always state the maximal (natural) domain if not specified. Use correct set notation (e.g., $\\mathbb{R} \\setminus \\{0\\}$).",
         "anti_prompts": [
-          "Do not use complex numbers",
-          "Do not require non-function relations unless specifically asked to distinguish"
+          "Do not use $y=$ notation when function notation is requested.",
+          "Avoid using 'range' when 'co-domain' is intended."
         ],
-        "tech_free_rules": "Use simple polynomial or power rules.",
-        "tech_active_rules": "Allow exploration of more complex function rules with CAS."
-      },
-      "complexity_levers": {
-        "easy": "Use simple linear or quadratic rules with integer domains.",
-        "hard": "Use piecewise functions or composite rules; require finding maximal domains for reciprocal or square root functions.",
-        "extreme": "Use literal parameters in the domain or rule; require symbolic proof of function properties."
+        "tech_free_rules": "Identify domain and range for simple linear and quadratic relations.",
+        "tech_active_rules": "Determine range for complex functions using CAS graphs."
       },
       "group": "unit1-functions-relations-graphs"
     },
     {
       "name": "Power Functions and Transformations",
       "technique_notes": {
-        "core_concepts": "Identify and sketch power functions $y = x^n$ for $n \\in \\{-2, -1, \\frac{1}{2}, 1, 2, 3\\}$ and their transformations to the form $y = a(x+b)^n + c$.",
-        "exam_style_guidelines": "Always require identification of vertical/horizontal asymptotes and explicit statements of domain and range.",
+        "core_concepts": "Graphs of $x^n$ for $n \\in \\{-2, -1, 1/2, 1, 2, 3\\}$. Transformations: $y = a(x-h)^n + k$.",
+        "exam_style_guidelines": "Label asymptotes for $n < 0$. Label the endpoint for $n = 1/2$. Describe transformations in order: Dilation, Reflection, Translation.",
         "anti_prompts": [
-          "Do not use $n$ outside the specified set",
-          "Do not use non-numeric transformations for easy items"
+          "Do not confuse $1/x$ (hyperbola) with $1/x^2$ (truncus) shapes.",
+          "Ensure translations are applied to the 'parent' function coordinates."
         ],
-        "tech_free_rules": "Restrict to integer or simple rational values of $a$, $b$, $c$.",
-        "tech_active_rules": "Explore effects of decimal or irrational parameters on asymptotes."
-      },
-      "complexity_levers": {
-        "easy": "Single transformation (e.g., vertical shift only) of $x^2$ or $1/x$.",
-        "hard": "Sequence of three transformations; require finding the transformed rule from a given graph.",
-        "extreme": "Transformations of $x^{1/2}$ or $x^{-2}$ with literal parameters; require determining parameters from given asymptote/intercept conditions."
+        "tech_free_rules": "Sketch transformations of $x^2, x^3, 1/x$ by hand.",
+        "tech_active_rules": "Find transformation parameters from given points using CAS."
       },
       "group": "unit1-functions-relations-graphs"
     },
     {
-      "name": "Graphs of Polynomial Functions of Low Degree",
+      "name": "Polynomial Functions: Quadratics and Cubics",
       "technique_notes": {
-        "core_concepts": "Sketch and interpret graphs of linear, quadratic, cubic and (factored) quartic polynomial functions by hand. Identify x-intercepts, y-intercepts, turning points, and end behaviour.",
-        "exam_style_guidelines": "Always require labelling of all key features (coordinates) and an explicit statement of domain and range.",
+        "core_concepts": "Graphs of linear, quadratic, and cubic functions. Turning points, intercepts, and points of inflection.",
+        "exam_style_guidelines": "Use completing the square for quadratics. Use factor theorem for cubics. Label all stationary points with exact coordinates.",
         "anti_prompts": [
-          "Do not use polynomials that require the cubic formula for roots",
-          "Avoid non-factored quartics unless they are simple biquadratics"
+          "Do not omit the stationary point of inflection for $y=x^3$ type graphs.",
+          "Ensure quadratic symmetry is visible in sketches."
         ],
-        "tech_free_rules": "Restrict to polynomials factorisable over the rationals with integer coefficients.",
-        "tech_active_rules": "Allow use of CAS to find coordinates of turning points for polynomials with irrational roots."
-      },
-      "complexity_levers": {
-        "easy": "Standard forms (e.g., vertex form for quadratics) with obvious intercepts.",
-        "hard": "Polynomials requiring the factor theorem/long division first; require finding the rule from 4 given points.",
-        "extreme": "Polynomials with literal coefficients (e.g., $ax^3 + bx^2$); require determining conditions for the number of stationary points."
+        "tech_free_rules": "Find intercepts and turning points for factorable polynomials.",
+        "tech_active_rules": "Solve for parameters where a cubic has a specific number of stationary points."
       },
       "group": "unit1-functions-relations-graphs"
     },
     {
       "name": "Qualitative Interpretation of Graphs",
       "technique_notes": {
-        "core_concepts": "Interpret features of graphs representing real data or functions without explicit rules. Describe approximate intercepts, stationary points, points of inflection, and intervals of increase/decrease.",
-        "exam_style_guidelines": "Always require correct mathematical terminology (e.g., 'stationary point', 'point of inflection'). Link graph shape to context.",
+        "core_concepts": "Analyzing graphs of real data. Identifying intervals of increase/decrease, maxima/minima, and rate of change features.",
+        "exam_style_guidelines": "Describe features in the context of the variables (e.g., 'The temperature increases at a decreasing rate').",
         "anti_prompts": [
-          "Do not ask for exact coordinates if no rule is provided",
-          "Avoid overly complex data sets that obscure the main trend"
+          "Avoid purely mathematical descriptions if a context is provided."
         ],
-        "tech_free_rules": "Provide clear sketch graphs and ask for qualitative descriptions.",
-        "tech_active_rules": "Use CAS to model a trend line from a set of data points before interpreting."
-      },
-      "complexity_levers": {
-        "easy": "Identify intervals of increase/decrease on a simple distance-time graph.",
-        "hard": "Relate the rate of change (gradient) to the context; identify points of inflection and explain their meaning in context (e.g., diminishing returns).",
-        "extreme": "Compare two different contexts (e.g., volume vs depth in different shaped containers) and justify differences in their graphs qualitatively."
+        "tech_free_rules": "Identify features from a provided sketch.",
+        "tech_active_rules": "Model a trend from data points and discuss its validity."
       },
       "group": "unit1-functions-relations-graphs"
     },
     {
-      "name": "Inverse Functions",
+      "name": "Inverse Functions and Relations",
       "technique_notes": {
-        "core_concepts": "Find the rule and graph of the inverse of a one-to-one function. Verify the relationship $f(f^{-1}(x)) = x$. Describe reflection in $y = x$.",
-        "exam_style_guidelines": "Always require explicit specification of domain and range for both $f$ and $f^{-1}$. Draw $y = x$ as a dashed reference line.",
+        "core_concepts": "The inverse relation as a reflection in $y=x$. Condition for existence of inverse function (one-to-one).",
+        "exam_style_guidelines": "Domain of $f^{-1} = \\text{Range of } f$. Range of $f^{-1} = \\text{Domain of } f$. Sketch both on the same axes.",
         "anti_prompts": [
-          "Do not use non-one-to-one functions without domain restriction",
-          "Avoid complex algebraic rearrangement for tech-free items"
+          "Do not find the inverse of a many-to-one function without restricting the domain first."
         ],
-        "tech_free_rules": "Restrict to linear, simple quadratic (with restriction), and power functions.",
-        "tech_active_rules": "Explore inverses of more complex transcendental functions or compositions."
-      },
-      "complexity_levers": {
-        "easy": "Find the inverse of a simple linear function $y = 2x - 3$.",
-        "hard": "Restrict the domain of a quadratic (e.g., $y = (x-2)^2 + 1$) to make it one-to-one, then find the inverse rule and its domain.",
-        "extreme": "Find the inverse of a function containing literal parameters; determine the parameter range for which the inverse domain is a subset of a given interval."
+        "tech_free_rules": "Find inverse rules for linear and simple power functions.",
+        "tech_active_rules": "Verify the $f(f^{-1}(x)) = x$ identity for complex compositions."
       },
       "group": "unit1-functions-relations-graphs"
     },
     {
-      "name": "Algebraic Manipulation of Polynomial and Power Expressions",
+      "name": "Algebraic Expansion and Factorisation",
       "technique_notes": {
-        "core_concepts": "Expand, factorise, and simplify algebraic expressions involving polynomial and power functions. Move between expanded, factored, and completed-square forms.",
-        "exam_style_guidelines": "Always require students to show full working and justify equivalence of forms. Emphasize distributive and exponent laws.",
+        "core_concepts": "Expanding $(a+b)^n$, difference of squares, sum/difference of cubes. Factorising by grouping, cross-method, and remainder theorem.",
+        "exam_style_guidelines": "Show systematic working. For cubics, find the first linear factor using $P(a)=0$.",
         "anti_prompts": [
-          "Avoid overly tedious expansions without conceptual purpose",
-          "Do not use non-integer exponents unless specifically testing power laws"
+          "Avoid arithmetic errors in long division.",
+          "Do not stop factorising until all factors are irreducible over $\\mathbb{R}$."
         ],
-        "tech_free_rules": "Restrict to integer coefficients and expressions manageable by hand.",
-        "tech_active_rules": "Use CAS to expand or factorise complex higher-degree expressions or those with irrational coefficients."
-      },
-      "complexity_levers": {
-        "easy": "Expand a simple quadratic $(x+a)(x+b)$.",
-        "hard": "Factorise a cubic using the grouping method or factor theorem first.",
-        "extreme": "Simplify an expression involving literal parameters and multiple exponent laws; prove equivalence to a simpler form."
+        "tech_free_rules": "Factorise cubics with integer roots.",
+        "tech_active_rules": "Use CAS to expand or factorise large expressions with irrational coefficients."
       },
       "group": "unit1-algebra-number-structure"
     },
     {
-      "name": "Quadratic Forms, Features and the Discriminant",
+      "name": "Quadratic Equations and the Discriminant",
       "technique_notes": {
-        "core_concepts": "Work with general, vertex, and factored forms. Complete the square, apply quadratic formula, use discriminant to determine root nature.",
-        "exam_style_guidelines": "Always require exact coordinates. Identify vertex, axis of symmetry, and intercepts algebraically.",
+        "core_concepts": "Solving $ax^2+bx+c=0$. Using $\\Delta = b^2-4ac$ to determine nature of roots (none, one, two real).",
+        "exam_style_guidelines": "Apply $\\Delta$ to find values of a parameter $k$ for specific root conditions. State exact roots using the quadratic formula.",
         "anti_prompts": [
-          "Do not use complex roots",
-          "Avoid non-integer 'a' values in tech-free completing the square"
+          "Do not forget to consider $a=0$ if $a$ is a parameter (checking if the equation remains quadratic)."
         ],
-        "tech_free_rules": "Restrict to integer $a, b, c$ and discriminants yielding rational or simple surd roots.",
-        "tech_active_rules": "Solve for parameters where the discriminant is a complex function of another variable."
-      },
-      "complexity_levers": {
-        "easy": "Find intercepts of $y = x^2 - 4x + 3$.",
-        "hard": "Determine the value of $m$ such that $y = mx^2 + 2x + 1$ has no x-intercepts.",
-        "extreme": "Show that the vertex of a family of quadratics lies on a specific curve (locus)."
+        "tech_free_rules": "Solve for parameters in $\\Delta > 0$ inequalities.",
+        "tech_active_rules": "Solve parametric quadratic systems."
       },
       "group": "unit1-algebra-number-structure"
     },
     {
-      "name": "Polynomial Theorems and Factorisation",
+      "name": "Remainder, Factor and Rational Root Theorems",
       "technique_notes": {
-        "core_concepts": "Apply remainder, factor, and rational root theorems. Factorise and solve polynomial equations of low degree.",
-        "exam_style_guidelines": "Always require students to state all roots with multiplicity. Express cubics in $(x-a)q(x) + r$ form.",
+        "core_concepts": "If $P(a)=0$, $(x-a)$ is a factor. Remainder when dividing $P(x)$ by $(x-a)$ is $P(a)$.",
+        "exam_style_guidelines": "Use the theorems to solve for unknown coefficients in polynomials.",
         "anti_prompts": [
-          "Do not use degree > 4 for tech-free items",
-          "Avoid synthetic division if long division is the expected VCAA curriculum standard"
+          "Do not use long division if the question only asks for the remainder."
         ],
-        "tech_free_rules": "Restrict to polynomials with integer coefficients that factorise over the rationals.",
-        "tech_active_rules": "Allow CAS to find all real and complex roots (if integrated) of higher-degree polynomials."
-      },
-      "complexity_levers": {
-        "easy": "Find the remainder when $x^3 - x^2 + 1$ is divided by $x-1$.",
-        "hard": "Given a root, find all other roots of a quartic; link roots to intercepts on a sketch.",
-        "extreme": "Determine coefficients of a polynomial given its remainder when divided by two different linear factors (simultaneous equations)."
+        "tech_free_rules": "Find factors of cubics and quartics.",
+        "tech_active_rules": "Verify factorisations of complex polynomials."
       },
       "group": "unit1-algebra-number-structure"
     },
     {
       "name": "Transformations of the Plane",
       "technique_notes": {
-        "core_concepts": "Describe and apply dilations (from axes), reflections, and translations. Determine images or mapping transformations.",
-        "exam_style_guidelines": "Always require students to describe transformations in words using correct terminology. Matrix representation optional.",
+        "core_concepts": "Dilations from axes, reflections in axes, and translations. Sequence of transformations (DRT).",
+        "exam_style_guidelines": "Use mapping notation $(x, y) \\to (x', y')$. Describe transformations using formal language ('dilation by factor $k$ from the $y$-axis').",
         "anti_prompts": [
-          "Avoid confusing 'from the x-axis' with 'parallel to the y-axis'",
-          "Do not combine more than 4 transformations in a single item"
+          "Do not confuse 'from the $x$-axis' with 'parallel to the $x$-axis'."
         ],
-        "tech_free_rules": "Restrict to simple polynomial and power functions.",
-        "tech_active_rules": "Use matrices to represent and apply transformations to complex relation graphs."
-      },
-      "complexity_levers": {
-        "easy": "Identify a single translation from a rule.",
-        "hard": "Find the sequence of transformations mapping $y=x^2$ to $y=-(2(x-1))^2 + 3$.",
-        "extreme": "Use matrix multiplication to find the image of a circle under a dilation and reflection; express the resulting relation rule."
+        "tech_free_rules": "Apply a sequence of 3 transformations to a parent function rule.",
+        "tech_active_rules": "Use matrices to represent transformations (optional but useful)."
       },
       "group": "unit1-algebra-number-structure"
     },
     {
-      "name": "Simultaneous Equations and Solution of Polynomial Equations",
+      "name": "Simultaneous Linear Equations",
       "technique_notes": {
-        "core_concepts": "Solve linear systems (up to 4 unknowns) and polynomial equations. Use bisection method for numerical approximations.",
-        "exam_style_guidelines": "Always require exact solutions where possible. Clearly state intervals for numerical approximations.",
+        "core_concepts": "Solving systems of 2 or 3 equations. Geometric interpretation: intersecting, parallel, or coincident lines.",
+        "exam_style_guidelines": "Identify cases with no solution, unique solution, or infinitely many solutions based on gradients and intercepts.",
         "anti_prompts": [
-          "Do not use inconsistent systems for easy items",
-          "Avoid bisection method iterations > 3 by hand"
+          "Do not assume a unique solution exists without checking for parallel lines."
         ],
-        "tech_free_rules": "Restrict to linear systems with unique solutions and quadratics/cubics with rational roots.",
-        "tech_active_rules": "Solve parametric systems where the number of solutions depends on the parameter."
-      },
-      "complexity_levers": {
-        "easy": "Solve two linear equations in two unknowns by substitution.",
-        "hard": "Solve a system involving one linear and one quadratic equation; interpret intersections geometrically.",
-        "extreme": "Determine the value of $k$ for which a 3x3 linear system has infinitely many solutions."
+        "tech_free_rules": "Solve $2 \\times 2$ systems using substitution or elimination.",
+        "tech_active_rules": "Solve $3 \\times 3$ systems and discuss consistency."
       },
       "group": "unit1-algebra-number-structure"
     },
     {
-      "name": "Circular Unit Circle, Radians and Exact Values",
+      "name": "Average and Instantaneous Rates of Change",
       "technique_notes": {
-        "core_concepts": "Convert degrees/radians. Define sine, cosine, tangent using the unit circle. Evaluate at exact values ($0, \\frac{\\pi}{6}, \\frac{\\pi}{4}, \\frac{\\pi}{3}, \\frac{\\pi}{2}$).",
-        "exam_style_guidelines": "Always require exact answers in surd or fractional form. Include arc length and small-angle approximations.",
+        "core_concepts": "Average rate = gradient of secant. Instantaneous rate = gradient of tangent. $m_{avg} = \\frac{f(b)-f(a)}{b-a}$.",
+        "exam_style_guidelines": "Relate rates of change to real-world contexts (velocity, fill rate). Use correct units (e.g., $m/s$, $L/min$).",
         "anti_prompts": [
-          "Do not use degrees in calculus contexts",
-          "Avoid calculator-style decimal answers"
+          "Do not calculate instantaneous rate when average rate is requested."
         ],
-        "tech_free_rules": "Restrict to angles that are multiples of standard exact-value angles.",
-        "tech_active_rules": "Solve for arc length or sector area in real-world pulley/gear contexts with non-standard angles."
+        "tech_free_rules": "Calculate average rate for polynomial functions over an interval.",
+        "tech_active_rules": "Estimate instantaneous rate using small intervals on CAS."
       },
-      "complexity_levers": {
-        "easy": "Find $\\sin(4\\pi/3)$ using the unit circle.",
-        "hard": "Given $\\cos(x) = k$ and the quadrant, find $\\sin(x)$ and $\\tan(x)$ in terms of $k$.",
-        "extreme": "Prove a geometric property of the unit circle using coordinates; solve for theta given an arc length in terms of $\\pi$."
+      "group": "unit1-calculus"
+    },
+    {
+      "name": "Counting: Addition and Multiplication Principles",
+      "technique_notes": {
+        "core_concepts": "Multiplication principle for independent stages. Addition principle for mutually exclusive cases.",
+        "exam_style_guidelines": "Draw tree diagrams or tables to verify sample spaces. Use for multi-step selections.",
+        "anti_prompts": [
+          "Do not multiply when cases are alternative (either/or)."
+        ],
+        "tech_free_rules": "Solve simple arrangement and selection problems by hand.",
+        "tech_active_rules": "Solve complex counting problems with constraints."
+      },
+      "group": "unit1-data-analysis-probability-statistics"
+    },
+    {
+      "name": "Combinations and Probability",
+      "technique_notes": {
+        "core_concepts": "Selecting $r$ items from $n$ without regard to order. $\\binom{n}{r} = \\frac{n!}{r!(n-r)!}$.",
+        "exam_style_guidelines": "Apply combinations to find probabilities in experiments with equally likely outcomes. Use the property $\\binom{n}{r} = \\binom{n}{n-r}$.",
+        "anti_prompts": [
+          "Do not use permutations if the order of selection does not matter."
+        ],
+        "tech_free_rules": "Calculate $\\binom{n}{r}$ for small $n$ (up to 10).",
+        "tech_active_rules": "Calculate probabilities for large sample spaces."
+      },
+      "group": "unit1-data-analysis-probability-statistics"
+    },
+    {
+      "name": "The Unit Circle and Radians",
+      "technique_notes": {
+        "core_concepts": "Converting degrees to radians and vice versa. Arc length $s = r\\theta$. Coordinates on unit circle $(\\cos\\theta, \\sin\\theta)$.",
+        "exam_style_guidelines": "All calculus and standard circular functions use radians. Use exact values of $\\pi$ where possible.",
+        "anti_prompts": [
+          "Do not provide answers in degrees unless explicitly asked.",
+          "Ensure calculator is in Radian mode for all trig questions."
+        ],
+        "tech_free_rules": "Convert standard angles ($30^\\circ, 45^\\circ, 60^\\circ, 90^\\circ$) to radians.",
+        "tech_active_rules": "Calculate arc length and sector area for non-standard angles."
       },
       "group": "unit2-functions-relations-graphs"
     },
     {
-      "name": "Symmetry, Complementary Relations and Periodicity of Circular Functions",
+      "name": "Circular Functions: Symmetry and Exact Values",
       "technique_notes": {
-        "core_concepts": "Apply symmetry ($\\sin(\\pi-x)$), complementary ($\\sin(\\pi/2-x)$), and periodicity to simplify and evaluate.",
-        "exam_style_guidelines": "Always require students to list all solutions within the specified domain. Show the CAST quadrant reasoning.",
+        "core_concepts": "Exact values for $\\sin, \\cos, \\tan$ at $\\pi/6, \\pi/4, \\pi/3$. Symmetry properties (e.g., $\\sin(\\pi-\\theta) = \\sin\\theta$).",
+        "exam_style_guidelines": "Use CAST diagram to identify signs in different quadrants. State all solutions within a given domain.",
         "anti_prompts": [
-          "Do not skip the domain check",
-          "Avoid overly large domains that require more than 4 solutions"
+          "Do not forget the $\\pm$ when taking the square root of $\\sin^2\\theta$.",
+          "Ensure the tangent function is undefined at $\\pi/2 + k\\pi$."
         ],
-        "tech_free_rules": "Restrict to equations solvable using exact values and symmetry alone.",
-        "tech_active_rules": "Find general solutions for circular equations using parameter $n \\in \\mathbb{Z}$."
-      },
-      "complexity_levers": {
-        "easy": "Solve $\\sin(x) = 1/2$ for $x \\in [0, 2\\pi]$.",
-        "hard": "Solve $2\\cos(2x) + 1 = 0$ for $x \\in [-\\pi, \\pi]$.",
-        "extreme": "Find the number of solutions to $\\sin(nx) = k$ on a given domain in terms of $n$."
+        "tech_free_rules": "Evaluate trig expressions at standard angles and their multiples.",
+        "tech_active_rules": "Solve circular equations with decimal constants."
       },
       "group": "unit2-functions-relations-graphs"
     },
     {
-      "name": "Graphs of Circular Functions and Their Transformations",
+      "name": "Graphs of Sine and Cosine Functions",
       "technique_notes": {
-        "core_concepts": "Sketch $a\\sin(b(x-h))+k$ etc. Identify amplitude, period, phase shift, intercepts, and asymptotes.",
-        "exam_style_guidelines": "Always require exact coordinates for key features. Draw asymptotes for tangent clearly.",
+        "core_concepts": "Graphs of $y = a\\sin(b(x-h)) + k$. Mean value, amplitude, and period ($T = 2\\pi/b$).",
+        "exam_style_guidelines": "Label midline, peaks, and troughs with exact coordinates. Show at least two full cycles if domain allows.",
         "anti_prompts": [
-          "Do not confuse factor $b$ with the period",
-          "Avoid phase shifts that aren't multiples of $\\pi/4$ for tech-free sketches"
+          "Do not confuse factor $b$ with the period.",
+          "Ensure the phase shift $h$ is applied correctly inside the brackets."
         ],
-        "tech_free_rules": "Restrict to integer/simple fractional parameters; periods as rational multiples of $\\pi$.",
-        "tech_active_rules": "Model a periodic data set (e.g., tides) using a circular function rule."
-      },
-      "complexity_levers": {
-        "easy": "Identify amplitude and period from a rule.",
-        "hard": "Sketch $y = 3\\sin(2x - \\pi/2) + 1$ over two full cycles; label all intercepts exactly.",
-        "extreme": "Determine the values of $a, b, h$ from a graph where only the peaks and one intercept are marked."
+        "tech_free_rules": "Sketch transformed sine and cosine graphs.",
+        "tech_active_rules": "Model periodic data (e.g., tides) using a circular function."
       },
       "group": "unit2-functions-relations-graphs"
     },
     {
-      "name": "Exponential Functions and Their Graphs",
+      "name": "Exponential Functions and Modeling",
       "technique_notes": {
-        "core_concepts": "Identify and sketch $Aa^{bx+c}+d$. Determine asymptotes, intercepts, domain, range. Model growth/decay.",
-        "exam_style_guidelines": "Always require exact coordinates for intercepts and explicit equation of the asymptote ($y=k$).",
+        "core_concepts": "Graphs of $y = Ae^{kx} + c$. Asymptotes, intercepts, and growth/decay rates.",
+        "exam_style_guidelines": "The horizontal asymptote is $y=c$. Model growth ($k>0$) and decay ($k<0$). Relate to half-life and doubling time.",
         "anti_prompts": [
-          "Do not use negative bases",
-          "Avoid solving for time $t$ without $\\log_e$ in tech-free unless powers are obvious"
+          "Do not allow the graph to cross its horizontal asymptote.",
+          "Label the $y$-intercept $(0, A+c)$ clearly."
         ],
-        "tech_free_rules": "Restrict to bases $e, 2, 10$ and small integers.",
-        "tech_active_rules": "Find the half-life or doubling time for a context where the rate is a complex decimal."
-      },
-      "complexity_levers": {
-        "easy": "Sketch $y = 2^x - 4$ and label the asymptote.",
-        "hard": "Model population growth $P(t) = Ae^{kt}$; find $A$ and $k$ given two points.",
-        "extreme": "Analyze a family of exponentials $f(x) = e^x - k$; determine the range of $k$ for which the function has no x-intercept."
+        "tech_free_rules": "Sketch $y=e^x$ with simple transformations.",
+        "tech_active_rules": "Solve for parameters $A$ and $k$ given two data points."
       },
       "group": "unit2-functions-relations-graphs"
     },
     {
-      "name": "Logarithmic Functions and Their Graphs",
+      "name": "Logarithmic Functions and Laws",
       "technique_notes": {
-        "core_concepts": "Identify and sketch $a\\log_b(cx+d)+k$. Use inverse relationship with exponentials. Apply log laws.",
-        "exam_style_guidelines": "Always require exact coordinates for intercepts and explicit equation of the vertical asymptote ($x=h$).",
+        "core_concepts": "Graphs of $y = a\\log_e(x-h) + k$. Log laws: product, quotient, power, and change of base.",
+        "exam_style_guidelines": "The vertical asymptote is $x=h$. The domain is $x > h$. Inverse relationship: $y = e^x \\iff x = \\log_e(y)$.",
         "anti_prompts": [
-          "Do not use log bases < 1",
-          "Avoid complex compositions inside logs for tech-free sketches"
+          "Do not take the log of a non-positive number.",
+          "Avoid using $\\log$ without a base; use $\\log_e$ or $\\ln$."
         ],
-        "tech_free_rules": "Restrict to bases $e$ and $10$.",
-        "tech_active_rules": "Compare graphs of $\\log_e(x)$ and $\\log_{10}(x)$; analyze intersections."
-      },
-      "complexity_levers": {
-        "easy": "Sketch $y = \\log_e(x-1)$ and state domain.",
-        "hard": "Find the rule of an inverse for a restricted quadratic; sketch both on one set of axes.",
-        "extreme": "Show that the graph of $y = \\log_a(bx)$ can be obtained from $y = \\log_a(x)$ by a single vertical translation."
+        "tech_free_rules": "Simplify log expressions and solve simple log equations.",
+        "tech_active_rules": "Sketch transformations of $\\log_e(x)$ and find intercepts."
       },
       "group": "unit2-functions-relations-graphs"
     },
     {
-      "name": "Exponent and Logarithm Laws",
+      "name": "Derivative from First Principles",
       "technique_notes": {
-        "core_concepts": "Apply exponent and logarithm laws (including change of base) to simplify expressions and solve equations exactly.",
-        "exam_style_guidelines": "Always require exact solutions and full algebraic working. Use $\\log_e$ notation.",
+        "core_concepts": "The limit definition $f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}$.",
+        "exam_style_guidelines": "Show every step of the expansion and simplification. The $h$ in the denominator must cancel before taking the limit.",
         "anti_prompts": [
-          "Do not use decimal approximations",
-          "Avoid equations requiring the quadratic formula in the exponent unless it factors simply"
+          "Do not use the power rule when 'first principles' is explicitly asked.",
+          "Ensure the limit notation $\\lim_{h \\to 0}$ is written in every line until the limit is evaluated."
         ],
-        "tech_free_rules": "Restrict to bases $e$ and $10$; equations with rational or simple surd solutions.",
-        "tech_active_rules": "Solve equations with non-standard bases or complex transcendental exponents."
-      },
-      "complexity_levers": {
-        "easy": "Simplify $\\log_e(x^2) - \\log_e(x)$.",
-        "hard": "Solve $2^{2x} - 5(2^x) + 4 = 0$ (substitution).",
-        "extreme": "Prove a general property of logarithms using change of base formula."
-      },
-      "group": "unit2-algebra-number-structure"
-    },
-    {
-      "name": "Solving Equations Involving Circular, Exponential and Logarithmic Functions",
-      "technique_notes": {
-        "core_concepts": "Use inverse functions and transformations to solve $f(g(x)) = k$. Find all solutions in exact form.",
-        "exam_style_guidelines": "Always require students to list all solutions within the stated domain and verify them. Check for extraneous solutions in logs.",
-        "anti_prompts": [
-          "Do not skip checking the domain of the resulting solutions",
-          "Avoid overly complex nested functions for tech-free items"
-        ],
-        "tech_free_rules": "Restrict to domains and equations solvable using standard exact values and log laws.",
-        "tech_active_rules": "Solve equations where the intersection must be found numerically (e.g., $e^x = \\sin(x)$)."
-      },
-      "complexity_levers": {
-        "easy": "Solve $\\sin(x) = \\sqrt{3}/2$ on $[0, 2\\pi]$.",
-        "hard": "Solve $\\log_e(x) + \\log_e(x-1) = \\log_e(6)$.",
-        "extreme": "Find the number of solutions to $e^{kx} = \\cos(x)$ for a given range of $k$."
-      },
-      "group": "unit2-algebra-number-structure"
-    },
-    {
-      "name": "Newton's Method for Approximating Roots",
-      "technique_notes": {
-        "core_concepts": "Apply Newton's method algorithm $x_{n+1} = x_n - f(x_n)/f'(x_n)$ to approximate roots. Assess convergence.",
-        "exam_style_guidelines": "Always require students to state the iteration formula used and round to specified decimal places.",
-        "anti_prompts": [
-          "Avoid functions where the derivative is zero near the starting point",
-          "Do not require more than 3 iterations by hand"
-        ],
-        "tech_free_rules": "Restrict to functions with manageable derivatives and starting points close to the root.",
-        "tech_active_rules": "Use CAS to perform many iterations and analyze the rate of convergence."
-      },
-      "complexity_levers": {
-        "easy": "Perform one iteration of Newton's method for $x^2 - 2 = 0$ with $x_0 = 1.5$.",
-        "hard": "Explain why Newton's method fails for a given starting point (e.g., $f'(x_0)=0$ or cycles).",
-        "extreme": "Derive the Newton's method formula from the equation of a tangent line."
-      },
-      "group": "unit2-algebra-number-structure"
-    },
-    {
-      "name": "The Derivative: Limit Definition and Gradient Function",
-      "technique_notes": {
-        "core_concepts": "Use the limit definition $f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}$ from first principles. Use central difference approximation.",
-        "exam_style_guidelines": "Always require students to show the limit process and interpret the result geometrically (gradient/rate of change).",
-        "anti_prompts": [
-          "Do not use the power rule when 'first principles' is specified",
-          "Avoid polynomials of degree > 3 for first principles"
-        ],
-        "tech_free_rules": "Restrict to polynomials of degree two or three.",
-        "tech_active_rules": "Use CAS to visualize the secant line approaching the tangent line as $h \\to 0$."
-      },
-      "complexity_levers": {
-        "easy": "Differentiate $f(x) = x^2$ from first principles.",
-        "hard": "Differentiate $f(x) = 1/x$ or $f(x) = \\sqrt{x}$ from first principles (requires rationalizing or common denominators).",
-        "extreme": "Show that the limit definition leads to the derivative of $x^n$ for a specific small integer $n$ using binomial expansion."
+        "tech_free_rules": "Differentiate $x^2, x^3$ and simple linear functions from first principles.",
+        "tech_active_rules": "Visualize the gradient of the secant approaching the tangent."
       },
       "group": "unit2-calculus"
     },
     {
-      "name": "Differentiation of Polynomial Functions by Rule",
+      "name": "Differentiation of Polynomials by Rule",
       "technique_notes": {
-        "core_concepts": "Differentiate polynomial functions by the power rule. Use $f'(x)$ and $\\frac{dy}{dx}$ notation. Find gradient at a point, tangent/normal equations.",
-        "exam_style_guidelines": "Always require exact expressions for derivatives. Clearly state final tangent/normal equations in $y=mx+c$ form.",
+        "core_concepts": "Power rule: $\\frac{d}{dx}(x^n) = nx^{n-1}$. Linearity: $(cf+g)' = cf' + g'$.",
+        "exam_style_guidelines": "Apply the rule to find gradients at specific points. Find equations of tangent and normal lines ($y-y_1 = m(x-x_1)$).",
         "anti_prompts": [
-          "Do not require the chain rule for this specific subtopic",
-          "Avoid decimal gradients"
+          "Do not confuse tangent gradient $m$ with normal gradient $-1/m$.",
+          "Ensure the final answer is an equation, not just the gradient."
         ],
-        "tech_free_rules": "Restrict to polynomials with integer coefficients.",
-        "tech_active_rules": "Use technology to find the equation of a tangent at a point for non-polynomial functions if integrated."
-      },
-      "complexity_levers": {
-        "easy": "Differentiate $y = x^3 - 2x + 5$ and find the gradient at $x=1$.",
-        "hard": "Find the coordinates of the point(s) on $y = x^2$ where the tangent is parallel to $y = 4x - 1$.",
-        "extreme": "Find the equation of the normal to $y = ax^2 + bx$ at $x = x_1$ in terms of literal parameters $a$ and $b$."
+        "tech_free_rules": "Find derivatives of polynomials with rational coefficients.",
+        "tech_active_rules": "Find points where the tangent is parallel to a given line."
       },
       "group": "unit2-calculus"
     },
     {
-      "name": "Applications of Differentiation: Stationary Points, Maxima and Minima",
+      "name": "Optimization and Stationary Points",
       "technique_notes": {
-        "core_concepts": "Locate and classify stationary points (local max, local min, stationary point of inflection). Solve optimisation problems.",
-        "exam_style_guidelines": "Always require a nature table or sign diagram for classification. Explicitly consider endpoints for global extrema on closed intervals.",
+        "core_concepts": "Locating stationary points by solving $f'(x)=0$. Local maxima, minima, and stationary points of inflection.",
+        "exam_style_guidelines": "Use a nature table (sign diagram of $f'(x)$) to justify the type of stationary point. Check endpoints for global extrema on closed domains.",
         "anti_prompts": [
-          "Do not classify using the second derivative unless specifically instructed",
-          "Avoid non-polynomial functions for tech-free stationary point tasks"
+          "Do not assume a stationary point is a maximum without checking the surrounding gradient.",
+          "Remember to find the $y$-coordinate by substituting back into $f(x)$."
         ],
-        "tech_free_rules": "Restrict to polynomial functions of degree three or four.",
-        "tech_active_rules": "Use CAS to solve for $f'(x)=0$ when the derivative is a complex transcendental function."
-      },
-      "complexity_levers": {
-        "easy": "Find the turning point of a simple quadratic and state its nature.",
-        "hard": "Classify all stationary points of a quartic function; determine global max/min on a given closed interval.",
-        "extreme": "Optimise a volume function derived from a geometric scenario with literal constraints; justify the maximum using a sign diagram of the derivative."
+        "tech_free_rules": "Optimize volume or area for simple polynomial models.",
+        "tech_active_rules": "Solve complex optimization problems where the domain is restricted."
       },
       "group": "unit2-calculus"
     },
     {
-      "name": "Anti-differentiation of Polynomial Functions",
+      "name": "Anti-differentiation and Integration",
       "technique_notes": {
-        "core_concepts": "Reverse the power rule. Identify families of curves. Use boundary conditions to find the constant of integration $c$.",
-        "exam_style_guidelines": "Always require students to include $+c$ and show how boundary conditions determine its value.",
+        "core_concepts": "Reverse power rule: $\\int x^n dx = \\frac{x^{n+1}}{n+1} + c$. Fundamental Theorem of Calculus.",
+        "exam_style_guidelines": "Always include $+c$ for indefinite integrals. Use boundary conditions (e.g., passes through $(x, y)$) to solve for $c$.",
         "anti_prompts": [
-          "Do not use substitution or parts",
-          "Avoid fractional exponents that lead to complex surds in tech-free"
+          "Do not forget the $dx$ in the integral notation.",
+          "Avoid using $+c$ in definite integrals used for area."
         ],
-        "tech_free_rules": "Restrict to polynomial functions with integer or simple fractional coefficients.",
-        "tech_active_rules": "Find the equation of a curve given its gradient function as a complex transcendental expression."
-      },
-      "complexity_levers": {
-        "easy": "Find the indefinite integral of $3x^2 + 4x$.",
-        "hard": "Given $f'(x) = 2x-1$ and $f(1)=5$, find $f(x)$.",
-        "extreme": "Find the area under a curve by first identifying the antiderivative and then evaluating at endpoints (links to Unit 3)."
+        "tech_free_rules": "Find antiderivatives of polynomials and evaluate simple definite integrals.",
+        "tech_active_rules": "Calculate areas between curves and the $x$-axis."
       },
       "group": "unit2-calculus"
     },
     {
-      "name": "Kinematics and Rates of Change Applications",
+      "name": "Addition Rule and Mutually Exclusive Events",
       "technique_notes": {
-        "core_concepts": "Apply differentiation and anti-differentiation to motion (position, velocity, acceleration). Interpret signs of $v$ and $a$.",
-        "exam_style_guidelines": "Always require explicit definition of variables and units. Interpret results in plain language within context.",
+        "core_concepts": "$\\Pr(A \\cup B) = \\Pr(A) + \\Pr(B) - \\Pr(A \\cap B)$. Mutually exclusive: $\\Pr(A \\cap B) = 0$.",
+        "exam_style_guidelines": "Use Venn diagrams or Karnaugh maps (probability tables) to organize information.",
         "anti_prompts": [
-          "Do not use non-standard units (use m, s, m/s etc.)",
-          "Avoid relativistic or non-VCE physics contexts"
+          "Do not assume events are mutually exclusive unless stated."
         ],
-        "tech_free_rules": "Restrict to polynomial velocity/acceleration functions.",
-        "tech_active_rules": "Solve motion problems where velocity is a circular or exponential function of time."
+        "tech_free_rules": "Calculate union and intersection probabilities for small sample spaces.",
+        "tech_active_rules": "Verify consistency of provided probability data."
       },
-      "complexity_levers": {
-        "easy": "Find velocity given position $s(t) = t^2$.",
-        "hard": "Determine total distance travelled when velocity changes sign over an interval (requires splitting integral).",
-        "extreme": "Relate the kinematics of two particles; find when they meet or their minimum separation."
-      },
-      "group": "unit2-calculus"
-    },
-    {
-      "name": "Composite Functions",
-      "technique_notes": {
-        "core_concepts": "Form $(f \\circ g)(x)$. Verify $\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$. Determine domain and range of the result.",
-        "exam_style_guidelines": "Always verify the range-domain condition explicitly. State the domain of $f \\circ g$ using set notation.",
-        "anti_prompts": [
-          "Do not skip the existence check",
-          "Avoid overly complex algebra in substitutions for tech-free"
-        ],
-        "tech_free_rules": "Keep the algebra of substitution manageable by hand.",
-        "tech_active_rules": "Explore compositions of transcendental functions where domain restriction is required via technology."
-      },
-      "complexity_levers": {
-        "easy": "Form $f(g(x))$ for simple linear $f, g$.",
-        "hard": "Find the maximal domain of $g$ such that $f(g(x))$ exists, where $f(x) = \\sqrt{x}$.",
-        "extreme": "Given $h(x) = f(g(x))$, and $h(x)$ and $f(x)$ are known, solve for possible rules for $g(x)$."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Inverse Functions",
-      "technique_notes": {
-        "core_concepts": "Determine if inverse exists (one-to-one). Find $f^{-1}$ algebraically. State domain and range. Sketch reflection in $y=x$.",
-        "exam_style_guidelines": "State inverse in form $f^{-1}: \\mathrm{dom}(f^{-1}) \\to \\mathbb{R}, f^{-1}(x) = \\dots$ Draw $y=x$ as dashed reference line.",
-        "anti_prompts": [
-          "Do not assume inverse exists without checking one-to-one",
-          "Ensure domain of $f^{-1}$ is stated correctly"
-        ],
-        "tech_free_rules": "Restrict to functions where $x$ can be isolated easily.",
-        "tech_active_rules": "Find inverse of functions where technology is needed to restrict the domain or visualize the graph."
-      },
-      "complexity_levers": {
-        "easy": "Find inverse of $y=3x+2$.",
-        "hard": "Find inverse of $y = 1/(x-1) + 2$ and state its domain and range.",
-        "extreme": "Show that for $f(x) = (ax+b)/(cx-a)$, $f(f(x)) = x$ and identify the inverse function."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Piecewise and Hybrid Functions",
-      "technique_notes": {
-        "core_concepts": "State rule and domain for each piece. Check continuity at boundary points using limits. Sketch and determine domain/range.",
-        "exam_style_guidelines": "**Always use the LaTeX `\\begin{cases}` environment.** Use open/closed dots on sketches to indicate endpoint inclusion.",
-        "anti_prompts": [
-          "Do not use more than 3 branches for tech-free sketches",
-          "Avoid discontinuous functions unless specifically testing continuity"
-        ],
-        "tech_free_rules": "Use simple linear or quadratic branches.",
-        "tech_active_rules": "Solve modelling problems (e.g. tax brackets, tiered shipping) that naturally lead to hybrid functions."
-      },
-      "complexity_levers": {
-        "easy": "Evaluate $f(x)$ at a specific point given its piecewise rule.",
-        "hard": "Determine the value of parameter $k$ that makes a piecewise function continuous at $x=a$.",
-        "extreme": "Find the derivative function $f'(x)$ for a hybrid function and discuss its differentiability at the transition points."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Dilations",
-      "technique_notes": {
-        "core_concepts": "Apply/identify vertical dilations (from x-axis) and horizontal dilations (from y-axis). Track coordinate changes.",
-        "exam_style_guidelines": "Use standard language: 'dilation by factor $k$ from the [axis]'. Track $(x, y) \\to (x', y')$.",
-        "anti_prompts": [
-          "Avoid confusion between factor $1/b$ and $b$ for horizontal dilations",
-          "Do not accept vague descriptions like 'stretched'"
-        ],
-        "tech_free_rules": "Use integer or simple rational dilation factors.",
-        "tech_active_rules": "Determine dilation factors from a graph of a complex function compared to its parent."
-      },
-      "complexity_levers": {
-        "easy": "Describe the transformation from $y=x^2$ to $y=3x^2$.",
-        "hard": "Identify both a horizontal and vertical dilation from a given rule like $y = 2f(3x)$.",
-        "extreme": "Determine the dilation factor required to make a function pass through a specific point; solve for factors in a composite mapping."
-      },
-      "group": "unit3-transformations"
-    },
-    {
-      "name": "Kinematics and Rates of Change Applications",
-      "technique_notes": "Create questions where students apply differentiation and anti-differentiation to motion problems (position, velocity, acceleration) and other rates-of-change contexts. Include tasks to interpret the sign of velocity and acceleration, find when an object is at rest, and determine displacement from a velocity function. For tech-free items, restrict to polynomial velocity/acceleration functions. Always require explicit definition of variables and units, and interpretation of results in plain language within the context of the problem.",
-      "group": "unit2-calculus"
-    },
-    {
-      "name": "Key Graph Features",
-      "technique_notes": {
-        "core_concepts": "Calculate exact coordinates of intercepts, stationary points, and equations of horizontal, vertical, and oblique asymptotes.",
-        "exam_style_guidelines": "Require algebraic justification for all features. Require exact coordinates (fractions, surds, $\\pi$, $\\log_e$).",
-        "anti_prompts": [
-          "Do not use decimal approximations for tech-free items",
-          "Avoid reading features from graphs; require calculation"
-        ],
-        "tech_free_rules": "Focus on exact value manipulations and formal asymptote notation ($x=a$, $y=b$).",
-        "tech_active_rules": "Allow CAS for finding roots of higher-degree polynomials."
-      },
-      "complexity_levers": {
-        "easy": "Identify intercepts of a basic exponential function.",
-        "hard": "Find all stationary points and asymptotes for a rational function of the form $f(x) = (ax+b)/(cx+d)$.",
-        "extreme": "Determine the values of $k$ for which $f(x) = x^3 - kx^2 + x$ has exactly one x-intercept."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Sketching and Interval Notation",
-      "technique_notes": {
-        "core_concepts": "Produce fully labelled sketches using key features. State domain and range using interval and set notation.",
-        "exam_style_guidelines": "Label all turning points and intercepts with exact coordinates. Draw asymptotes as dashed lines.",
-        "anti_prompts": [
-          "Do not accept sketches without axes labels",
-          "Ensure domain/range notation is consistent"
-        ],
-        "tech_free_rules": "Focus on sketching base functions with simple transformations.",
-        "tech_active_rules": "Use technology to verify the range of complex piecewise functions."
-      },
-      "complexity_levers": {
-        "easy": "Sketch $y = e^x + 1$ and state its range.",
-        "hard": "Sketch a hybrid function with three pieces; determine the range where pieces overlap.",
-        "extreme": "Sketch a family of functions $f_k(x)$ and determine the set of values for $k$ such that the range is $\\mathbb{R}^+$."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Reflections and Translations",
-      "technique_notes": {
-        "core_concepts": "Apply reflections (x-axis, y-axis) and translations. Use general form $y = af(b(x-h))+k$.",
-        "exam_style_guidelines": "Emphasise sign conventions for translations. Describe transformations in numbered sequence (DRT: Dilation, Reflection, Translation).",
-        "anti_prompts": [
-          "Do not confuse reflection in x-axis with reflection in y-axis",
-          "Avoid using $+h$ inside brackets for right shifts"
-        ],
-        "tech_free_rules": "Use simple base functions (powers, reciprocal, exp, log).",
-        "tech_active_rules": "Analyze transformations of circular functions where phase and midline shifts are combined."
-      },
-      "complexity_levers": {
-        "easy": "Identify the translation from $y=f(x)$ to $y=f(x-2)+3$.",
-        "hard": "Write the final rule after a sequence of 4 specific transformations.",
-        "extreme": "Show that any function $f(ax+b)+c$ can be represented as a sequence of three basic transformations."
-      },
-      "group": "unit3-transformations"
-    },
-    {
-      "name": "Identifying Parameters from Graphs",
-      "technique_notes": {
-        "core_concepts": "Calculate parameters $a, b, h, k$ from sketches. Link graph features (amplitude, period, asymptotes) to values.",
-        "exam_style_guidelines": "Require written justification for each parameter. Identify base function first, then parameters in order.",
-        "anti_prompts": [
-          "Do not read parameters directly from CAS if calculation is possible",
-          "Avoid graphs where features are ambiguous"
-        ],
-        "tech_free_rules": "Use graphs with clear key points (e.g. integer intercepts).",
-        "tech_active_rules": "Use regression or parameter sliding to fit a model to a set of data points on a graph."
-      },
-      "complexity_levers": {
-        "easy": "Identify amplitude and period from a graph of $\\sin(x)$.",
-        "hard": "Determine $a$ and $h$ for $y = \\log_e(x-h)+k$ given the asymptote and one other point.",
-        "extreme": "Solve for parameters in a system where two different function types (e.g. exp and circular) have a common intercept or turning point."
-      },
-      "group": "unit3-transformations"
-    },
-    {
-      "name": "Coordinate Mapping",
-      "technique_notes": {
-        "core_concepts": "Systematically track points using $(x, y) \\to (x', y')$. Verify image coordinates lie on transformed curve. Reverse mapping.",
-        "exam_style_guidelines": "Set up mapping as a table: original point, rule, image point. Require tracking of at least 3 key points.",
-        "anti_prompts": [
-          "Do not skip the verification step (substituting back)",
-          "Avoid using mapping notation without defining the transformation"
-        ],
-        "tech_free_rules": "Solve mapping equations algebraically.",
-        "tech_active_rules": "Use matrix mapping for linear transformations of relations."
-      },
-      "complexity_levers": {
-        "easy": "Find the image of $(1, 2)$ under a dilation by factor 2 from the x-axis.",
-        "hard": "Given an image point and the transformation rule, find the original point.",
-        "extreme": "Find the general mapping rule that transforms $y = x^2$ into a specific parabola; show its equivalence to the transformation of the rule."
-      },
-      "group": "unit3-transformations"
-    },
-    {
-      "name": "Families of Transformed Functions",
-      "technique_notes": {
-        "core_concepts": "Describe families where a parameter varies continuously. Find values of parameters satisfying given conditions.",
-        "exam_style_guidelines": "Express answers as conditions on parameters (e.g. $k > 0$). Substitution and algebraic solution required.",
-        "anti_prompts": [
-          "Do not use single values when a range is expected",
-          "Avoid parameters that change the fundamental function type"
-        ],
-        "tech_free_rules": "Solve for parameter values using simple algebra.",
-        "tech_active_rules": "Use dynamic geometry software (or CAS sliders) to explore how features change with a parameter."
-      },
-      "complexity_levers": {
-        "easy": "Find $k$ such that $y = e^x + k$ passes through the origin.",
-        "hard": "Determine the range of $m$ for which $y = mx + 1$ has two intersections with $y = x^2$.",
-        "extreme": "Investigate the locus of turning points of a family of cubics as the parameter $a$ varies."
-      },
-      "group": "unit3-transformations"
-    },
-    {
-      "name": "Solving Polynomial Equations",
-      "technique_notes": {
-        "core_concepts": "Solve equations of degree $n$. Factorisation, repeated roots, null factor law. Exact and numerical solutions.",
-        "exam_style_guidelines": "Always write solutions using the null factor law explicitly. Include verification of solutions.",
-        "anti_prompts": [
-          "Do not use polynomials that do not factor over the rationals for tech-free",
-          "Avoid degree > 4"
-        ],
-        "tech_free_rules": "Restrict to rational roots and standard factorisation techniques.",
-        "tech_active_rules": "Use technology to solve equations with complex or irrational coefficients."
-      },
-      "complexity_levers": {
-        "easy": "Solve $(x-1)(x+2) = 0$.",
-        "hard": "Solve $x^3 - 3x + 2 = 0$ using the factor theorem.",
-        "extreme": "Solve a literal equation $x^2 - (a+b)x + ab = 0$ and interpret the roots in terms of $a$ and $b$."
-      },
-      "group": "unit3-algebra"
-    },
-    {
-      "name": "Inverse and Exponential/Log Equations",
-      "technique_notes": {
-        "core_concepts": "Apply inverse operations ($\\log_e$ for $e^x$, etc.). Solve power and circular equations with appropriate restrictions.",
-        "exam_style_guidelines": "Show each inverse step explicitly. Verify solutions satisfy domain constraints (e.g., log argument $> 0$).",
-        "anti_prompts": [
-          "Do not ignore domain restrictions",
-          "Avoid decimal answers for exact form questions"
-        ],
-        "tech_free_rules": "Restrict to equations solvable using standard exact values and log laws.",
-        "tech_active_rules": "Solve equations where technology is needed to isolate the variable (e.g. equations requiring $W(x)$ function if out-of-scope but integrated)."
-      },
-      "complexity_levers": {
-        "easy": "Solve $e^{2x} = 5$.",
-        "hard": "Solve $2^{x+1} = 3^{x-1}$ (requires logs and rearranging with literal coefficients).",
-        "extreme": "Solve a system of exponential equations or an equation with multiple logs requiring advanced rearrangement."
-      },
-      "group": "unit3-algebra"
-    },
-    {
-      "name": "Literal Equations and Parametric Systems",
-      "technique_notes": {
-        "core_concepts": "Rearrange literal equations. Solve simultaneous linear systems containing parameters. Classify solution types (none, unique, infinitely many).",
-        "exam_style_guidelines": "Clearly identify the target variable. For parametric systems, use the determinant $\\Delta = ad - bc$ to classify. Substitute back for degenerate cases.",
-        "anti_prompts": [
-          "Do not skip steps in literal rearrangements",
-          "Avoid systems larger than 3x3 for tech-free parameter analysis"
-        ],
-        "tech_free_rules": "Focus on 2x2 systems with parameters in the coefficients.",
-        "tech_active_rules": "Analyze larger systems or non-linear systems where parameters affect the number of intersections."
-      },
-      "complexity_levers": {
-        "easy": "Solve $v = u + at$ for $a$.",
-        "hard": "Determine the value of $k$ for which the system $kx + y = 1, x + ky = k$ has infinitely many solutions.",
-        "extreme": "Investigate a system of 3 equations where parameters determine consistency; find the general solution in terms of a free parameter."
-      },
-      "group": "unit3-algebra"
-    },
-    {
-      "name": "Matrix Methods for Linear Systems",
-      "technique_notes": {
-        "core_concepts": "Represent systems as $A\\mathbf{x} = \\mathbf{b}$. Compute determinants and inverses ($2 \\times 2$). Geometric interpretation.",
-        "exam_style_guidelines": "Always write the system in matrix form first. Show the inverse matrix and multiplication steps in full.",
-        "anti_prompts": [
-          "Do not use $3 \\times 3$ inverses in tech-free",
-          "Avoid using Cramer's rule unless requested (prefer inverse matrix method)"
-        ],
-        "tech_free_rules": "Restrict to $2 \\times 2$ matrices with integer or simple rational entries.",
-        "tech_active_rules": "Use CAS to solve $n \\times n$ systems and explore matrix power applications (e.g. state transitions if integrated)."
-      },
-      "complexity_levers": {
-        "easy": "Represent two linear equations as a matrix equation.",
-        "hard": "Solve a $2 \\times 2$ matrix equation $AX = B$ where $X$ and $B$ are vectors.",
-        "extreme": "Find the values of $k$ such that the inverse matrix does not exist; link this to the geometric relationship between the lines."
-      },
-      "group": "unit3-algebra"
-    },
-    {
-      "name": "Domain Constraints in Composition and Inverse Contexts",
-      "technique_notes": {
-        "core_concepts": "Rigorously specify domains. Restrict domains for inverses. Step-by-step domain analysis for composite chains.",
-        "exam_style_guidelines": "State constraints at every step. Work from inside out for composite chains. Use interval notation throughout.",
-        "anti_prompts": [
-          "Do not carry undefined expressions forward",
-          "Avoid skipping the existence verification ($\\mathrm{ran}(g) \\subseteq \\mathrm{dom}(f)$)"
-        ],
-        "tech_free_rules": "Focus on compositions where the range/domain intersection is easy to find algebraically.",
-        "tech_active_rules": "Use technology to determine the range of complex functions before composing."
-      },
-      "complexity_levers": {
-        "easy": "State the restricted domain for $y=x^2$ to have an inverse.",
-        "hard": "Find the domain of $f \\circ g \\circ h$ where each function has its own natural domain constraint.",
-        "extreme": "Determine the largest possible value of parameter $k$ such that a given composition exists over a specified interval."
-      },
-      "group": "unit3-algebra"
-    },
-    {
-      "name": "Amplitude, Period, and Phase Shift",
-      "technique_notes": {
-        "core_concepts": "Extract parameters from $y = a\\sin(b(x-h))+k$. Construct equations from features. Distinguish between $bx+c$ and $b(x-h)$.",
-        "exam_style_guidelines": "Always factor the coefficient of $x$ before reading phase shift. Derive period algebraically from $b$ ($\\pi/b$ or $2\\pi/b$).",
-        "anti_prompts": [
-          "Do not read parameters purely from a graph without algebraic proof",
-          "Avoid decimal periods"
-        ],
-        "tech_free_rules": "Express answers in exact form (fractions of $\\pi$).",
-        "tech_active_rules": "Identify parameters for data-driven periodic models with complex periods."
-      },
-      "complexity_levers": {
-        "easy": "Identify amplitude and period for $y = 3\\sin(4x)$.",
-        "hard": "Find the phase shift for $y = \\cos(2x - \\pi/3)$; construct the equation from 3 graph features.",
-        "extreme": "Show that $a\\sin(x) + b\\cos(x)$ can be written in the form $R\\sin(x+\\alpha)$ and identify $R, \\alpha$."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Exact Values and CAST Reasoning",
-      "technique_notes": {
-        "core_concepts": "Solve equations like $\\sin(x) = k$. Recall exact values for reference angles. Generate all solutions in interval using symmetry.",
-        "exam_style_guidelines": "Structure solutions: (1) reference angle, (2) CAST quadrant check, (3) extend using periodicity. Express in radians.",
-        "anti_prompts": [
-          "Do not use degrees in calculus-aligned contexts",
-          "Avoid skipping solutions outside the primary $[0, 2\\pi]$ interval if domain is larger"
-        ],
-        "tech_free_rules": "Restrict to standard exact-value angles.",
-        "tech_active_rules": "Solve equations where $k$ is not an exact value surd."
-      },
-      "complexity_levers": {
-        "easy": "Solve $\\cos(x) = -1/2$ for $x \\in [0, 2\\pi]$.",
-        "hard": "Solve $\\tan(3x) = 1$ for $x \\in [0, \\pi]$.",
-        "extreme": "Find all solutions to $\\sin^2(x) - \\sin(x) = 0$; solve equations involving both $\\sin(x)$ and $\\cos(x)$ via identities."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Graphing Circular Functions",
-      "technique_notes": {
-        "core_concepts": "Produce fully labelled sketches over specified intervals. Mark intercepts, turning points, asymptotes, and endpoints.",
-        "exam_style_guidelines": "Label all turning points and intercepts with exact coordinates. For tangent, draw dashed vertical asymptotes and label their equations.",
-        "anti_prompts": [
-          "Do not omit endpoints",
-          "Ensure the number of cycles fits the interval exactly"
-        ],
-        "tech_free_rules": "Stick to standard transformations with manageable arithmetic.",
-        "tech_active_rules": "Overlay multiple circular functions to analyze interference or beats (if integrated)."
-      },
-      "complexity_levers": {
-        "easy": "Sketch $y = 2\\sin(x)$ over $[0, 2\\pi]$.",
-        "hard": "Sketch $y = \\tan(x - \\pi/4)$ and label all features over $[-\\pi, \\pi]$.",
-        "extreme": "Sketch $y = \\sin(x) + x/2$ and discuss the location of turning points using calculus (Unit 3/4 bridge)."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Modelling with Circular Functions",
-      "technique_notes": {
-        "core_concepts": "Real-world periodic modelling (tides, temp, wheels). Identify amp, period, phase, midline from context.",
-        "exam_style_guidelines": "Convert context (e.g. '12 hours') to $b$ algebraically. Use cosine for models starting at extreme, sine for midline. Always verify with initial conditions.",
-        "anti_prompts": [
-          "Do not use unrealistic numeric data",
-          "Avoid non-periodic contexts for circular modelling"
-        ],
-        "tech_free_rules": "Stick to context where parameters are integers or standard multiples of $\\pi$.",
-        "tech_active_rules": "Solve predictive questions (e.g. 'when is the first time $y > k$?') where technology is needed for non-standard values."
-      },
-      "complexity_levers": {
-        "easy": "Identify amplitude from a context where the max and min are given.",
-        "hard": "Formulate a circular model from two given data points and a known period.",
-        "extreme": "Analyze the rate of change of a periodic model (e.g. 'how fast is the tide rising at $t=3$?')."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Restricting Domains for Inverse Trig Functions",
-      "technique_notes": {
-        "core_concepts": "Identify domain restrictions for sine, cosine, tangent to be one-to-one. State inverse with correct domain/range. Evaluate exact values.",
-        "exam_style_guidelines": "State the inverse domain explicitly. Draw $y=x$ as dashed reference line on sketches. Clearly show restricted domain endpoints.",
-        "anti_prompts": [
-          "Do not assume standard VCAA restrictions if a different interval is valid and specified",
-          "Avoid decimal approximations"
-        ],
-        "tech_free_rules": "Focus on standard restricted domains (e.g. $[-\\pi/2, \\pi/2]$ for sine).",
-        "tech_active_rules": "Investigate non-standard restrictions or compositions of trig and inverse trig functions."
-      },
-      "complexity_levers": {
-        "easy": "State the domain and range of $y = \\arcsin(x)$.",
-        "hard": "Find the rule and domain of $f^{-1}(x)$ for $f(x) = 2\\cos(3x)$ on a restricted interval.",
-        "extreme": "Show that $\\sin(\\arcsin(x)) = x$ but $\\arcsin(\\sin(x))$ only equals $x$ on a specific interval."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Logarithm Laws and Simplification",
-      "technique_notes": {
-        "core_concepts": "Apply laws for product, quotient, power, and change of base. Simplify expressions. Work in $\\log_e$ notation.",
-        "exam_style_guidelines": "Use $\\log_e$ (not $\\ln$). Show each law application as a separate step. Verify arguments remain positive.",
-        "anti_prompts": [
-          "Do not exponentiate term-by-term",
-          "Avoid invalid simplifications like $\\log(A+B) = \\log A + \\log B$"
-        ],
-        "tech_free_rules": "Restrict to change-of-base where result simplifies to a known integer or rational.",
-        "tech_active_rules": "Solve for parameters in equations where base change leads to a non-standard numeric result."
-      },
-      "complexity_levers": {
-        "easy": "Simplify $2\\log_e(x) + \\log_e(y)$.",
-        "hard": "Express $\\log_a(x)$ in terms of $\\log_e(x)$; simplify a chain of change-of-base terms.",
-        "extreme": "Solve for $x$ given an equation with logs of different bases (e.g. $\\log_2(x) = \\log_4(x+2)$)."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Solving Exponential Equations",
-      "technique_notes": {
-        "core_concepts": "Solve by taking $\\log_e$. Isolation, substitution for quadratics (e.g. $u=e^x$). Exact solutions in $\\log_e$ form.",
-        "exam_style_guidelines": "Isolate the exponential first. For quadratics, reject negative $u$ solutions with justification ($e^x > 0$). State final answer in exact form.",
-        "anti_prompts": [
-          "Do not use decimal answers",
-          "Avoid equations requiring numerical methods for tech-free"
-        ],
-        "tech_free_rules": "Restrict to equations where $x$ can be isolated with basic algebra and logs.",
-        "tech_active_rules": "Solve $a^{f(x)} = b^{g(x)}$ where technology is needed to compute the resulting intersection."
-      },
-      "complexity_levers": {
-        "easy": "Solve $e^x = 10$.",
-        "hard": "Solve $e^{2x} - 4e^x + 3 = 0$.",
-        "extreme": "Solve $a e^{kx} + b e^{-kx} = c$ for $x$ in terms of parameters."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Solving Logarithmic Equations",
-      "technique_notes": {
-        "core_concepts": "Solve by exponentiating. Combine terms first. mandatory domain verification (argument $> 0$). Reject extraneous solutions.",
-        "exam_style_guidelines": "Never exponentiate term-by-term. Show check: '[argument] $> 0$' explicitly for each log. Provide written justification for rejections.",
-        "anti_prompts": [
-          "Do not skip the domain check",
-          "Avoid base-change in simple log equations if unnecessary"
-        ],
-        "tech_free_rules": "Restrict to equations that lead to linear or quadratic sub-problems.",
-        "tech_active_rules": "Analyze equations where parameter values determine the number of valid solutions (after domain check)."
-      },
-      "complexity_levers": {
-        "easy": "Solve $\\log_e(x) = 2$.",
-        "hard": "Solve $\\log_e(x) + \\log_e(x-3) = \\log_e(4)$; reject extraneous solutions.",
-        "extreme": "Determine the range of $k$ such that $\\log_e(x) = kx$ has exactly one solution (bridge to tangent calculus)."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Graph Features and Transformations of Exp/Log Functions",
-      "technique_notes": {
-        "core_concepts": "Sketch $e^x, \\log_e x$ and transformations. Identify asymptotes, intercepts, domain, range. Describe transformation sequence.",
-        "exam_style_guidelines": "Identify asymptote equations first ($y=k$ for exp, $x=h$ for log). Use DRT sequence for descriptions. Use general form $y = af(b(x-h))+k$.",
-        "anti_prompts": [
-          "Do not confuse vertical and horizontal asymptotes",
-          "Ensure log domain matches the graph sketch"
-        ],
-        "tech_free_rules": "Restrict to simple numeric parameters.",
-        "tech_active_rules": "Find transformation parameters from a set of data points mapping to an exp/log parent."
-      },
-      "complexity_levers": {
-        "easy": "Sketch $y = e^{x-1}$ and state domain/range.",
-        "hard": "Determine the sequence of transformations mapping $y = \\log_e(x)$ to $y = -2\\log_e(x+3) + 1$.",
-        "extreme": "Construct the rule for an exponential function given its horizontal asymptote and two other points, one of which is an intercept."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Modelling Exponential Growth and Decay",
-      "technique_notes": {
-        "core_concepts": "Formulate equations from context. Solve for unknown parameters. Make predictions. Verify domain constraints.",
-        "exam_style_guidelines": "Use exact $\\log_e$ expressions for $k$ and $t$. For half-life, set $y=A/2$ and solve. Interpret answers in context with units.",
-        "anti_prompts": [
-          "Do not use decimal approximations in tech-free",
-          "Avoid multi-step problems where previous results are needed but not scaffolded"
-        ],
-        "tech_free_rules": "Focus on cases where the exponential can be isolated and logs taken easily.",
-        "tech_active_rules": "Solve systems where initial values and rates are complex decimals from real-world data."
-      },
-      "complexity_levers": {
-        "easy": "Calculate future value given $y = Ae^{kt}$ and parameters.",
-        "hard": "Find the growth constant $k$ given two values at different times.",
-        "extreme": "Analyze a cooling model $T(t) = T_a + (T_0 - T_a)e^{-kt}$; determine the time taken to reach a temperature halfway between $T_0$ and $T_a$."
-      },
-      "group": "unit3-functions"
-    },
-    {
-      "name": "Standard Derivatives and Chain Rule",
-      "technique_notes": {
-        "core_concepts": "Apply chain rule to poly, exp, log, and circular functions. Handle multiple applications (nested chains).",
-        "exam_style_guidelines": "Identify outer/inner functions first. Write in form $f'(g(x)) \\cdot g'(x)$ for clarity. Simplify fully.",
-        "anti_prompts": [
-          "Do not leave answers unsimplified",
-          "Avoid confusing $\\log_e(bx)$ derivative with $b/x$ (it's $1/x$)"
-        ],
-        "tech_free_rules": "Restrict to compositions of standard VCAA functions.",
-        "tech_active_rules": "Find derivatives of complex functions and use technology to evaluate at specific points."
-      },
-      "complexity_levers": {
-        "easy": "Differentiate $\\sin(2x)$.",
-        "hard": "Differentiate $\\log_e(\\cos(x^2))$.",
-        "extreme": "Show that for $y = f(kx)$, the derivative is $k \\cdot f'(kx)$ using the chain rule from first principles (theoretical bridge)."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Product and Quotient Rules",
-      "technique_notes": {
-        "core_concepts": "Apply $\\frac{d}{dx}[uv] = u'v + uv'$ and $\\frac{d}{dx}[u/v] = (u'v - uv')/v^2$. Combine with chain rule.",
-        "exam_style_guidelines": "Label $u$ and $v$ explicitly. Expand numerators and collect like terms. Prefer product rule over quotient where $v$ is a simple power.",
-        "anti_prompts": [
-          "Do not swap terms in the quotient rule numerator",
-          "Avoid leaving negative exponents in final answers if standard form is requested"
-        ],
-        "tech_free_rules": "Focus on products/quotients of standard functions (e.g. $x^2 e^x$, $x\\sin(x)$).",
-        "tech_active_rules": "Find stationary points by factoring the derivative of a complex product/quotient expression."
-      },
-      "complexity_levers": {
-        "easy": "Differentiate $x \\cdot \\log_e(x)$.",
-        "hard": "Differentiate $(x^2+1)\\cos(x)$ and simplify the numerator.",
-        "extreme": "Given $h(x) = f(x)g(x)$ and values of $f, g, f', g'$ at $x=a$, calculate $h'(a)$ (numerical application)."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Stationary Points and Classification",
-      "technique_notes": {
-        "core_concepts": "Solve $f'(x)=0$. Construct gradient tables. Classify local extrema and stationary points of inflection. Exact coordinates.",
-        "exam_style_guidelines": "Gradient table must show $x$ values, signs of $f'(x)$, and shape arrows ($\\nearrow, \\searrow$). Find $y$-coordinates from $f(x)$.",
-        "anti_prompts": [
-          "Do not use second derivative test in tech-free unless specifically requested",
-          "Avoid skipping the nature table/justification"
-        ],
-        "tech_free_rules": "Restrict to functions where $f'(x)=0$ leads to solvable linear or quadratic equations.",
-        "tech_active_rules": "Use technology to classify stationary points for functions where solving $f'(x)=0$ algebraically is difficult."
-      },
-      "complexity_levers": {
-        "easy": "Find the turning point of a simple quadratic using calculus.",
-        "hard": "Identify and classify all three stationary points of a quartic function.",
-        "extreme": "Determine the values of parameter $m$ for which $f(x) = x^3 - mx$ has exactly two local extrema."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Tangent and Normal Lines",
-      "technique_notes": {
-        "core_concepts": "Evaluate $f'(a)$ for gradient. Use $m_n = -1/f'(a)$ for normal. Write line equations in $y-y_1 = m(x-x_1)$ form.",
-        "exam_style_guidelines": "Compute $f(a)$ and $f'(a)$ clearly. Keep all values exact. Handle horizontal/vertical cases.",
-        "anti_prompts": [
-          "Do not confuse tangent and normal gradients",
-          "Avoid decimal gradients"
-        ],
-        "tech_free_rules": "Stick to points $a$ that are easy to evaluate in the function and its derivative.",
-        "tech_active_rules": "Find the point on a curve where the tangent passes through an external point $(x_0, y_0)$."
-      },
-      "complexity_levers": {
-        "easy": "Find the equation of the tangent to $y=x^2$ at $(1, 1)$.",
-        "hard": "Find the equation of the normal to $y = \\log_e(x)$ that is perpendicular to a given line.",
-        "extreme": "Show that all normals to a specific family of curves pass through a common point."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Optimisation on Closed Intervals",
-      "technique_notes": {
-        "core_concepts": "Find global max/min on $[a, b]$. Compare stationary points in interior with endpoint values. Applied contexts.",
-        "exam_style_guidelines": "List all candidate points explicitly. Create a table of values. State the constraint and eliminate one variable for applied tasks.",
-        "anti_prompts": [
-          "Do not forget to check the endpoints",
-          "Avoid non-modelling domains for applied optimisation"
-        ],
-        "tech_free_rules": "Focus on polynomial functions on the closed interval.",
-        "tech_active_rules": "Solve optimisation problems where the function or its derivative requires technology to analyze."
-      },
-      "complexity_levers": {
-        "easy": "Find max/min of $y=x^2$ on $[-1, 2]$.",
-        "hard": "Maximise the volume of an open box made from a fixed size sheet of cardboard.",
-        "extreme": "Minimise the distance between a fixed point and a moving point on a curve (e.g. distance to a parabola)."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Reading Derivative Graphs",
-      "technique_notes": {
-        "core_concepts": "Sketch $f'$ from $f$, or $f$ from $f'$. Identify intervals of increase/decrease and extrema. Link concavity and points of inflection.",
-        "exam_style_guidelines": "Sketch $f'$: $f$ extrema $\\to$ $f'$ intercepts. Sketch $f$: $f'$ sign changes $\\to$ $f$ extrema. Mark all key $x$-values clearly.",
-        "anti_prompts": [
-          "Do not skip marking $x$-intercepts of the derivative graph",
-          "Avoid vague sketches; maintain qualitative accuracy"
-        ],
-        "tech_free_rules": "Focus on qualitative sketching and reasoning from properties.",
-        "tech_active_rules": "Use technology to verify sketches and compare function properties with their numerical derivatives."
-      },
-      "complexity_levers": {
-        "easy": "Identify where a function is increasing from its graph.",
-        "hard": "Sketch the derivative graph for a given cubic function sketch.",
-        "extreme": "Given a derivative graph $f'$, sketch a possible graph for $f$ that passes through a specific point $(x, y)$."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Antiderivatives and Indefinite Integrals",
-      "technique_notes": {
-        "core_concepts": "Integrate poly, exp, reciprocal, circular, and power functions. Notation $\\int f(x) dx = F(x) + c$.",
-        "exam_style_guidelines": "Always include $dx$ in notation and $+c$ in result. Simplify integrands algebraically (expand products, split fractions) before integrating.",
-        "anti_prompts": [
-          "Do not integrate unexpanded products",
-          "Avoid skipping the $+c$ in indefinite contexts"
-        ],
-        "tech_free_rules": "Stick to standard VCAA antiderivatives.",
-        "tech_active_rules": "Use CAS to find antiderivatives of complex expressions and check results via differentiation."
-      },
-      "complexity_levers": {
-        "easy": "Find $\\int (x^2 + 1) dx$.",
-        "hard": "Integrate $(x+1)/x$ or $(2x-1)^2$.",
-        "extreme": "Identify a general rule for $\\int f(kx) dx$ in terms of the antiderivative of $f(u)$."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Antiderivatives of Composite Functions",
-      "technique_notes": {
-        "core_concepts": "Reverse chain rule for $f(ax+b)$. Linear inner functions only. Verification by differentiation.",
-        "exam_style_guidelines": "Divide by the coefficient $a$. Verify by differentiating the result using the chain rule. Identify inner/outer components.",
-        "anti_prompts": [
-          "Do not use non-linear substitution in tech-free",
-          "Avoid confusion with the chain rule multiplier"
-        ],
-        "tech_free_rules": "Restrict to inner functions of form $ax+b$.",
-        "tech_active_rules": "Solve problems requiring non-linear substitution (if integrated or prompted)."
-      },
-      "complexity_levers": {
-        "easy": "Find $\\int e^{3x} dx$.",
-        "hard": "Find $\\int \\cos(2x - \\pi/4) dx$.",
-        "extreme": "Find the antiderivative of $1/(5-x)$; handle the negative coefficient of $x$ correctly."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Definite Integrals and the Fundamental Theorem of Calculus",
-      "technique_notes": {
-        "core_concepts": "Evaluate $\\int_a^b f(x) dx = [F(x)]_a^b$. Linearity, reversing limits, splitting intervals.",
-        "exam_style_guidelines": "Use bracket notation $[F(x)]_a^b$ immediately. Substitute $b$ then $a$ separately. Do not add $+c$ for definite integrals.",
-        "anti_prompts": [
-          "Do not omit bracket notation in working",
-          "Avoid decimal results for exact value tasks"
-        ],
-        "tech_free_rules": "Focus on standard function evaluations with integer/simple surd limits.",
-        "tech_active_rules": "Analyze properties of definite integrals (e.g. mean value theorem bridge) using technology."
-      },
-      "complexity_levers": {
-        "easy": "Evaluate $\\int_1^2 x^2 dx$.",
-        "hard": "Evaluate $\\int_0^{\\pi/2} \\sin(2x) dx$.",
-        "extreme": "Show that $\\int_a^b f(x) dx + \\int_b^c f(x) dx = \\int_a^c f(x) dx$ for a specific function."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Area Under a Curve",
-      "technique_notes": {
-        "core_concepts": "Area between curve and x-axis. Sign changes in interval. Absolute values of signed integrals. Exact results.",
-        "exam_style_guidelines": "Sketch function or reason about signs before setting up integrals. Split at sign-change points. Final area must be positive.",
-        "anti_prompts": [
-          "Do not interpret a negative definite integral as 'negative area'",
-          "Avoid skipping the check for x-intercepts in the interval"
-        ],
-        "tech_free_rules": "Use functions where x-intercepts are easy to find.",
-        "tech_active_rules": "Find area for complex functions where technology is needed to solve for intercepts or evaluate integrals."
-      },
-      "complexity_levers": {
-        "easy": "Find area under $y=x^2$ from $x=0$ to $x=1$.",
-        "hard": "Find total area bounded by $y = \\sin(x)$ and the x-axis from $x=0$ to $x=2\\pi$.",
-        "extreme": "Find the value of $m$ such that the area under $y = e^x$ from $0$ to $m$ is exactly $10$ square units."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Area Between Curves",
-      "technique_notes": {
-        "core_concepts": "Area enclosed between two functions. Intersection points. Upper/lower curve identification. Integral setup $\\int [f-g] dx$.",
-        "exam_style_guidelines": "Solve $f(x)=g(x)$ algebraically first. Test a value to identify upper/lower. Evaluate using bracket notation.",
-        "anti_prompts": [
-          "Do not assume upper/lower without testing",
-          "Avoid decimals for tech-free evaluation"
-        ],
-        "tech_free_rules": "Restrict to intersections solvable with standard algebra.",
-        "tech_active_rules": "Find area where technology is needed to compute intersection coordinates."
-      },
-      "complexity_levers": {
-        "easy": "Find area between $y=x$ and $y=x^2$ in the first quadrant.",
-        "hard": "Find area between $y = \\sin(x)$ and $y = \\cos(x)$ on $[0, \\pi/2]$.",
-        "extreme": "Find the area bounded by three functions or a piecewise function and another curve."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Average Value and Rates of Change",
-      "technique_notes": {
-        "core_concepts": "Use average value formula $\\bar{f} = \\frac{1}{b-a}\\int_a^b f(x) dx$. Recover $f(x)$ from $f'(x)$ and boundary condition. Applied contexts (temp, velocity).",
-        "exam_style_guidelines": "Show formula, substitute, evaluate definite integral, then divide by length. For recovery, solve for constant $c$ explicitly.",
-        "anti_prompts": [
-          "Do not confuse average rate of change with average value",
-          "Avoid non-standard notation for average value"
-        ],
-        "tech_free_rules": "Stick to polynomial and simple transcendental functions.",
-        "tech_active_rules": "Analyze data sets to find average values where technology is needed for the integral."
-      },
-      "complexity_levers": {
-        "easy": "Find the average value of $x^2$ on $[0, 3]$.",
-        "hard": "Find the average temperature given a circular function model over one day.",
-        "extreme": "Show that the average value of $f(x)$ on $[a, b]$ is equal to $f(c)$ for at least one $c$ in the interval (Mean Value Theorem link)."
-      },
-      "group": "unit3-calculus"
-    },
-    {
-      "name": "Numerical Approximation: Trapezium Rule",
-      "technique_notes": {
-        "core_concepts": "Apply trapezium rule with $n$ strips. Link concavity ($f''$) to over/underestimate. Comparison with exact value.",
-        "exam_style_guidelines": "Compute $h$ and $y_i$ values in a table. Apply formula carefully (double middle values). Justify estimate type using concavity.",
-        "anti_prompts": [
-          "Do not skip middle value doubling",
-          "Avoid confusion between strip count and number of x-values"
-        ],
-        "tech_free_rules": "Use small $n$ (2 or 3) with simple function values.",
-        "tech_active_rules": "Perform many-strip approximations and analyze error decay."
-      },
-      "complexity_levers": {
-        "easy": "Approximate $\\int_1^2 1/x dx$ using 2 strips.",
-        "hard": "Determine if the rule overestimates $\\log_e(x)$ and justify using the derivative.",
-        "extreme": "Derive the trapezium rule formula from the area of individual trapeziums."
-      },
-      "group": "unit3-calculus"
+      "group": "unit2-data-analysis-probability-statistics"
     },
     {
       "name": "Conditional Probability and Independence",
       "technique_notes": {
-        "core_concepts": "Calculate $\\Pr(A|B)$. Test independence $\\Pr(A \\cap B) = \\Pr(A)\\Pr(B)$. Venn diagrams, tables, words.",
-        "exam_style_guidelines": "Use formal notation. For two-way tables, extract intersection count/total. Test independence numerically and state conclusion.",
+        "core_concepts": "$\\Pr(A|B) = \\frac{\\Pr(A \\cap B)}{\\Pr(B)}$. Independent: $\\Pr(A \\cap B) = \\Pr(A)\\Pr(B)$ or $\\Pr(A|B) = \\Pr(A)$.",
+        "exam_style_guidelines": "Test for independence by calculating the product of individual probabilities and comparing to the intersection.",
         "anti_prompts": [
-          "Do not assume independence without verification",
-          "Avoid confusing mutually exclusive with independent"
+          "Do not confuse independence with mutual exclusivity (if $A, B$ are mutually exclusive and have non-zero probability, they *cannot* be independent)."
         ],
-        "tech_free_rules": "Focus on discrete events with exact fractional probabilities.",
-        "tech_active_rules": "Analyze large data sets from files to identify dependencies between variables."
+        "tech_free_rules": "Calculate conditional probabilities from two-way tables.",
+        "tech_active_rules": "Solve multi-stage problems using tree diagrams."
       },
-      "complexity_levers": {
-        "easy": "Find $\\Pr(A|B)$ given $\\Pr(A \\cap B)$ and $\\Pr(B)$.",
-        "hard": "Determine if two events from a scenario (e.g. dice sum and specific face) are independent.",
-        "extreme": "Show that if $A$ and $B$ are independent, so are $A'$ and $B'$."
-      },
-      "group": "unit4-probability"
+      "group": "unit2-data-analysis-probability-statistics"
     },
     {
-      "name": "Probability Trees and Bayes' Theorem",
+      "name": "Composite Functions and Domain/Range",
       "technique_notes": {
-        "core_concepts": "Multi-stage problems via tree diagrams. Bayes' Theorem. Law of total probability.",
-        "exam_style_guidelines": "Label branches with conditional probabilities. branches at each node must sum to 1. Show arithmetic explicitly.",
+        "core_concepts": "Existence condition for $f(g(x))$: Range of $g$ $\\subseteq$ Domain of $f$. Rule $(f \\circ g)(x) = f(g(x))$.",
+        "exam_style_guidelines": "State the domain of $f \\circ g$ as the domain of $g$. Verify the range condition before forming the rule.",
         "anti_prompts": [
-          "Do not use counts on tree branches (use probabilities)",
-          "Avoid skipping the law of total probability step when finding the denominator for Bayes"
+          "Do not ignore the existence check.",
+          "Ensure the range of the composite function is determined correctly (usually from a graph)."
         ],
-        "tech_free_rules": "Stick to 2 or 3 stage problems with simple fractions.",
-        "tech_active_rules": "Model multi-stage Markov chains (if integrated) or deep decision trees."
+        "tech_free_rules": "Form composite rules for simple polynomial and power functions.",
+        "tech_active_rules": "Restrict the domain of $g$ to ensure the composite function exists."
       },
-      "complexity_levers": {
-        "easy": "Draw a tree for two coin tosses and find one outcome probability.",
-        "hard": "Given a medical test with specific sensitivity and specificity, find the probability that a person who tests positive actually has the disease.",
-        "extreme": "Analyze a multi-branch tree where branch probabilities depend on a parameter $p$; find $p$ given a total probability outcome."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-functions"
     },
     {
-      "name": "Sampling Distributions",
+      "name": "Inverse Functions and One-to-One Restrictions",
       "technique_notes": {
-        "core_concepts": "Sample proportion $\\hat{P}$ as a random variable. Approximate distribution $\\hat{P} \\sim N(p, p(1-p)/n)$. Effect of $n$ on spread.",
-        "exam_style_guidelines": "State the approximate distribution explicitly. Standardise using z-scores. Prefer exact multiples of SD for tech-free.",
+        "core_concepts": "Existence of $f^{-1} \\iff f$ is one-to-one. Horizontal line test. Reflection in $y=x$.",
+        "exam_style_guidelines": "Restrict the domain of a many-to-one function (like a parabola) to make it one-to-one before finding the inverse. State the rule, domain, and range for $f^{-1}$.",
         "anti_prompts": [
-          "Do not ignore the 'large $n$' condition for normal approximation",
-          "Avoid confusing $p$ with $\\hat{p}$"
+          "The domain of $f^{-1}$ must be stated explicitly as an interval.",
+          "Do not swap $x$ and $y$ and stop; solve for $y$ to get the rule."
         ],
-        "tech_free_rules": "Use scenarios where probabilities can be found using the 68-95-99.7% rule.",
-        "tech_active_rules": "Simulate sampling from a population and visualize the resulting distribution of proportions."
+        "tech_free_rules": "Find inverse of restricted quadratics and power functions.",
+        "tech_active_rules": "Sketch $f$ and $f^{-1}$ and identify intersection points using CAS."
       },
-      "complexity_levers": {
-        "easy": "Identify the mean and SD of the sampling distribution of $\\hat{P}$.",
-        "hard": "Find $\\Pr(\\hat{P} > k)$ given $p$ and $n$ using normal approximation.",
-        "extreme": "Show that the standard deviation of $\\hat{P}$ is halved when $n$ is quadrupled."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-functions"
     },
     {
-      "name": "Confidence Intervals",
+      "name": "Logarithm Laws and Exact Value Equations",
       "technique_notes": {
-        "core_concepts": "Construct 95% CI for $p$. Formula $\\hat{p} \\pm 1.96\\sqrt{\\hat{p}(1-\\hat{p})/n}$. Effect of $n$ and confidence level on width.",
-        "exam_style_guidelines": "Compute margin of error $E$ as a separate step. Interpret CI using 'we are 95% confident that...' Round endpoints appropriately.",
+        "core_concepts": "$\\\\log_e(ab) = \\\\log_e a + \\\\log_e b$, $\\\\log_e(a/b) = \\\\log_e a - \\\\log_e b$, $\\\\log_e(a^n) = n \\\\log_e a$, $\\\\log_a b = \\\\frac{\\\\log_c b}{\\\\log_c a}$.",
+        "exam_style_guidelines": "Use log laws to condense terms before exponentiating to solve. Reject solutions that make the argument of any log term zero or negative.",
         "anti_prompts": [
-          "Do not use probability language for CI interpretation (e.g. '95% chance that $p$ is in interval')",
-          "Avoid using $p$ instead of $\\hat{p}$ in the standard error formula"
+          "Never exponentiate term-by-term (e.g., $e^{\\\\log A + \\\\log B} \\\\neq e^{\\\\log A} + e^{\\\\log B}$)."
         ],
-        "tech_free_rules": "Use $z=2$ instead of $1.96$ if specified, or stick to symbolic setup.",
-        "tech_active_rules": "Calculate CIs for various confidence levels (90, 99) using technology."
+        "tech_free_rules": "Solve log equations leading to linear or quadratic sub-problems.",
+        "tech_active_rules": "Solve parametric log equations."
       },
-      "complexity_levers": {
-        "easy": "Calculate a 95% CI given $\\hat{p}$ and $n$.",
-        "hard": "Determine if a claim about $p$ is supported by a given confidence interval.",
-        "extreme": "Solve for the confidence level given the interval, $\\hat{p}$, and $n$ (inverse calculation)."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-functions"
     },
     {
-      "name": "Solving for Sample Proportion or Sample Size",
+      "name": "Exponential and Logarithmic Modeling",
       "technique_notes": {
-        "core_concepts": "Recover $\\hat{p}$ and $E$ from CI endpoints. Solve for $n$ given $E$. midpoint and width calculations.",
-        "exam_style_guidelines": "For $n$: square both sides of $E$ formula, isolate $n$, and round UP (ceiling). Explain rounding direction.",
+        "core_concepts": "Growth/decay models $A(t) = A_0 e^{kt}$. Newton's Law of Cooling. Logistic models (optional).",
+        "exam_style_guidelines": "Interpret $A_0$ as the initial amount. Use $k$ to find half-life or doubling time. Discuss long-run behavior (asymptotes).",
         "anti_prompts": [
-          "Do not round down for sample size",
-          "Avoid confusing margin of error with total interval width"
+          "Units are essential (e.g., years, bacteria count).",
+          "Ensure the rate $k$ has the correct sign for the context (negative for decay)."
         ],
-        "tech_free_rules": "Stick to symbolic setup or simple numeric cases where squares are obvious.",
-        "tech_active_rules": "Calculate $n$ for non-standard confidence levels."
+        "tech_free_rules": "Solve for time $t$ in terms of $\\log_e$.",
+        "tech_active_rules": "Fit exponential curves to data and predict future values."
       },
-      "complexity_levers": {
-        "easy": "Find $\\hat{p}$ given the interval $(0.4, 0.6)$.",
-        "hard": "Find $n$ required to halve the margin of error.",
-        "extreme": "Given a sample size $n$ and interval width, determine the confidence level used (numerical solver bridge)."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-functions"
     },
     {
-      "name": "Probability Mass Functions",
+      "name": "Circular Functions: General Solutions",
       "technique_notes": {
-        "core_concepts": "Tabular discrete distributions. Sum $p(x)=1$. Solve for unknown constant $k$. Non-negativity check.",
-        "exam_style_guidelines": "Set up $\\sum p(x)=1$ explicitly. Reject $k$ values that make any $p(x) < 0$. Present in 2-row table.",
+        "core_concepts": "General solution for $\\sin(x) = a$: $x = n\\pi + (-1)^n \\arcsin(a)$. For $\\cos(x) = a$: $x = 2n\\pi \\pm \\arccos(a)$. For $\\tan(x) = a$: $x = n\\pi + \\arctan(a)$.",
+        "exam_style_guidelines": "Specify $n \\in \\mathbb{Z}$. Use general solutions to find all roots in a restricted interval.",
         "anti_prompts": [
-          "Do not leave answers as probabilities without checking the range $[0, 1]$",
-          "Avoid non-integer values for discrete variable $x$ unless specified"
+          "Do not skip the $n \\in \\mathbb{Z}$ statement.",
+          "Ensure $a$ is in the valid range for the function."
         ],
-        "tech_free_rules": "Use linear or simple quadratic equations in $k$.",
-        "tech_active_rules": "Solve for parameters in large tables or distributions defined by a complex rule."
+        "tech_free_rules": "Find general solutions for standard exact values.",
+        "tech_active_rules": "Solve complex circular equations numerically."
       },
-      "complexity_levers": {
-        "easy": "Find $k$ such that $k, 2k, 3k$ are probabilities for $X=1, 2, 3$.",
-        "hard": "Solve a quadratic for $k$; justify the rejection of one solution.",
-        "extreme": "Show that for $p(x) = kx$, $k$ must be $1\\sum x$ and identify the range of $x$ for which this is valid."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-functions"
     },
     {
-      "name": "Expected Value and Variance",
+      "name": "Chain, Product and Quotient Rules",
       "technique_notes": {
-        "core_concepts": "Calculate $E(X) = \\sum xp(x)$ and $\\mathrm{Var}(X) = E(X^2) - [E(X)]^2$. Non-binomial contexts.",
-        "exam_style_guidelines": "Extend tables with $xp(x)$ and $x^2 p(x)$ rows/columns. Keep values as exact fractions for tech-free.",
+        "core_concepts": "Chain: $\\frac{dy}{dx} = \\frac{dy}{du} \\cdot \\frac{du}{dx}$. Product: $(uv)' = u'v + uv'$. Quotient: $(u/v)' = \\frac{u'v - uv'}{v^2}$.",
+        "exam_style_guidelines": "Use brackets correctly to avoid sign errors. Name the derivative correctly ($f'(x)$ if function is $f(x)$).",
         "anti_prompts": [
-          "Do not confuse SD with variance",
-          "Avoid formulas for binomial variance if the distribution is not binomial"
+          "Do not swap $u$ and $v$ in the quotient rule numerator.",
+          "Avoid incomplete notation (e.g., writing $f'(x) = \\dots$ without naming the function)."
         ],
-        "tech_free_rules": "Focus on distributions with 3 to 5 outcomes.",
-        "tech_active_rules": "Calculate moments for large distributions and link to real-world risk/reward contexts."
+        "tech_free_rules": "Differentiate combinations of poly, exp, log, and trig functions.",
+        "tech_active_rules": "Calculate derivatives of complex nested compositions."
       },
-      "complexity_levers": {
-        "easy": "Calculate $E(X)$ for a given 3-outcome table.",
-        "hard": "Find $E(X)$ and $\\mathrm{Var}(X)$ where probabilities involve a parameter $k$ already solved.",
-        "extreme": "Show that $\\mathrm{Var}(aX+b) = a^2 \\mathrm{Var}(X)$ using the discrete definition."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-calculus"
     },
     {
-      "name": "Binomial Distribution",
+      "name": "Derivatives of exp, log, and trig functions",
       "technique_notes": {
-        "core_concepts": "Bernoulli trials. $X \\sim \\mathrm{Bi}(n, p)$. Exact probabilities via formula. $E(X)=np$, $\\mathrm{Var}(X)=np(1-p)$.",
-        "exam_style_guidelines": "Verify Bernoulli conditions. Show $\\binom{n}{x}$ evaluation step. Sum individual terms for cumulative probabilities.",
+        "core_concepts": "$\\\\frac{d}{dx}(e^{kx}) = ke^{kx}$, $\\\\frac{d}{dx}(\\\\log_e x) = 1/x$, $\\\\frac{d}{dx}(\\\\sin kx) = k\\\\cos kx$, $\\\\frac{d}{dx}(\\\\cos kx) = -k\\\\sin kx$, $\\\\frac{d}{dx}(\\\\tan kx) = k\\\\sec^2 kx$.",
+        "exam_style_guidelines": "Chain rule is almost always required (e.g., $\\\\frac{d}{dx}(\\\\log_e f(x)) = \\\\frac{f'(x)}{f(x)}$).",
         "anti_prompts": [
-          "Do not use $n > 8$ for tech-free hand calculation",
-          "Avoid confuse 'at least' with 'more than'"
+          "Do not confuse $\\\\frac{d}{dx}(\\\\cos x) = -\\\\sin x$ with $\\\\int \\\\cos x dx = \\\\sin x$."
         ],
-        "tech_free_rules": "Restrict $n$ to maintain computational feasibility.",
-        "tech_active_rules": "Use CAS for large $n$ and visualize the distribution shape shifting with $p$."
+        "tech_free_rules": "Find exact gradients for transcendental functions.",
+        "tech_active_rules": "Evaluate numerical derivatives on CAS."
       },
-      "complexity_levers": {
-        "easy": "Find $\\Pr(X=2)$ for $n=4, p=0.5$.",
-        "hard": "Find $\\Pr(X \\ge 2)$ for $n=5, p=1/3$.",
-        "extreme": "Determine the value of $n$ required such that $\\Pr(X \\ge 1) > 0.95$ for a given $p$."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-calculus"
     },
     {
-      "name": "Conditional Probability in Discrete Contexts",
+      "name": "Stationary Points and Curve Sketching",
       "technique_notes": {
-        "core_concepts": "Calculate $\\Pr(X=k | X > a)$. Restricted sample spaces. Tabular and binomial contexts.",
-        "exam_style_guidelines": "Identify $A \\cap B$ explicitly. Show the calculation of the denominator $\\Pr(B)$. Express as exact fractions.",
+        "core_concepts": "Locate stationary points ($f'(x)=0$). Classify using nature tables. Identify points of inflection (stationary or non-stationary).",
+        "exam_style_guidelines": "Label coordinates of stationary points and axis intercepts. Show asymptotes with equations. Label endpoints on restricted domains.",
         "anti_prompts": [
-          "Do not use the original sample space for the denominator",
-          "Avoid assuming independence unless trials are Bernoulli"
+          "Ensure sketches respect the given domain.",
+          "Appropriate curvature (concavity) should be evident."
         ],
-        "tech_free_rules": "Stick to small $n$ for binomial and small tables.",
-        "tech_active_rules": "Analyze conditional probabilities for complex distributions like Poisson (if integrated) or large data sets."
+        "tech_free_rules": "Sketch functions with simple derivatives by hand.",
+        "tech_active_rules": "Investigate families of functions $f_k(x)$ and how their features shift with $k$."
       },
-      "complexity_levers": {
-        "easy": "Find $\\Pr(X=2 | X \\ge 1)$ for a small table.",
-        "hard": "Find a conditional probability within a binomial context (e.g. given at least one success).",
-        "extreme": "Show that for $n=2$, the conditional probability $\\Pr(X=1|X \\ge 1)$ is $2p(1-p)/(1-(1-p)^2)$."
-      },
-      "group": "unit4-probability"
+      "group": "unit3-calculus"
     },
     {
-      "name": "Constructing Valid PDFs",
+      "name": "Optimization on Intervals",
       "technique_notes": {
-        "core_concepts": "Determine constants in piecewise PDFs via $\\int f(x) dx = 1$. Non-negativity condition $f(x) \\ge 0$. Explicit support.",
-        "exam_style_guidelines": "Write PDF piecewise with '0 elsewhere'. Solve for $k$ algebraically. Verify $f(x) \\ge 0$ on the support.",
+        "core_concepts": "Finding global max/min on $[a, b]$. Candidate points: stationary points in $(a, b)$ and endpoints $x=a, x=b$.",
+        "exam_style_guidelines": "Always compare the $y$-values of all candidate points. State the final answer clearly (e.g., 'The maximum volume is $V$ at height $h$').",
         "anti_prompts": [
-          "Do not forget '0 elsewhere'",
-          "Avoid $k$ values that make the PDF negative"
+          "Do not forget to check the endpoints; the maximum is often an endpoint in real-world models."
         ],
-        "tech_free_rules": "Restrict to low-degree polynomial supports.",
-        "tech_active_rules": "Solve for parameters in PDFs involving exponentials or logarithms."
+        "tech_free_rules": "Solve optimization for quadratic and cubic models.",
+        "tech_active_rules": "Solve complex optimization (e.g., shortest distance to a curve)."
       },
-      "complexity_levers": {
-        "easy": "Find $k$ for $f(x) = kx$ on $[0, 2]$.",
-        "hard": "Find $k$ for a quadratic PDF on $[a, b]$; justify the non-negativity of the resulting function.",
-        "extreme": "Construct a hybrid PDF with two pieces and solve for multiple parameters given its mean."
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Newton's Method for Approximation",
+      "technique_notes": {
+        "core_concepts": "Algorithm $x_{n+1} = x_n - \\frac{f(x_n)}{f'(x_n)}$. Approximation of roots.",
+        "exam_style_guidelines": "Show the substitution into the formula for at least the first iteration. State the final approximation to the required decimal places.",
+        "anti_prompts": [
+          "Do not use Newton's method if the derivative at the starting point is zero.",
+          "Watch for divergence if the starting point is too far from the root."
+        ],
+        "tech_free_rules": "Perform 1 or 2 iterations by hand for simple functions.",
+        "tech_active_rules": "Use CAS to perform multiple iterations rapidly."
+      },
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Standard Antiderivatives",
+      "technique_notes": {
+        "core_concepts": "Antiderivatives of $x^n, e^{kx}, \\frac{1}{ax+b}, \\sin kx, \\cos kx, \\sec^2 kx$.",
+        "exam_style_guidelines": "Linear composition rule: $\\\\int f(ax+b) dx = \\\\frac{1}{a} F(ax+b) + c$.",
+        "anti_prompts": [
+          "Always check by differentiating the result.",
+          "Do not forget the absolute value in $\\\\int \\\\frac{1}{x} dx = \\\\log_e |x| + c$ if domain allows negative $x$."
+        ],
+        "tech_free_rules": "Find antiderivatives for standard functions and linear combinations.",
+        "tech_active_rules": "Verify CAS antiderivatives (sometimes presented in different forms)."
+      },
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Definite Integrals and Area",
+      "technique_notes": {
+        "core_concepts": "Evaluating $\\int_a^b f(x) dx$. Area between curve and $x$-axis.",
+        "exam_style_guidelines": "Area is always positive. If the curve falls below the $x$-axis, split the integral at the intercepts and take the negative (or absolute value).",
+        "anti_prompts": [
+          "A definite integral can be zero or negative; an area cannot.",
+          "Do not skip the sketch/sign check before calculating area."
+        ],
+        "tech_free_rules": "Evaluate definite integrals for polynomials and trig functions.",
+        "tech_active_rules": "Calculate total area for functions with multiple intercepts."
+      },
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Area Between Two Curves",
+      "technique_notes": {
+        "core_concepts": "Area = $\\int_a^b [f_{top}(x) - f_{bottom}(x)] dx$.",
+        "exam_style_guidelines": "Find intersection points to determine the limits of integration. Identify which curve is higher on the interval.",
+        "anti_prompts": [
+          "Ensure you subtract the *entire* lower function (watch for signs inside brackets)."
+        ],
+        "tech_free_rules": "Find area between linear and quadratic functions.",
+        "tech_active_rules": "Find area between circular and exponential functions using CAS."
+      },
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Average Value of a Function",
+      "technique_notes": {
+        "core_concepts": "$f_{avg} = \\frac{1}{b-a} \\int_a^b f(x) dx$ on $[a, b]$.",
+        "exam_style_guidelines": "Distinguish between 'average value' and 'average rate of change'. The average value is a $y$-coordinate.",
+        "anti_prompts": [
+          "Do not forget the $\\frac{1}{b-a}$ multiplier."
+        ],
+        "tech_free_rules": "Calculate average value for polynomials and trig functions.",
+        "tech_active_rules": "Apply to real-world models (e.g., average power usage)."
+      },
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Trapezium Rule for Area Approximation",
+      "technique_notes": {
+        "core_concepts": "Approximating $\\int_a^b f(x) dx$ using $n$ trapeziums. $w = (b-a)/n$.",
+        "exam_style_guidelines": "Formula: Area $\\approx \\frac{w}{2} [y_0 + 2(y_1 + y_2 + \\dots + y_{n-1}) + y_n]$. Discuss whether the rule over- or under-estimates based on concavity.",
+        "anti_prompts": [
+          "Do not confuse number of strips $n$ with number of $x$-values ($n+1$)."
+        ],
+        "tech_free_rules": "Apply the rule for $n=2$ or $n=4$ to small datasets.",
+        "tech_active_rules": "Analyze error for large $n$ using CAS."
+      },
+      "group": "unit3-calculus"
+    },
+    {
+      "name": "Discrete Random Variables and PMFs",
+      "technique_notes": {
+        "core_concepts": "Probability mass function $p(x) = \\Pr(X=x)$. Properties: $p(x) \\ge 0$ and $\\sum p(x) = 1$.",
+        "exam_style_guidelines": "Represent distributions as tables or graphs. Solve for unknown constants in a distribution rule.",
+        "anti_prompts": [
+          "Ensure probabilities are within $[0, 1]$.",
+          "Include all possible outcomes in the sample space."
+        ],
+        "tech_free_rules": "Construct a PMF for simple experiments (e.g., sum of two dice).",
+        "tech_active_rules": "Analyze large discrete distributions from data."
       },
       "group": "unit4-probability"
     },
     {
-      "name": "Calculating Probabilities from PDFs",
-      "technique_notes": "Create questions where students calculate $\\Pr(a < X < b) = \\int_a^b f(x)\\,dx$ for continuous random variables, including cases where the interval extends beyond the support (requiring adjustment of integration limits to the support boundaries). Emphasise that $\\Pr(X = a) = 0$ for continuous variables and include tasks exploiting this (e.g. $\\Pr(X \\geq a) = \\Pr(X > a)$). Always identify the support before setting up limits of integration. If the given interval extends outside the support, clip the limits accordingly and note why. Use bracket notation for definite integrals. Express results as exact fractions or decimal values as specified. Note explicitly that $\\Pr(X = k) = 0$ when the question involves a single value.",
+      "name": "Expected Value and Variance (Discrete)",
+      "technique_notes": {
+        "core_concepts": "Mean $\\mu = E(X) = \\sum xp(x)$. Variance $\\text{Var}(X) = E(X^2) - \\mu^2$. Standard deviation $\\sigma = \\sqrt{\\text{Var}(X)}$.",
+        "exam_style_guidelines": "Expected value represents the long-term average. Use the properties $E(aX+b) = aE(X)+b$ and $\\text{Var}(aX+b) = a^2\\text{Var}(X)$.",
+        "anti_prompts": [
+          "Do not forget to square the mean when using the variance formula.",
+          "Expected value does not have to be a possible outcome of $X$."
+        ],
+        "tech_free_rules": "Calculate mean and variance for small tables (3-5 outcomes).",
+        "tech_active_rules": "Find moments for complex discrete distributions."
+      },
       "group": "unit4-probability"
     },
     {
-      "name": "Mean and Variance of Continuous Distributions",
-      "technique_notes": "Design questions where students compute the mean $\\mu = \\int_{-\\infty}^{\\infty} x f(x)\\,dx$ and variance $\\sigma^2 = \\int_{-\\infty}^{\\infty} x^2 f(x)\\,dx - \\mu^2$ of a continuous random variable by integrating manually manageable integrands (low-degree polynomials, simple exponentials). Include tasks interpreting these values in context and comparing two distributions by their parameters. Compute $E(X)$ and $E(X^2)$ in separate clearly labelled steps. For polynomials, expand $x \\cdot f(x)$ and $x^2 \\cdot f(x)$ before integrating term by term. Apply $\\text{Var}(X) = E(X^2) - [E(X)]^2$ last. Keep all values as exact fractions for tech-free items. Always integrate over the support only (not all of $\\mathbb{R}$ when the PDF is piecewise).",
+      "name": "Bernoulli Trials and the Binomial Distribution",
+      "technique_notes": {
+        "core_concepts": "Bernoulli trial: success ($p$) or failure ($q$). Binomial $X \\sim \\text{Bi}(n, p)$. $\\Pr(X=x) = \\binom{n}{x} p^x q^{n-x}$.",
+        "exam_style_guidelines": "Verify conditions for binomial: fixed $n$, independent trials, constant $p$. Mean $np$, variance $npq$.",
+        "anti_prompts": [
+          "Do not use binomial if $p$ changes (e.g., selection without replacement from small sample).",
+          "Distinguish between 'at least', 'more than', and 'exactly'."
+        ],
+        "tech_free_rules": "Calculate probabilities for $n \\le 5$.",
+        "tech_active_rules": "Calculate cumulative probabilities using `binomCDF` on CAS."
+      },
       "group": "unit4-probability"
     },
     {
-      "name": "Median and Percentiles",
-      "technique_notes": "Create questions where students find the median $m$ of a continuous distribution by solving $\\int_{-\\infty}^{m} f(x)\\,dx = 0.5$, and find a general percentile $k$ satisfying $\\Pr(X \\leq k) = c$ for a given $c \\in (0,1)$. Include problems requiring algebraic solution of the resulting equation (polynomial, exponential) after evaluating the definite integral. Set up the integral $\\int_{\\text{lower support}}^{k} f(x)\\,dx = c$ and evaluate using bracket notation, leaving $k$ as an unknown. Solve the resulting algebraic equation for $k$ and verify $k$ lies within the support. Check the answer by verifying $\\Pr(X \\leq k) \\approx c$. For upper-tail probabilities, use $\\Pr(X > k) = 1 - \\Pr(X \\leq k) = c$.",
+      "name": "Continuous Random Variables and PDFs",
+      "technique_notes": {
+        "core_concepts": "Probability density function $f(x)$. Properties: $f(x) \\ge 0$ and $\\int_{-\\infty}^{\\infty} f(x) dx = 1$.",
+        "exam_style_guidelines": "Find probabilities using $\\Pr(a < X < b) = \\int_a^b f(x) dx$. Note that $\\Pr(X=c) = 0$ for continuous variables.",
+        "anti_prompts": [
+          "Ensure the integral is taken over the correct support (where $f(x) > 0$).",
+          "The value $f(x)$ is a density, not a probability."
+        ],
+        "tech_free_rules": "Solve for parameters in polynomial or exponential PDFs.",
+        "tech_active_rules": "Sketch complex PDFs and find their modes."
+      },
       "group": "unit4-probability"
     },
     {
-      "name": "Normal Distribution",
-      "technique_notes": "Design questions involving both the standard normal $N(0,1)$ and transformed normal $N(\\mu, \\sigma^2)$. Include tasks using symmetry ($\\Pr(X > \\mu) = 0.5$, $\\Pr(\\mu - k\\sigma < X < \\mu + k\\sigma)$) for tech-free probability reasoning, and problems finding unknown percentiles $k$ from $\\Pr(X > k) = c$ using the inverse normal. Include the effect of varying $\\mu$ and $\\sigma$ on the shape and position of the distribution. For tech-free items use exact multiples of $\\sigma$: e.g. $\\Pr(\\mu - 2\\sigma < X < \\mu + \\sigma)$ can be computed by splitting around $\\mu$ and applying the 68-95-99.7% rule. For inverse normal problems, set $\\Pr(Z < z^*) = 1 - c$ and identify $z^*$ from a table. Back-transform using $x = \\mu + z^*\\sigma$. Always state the distribution being used (e.g. '$Z \\sim N(0,1)$') before computing.",
+      "name": "Mean, Variance and Percentiles (Continuous)",
+      "technique_notes": {
+        "core_concepts": "$\\mu = \\int xf(x) dx$, $\\text{Var}(X) = \\int x^2 f(x) dx - \\mu^2$. Median $m$ such that $\\int_{-\\infty}^m f(x) dx = 0.5$.",
+        "exam_style_guidelines": "Solve for the $p$-th percentile by setting $\\int_{-\\infty}^k f(x) dx = p/100$ and solving for $k$.",
+        "anti_prompts": [
+          "Check that your median/percentile lies within the support of the PDF."
+        ],
+        "tech_free_rules": "Calculate mean for linear and quadratic PDFs.",
+        "tech_active_rules": "Find median and IQR for non-standard distributions using CAS."
+      },
+      "group": "unit4-probability"
+    },
+    {
+      "name": "The Normal Distribution",
+      "technique_notes": {
+        "core_concepts": "$X \\sim N(\\mu, \\sigma^2)$. Symmetry about $\\mu$. Standard normal $Z \\sim N(0, 1)$ where $Z = (X-\\mu)/\\sigma$.",
+        "exam_style_guidelines": "Use the standard normal to find unknown $\\mu$ or $\\sigma$ given probabilities. Apply the 68-95-99.7% rule for approximations.",
+        "anti_prompts": [
+          "Do not confuse $\\sigma$ (standard deviation) with $\\sigma^2$ (variance) in notation.",
+          "Identify if the question asks for a value (invNorm) or a probability (normCDF)."
+        ],
+        "tech_free_rules": "Solve problems involving boundaries at $\\mu \\pm \\sigma, \\mu \\pm 2\\sigma, \\mu \\pm 3\\sigma$.",
+        "tech_active_rules": "Solve for $\\mu$ and $\\sigma$ using simultaneous normal equations."
+      },
+      "group": "unit4-probability"
+    },
+    {
+      "name": "Sample Proportions and Sampling Distributions",
+      "technique_notes": {
+        "core_concepts": "Sample proportion $\\hat{P} = X/n$ where $X \\sim \\text{Bi}(n, p)$. For large $n$, $\\hat{P}$ is approximately normal.",
+        "exam_style_guidelines": "Mean of $\\hat{P} = p$. Standard deviation (standard error) of $\\hat{P} = \\sqrt{\\frac{p(1-p)}{n}}$. Use normal approximation when $np > 5$ and $n(1-p) > 5$.",
+        "anti_prompts": [
+          "Do not confuse the population proportion $p$ with the sample proportion $\\hat{p}$.",
+          "Ensure $n$ is large enough for the normal approximation to be valid."
+        ],
+        "tech_free_rules": "Identify the mean and SD of the sampling distribution.",
+        "tech_active_rules": "Calculate probabilities for sample proportions using normal approximation."
+      },
+      "group": "unit4-probability"
+    },
+    {
+      "name": "Confidence Intervals for a Population Proportion",
+      "technique_notes": {
+        "core_concepts": "Approximate $C\\%$ confidence interval: $\\hat{p} \\pm z^* \\sqrt{\\frac{\\hat{p}(1-\\hat{p})}{n}}$.",
+        "exam_style_guidelines": "Common $z^*$ values: 1.96 for 95%, 1.64 for 90%, 2.58 for 99%. Interpret the interval as 'We are $C\\%$ confident the true population proportion lies in this range'.",
+        "anti_prompts": [
+          "Do not say 'There is a 95% probability $p$ is in the interval' after the interval is calculated.",
+          "The interval width is $2 \\times \\text{margin of error}$."
+        ],
+        "tech_free_rules": "Setup the CI formula with provided values.",
+        "tech_active_rules": "Calculate the required sample size $n$ for a specific margin of error."
+      },
       "group": "unit4-probability"
     }
   ]
