@@ -51,8 +51,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { getLuminance } from '@/lib/color-helpers';
 import { getStoreItem, setStoreItem } from '@/lib/tauri-store';
 import { cn } from '@/lib/utils';
+import {
+  type ExportOptions,
+  type SketchpadExportRequest,
+  type SketchpadExportResponse,
+  sketchpadLiveApis,
+} from '@/store/sketchpad-sync';
 
 import {
   parseStrokesFromSvgString,
@@ -94,7 +101,7 @@ type SketchpadProps = {
 };
 
 export type SketchpadHandle = {
-  exportDataUrl: () => Promise<string>;
+  exportDataUrl: (options?: ExportOptions) => Promise<string>;
   save: () => Promise<void>;
 };
 
@@ -412,72 +419,99 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const bgRef2 = useRef<BgType>(bg);
 
-    const saveAsDataUrl = useCallback(async (): Promise<string> => {
-      const PAD_LOGICAL = 40;
-      const exportDpr = 2; // Export at high resolution
+    const saveAsDataUrl = useCallback(
+      async (options?: ExportOptions): Promise<string> => {
+        const PAD_LOGICAL = 40;
+        const exportDpr = 1.5; // Slightly lower DPI to reduce payload size
 
-      const bounds = getStrokeBoundingBox(strokesRef.current, PAD_LOGICAL) || {
-        x: 0,
-        y: 0,
-        width: INTERNAL_RES_WIDTH,
-        height: INTERNAL_RES_HEIGHT,
-      };
+        const bounds = getStrokeBoundingBox(
+          strokesRef.current,
+          PAD_LOGICAL,
+        ) || {
+          x: 0,
+          y: 0,
+          width: INTERNAL_RES_WIDTH,
+          height: INTERNAL_RES_HEIGHT,
+        };
 
-      const exportW = bounds.width * exportDpr;
-      const exportH = bounds.height * exportDpr;
+        const exportW = Math.ceil(bounds.width * exportDpr);
+        const exportH = Math.ceil(bounds.height * exportDpr);
 
-      return new Promise((resolve, reject) => {
-        const tmp = document.createElement('canvas');
-        tmp.width = exportW;
-        tmp.height = exportH;
-        const tctx = tmp.getContext('2d');
-        if (!tctx) return reject(new Error('Unable to export'));
+        return new Promise((resolve, reject) => {
+          const tmp = document.createElement('canvas');
+          tmp.width = exportW;
+          tmp.height = exportH;
+          const tctx = tmp.getContext('2d');
+          if (!tctx) return reject(new Error('Unable to export'));
 
-        const strokeLayer = document.createElement('canvas');
-        strokeLayer.width = exportW;
-        strokeLayer.height = exportH;
-        const strokeCtx = strokeLayer.getContext('2d');
-        if (!strokeCtx) return reject(new Error('Unable to export'));
+          // To handle erasers correctly during export, we MUST render strokes onto a
+          // separate transparent layer first, then composite that layer over the
+          // background. Otherwise, 'destination-out' erases the paper background too.
+          const strokeLayer = document.createElement('canvas');
+          strokeLayer.width = exportW;
+          strokeLayer.height = exportH;
+          const strokeCtx = strokeLayer.getContext('2d');
+          if (!strokeCtx) return reject(new Error('Unable to export'));
 
-        paintBackground(
-          tctx,
-          exportW,
-          exportH,
-          bgRef2.current,
-          isDarkTheme,
-          1,
-          { x: -bounds.x, y: -bounds.y },
-          exportDpr,
-          resolveAppBackgroundColor(),
-        );
+          const forceLight = options?.forceLightTheme ?? false;
 
-        // Render strokes on a transparent layer so eraser only removes ink,
-        // then composite that layer over the painted background.
-        renderStrokesToCanvas(strokeCtx, strokesRef.current, {
-          dpr: exportDpr,
-          zoom: 1,
-          pan: { x: -bounds.x, y: -bounds.y },
-          clear: true,
-          width: exportW,
-          height: exportH,
-          quality: 'high',
-        });
+          const inProgressStroke = currentStrokeRef.current;
+          // Include any in-progress stroke in the export to ensure it's truly "live"
+          const strokesRefCurrent = strokesRef.current;
+          const strokesToRenderRaw = inProgressStroke
+            ? [...strokesRefCurrent, inProgressStroke]
+            : strokesRefCurrent;
 
-        tctx.drawImage(strokeLayer, 0, 0);
+          // Prepare strokes for light theme if needed
+          const strokesToRender = forceLight
+            ? strokesToRenderRaw.map((s) => {
+                if (s.tool === 'eraser') return s;
+                if (getLuminance(s.color) > 0.7) {
+                  return { ...s, color: '#111827' };
+                }
+                return s;
+              })
+            : strokesToRenderRaw;
 
-        tmp.toBlob(
-          (blob: Blob | null) => {
+          // 1. Paint paper background on main canvas
+          paintBackground(
+            tctx,
+            exportW,
+            exportH,
+            bgRef2.current,
+            isDarkTheme,
+            1,
+            { x: -bounds.x, y: -bounds.y },
+            exportDpr,
+            resolveAppBackgroundColor(),
+            forceLight,
+          );
+
+          // 2. Render strokes to the transparent layer
+          renderStrokesToCanvas(strokeCtx, strokesToRender, {
+            dpr: exportDpr,
+            zoom: 1,
+            pan: { x: -bounds.x, y: -bounds.y },
+            clear: true,
+            width: exportW,
+            height: exportH,
+            quality: 'high',
+          });
+
+          // 3. Composite the stroke layer (with holes cut in ink, not paper) onto background
+          tctx.drawImage(strokeLayer, 0, 0);
+
+          tmp.toBlob((blob: Blob | null) => {
             if (!blob) return reject(new Error('Unable to export'));
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
             reader.onerror = () => reject(new Error('Read error'));
             reader.readAsDataURL(blob);
-          },
-          'image/png',
-          0.92,
-        );
-      });
-    }, [isDarkTheme]);
+          }, 'image/png');
+        });
+      },
+      [isDarkTheme],
+    );
 
     const saveCanvasToStorage = useCallback(
       async (key?: string) => {
@@ -503,24 +537,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
           hasDirtyCanvasRef.current = false;
 
-          // Also generate a dataUrl for the saved event so listeners can use it immediately
-          const dataUrl = await saveAsDataUrl();
-
-          window.dispatchEvent(
-            new CustomEvent('sketchpad-saved', {
-              detail: {
-                sessionKey: key,
-                hasStrokes: strokesRef.current.length > 0,
-                dataUrl,
-              },
-            }),
-          );
           storageSaveBlockedKeysRef.current.delete(storageKey);
         } catch (err) {
           console.warn('Failed to save canvas to store:', err);
         }
       },
-      [getCanvasStorageKey, saveAsDataUrl],
+      [getCanvasStorageKey],
     );
 
     const requestRedraw = useRef<number | null>(null);
@@ -570,13 +592,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         panRef.current,
         dpr,
         resolveAppBackgroundColor(),
+        false,
       );
 
       const inProgressStroke = currentStrokeRef.current;
-      const strokesToRender =
-        inProgressStroke && inProgressStroke.tool === 'pen'
-          ? [...strokesRef.current, inProgressStroke]
-          : strokesRef.current;
+      // Include any in-progress stroke (pen OR eraser) in the main render
+      const strokesToRender = inProgressStroke
+        ? [...strokesRef.current, inProgressStroke]
+        : strokesRef.current;
 
       renderStrokesToCanvas(mctx, strokesToRender, {
         dpr,
@@ -896,12 +919,113 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     }, [penOnlyMode]);
 
+    useEffect(() => {
+      if (sessionKey) {
+        console.log(`[Sketchpad] Rendered with sessionKey: ${sessionKey}`);
+      }
+    }, [sessionKey]);
+
     // Restore canvas from storage on mount/session changes.
     useEffect(() => {
       if (sessionKey) {
         void restoreCanvasFromStorage(sessionKey);
       }
     }, [sessionKey, restoreCanvasFromStorage]);
+
+    const onSaveRef = useRef(onSave);
+    useEffect(() => {
+      onSaveRef.current = onSave;
+    }, [onSave]);
+
+    // Keep a ref that ALWAYS points to the latest saveAsDataUrl.
+    // This lets us register a stable wrapper in the global map that
+    // never goes stale, regardless of how often the useCallback identity changes.
+    const saveAsDataUrlRef = useRef(saveAsDataUrl);
+    useEffect(() => {
+      saveAsDataUrlRef.current = saveAsDataUrl;
+    }, [saveAsDataUrl]);
+
+    // Register API with global map.
+    // The wrapper delegates through saveAsDataUrlRef so the registered API
+    // is always calling the freshest export function — no stale closures.
+    // We only depend on sessionKey so there are no cleanup/re-registration races.
+    useEffect(() => {
+      if (!sessionKey) return;
+
+      const api = {
+        exportDataUrl: (options?: ExportOptions) =>
+          saveAsDataUrlRef.current(options),
+        save: async () => {
+          const dataUrl = await saveAsDataUrlRef.current();
+          onSaveRef.current(dataUrl);
+          hasExplicitlySaved.current = true;
+          hasDirtyCanvasRef.current = false;
+        },
+        registeredAt: Date.now(),
+      };
+
+      console.log(
+        `[Sketchpad] Registering API for: ${sessionKey} (api instance ${api.registeredAt})`,
+      );
+      sketchpadLiveApis.set(sessionKey, api);
+
+      return () => {
+        // Safe unregister: only delete if the entry in the global map is still OUR api instance.
+        // This prevents race conditions during remounts (e.g. HMR or route changes) where
+        // a newer instance might have already registered itself.
+        const current = sketchpadLiveApis.get(sessionKey);
+        if (current === api) {
+          console.log(
+            `[Sketchpad] Unregistering API for: ${sessionKey} (api instance ${api.registeredAt})`,
+          );
+          sketchpadLiveApis.delete(sessionKey);
+        } else {
+          console.log(
+            `[Sketchpad] Skipping unregister for: ${sessionKey} - newer instance detected.`,
+          );
+        }
+      };
+    }, [sessionKey]);
+
+    // ─── Event-based export listener ─────────────────────────────────────────
+    // TutorPanel (or any consumer) dispatches 'sketchpad-export-request'.
+    // We handle it here with the always-fresh saveAsDataUrlRef and respond
+    // via 'sketchpad-export-response'. This eliminates stale closure issues
+    // because the export runs in the Sketchpad's own execution context.
+    useEffect(() => {
+      if (!sessionKey) return;
+
+      const handleExportRequest = (e: Event) => {
+        const detail = (e as CustomEvent<SketchpadExportRequest>).detail;
+        if (detail.sessionKey !== sessionKey) return;
+
+        console.log(
+          `[Sketchpad] Received export request for: ${sessionKey} (requestId: ${detail.requestId})`,
+        );
+
+        void saveAsDataUrlRef.current(detail.options).then((dataUrl) => {
+          console.log(
+            `[Sketchpad] Responding to export request: ${dataUrl.length} chars`,
+          );
+          window.dispatchEvent(
+            new CustomEvent<SketchpadExportResponse>(
+              'sketchpad-export-response',
+              {
+                detail: { requestId: detail.requestId, dataUrl },
+              },
+            ),
+          );
+        });
+      };
+
+      window.addEventListener('sketchpad-export-request', handleExportRequest);
+      return () => {
+        window.removeEventListener(
+          'sketchpad-export-request',
+          handleExportRequest,
+        );
+      };
+    }, [sessionKey]);
 
     // Auto-save canvas after drawing completes
     useEffect(() => {
@@ -2159,63 +2283,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     }, [isAndroid, antiAlias]);
 
-    // Force save when TutorPanel requests it
-    useEffect(() => {
-      const handleForceSave = (e: Event) => {
-        const customEvent = e as CustomEvent<{ sessionKey?: string }>;
-        // If a sessionKey is provided in the event, only respond if it matches
-        if (
-          customEvent.detail?.sessionKey &&
-          customEvent.detail.sessionKey !== sessionKey
-        ) {
-          return;
-        }
-
-        if (sessionKey && hasDirtyCanvasRef.current) {
-          if (autoSaveTimeoutRef.current) {
-            clearTimeout(autoSaveTimeoutRef.current);
-          }
-          void saveCanvasToStorage(sessionKey);
-        }
-
-        // Generate a direct link for TutorPanel
-        void (async () => {
-          try {
-            // Only generate dataUrl if we actually have strokes
-            if (strokesRef.current.length === 0) {
-              window.dispatchEvent(
-                new CustomEvent('tutor-sketch-response', {
-                  detail: { dataUrl: undefined, sessionKey },
-                }),
-              );
-              return;
-            }
-            const dataUrl = await saveAsDataUrl();
-            window.dispatchEvent(
-              new CustomEvent('tutor-sketch-response', {
-                detail: { dataUrl, sessionKey },
-              }),
-            );
-          } catch (e) {
-            console.error('Failed to generate direct sketchpad data url:', e);
-            window.dispatchEvent(
-              new CustomEvent('tutor-sketch-response', {
-                detail: { dataUrl: undefined, sessionKey },
-              }),
-            );
-          }
-        })();
-      };
-
-      window.addEventListener('tutor-request-sketch-save', handleForceSave);
-      return () => {
-        window.removeEventListener(
-          'tutor-request-sketch-save',
-          handleForceSave,
-        );
-      };
-    }, [sessionKey, saveCanvasToStorage, saveAsDataUrl]);
-
     const isGrabMode = spaceDown.current || middleDown.current;
     const cursorStyle = isGrabMode
       ? isPanning
@@ -2514,15 +2581,17 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     useImperativeHandle(
       ref,
       () => ({
-        exportDataUrl: saveAsDataUrl,
+        exportDataUrl: (options?: ExportOptions) =>
+          saveAsDataUrlRef.current(options),
         save: async () => {
-          const dataUrl = await saveAsDataUrl();
-          onSave(dataUrl);
+          const dataUrl = await saveAsDataUrlRef.current();
+          onSaveRef.current(dataUrl);
           hasExplicitlySaved.current = true;
           hasDirtyCanvasRef.current = false;
         },
       }),
-      [onSave, saveAsDataUrl],
+      // Stable: delegates through refs, so the handle never goes stale.
+      [],
     );
 
     const QUICK_COLORS = [

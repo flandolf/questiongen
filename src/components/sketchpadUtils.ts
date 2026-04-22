@@ -656,19 +656,21 @@ export function paintBackground(
   pan: { x: number; y: number } = { x: 0, y: 0 },
   dpr: number = 1,
   appBackgroundColor?: string,
+  forceLightTheme: boolean = false,
 ) {
-  const isDark = bg === 'black-grid' || useDarkTheme;
-  const darkBg = 'oklch(27.4% 0.006 286.033)';
-  const lightBg = 'oklch(98.5% 0 0)';
-  const darkStroke = 'oklch(20% 0.1 0)';
-  const lightStroke = 'oklch(87% 0 0)';
+  const isDark = (bg === 'black-grid' || useDarkTheme) && !forceLightTheme;
+  const darkBg = '#2d2d2d'; // Dark gray
+  const lightBg = '#ffffff'; // White
+  const darkStroke = '#111111';
+  const lightStroke = '#f0f0f0';
   const normalizedAppBackground = appBackgroundColor?.trim();
-  const useAppBackground = !!normalizedAppBackground && bg !== 'black-grid';
+  const useAppBackground =
+    !!normalizedAppBackground && bg !== 'black-grid' && !forceLightTheme;
   const viewportBackground = useAppBackground
     ? normalizedAppBackground
     : isDark
-      ? 'oklch(20% 0 0)'
-      : 'oklch(95% 0 0)';
+      ? '#1a1a1a'
+      : '#f5f5f5';
   const paperBackground = useAppBackground
     ? normalizedAppBackground
     : isDark

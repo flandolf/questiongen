@@ -14,6 +14,7 @@ import Sketchpad from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type { StudentAnswerImage } from '@/types';
 
@@ -230,34 +231,32 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
         </div>
       )}
 
-      {activeTab === 'sketchpad' && (
-        <div className='space-y-2'>
-          <Sketchpad
-            ref={sketchpadRef}
-            embedded
-            sessionKey={sketchSessionKey ?? questionId}
-            onSave={(dataUrl) => void handleSketchSave(dataUrl)}
-          />
+      <div className={cn('space-y-2', activeTab !== 'sketchpad' && 'hidden')}>
+        <Sketchpad
+          ref={sketchpadRef}
+          embedded
+          sessionKey={sketchSessionKey ?? questionId}
+          onSave={(dataUrl) => void handleSketchSave(dataUrl)}
+        />
+      </div>
 
-          {image && (
-            <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
-              <img
-                src={image.downloadUrl || image.dataUrl}
-                alt='Saved sketch'
-                className='w-full h-auto max-h-64 object-contain rounded-lg'
-              />
-              <div className='mt-2 flex justify-end'>
-                <Button
-                  variant='destructive'
-                  size='sm'
-                  className='gap-1.5'
-                  onClick={onImageRemove}
-                >
-                  <Trash2 className='w-3.5 h-3.5' /> Remove saved sketch
-                </Button>
-              </div>
-            </div>
-          )}
+      {image && (
+        <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
+          <img
+            src={image.downloadUrl || image.dataUrl}
+            alt='Saved sketch'
+            className='w-full h-auto max-h-64 object-contain rounded-lg'
+          />
+          <div className='mt-2 flex justify-end'>
+            <Button
+              variant='destructive'
+              size='sm'
+              className='gap-1.5'
+              onClick={onImageRemove}
+            >
+              <Trash2 className='w-3.5 h-3.5' /> Remove saved sketch
+            </Button>
+          </div>
         </div>
       )}
 

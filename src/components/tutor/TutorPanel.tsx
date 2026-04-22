@@ -29,13 +29,6 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { useAppSettings } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
-import { type SketchpadStoragePayload } from '@/components/Sketchpad';
-import {
-  CANVAS_STORAGE_KEY_PREFIX,
-  getCropBoundingBox,
-  INTERNAL_RES_HEIGHT,
-  INTERNAL_RES_WIDTH,
-} from '@/components/sketchpadUtils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -52,15 +45,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  parseStrokesFromSvgString,
-  rasterizeSvgString,
-} from '@/lib/sketchpad-renderer';
-import { getStoreItem } from '@/lib/tauri-store';
 import { cn } from '@/lib/utils';
+import { getLatestSketch } from '@/store/sketchpad-sync';
 import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';
 import { PRESET_IMAGE_MODELS, PRESET_MODELS } from '@/views/settings/constants';
+
+type SketchRetriever = (
+  sessionKey: string,
+  options?: { forceLightTheme?: boolean },
+) => Promise<string | undefined>;
 
 interface TutorPanelProps {
   questionId: string;
@@ -91,60 +85,6 @@ type TutorApiMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string | TutorApiContentPart[];
 };
-
-async function getSketchpadDataUrl(
-  sketchSessionKey?: string,
-): Promise<string | undefined> {
-  if (!sketchSessionKey) return undefined;
-
-  try {
-    const key = `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`;
-    const parsed = await getStoreItem<Partial<SketchpadStoragePayload>>(key);
-    if (!parsed) return undefined;
-
-    if (typeof parsed.strokeSvg !== 'string' || !parsed.strokeSvg.trim()) {
-      return undefined;
-    }
-
-    const strokes = parseStrokesFromSvgString(parsed.strokeSvg);
-    if (!strokes.length) return undefined;
-
-    const canvas = await rasterizeSvgString(
-      parsed.strokeSvg,
-      INTERNAL_RES_WIDTH,
-      INTERNAL_RES_HEIGHT,
-    );
-
-    const cropBox = getCropBoundingBox(canvas, 30);
-    if (!cropBox) return undefined;
-
-    const croppedCanvas = document.createElement('canvas');
-    croppedCanvas.width = cropBox.width;
-    croppedCanvas.height = cropBox.height;
-    const ctx = croppedCanvas.getContext('2d');
-    if (!ctx) return undefined;
-
-    // Fill with white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, cropBox.width, cropBox.height);
-
-    ctx.drawImage(
-      canvas,
-      cropBox.x,
-      cropBox.y,
-      cropBox.width,
-      cropBox.height,
-      0,
-      0,
-      cropBox.width,
-      cropBox.height,
-    );
-
-    return croppedCanvas.toDataURL('image/png', 0.85);
-  } catch {
-    return undefined;
-  }
-}
 
 const TutorHeader = ({
   modelName,
@@ -430,6 +370,16 @@ const MessageItem = ({
     return msg.content.some((part) => part.type === 'image_url');
   }, [msg.content]);
 
+  const imageUrls = useMemo(() => {
+    if (typeof msg.content === 'string') return [];
+    return msg.content
+      .filter(
+        (part): part is { type: 'image_url'; image_url: { url: string } } =>
+          part.type === 'image_url',
+      )
+      .map((part) => part.image_url.url);
+  }, [msg.content]);
+
   return (
     <div
       className={cn(
@@ -462,10 +412,26 @@ const MessageItem = ({
           )}
         >
           <MarkdownMath content={textContent} />
+          {imageUrls.length > 0 && (
+            <div className='mt-3 flex flex-wrap gap-2'>
+              {imageUrls.map((url, idx) => (
+                <div
+                  key={idx}
+                  className='relative group/img rounded-lg overflow-hidden border border-white/20 shadow-sm bg-black/5'
+                >
+                  <img
+                    src={url}
+                    alt={`Attachment ${idx + 1}`}
+                    className='max-w-full h-auto max-h-48 object-contain'
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           {hasImages && msg.role === 'user' && (
             <div className='mt-2 flex gap-1.5 opacity-80'>
               <span className='text-[10px] font-bold uppercase tracking-wider bg-white/20 px-1.5 py-0.5 rounded'>
-                Sketchpad Attached
+                Vision Context Active
               </span>
             </div>
           )}
@@ -914,7 +880,6 @@ const TutorInputArea = ({
   inputValue,
   includeSketch,
   sketchStatus,
-  sketchDataUrl,
   image,
   messages,
   setInputValue,
@@ -922,14 +887,12 @@ const TutorInputArea = ({
   handleSend,
   handleKeyDown,
   handleDiagnosticRequest,
-  handlePullLatestSketch,
 }: {
   isCompact: boolean;
   isGenerating: boolean;
   inputValue: string;
   includeSketch: boolean;
   sketchStatus: string;
-  sketchDataUrl?: string;
   image?: StudentAnswerImage;
   messages: {
     id: string;
@@ -942,7 +905,6 @@ const TutorInputArea = ({
   handleSend: () => void;
   handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
   handleDiagnosticRequest: () => void;
-  handlePullLatestSketch: () => void;
 }) => (
   <div
     className={cn(
@@ -958,7 +920,7 @@ const TutorInputArea = ({
           'h-12 flex flex-col gap-0.5 px-3 border-dashed hover:border-primary/50 hover:bg-primary/5 transition-all',
           includeSketch && 'border-primary/50 bg-primary/5',
         )}
-        onClick={handlePullLatestSketch}
+        onClick={() => setIncludeSketch(!includeSketch)}
         disabled={isGenerating}
       >
         <div className='relative'>
@@ -978,15 +940,10 @@ const TutorInputArea = ({
             includeSketch ? 'text-primary' : 'text-muted-foreground',
           )}
         >
-          {includeSketch ? 'Sketch Sync' : 'Attach Sketch'}
+          {includeSketch ? 'Sketch Attached' : 'Attach Sketch'}
         </span>
       </Button>
-      <TutorAttachmentPreviews
-        includeSketch={includeSketch}
-        sketchDataUrl={sketchDataUrl}
-        image={image}
-        setIncludeSketch={setIncludeSketch}
-      />
+      <TutorAttachmentPreviews image={image} />
     </div>
 
     <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
@@ -1035,45 +992,8 @@ const TutorInputArea = ({
   </div>
 );
 
-const TutorAttachmentPreviews = ({
-  includeSketch,
-  sketchDataUrl,
-  image,
-  setIncludeSketch,
-}: {
-  includeSketch: boolean;
-  sketchDataUrl?: string;
-  image?: StudentAnswerImage;
-  setIncludeSketch: (inc: boolean) => void;
-}) => (
+const TutorAttachmentPreviews = ({ image }: { image?: StudentAnswerImage }) => (
   <>
-    {includeSketch && (
-      <div className='relative group'>
-        <div className='w-12 h-12 rounded-md border border-border bg-card overflow-hidden flex items-center justify-center shadow-sm'>
-          {sketchDataUrl ? (
-            <img
-              src={sketchDataUrl}
-              alt='Sketch preview'
-              className='w-full h-full object-cover'
-            />
-          ) : (
-            <PencilRuler className='h-5 w-5 text-muted-foreground/30' />
-          )}
-        </div>
-        <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
-          <span className='text-[8px] font-bold text-primary uppercase'>
-            Preview
-          </span>
-        </div>
-        <button
-          aria-label='Remove sketch from attachments'
-          onClick={() => setIncludeSketch(false)}
-          className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
-        >
-          <X className='h-2.5 w-2.5' />
-        </button>
-      </div>
-    )}
     {image?.dataUrl && (
       <div className='relative group'>
         <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
@@ -1126,54 +1046,6 @@ const TutorSketchStatus = ({
     )}
   </AnimatePresence>
 );
-
-async function getSketchpadImage(
-  sketchSessionKey: string,
-): Promise<string | undefined> {
-  return await new Promise<string | undefined>((resolve) => {
-    let resolved = false;
-
-    const handler = (e: Event) => {
-      if (resolved) return;
-      const customEvent = e as CustomEvent<{
-        dataUrl?: string;
-        sessionKey?: string;
-      }>;
-
-      // Filter by sessionKey if provided in the response
-      if (
-        customEvent.detail.sessionKey &&
-        customEvent.detail.sessionKey !== sketchSessionKey
-      ) {
-        return;
-      }
-
-      resolved = true;
-      window.removeEventListener('tutor-sketch-response', handler);
-      resolve(customEvent.detail.dataUrl);
-    };
-    window.addEventListener('tutor-sketch-response', handler);
-
-    window.dispatchEvent(
-      new CustomEvent('tutor-request-sketch-save', {
-        detail: { sessionKey: sketchSessionKey },
-      }),
-    );
-
-    // Fallback to store if Sketchpad component is unmounted or doesn't respond
-    setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      window.removeEventListener('tutor-sketch-response', handler);
-      console.warn(
-        '[Tutor] Sketchpad did not respond in time, falling back to store',
-      );
-      getSketchpadDataUrl(sketchSessionKey)
-        .then(resolve)
-        .catch(() => resolve(undefined));
-    }, 1000); // Increased timeout to 1s
-  });
-}
 
 function calculateTutorMetrics(result: TutorChatResponse) {
   const totalTokens = result.total_tokens ?? result.totalTokens ?? 0;
@@ -1261,6 +1133,8 @@ export function TutorPanel({
     })),
   );
 
+  const effectiveSessionKey = sketchSessionKey || questionId;
+
   const { apiKey, tutorModel, tutorPersona } = useAppSettings();
   const [inputValue, setInputValue] = useState('');
   const [includeSketch, setIncludeSketch] = useState(false);
@@ -1271,9 +1145,6 @@ export function TutorPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [sketchDataUrl, setSketchDataUrl] = useState<string | undefined>(
-    undefined,
-  );
   const [dynamicPanelWidth, setDynamicPanelWidth] = useState<number | null>(
     null,
   );
@@ -1346,7 +1217,7 @@ export function TutorPanel({
             const content =
               typeof m.content === 'string'
                 ? m.content
-                : m.content
+                : (m.content as TutorApiContentPart[])
                     .filter((p) => p.type === 'text')
                     .map((p) => (p as { text: string }).text)
                     .join('\n');
@@ -1390,17 +1261,31 @@ export function TutorPanel({
   const loadTutorSketchpadDataUrl = async (
     input: string | TutorApiContentPart[],
     appendUserMessage: boolean,
-  ) => {
+  ): Promise<string | undefined> => {
     if (
       !appendUserMessage ||
       !includeSketch ||
-      !sketchSessionKey ||
+      !effectiveSessionKey ||
       typeof input !== 'string'
     ) {
       return undefined;
     }
 
-    return await getSketchpadImage(sketchSessionKey);
+    // Always export fresh from the live canvas at send time — never use sketchDataUrl
+    // state, which was captured at "Attach Sketch" button press and may be stale.
+    console.log(`[Tutor] Requesting sketch for key: ${effectiveSessionKey}`);
+    const retrieveLatestSketch = getLatestSketch as SketchRetriever;
+    const dataUrl = await retrieveLatestSketch(effectiveSessionKey, {
+      forceLightTheme: true,
+    });
+    if (dataUrl) {
+      console.log(`[Tutor] Received sketch: ${dataUrl.length} chars`);
+    } else {
+      console.warn(
+        `[Tutor] No sketch received for key: ${effectiveSessionKey}`,
+      );
+    }
+    return dataUrl;
   };
 
   const buildTutorRequestDetails = (
@@ -1451,6 +1336,9 @@ export function TutorPanel({
         input,
         appendUserMessage,
       );
+      if (includeSketch && !sketchpadDataUrl) {
+        toast.error('Failed to capture sketch. Is the sketchpad active?');
+      }
       setSketchStatus(sketchpadDataUrl ? 'sending' : 'none');
 
       if (storeUserMessage) {
@@ -1710,64 +1598,6 @@ export function TutorPanel({
     };
   }, [appendStreamedContent]);
 
-  // Listen for sketchpad changes
-  useEffect(() => {
-    if (!sketchSessionKey) return;
-
-    // Initial check from store
-    void (async () => {
-      try {
-        const key = `${CANVAS_STORAGE_KEY_PREFIX}-${sketchSessionKey}`;
-        const parsed =
-          await getStoreItem<Partial<SketchpadStoragePayload>>(key);
-        if (parsed) {
-          if (typeof parsed.strokeSvg === 'string' && parsed.strokeSvg.trim()) {
-            const strokes = parseStrokesFromSvgString(parsed.strokeSvg);
-            setIncludeSketch(strokes.length > 0);
-          }
-        }
-      } catch {
-        // ignore
-      }
-    })();
-
-    const handleSketchpadSaved = (e: Event) => {
-      const customEvent = e as CustomEvent<{
-        sessionKey: string;
-        hasStrokes: boolean;
-        dataUrl?: string;
-      }>;
-      if (customEvent.detail.sessionKey === sketchSessionKey) {
-        setIncludeSketch(customEvent.detail.hasStrokes);
-        if (customEvent.detail.dataUrl) {
-          setSketchDataUrl(customEvent.detail.dataUrl);
-        }
-      }
-    };
-
-    window.addEventListener('sketchpad-saved', handleSketchpadSaved);
-    return () => {
-      window.removeEventListener('sketchpad-saved', handleSketchpadSaved);
-    };
-  }, [sketchSessionKey]);
-
-  // Load sketch preview when includeSketch becomes true
-  useEffect(() => {
-    if (includeSketch && sketchSessionKey) {
-      void (async () => {
-        try {
-          const dataUrl = await getSketchpadDataUrl(sketchSessionKey);
-          setSketchDataUrl(dataUrl);
-        } catch (error) {
-          console.error('Failed to load sketch preview:', error);
-          setSketchDataUrl(undefined);
-        }
-      })();
-    } else {
-      setSketchDataUrl(undefined);
-    }
-  }, [includeSketch, sketchSessionKey]);
-
   const prepareContentToStore = (
     input: string | TutorApiContentPart[],
     imageUrl?: string,
@@ -1865,26 +1695,6 @@ export function TutorPanel({
     );
   };
 
-  const handlePullLatestSketch = async () => {
-    if (!sketchSessionKey) return;
-    setSketchStatus('processing');
-    try {
-      const dataUrl = await getSketchpadImage(sketchSessionKey);
-      setSketchDataUrl(dataUrl);
-      if (dataUrl) {
-        setIncludeSketch(true);
-        toast.success('Latest sketch fetched');
-      } else {
-        toast.error('No sketch content found');
-      }
-    } catch (err) {
-      console.error('Failed to pull sketch:', err);
-      toast.error('Failed to pull sketch');
-    } finally {
-      setSketchStatus('idle');
-    }
-  };
-
   return (
     <>
       <AnimatePresence>
@@ -1955,15 +1765,15 @@ export function TutorPanel({
           inputValue={inputValue}
           includeSketch={includeSketch}
           sketchStatus={sketchStatus}
-          sketchDataUrl={sketchDataUrl}
           image={image}
           messages={messages}
           setInputValue={setInputValue}
           setIncludeSketch={setIncludeSketch}
-          handleSend={() => void handleSend()}
+          handleSend={() => {
+            void handleSend();
+          }}
           handleKeyDown={handleKeyDown}
           handleDiagnosticRequest={handleDiagnosticRequest}
-          handlePullLatestSketch={() => void handlePullLatestSketch()}
         />
       </div>
     </>

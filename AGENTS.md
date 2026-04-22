@@ -3,39 +3,42 @@
 ## High-Signal Context
 
 - **Frameworks**: Tauri 2 (Rust) + React 19 (Vite, TS, Tailwind 4).
-- **Domain**: VCE (Victorian Certificate of Education) exam question generation
-  (Math Methods, Specialist Math, Chemistry, PE).
-- **AI**: OpenRouter for generation/marking. JSON schemas enforced in
-  `src-tauri/src/schemas.rs` and `src-tauri/src/lib.rs`.
-- **State**: Zustand in `src/store.ts`. Firebase/Firestore for optional sync.
-- **Math**: MathJax 4 for rendering mixed Markdown + LaTeX. Core logic in
-  `src/lib/math-normalization.ts`.
+- **Domain**: VCE (Victorian Certificate of Education) exam question generation.
+- **AI**: OpenRouter for generation/marking.
+- **State**: Zustand (slices pattern) in `src/store/`. `src/store.ts` is the
+  aggregate entry point.
+- **Math Architecture**: MathJax 4 for rendering.
+  - **Shielding**: Frontend uses `shieldMathForMarkdown`
+    (`src/lib/math-normalization.ts`) to replace `$..$` with tokens before
+    markdown parsing.
+  - **Protection**: Backend Rust (`src-tauri/src/parsing.rs`) uses
+    `protect_latex_in_raw_json` to prevent JSON escapes (e.g., `\f` in `\frac`)
+    from mangling LaTeX before `serde_json` parsing.
+  - **Cleaning**: `clean_field` in Rust normalizes delimiters and repairs LLM
+    LaTeX errors (e.g., `\fty` -> `\infty`).
 
 ## Critical Commands
 
-- **Verification Flow**: `bun run lint && bun run typecheck`
-- **Backend Tests**: `cd src-tauri && cargo test` (Tests parsing, LaTeX
-  normalization, and prompt logic).
+- **Frontend Check**: `bun run lint && bun run typecheck`
+- **Backend Tests**: `cd src-tauri && cargo test` (Crucial for LaTeX protection
+  logic).
+- **Dev**: `bun tauri dev` (Starts desktop app).
 
 ## Architecture & Entrypoints
 
-- **Tauri Bridge**: Native commands in `src-tauri/src/lib.rs`. Invoked from TS
-  via `@tauri-apps/api`.
-- **State Entry**: `src/store.ts` is the source of truth for questions,
-  sessions, and user settings.
-- **Generation**: `src/lib/generator-batch.ts` (Frontend orchestration) ->
-  `src-tauri/src/generation.rs` (Native execution).
-- **Styling**: Tailwind 4 via `@tailwindcss/vite`. UI components in
-  `src/components/ui/` (shadcn/ui).
+- **Tauri Bridge**: Commands in `src-tauri/src/lib.rs`. Main generation service
+  in `src-tauri/src/generation.rs`.
+- **Generation Orchestration**: `src/lib/generator-batch.ts` (Batching/Variety
+  logic).
+- **Styling**: Tailwind 4 (CSS-first). Global styles and theme imports in
+  `src/themes/index.css`.
 
 ## Quirks & Constraints
 
-- **Lockfiles**: Repository contains both `bun.lock`. Prefer `bun` for
-  consistency with `package.json` scripts.
-- **Tailwind 4**: Configuration is CSS-first (integrated in `src/index.css` via
-  `@theme`).
-- **PDFs**: `exams/` and `reports/` are for reference PDFs (excluded from git).
-  Parsing is handled via OpenRouter plugins or native Rust code.
-- **Anki Export**: Native `.apkg` generation exists in `src-tauri/src/anki.rs`.
-- **Firebase**: Sync is handled via `src/context/FirebaseSyncContext.tsx`.
-  Ensure rules in `firestore.rules` match any schema changes.
+- **Lockfiles**: `bun.lock` exists. ALWAYS use `bun` for package operations.
+- **PDFs**: `exams/` and `reports/` are reference directories (excluded from
+  git).
+- **Anki**: Native `.apkg` generation via `genanki-rs` in
+  `src-tauri/src/anki.rs`.
+- **Firebase**: Sync logic in `src/context/FirebaseSyncContext.tsx`. Matches
+  `firestore.rules`.

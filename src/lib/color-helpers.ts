@@ -33,3 +33,16 @@ export function normalizeHexColor(
 
   return `#${normalized}`;
 }
+
+export function getLuminance(hex: string): number {
+  const normalized = normalizeHexColor(hex).replace(/^#/, '');
+  const r = parseInt(normalized.slice(0, 2), 16) / 255;
+  const g = parseInt(normalized.slice(2, 4), 16) / 255;
+  const b = parseInt(normalized.slice(4, 6), 16) / 255;
+
+  // Relative luminance formula
+  const [rl, gl, bl] = [r, g, b].map((c) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4),
+  );
+  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+}
