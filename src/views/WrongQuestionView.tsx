@@ -961,6 +961,7 @@ function ReattemptView({
                   {mcSketchpadActive && (
                     <div className='min-w-0'>
                       <McAnswerCard
+                        questionId={entry.id}
                         options={entry.question.options}
                         correctAnswer={entry.question.correctAnswer}
                         explanationMarkdown={entry.question.explanationMarkdown}
@@ -1006,6 +1007,7 @@ function ReattemptView({
                   />
                 ) : (
                   <McAnswerCard
+                    questionId={entry.id}
                     options={entry.question.options}
                     correctAnswer={entry.question.correctAnswer}
                     explanationMarkdown={entry.question.explanationMarkdown}

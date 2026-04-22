@@ -1255,6 +1255,7 @@ export function GeneratorView() {
                   <MarkdownMath content={activeMcQuestion.promptMarkdown} />
                 </div>
                 <McAnswerCard
+                  questionId={activeMcQuestion.id}
                   options={activeMcQuestion.options}
                   selectedAnswer={activeMcAnswer}
                   correctAnswer={activeMcQuestion.correctAnswer}
@@ -1274,6 +1275,7 @@ export function GeneratorView() {
             }
             rightSlot={
               <McSketchpadPanel
+                questionId={activeMcQuestion.id}
                 sketchSessionKey={activeMcSketchSessionKey}
                 onImageDrop={() => {}}
                 onImageRemove={() => {}}
@@ -1292,6 +1294,7 @@ export function GeneratorView() {
             rightSlot={
               <div className='space-y-6 h-full flex flex-col'>
                 <McAnswerCard
+                  questionId={activeMcQuestion.id}
                   options={activeMcQuestion.options}
                   selectedAnswer={activeMcAnswer}
                   correctAnswer={activeMcQuestion.correctAnswer}
