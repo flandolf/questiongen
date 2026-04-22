@@ -145,20 +145,28 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
     try {
       const persisted = await invoke<unknown>('load_persisted_state');
 
-      // Once successfully loaded from Tauri, clear the redundant localStorage fallback
-      // to free up quota for other services (like Firebase).
-      try {
-        window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
-      } catch {
-        /* Ignore cleanup errors */
-      }
-
+      // Decode and normalize the Tauri payload before removing fallback
       let decoded: unknown = persisted;
-      if (typeof persisted === 'string') {
-        const parsed: unknown = JSON.parse(persisted);
-        decoded = parsed;
+      try {
+        if (typeof persisted === 'string') {
+          const parsed: unknown = JSON.parse(persisted);
+          decoded = parsed;
+        }
+        const migratedState = normalizePersistedAppState(decoded);
+
+        // Only clear the redundant localStorage fallback after successful decode/normalize
+        // to free up quota for other services (like Firebase).
+        try {
+          window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
+        } catch {
+          /* Ignore cleanup errors */
+        }
+
+        return migratedState;
+      } catch (decodeErr) {
+        console.error('Failed to decode/normalize Tauri state:', decodeErr);
+        throw decodeErr;
       }
-      return normalizePersistedAppState(decoded);
     } catch (err) {
       console.error('Failed to load state from Tauri:', err);
       return EMPTY_PERSISTED_APP_STATE;
