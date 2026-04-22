@@ -412,6 +412,73 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const bgRef2 = useRef<BgType>(bg);
 
+    const saveAsDataUrl = useCallback(async (): Promise<string> => {
+      const PAD_LOGICAL = 40;
+      const exportDpr = 2; // Export at high resolution
+
+      const bounds = getStrokeBoundingBox(strokesRef.current, PAD_LOGICAL) || {
+        x: 0,
+        y: 0,
+        width: INTERNAL_RES_WIDTH,
+        height: INTERNAL_RES_HEIGHT,
+      };
+
+      const exportW = bounds.width * exportDpr;
+      const exportH = bounds.height * exportDpr;
+
+      return new Promise((resolve, reject) => {
+        const tmp = document.createElement('canvas');
+        tmp.width = exportW;
+        tmp.height = exportH;
+        const tctx = tmp.getContext('2d');
+        if (!tctx) return reject(new Error('Unable to export'));
+
+        const strokeLayer = document.createElement('canvas');
+        strokeLayer.width = exportW;
+        strokeLayer.height = exportH;
+        const strokeCtx = strokeLayer.getContext('2d');
+        if (!strokeCtx) return reject(new Error('Unable to export'));
+
+        paintBackground(
+          tctx,
+          exportW,
+          exportH,
+          bgRef2.current,
+          isDarkTheme,
+          1,
+          { x: -bounds.x, y: -bounds.y },
+          exportDpr,
+          resolveAppBackgroundColor(),
+        );
+
+        // Render strokes on a transparent layer so eraser only removes ink,
+        // then composite that layer over the painted background.
+        renderStrokesToCanvas(strokeCtx, strokesRef.current, {
+          dpr: exportDpr,
+          zoom: 1,
+          pan: { x: -bounds.x, y: -bounds.y },
+          clear: true,
+          width: exportW,
+          height: exportH,
+          quality: 'high',
+        });
+
+        tctx.drawImage(strokeLayer, 0, 0);
+
+        tmp.toBlob(
+          (blob: Blob | null) => {
+            if (!blob) return reject(new Error('Unable to export'));
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error('Read error'));
+            reader.readAsDataURL(blob);
+          },
+          'image/png',
+          0.92,
+        );
+      });
+    }, [isDarkTheme]);
+
     const saveCanvasToStorage = useCallback(
       async (key?: string) => {
         if (!key) return;
@@ -435,11 +502,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           await setStoreItem(storageKey, payload);
 
           hasDirtyCanvasRef.current = false;
+
+          // Also generate a dataUrl for the saved event so listeners can use it immediately
+          const dataUrl = await saveAsDataUrl();
+
           window.dispatchEvent(
             new CustomEvent('sketchpad-saved', {
               detail: {
                 sessionKey: key,
                 hasStrokes: strokesRef.current.length > 0,
+                dataUrl,
               },
             }),
           );
@@ -448,7 +520,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           console.warn('Failed to save canvas to store:', err);
         }
       },
-      [getCanvasStorageKey],
+      [getCanvasStorageKey, saveAsDataUrl],
     );
 
     const requestRedraw = useRef<number | null>(null);
@@ -2087,76 +2159,18 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     }, [isAndroid, antiAlias]);
 
-    const saveAsDataUrl = useCallback(async (): Promise<string> => {
-      const PAD_LOGICAL = 40;
-      const exportDpr = 2; // Export at high resolution
-
-      const bounds = getStrokeBoundingBox(strokesRef.current, PAD_LOGICAL) || {
-        x: 0,
-        y: 0,
-        width: INTERNAL_RES_WIDTH,
-        height: INTERNAL_RES_HEIGHT,
-      };
-
-      const exportW = bounds.width * exportDpr;
-      const exportH = bounds.height * exportDpr;
-
-      return new Promise((resolve, reject) => {
-        const tmp = document.createElement('canvas');
-        tmp.width = exportW;
-        tmp.height = exportH;
-        const tctx = tmp.getContext('2d');
-        if (!tctx) return reject(new Error('Unable to export'));
-
-        const strokeLayer = document.createElement('canvas');
-        strokeLayer.width = exportW;
-        strokeLayer.height = exportH;
-        const strokeCtx = strokeLayer.getContext('2d');
-        if (!strokeCtx) return reject(new Error('Unable to export'));
-
-        paintBackground(
-          tctx,
-          exportW,
-          exportH,
-          bgRef2.current,
-          isDarkTheme,
-          1,
-          { x: -bounds.x, y: -bounds.y },
-          exportDpr,
-          resolveAppBackgroundColor(),
-        );
-
-        // Render strokes on a transparent layer so eraser only removes ink,
-        // then composite that layer over the painted background.
-        renderStrokesToCanvas(strokeCtx, strokesRef.current, {
-          dpr: exportDpr,
-          zoom: 1,
-          pan: { x: -bounds.x, y: -bounds.y },
-          clear: true,
-          width: exportW,
-          height: exportH,
-          quality: 'high',
-        });
-
-        tctx.drawImage(strokeLayer, 0, 0);
-
-        tmp.toBlob(
-          (blob: Blob | null) => {
-            if (!blob) return reject(new Error('Unable to export'));
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => reject(new Error('Read error'));
-            reader.readAsDataURL(blob);
-          },
-          'image/png',
-          0.92,
-        );
-      });
-    }, [isDarkTheme]);
-
     // Force save when TutorPanel requests it
     useEffect(() => {
-      const handleForceSave = () => {
+      const handleForceSave = (e: Event) => {
+        const customEvent = e as CustomEvent<{ sessionKey?: string }>;
+        // If a sessionKey is provided in the event, only respond if it matches
+        if (
+          customEvent.detail?.sessionKey &&
+          customEvent.detail.sessionKey !== sessionKey
+        ) {
+          return;
+        }
+
         if (sessionKey && hasDirtyCanvasRef.current) {
           if (autoSaveTimeoutRef.current) {
             clearTimeout(autoSaveTimeoutRef.current);
@@ -2171,7 +2185,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             if (strokesRef.current.length === 0) {
               window.dispatchEvent(
                 new CustomEvent('tutor-sketch-response', {
-                  detail: { dataUrl: undefined },
+                  detail: { dataUrl: undefined, sessionKey },
                 }),
               );
               return;
@@ -2179,14 +2193,14 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             const dataUrl = await saveAsDataUrl();
             window.dispatchEvent(
               new CustomEvent('tutor-sketch-response', {
-                detail: { dataUrl },
+                detail: { dataUrl, sessionKey },
               }),
             );
           } catch (e) {
             console.error('Failed to generate direct sketchpad data url:', e);
             window.dispatchEvent(
               new CustomEvent('tutor-sketch-response', {
-                detail: { dataUrl: undefined },
+                detail: { dataUrl: undefined, sessionKey },
               }),
             );
           }

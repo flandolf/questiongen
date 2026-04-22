@@ -22,21 +22,21 @@ export function QuestionQualityBadges({
   // Distinctness score (0-1) - how unique this question is
   if (distinctness !== undefined) {
     let color =
-      'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-200 dark:border-red-800';
+      'bg-rose-500/5 text-rose-600 border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30';
 
     if (distinctness >= 0.7) {
       color =
-        'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800';
+        'bg-emerald-500/5 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
     } else if (distinctness >= 0.5) {
       color =
-        'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800';
+        'bg-amber-500/5 text-amber-600 border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
     }
 
     badges.push(
       <Badge
         key='distinctness'
         variant='outline'
-        className={`${color} text-xs`}
+        className={`${color} text-xs py-0.5`}
       >
         {compact ? '⬡' : 'Uniqueness'} {(distinctness * 100).toFixed(0)}%
       </Badge>,
@@ -46,25 +46,29 @@ export function QuestionQualityBadges({
   // Multi-step depth (1-5) - cognitive complexity
   if (multiStepDepth !== undefined) {
     let color =
-      'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800';
+      'bg-blue-500/5 text-blue-600 border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30';
     let complexity = 'Basic';
 
     if (multiStepDepth >= 4) {
       complexity = 'Very Complex';
       color =
-        'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-200 dark:border-red-800';
+        'bg-rose-500/5 text-rose-600 border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30';
     } else if (multiStepDepth >= 3) {
       complexity = 'Complex';
       color =
-        'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-800';
+        'bg-orange-500/5 text-orange-600 border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30';
     } else if (multiStepDepth >= 2) {
       complexity = 'Moderate';
       color =
-        'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800';
+        'bg-amber-500/5 text-amber-600 border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
     }
 
     badges.push(
-      <Badge key='depth' variant='outline' className={`${color} text-xs`}>
+      <Badge
+        key='depth'
+        variant='outline'
+        className={`${color} text-xs py-0.5`}
+      >
         <Zap className='w-3 h-3 mr-1 inline' />
         {complexity}
       </Badge>,
@@ -75,11 +79,15 @@ export function QuestionQualityBadges({
   if (scaffoldPattern) {
     const isMultiPart = scaffoldPattern.includes('multi-part');
     const color = isMultiPart
-      ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/40 dark:text-purple-200 dark:border-purple-800'
-      : 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-950/40 dark:text-slate-200 dark:border-slate-800';
+      ? 'bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30'
+      : 'bg-muted/50 text-muted-foreground border-border/50 dark:bg-muted/10 dark:text-muted-foreground dark:border-border/30';
 
     badges.push(
-      <Badge key='scaffold' variant='outline' className={`${color} text-xs`}>
+      <Badge
+        key='scaffold'
+        variant='outline'
+        className={`${color} text-xs py-0.5`}
+      >
         <BookOpen className='w-3 h-3 mr-1 inline' />
         {scaffoldPattern}
       </Badge>,
@@ -89,14 +97,18 @@ export function QuestionQualityBadges({
   // Verb diversity count
   if (verbDiversityCount !== undefined && verbDiversityCount > 0) {
     let color =
-      'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800';
+      'bg-emerald-500/5 text-emerald-600 border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
     if (verbDiversityCount < 2) {
       color =
-        'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-800';
+        'bg-orange-500/5 text-orange-600 border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30';
     }
 
     badges.push(
-      <Badge key='verbs' variant='outline' className={`${color} text-xs`}>
+      <Badge
+        key='verbs'
+        variant='outline'
+        className={`${color} text-xs py-0.5`}
+      >
         {verbDiversityCount.toFixed(0)} Command Verbs
       </Badge>,
     );

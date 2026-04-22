@@ -14,6 +14,7 @@ import {
   Info,
   Loader2,
   Maximize2,
+  MessageSquarePlus,
   Minimize2,
   PencilRuler,
   RefreshCcw,
@@ -341,6 +342,20 @@ const TutorHeader = ({
           isCompact ? 'h-7 w-7' : 'h-8 w-8',
         )}
         onClick={() => {
+          clearSession(questionId);
+        }}
+        title='New Chat'
+      >
+        <MessageSquarePlus className='h-4 w-4' />
+      </Button>
+      <Button
+        variant='ghost'
+        size='icon'
+        className={cn(
+          'rounded-full hover:bg-muted transition-all active:scale-90',
+          isCompact ? 'h-7 w-7' : 'h-8 w-8',
+        )}
+        onClick={() => {
           toggleCompact();
         }}
         title={
@@ -582,6 +597,7 @@ async function performTutorChat(params: {
   apiKey: string;
   isDiagnostic: boolean;
   currentRequestParts?: TutorApiContentPart[];
+  appendUserMessage?: boolean;
 }) {
   const {
     activeModel,
@@ -595,6 +611,7 @@ async function performTutorChat(params: {
     apiKey,
     isDiagnostic,
     currentRequestParts,
+    appendUserMessage = true,
   } = params;
 
   // Build full conversation history for the API
@@ -640,34 +657,36 @@ async function performTutorChat(params: {
   });
 
   // 3. New User Message with Images
-  if (currentRequestParts) {
-    apiMessages.push({
-      role: 'user',
-      content: currentRequestParts,
-    });
-  } else {
-    const userContentParts: TutorApiContentPart[] = [
-      { type: 'text', text: userMessageContent },
-    ];
+  if (appendUserMessage) {
+    if (currentRequestParts) {
+      apiMessages.push({
+        role: 'user',
+        content: currentRequestParts,
+      });
+    } else {
+      const userContentParts: TutorApiContentPart[] = [
+        { type: 'text', text: userMessageContent },
+      ];
 
-    if (image?.dataUrl) {
-      userContentParts.push({
-        type: 'image_url',
-        image_url: { url: image.dataUrl },
+      if (image?.dataUrl) {
+        userContentParts.push({
+          type: 'image_url',
+          image_url: { url: image.dataUrl },
+        });
+      }
+
+      if (sketchpadDataUrl) {
+        userContentParts.push({
+          type: 'image_url',
+          image_url: { url: sketchpadDataUrl },
+        });
+      }
+
+      apiMessages.push({
+        role: 'user',
+        content: userContentParts,
       });
     }
-
-    if (sketchpadDataUrl) {
-      userContentParts.push({
-        type: 'image_url',
-        image_url: { url: sketchpadDataUrl },
-      });
-    }
-
-    apiMessages.push({
-      role: 'user',
-      content: userContentParts,
-    });
   }
 
   // Call backend
@@ -903,6 +922,7 @@ const TutorInputArea = ({
   handleSend,
   handleKeyDown,
   handleDiagnosticRequest,
+  handlePullLatestSketch,
 }: {
   isCompact: boolean;
   isGenerating: boolean;
@@ -920,8 +940,9 @@ const TutorInputArea = ({
   setInputValue: (val: string) => void;
   setIncludeSketch: (inc: boolean) => void;
   handleSend: () => void;
-  handleKeyDown: (e: React.KeyboardEvent) => void;
+  handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
   handleDiagnosticRequest: () => void;
+  handlePullLatestSketch: () => void;
 }) => (
   <div
     className={cn(
@@ -930,49 +951,42 @@ const TutorInputArea = ({
     )}
   >
     <div className='flex gap-2 mb-2 px-1'>
-      {includeSketch && (
-        <div className='relative group'>
-          <div className='w-12 h-12 rounded-md border border-border bg-card overflow-hidden flex items-center justify-center shadow-sm'>
-            {sketchDataUrl ? (
-              <img
-                src={sketchDataUrl}
-                alt='Sketch preview'
-                className='w-full h-full object-cover'
-              />
-            ) : (
-              <PencilRuler className='h-5 w-5 text-muted-foreground/30' />
+      <Button
+        variant='outline'
+        size='sm'
+        className={cn(
+          'h-12 flex flex-col gap-0.5 px-3 border-dashed hover:border-primary/50 hover:bg-primary/5 transition-all',
+          includeSketch && 'border-primary/50 bg-primary/5',
+        )}
+        onClick={handlePullLatestSketch}
+        disabled={isGenerating}
+      >
+        <div className='relative'>
+          <PencilRuler
+            className={cn(
+              'h-4 w-4',
+              includeSketch ? 'text-primary' : 'text-muted-foreground',
             )}
-          </div>
-          <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
-            <span className='text-[8px] font-bold text-primary uppercase'>
-              Sketch
-            </span>
-          </div>
-          <button
-            aria-label='Remove sketch from attachments'
-            onClick={() => setIncludeSketch(false)}
-            className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
-          >
-            <X className='h-2.5 w-2.5' />
-          </button>
+          />
+          {includeSketch && (
+            <div className='absolute -top-1 -right-1 h-1.5 w-1.5 bg-primary rounded-full' />
+          )}
         </div>
-      )}
-      {image?.dataUrl && (
-        <div className='relative group'>
-          <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
-            <img
-              src={image.dataUrl}
-              alt='Attachment'
-              className='w-full h-full object-cover'
-            />
-          </div>
-          <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
-            <span className='text-[8px] font-bold text-primary uppercase'>
-              Image
-            </span>
-          </div>
-        </div>
-      )}
+        <span
+          className={cn(
+            'text-[9px] font-bold uppercase tracking-tighter',
+            includeSketch ? 'text-primary' : 'text-muted-foreground',
+          )}
+        >
+          {includeSketch ? 'Sketch Sync' : 'Attach Sketch'}
+        </span>
+      </Button>
+      <TutorAttachmentPreviews
+        includeSketch={includeSketch}
+        sketchDataUrl={sketchDataUrl}
+        image={image}
+        setIncludeSketch={setIncludeSketch}
+      />
     </div>
 
     <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
@@ -1021,6 +1035,64 @@ const TutorInputArea = ({
   </div>
 );
 
+const TutorAttachmentPreviews = ({
+  includeSketch,
+  sketchDataUrl,
+  image,
+  setIncludeSketch,
+}: {
+  includeSketch: boolean;
+  sketchDataUrl?: string;
+  image?: StudentAnswerImage;
+  setIncludeSketch: (inc: boolean) => void;
+}) => (
+  <>
+    {includeSketch && (
+      <div className='relative group'>
+        <div className='w-12 h-12 rounded-md border border-border bg-card overflow-hidden flex items-center justify-center shadow-sm'>
+          {sketchDataUrl ? (
+            <img
+              src={sketchDataUrl}
+              alt='Sketch preview'
+              className='w-full h-full object-cover'
+            />
+          ) : (
+            <PencilRuler className='h-5 w-5 text-muted-foreground/30' />
+          )}
+        </div>
+        <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md'>
+          <span className='text-[8px] font-bold text-primary uppercase'>
+            Preview
+          </span>
+        </div>
+        <button
+          aria-label='Remove sketch from attachments'
+          onClick={() => setIncludeSketch(false)}
+          className='absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 shadow-sm hover:bg-muted'
+        >
+          <X className='h-2.5 w-2.5' />
+        </button>
+      </div>
+    )}
+    {image?.dataUrl && (
+      <div className='relative group'>
+        <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
+          <img
+            src={image.dataUrl}
+            alt='Attachment'
+            className='w-full h-full object-cover'
+          />
+        </div>
+        <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+          <span className='text-[8px] font-bold text-primary uppercase'>
+            Image
+          </span>
+        </div>
+      </div>
+    )}
+  </>
+);
+
 const TutorSketchStatus = ({
   sketchStatus,
   isCompact,
@@ -1063,14 +1135,30 @@ async function getSketchpadImage(
 
     const handler = (e: Event) => {
       if (resolved) return;
+      const customEvent = e as CustomEvent<{
+        dataUrl?: string;
+        sessionKey?: string;
+      }>;
+
+      // Filter by sessionKey if provided in the response
+      if (
+        customEvent.detail.sessionKey &&
+        customEvent.detail.sessionKey !== sketchSessionKey
+      ) {
+        return;
+      }
+
       resolved = true;
       window.removeEventListener('tutor-sketch-response', handler);
-      const customEvent = e as CustomEvent<{ dataUrl?: string }>;
       resolve(customEvent.detail.dataUrl);
     };
     window.addEventListener('tutor-sketch-response', handler);
 
-    window.dispatchEvent(new CustomEvent('tutor-request-sketch-save'));
+    window.dispatchEvent(
+      new CustomEvent('tutor-request-sketch-save', {
+        detail: { sessionKey: sketchSessionKey },
+      }),
+    );
 
     // Fallback to store if Sketchpad component is unmounted or doesn't respond
     setTimeout(() => {
@@ -1083,7 +1171,7 @@ async function getSketchpadImage(
       getSketchpadDataUrl(sketchSessionKey)
         .then(resolve)
         .catch(() => resolve(undefined));
-    }, 500);
+    }, 1000); // Increased timeout to 1s
   });
 }
 
@@ -1284,6 +1372,145 @@ export function TutorPanel({
         toast.error('Failed to export transcript');
       }
     })();
+  };
+
+  const isTutorContentNonEmpty = (
+    content: string | TutorApiContentPart[],
+  ) =>
+    typeof content === 'string'
+      ? content.trim().length > 0
+      : content.some(
+          (part) => part.type === 'text' && part.text.trim().length > 0,
+        );
+
+  const getTutorContentText = (
+    content: string | TutorApiContentPart[],
+  ) => {
+    if (typeof content === 'string') return content;
+
+    return content.find((part) => part.type === 'text')?.text || '';
+  };
+
+  const loadTutorSketchpadDataUrl = async (
+    input: string | TutorApiContentPart[],
+    appendUserMessage: boolean,
+  ) => {
+    if (
+      !appendUserMessage ||
+      !includeSketch ||
+      !sketchSessionKey ||
+      typeof input !== 'string'
+    ) {
+      return undefined;
+    }
+
+    return await getSketchpadImage(sketchSessionKey);
+  };
+
+  const buildTutorRequestDetails = (
+    input: string | TutorApiContentPart[],
+    sketchpadDataUrl: string | undefined,
+    appendUserMessage: boolean,
+  ) => {
+    if (!appendUserMessage) {
+      return {
+        effectiveUserContent: getTutorContentText(input),
+        currentRequestParts: undefined,
+      };
+    }
+
+    return prepareRequestParts(input, image?.dataUrl, sketchpadDataUrl);
+  };
+
+  const submitTutorChat = async ({
+    input,
+    historyMessages = messages,
+    isDiagnostic = false,
+    storeUserMessage = true,
+    appendUserMessage = true,
+  }: {
+    input: string | TutorApiContentPart[];
+    historyMessages?: { role: string; content: string | TutorApiContentPart[] }[];
+    isDiagnostic?: boolean;
+    storeUserMessage?: boolean;
+    appendUserMessage?: boolean;
+  }) => {
+    if (!isTutorContentNonEmpty(input) || isGenerating) return;
+
+    if (storeUserMessage && typeof input === 'string' && input === inputValue) {
+      setInputValue('');
+    }
+
+    setIsGenerating(true);
+    setStreamedContent('');
+
+    try {
+      console.log(`[Tutor] Starting chat with model: ${activeModel}`);
+      setSketchStatus('processing');
+
+      const sketchpadDataUrl = await loadTutorSketchpadDataUrl(
+        input,
+        appendUserMessage,
+      );
+      setSketchStatus(sketchpadDataUrl ? 'sending' : 'none');
+
+      if (storeUserMessage) {
+        const contentToStore = prepareContentToStore(
+          input,
+          image?.dataUrl,
+          sketchpadDataUrl,
+        );
+        addMessage(questionId, {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: contentToStore,
+          createdAt: Date.now(),
+        });
+      }
+
+      const { effectiveUserContent, currentRequestParts } =
+        buildTutorRequestDetails(input, sketchpadDataUrl, appendUserMessage);
+
+      const result = await performTutorChat({
+        activeModel,
+        activePersona,
+        contextPrompt,
+        studentAnswer,
+        userMessageContent: effectiveUserContent,
+        messages: historyMessages,
+        image,
+        sketchpadDataUrl,
+        apiKey,
+        isDiagnostic,
+        currentRequestParts,
+        appendUserMessage,
+      });
+
+      addMessage(questionId, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: result.content,
+        createdAt: Date.now(),
+      });
+
+      const { totalTokens, cost } = calculateTutorMetrics(result);
+      updateMetrics(totalTokens, cost);
+    } catch (error) {
+      console.error('Tutor chat error:', error);
+      incrementErrorCount();
+      addMessage(questionId, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content:
+          'Sorry, I encountered an error connecting to the tutor service.',
+        createdAt: Date.now(),
+      });
+    } finally {
+      setIsGenerating(false);
+      setSketchStatus('idle');
+      setStreamedContent('');
+      setIncludeSketch(false);
+    }
   };
 
   // Smart Scroll logic
@@ -1509,9 +1736,13 @@ export function TutorPanel({
       const customEvent = e as CustomEvent<{
         sessionKey: string;
         hasStrokes: boolean;
+        dataUrl?: string;
       }>;
       if (customEvent.detail.sessionKey === sketchSessionKey) {
         setIncludeSketch(customEvent.detail.hasStrokes);
+        if (customEvent.detail.dataUrl) {
+          setSketchDataUrl(customEvent.detail.dataUrl);
+        }
       }
     };
 
@@ -1591,270 +1822,148 @@ export function TutorPanel({
   const handleSend = async (
     overrideValue?: string | TutorApiContentPart[],
     isDiagnostic = false,
-    skipAddingUserMessage = false,
   ) => {
-    const finalInputValue = overrideValue ?? inputValue;
+    await submitTutorChat({
+      input: overrideValue ?? inputValue,
+      isDiagnostic,
+      storeUserMessage: true,
+      appendUserMessage: true,
+    });
+  };
 
-    // Check if we have anything to send
-    const hasContent =
-      typeof finalInputValue === 'string'
-        ? finalInputValue.trim().length > 0
-        : finalInputValue.some(
-            (p) => p.type === 'text' && p.text.trim().length > 0,
-          );
+  const handleRegenerate = () => {
+    const lastMessage = messages[messages.length - 1];
+    const previousMessage = messages[messages.length - 2];
 
-    if (!hasContent || isGenerating) return;
-    if (!overrideValue) setInputValue('');
-
-    setIsGenerating(true);
-    setStreamedContent('');
-
-    try {
-      console.log(`[Tutor] Starting chat with model: ${activeModel}`);
-      setSketchStatus('processing');
-
-      let sketchpadDataUrl: string | undefined;
-      if (
-        includeSketch &&
-        sketchSessionKey &&
-        typeof finalInputValue === 'string'
-      ) {
-        sketchpadDataUrl = await getSketchpadImage(sketchSessionKey);
-      }
-      setSketchStatus(sketchpadDataUrl ? 'sending' : 'none');
-
-      // Add user message to store (unless we're regenerating)
-      if (!skipAddingUserMessage) {
-        const contentToStore = prepareContentToStore(
-          finalInputValue,
-          image?.dataUrl,
-          sketchpadDataUrl,
-        );
-        addMessage(questionId, {
-          id: crypto.randomUUID(),
-          role: 'user',
-          content: contentToStore,
-          createdAt: Date.now(),
-        });
-      }
-
-      const { effectiveUserContent, currentRequestParts } = prepareRequestParts(
-        finalInputValue,
-        image?.dataUrl,
-        sketchpadDataUrl,
-      );
-
-      const result = await performTutorChat({
-        activeModel,
-        activePersona,
-        contextPrompt,
-        studentAnswer,
-        userMessageContent: effectiveUserContent,
-        messages,
-        image,
-        sketchpadDataUrl,
-        apiKey,
-        isDiagnostic,
-        currentRequestParts,
-      });
-
-      addMessage(questionId, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: result.content,
-        createdAt: Date.now(),
-      });
-
-      const { totalTokens, cost } = calculateTutorMetrics(result);
-      updateMetrics(totalTokens, cost);
-    } catch (error) {
-      console.error('Tutor chat error:', error);
-      incrementErrorCount();
-      addMessage(questionId, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content:
-          'Sorry, I encountered an error connecting to the tutor service.',
-        createdAt: Date.now(),
-      });
-    } finally {
-      setIsGenerating(false);
-      setSketchStatus('idle');
-      setStreamedContent('');
-      setIncludeSketch(false);
+    if (
+      !lastMessage ||
+      lastMessage.role !== 'assistant' ||
+      !previousMessage ||
+      previousMessage.role !== 'user'
+    ) {
+      return;
     }
+
+    removeLastMessage(questionId);
+    void submitTutorChat({
+      input: previousMessage.content,
+      historyMessages: messages.slice(0, -1),
+      storeUserMessage: false,
+      appendUserMessage: false,
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    void handleSend();
   };
 
   const handleDiagnosticRequest = () => {
-    void handleSend(
-      'Please check my work and let me know if I made any errors.',
-      true,
-    );
+    void handleSend('Please analyze my working and point out any errors.', true);
   };
 
-  const handleRegenerate = async () => {
-    if (messages.length === 0 || isGenerating) return;
-
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg.role !== 'assistant') return;
-
-    // Find the last user message before removing anything
-    const userMessages = messages.filter((m) => m.role === 'user');
-    if (userMessages.length === 0) return;
-
-    const lastUserMsg = userMessages[userMessages.length - 1];
-
-    // Check if the user message was a diagnostic request
-    const isDiagnostic =
-      typeof lastUserMsg.content === 'string'
-        ? lastUserMsg.content ===
-          'Please check my work and let me know if I made any errors.'
-        : lastUserMsg.content.some(
-            (p) =>
-              p.type === 'text' &&
-              p.text ===
-                'Please check my work and let me know if I made any errors.',
-          );
-
-    // Remove the last assistant message
-    removeLastMessage(questionId);
-
-    // Remove the last user message as well
-    removeLastMessage(questionId);
-
-    // Re-add the user message and send (using skipAddingUserMessage flag to avoid double-adding)
-    addMessage(questionId, {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: lastUserMsg.content,
-      createdAt: Date.now(),
-    });
-
-    await handleSend(lastUserMsg.content, isDiagnostic, true);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
+  const handlePullLatestSketch = async () => {
+    if (!sketchSessionKey) return;
+    setSketchStatus('processing');
+    try {
+      const dataUrl = await getSketchpadImage(sketchSessionKey);
+      setSketchDataUrl(dataUrl);
+      if (dataUrl) {
+        setIncludeSketch(true);
+        toast.success('Latest sketch fetched');
+      } else {
+        toast.error('No sketch content found');
+      }
+    } catch (err) {
+      console.error('Failed to pull sketch:', err);
+      toast.error('Failed to pull sketch');
+    } finally {
+      setSketchStatus('idle');
     }
   };
 
   return (
-    <div
-      className={cn(
-        'fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50 flex flex-col items-start pointer-events-none',
-        className,
-      )}
-    >
+    <>
       <AnimatePresence>
-        {!isOpen ? (
+        {!isOpen && (
           <motion.div
-            key='tutor-toggle'
-            initial={{ opacity: 0, scale: 0.8, rotate: -20 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            exit={{ opacity: 0, scale: 0.8, rotate: 20 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            className='pointer-events-auto'
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            className='fixed bottom-6 left-6 z-50'
           >
             <Button
               onClick={() => setIsOpen(true)}
               size='icon'
-              className='h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 active:scale-90 group relative overflow-hidden'
+              className='h-14 w-14 rounded-full shadow-2xl bg-primary hover:bg-primary/90 text-primary-foreground group transition-all hover:scale-110 active:scale-95'
+              title='Open AI Tutor'
             >
-              <div className='absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity' />
-              <Brain className='h-7 w-7 text-primary-foreground group-hover:rotate-15 transition-transform duration-500 relative z-10' />
-              <div className='absolute -inset-1 bg-primary/20 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity' />
+              <Sparkles className='h-6 w-6 group-hover:rotate-12 transition-transform' />
             </Button>
-          </motion.div>
-        ) : (
-          <motion.div
-            key='tutor-panel'
-            layoutId='tutor-container'
-            initial={{ opacity: 0, y: 40, scale: 0.9, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: 40, scale: 0.9, filter: 'blur(10px)' }}
-            transition={{
-              type: 'spring',
-              damping: 30,
-              stiffness: 400,
-              opacity: { duration: 0.2 },
-              filter: { duration: 0.2 },
-            }}
-            className={cn(
-              'pointer-events-auto flex flex-col bg-card/95 border border-border/60 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl origin-bottom-left',
-              isCompact
-                ? 'w-[min(26rem,calc(100vw-2rem))] h-[clamp(18rem,55dvh,28rem)]'
-                : 'w-[min(32rem,calc(100vw-2rem))] h-[clamp(24rem,72dvh,45rem)] max-h-[calc(100dvh-5rem)]',
-            )}
-            style={
-              dynamicPanelWidth && isOpen
-                ? {
-                    width: `${dynamicPanelWidth}px`,
-                    maxWidth: 'calc(100vw - 2rem)',
-                  }
-                : undefined
-            }
-          >
-            <TutorHeader
-              modelName={modelName}
-              totalTokensSession={totalTokensSession}
-              totalCostSession={totalCostSession}
-              activeModel={activeModel}
-              activePersona={activePersona}
-              questionId={questionId}
-              isCompact={isCompact}
-              setIsOpen={setIsOpen}
-              toggleCompact={toggleCompact}
-              updateSessionOverrides={updateSessionOverrides}
-              clearSession={clearSession}
-              handleExportTranscript={handleExportTranscript}
-              studentAnswer={studentAnswer}
-            />
-
-            {/* Chat Area */}
-            <TutorChatArea
-              messages={messages}
-              isGenerating={isGenerating}
-              isCompact={isCompact}
-              streamedContent={streamedContent}
-              sketchStatus={sketchStatus}
-              copiedId={copiedId}
-              showScrollButton={showScrollButton}
-              scrollAreaRef={scrollAreaRef}
-              messagesEndRef={messagesEndRef}
-              handleCopyMessage={handleCopyMessage}
-              handleRegenerate={() => {
-                void handleRegenerate();
-              }}
-              handleSend={(s) => {
-                void handleSend(s);
-              }}
-              scrollToBottom={scrollToBottom}
-              setShowScrollButton={setShowScrollButton}
-            />
-
-            {/* Input Area */}
-            <TutorInputArea
-              isCompact={isCompact}
-              isGenerating={isGenerating}
-              inputValue={inputValue}
-              includeSketch={includeSketch}
-              sketchStatus={sketchStatus}
-              sketchDataUrl={sketchDataUrl}
-              image={image}
-              messages={messages}
-              setInputValue={setInputValue}
-              setIncludeSketch={setIncludeSketch}
-              handleSend={() => {
-                void handleSend();
-              }}
-              handleKeyDown={handleKeyDown}
-              handleDiagnosticRequest={handleDiagnosticRequest}
-            />
           </motion.div>
         )}
       </AnimatePresence>
+      <div
+        className={cn(
+          'fixed top-4 bottom-4 left-4 z-50 flex flex-col bg-background/95 border border-border/60 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-300 ease-in-out',
+          !isOpen && '-translate-x-[calc(100%+2rem)] pointer-events-none',
+          className,
+        )}
+        style={{
+          width: dynamicPanelWidth || (isCompact ? 416 : 512),
+        }}
+      >
+      <TutorHeader
+        modelName={modelName}
+        totalTokensSession={totalTokensSession}
+        totalCostSession={totalCostSession}
+        activeModel={activeModel}
+        activePersona={activePersona}
+        questionId={questionId}
+        isCompact={isCompact}
+        setIsOpen={setIsOpen}
+        toggleCompact={toggleCompact}
+        updateSessionOverrides={updateSessionOverrides}
+        clearSession={clearSession}
+        handleExportTranscript={handleExportTranscript}
+        studentAnswer={studentAnswer}
+      />
+
+      <TutorChatArea
+        messages={messages}
+        isGenerating={isGenerating}
+        isCompact={isCompact}
+        streamedContent={streamedContent}
+        sketchStatus={sketchStatus}
+        copiedId={copiedId}
+        showScrollButton={showScrollButton}
+        scrollAreaRef={scrollAreaRef}
+        messagesEndRef={messagesEndRef}
+        handleCopyMessage={handleCopyMessage}
+        handleRegenerate={() => void handleRegenerate()}
+        handleSend={(content) => void handleSend(content)}
+        scrollToBottom={scrollToBottom}
+        setShowScrollButton={setShowScrollButton}
+      />
+
+      <TutorInputArea
+        isCompact={isCompact}
+        isGenerating={isGenerating}
+        inputValue={inputValue}
+        includeSketch={includeSketch}
+        sketchStatus={sketchStatus}
+        sketchDataUrl={sketchDataUrl}
+        image={image}
+        messages={messages}
+        setInputValue={setInputValue}
+        setIncludeSketch={setIncludeSketch}
+        handleSend={() => void handleSend()}
+        handleKeyDown={handleKeyDown}
+        handleDiagnosticRequest={handleDiagnosticRequest}
+        handlePullLatestSketch={() => void handlePullLatestSketch()}
+      />
     </div>
+    </>
   );
 }

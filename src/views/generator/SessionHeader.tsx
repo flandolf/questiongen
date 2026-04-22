@@ -467,25 +467,25 @@ function InfoBadges({
   getDifficultyBadgeClasses: (level: Difficulty) => string;
 }) {
   return (
-    <div className='hidden lg:flex items-center gap-1.5 text-xs bg-muted/40 px-2.5 py-1 rounded-full border border-border/40'>
+    <div className='hidden lg:flex items-center gap-1.5 text-xs bg-muted/30 px-2 py-1 rounded-full border border-border/40'>
       {topic && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-medium bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/20 dark:text-violet-300 dark:border-violet-900/50'
+          className='h-5 px-1.5 text-[10px] font-medium bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30'
         >
           {topic}
         </Badge>
       )}
       <Badge
         variant='outline'
-        className={`h-5 px-1.5 text-[10px] font-semibold shadow-xs ${getDifficultyBadgeClasses(difficulty)}`}
+        className={`h-5 px-1.5 text-[10px] font-semibold tracking-tight ${getDifficultyBadgeClasses(difficulty)}`}
       >
         {difficulty}
       </Badge>
       {type === 'written' && maxMarks !== undefined && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-medium bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900/50'
+          className='h-5 px-1.5 text-[10px] font-medium bg-secondary/40 border-secondary/60 text-primary dark:bg-secondary/5 dark:text-primary dark:border-secondary/40'
         >
           {maxMarks} marks
         </Badge>
@@ -495,8 +495,8 @@ function InfoBadges({
           variant='outline'
           className={`h-5 px-1.5 text-[10px] font-medium ${
             techAllowed
-              ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/20 dark:text-indigo-300 dark:border-indigo-900/50'
-              : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/50'
+              ? 'bg-indigo-500/5 text-indigo-600 border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30'
+              : 'bg-rose-500/5 text-rose-600 border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30'
           }`}
         >
           {techAllowed ? 'CAS' : 'No CAS'}
