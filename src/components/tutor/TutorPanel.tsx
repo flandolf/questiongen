@@ -120,40 +120,34 @@ const TutorHeader = ({
 }) => (
   <div
     className={cn(
-      'flex items-center justify-between border-b border-border bg-muted/20 backdrop-blur-md shrink-0',
-      isCompact ? 'px-3 py-2' : 'px-4 py-3',
+      'flex items-center justify-between border-b border-border bg-muted/5 backdrop-blur-xl shrink-0 transition-all duration-500',
+      isCompact ? 'px-4 py-2' : 'px-6 py-4',
     )}
   >
-    <div className='flex items-center gap-3'>
-      {!isCompact && (
-        <div className='bg-primary/5 p-2 rounded-lg border border-primary/10'>
-          <Sparkles className='h-4 w-4 text-primary/80' />
-        </div>
-      )}
-      <div className='min-w-0 space-y-0.5'>
-        <h3 className='font-bold text-sm flex items-center gap-2 truncate tracking-tight'>
-          {!isCompact && <span className='opacity-90'>AI Tutor</span>}
+    <div className='flex items-center gap-4'>
+      <div className='flex flex-col gap-0.5'>
+        <div className='flex items-center gap-2'>
           <Popover>
             <PopoverTrigger asChild>
               <button
                 className={cn(
-                  'font-mono uppercase tracking-wider text-muted-foreground bg-muted/50 rounded-md border border-border/50 hover:bg-muted hover:text-foreground transition-all truncate',
-                  isCompact
-                    ? 'text-[8px] px-1.5 py-0.5'
-                    : 'text-[9px] px-2 py-0.5',
+                  'font-mono uppercase tracking-widest text-muted-foreground/80 hover:text-primary transition-all text-[10px] flex items-center gap-1.5 group',
                 )}
               >
-                {modelName || 'Select Model'}
+                <span className='border-b border-transparent hover:border-primary/30 pb-0.5'>
+                  {modelName || 'Select Model'}
+                </span>
               </button>
             </PopoverTrigger>
             <PopoverContent
-              className='w-72 p-4 shadow-xl border-border/60'
+              className='w-72 p-5 shadow-2xl border-border/40 backdrop-blur-2xl bg-popover/95'
               align='start'
             >
-              <div className='space-y-4'>
-                <div className='space-y-2'>
-                  <Label className='text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold'>
-                    Computational Model
+              <div className='space-y-5'>
+                <div className='space-y-2.5'>
+                  <Label className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold flex items-center gap-2'>
+                    <Brain className='h-3 w-3 opacity-60' />
+                    Model
                   </Label>
                   <Select
                     value={activeModel}
@@ -163,7 +157,7 @@ const TutorHeader = ({
                       });
                     }}
                   >
-                    <SelectTrigger className='h-9 text-xs font-medium'>
+                    <SelectTrigger className='h-9 text-xs font-medium bg-muted/20 border-border/30 w-full'>
                       <SelectValue placeholder='Select model' />
                     </SelectTrigger>
                     <SelectContent>
@@ -184,8 +178,9 @@ const TutorHeader = ({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className='space-y-2'>
-                  <Label className='text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-bold'>
+                <div className='space-y-2.5'>
+                  <Label className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold flex items-center gap-2'>
+                    <MessageSquarePlus className='h-3 w-3 opacity-60' />
                     Tutor Persona
                   </Label>
                   <Textarea
@@ -196,79 +191,86 @@ const TutorHeader = ({
                       });
                     }}
                     placeholder='Custom tutor instructions...'
-                    className='text-xs min-h-24 resize-none bg-muted/20 border-border/40 focus-visible:ring-primary/20'
+                    className='text-xs min-h-24 resize-none bg-muted/20 border-border/30 focus-visible:ring-primary/20 leading-relaxed'
                   />
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    className='w-full h-8 text-[10px] font-bold tracking-wide'
-                    onClick={() => {
-                      clearSession(questionId);
-                    }}
-                  >
-                    <Trash2 className='h-3 w-3 mr-2' />
-                    RESET SESSION
-                  </Button>
+                  <div className='pt-2 flex gap-2'>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='flex-1 h-8 text-[10px] font-bold tracking-wider hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-all'
+                      onClick={() => {
+                        clearSession(questionId);
+                      }}
+                    >
+                      <Trash2 className='h-3 w-3 mr-2 opacity-70' />
+                      RESET SESSION
+                    </Button>
+                  </div>
                 </div>
               </div>
             </PopoverContent>
           </Popover>
-        </h3>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className='text-muted-foreground/40 hover:text-primary transition-colors p-1'>
+                <Info className='h-3 w-3' />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className='w-72 p-5 text-[11px] space-y-4 shadow-2xl border-border/40 backdrop-blur-2xl bg-popover/95'>
+              <h4 className='font-bold flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-foreground/80'>
+                <Brain className='h-3.5 w-3.5 text-primary' />
+                Session Architecture
+              </h4>
+              <div className='space-y-2.5 text-muted-foreground font-medium'>
+                <div className='flex items-center justify-between border-b border-border/10 pb-1.5'>
+                  <span>Exam Question</span>
+                  <Check className='h-3.5 w-3.5 text-primary opacity-80' />
+                </div>
+                <div className='flex items-center justify-between border-b border-border/10 pb-1.5'>
+                  <span>Student Response</span>
+                  {studentAnswer ? (
+                    <Check className='h-3.5 w-3.5 text-primary opacity-80' />
+                  ) : (
+                    <span className='text-[9px] font-bold opacity-30 uppercase tracking-tighter'>
+                      None
+                    </span>
+                  )}
+                </div>
+                <div className='flex items-center justify-between'>
+                  <span>VCE Formula Sheet</span>
+                  <Check className='h-3.5 w-3.5 text-primary opacity-80' />
+                </div>
+              </div>
+              <p className='text-[9px] leading-relaxed text-muted-foreground/60 italic border-t border-border/10 pt-3'>
+                The AI analyzes methodology against official curriculum
+                standards to provide high-fidelity feedback.
+              </p>
+            </PopoverContent>
+          </Popover>
+        </div>
         {!isCompact && (
-          <div className='flex items-center gap-2'>
-            <p className='text-[10px] text-muted-foreground/80 font-mono tracking-tight'>
+          <div className='flex items-center gap-3 h-3'>
+            <p className='text-[9px] text-muted-foreground/60 font-mono tracking-wider flex items-center gap-1.5 uppercase'>
               {totalTokensSession > 0 ? (
                 <>
-                  <span className='font-bold text-primary/70'>
+                  <span className='opacity-40'>Tokens</span>
+                  <span className='font-bold text-foreground/70'>
                     {totalTokensSession.toLocaleString()}
                   </span>
-                  <span className='mx-1 opacity-50'>TOKENS</span>
-                  <span className='opacity-50'>/</span>
-                  <span className='ml-1 font-bold text-primary/70'>
+                  <span className='opacity-20'>|</span>
+                  <span className='font-bold text-foreground/70'>
                     ${totalCostSession.toFixed(4)}
                   </span>
                 </>
               ) : (
-                'SCHOLARLY ASSISTANCE'
+                <>
+                  <span className='opacity-40'>Tokens</span>
+                  <span className='font-bold text-foreground/70'>0</span>
+                  <span className='opacity-20'>|</span>
+                  <span className='font-bold text-foreground/70'>$0.0000</span>
+                </>
               )}
             </p>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className='text-muted-foreground/60 hover:text-primary transition-colors'>
-                  <Info className='h-3 w-3' />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className='w-64 p-4 text-[11px] space-y-3 shadow-xl'>
-                <h4 className='font-bold flex items-center gap-2 text-foreground/90'>
-                  <Brain className='h-4 w-4 text-primary' />
-                  SESSION CONTEXT
-                </h4>
-                <div className='space-y-2 text-muted-foreground font-medium'>
-                  <div className='flex items-center justify-between border-b border-border/30 pb-1'>
-                    <span>Exam Question</span>
-                    <Check className='h-3.5 w-3.5 text-primary' />
-                  </div>
-                  <div className='flex items-center justify-between border-b border-border/30 pb-1'>
-                    <span>Student Response</span>
-                    {studentAnswer ? (
-                      <Check className='h-3.5 w-3.5 text-primary' />
-                    ) : (
-                      <span className='text-[9px] font-bold opacity-40 uppercase'>
-                        Not provided
-                      </span>
-                    )}
-                  </div>
-                  <div className='flex items-center justify-between'>
-                    <span>VCE Formula Sheet</span>
-                    <Check className='h-3.5 w-3.5 text-primary' />
-                  </div>
-                </div>
-                <p className='text-[9px] leading-relaxed text-muted-foreground/70 italic border-t border-border/30 pt-2'>
-                  The AI analyzes your working against official curriculum
-                  standards to provide targeted feedback.
-                </p>
-              </PopoverContent>
-            </Popover>
           </div>
         )}
       </div>
@@ -345,6 +347,7 @@ const MessageItem = ({
   copiedId,
   isCompact,
   handleCopyMessage,
+  handleRegenerate,
 }: {
   msg: { id: string; role: string; content: string | TutorApiContentPart[] };
   copiedId: string | null;
@@ -354,6 +357,7 @@ const MessageItem = ({
     content: string,
     type?: 'text' | 'md',
   ) => void;
+  handleRegenerate: () => void;
 }) => {
   const textContent = useMemo(() => {
     if (typeof msg.content === 'string') return msg.content;
@@ -383,32 +387,32 @@ const MessageItem = ({
   return (
     <div
       className={cn(
-        'flex flex-col space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-400 group min-w-0',
+        'flex flex-col space-y-1.5 animate-in fade-in slide-in-from-bottom-3 duration-500 group min-w-0',
         msg.role === 'assistant'
           ? isCompact
             ? 'max-w-[88%]'
-            : 'max-w-[82%]'
+            : 'max-w-[85%]'
           : isCompact
-            ? 'max-w-[90%]'
-            : 'max-w-[85%]',
+            ? 'max-w-[92%]'
+            : 'max-w-[88%]',
         msg.role === 'user' ? 'ml-auto items-end' : 'mr-auto items-start',
       )}
     >
       <div
         className={cn(
-          'rounded-xl leading-relaxed shadow-sm min-w-0 overflow-hidden transition-colors',
-          isCompact ? 'px-3.5 py-2 text-[12px]' : 'px-4.5 py-3 text-[13px]',
+          'rounded-2xl leading-relaxed min-w-0 overflow-hidden transition-all duration-300 border',
+          isCompact ? 'px-4 py-2.5 text-[12px]' : 'px-5 py-3.5 text-[13px]',
           msg.role === 'user'
-            ? 'bg-primary/95 text-primary-foreground rounded-tr-none shadow-md'
-            : 'bg-card/80 text-foreground rounded-tl-none border border-border/40 backdrop-blur-sm',
+            ? 'bg-primary/5 border-primary/20 text-foreground rounded-tr-none'
+            : 'bg-card/40 border-border/30 backdrop-blur-md rounded-tl-none shadow-sm',
         )}
       >
         <div
           className={cn(
-            'min-w-0 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full tracking-tight',
+            'min-w-0 [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full tracking-tight',
             msg.role === 'user'
-              ? 'text-primary-foreground [&_.math-inline]:text-primary-foreground [&_.math-display]:text-primary-foreground'
-              : 'prose-sm leading-relaxed',
+              ? 'text-foreground/90 [&_.math-inline]:text-primary [&_.math-display]:text-primary'
+              : 'prose-sm leading-relaxed text-foreground/80',
           )}
         >
           <MarkdownMath content={textContent} />
@@ -431,7 +435,7 @@ const MessageItem = ({
           {hasImages && msg.role === 'user' && (
             <div className='mt-2 flex gap-1.5 opacity-80'>
               <span className='text-[10px] font-bold uppercase tracking-wider bg-white/20 px-1.5 py-0.5 rounded'>
-                Vision Context Active
+                Sketches/Images Included
               </span>
             </div>
           )}
@@ -462,6 +466,13 @@ const MessageItem = ({
               <FileText className='h-3.5 w-3.5' />
             )}
           </button>
+          <button
+            onClick={() => handleRegenerate()}
+            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+            title='Regenerate response'
+          >
+            <RefreshCcw className='h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors' />
+          </button>
         </div>
       )}
     </div>
@@ -469,28 +480,20 @@ const MessageItem = ({
 };
 
 const TutorEmptyState = ({
-  isCompact,
   onSuggestion,
 }: {
   isCompact: boolean;
   onSuggestion: (s: string) => void;
 }) => (
-  <div className='flex flex-col items-center justify-center text-center space-y-5 px-6'>
-    <div className='bg-primary/5 p-3 rounded-2xl border border-primary/10 shadow-inner'>
-      <Brain
-        className={`text-primary/60 ${!isCompact ? 'h-7 w-7' : 'h-5 w-5'}`}
-      />
-    </div>
-    <div className='space-y-1.5 max-w-70'>
-      <p className='text-xs font-bold tracking-tight text-foreground/90 uppercase opacity-80'>
-        Academic Consultation
-      </p>
-      <p className='text-[11px] text-muted-foreground leading-relaxed'>
+  <div className='flex flex-col items-center justify-center text-center space-y-8 px-8 max-w-sm mx-auto'>
+    <div className='space-y-8 pt-12'>
+      <p className='font-bold'>Tutor Chat</p>
+      <p className='text-[11px] text-muted-foreground/80 leading-relaxed font-medium'>
         The tutor is prepared to analyze your methodology, provide conceptual
         clarification, or offer strategic hints for this VCE problem.
       </p>
     </div>
-    <div className='flex flex-wrap justify-center gap-2 pt-3'>
+    <div className='flex flex-col gap-2 w-full pt-2'>
       {[
         { text: 'Conceptual hint', icon: Sparkles },
         { text: 'Methodology check', icon: Activity },
@@ -500,10 +503,12 @@ const TutorEmptyState = ({
           aria-label={`Send suggestion: ${suggestion.text}`}
           key={suggestion.text}
           onClick={() => onSuggestion(suggestion.text)}
-          className='text-[10px] font-bold px-3 py-1.5 rounded-lg text-primary border border-primary/10 transition-all active:scale-95 flex items-center gap-1.5 shadow-sm'
+          className='text-[9px] font-bold px-4 py-2.5 rounded-xl text-muted-foreground border border-border/40 hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-between group'
         >
-          <suggestion.icon className='h-3 w-3 opacity-70' />
-          {suggestion.text.toUpperCase()}
+          <span className='tracking-widest'>
+            {suggestion.text.toUpperCase()}
+          </span>
+          <suggestion.icon className='h-3 w-3 opacity-40 group-hover:opacity-100 transition-opacity' />
         </button>
       ))}
     </div>
@@ -719,7 +724,7 @@ const TutorChatArea = ({
           />
         </div>
       ) : (
-        <div className='flex-1 flex flex-col justify-end p-4 space-y-4'>
+        <div className='flex-1 flex flex-col justify-end p-6 space-y-8'>
           <div className='flex-1' />
           <TutorMessageList
             messages={messages}
@@ -767,47 +772,44 @@ const TutorStreamingChunk = ({
   return (
     <div
       className={cn(
-        'flex flex-col mr-auto items-start space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-400 min-w-0',
-        isCompact ? 'max-w-[88%]' : 'max-w-[82%]',
+        'flex flex-col mr-auto items-start space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-400 min-w-0',
+        isCompact ? 'max-w-[88%]' : 'max-w-[85%]',
       )}
     >
       <div
         className={cn(
-          'rounded-xl leading-relaxed bg-card/80 text-foreground rounded-tl-none border border-border/40 shadow-sm min-w-16 overflow-hidden backdrop-blur-sm',
-          isCompact ? 'px-3.5 py-2 text-[12px]' : 'px-4.5 py-3 text-[13px]',
+          'rounded-2xl leading-relaxed bg-card/40 border border-border/30 backdrop-blur-md rounded-tl-none shadow-sm min-w-16 overflow-hidden transition-all duration-300',
+          isCompact ? 'px-4 py-2.5 text-[12px]' : 'px-5 py-3.5 text-[13px]',
         )}
       >
         {streamedContent ? (
-          <MarkdownMath content={streamedContent + ' ▋'} isStreaming />
+          <div className='prose-sm leading-relaxed text-foreground/80 tracking-tight'>
+            <MarkdownMath content={streamedContent + ' ▋'} isStreaming />
+          </div>
         ) : (
-          <div className='flex flex-col gap-2.5 py-1.5'>
-            <div className='flex gap-1.5 ml-0.5'>
+          <div className='flex flex-col gap-3 py-1.5'>
+            <div className='flex gap-2 ml-0.5'>
               {[0, 0.2, 0.4].map((delay) => (
                 <motion.div
                   key={delay}
                   animate={{
-                    scale: [1, 1.25, 1],
-                    opacity: [0.3, 0.8, 0.3],
-                    backgroundColor: [
-                      'var(--primary)',
-                      'var(--primary)',
-                      'var(--primary)',
-                    ],
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 0.7, 0.3],
                   }}
                   transition={{
                     repeat: Infinity,
-                    duration: 1.2,
+                    duration: 1.4,
                     times: [0, 0.5, 1],
                     delay,
                   }}
-                  className='h-1 w-1 bg-primary/60 rounded-full'
+                  className='h-1 w-1 bg-primary/40 rounded-full'
                 />
               ))}
             </div>
-            <span className='text-[9px] uppercase tracking-[0.1em] text-muted-foreground/80 animate-pulse font-bold'>
+            <span className='text-[9px] uppercase tracking-[0.2em] text-muted-foreground/60 animate-pulse font-bold'>
               {sketchStatus === 'sending'
-                ? 'Uploading...'
-                : 'Processing Inquiry...'}
+                ? 'Uploading Context...'
+                : 'Formulating Response...'}
             </span>
           </div>
         )}
@@ -819,7 +821,6 @@ const TutorStreamingChunk = ({
 const TutorMessageList = ({
   messages,
   isCompact,
-  isGenerating,
   copiedId,
   handleCopyMessage,
   handleRegenerate,
@@ -841,34 +842,15 @@ const TutorMessageList = ({
   handleRegenerate: () => void;
 }) => (
   <>
-    {messages.map((m, i) => (
+    {messages.map((m, _i) => (
       <React.Fragment key={m.id}>
         <MessageItem
           msg={m}
           copiedId={copiedId}
           isCompact={isCompact}
           handleCopyMessage={handleCopyMessage}
+          handleRegenerate={handleRegenerate}
         />
-        {i === messages.length - 1 &&
-          m.role === 'assistant' &&
-          !isGenerating && (
-            <div
-              className={cn(
-                'flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-500',
-                isCompact ? 'px-1' : 'px-1',
-              )}
-            >
-              <Button
-                variant='ghost'
-                size='sm'
-                className='h-7 text-[10px] font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg px-2.5 tracking-tight'
-                onClick={handleRegenerate}
-              >
-                <RefreshCcw className='h-3 w-3 mr-1.5 opacity-70' />
-                REGENERATE
-              </Button>
-            </div>
-          )}
       </React.Fragment>
     ))}
   </>
@@ -881,7 +863,6 @@ const TutorInputArea = ({
   includeSketch,
   sketchStatus,
   image,
-  messages,
   setInputValue,
   setIncludeSketch,
   handleSend,
@@ -908,110 +889,116 @@ const TutorInputArea = ({
 }) => (
   <div
     className={cn(
-      'border-t border-border bg-muted/20 p-3 shrink-0 backdrop-blur-md',
-      isCompact ? 'p-2' : 'p-3',
+      'border-t border-border/40 bg-muted/5 shrink-0 backdrop-blur-3xl transition-all',
+      isCompact ? 'p-3' : 'p-5',
     )}
   >
-    <div className='flex gap-2 mb-2 px-1'>
-      <Button
-        variant='outline'
-        size='sm'
-        className={cn(
-          'h-12 flex flex-col gap-0.5 px-3 border-dashed hover:border-primary/50 hover:bg-primary/5 transition-all',
-          includeSketch && 'border-primary/50 bg-primary/5',
-        )}
-        onClick={() => setIncludeSketch(!includeSketch)}
-        disabled={isGenerating}
-      >
-        <div className='relative'>
-          <PencilRuler
-            className={cn(
-              'h-4 w-4',
-              includeSketch ? 'text-primary' : 'text-muted-foreground',
-            )}
-          />
-          {includeSketch && (
-            <div className='absolute -top-1 -right-1 h-1.5 w-1.5 bg-primary rounded-full' />
-          )}
-        </div>
-        <span
-          className={cn(
-            'text-[9px] font-bold uppercase tracking-tighter',
-            includeSketch ? 'text-primary' : 'text-muted-foreground',
-          )}
-        >
-          {includeSketch ? 'Sketch Attached' : 'Attach Sketch'}
-        </span>
-      </Button>
-      <TutorAttachmentPreviews image={image} />
-    </div>
-
     <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
 
-    <div className='relative flex items-end gap-2'>
-      {messages.length === 0 && (
+    <div className='relative flex items-center gap-3'>
+      <div className='flex flex-row gap-2 shrink-0'>
         <Button
-          variant='outline'
+          variant='ghost'
           size='icon'
           className={cn(
-            'shrink-0 shadow-sm hover:shadow-md transition-all active:scale-90',
-            isCompact ? 'h-8 w-8 rounded-lg' : 'h-10 w-10 rounded-xl',
+            'shrink-0 transition-all active:scale-95 border border-transparent',
+            isCompact ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl',
+            includeSketch
+              ? 'bg-primary/10 text-primary border-primary/30 shadow-[0_0_15px_-5px_rgba(var(--primary),0.3)] opacity-100'
+              : 'opacity-50 hover:opacity-100 hover:bg-muted grayscale-[0.5] hover:grayscale-0',
+          )}
+          onClick={() => setIncludeSketch(!includeSketch)}
+          disabled={isGenerating}
+          title={includeSketch ? 'Sketch Attached' : 'Attach Sketchpad Content'}
+        >
+          <div className='relative'>
+            <PencilRuler className='h-4 w-4' />
+            {includeSketch && (
+              <motion.div
+                layoutId='sketch-dot'
+                className='absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full border-2 border-background'
+              />
+            )}
+          </div>
+        </Button>
+        <Button
+          variant='ghost'
+          size='icon'
+          className={cn(
+            'shrink-0 transition-all active:scale-95 border border-transparent',
+            isCompact ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl',
+            'opacity-50 hover:opacity-100 hover:bg-muted grayscale-[0.5] hover:grayscale-0',
           )}
           onClick={handleDiagnosticRequest}
           title='Check my working for errors'
         >
-          <Activity className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+          <Activity className='h-4 w-4' />
         </Button>
-      )}
-      <Textarea
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={isCompact ? 'Ask...' : 'Ask the tutor a question...'}
-        className={cn(
-          'resize-none pr-10 focus-visible:ring-primary/20 bg-background/50 border-border/40 backdrop-blur-sm min-h-0',
-          isCompact
-            ? 'text-[11px] py-2 rounded-xl h-10'
-            : 'text-xs py-3 rounded-2xl h-11',
-        )}
-      />
-      <Button
-        size='icon'
-        className={cn(
-          'absolute transition-all duration-300 shadow-sm hover:shadow-md active:scale-90',
-          isCompact
-            ? 'right-2 bottom-1.5 h-7 w-7 rounded-lg'
-            : 'right-2.5 bottom-2 h-8 w-8 rounded-xl',
-        )}
-        onClick={() => void handleSend()}
-        disabled={!inputValue.trim() || isGenerating}
-      >
-        <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-      </Button>
+      </div>
+
+      <div className='flex-1 flex flex-col gap-2.5 min-w-0'>
+        <TutorAttachmentPreviews image={image} />
+        <div className='relative group'>
+          <Textarea
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={'Type your message here...'}
+            className={cn(
+              'resize-none pr-12 focus-visible:ring-primary/20 bg-background/40 border-border/30 backdrop-blur-sm transition-all',
+              isCompact
+                ? 'text-[11px] py-2.5 rounded-xl min-h-10 h-10'
+                : 'text-xs py-3 rounded-2xl min-h-11 h-11',
+              'group-hover:border-border/60 group-hover:bg-background/60 focus:bg-background/80',
+            )}
+          />
+          <div className='absolute right-2 bottom-1.5 flex items-center gap-1.5'>
+            <Button
+              size='icon'
+              variant='ghost'
+              className={cn(
+                'transition-all duration-300 active:scale-95 hover:bg-primary/10 hover:text-primary',
+                isCompact ? 'h-7 w-7 rounded-lg' : 'h-8 w-8 rounded-xl',
+                (!inputValue.trim() || isGenerating) &&
+                  'opacity-20 cursor-not-allowed',
+              )}
+              onClick={() => void handleSend()}
+              disabled={!inputValue.trim() || isGenerating}
+            >
+              <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 );
 
-const TutorAttachmentPreviews = ({ image }: { image?: StudentAnswerImage }) => (
-  <>
-    {image?.dataUrl && (
+const TutorAttachmentPreviews = ({ image }: { image?: StudentAnswerImage }) => {
+  if (!image?.dataUrl) return null;
+
+  return (
+    <div className='flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1 duration-400'>
       <div className='relative group'>
-        <div className='w-12 h-12 rounded-md border border-border overflow-hidden'>
+        <div className='w-14 h-14 rounded-xl border border-border/40 overflow-hidden shadow-sm bg-muted/20 transition-all group-hover:border-primary/30'>
           <img
             src={image.dataUrl}
-            alt='Attachment'
-            className='w-full h-full object-cover'
+            alt='Student Work'
+            className='w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all'
           />
         </div>
-        <div className='absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
-          <span className='text-[8px] font-bold text-primary uppercase'>
-            Image
+        <div className='absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]'>
+          <span className='text-[8px] font-bold text-primary tracking-[0.2em] uppercase'>
+            Context
           </span>
         </div>
+        <div className='absolute -top-1.5 -right-1.5 h-4 w-4 bg-primary rounded-full flex items-center justify-center shadow-sm border-2 border-background'>
+          <Check className='h-2.5 w-2.5 text-primary-foreground' />
+        </div>
       </div>
-    )}
-  </>
-);
+    </div>
+  );
+};
 
 const TutorSketchStatus = ({
   sketchStatus,
@@ -1023,25 +1010,29 @@ const TutorSketchStatus = ({
   <AnimatePresence>
     {sketchStatus !== 'idle' && sketchStatus !== 'none' && (
       <motion.div
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: 'auto' }}
-        exit={{ opacity: 0, height: 0 }}
-        className={cn(
-          'flex items-center gap-2 px-1 text-muted-foreground overflow-hidden',
-          isCompact ? 'mb-1 text-[9px]' : 'mb-2 text-[10px]',
-        )}
+        initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+        animate={{
+          opacity: 1,
+          height: 'auto',
+          marginBottom: isCompact ? 8 : 12,
+        }}
+        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+        className='overflow-hidden'
       >
-        {sketchStatus === 'processing' ? (
-          <>
-            <Loader2 className='h-3 w-3 animate-spin text-primary/60' />
-            <span>Rasterizing sketchpad...</span>
-          </>
-        ) : (
-          <>
-            <PencilRuler className='h-3 w-3 text-primary/60' />
-            <span>Uploading sketchpad content...</span>
-          </>
-        )}
+        <div className='flex items-center gap-2 px-1'>
+          <div className='flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-full px-3 py-1'>
+            {sketchStatus === 'processing' ? (
+              <Loader2 className='h-2.5 w-2.5 animate-spin text-primary' />
+            ) : (
+              <Activity className='h-2.5 w-2.5 text-primary animate-pulse' />
+            )}
+            <span className='font-mono uppercase tracking-[0.15em] text-[9px] text-primary/80 font-bold'>
+              {sketchStatus === 'processing'
+                ? 'Syncing Canvas'
+                : 'Uploading Context'}
+            </span>
+          </div>
+        </div>
       </motion.div>
     )}
   </AnimatePresence>

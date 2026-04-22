@@ -90,6 +90,7 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
   );
 });
 
+// eslint-disable-next-line complexity
 export const McAnswerCard = memo(function McAnswerCard({
   questionId,
   options,
