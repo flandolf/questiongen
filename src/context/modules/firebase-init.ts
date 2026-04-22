@@ -4,7 +4,7 @@ import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentSingleTabManager,
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -37,7 +37,7 @@ const db = (() => {
     return initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
       localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
+        tabManager: persistentSingleTabManager(),
       }),
     });
   } catch (error) {
