@@ -1374,18 +1374,14 @@ export function TutorPanel({
     })();
   };
 
-  const isTutorContentNonEmpty = (
-    content: string | TutorApiContentPart[],
-  ) =>
+  const isTutorContentNonEmpty = (content: string | TutorApiContentPart[]) =>
     typeof content === 'string'
       ? content.trim().length > 0
       : content.some(
           (part) => part.type === 'text' && part.text.trim().length > 0,
         );
 
-  const getTutorContentText = (
-    content: string | TutorApiContentPart[],
-  ) => {
+  const getTutorContentText = (content: string | TutorApiContentPart[]) => {
     if (typeof content === 'string') return content;
 
     return content.find((part) => part.type === 'text')?.text || '';
@@ -1430,7 +1426,10 @@ export function TutorPanel({
     appendUserMessage = true,
   }: {
     input: string | TutorApiContentPart[];
-    historyMessages?: { role: string; content: string | TutorApiContentPart[] }[];
+    historyMessages?: {
+      role: string;
+      content: string | TutorApiContentPart[];
+    }[];
     isDiagnostic?: boolean;
     storeUserMessage?: boolean;
     appendUserMessage?: boolean;
@@ -1860,7 +1859,10 @@ export function TutorPanel({
   };
 
   const handleDiagnosticRequest = () => {
-    void handleSend('Please analyze my working and point out any errors.', true);
+    void handleSend(
+      'Please analyze my working and point out any errors.',
+      true,
+    );
   };
 
   const handlePullLatestSketch = async () => {
@@ -1914,56 +1916,56 @@ export function TutorPanel({
           width: dynamicPanelWidth || (isCompact ? 416 : 512),
         }}
       >
-      <TutorHeader
-        modelName={modelName}
-        totalTokensSession={totalTokensSession}
-        totalCostSession={totalCostSession}
-        activeModel={activeModel}
-        activePersona={activePersona}
-        questionId={questionId}
-        isCompact={isCompact}
-        setIsOpen={setIsOpen}
-        toggleCompact={toggleCompact}
-        updateSessionOverrides={updateSessionOverrides}
-        clearSession={clearSession}
-        handleExportTranscript={handleExportTranscript}
-        studentAnswer={studentAnswer}
-      />
+        <TutorHeader
+          modelName={modelName}
+          totalTokensSession={totalTokensSession}
+          totalCostSession={totalCostSession}
+          activeModel={activeModel}
+          activePersona={activePersona}
+          questionId={questionId}
+          isCompact={isCompact}
+          setIsOpen={setIsOpen}
+          toggleCompact={toggleCompact}
+          updateSessionOverrides={updateSessionOverrides}
+          clearSession={clearSession}
+          handleExportTranscript={handleExportTranscript}
+          studentAnswer={studentAnswer}
+        />
 
-      <TutorChatArea
-        messages={messages}
-        isGenerating={isGenerating}
-        isCompact={isCompact}
-        streamedContent={streamedContent}
-        sketchStatus={sketchStatus}
-        copiedId={copiedId}
-        showScrollButton={showScrollButton}
-        scrollAreaRef={scrollAreaRef}
-        messagesEndRef={messagesEndRef}
-        handleCopyMessage={handleCopyMessage}
-        handleRegenerate={() => void handleRegenerate()}
-        handleSend={(content) => void handleSend(content)}
-        scrollToBottom={scrollToBottom}
-        setShowScrollButton={setShowScrollButton}
-      />
+        <TutorChatArea
+          messages={messages}
+          isGenerating={isGenerating}
+          isCompact={isCompact}
+          streamedContent={streamedContent}
+          sketchStatus={sketchStatus}
+          copiedId={copiedId}
+          showScrollButton={showScrollButton}
+          scrollAreaRef={scrollAreaRef}
+          messagesEndRef={messagesEndRef}
+          handleCopyMessage={handleCopyMessage}
+          handleRegenerate={() => void handleRegenerate()}
+          handleSend={(content) => void handleSend(content)}
+          scrollToBottom={scrollToBottom}
+          setShowScrollButton={setShowScrollButton}
+        />
 
-      <TutorInputArea
-        isCompact={isCompact}
-        isGenerating={isGenerating}
-        inputValue={inputValue}
-        includeSketch={includeSketch}
-        sketchStatus={sketchStatus}
-        sketchDataUrl={sketchDataUrl}
-        image={image}
-        messages={messages}
-        setInputValue={setInputValue}
-        setIncludeSketch={setIncludeSketch}
-        handleSend={() => void handleSend()}
-        handleKeyDown={handleKeyDown}
-        handleDiagnosticRequest={handleDiagnosticRequest}
-        handlePullLatestSketch={() => void handlePullLatestSketch()}
-      />
-    </div>
+        <TutorInputArea
+          isCompact={isCompact}
+          isGenerating={isGenerating}
+          inputValue={inputValue}
+          includeSketch={includeSketch}
+          sketchStatus={sketchStatus}
+          sketchDataUrl={sketchDataUrl}
+          image={image}
+          messages={messages}
+          setInputValue={setInputValue}
+          setIncludeSketch={setIncludeSketch}
+          handleSend={() => void handleSend()}
+          handleKeyDown={handleKeyDown}
+          handleDiagnosticRequest={handleDiagnosticRequest}
+          handlePullLatestSketch={() => void handlePullLatestSketch()}
+        />
+      </div>
     </>
   );
 }

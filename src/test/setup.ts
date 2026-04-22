@@ -81,7 +81,20 @@ vi.mock('@material/material-color-utilities', () => {
     hexFromArgb: (argb: number) =>
       `#${(argb & 0xffffff).toString(16).padStart(6, '0')}`,
     Hct: {
-      fromInt: (argb: number) => ({ argb }),
+      fromInt: (argb: number) => ({
+        argb,
+        hue: 0,
+        chroma: 0,
+        tone: 0,
+        toInt: () => argb,
+      }),
+      from: (h: number, c: number, t: number) => ({
+        argb: 0,
+        hue: h,
+        chroma: c,
+        tone: t,
+        toInt: () => 0,
+      }),
     },
     MaterialDynamicColors: Object.fromEntries(
       Object.entries(colorValues).map(([key, value]) => [
