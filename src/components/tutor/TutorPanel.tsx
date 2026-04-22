@@ -945,7 +945,7 @@ const TutorInputArea = ({
             onKeyDown={handleKeyDown}
             placeholder={'Type your message here...'}
             className={cn(
-              'resize-none pr-12 focus-visible:ring-primary/20 bg-background/40 border-border/30 backdrop-blur-sm transition-all',
+              'resize-none pr-12 focus-visible:ring-primary/20 bg-background/40 border-border/30 backdrop-blur-sm transition-all overflow-hidden',
               isCompact
                 ? 'text-[11px] py-2.5 rounded-xl min-h-10 h-10'
                 : 'text-xs py-3 rounded-2xl min-h-11 h-11',
