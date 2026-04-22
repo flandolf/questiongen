@@ -1,7 +1,10 @@
 {
   "name": "General Mathematics",
   "icon": "Calculator",
-  "examPdfs": ["2025-GeneralMaths1.pdf", "2025-GeneralMaths2.pdf"],
+  "examPdfs": [
+    "2025-GeneralMaths1.pdf",
+    "2025-GeneralMaths2.pdf"
+  ],
   "reportPdfs": [
     "2025-GeneralMaths1-Report.pdf",
     "2025-GeneralMaths2-Report.pdf"
@@ -134,7 +137,9 @@
       "technique_notes": {
         "core_concepts": "Design questions using first-order linear matrix recurrence relations $S_{n+1} = T S_n$ to model population movement or market share. Include tasks to construct the transition matrix $T$ from a diagram or table, generate subsequent state matrices, and identify the equilibrium state matrix informally. Extend to populations with culling or restocking using $S_{n+1} = T S_n + B$.",
         "exam_style_guidelines": "Always require students to interpret the elements of the state matrix in the context of the problem.",
-        "anti_prompts": ["Avoid complex steady-state proofs using eigenvalues"],
+        "anti_prompts": [
+          "Avoid complex steady-state proofs using eigenvalues"
+        ],
         "tech_free_rules": "Limit to two states and 1-2 iterations.",
         "tech_active_rules": "Investigate long-term trends and the effect of different starting states."
       },
@@ -337,7 +342,9 @@
       "technique_notes": {
         "core_concepts": "Develop questions on advanced matrix types (diagonal, symmetric, binary, permutation) and the transpose of a matrix. Include tasks to calculate the determinant and inverse of 2x2 matrices and solve matrix equations. Apply matrices to round-robin tournaments (dominance) and communication networks.",
         "exam_style_guidelines": "Always check for the existence of an inverse ($\\Delta \\neq 0$).",
-        "anti_prompts": ["Avoid manual calculation of 3x3 determinants"],
+        "anti_prompts": [
+          "Avoid manual calculation of 3x3 determinants"
+        ],
         "tech_free_rules": "Focus on 2x2 algebra and simple ranking systems.",
         "tech_active_rules": "Use higher-order matrices to model complex structural relationships."
       },

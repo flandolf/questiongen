@@ -71,9 +71,17 @@ export function generateM3Theme(
 
   // Base colors
   const colors: Record<string, string> = {
-    '--background': toHex(MaterialDynamicColors.surface),
+    '--background': isDark
+      ? toHex(MaterialDynamicColors.surface)
+      : hexFromArgb(
+          Hct.from(hct.hue, Math.min(hct.chroma, 4), 98.5).toInt(),
+        ),
     '--foreground': toHex(MaterialDynamicColors.onSurface),
-    '--card': toHex(MaterialDynamicColors.surfaceContainerLow),
+    '--card': isDark
+      ? toHex(MaterialDynamicColors.surfaceContainerLow)
+      : hexFromArgb(
+          Hct.from(hct.hue, Math.min(hct.chroma, 2), 99.6).toInt(),
+        ),
     '--card-foreground': toHex(MaterialDynamicColors.onSurface),
     '--popover': toHex(MaterialDynamicColors.surfaceContainerHigh),
     '--popover-foreground': toHex(MaterialDynamicColors.onSurface),
@@ -90,7 +98,11 @@ export function generateM3Theme(
     '--border': toHex(MaterialDynamicColors.outlineVariant),
     '--input': toHex(MaterialDynamicColors.outlineVariant),
     '--ring': toHex(MaterialDynamicColors.primary),
-    '--sidebar': toHex(MaterialDynamicColors.surfaceContainerLow),
+    '--sidebar': isDark
+      ? toHex(MaterialDynamicColors.surfaceContainerLow)
+      : hexFromArgb(
+          Hct.from(hct.hue, Math.min(hct.chroma, 4), 97.5).toInt(),
+        ),
     '--sidebar-foreground': toHex(MaterialDynamicColors.onSurface),
     '--sidebar-primary': toHex(MaterialDynamicColors.primary),
     '--sidebar-primary-foreground': toHex(MaterialDynamicColors.onPrimary),
@@ -105,25 +117,21 @@ export function generateM3Theme(
     '--tracking-wide': '0.025em',
   };
 
-  // Add subtle shadows that adapt to brightness
-  const shadowOpacity = isDark ? '0.2' : '0.05';
-  const shadowColor = isDark ? '0 0 0' : '0 0 0'; // Keep black for shadows
+  // Add subtle shadows that adapt to brightness and hue
+  const hue = hct.hue;
+  const shadowOpacity = isDark ? '0.2' : '0.04';
+  const shadowBase = isDark 
+    ? `oklch(0.1 0.02 ${hue} / ` 
+    : `oklch(0.2 0.02 ${hue} / `;
 
-  colors['--shadow-2xs'] =
-    `0px 1px 2px 0px rgb(${shadowColor} / ${isDark ? '0.1' : '0.02'})`;
-  colors['--shadow-xs'] =
-    `0px 1px 2px 0px rgb(${shadowColor} / ${isDark ? '0.1' : '0.02'})`;
-  colors['--shadow-sm'] =
-    `0px 1px 2px 0px rgb(${shadowColor} / ${shadowOpacity})`;
-  colors['--shadow'] = `0px 1px 2px 0px rgb(${shadowColor} / ${shadowOpacity})`;
-  colors['--shadow-md'] =
-    `0px 2px 4px 0px rgb(${shadowColor} / ${shadowOpacity})`;
-  colors['--shadow-lg'] =
-    `0px 4px 8px 0px rgb(${shadowColor} / ${shadowOpacity})`;
-  colors['--shadow-xl'] =
-    `0px 8px 16px 0px rgb(${shadowColor} / ${shadowOpacity})`;
-  colors['--shadow-2xl'] =
-    `0px 12px 24px 0px rgb(${shadowColor} / ${isDark ? '0.3' : '0.1'})`;
+  colors['--shadow-2xs'] = `0px 1px 2px 0px ${shadowBase}${isDark ? '0.1' : '0.02'})`;
+  colors['--shadow-xs'] = `0px 1px 2px 0px ${shadowBase}${isDark ? '0.1' : '0.02'})`;
+  colors['--shadow-sm'] = `0px 2px 4px 0px ${shadowBase}${shadowOpacity})`;
+  colors['--shadow'] = `0px 4px 8px 0px ${shadowBase}${shadowOpacity})`;
+  colors['--shadow-md'] = `0px 8px 16px 0px ${shadowBase}${shadowOpacity})`;
+  colors['--shadow-lg'] = `0px 12px 24px 0px ${shadowBase}${shadowOpacity})`;
+  colors['--shadow-xl'] = `0px 20px 40px 0px ${shadowBase}${shadowOpacity})`;
+  colors['--shadow-2xl'] = `0px 32px 64px 0px ${shadowBase}${isDark ? '0.3' : '0.08'})`;
 
   return colors;
 }

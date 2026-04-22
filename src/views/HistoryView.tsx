@@ -428,9 +428,9 @@ const McEntryCard = memo(function McEntryCard({
                 </span>
                 <Badge
                   variant='secondary'
-                  className='shrink-0 text-[10px]  bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 py-0.5 h-auto'
+                  className='shrink-0 text-[10px] font-bold bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30 py-0.5 h-auto'
                 >
-                  MC
+                  Multiple Choice
                 </Badge>
                 <CloudStatusIndicator
                   isUploaded={item.isUploaded}
@@ -617,7 +617,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                 </span>
                 <Badge
                   variant='secondary'
-                  className='shrink-0 text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 py-0.5 h-auto'
+                  className='shrink-0 text-[10px] font-bold bg-sky-500/5 text-sky-600 border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/30 py-0.5 h-auto'
                 >
                   Written
                 </Badge>
@@ -776,7 +776,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                       <span
                         className={`shrink-0 font-bold text-sm whitespace-nowrap self-start px-2 py-0.5 rounded-sm ${
                           isFullMarks
-                            ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300'
+                            ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >

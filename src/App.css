@@ -140,38 +140,41 @@ body,
 
   /* Question content containers */
   .question-card {
-    @apply bg-card rounded-xl border border-border/20 p-5 sm:p-6;
-    background-color: color-mix(in oklab, var(--card) 40%, transparent);
+    @apply bg-card rounded-xl border border-border/40 p-5 sm:p-6 shadow-sm;
   }
 
   .question-prompt {
-    @apply text-lg leading-relaxed text-foreground;
+    @apply text-lg leading-relaxed text-foreground font-medium tracking-tight;
   }
 
   .question-meta {
-    @apply flex items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/70;
+    @apply flex items-center gap-x-4 gap-y-2 text-xs text-muted-foreground/80;
   }
 
   /* MC option cards */
   .mc-option {
-    @apply p-4 sm:p-5 rounded-lg border border-transparent hover:bg-muted/30 cursor-pointer transition-all duration-150;
+    @apply p-4 sm:p-5 rounded-lg border border-border/10 hover:bg-muted/50 hover:border-border/30 cursor-pointer transition-all duration-150;
   }
 
   .mc-option-selected {
-    @apply border-violet-500/30 bg-violet-500/5;
+    @apply border-primary/40 bg-primary/10;
   }
 
   .mc-option-correct {
-    @apply border-emerald-500/30 bg-emerald-500/5;
+    @apply border-emerald-500/40 bg-emerald-500/10;
   }
 
   .mc-option-label {
-    @apply w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm font-semibold;
+    @apply w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm font-bold bg-muted/50 text-muted-foreground;
+  }
+
+  .mc-option-selected .mc-option-label {
+    @apply bg-primary text-primary-foreground;
   }
 
   /* Written response */
   .written-textarea {
-    @apply min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30;
+    @apply min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/30 focus-visible:ring-primary/30 focus-visible:border-primary/30 bg-card/50;
   }
 
   /* Feedback panel sections */

@@ -20,15 +20,15 @@ export function isMathTopic(topic?: string): boolean {
 export function getDifficultyBadgeClasses(level: Difficulty): string {
   switch (level) {
     case 'Essential Skills':
-      return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300';
+      return 'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400';
     case 'Easy':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300';
+      return 'border-green-500/20 bg-green-500/5 text-green-600 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400';
     case 'Medium':
-      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300';
+      return 'border-amber-500/20 bg-amber-500/5 text-amber-600 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400';
     case 'Hard':
-      return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/50 dark:bg-orange-950/20 dark:text-orange-300';
+      return 'border-orange-500/20 bg-orange-500/5 text-orange-600 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400';
     case 'Extreme':
-      return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300';
+      return 'border-rose-500/20 bg-rose-500/5 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400';
     default:
       return '';
   }

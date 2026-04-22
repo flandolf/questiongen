@@ -512,44 +512,6 @@ const QuestionRow = memo(function QuestionRow({
           )}
         </div>
       </div>
-
-      {(timeUsed || timeLimit) && (
-        <div className='hidden md:flex flex-col items-end gap-1 shrink-0 px-6 border-r border-border/10'>
-          <span className='text-[9px] uppercase tracking-widest text-muted-foreground/30 font-black'>
-            Timing
-          </span>
-          <div className='flex items-center gap-2 font-mono text-xs'>
-            <span className='text-foreground/80 font-bold tabular-nums'>
-              {timeUsed ?? '--:--'}
-            </span>
-            <span className='text-muted-foreground/20'>/</span>
-            <span className='text-muted-foreground/40 tabular-nums'>
-              {timeLimit ?? '--:--'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div className='flex flex-col items-end gap-1 shrink-0 min-w-25'>
-        <span className='text-[9px] tracking-widest text-muted-foreground/30 font-black'>
-          Result
-        </span>
-        <div className='flex items-center gap-3'>
-          {scoreLabel && (
-            <span
-              className='text-xs font-black tabular-nums tracking-tighter'
-              style={{ color }}
-            >
-              {scoreLabel}
-            </span>
-          )}
-          {correct ? (
-            <CheckCircle2 className='w-4.5 h-4.5 text-[oklch(0.72_0.18_150)] shrink-0' />
-          ) : (
-            <XCircle className='w-4.5 h-4.5 text-[oklch(0.62_0.18_25)] shrink-0' />
-          )}
-        </div>
-      </div>
     </motion.div>
   );
 });
