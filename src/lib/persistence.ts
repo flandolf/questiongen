@@ -144,6 +144,15 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
   if (isTauriRuntime()) {
     try {
       const persisted = await invoke<unknown>('load_persisted_state');
+
+      // Once successfully loaded from Tauri, clear the redundant localStorage fallback
+      // to free up quota for other services (like Firebase).
+      try {
+        window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
+      } catch {
+        /* Ignore cleanup errors */
+      }
+
       let decoded: unknown = persisted;
       if (typeof persisted === 'string') {
         const parsed: unknown = JSON.parse(persisted);
@@ -183,6 +192,7 @@ export async function savePersistedAppState(
     return;
   }
 
+  // Web fallback only
   try {
     window.localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
   } catch (err) {
